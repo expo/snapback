@@ -16,12 +16,15 @@ resulting patch is placed directly in `LiveGraphDeltaWireOpV1.row`, copied into
 
 - full-row key union: `crates/snapback-engine/src/graph_evaluator.rs:3588-3620`;
 - wire op construction: `crates/snapback-engine/src/graph_evaluator.rs:3849-3867`;
-- unchanged copy into the frame: `crates/snapback-engine/src/local/engine.rs:34618-34648`.
+- unchanged copy into the frame: `crates/snapback-engine/src/local/engine.rs:34633-34663`.
 
-The existing evaluator unit test explicitly expects a system-field diff. The
-frozen graph corpus does not reveal the defect because its fixture changes only
-projected fields and its oracle compares convergence after applying the same
-unfiltered operation.
+The Stage B audit now reproduces this dynamically. It establishes and mutates
+all three eligible graph corpus subscriptions, executes their case-shaped E3
+or E4 reference forms, and compares the reference `projection_fields` with the
+keys actually serialized in each shipped graph operation. The shipped field
+set is strictly larger for at least one eligible frame. The frozen disposition
+artifact is used only as the closed case inventory; it is not the oracle for
+this finding.
 
 This is LLP 0309 §D4.2 class **(b)**: a shipped defect. The Stage A E3/E4
 reference forms emit only `projection_fields`; there is no reference-semantics
@@ -41,4 +44,5 @@ bytes.
   by their projection address.
 - Applying the filtered operation still converges with a fresh result.
 - The frozen graph corpus and LLP 0309 Stage A corpus stay green.
-
+- `cargo test -p snapback --test delta_semantics_stage_b_audit_v1` flips this
+  executed class-(b) reproduction to agreement after the repair.

@@ -14,6 +14,7 @@ use snapback::local::{LiveSubscribeInput, LocalSnapback};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, FilterExpr, FilterOp as ShippedFilterOp,
     FunctionDefinition, FunctionKind, FunctionManifest, FunctionResultContract, FunctionRuntime,
+    GraphNodeV1, GraphProjectionObjectV1, GraphProjectionValueV1, GraphToOnePresenceV1,
     HandlerInput, HandlerPlan, MutationPlan, MutationStep, OrderDirection, OrderExpr, QueryPlan,
     ResultObjectFieldContract, ResultValueContract, ReturnValue, SchemaManifest, TableManifest,
     TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
@@ -21,14 +22,18 @@ use snapback::manifest::{
 use snapback_delta_semantics::{
     Admission, AdmissionGrain, AdmitConfig, AdmitInput, AdmitState, AppBatch, AppChange,
     ChangeOp as ReferenceChangeOp, CompletenessLabel, DeltaZBatch, DeltaZEntry, Direction,
-    Filter as ReferenceFilter, FilterOp as ReferenceFilterOp, FormVerdict, Interval, LookupConfig,
-    LookupDelta, LookupInput, LookupScopeState, LookupState, OrderField, Presence, RankKey,
-    RankedRow, ReadTranscript, Visibility, WindowConfig, WindowState, evaluate_admit,
-    evaluate_lookup, evaluate_window,
+    FallbackReason, Filter as ReferenceFilter, FilterOp as ReferenceFilterOp, FormVerdict,
+    Interval, LookupConfig, LookupDeltaOp, LookupInput, LookupScopeState, LookupState, OrderField,
+    Presence, RankKey, RankedRow, ReadPair, ReadRequest, ReadResponse, ReadTranscript, SeqOp,
+    SupportConfig, SupportEdgeKind, SupportInput, SupportMode, SupportState, Visibility,
+    WindowConfig, WindowState, evaluate_admit, evaluate_lookup, evaluate_support, evaluate_window,
 };
 use snapback_kernel::storage::{ChangeOp as ShippedChangeOp, ChangedRow};
 
-const AUDITED_COMMIT: &str = "70c81c755da3e87f24fbce31157c948a7881c6cd";
+#[path = "support/graph_stage_b.rs"]
+mod graph_stage_b;
+
+const AUDITED_COMMIT: &str = "d9cc8c544ea21bf28abe08d242fc896e9dd47511";
 const GRAPH_DISPOSITIONS: &str = "tests/conformance/graph/delta-dispositions.v1.json";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -312,107 +317,888 @@ fn assert_dk3_agreement(
     assert_eq!(shipped, reference, "{case}: shipped/reference disagreement");
 }
 
-fn reference_root_patch() -> FormVerdict<snapback_delta_semantics::DeltaSeq, WindowState> {
-    let prior = row(json!({
-        "_id":"r1", "rank":1, "title":"before", "secret":"held"
-    }));
-    let post = row(json!({
-        "_id":"r1", "rank":1, "title":"after", "secret":"changed"
-    }));
+fn reference_admit_batch(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    retained: BTreeMap<String, BTreeMap<String, Value>>,
+    changes: &[ChangedRow],
+    grain: AdmissionGrain,
+    rank_order: Vec<OrderField>,
+) -> FormVerdict<DeltaZBatch, AdmitState> {
+    let visibility = reference_visibility(plan, input)
+        .expect("reference admission shape has row-local visibility");
+    let filters = plan
+        .filters
+        .iter()
+        .map(|filter| reference_filter(filter, input))
+        .collect::<Option<Vec<_>>>()
+        .expect("reference admission filters are representable");
+    evaluate_admit(
+        &AdmitConfig {
+            visibility,
+            filters,
+            grain,
+            rank_order,
+            probe_relation: false,
+        },
+        AdmitState { retained },
+        AdmitInput {
+            changes: AppBatch {
+                changes: changes
+                    .iter()
+                    .filter(|change| change.table == plan.table)
+                    .map(|change| AppChange {
+                        row_key: change.id.clone(),
+                        op: match change.op {
+                            ShippedChangeOp::Insert => ReferenceChangeOp::Insert,
+                            ShippedChangeOp::Update => ReferenceChangeOp::Update,
+                            ShippedChangeOp::Delete => ReferenceChangeOp::Delete,
+                        },
+                        post_image: change.row.clone().map(row),
+                        pre_image: None,
+                        changed_fields: change.changed_fields.iter().cloned().collect(),
+                    })
+                    .collect(),
+            },
+            ..AdmitInput::default()
+        },
+        &ReadTranscript::default(),
+    )
+}
+
+fn execute_dk3_window_reference(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    retained_rows: Vec<BTreeMap<String, Value>>,
+    changes: &[ChangedRow],
+    order: Vec<OrderField>,
+    take: usize,
+    complete: bool,
+) -> FormVerdict<snapback_delta_semantics::DeltaSeq, WindowState> {
+    let retained = retained_rows
+        .iter()
+        .map(|row| {
+            (
+                row.get("_id").and_then(Value::as_str).unwrap().to_owned(),
+                row.clone(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let admit = reference_admit_batch(
+        plan,
+        input,
+        retained.clone(),
+        changes,
+        AdmissionGrain::Window,
+        order.clone(),
+    );
+    let FormVerdict::Maintain { delta_out, .. } = admit else {
+        let FormVerdict::Fallback { reason } = admit else {
+            unreachable!()
+        };
+        return FormVerdict::Fallback { reason };
+    };
+    let rows = retained
+        .iter()
+        .map(|(row_key, row)| RankedRow {
+            row_key: row_key.clone(),
+            rank_keys: reference_rank(row, &order, row_key),
+            row: row.clone(),
+        })
+        .collect::<Vec<_>>();
+    let boundary = rows.last().map(|row| row.rank_keys.clone());
     evaluate_window(
         &WindowConfig {
-            window_id: "root".to_owned(),
-            order: vec![OrderField {
-                field: "rank".to_owned(),
-                direction: Direction::Asc,
-            }],
+            window_id: "dk3-reference-window".to_owned(),
+            order,
             interval: Interval::default(),
-            take: 10,
-            projection_fields: BTreeSet::from(["title".to_owned()]),
+            take,
+            projection_fields: BTreeSet::from([
+                "_id".to_owned(),
+                "title".to_owned(),
+                "userId".to_owned(),
+            ]),
         },
         WindowState {
-            rows: vec![RankedRow {
-                row_key: "r1".to_owned(),
-                rank_keys: RankKey {
-                    values: vec![json!(1)],
-                    row_key: "r1".to_owned(),
-                },
-                row: prior.clone(),
-            }],
-            boundary: Some(RankKey {
-                values: vec![json!(1)],
-                row_key: "r1".to_owned(),
-            }),
-            result_count: 1,
-            complete: true,
-            label: CompletenessLabel::Complete,
-            continuation: None,
-        },
-        DeltaZBatch {
-            entries: vec![DeltaZEntry {
-                row_key: "r1".to_owned(),
-                op: ReferenceChangeOp::Update,
-                post_image: Some(post),
-                pre_image: Some(prior),
-                admit: Admission::StayIn,
-                rank_keys: vec![json!(1)],
-            }],
-        },
-        &ReadTranscript::default(),
-    )
-}
-
-fn reference_lookup_patch() -> FormVerdict<LookupDelta, LookupState> {
-    let prior = row(json!({
-        "_id":"c1", "_version":1, "parentID":"r1", "name":"before", "secret":"held"
-    }));
-    let post = row(json!({
-        "_id":"c1", "_version":2, "parentID":"r1", "name":"after", "secret":"changed"
-    }));
-    evaluate_lookup(
-        &LookupConfig {
-            index: "by_parent".to_owned(),
-            parent_join_fields: vec!["_id".to_owned()],
-            child_join_fields: vec!["parentID".to_owned()],
-            presence: Presence::Optional,
-            projection_fields: BTreeSet::from(["name".to_owned()]),
-        },
-        LookupState {
-            scopes: BTreeMap::from([(
-                "r1".to_owned(),
-                LookupScopeState {
-                    lookup_key: Some(vec![json!("r1")]),
-                    child_key: Some("c1".to_owned()),
-                    found: true,
-                    row_version: Some(1),
-                },
-            )]),
-            children: BTreeMap::from([("c1".to_owned(), prior.clone())]),
-        },
-        LookupInput {
-            parent: DeltaZBatch::default(),
-            child: DeltaZBatch {
-                entries: vec![DeltaZEntry {
-                    row_key: "c1".to_owned(),
-                    op: ReferenceChangeOp::Update,
-                    post_image: Some(post),
-                    pre_image: Some(prior),
-                    admit: Admission::StayIn,
-                    rank_keys: Vec::new(),
-                }],
+            result_count: rows.len(),
+            rows,
+            boundary: boundary.clone(),
+            complete,
+            label: if complete {
+                CompletenessLabel::Complete
+            } else {
+                CompletenessLabel::Incomplete
             },
+            continuation: boundary,
         },
+        delta_out,
         &ReadTranscript::default(),
     )
 }
 
-fn source_segment<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
-    let start = source
-        .find(start)
-        .unwrap_or_else(|| panic!("missing {start}"));
-    let tail = &source[start..];
-    let end = tail.find(end).unwrap_or_else(|| panic!("missing {end}"));
-    &tail[..end]
+fn execute_membership_reference(
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    change: &ChangedRow,
+) -> FormVerdict<snapback_delta_semantics::DeltaBit, SupportState> {
+    let mut admitted_plan = plan.clone();
+    admitted_plan.membership_filters.clear();
+    admitted_plan.table_visibility = Some(TableVisibilityV1::PublicRead);
+    let admit = reference_admit_batch(
+        &admitted_plan,
+        input,
+        BTreeMap::new(),
+        std::slice::from_ref(change),
+        AdmissionGrain::CompleteScope,
+        Vec::new(),
+    );
+    let FormVerdict::Maintain { delta_out, .. } = admit else {
+        panic!("membership carrier E0 must maintain");
+    };
+    let scope = change.id.clone();
+    evaluate_support(
+        &SupportConfig {
+            edge: "todo_members".to_owned(),
+            edge_kind: SupportEdgeKind::Direct,
+            mode: SupportMode::Exists,
+            parent_join_fields: vec!["projectId".to_owned()],
+            support_join_fields: vec!["projectId".to_owned()],
+            through_target_field: None,
+        },
+        SupportState::default(),
+        SupportInput {
+            parent: delta_out,
+            ..SupportInput::default()
+        },
+        &ReadTranscript(vec![ReadPair {
+            request: ReadRequest::Probe {
+                edge: "todo_members".to_owned(),
+                scope,
+                element: None,
+            },
+            response: ReadResponse::Probe {
+                rows: vec![row(json!({"_id":"member-1","projectId":"p1"}))],
+            },
+        }]),
+    )
+}
+
+#[derive(Debug)]
+enum GraphReferenceState {
+    Window { node_id: String, state: WindowState },
+    Lookup { node_id: String, state: LookupState },
+    Composite(Vec<GraphReferenceState>),
+}
+
+#[derive(Debug)]
+struct ReferenceWirePatch {
+    node_id: String,
+    root_key: String,
+    key: String,
+    row: BTreeMap<String, Value>,
+}
+
+#[derive(Debug)]
+enum GraphReferenceMirror {
+    Maintain {
+        form: &'static str,
+        projected_fields: BTreeSet<String>,
+        patches: Vec<ReferenceWirePatch>,
+        next_state: GraphReferenceState,
+    },
+    Fallback {
+        form: &'static str,
+        reason: FallbackReason,
+    },
+    Gap(String),
+}
+
+fn graph_projection_fields(
+    object: &GraphProjectionObjectV1,
+    fields: &mut BTreeMap<String, BTreeSet<String>>,
+) {
+    for field in &object.fields {
+        match &field.value {
+            GraphProjectionValueV1::Field { node_id, field } => {
+                fields
+                    .entry(node_id.clone())
+                    .or_default()
+                    .insert(field.clone());
+            }
+            GraphProjectionValueV1::Object { object, .. }
+            | GraphProjectionValueV1::Array { item: object, .. } => {
+                graph_projection_fields(object, fields);
+            }
+            GraphProjectionValueV1::Literal { .. } | GraphProjectionValueV1::Exists { .. } => {}
+        }
+    }
+}
+
+fn projection_fields_by_node(
+    plan: &snapback::manifest::GraphQueryPlanV1,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut fields = BTreeMap::new();
+    let projection = plan
+        .nodes
+        .iter()
+        .find_map(|node| match node {
+            GraphNodeV1::ClosedProjection { object, .. } => Some(object),
+            _ => None,
+        })
+        .expect("closed graph projection");
+    graph_projection_fields(projection, &mut fields);
+    fields
+}
+
+fn reference_order(order: &[OrderExpr]) -> Vec<OrderField> {
+    order
+        .iter()
+        .map(|order| OrderField {
+            field: order.field.clone(),
+            direction: match order.direction {
+                OrderDirection::Asc => Direction::Asc,
+                OrderDirection::Desc => Direction::Desc,
+            },
+        })
+        .collect()
+}
+
+fn reference_rank(row: &BTreeMap<String, Value>, order: &[OrderField], row_key: &str) -> RankKey {
+    RankKey {
+        values: order
+            .iter()
+            .map(|field| row.get(&field.field).cloned().unwrap_or(Value::Null))
+            .collect(),
+        row_key: row_key.to_owned(),
+    }
+}
+
+fn graph_reference_root(
+    replay: &graph_stage_b::GraphReplay,
+    node_id: &str,
+) -> GraphReferenceMirror {
+    let Some(GraphNodeV1::RootWindow { order, .. }) = replay
+        .plan
+        .nodes
+        .iter()
+        .find(|node| node.node_id() == node_id)
+    else {
+        return GraphReferenceMirror::Gap(format!("{node_id}: matched node is not E3"));
+    };
+    let order = reference_order(order);
+    let retained_ids = replay.before["orderedRootKeys"]
+        .as_array()
+        .expect("predecessor root keys")
+        .iter()
+        .map(|key| key["id"].as_str().expect("physical root id").to_owned())
+        .collect::<Vec<_>>();
+    let retained = retained_ids
+        .iter()
+        .map(|id| {
+            let retained_value = replay
+                .before_rows
+                .iter()
+                .find(|row| row["_id"] == id.as_str())
+                .unwrap_or_else(|| panic!("retained root {id} in changed table"));
+            (id.clone(), row(retained_value.clone()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let change = replay.change.as_ref().expect("commit replay change");
+    let pre = replay
+        .before_rows
+        .iter()
+        .find(|candidate| candidate["_id"] == change.id)
+        .cloned()
+        .map(row);
+    let post = change.row.clone().map(row);
+    let successor_ids = replay.after["orderedRootKeys"]
+        .as_array()
+        .expect("successor root keys")
+        .iter()
+        .map(|key| key["id"].as_str().expect("physical root id").to_owned())
+        .collect::<BTreeSet<_>>();
+    let was_retained = retained.contains_key(&change.id);
+    let is_retained = successor_ids.contains(&change.id);
+    let admission = match (was_retained, is_retained) {
+        (false, false) => Admission::StayOut,
+        (false, true) => Admission::Enter,
+        (true, true) => Admission::StayIn,
+        (true, false) => Admission::Leave,
+    };
+    let rank_keys = post
+        .as_ref()
+        .or(pre.as_ref())
+        .map(|image| reference_rank(image, &order, &change.id))
+        .unwrap_or_else(|| RankKey {
+            values: Vec::new(),
+            row_key: change.id.clone(),
+        });
+    let delta_out = DeltaZBatch {
+        entries: vec![DeltaZEntry {
+            row_key: change.id.clone(),
+            op: ReferenceChangeOp::Update,
+            post_image: post,
+            pre_image: pre,
+            admit: admission,
+            rank_keys: rank_keys.values,
+        }],
+    };
+    let demand = replay.call["windows"]
+        .as_array()
+        .expect("graph windows")
+        .iter()
+        .find(|window| window["nodeId"] == node_id)
+        .expect("matched root window demand");
+    let take = demand["intervals"][0]["window"]["take"]
+        .as_u64()
+        .expect("window take") as usize;
+    let capture = replay.before["capturedDependencies"]
+        .as_array()
+        .expect("captured graph dependencies")
+        .iter()
+        .find(|capture| capture["nodeId"] == node_id)
+        .expect("root capture");
+    let complete = capture["dependency"]["complete"]
+        .as_bool()
+        .expect("root capture completeness");
+    let rows = retained_ids
+        .iter()
+        .map(|id| {
+            let retained_row = retained.get(id).expect("retained root row").clone();
+            RankedRow {
+                row_key: id.clone(),
+                rank_keys: reference_rank(&retained_row, &order, id),
+                row: retained_row,
+            }
+        })
+        .collect::<Vec<_>>();
+    let boundary = rows.last().map(|row| row.rank_keys.clone());
+    let projection_fields = projection_fields_by_node(&replay.plan)
+        .remove(node_id)
+        .unwrap_or_default();
+    match evaluate_window(
+        &WindowConfig {
+            window_id: node_id.to_owned(),
+            order,
+            interval: Interval::default(),
+            take,
+            projection_fields,
+        },
+        WindowState {
+            result_count: rows.len(),
+            rows,
+            boundary: boundary.clone(),
+            complete,
+            label: if complete {
+                CompletenessLabel::Complete
+            } else {
+                CompletenessLabel::Incomplete
+            },
+            continuation: boundary,
+        },
+        delta_out,
+        &ReadTranscript::default(),
+    ) {
+        FormVerdict::Maintain {
+            delta_out,
+            next_state,
+        } => {
+            let patches = delta_out
+                .ops
+                .iter()
+                .filter_map(|op| match op {
+                    SeqOp::Patch { row_key, post, .. } => Some(ReferenceWirePatch {
+                        node_id: node_id.to_owned(),
+                        root_key: row_key.clone(),
+                        key: row_key.clone(),
+                        row: post.clone(),
+                    }),
+                    _ => None,
+                })
+                .collect();
+            let projected_fields = delta_out
+                .ops
+                .iter()
+                .filter_map(|op| match op {
+                    SeqOp::Patch { post, .. } => Some(post.keys().cloned()),
+                    _ => None,
+                })
+                .flatten()
+                .collect();
+            GraphReferenceMirror::Maintain {
+                form: "E3",
+                projected_fields,
+                patches,
+                next_state: GraphReferenceState::Window {
+                    node_id: node_id.to_owned(),
+                    state: next_state,
+                },
+            }
+        }
+        FormVerdict::Fallback { reason } => GraphReferenceMirror::Fallback { form: "E3", reason },
+    }
+}
+
+fn node_has_to_many_ancestor(plan: &snapback::manifest::GraphQueryPlanV1, node_id: &str) -> bool {
+    let mut current = node_id;
+    loop {
+        let Some(node) = plan.nodes.iter().find(|node| node.node_id() == current) else {
+            return false;
+        };
+        let parent = match node {
+            GraphNodeV1::EqualityToOne { parent_node_id, .. }
+            | GraphNodeV1::BoundedToMany { parent_node_id, .. }
+            | GraphNodeV1::ExistsSemiJoin { parent_node_id, .. }
+            | GraphNodeV1::PrincipalBound { parent_node_id, .. } => parent_node_id,
+            _ => return false,
+        };
+        if matches!(
+            plan.nodes.iter().find(|node| node.node_id() == parent),
+            Some(GraphNodeV1::BoundedToMany { .. })
+        ) {
+            return true;
+        }
+        current = parent;
+    }
+}
+
+fn graph_reference_lookup(
+    corpus: &Value,
+    replay: &graph_stage_b::GraphReplay,
+    node_id: &str,
+) -> GraphReferenceMirror {
+    let Some(GraphNodeV1::EqualityToOne {
+        parent_node_id,
+        table,
+        join_on,
+        access_index,
+        presence,
+        ..
+    }) = replay
+        .plan
+        .nodes
+        .iter()
+        .find(|node| node.node_id() == node_id)
+    else {
+        return GraphReferenceMirror::Gap(format!("{node_id}: no E4 case adapter"));
+    };
+    let projection_fields = projection_fields_by_node(&replay.plan)
+        .remove(node_id)
+        .unwrap_or_default();
+    let config = LookupConfig {
+        index: access_index.clone(),
+        parent_join_fields: join_on.iter().map(|join| join.root_field.clone()).collect(),
+        child_join_fields: join_on
+            .iter()
+            .map(|join| join.joined_field.clone())
+            .collect(),
+        presence: match presence {
+            GraphToOnePresenceV1::Optional => Presence::Optional,
+            GraphToOnePresenceV1::Required => Presence::Required,
+        },
+        projection_fields,
+    };
+    let child_rows = if replay
+        .change
+        .as_ref()
+        .is_some_and(|change| change.table == *table)
+    {
+        replay.before_rows.clone()
+    } else {
+        graph_stage_b::corpus_table_rows(corpus, table)
+    };
+    let mut state = LookupState::default();
+    for capture in replay.before["capturedDependencies"]
+        .as_array()
+        .expect("captured graph dependencies")
+        .iter()
+        .filter(|capture| capture["nodeId"] == node_id)
+    {
+        let dependency = &capture["dependency"];
+        let scope = dependency["parentKey"]["id"]
+            .as_str()
+            .expect("E4 parent scope")
+            .to_owned();
+        let child_key = dependency["childKey"]["id"].as_str().map(str::to_owned);
+        state.scopes.insert(
+            scope,
+            LookupScopeState {
+                lookup_key: dependency["lookupKey"]
+                    .as_array()
+                    .map(|values| values.clone()),
+                child_key: child_key.clone(),
+                found: dependency["found"].as_bool().unwrap_or(false),
+                row_version: dependency["rowVersion"].as_u64(),
+            },
+        );
+        if let Some(child_key) = child_key
+            && let Some(child) = child_rows.iter().find(|row| row["_id"] == child_key)
+        {
+            state.children.insert(child_key, row(child.clone()));
+        }
+    }
+    let change = replay.change.as_ref().expect("commit replay change");
+    let before_image = replay
+        .before_rows
+        .iter()
+        .find(|candidate| candidate["_id"] == change.id)
+        .cloned()
+        .map(row);
+    let change_entry = DeltaZEntry {
+        row_key: change.id.clone(),
+        op: ReferenceChangeOp::Update,
+        post_image: change.row.clone().map(row),
+        pre_image: before_image,
+        admit: Admission::StayIn,
+        rank_keys: Vec::new(),
+    };
+    let parent_table = replay
+        .plan
+        .nodes
+        .iter()
+        .find(|node| node.node_id() == parent_node_id)
+        .and_then(|node| match node {
+            GraphNodeV1::RootWindow { table, .. }
+            | GraphNodeV1::EqualityToOne { table, .. }
+            | GraphNodeV1::BoundedToMany { table, .. }
+            | GraphNodeV1::PrincipalBound { table, .. } => Some(table.as_str()),
+            _ => None,
+        });
+    let mut input = LookupInput::default();
+    let mut reads = ReadTranscript::default();
+    if change.table == *table {
+        input.child.entries.push(change_entry);
+    } else if parent_table == Some(change.table.as_str()) {
+        let post = change.row.as_ref().expect("parent update post image");
+        let key = config
+            .parent_join_fields
+            .iter()
+            .map(|field| post.get(field).cloned().unwrap_or(Value::Null))
+            .collect::<Vec<_>>();
+        let child = graph_stage_b::corpus_table_rows(corpus, table)
+            .into_iter()
+            .find(|candidate| {
+                config
+                    .child_join_fields
+                    .iter()
+                    .zip(&key)
+                    .all(|(field, value)| candidate.get(field) == Some(value))
+            })
+            .map(row);
+        reads.0.push(ReadPair {
+            request: ReadRequest::Point {
+                index: config.index.clone(),
+                key,
+            },
+            response: ReadResponse::Point { row: child },
+        });
+        input.parent.entries.push(change_entry);
+    } else {
+        return GraphReferenceMirror::Gap(format!(
+            "{node_id}: changed relation {} is neither E4 parent nor child",
+            change.table
+        ));
+    }
+    let inner = evaluate_lookup(&config, state, input, &reads);
+    if node_has_to_many_ancestor(&replay.plan, node_id) {
+        assert!(matches!(inner, FormVerdict::Maintain { .. }));
+        return GraphReferenceMirror::Fallback {
+            form: "E4+wire-lowering",
+            reason: FallbackReason::WireUnaddressable,
+        };
+    }
+    match inner {
+        FormVerdict::Maintain {
+            delta_out,
+            next_state,
+        } => {
+            let patches = delta_out
+                .ops
+                .iter()
+                .filter_map(|op| match op {
+                    LookupDeltaOp::Patch {
+                        scope,
+                        child_key,
+                        fields,
+                    } => Some(ReferenceWirePatch {
+                        node_id: node_id.to_owned(),
+                        root_key: scope.clone(),
+                        key: child_key.clone(),
+                        row: fields.clone(),
+                    }),
+                    LookupDeltaOp::Presence { .. } => None,
+                })
+                .collect();
+            let projected_fields = delta_out
+                .ops
+                .iter()
+                .filter_map(|op| match op {
+                    LookupDeltaOp::Patch { fields, .. } => Some(fields.keys().cloned()),
+                    LookupDeltaOp::Presence { value, .. } => {
+                        value.as_ref().map(|value| value.keys().cloned())
+                    }
+                })
+                .flatten()
+                .collect();
+            GraphReferenceMirror::Maintain {
+                form: "E4",
+                projected_fields,
+                patches,
+                next_state: GraphReferenceState::Lookup {
+                    node_id: node_id.to_owned(),
+                    state: next_state,
+                },
+            }
+        }
+        FormVerdict::Fallback { reason } => GraphReferenceMirror::Fallback { form: "E4", reason },
+    }
+}
+
+fn assert_graph_reference_state_matches_shipped(
+    corpus: &Value,
+    replay: &graph_stage_b::GraphReplay,
+    state: &GraphReferenceState,
+) -> bool {
+    match state {
+        GraphReferenceState::Window { node_id, state } => {
+            assert!(
+                replay.disposition["matchedNodeIds"]
+                    .as_array()
+                    .expect("executed matched node ids")
+                    .iter()
+                    .any(|matched| matched == node_id),
+                "{}: E3 state belongs to an executed matched node",
+                replay.case["id"],
+            );
+            let shipped_ids = replay.after["orderedRootKeys"]
+                .as_array()
+                .expect("successor root keys")
+                .iter()
+                .map(|key| key["id"].as_str().expect("physical root id"))
+                .collect::<Vec<_>>();
+            let reference_ids = state
+                .rows
+                .iter()
+                .map(|row| row.row_key.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(
+                reference_ids, shipped_ids,
+                "{}: E3 next-state membership/order versus shipped successor",
+                replay.case["id"],
+            );
+            assert_eq!(state.result_count, shipped_ids.len());
+            for reference_row in &state.rows {
+                let shipped_row = replay
+                    .after_rows
+                    .iter()
+                    .find(|row| row["_id"] == reference_row.row_key)
+                    .unwrap_or_else(|| panic!("{}: shipped successor row", reference_row.row_key));
+                for (field, value) in &reference_row.row {
+                    assert_eq!(
+                        shipped_row.get(field),
+                        Some(value),
+                        "{}: E3 next-state field {field}",
+                        replay.case["id"],
+                    );
+                }
+            }
+            true
+        }
+        GraphReferenceState::Lookup { node_id, state } => {
+            let node = replay
+                .plan
+                .nodes
+                .iter()
+                .find(|node| node.node_id() == node_id.as_str())
+                .expect("matched E4 node");
+            let GraphNodeV1::EqualityToOne { table, .. } = node else {
+                panic!("{node_id}: lookup state compared against non-E4 node")
+            };
+            let captures = replay.after["capturedDependencies"]
+                .as_array()
+                .expect("successor captured dependencies")
+                .iter()
+                .filter(|capture| capture["nodeId"] == node_id.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(state.scopes.len(), captures.len());
+            let mut row_versions_match = true;
+            for capture in captures {
+                let dependency = &capture["dependency"];
+                let scope = dependency["parentKey"]["id"]
+                    .as_str()
+                    .expect("E4 successor parent scope");
+                let reference = state.scopes.get(scope).expect("E4 reference scope");
+                assert_eq!(
+                    reference.lookup_key.as_ref(),
+                    dependency["lookupKey"].as_array(),
+                    "{}: E4 lookup-key transition",
+                    replay.case["id"],
+                );
+                assert_eq!(
+                    reference.child_key.as_deref(),
+                    dependency["childKey"]["id"].as_str(),
+                    "{}: E4 child-address transition",
+                    replay.case["id"],
+                );
+                assert_eq!(
+                    reference.found,
+                    dependency["found"].as_bool().unwrap_or(false),
+                    "{}: E4 presence transition",
+                    replay.case["id"],
+                );
+                row_versions_match &= reference.row_version == dependency["rowVersion"].as_u64();
+            }
+            let shipped_rows = if replay
+                .change
+                .as_ref()
+                .is_some_and(|change| change.table == *table)
+            {
+                replay.after_rows.clone()
+            } else {
+                graph_stage_b::corpus_table_rows(corpus, table)
+            };
+            for (child_id, reference_row) in &state.children {
+                let shipped_row = shipped_rows
+                    .iter()
+                    .find(|row| row["_id"] == child_id.as_str())
+                    .unwrap_or_else(|| panic!("{child_id}: shipped E4 successor child"));
+                for (field, value) in reference_row {
+                    assert_eq!(
+                        shipped_row.get(field),
+                        Some(value),
+                        "{}: E4 next-state field {field}",
+                        replay.case["id"],
+                    );
+                }
+            }
+            if !row_versions_match && replay.disposition["lane"] == "delta" {
+                assert_eq!(
+                    replay.before["capturedDependencies"],
+                    replay.after["capturedDependencies"]
+                );
+                assert_eq!(replay.delivery_after, (true, true));
+            }
+            row_versions_match
+        }
+        GraphReferenceState::Composite(states) => {
+            assert!(states.len() > 1, "composite reference owns multiple forms");
+            states.iter().fold(true, |matches, state| {
+                assert_graph_reference_state_matches_shipped(corpus, replay, state) && matches
+            })
+        }
+    }
+}
+
+fn execute_graph_reference(
+    corpus: &Value,
+    replay: &graph_stage_b::GraphReplay,
+) -> GraphReferenceMirror {
+    if replay.change.is_none() {
+        return GraphReferenceMirror::Gap(
+            "demand supersession is not a DeltaApp change".to_owned(),
+        );
+    }
+    let matched = replay.disposition["matchedNodeIds"]
+        .as_array()
+        .expect("executed matched node ids");
+    if matched.len() > 1 {
+        let node_ids = matched
+            .iter()
+            .map(|node| node.as_str().expect("matched node id"))
+            .collect::<Vec<_>>();
+        if node_ids.iter().all(|node_id| {
+            matches!(
+                replay
+                    .plan
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id() == *node_id),
+                Some(GraphNodeV1::EqualityToOne { .. })
+            ) && !node_has_to_many_ancestor(&replay.plan, node_id)
+        }) {
+            let mut projected_fields = BTreeSet::new();
+            let mut patches = Vec::new();
+            let mut states = Vec::new();
+            for node_id in node_ids {
+                match graph_reference_lookup(corpus, replay, node_id) {
+                    GraphReferenceMirror::Maintain {
+                        projected_fields: fields,
+                        patches: reference_patches,
+                        next_state,
+                        ..
+                    } => {
+                        projected_fields.extend(fields);
+                        patches.extend(reference_patches);
+                        states.push(next_state);
+                    }
+                    GraphReferenceMirror::Fallback { reason, .. } => {
+                        return GraphReferenceMirror::Fallback {
+                            form: "E4 composite",
+                            reason,
+                        };
+                    }
+                    GraphReferenceMirror::Gap(reason) => {
+                        return GraphReferenceMirror::Gap(reason);
+                    }
+                }
+            }
+            return GraphReferenceMirror::Maintain {
+                form: "E4 composite",
+                projected_fields,
+                patches,
+                next_state: GraphReferenceState::Composite(states),
+            };
+        }
+        return GraphReferenceMirror::Gap(format!(
+            "{} matched nodes require an E5/to-many composition adapter",
+            matched.len()
+        ));
+    }
+    let node_id = matched[0].as_str().expect("matched node id");
+    match replay
+        .plan
+        .nodes
+        .iter()
+        .find(|node| node.node_id() == node_id)
+    {
+        Some(GraphNodeV1::RootWindow { .. }) => {
+            let change = replay.change.as_ref().expect("commit replay change");
+            let affected_lookups = replay
+                .plan
+                .nodes
+                .iter()
+                .filter_map(|node| match node {
+                    GraphNodeV1::EqualityToOne {
+                        node_id: child_id,
+                        parent_node_id,
+                        join_on,
+                        ..
+                    } if parent_node_id == node_id
+                        && join_on
+                            .iter()
+                            .any(|join| change.changed_fields.contains(&join.root_field)) =>
+                    {
+                        Some(child_id.as_str())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            match affected_lookups.as_slice() {
+                [] => graph_reference_root(replay, node_id),
+                [child_id] => graph_reference_lookup(corpus, replay, child_id),
+                _ => GraphReferenceMirror::Gap(format!(
+                    "{node_id}: root change affects {} E4 relationships",
+                    affected_lookups.len()
+                )),
+            }
+        }
+        Some(GraphNodeV1::EqualityToOne { .. }) => graph_reference_lookup(corpus, replay, node_id),
+        Some(node) => GraphReferenceMirror::Gap(format!(
+            "{node_id}: {:?} has no faithful Stage-B case adapter",
+            node.kind()
+        )),
+        None => GraphReferenceMirror::Gap(format!("{node_id}: absent from actual plan")),
+    }
 }
 
 fn install_result_contract(function: &mut FunctionDefinition, contract: FunctionResultContract) {
@@ -619,6 +1405,7 @@ fn drain_json(snapback: &mut LocalSnapback, connection: &str) -> Vec<Value> {
 
 #[test]
 fn stage_b_rederivation_audit_is_fully_classified() {
+    eprintln!("stage-b-audit: dk3-inner");
     let mut divergences = Vec::new();
 
     // DK-3 inner core: replay the classifier unit families and the important
@@ -865,10 +1652,19 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         shipped_dk3(&ordered, &empty, &BTreeSet::new(), &ordered_change)["verdict"],
         "Replace"
     );
-    assert_eq!(
-        reference_dk3(&ordered, &empty, &BTreeSet::new(), &ordered_change).unwrap()["verdict"],
-        "Delta"
+    let ordered_reference = execute_dk3_window_reference(
+        &ordered,
+        &empty,
+        Vec::new(),
+        &ordered_change,
+        vec![OrderField {
+            field: "title".to_owned(),
+            direction: Direction::Asc,
+        }],
+        1024,
+        true,
     );
+    assert!(matches!(ordered_reference, FormVerdict::Maintain { .. }));
     divergences.push(Divergence::conservative(
         "eligibility",
         "dk3-ordered",
@@ -901,6 +1697,21 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         )["verdict"],
         "Replace"
     );
+    let mut held = row(audit_row("held", "u1"));
+    held.insert("title".to_owned(), json!("held"));
+    let at_cap_reference = execute_dk3_window_reference(
+        &at_cap,
+        &empty,
+        vec![held],
+        &ordered_change,
+        vec![OrderField {
+            field: "_id".to_owned(),
+            direction: Direction::Asc,
+        }],
+        1,
+        true,
+    );
+    assert!(matches!(at_cap_reference, FormVerdict::Maintain { .. }));
     divergences.push(Divergence::conservative(
         "eligibility",
         "dk3-at-cap",
@@ -919,6 +1730,19 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         shipped_dk3(&membership, &empty, &BTreeSet::new(), &ordered_change)["verdict"],
         "Replace"
     );
+    let mut membership_row = audit_row("a", "u1");
+    membership_row["projectId"] = json!("p1");
+    let membership_change = changed(
+        "todos",
+        "a",
+        ShippedChangeOp::Insert,
+        Some(membership_row),
+        &[],
+    );
+    assert!(matches!(
+        execute_membership_reference(&membership, &empty, &membership_change),
+        FormVerdict::Maintain { .. }
+    ));
     let membership_only_change = [changed(
         "todo_members",
         "membership-1",
@@ -950,6 +1774,10 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         }),
         ..base_plan()
     };
+    assert!(matches!(
+        execute_membership_reference(&visibility_membership, &empty, &membership_change),
+        FormVerdict::Maintain { .. }
+    ));
     assert_eq!(
         shipped_dk3(
             &visibility_membership,
@@ -969,6 +1797,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
 
     // Actual serving pass through try_live_delta_fanout: the emitted outer
     // lane performs add/update/remove without a re-query.
+    eprintln!("stage-b-audit: dk3-serving");
     let mut serving = serving_fixture();
     let established = serving
         .subscribe_live(
@@ -982,6 +1811,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             },
         )
         .expect("establish DK-3 serving fixture");
+    let dk3_subscription_id = established.subscription_id.clone();
     assert!(
         established
             .snapshot
@@ -989,6 +1819,17 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             .rows
             .is_empty()
     );
+    let before_dependencies = serving
+        .live_subscription_dependencies_for_test(&dk3_subscription_id)
+        .expect("observe DK-3 predecessor captures");
+    let before_query = before_dependencies
+        .iter()
+        .find(|dependency| {
+            dependency.table.as_deref() == Some("todos") && dependency.result_count.is_some()
+        })
+        .expect("DK-3 predecessor query capture");
+    assert!(before_query.rows.is_empty());
+    assert_eq!(before_query.result_count, Some(0));
     let narrow_established = serving
         .subscribe_live(
             "listMineNarrow",
@@ -1019,6 +1860,52 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     assert_eq!(frames.len(), 1);
     assert_eq!(frames[0]["kind"], "live_delta");
     assert_eq!(frames[0]["ops"][0]["op"], "add");
+    let after_add_dependencies = serving
+        .live_subscription_dependencies_for_test(&dk3_subscription_id)
+        .expect("observe DK-3 maintained captures");
+    let after_add_query = after_add_dependencies
+        .iter()
+        .find(|dependency| {
+            dependency.table.as_deref() == Some("todos") && dependency.result_count.is_some()
+        })
+        .expect("DK-3 maintained query capture");
+    assert_eq!(after_add_query.rows, vec![id.clone()]);
+    assert_eq!(after_add_query.result_count, Some(0));
+    let reference_add = reference_admit_batch(
+        &QueryPlan {
+            filters: vec![FilterExpr {
+                field: "userId".to_owned(),
+                op: ShippedFilterOp::Eq,
+                value: ValueExpr::AuthUserId,
+            }],
+            ..base_plan()
+        },
+        &handler_input(json!({}), Some("u1")),
+        BTreeMap::new(),
+        &[changed(
+            "todos",
+            &id,
+            ShippedChangeOp::Insert,
+            frames[0]["ops"][0]["row"]
+                .as_object()
+                .map(|_| frames[0]["ops"][0]["row"].clone()),
+            &[],
+        )],
+        AdmissionGrain::CompleteScope,
+        Vec::new(),
+    );
+    let FormVerdict::Maintain {
+        next_state: reference_add_state,
+        ..
+    } = reference_add
+    else {
+        panic!("reference E0 add must maintain");
+    };
+    assert_eq!(reference_add_state.retained.len(), 1);
+    assert_eq!(
+        after_add_query.rows.len(),
+        reference_add_state.retained.len()
+    );
     let narrow_frames = drain_json(&mut serving, "stage-b-dk3-narrow");
     assert_eq!(narrow_frames.len(), 1);
     assert_eq!(narrow_frames[0]["kind"], "live_replace");
@@ -1043,9 +1930,11 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     let frames = drain_json(&mut serving, "stage-b-dk3");
     assert_eq!(frames[0]["ops"][0]["op"], "remove");
 
-    // Graph rung-1: the frozen artifact is produced by graph_corpus_v1's
-    // execute_graph_delta_case machinery. Recheck its closed case inventory
-    // and compare every row with typed reference E3/E4 mirror verdicts.
+    // Re-execute every frozen graph disposition through the real graph
+    // subscription/commit lane, then build its reference side from that
+    // replay's normalized plan, retained capture/result state, and actual
+    // storage pre/post image. A missing adapter is a named harness gap.
+    eprintln!("stage-b-audit: graph-corpus");
     let graph: Value = serde_json::from_str(
         &std::fs::read_to_string(repository_path(GRAPH_DISPOSITIONS))
             .expect("read frozen graph delta dispositions"),
@@ -1056,94 +1945,168 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         .as_array()
         .expect("graph dispositions array");
     assert_eq!(dispositions.len(), 17, "closed frozen graph case inventory");
-    assert!(matches!(
-        reference_root_patch(),
-        FormVerdict::Maintain { .. }
-    ));
-    assert!(matches!(
-        reference_lookup_patch(),
-        FormVerdict::Maintain { .. }
-    ));
-    for case in dispositions {
-        let id = case["id"].as_str().expect("graph case id");
-        let lane = case["lane"].as_str().expect("graph lane");
-        assert_eq!(case["oracleChecked"], true, "{id}: shipped oracle ran");
-        assert_eq!(case["oracleMatched"], true, "{id}: shipped oracle matched");
-        if case["eligibility"] == "eligible" {
-            assert_eq!(lane, "delta", "{id}: eligible rung-1 case maintains");
-            assert_eq!(case["convergenceChecked"], true);
-            assert_eq!(case["convergenceMatched"], true);
-            let operations = case["deltaOps"].as_array().expect("eligible delta ops");
-            assert!(!operations.is_empty(), "{id}: eligible case emits ops");
-            assert!(
-                operations
-                    .iter()
-                    .all(|operation| operation["op"] == "update")
+    let frozen_by_id = dispositions
+        .iter()
+        .map(|row| (row["id"].as_str().unwrap(), row))
+        .collect::<BTreeMap<_, _>>();
+    let corpus = graph_stage_b::graph_corpus();
+    let replays = graph_stage_b::execute_graph_cases(&corpus);
+    eprintln!("stage-b-audit: graph-reference");
+    assert_eq!(replays.len(), dispositions.len());
+    let mut graph_harness_gaps = Vec::new();
+    let mut projection_leak_observed = false;
+    for replay in &replays {
+        let id = replay.case["id"].as_str().expect("executed graph case id");
+        let frozen = frozen_by_id
+            .get(id)
+            .unwrap_or_else(|| panic!("{id}: executed case absent from frozen register"));
+        assert_eq!(
+            replay.disposition["lane"], frozen["lane"],
+            "{id}: re-executed shipped disposition drifted from the frozen row",
+        );
+        if replay.change.is_none() {
+            assert_eq!(id, "issue-summary-take-window-change");
+            assert_eq!(replay.disposition["lane"], "replace");
+            assert_eq!(
+                replay.disposition["dispositionBasis"],
+                "subscription supersession creates a new graph instance",
             );
-            let expected_fields = match id {
-                "issue-summary-root-scalar-update" => BTreeSet::from(["title"]),
-                "issue-summary-assignee-user-rename" => BTreeSet::from(["login"]),
-                "issue-summary-two-field-coalesced-patch" => BTreeSet::from(["open", "title"]),
-                _ => panic!("{id}: unregistered eligible graph corpus case"),
-            };
-            for operation in operations {
-                let actual_fields = operation["row"]
-                    .as_object()
-                    .expect("eligible graph update row")
-                    .keys()
-                    .map(String::as_str)
-                    .collect::<BTreeSet<_>>();
-                assert_eq!(actual_fields, expected_fields, "{id}: projection-scoped op");
-            }
             continue;
         }
-        assert_eq!(lane, "replace", "{id}: ineligible graph case replaces");
-        let reference_maintains = matches!(
-            id,
-            "issue-list-child-update"
-                | "issue-detail-root-update"
-                | "list-by-id-child-update"
-                | "issue-detail-sibling-array-corruption"
-                | "issue-list-in-window-reorder"
-                | "issue-list-membership-add"
-                | "issue-detail-creator-user-change"
-                | "list-by-id-two-field-coalesced-patch"
-                | "issue-summary-order-key-move"
-                | "issue-summary-assignee-repoint"
-                | "issue-summary-take-window-change"
-        );
-        if reference_maintains {
-            divergences.push(Divergence::conservative(
-                "graph eligibility/fallback",
-                id,
-                "whole-graph Replace",
-                "the relevant E3/E4 inner form can Maintain with complete state/read evidence",
-                if id == "issue-list-membership-add" {
-                    "expected rung-1 membership-change conservative replacement"
+        let shipped_lane = replay.disposition["lane"].as_str().unwrap();
+        let reference = execute_graph_reference(&corpus, replay);
+        match reference {
+            GraphReferenceMirror::Maintain {
+                form,
+                projected_fields,
+                patches,
+                next_state,
+            } => {
+                let _state_matches =
+                    assert_graph_reference_state_matches_shipped(&corpus, replay, &next_state);
+                if shipped_lane == "replace" {
+                    assert_eq!(replay.frame["kind"], "live_replace");
+                    assert!(
+                        replay.disposition["deltaOps"].is_null(),
+                        "{id}: replacement emits no graph delta operations",
+                    );
+                    divergences.push(Divergence::conservative(
+                        "graph eligibility/fallback",
+                        id,
+                        "whole-graph Replace",
+                        format!("executed {form} Maintain with case-shaped next state"),
+                        if id == "issue-list-membership-add" {
+                            "executed membership/window change remains the expected rung-1 conservative replacement"
+                        } else {
+                            "executed rung-1 lane admits fewer whole-graph shapes than the case-shaped reference form"
+                        },
+                    ));
                 } else {
-                    "rung-1 admits only position-stable scalar root/to-one updates and one ineligible node pins the graph"
-                },
-            ));
+                    assert_eq!(shipped_lane, "delta", "{id}: known shipped lane");
+                    assert_eq!(replay.disposition["convergenceChecked"], true);
+                    assert_eq!(replay.disposition["convergenceMatched"], true);
+                    let actual_ops = replay.frame["graph"]["ops"]
+                        .as_array()
+                        .expect("executed graph delta ops");
+                    assert_eq!(
+                        actual_ops.len(),
+                        patches.len(),
+                        "{id}: projection-scoped reference op count versus shipped ops",
+                    );
+                    for patch in &patches {
+                        let actual = actual_ops
+                            .iter()
+                            .find(|operation| {
+                                operation["nodeId"] == patch.node_id
+                                    && operation["rootKey"]["id"] == patch.root_key
+                                    && operation["key"]["id"] == patch.key
+                            })
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "{id}: shipped ops lack reference address {} / {}",
+                                    patch.node_id, patch.key
+                                )
+                            });
+                        let actual_row =
+                            actual["row"].as_object().expect("executed graph patch row");
+                        for (field, value) in &patch.row {
+                            assert_eq!(
+                                actual_row.get(field),
+                                Some(value),
+                                "{id}: projection-scoped reference value for {field}",
+                            );
+                        }
+                    }
+                    let actual_fields = actual_ops
+                        .iter()
+                        .flat_map(|operation| {
+                            operation["row"]
+                                .as_object()
+                                .expect("executed graph patch row")
+                                .keys()
+                                .cloned()
+                        })
+                        .collect::<BTreeSet<_>>();
+                    assert!(
+                        projected_fields.is_subset(&actual_fields),
+                        "{id}: shipped ops omitted reference projection fields",
+                    );
+                    projection_leak_observed |= actual_fields != projected_fields;
+                }
+            }
+            GraphReferenceMirror::Fallback { form, reason } => {
+                assert_eq!(
+                    shipped_lane, "replace",
+                    "{id}: shipped delta disagrees with executed {form} fallback {reason:?}",
+                );
+                assert_eq!(replay.frame["kind"], "live_replace");
+                assert!(replay.disposition["deltaOps"].is_null());
+            }
+            GraphReferenceMirror::Gap(reason) => {
+                graph_harness_gaps.push(format!("{id}: {reason}"));
+            }
         }
     }
-
-    // Outer-state and named-probe audit. The absent direct graph evaluator and
-    // ordinary capture-inspection hooks are reportable harness gaps; source
-    // assertions keep the audited code facts from drifting silently.
-    let engine_source = include_str!("../../snapback-engine/src/local/engine.rs");
-    let evaluator_source = include_str!("../../snapback-engine/src/graph_evaluator.rs");
-    let graph_lane = source_segment(
-        engine_source,
-        "fn try_graph_delta_fanout(",
-        "fn try_live_delta_fanout(",
+    assert_eq!(
+        replays
+            .iter()
+            .map(|replay| replay.case["id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        frozen_by_id.keys().copied().collect::<BTreeSet<_>>(),
     );
-    assert!(graph_lane.contains("graph.delivery.delta_requires_replace = true"));
-    assert!(graph_lane.contains("graph.evaluation.structural_work ="));
-    assert!(graph_lane.contains("graph.evaluation.window_ledgers ="));
-    assert!(graph_lane.contains("graph_delta_evaluation_cost"));
-    assert!(!graph_lane.contains("stored.read_dependencies"));
-    assert!(!graph_lane.contains("SNAPBACK_GRAPH_EXEC_DISABLED"));
-    assert!(engine_source.contains("SNAPBACK_GRAPH_EXEC_DISABLED"));
+
+    // The eligible root-scalar replay reaches the complete outer graph lane.
+    // Existing observations expose every asserted axis below without reading
+    // source text.
+    let outer = replays
+        .iter()
+        .find(|replay| replay.case["id"] == "issue-summary-root-scalar-update")
+        .expect("executed eligible graph outer replay");
+    assert_eq!(outer.delivery_before, (true, false));
+    assert_eq!(outer.delivery_after, (true, true));
+    assert_eq!(
+        outer.before["capturedDependencies"], outer.after["capturedDependencies"],
+        "graph predecessor captures copy forward verbatim",
+    );
+    assert_ne!(
+        graph_stage_b::root_window_ledger(&outer.before),
+        graph_stage_b::root_window_ledger(&outer.after),
+        "the graph delta advances its cumulative window ledger",
+    );
+    assert_eq!(
+        outer.frame["graph"]["proofTuple"]["authorizationVersion"],
+        outer.after["authorizationVersion"],
+    );
+    assert_eq!(
+        outer.frame["graph"]["proofTuple"]["evaluationCut"],
+        outer.after["evaluationCut"],
+    );
+    assert_eq!(outer.after["deltaDelivery"]["lane"], "delta");
+    assert_eq!(
+        outer.after["deltaDelivery"]["matchedNodeIds"],
+        outer.disposition["matchedNodeIds"],
+    );
+    assert_eq!(outer.after["deltaDelivery"]["convergenceMatched"], true);
     divergences.push(Divergence::conservative(
         "outer retained state",
         "graph-predecessor-captures-and-next-delta-latch",
@@ -1151,6 +2114,13 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         "E3/E4 next state is sufficient for another maintain step",
         "the capture vocabulary cannot yet re-attest graph dependencies after an incremental step, so the next affected commit must replace",
     ));
+
+    // Execute the named asymmetry itself: raise EXEC_DISABLED only after the
+    // subscription is established, then deliver an otherwise eligible commit.
+    // The incremental frame proves the bypass; the ticket carries the two code
+    // citations for the fresh-path check and incremental candidacy boundary.
+    let exec_disabled = graph_stage_b::execute_exec_disabled_probe(&corpus);
+    assert_eq!(exec_disabled.disposition["lane"], "delta");
     divergences.push(Divergence::shipped_defect(
         "outer eligibility",
         "graph-exec-disabled-established-subscription",
@@ -1159,46 +2129,46 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         "fresh execute_query_invocation checks SNAPBACK_GRAPH_EXEC_DISABLED; try_graph_delta_fanout does not",
     ));
 
-    let live_lane = source_segment(
-        engine_source,
-        "fn try_live_delta_fanout(",
-        "fn debug_assert_delta_membership_converges(",
-    );
-    assert!(live_lane.contains("dependency.rows.retain"));
-    assert!(live_lane.contains("dependency.version = Some(frame_version)"));
-    assert!(!live_lane.contains("dependency.result_count ="));
-    assert!(live_lane.contains("operation.kind == LiveDeltaKind::Remove"));
     divergences.push(Divergence::conservative(
         "retained state",
         "dk3-stale-result-count",
         "rows/version advance; result_count remains at predecessor value",
         "E0 next state advances admitted membership and its count",
-        "post-delta DK-3 classification reads Query.rows/prior_ids; unordered matching does not consult result_count",
+        "executed add advanced Query.rows from 0 to 1 while the observed result_count stayed 0",
     ));
-    divergences.push(Divergence::conservative(
-        "outer delivery",
-        "dk3-authorized-scope-split",
-        "authorized add/update may remain best-effort delta; any remove returns to replace/obligation lane",
-        "operator forms classify add/update/remove without delivery durability policy",
-        "LLP 0053: negative deltas are obligations; positive deltas are best-effort",
-    ));
-
-    let patch_source = source_segment(
-        evaluator_source,
-        "fn retained_row_patch(",
-        "fn apply_projected_node_patch(",
+    assert!(
+        projection_leak_observed,
+        "executed graph ops reproduce projection leakage"
     );
-    assert!(patch_source.contains("let fields = previous"));
-    assert!(patch_source.contains(".chain(current.keys())"));
-    assert!(evaluator_source.contains("row = retained_row_patch(&old.row, &new.row)"));
-    assert!(graph_lane.contains("ops: delta.ops.clone()"));
     divergences.push(Divergence::shipped_defect(
         "emitted ops / projection custody",
         "graph-unfiltered-retained-row-patch",
         "all changed retained-row fields, including unprojected/system fields, enter graph wire ops",
         "E3/E4 patches contain projection_fields only",
-        "retained_row_patch unions full row keys; try_graph_delta_fanout serializes delta.ops unchanged",
+        "executed eligible corpus frames contain fields outside the executed E3/E4 projection-scoped DeltaOut",
     ));
+
+    graph_harness_gaps.push(
+        "publication-guard internals have no observation hook; successful enqueue proves publication occurred but not the guard's internal ordering".to_owned(),
+    );
+    graph_harness_gaps.push(
+        "authorized DK-3 add/update versus remove delivery was not established in this fixture; no class-(c) row is claimed for that axis".to_owned(),
+    );
+    assert_eq!(
+        graph_harness_gaps.len(),
+        5,
+        "closed Stage B harness-gap register"
+    );
+    for case in [
+        "issue-list-to-many-update:",
+        "issue-detail-to-many-update:",
+        "list-by-id-to-many-update:",
+    ] {
+        assert!(
+            graph_harness_gaps.iter().any(|gap| gap.starts_with(case)),
+            "unadapted E5 row {case} must remain an explicit harness gap",
+        );
+    }
 
     assert!(
         divergences
@@ -1206,7 +2176,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             .all(|row| row.class != DivergenceClass::Unclassified),
         "Stage C is blocked by an unclassified divergence: {divergences:#?}",
     );
-    assert_eq!(divergences.len(), 20, "closed Stage B divergence register");
+    assert_eq!(divergences.len(), 17, "closed Stage B divergence register");
     assert_eq!(
         divergences
             .iter()
@@ -1220,7 +2190,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             .iter()
             .filter(|row| row.class == DivergenceClass::ConservativeApproximation)
             .count(),
-        18,
+        15,
         "every class-(c) row must stay in the closed report register",
     );
     assert_eq!(

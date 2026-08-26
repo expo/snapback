@@ -13835,6 +13835,21 @@ impl LocalSnapback {
         ))
     }
 
+    /// Observe the exact retained dependency carrier owned by one established
+    /// subscription. Stage-B delta conformance uses this read-only seam to
+    /// compare DK-3's in-place capture transition with the reference form's
+    /// next state; returning a clone prevents tests from mutating serving
+    /// evidence.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn live_subscription_dependencies_for_test(
+        &self,
+        subscription_id: &str,
+    ) -> Option<Vec<CapturedReadDependency>> {
+        self.subscriptions
+            .get(subscription_id)
+            .map(|subscription| subscription.read_dependencies.clone())
+    }
+
     /// Corpus assertions exercise memo, authorization, and delta lane
     /// semantics, not the scheduler's wall-clock overload fallback. Parallel
     /// corpus evaluation can otherwise leave a later subscription pending

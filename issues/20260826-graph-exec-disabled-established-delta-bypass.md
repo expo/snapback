@@ -10,15 +10,21 @@
 ## Finding
 
 Fresh graph execution refuses when `SNAPBACK_GRAPH_EXEC_DISABLED` is raised at
-`crates/snapback-engine/src/local/engine.rs:42323-42344`. An already established
+`crates/snapback-engine/src/local/engine.rs:42349-42360`. An already established
 graph subscription can nevertheless enter `try_graph_delta_fanout`, whose
-admission checks at `crates/snapback-engine/src/local/engine.rs:34454-34480` do
-not consult the switch, and call `evaluate_graph_delta_on` at `:34503-34510`.
+admission checks at `crates/snapback-engine/src/local/engine.rs:34469-34495` do
+not consult the switch, and call `evaluate_graph_delta_on` at `:34518-34526`.
 
 The asymmetry matters because the switch is a serving kill switch, not merely a
 fresh-subscription admission preference. It can therefore fail to stop graph
 evaluation for existing subscriptions precisely when operators raise it in
 response to a safety concern.
+
+The Stage B audit reproduces the behavioral half without source inspection: it
+establishes a real `issueSummary` graph subscription, raises the switch only
+around an otherwise eligible mutation, and drains a `live_delta` frame whose
+delivery observation reports the delta lane. The citations above explain why;
+the executed frame is the reproduction.
 
 This is LLP 0309 §D4.2 class **(b)**: a shipped defect. The operator reference
 forms do not own deployment kill switches, so their maintain verdict does not
@@ -38,4 +44,5 @@ publishing a graph delta.
 - A regression observes the established-subscription case, not only fresh
   invocation.
 - Clearing the switch restores the documented graph serving behavior.
-
+- `cargo test -p snapback --test delta_semantics_stage_b_audit_v1` flips this
+  executed class-(b) reproduction to the disabled disposition after repair.
