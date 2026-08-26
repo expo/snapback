@@ -8,7 +8,7 @@ use crate::ids::{self, Kind};
 use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
 use crate::storage::{DbRead, LocalDatabase, ServingDatabase};
 use serde_json::{Map, Value, json};
-use snapback_services::test_support::rusqlite;
+use snapback_kernel::push::test_support::PushAuthorizationTestFixture;
 use std::collections::BTreeMap;
 
 trait PreparedPushRegistryTestExt {
@@ -50,7 +50,7 @@ impl PreparedPushRegistryTestExt for crate::local::LocalSnapback {
 }
 
 fn authorize_send_for_prepared(
-    tx: &rusqlite::Transaction<'_>,
+    fixture: &PushAuthorizationTestFixture,
     schema: &crate::manifest::SchemaManifest,
     audience: &PushAudienceDeclarationV1,
     authority: &PreparedAuthority,
@@ -59,16 +59,20 @@ fn authorize_send_for_prepared(
     request: &PushSendRequestV1,
 ) -> SnapbackResult<()> {
     authority.validate_admission("push send authorization")?;
-    let authority_db = ServingDatabase::adopt(LocalDatabase::memory()?)?;
-    snapback_kernel::push::test_support::authorize_send_in(
-        tx,
-        schema,
-        audience,
-        &admitted_push_storage_authority(&authority_db, authority),
-        trigger_mode,
-        deferred_grant,
-        request,
-    )
+    if matches!(authority.resolved(), ResolvedAppAuthority::System) {
+        fixture.authorize_system_send(schema, audience, trigger_mode, deferred_grant, request)
+    } else if let Some(user_id) = authority.projection().user_id() {
+        fixture.authorize_user_send(
+            user_id,
+            schema,
+            audience,
+            trigger_mode,
+            deferred_grant,
+            request,
+        )
+    } else {
+        fixture.authorize_other_send(schema, audience, trigger_mode, deferred_grant, request)
+    }
 }
 
 fn declaration(environment: &str, idle_retention_ms: u64) -> PushSeamDeclarationV1 {
@@ -650,15 +654,9 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
         },
     };
     let schema = app_membership_schema();
-    let connection = rusqlite::Connection::open_in_memory().expect("sqlite");
-    connection
-        .execute_batch("CREATE TABLE app_members(principal TEXT, role TEXT);")
-        .expect("membership table");
-    connection
-        .execute(
-            "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
-            rusqlite::params![producer],
-        )
+    let fixture = PushAuthorizationTestFixture::app_members().expect("membership fixture");
+    fixture
+        .grant_app_sender(&producer)
         .expect("producer membership");
     let request = PushSendRequestV1 {
         to: PushAudienceReferenceV1 {
@@ -677,9 +675,8 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
         dedupe_key: request.dedupe_key.clone(),
     };
     let authority = system_authority();
-    let tx = connection.unchecked_transaction().expect("transaction");
     authorize_send_for_prepared(
-        &tx,
+        &fixture,
         &schema,
         &audience,
         &authority,
@@ -693,7 +690,7 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
     divergent.dedupe_key = "deferred-2".into();
     assert_eq!(
         authorize_send_for_prepared(
-            &tx,
+            &fixture,
             &schema,
             &audience,
             &authority,
@@ -706,14 +703,12 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
         .code,
         "SNAPBACK_AUTH_PERMISSION_DENIED"
     );
-    tx.execute(
-        "DELETE FROM app_members WHERE principal = ?1",
-        rusqlite::params![producer],
-    )
-    .expect("revoke producer membership");
+    fixture
+        .revoke_app_sender(&producer)
+        .expect("revoke producer membership");
     assert_eq!(
         authorize_send_for_prepared(
-            &tx,
+            &fixture,
             &schema,
             &audience,
             &authority,
@@ -747,21 +742,14 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     args.insert("principalIds".into(), json!([recipient]));
     validate_audience_args(&audience, &args).expect("exact declared union");
 
-    let connection = rusqlite::Connection::open_in_memory().expect("sqlite");
-    connection
-        .execute_batch("CREATE TABLE app_members(principal TEXT, role TEXT);")
-        .expect("membership table");
-    connection
-        .execute(
-            "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
-            rusqlite::params![sender],
-        )
+    let fixture = PushAuthorizationTestFixture::app_members().expect("membership fixture");
+    fixture
+        .grant_app_sender(&sender)
         .expect("sender membership");
     let schema = app_membership_schema();
     let authority = session_authority(&sender);
-    let tx = connection.unchecked_transaction().expect("transaction");
     authorize_send_for_prepared(
-        &tx,
+        &fixture,
         &schema,
         &audience,
         &authority,
@@ -781,13 +769,9 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     )
     .expect("immediate explicit-principal send is membership-authorized");
     assert_eq!(
-        snapback_kernel::push::test_support::resolve_audience_in(
-            &tx,
-            &schema,
-            &audience.resolve,
-            &args,
-        )
-        .expect("explicit-principal resolution"),
+        fixture
+            .resolve_audience(&schema, &audience.resolve, &args)
+            .expect("explicit-principal resolution"),
         vec![recipient]
     );
 
@@ -802,7 +786,7 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     );
     assert_eq!(
         authorize_send_for_prepared(
-            &tx,
+            &fixture,
             &schema,
             &audience,
             &authority,

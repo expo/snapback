@@ -2975,39 +2975,135 @@ pub(crate) fn resolve_audience_in(
 
 /// Explicitly feature-gated seams for upward composition tests. These call
 /// the owner crate's real authorization logic while keeping raw SQLite
-/// transitions absent from the production public API.
+/// handles and arbitrary SQL absent from the public test-support API.
 #[cfg(any(test, feature = "test-support"))]
 pub mod test_support {
     use super::*;
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn authorize_send_in(
-        tx: &Transaction<'_>,
-        schema: &crate::manifest::SchemaManifest,
-        audience: &PushAudienceDeclarationV1,
-        authority: &PushStorageAuthority,
-        trigger_mode: PushTriggerModeV1,
-        deferred_grant: Option<&PushDeferredGrantV1>,
-        request: &PushSendRequestV1,
-    ) -> SnapbackResult<()> {
-        super::authorize_send_in(
-            tx,
-            schema,
-            audience,
-            authority,
-            trigger_mode,
-            deferred_grant,
-            request,
-        )
+    /// An isolated, fixed-schema database for higher-rank push authorization
+    /// tests. The raw connection is deliberately private: dependents can
+    /// exercise the real authorization paths, but cannot submit SQL.
+    // @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
+    // preserve the two legitimate push tests without exporting a SQL handle.
+    pub struct PushAuthorizationTestFixture {
+        connection: Connection,
     }
 
-    pub fn resolve_audience_in(
-        tx: &Transaction<'_>,
-        schema: &crate::manifest::SchemaManifest,
-        resolver: &PushAudienceResolverV1,
-        args: &Map<String, Value>,
-    ) -> SnapbackResult<Vec<String>> {
-        super::resolve_audience_in(tx, schema, resolver, args)
+    impl PushAuthorizationTestFixture {
+        pub fn app_members() -> SnapbackResult<Self> {
+            let connection = Connection::open_in_memory()?;
+            connection.execute_batch(
+                "CREATE TABLE app_members(principal TEXT NOT NULL, role TEXT NOT NULL);",
+            )?;
+            Ok(Self { connection })
+        }
+
+        pub fn grant_app_sender(&self, principal: &str) -> SnapbackResult<()> {
+            self.connection.execute(
+                "INSERT INTO app_members(principal, role) VALUES(?1, 'sender')",
+                params![principal],
+            )?;
+            Ok(())
+        }
+
+        pub fn revoke_app_sender(&self, principal: &str) -> SnapbackResult<()> {
+            self.connection.execute(
+                "DELETE FROM app_members WHERE principal = ?1",
+                params![principal],
+            )?;
+            Ok(())
+        }
+
+        pub fn authorize_system_send(
+            &self,
+            schema: &crate::manifest::SchemaManifest,
+            audience: &PushAudienceDeclarationV1,
+            trigger_mode: PushTriggerModeV1,
+            deferred_grant: Option<&PushDeferredGrantV1>,
+            request: &PushSendRequestV1,
+        ) -> SnapbackResult<()> {
+            self.authorize_send_as(
+                PushStorageAuthorityKind::System,
+                schema,
+                audience,
+                trigger_mode,
+                deferred_grant,
+                request,
+            )
+        }
+
+        pub fn authorize_user_send(
+            &self,
+            principal: &str,
+            schema: &crate::manifest::SchemaManifest,
+            audience: &PushAudienceDeclarationV1,
+            trigger_mode: PushTriggerModeV1,
+            deferred_grant: Option<&PushDeferredGrantV1>,
+            request: &PushSendRequestV1,
+        ) -> SnapbackResult<()> {
+            self.authorize_send_as(
+                PushStorageAuthorityKind::User(principal.to_owned()),
+                schema,
+                audience,
+                trigger_mode,
+                deferred_grant,
+                request,
+            )
+        }
+
+        pub fn authorize_other_send(
+            &self,
+            schema: &crate::manifest::SchemaManifest,
+            audience: &PushAudienceDeclarationV1,
+            trigger_mode: PushTriggerModeV1,
+            deferred_grant: Option<&PushDeferredGrantV1>,
+            request: &PushSendRequestV1,
+        ) -> SnapbackResult<()> {
+            self.authorize_send_as(
+                PushStorageAuthorityKind::Other,
+                schema,
+                audience,
+                trigger_mode,
+                deferred_grant,
+                request,
+            )
+        }
+
+        pub fn resolve_audience(
+            &self,
+            schema: &crate::manifest::SchemaManifest,
+            resolver: &PushAudienceResolverV1,
+            args: &Map<String, Value>,
+        ) -> SnapbackResult<Vec<String>> {
+            let tx = self.connection.unchecked_transaction()?;
+            super::resolve_audience_in(&tx, schema, resolver, args)
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn authorize_send_as(
+            &self,
+            kind: PushStorageAuthorityKind,
+            schema: &crate::manifest::SchemaManifest,
+            audience: &PushAudienceDeclarationV1,
+            trigger_mode: PushTriggerModeV1,
+            deferred_grant: Option<&PushDeferredGrantV1>,
+            request: &PushSendRequestV1,
+        ) -> SnapbackResult<()> {
+            let authority = PushStorageAuthority {
+                database_binding: crate::storage::DatabaseBinding::isolated(),
+                kind,
+            };
+            let tx = self.connection.unchecked_transaction()?;
+            super::authorize_send_in(
+                &tx,
+                schema,
+                audience,
+                &authority,
+                trigger_mode,
+                deferred_grant,
+                request,
+            )
+        }
     }
 }
 

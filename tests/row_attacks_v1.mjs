@@ -76,7 +76,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
   );
   const rawSql = ledger.attacks.find(({ row }) => row === 'F313');
   assert.equal(expectedInCell(rawSql, 'production'), 'CLOSED');
-  assert.equal(expectedInCell(rawSql, 'services-remainder-tests'), 'OPEN');
+  assert.equal(expectedInCell(rawSql, 'services-remainder-tests'), 'CLOSED');
 });
 
 test('security attacks must map a row or match the pinned unmapped-debt digest', () => {

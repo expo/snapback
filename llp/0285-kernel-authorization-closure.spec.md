@@ -8,6 +8,10 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
+**Revised:** 2026-08-26 (F313 completes §5.3's typed push-guard step: the
+sole `snapback_services::test_support` consumer now uses a fixed-schema
+kernel fixture and the services raw-crate re-export is deleted. The broader
+`remainder-tests` feature remains for separately inventoried services seams.)
 **Revised:** 2026-08-19 (F-1 test-confinement implementation note: tiers 2–3
 add visible `rusqlite` dev-dependencies to `snapback` and the new rank-7
 `snapback-harness`; exact telemetry probes read unbounded physical rows when
@@ -437,6 +441,15 @@ projection: exact-count and physical-row assertions use an insertion-ordered,
 unbounded `telemetry_events` probe (so wrong-generation, retention-hidden, and
 row-501 duplicates remain visible); the few predecessor queries that used
 `telemetry_events_visible` use a separate unbounded visible-view probe.
+
+**F313 implementation note (2026-08-26).** The sole consumer needed two
+fixed membership transitions and the real push authorization/resolution
+logic, not a general SQL client. `PushAuthorizationTestFixture` now owns a
+private in-memory connection, creates only `app_members`, grants or revokes
+only the fixed `sender` role, and offers typed authorization/resolution
+methods. `snapback-services::test_support` and its `pub use rusqlite` are
+deleted. The `remainder-tests` activation remains because unrelated typed
+services seams still use it; deleting that broader feature is outside F313.
 
 The intermediate state intentionally adds **no** separate caller-selectable
 `snapback-services/test-support` feature. All services seams needed by these

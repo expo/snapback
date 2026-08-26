@@ -13,6 +13,11 @@ bridge probe and a zero-new-finding product comparison.)
 bounded generic-projection rule and a local private-trait/supertrait contract
 fixpoint; all three probes failed first and the product finding set did not
 grow.)
+**Revised:** 2026-08-26 (closes raw-SQL row F313: the services crate no
+longer re-exports `rusqlite` in its remainder feature, the sole engine
+consumer uses a fixed-schema `PushAuthorizationTestFixture`, and the row
+corpus now measures production, additive test support, and the services
+remainder cell.)
 **Revised:** 2026-08-26 (classifies `AssetWidthPlanTicketV1` as the
 `snapback-services` privilege seed that survives removal of the raw-SQL
 re-export, and adds its default/remainder compiler witness. This keeps I-12's
@@ -506,10 +511,10 @@ dependent *obtain* a handle:
 
 Ingress (not an escalation by itself; scanned, allowlist-gated): a
 public function that *accepts* a caller-supplied `Connection` /
-`Transaction`. The remaining tree has only feature-selected test ingress:
-
-- `push::test_support::{authorize_send_in, resolve_audience_in}` taking
-  `&Transaction` under `test-support`.
+`Transaction`. The last feature-selected test ingress,
+`push::test_support::{authorize_send_in, resolve_audience_in}`, was removed
+with F313. Its replacement owns a private in-memory connection and exposes
+only fixed membership mutations plus typed push authorization and resolution.
 
 Ingress does not give the caller a handle they did not already have. It
 *does* keep raw SQL in the public signature, which forces dependents
@@ -523,8 +528,9 @@ framing).
 
 **I-6 (SC + workspace-graph; CE for the compile-fail fixture).** The
 `rusqlite` crate is not a public name of any workspace package's library
-API under any feature. `snapback-services/remainder-tests` fails I-6
-today. `snapback-services` remaining in
+API under any feature. The historical `snapback-services/remainder-tests`
+failure is now the compile-closed F313 witness in every measured feature
+cell. `snapback-services` remaining in
 `externalConfinement.allowedMembers` for `rusqlite` is about *depending
 on* the crate for the telemetry sidecar, not about re-exporting it.
 
@@ -1300,7 +1306,7 @@ The current exact expected-red inventory is maintained in
 | `auth-commit-reservation-factory` | claim, `authorization_commit_carriers().reservation(\|_, _\| ..., \|\| {})` | `snapback-kernel` | default | compiles | error at `reservation` or claim | the `reservation` call |
 | `auth-commit-prepared-factory` | claim, `.prepared(\|_\| Ok(()), \|\| {}, \|\| {})` | `snapback-kernel` | default | compiles | error at `prepared` or claim | the `prepared` call |
 | `service-interlock-factory` | claim, `service_authority_commit_interlock(\|_, _\| Ok(factory.prepared(\|\| Ok(()), \|\| {}, \|\| {})))` then `db.install_service_authority_commit_interlock(...)` | `snapback-kernel` | default | compiles | error at factory or install | the `service_authority_commit_interlock` call |
-| `services-rusqlite-reexport` | `use snapback_services::test_support::rusqlite::Connection; let _ = Connection::open_in_memory();` | `snapback-services` | `remainder-tests` | compiles | `E0432`/`E0433` at the `use` | the `use` or `Connection::open_in_memory` |
+| `services-rusqlite-reexport` | `use snapback_services::test_support::rusqlite::Connection; let _ = Connection::open_in_memory();` | `snapback-services` | `remainder-tests` | historical fail-first: compiles | `E0433` at the `use` | the `use` |
 | `services-rusqlite-reexport-default` | same import **without** enabling `remainder-tests` | `snapback-services` | default | should already fail to resolve | stay failing at the `use` | the `use` |
 | `forge-membership-writer-admin` | construct `MembershipWriter::Admin`, call `plan_privileged_membership_insert`, then `commit_membership_plan` | `snapback-kernel` | default | compiles | error at construction or the first unforgeable-carrier boundary | the variant construction; the remainder of the bin proves plan and commit also type-check today |
 | `reserve-authorization-via-sync` | obtain `AuthorizationCommitReservation` through `LocalEphemeralBackend::reserve_authorization_commit` | `snapback-sync` | default | compiles | error at the reservation call | the call; provides I-12's compiler mount for the privilege-bearing sync dependency |

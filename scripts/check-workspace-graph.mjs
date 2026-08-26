@@ -72,9 +72,7 @@ const SAFE_ENGINE_MACROS = new Set([
   'json',
   'matches',
   'panic',
-  'params',
   'println',
-  'rusqlite::params',
   'serde_json::json',
   'thread_local',
   'unreachable',
@@ -116,7 +114,6 @@ const TRUSTED_ENGINE_BINDINGS = new Set([
   ...SAFE_ENGINE_MACROS,
   ...SAFE_ENGINE_DERIVES,
   ...SAFE_ENGINE_ATTRIBUTES,
-  'rusqlite',
   'schemars',
   'serde',
   'serde_json',
@@ -130,8 +127,6 @@ const CANONICAL_ENGINE_IMPORTS = new Map([
   ['Serialize', 'serde'],
   ['env', 'std'],
   ['json', 'serde_json'],
-  ['params', 'snapback_services::test_support::rusqlite'],
-  ['rusqlite', 'snapback_services::test_support'],
 ]);
 // A glob can import a macro, derive, or attribute without naming it in the
 // engine source. Bind every reviewed compatibility-glob occurrence to its
@@ -259,7 +254,6 @@ const DECLARATION_PROTECTED_ENGINE_GLOB_BINDINGS = new Set(
 );
 const TRUSTED_ENGINE_CRATE_BINDINGS = new Set([
   ...PROTECTED_ENGINE_GLOB_BINDINGS,
-  'rusqlite',
   'schemars',
   'serde',
   'serde_json',
@@ -271,7 +265,6 @@ const CANONICAL_ENGINE_CRATE_PACKAGES = new Map([
   ...[...ENGINE_GLOB_ROOT_ORIGINS]
     .filter(([, origin]) => origin.kind === 'crate')
     .map(([binding, origin]) => [binding, origin.package]),
-  ['rusqlite', 'rusqlite'],
   ['schemars', 'schemars'],
   ['serde', 'serde'],
   ['serde_json', 'serde_json'],

@@ -51,7 +51,7 @@ The [nine-attack report](issues/20260826-nine-compiling-security-boundary-attack
 | Pending-effect refusal bridge | **READ-CONFIRMED, executed.** Creation plus caller-selected refusal produced durable `Refused` state and the selected code. |
 | Promotion-contention prepare/activate pair | **READ-CONFIRMED, executed.** A caller-selected stream produced an active contention policy. |
 | Direct `MembershipWriter::Admin` plus plan/commit | **READ-CONFIRMED, executed.** The public variant committed a privileged membership change. F232/F233/F236 are adjacent rows, not this producer. |
-| Raw SQLite re-export | **READ-CONFIRMED, executed.** `snapback-services/remainder-tests` exposed `rusqlite`; there is no F-row. The re-export remains in [lib.rs](crates/snapback-services/src/lib.rs:39). |
+| Raw SQLite re-export | **RESOLVED 2026-08-26 as F313.** Historical fail-first executed in the services remainder cell. The re-export is deleted; the sole consumer now uses a fixed-schema push authorization fixture with no SQL handle or arbitrary-SQL operation. |
 
 Three pending-effect siblings extend the undercount:
 
@@ -63,17 +63,17 @@ Three pending-effect siblings extend the undercount:
 
 Therefore, beyond the stated five:
 
-- **READ-CONFIRMED:** raw SQL is the sixth already-executed unrowed effect.
+- **RESOLVED:** raw SQL was the sixth already-executed unrowed effect; it is now row F313 and compile-closed in all three feature cells.
 - **READ-CONFIRMED:** approval and denial are additional compiling/source-complete siblings.
 - **INFERRED:** settlement is another live sibling under revision (s).
 
 ### Why 111 is still a floor
 
-- **READ-CONFIRMED:** [run-row-attacks.mjs](scripts/run-row-attacks.mjs:173) checks the security ledger only for entries opting in with `row` or `rows`. No current security-boundary attack declares either field, making that cross-ledger omission check vacuous.
+- **RESOLVED 2026-08-26:** the optional `row`/`rows` join was vacuous. Security attacks now map F313/F272 explicitly, and every remaining unmapped attack is covered by a count plus SHA-256 debt digest. A newly omitted mapping changes that digest and fails the row gate.
 
 - **READ-CONFIRMED:** The blocker audit found 66 observed leaves but zero leaves with exhaustive alternate-route proof. Its then-24-attack corpus could not establish 110 negative consumer censuses.
 
-- **READ-CONFIRMED:** The row corpus covers production and additive `test-support` for five crates, but not `snapback-services/remainder-tests`, precisely the feature cell exposing raw SQL. This violates revision (o) as a completeness basis.
+- **RESOLVED 2026-08-26:** the row corpus now requires and runs the `snapback-services/remainder-tests` cell. Historical comparison found F313 as the only cell-dependent verdict: CLOSED in production/additive and OPEN in services remainder before the fix.
 
 - **READ-CONFIRMED:** [LLP 0303(s)](llp/0303-subject-authority-correlation-policy.decision.md:690) requires an executed alternate-route attempt for closure.
 
