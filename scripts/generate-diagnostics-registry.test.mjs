@@ -1450,6 +1450,22 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     import.meta.dirname,
     '../guide/reference/diagnostics-registry.json',
   ), 'utf8'));
+  const diagnosticsMarkdown = readFileSync(resolve(
+    import.meta.dirname,
+    '../guide/reference/diagnostics.md',
+  ), 'utf8');
+  for (const [name, record] of Object.entries(registry.environment)) {
+    const anchorId = `environment-${name.toLowerCase().replaceAll('_', '-')}`;
+    assert.equal(
+      record.guideAnchor,
+      `/_snapback/guide/reference/diagnostics.md#${anchorId}`,
+      `${name} must carry its generated Guide anchor`,
+    );
+    assert.ok(
+      diagnosticsMarkdown.includes(`<a id="${anchorId}"></a>`),
+      `${name} Guide anchor must resolve in diagnostics.md`,
+    );
+  }
   const diagnosticTypes = readFileSync(resolve(
     import.meta.dirname,
     '../packages/snapback-client/diagnostic-codes.d.mts',

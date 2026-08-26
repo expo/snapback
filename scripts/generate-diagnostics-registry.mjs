@@ -617,6 +617,14 @@ function escapeTable(value) {
   return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
+function environmentAnchorId(name) {
+  return `environment-${name.toLowerCase().replaceAll('_', '-')}`;
+}
+
+function environmentGuideAnchor(name) {
+  return `/_snapback/guide/reference/diagnostics.md#${environmentAnchorId(name)}`;
+}
+
 function renderMarkdown(registry) {
   const lines = [
     '---',
@@ -667,7 +675,7 @@ function renderMarkdown(registry) {
   for (const record of Object.values(registry.environment)) {
     const kinds = [...new Set(record.sites.map((site) => site.kind))].sort().join(', ');
     const first = record.sites[0];
-    const anchor = `<a id="environment-${record.name.toLowerCase().replaceAll('_', '-')}"></a>`;
+    const anchor = `<a id="${environmentAnchorId(record.name)}"></a>`;
     lines.push(`| ${anchor}\`${record.name}\` | ${escapeTable(kinds)} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
   }
   return `${lines.join('\n')}\n`;
@@ -713,6 +721,7 @@ const environment = {};
 for (const name of environmentNames) {
   environment[name] = {
     name,
+    guideAnchor: environmentGuideAnchor(name),
     sites: byEnvironmentVariable.get(name).sort((left, right) => (
       left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column
     )),

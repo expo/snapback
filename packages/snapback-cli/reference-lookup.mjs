@@ -460,6 +460,9 @@ export function formatGuideReferenceLookup(result) {
   }
   if (result.environment) {
     lines.push('environment variable');
+    if (result.environment.guideAnchor) {
+      lines.push(`Guide: ${result.environment.guideAnchor}`);
+    }
     if (result.environment.sites?.length) {
       lines.push(
         '',

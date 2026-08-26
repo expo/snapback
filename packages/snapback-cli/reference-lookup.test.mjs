@@ -111,6 +111,15 @@ const environment = lookupGuideReference(
 assert.equal(environment.match, 'environment');
 assert.equal(environment.environment.name, 'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE');
 assert.equal(environment.environment.sites, undefined);
+assert.equal(
+  environment.environment.guideAnchor,
+  '/_snapback/guide/reference/diagnostics.md#environment-snapback-graph-demand-identity-trace',
+);
+assert.match(
+  formatGuideReferenceLookup(environment),
+  /Guide: \/_snapback\/guide\/reference\/diagnostics\.md#environment-snapback-graph-demand-identity-trace/u,
+  'environment lookup renders its Guide anchor even when sites are omitted',
+);
 assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
 const internalEnvironment = lookupGuideReference(
