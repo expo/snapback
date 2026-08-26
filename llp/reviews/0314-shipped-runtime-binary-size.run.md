@@ -195,3 +195,14 @@ consumer naming, Darwin test) were folded in the same pass.
   dual convergence, or (b) accept the r4 state with its final delta
   labeled unreviewed. MATERIAL cross-family contradiction: none.
   Sustained asymmetry: none (families agreed every round).
+
+## Provenance note (post-push)
+
+The pre-push rebase onto newer `origin/main` renumbered this loop's
+commits: status-flip `235fabf28` → `892ef9d90`, r2 `fca941e42` →
+`b5b3a3d03`, r3 `4c48d0ca0` → `fb0bddda9`, r4 `d78d2cf6c` →
+`997f9034f`. Per LLP 0189, reviews bind content, not HEAD: the
+per-document sha256 hashes recorded in each round are the binding
+references and are unchanged (verified post-rebase — e.g. the
+dual-READY research bytes are still `f7ace0dd…a15c04`, now at
+`fb0bddda9`).
