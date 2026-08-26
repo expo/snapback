@@ -92,3 +92,5 @@ the diff, and no `PendingLiveFanout` constructor was added or changed.
   the existing gap-review warnings).
 - `cargo fmt --all -- --check`, `git diff --check`, and the canonical freezer
   `--check`: PASS.
+
+**Closed:** 2026-08-26 — delivered by the C3 lane (series ending `57f99a710`): the complete 16-case own/absent/other-principal matrix for viewState and notification state on list+detail graphs, engine-issued class-3-only partition distinctness on a same-class-2 pair, B's real §2.4 fenced authority-instance rotation with A's per-subscription zero-delta isolation, in-flight predecessor delivery-gate exercise with a closed frame census, INSERT/UPDATE/DELETE cross-principal skip probes with unchanged evaluation counts, and Rust-executed deltaEligibility dispositions. Dual-family READY (both r3); records `llp/reviews/0209-c3-private-overlays.*`.
