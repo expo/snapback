@@ -5,25 +5,32 @@
 **Systems:** Packaging, Build, Runtime, Distribution, Developer experience
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-25
-**Related:** LLP 0000, LLP 0010, LLP 0041, LLP 0126, LLP 0141, LLP 0276,
-LLP 0314.000
+**Revised:** 2026-08-25 (r2 — super-refine round 1 fold; units unified
+to decimal MB, F3 widened to the manufacture graph, F4 reframed on
+LLP 0061 §4a, F7 comparables dated and labeled)
+**Related:** LLP 0000, LLP 0010, LLP 0041, LLP 0061, LLP 0126, LLP 0141,
+LLP 0276, LLP 0314.000
+
+All sizes in this document are decimal (1 MB = 1,000,000 bytes) unless
+a table gives exact bytes.
 
 ## Summary
 
 The npm-shipped Snapback server is large for a local backend people
-`npm install`. The Darwin **0.1.27** runtime package unpacks to **~178 MB**
+`npm install`. The Darwin **0.1.27** runtime package unpacks to **~187 MB**
 (18 files); its `bin/snapback` is **~159 MB** on disk and compresses, with
 Hermes and the admin snapshot, into a **~52 MB** tarball. Linux is heavier:
-**~237 MB** unpacked / **~70 MB** tarball, because ICU and `libhermesvm.so`
+**~248 MB** unpacked / **~70 MB** tarball, because ICU and `libhermesvm.so`
 ride next to the binary.
 
 This is not a mistaken debug build. The qualified developer binary is
-*supposed* to be fat (LLP 0010: ~490–530 MB with full split debug). The
-shipped artifact is a `--release` Mach-O that still carries **241k
-symbols**, **~20 MB of embedded Guide**, and **no fat LTO**, even though
-the workspace already defines `[profile.production]` for the ship path
-(LLP 0276) and already sidecars the admin UI in the npm package (LLP
-0041).
+*supposed* to be fat (LLP 0010 policy; measured **~490 MB** in
+`scripts/binary-size-baseline.json`, **~530 MB** for this checkout's
+`target/debug/snapback`). The shipped artifact is a `--release` Mach-O
+that still carries **241k symbols**, **~20 MB of embedded Guide**, and
+**no fat LTO**, even though the workspace already defines
+`[profile.production]` for the ship path (LLP 0276) and already sidecars
+the admin UI in the npm package (LLP 0041).
 
 This document is diagnosis only. It does not authorize a size program,
 a landing veto, or a change to debug-binary policy. The reduction plan
@@ -41,15 +48,24 @@ is [LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md).
   The finding here is that the publish path does not run that command.
 - **Not a Hermes / Ibex indictment.** LLP 0000 picked Ibex “anywhere
   binary size matters.” The packaged Darwin `hermesvm.framework` is
-  **~9.4 MB**. That is cheap next to 64 MB of Snapback `__text` and 34 MB
+  **~9.4 MB**. That is cheap next to 67 MB of Snapback `__text` and 35 MB
   of leftover symbols. LLP 0141’s **74 MB** figure is the vendored
   `vendor/ibex/ios/Frameworks` checkout, not the shipped framework.
+- **Not a repudiation of the Guide-embedding decision.** LLP 0061 §4a
+  deliberately resolved Guide carriage as *embedded-in-binary, always
+  served*: the server is the structural version authority, and HTTP and
+  MCP re-serve one build-matched corpus. F4 measures what that decision
+  costs today; changing the carriage is a design amendment to LLP 0061
+  (taken up in LLP 0314.000 Phase 2), not the correction of an accident.
 - **Not a claim about HEAD.** Numbers below are the **0.1.27** closure
-  (`98681377721e`, holding tag `fastpath-0-1-27-98681377721e`) plus the
-  Darwin `bin/snapback` sitting in
-  `packages/snapback-runtime-darwin-arm64/` of this checkout. The tree
-  moves; the *shape* of the waste does not depend on a few days of
-  growth.
+  (`98681377721e`, holding tag `fastpath-0-1-27-98681377721e`) plus a
+  Darwin `bin/snapback` staged in
+  `packages/snapback-runtime-darwin-arm64/` when measured on
+  2026-08-25. Staged binaries are not retained in the checkout, so the
+  F2 table is not locally re-runnable; future snapshots should retain
+  the binary digest and raw `size`/`otool` output alongside the dated
+  numbers. The tree moves; the *shape* of the waste does not depend on
+  a few days of growth.
 
 ## Evidence
 
@@ -76,7 +92,7 @@ binary. Crate-level size *attribution* below is therefore structural
 
 ## Findings
 
-### F1. The shipped Darwin runtime is ~159 MB for the server, ~178 MB for the package
+### F1. The shipped Darwin runtime is ~159 MB for the server, ~187 MB for the package
 
 **Confidence:** high (registry `unpackedSize`, local tarball, local
 binary `stat`).
@@ -87,18 +103,21 @@ Darwin runtime as an optional dependency and lands:
 - **~52 MB** compressed download for the runtime tarball, **~3 MB** more
   for the JS closure (cli, client, codegen, contract, react,
   acceptance);
-- **~178 MB** unpacked runtime on disk, **~18 MB** more JS.
+- **~187 MB** unpacked runtime on disk, **~18 MB** more JS.
 
 Client-only installs (`@expo/snapback-client`) are a different product:
 **~0.6 MB** tarball / **~2.8 MB** unpacked, plus contract. They do not
 carry the server. This research is about the local-dev / sidecar
 runtime, not the browser SDK.
 
-Linux x64 is the same JS plus a **~70 MB** tarball / **~237 MB**
+Linux x64 is the same JS plus a **~70 MB** tarball / **~248 MB**
 unpacked runtime (`libhermesvm.so` + ICU in `lib/`).
 
 There is no crates.io server crate. LLP 0141 already recorded why:
-Hermes artifacts blow crates.io’s 10 MB compressed limit. npm + a
+Hermes artifacts blow crates.io’s 10 MB compressed limit — the
+immediate blocker — and 0141 also records path-dependency, artifact
+acquisition/custody, qualification, and publication-metadata
+requirements that a smaller binary would not satisfy by itself. npm + a
 platform runtime tarball is the distribution path.
 
 ### F2. The 159 MB is three kinds of weight, not one
@@ -107,23 +126,24 @@ platform runtime tarball is the distribution path.
 
 | Piece | Bytes | Meaning |
 |---|---:|---|
-| `__text` | 67,409,876 | Real machine code (~64 MiB) |
+| `__text` | 67,409,876 | Real machine code (~67 MB) |
 | `__const` | 38,058,440 | Read-only data: type names, panic strings, tables, embedded Guide |
 | `__LINKEDIT` | 35,160,064 | Symbol table / relocs; `nsyms` **241,187**, `strsize` **28,510,400** |
 | `__eh_frame` | 7,381,068 | Unwind |
-| `__gcc_except_tab` | 4,234,976 | C++ exception tables (SQLite / Hermes glue, not Rust panics alone) |
+| `__gcc_except_tab` | 4,234,976 | Exception/LSDA tables — mixed Rust and C++ (SQLite is C; Hermes glue is C++; Rust emits LSDA too); attribution pending a Phase 0 bloat run |
 | `__cstring` | 2,860,766 | C strings |
 | `__DATA_CONST` + `__DATA` | ~2.9 MB | GOT, data, TLS |
 | File | 159,336,256 | |
 
 `dwarfdump --debug-info` on the packaged binary is empty: DWARF is gone,
-the **symbol table is not**. A consumer of the npm package pays ~34 MB
+the **symbol table is not**. A consumer of the npm package pays ~35 MB
 of `__LINKEDIT` for names the process does not need at runtime.
 
-The 500 MB debug binary is the same program plus ~278 MB of
-`__LINKEDIT` and ~3 million symbols (LLP 0010 baseline). That is the
-correct developer shape. It is not evidence that the *ship* path is
-healthy.
+The ~530 MB debug binary is the same program plus ~278 MB of
+`__LINKEDIT` and ~3 million symbols (baseline in
+`scripts/binary-size-baseline.json`; LLP 0010 is the policy, not the
+number). That is the correct developer shape. It is not evidence that
+the *ship* path is healthy.
 
 ### F3. The publish path does not use the production profile the workspace already defined
 
@@ -137,31 +157,51 @@ LLP 0276 and root `Cargo.toml` split two release shapes:
   `lto = "fat"`, `codegen-units = 1`. For the shipped binary.
 
 The packer (`packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs`)
-copies `target/release/snapback`. The public-package identity command
+copies `target/release/snapback` by default (env override
+`SNAPBACK_RUNTIME_SOURCE_BINARY`). The public-package identity command
 pinned in `tests/ci_workflows_v0.mjs` is `cargo build --release --bin
 snapback` under `SNAPBACK_BUILD_DISTRIBUTION=public-package`.
+
+The miss is the whole manufacture graph, not one packer default: the
+Linux packer defaults the same way
+(`SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY`),
+`.github/workflows/linux-runtime-package.yml` both builds `--release`
+and issues source receipts on `target/release/snapback`, both native
+jobs in `.eas/workflows/qualified-package-staging.yml` build
+`--release`, and `scripts/assemble-runtime-package` /
+`scripts/build-linux-runtime-release` do too.
 
 So the npm binary is an incremental-friendly release link, not the
 fat-LTO image the architecture RFC named. That is packaging drift, not
 a missing design.
 
-### F4. The entire Guide corpus is compiled into the server
+### F4. The entire Guide corpus is compiled into the server — by design, at a cost now worth revisiting
 
 **Confidence:** high (build.rs walk + `include_bytes!` + `du`).
 
 `crates/snapback-server/build.rs` walks `guide/`, skips only
 `eval-runs/`, and writes one inert `embedded-guide.v1.bin`
 (`SNAPBACK_EMBEDDED_GUIDE\0\x01` + content hash + path/length/bytes).
-`crates/snapback-server/src/guide.rs` includes that blob.
+`crates/snapback-server/src/guide.rs` includes that blob, plus a second
+smaller embed: `include_str!` of `guide/guide-manifest.generated.json`.
 
-The checked `guide/` tree is **~20 MB** (~20.6 MB of markdown and JSON).
-That is a plausible majority of the 36 MB `__const` segment. The binary
-also rebuilds whenever a guide page changes.
+This is a deliberate, governed choice, not drift: LLP 0061 §4a resolved
+Guide carriage as *embedded-in-binary, always served* so the server is
+the structural version authority and HTTP and MCP re-serve one
+build-matched corpus, and LLP 0284 leans on the inert artifact +
+committed decoder + directly-included manifest in its security design.
+What has changed is the cost side: the checked `guide/` tree is
+**~20 MB** (~20.6 MB of markdown and JSON) — a plausible majority of the
+38 MB `__const` segment — versus roughly 130 KiB when 0061 decided. The
+binary also rebuilds whenever a guide page changes.
 
-The admin console is *not* embedded this way. LLP 0041 already ships it
-as package files under `packages/snapback-runtime-*/admin/` (~4 MB in
-the Darwin tree). The Guide is the inconsistent sibling: same
-“served from the running server” job, opposite carriage.
+The admin console carries the same “served from the running server” job
+the opposite way: LLP 0041 ships it as package files under
+`packages/snapback-runtime-*/admin/` (~4 MB in the Darwin tree). Any
+carriage change must preserve 0061’s decided properties —
+always-available, build-bound, one validated corpus across HTTP and
+MCP — and amend LLP 0061/0041/0284, which is LLP 0314.000 Phase 2’s
+job.
 
 ### F5. Hermes is not the size problem
 
@@ -200,8 +240,9 @@ telemetry recorder.
 Separately, the *default* graph always carries crates that are size-
 famous in Rust even when every call site is legitimate:
 
-- `jsonschema` on `snapback-engine` (Ask in `ask.rs`) and on the
-  `snapback` crate itself;
+- `jsonschema` on `snapback-engine` (Ask in `ask.rs`), on
+  `snapback-types`, and on the `snapback` crate itself (kernel’s copy
+  is dev-only);
 - `schemars`;
 - `image` (jpeg/png) and `kamadak-exif` on services and the binary crate;
 - three password KDFs in kernel (`argon2`, `bcrypt`, `scrypt`);
@@ -211,7 +252,7 @@ famous in Rust even when every call site is legitimate:
 - `clap` on `snapback-cli`, which the server binary links.
 
 Those are product dependencies, not accidents. They explain why `__text`
-is 64 MB for ~420k lines of product Rust plus C (SQLite, crypto). They
+is 67 MB for ~420k lines of product Rust plus C (SQLite, crypto). They
 do **not** yet have a crate-ranked byte table. Finding 6 licenses “these
 are on the ship graph,” not “jsonschema is N megabytes.”
 
@@ -221,22 +262,24 @@ are on the ship graph,” not “jsonschema is N megabytes.”
 order-of-magnitude does not).
 
 A local BaaS-in-a-process is the right neighborhood, not a database
-server and not a JS runtime-as-the-product:
+server and not a JS runtime-as-the-product. Indicative sizes from
+official release assets as of 2026-08-25 (peer versions move; “archive”
+rows are compressed downloads, not executables, so they under-read):
 
-| Neighbor | Typical published binary |
-|---|---|
-| PocketBase (Go, sqlite, auth, realtime, admin, files) | ~13 MB |
-| PostgREST / Hasura / Meilisearch class | ~10–50 MB |
-| Deno / Bun (includes a JS engine) | ~80–90 MB |
-| MinIO | ~100 MB |
-| **Snapback Darwin `snapback` (0.1.27)** | **~159 MB** |
-| Cockroach-class | 150 MB+ |
+| Neighbor | Kind | Darwin-arm64 size |
+|---|---|---|
+| PocketBase (Go, sqlite, auth, realtime, admin, files) | executable | ~13 MB |
+| Deno / Bun (includes a JS engine) | compressed archive | ~25–37 MB |
+| MinIO | executable | ~103 MB |
+| Meilisearch | executable | ~116 MB |
+| **Snapback `snapback` (0.1.27)** | **executable** | **~159 MB** |
+| Cockroach-class | executable | 150 MB+ |
 
 A **50 MB download** for “install a local backend” is acceptable. A
 **159 MB unstripped non-LTO binary that also contains the docs** is
 large relative to PocketBase and large relative to Snapback’s own 48 MB
 memory. It is *not* in the “we shipped `target/debug`” class; that would
-be 500 MB.
+be ~500 MB.
 
 Compressed, Darwin is already ~52 MB. Compression is hiding stringy
 rodata and symbols. Disk and dyld still see 159 MB + 9.4 MB Hermes.
@@ -253,12 +296,16 @@ and `vendor/` excluded) was roughly:
 - **~9k** Swift / Kotlin.
 
 Dedicated Rust test files were another ~196k; in-src `#[cfg(test)]`
-modules another ~90k by a brace heuristic; the debug binary’s 3 million
-symbols are those tests plus monomorphization, not a third copy of the
-kernel.
+modules another ~90k by a brace heuristic. Those test counts
+contextualize repository size only — an ordinary `cargo build --bin
+snapback` does not compile integration tests or `#[cfg(test)]` modules
+into the binary, so the debug binary’s 3 million symbols are
+monomorphization and debug metadata, attributable only after an
+`nm`/bloat pass (enabled `test-support` features are a separate,
+smaller matter — F6).
 
 This licenses “the program is large because the program is large” for
-the 64 MB of `__text`. It does not license the 34 MB of symbols, the
+the 67 MB of `__text`. It does not license the 35 MB of symbols, the
 embedded 20 MB Guide, or skipping fat LTO on the artifact people
 download.
 
