@@ -2191,6 +2191,57 @@ mod tests {
         )
     }
 
+    #[test]
+    #[ignore = "stale-schema ownership measurement; run explicitly"]
+    fn stale_predecessor_dev_schema_publication_overwrites_durable_successor() {
+        let dir = tempdir().expect("stale schema publication tempdir");
+        let path = dir.path().join("stale-schema-publication.sqlite");
+        let mut stale = LocalDatabase::open(&path).expect("open stale handle A");
+        let (_, mut predecessor) = dev_pair(Some("items"));
+        predecessor.schema_hash = Some("sha256:publication-predecessor".to_owned());
+        stale
+            .schema_seed()
+            .apply_schema(predecessor)
+            .expect("publish predecessor through handle A");
+        let mut publisher = LocalDatabase::open(&path).expect("open publisher handle B");
+        let (_, mut successor) = dev_pair(Some("items"));
+        successor.schema_hash = Some("sha256:publication-successor".to_owned());
+        publisher
+            .schema_seed()
+            .apply_schema(successor)
+            .expect("durably publish successor through handle B");
+        assert_eq!(
+            stale.schema().schema_hash.as_deref(),
+            Some("sha256:publication-predecessor"),
+            "handle A must retain its predecessor"
+        );
+        assert_eq!(
+            publisher.schema().schema_hash.as_deref(),
+            Some("sha256:publication-successor"),
+            "handle B must hold its successor before A's use"
+        );
+
+        let (_, mut stale_contender) = dev_pair(Some("items"));
+        stale_contender.schema_hash = Some("sha256:publication-stale-contender".to_owned());
+        let outcome = stale.schema_seed().apply_schema(stale_contender);
+        let observer = LocalDatabase::open(&path).expect("open effect observer C");
+        let durable_hash = observer.schema().schema_hash.as_deref();
+        assert!(
+            outcome.is_ok(),
+            "current implementation accepts stale publication"
+        );
+        assert_eq!(
+            durable_hash,
+            Some("sha256:publication-stale-contender"),
+            "stale A's contender must be the exact durable effect"
+        );
+        eprintln!(
+            "FAMILY12_NEEDS_OWNERSHIP_DECISION: use returned Ok; observer C saw \
+             durable_hash={} after B had published sha256:publication-successor",
+            durable_hash.unwrap_or("missing")
+        );
+    }
+
     fn membership_dev_pair() -> (DeploymentIdentity, SchemaManifest) {
         let (identity, mut manifest) = dev_pair(None);
         manifest.tables = vec![
