@@ -20,8 +20,17 @@ const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_FIXTURE_ROOT = resolve(DEFAULT_ROOT, 'tests/fixtures/security-boundaries');
 const TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-fixtures');
 const OWNING_CRATE_TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-owning-crate');
+const AUTHORITY_RUNTIME_TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-authority-runtime');
 const DIAGNOSTIC = 'SNAPBACK_SECURITY_BOUNDARY';
 const OWNING_CRATE_MODE = 'kernel-unit-compile-fail';
+const AUTHORITY_RUNTIME_TESTS = [
+  'authority_runtime_advances_epoch_on_commit_and_rollback',
+  'authority_runtime_rejects_forgotten_transaction_after_external_commit',
+  'authority_runtime_rejects_one_authorizer_on_a_second_connection',
+  'authority_runtime_rejects_prepared_statement_after_permit_drop',
+  'authority_runtime_rejects_replace_under_insert_permit',
+  'authority_runtime_rejects_writer_reactivation_with_arbitrary_mutation',
+];
 
 function sorted(values) {
   return [...new Set(values)].sort();
@@ -373,55 +382,118 @@ export function runOwningCrateAttacks({
       featureSets.set(JSON.stringify(features), features);
     }
   }
-  const compilations = new Map();
-  for (const [key, features] of featureSets) {
-    const args = [
-      'test',
-      '--offline',
-      '--locked',
-      '--message-format=json',
-      '--package', 'snapback-kernel',
-      '--lib',
-      '--no-run',
-    ];
-    if (features.length > 0) args.push('--features', features.join(','));
-    const rustflags = [
-      process.env.RUSTFLAGS,
-      '--cfg snapback_authority_compile_fail',
-      '--check-cfg=cfg(snapback_authority_compile_fail)',
-    ].filter(Boolean).join(' ');
-    const env = {
-      ...process.env,
-      CARGO_TARGET_DIR: targetDir,
-      RUSTFLAGS: rustflags,
-    };
-    delete env.CARGO_ENCODED_RUSTFLAGS;
-    const result = spawnCargo('cargo', args, {
-      cwd: root,
-      env,
-      encoding: 'utf8',
-      maxBuffer: 128 * 1024 * 1024,
+  const variants = [
+    { name: 'general', cfg: 'snapback_authority_compile_fail' },
+  ];
+  if (attacks.some(({ id }) => id === 'decompose-kernel-verified-evidence')) {
+    variants.push({
+      name: 'decompose',
+      cfg: 'snapback_authority_compile_fail_decompose',
     });
-    if (result.error || result.status === null) {
-      throw new GateInfrastructureError(
-        `cargo did not execute owning-crate authority probes: ${result.error?.message ?? 'no exit status'}`,
-      );
+  }
+  const compilations = new Map();
+  for (const { name, cfg } of variants) {
+    for (const [key, features] of featureSets) {
+      const args = [
+        'test',
+        '--offline',
+        '--locked',
+        '--message-format=json',
+        '--package', 'snapback-kernel',
+        '--lib',
+        '--no-run',
+      ];
+      if (features.length > 0) args.push('--features', features.join(','));
+      const rustflags = [
+        process.env.RUSTFLAGS,
+        `--cfg ${cfg}`,
+        `--check-cfg=cfg(${cfg})`,
+      ].filter(Boolean).join(' ');
+      const env = {
+        ...process.env,
+        CARGO_TARGET_DIR: targetDir,
+        RUSTFLAGS: rustflags,
+      };
+      delete env.CARGO_ENCODED_RUSTFLAGS;
+      const result = spawnCargo('cargo', args, {
+        cwd: root,
+        env,
+        encoding: 'utf8',
+        maxBuffer: 128 * 1024 * 1024,
+      });
+      if (result.error || result.status === null) {
+        throw new GateInfrastructureError(
+          `cargo did not execute owning-crate authority probes: ${result.error?.message ?? 'no exit status'}`,
+        );
+      }
+      const messages = parseCompilerMessages(`${result.stdout}\n${result.stderr}`, root);
+      if (result.status !== 0 && messages.length === 0) {
+        throw new GateInfrastructureError(
+          `cargo failed owning-crate authority probes without a rustc compiler-message error under features [${features.join(',')}]\n${result.stderr || result.stdout}`,
+        );
+      }
+      compilations.set(`${name}:${key}`, { status: result.status, messages });
     }
-    const messages = parseCompilerMessages(`${result.stdout}\n${result.stderr}`, root);
-    if (result.status !== 0 && messages.length === 0) {
-      throw new GateInfrastructureError(
-        `cargo failed owning-crate authority probes without a rustc compiler-message error under features [${features.join(',')}]\n${result.stderr || result.stdout}`,
-      );
-    }
-    compilations.set(key, { status: result.status, messages });
   }
   return attacks.flatMap((attack) => attack.featureSets.map((features) =>
     scoreOwningCrateAttack({
       attack,
       features,
-      compilation: compilations.get(JSON.stringify(features)),
+      compilation: compilations.get(
+        `${attack.id === 'decompose-kernel-verified-evidence' ? 'decompose' : 'general'}:${JSON.stringify(features)}`,
+      ),
       root,
     })));
+}
+
+// @ref LLP 0313#9-mechanical-gate — the authorizer's lifetime, origin,
+// statement-reprepare, operation, and nonce properties are runtime facts.
+// Compiling their tests is not evidence; the security gate executes them and
+// requires every named witness to report `ok`.
+export function runAuthorityRuntimeRegressions({
+  root = DEFAULT_ROOT,
+  targetDir = AUTHORITY_RUNTIME_TARGET,
+  spawnCargo = spawnSync,
+} = {}) {
+  const args = [
+    'test',
+    '--offline',
+    '--locked',
+    '--package', 'snapback-kernel',
+    '--lib',
+    'authority_runtime_',
+    '--',
+    '--nocapture',
+  ];
+  const result = spawnCargo('cargo', args, {
+    cwd: root,
+    env: { ...process.env, CARGO_TARGET_DIR: targetDir },
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  if (result.error || result.status === null) {
+    throw new GateInfrastructureError(
+      `cargo did not execute authority runtime regressions: ${result.error?.message ?? 'no exit status'}`,
+    );
+  }
+  const output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  const missing = AUTHORITY_RUNTIME_TESTS.filter((name) =>
+    !new RegExp(`test [^\\n]*${name.replaceAll('_', '[_]')} \\.\\.\\. ok`, 'u').test(output));
+  if (result.status !== 0 || missing.length > 0) {
+    const reason = result.status !== 0
+      ? `cargo test exited ${result.status}`
+      : `missing executed ok result(s): ${missing.join(', ')}`;
+    return {
+      passed: false,
+      line: `[security-boundary] RED authority-transition-runtime: ${reason}`,
+      diagnostics: output.trim().split('\n').slice(-20),
+    };
+  }
+  return {
+    passed: true,
+    line: `[security-boundary] PASS authority-transition-runtime: ${AUTHORITY_RUNTIME_TESTS.length}/${AUTHORITY_RUNTIME_TESTS.length} executed regressions`,
+    diagnostics: [],
+  };
 }
 
 function validateSeedWitnessCoverage(privilegeFindings, attacks) {
@@ -485,6 +557,7 @@ export function auditSecurityBoundaries(
   const outcomes = [
     ...dependentCrateAttacks.flatMap((attack) => runAttack({ attack, fixtureRoot })),
     ...runOwningCrateAttacks({ attacks: owningCrateAttacks, root }),
+    runAuthorityRuntimeRegressions({ root }),
   ];
   const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
   return { attacks, authorityTransition, inventoryErrors, outcomes, durationMs };
@@ -512,7 +585,7 @@ function printResult(result) {
   if (redCount > 0) {
     process.stderr.write(`${DIAGNOSTIC}: ${redCount} fixture or inventory violation(s)\n`);
   }
-  const summary = `[security-boundary] ${redCount > 0 ? 'RED' : 'PASS'}: ${passCount} attack-span rejection(s), ${redCount} failure(s), ${result.attacks.length} inventoried attack(s); ${(result.durationMs / 1000).toFixed(2)}s\n`;
+  const summary = `[security-boundary] ${redCount > 0 ? 'RED' : 'PASS'}: ${passCount} boundary witness(es), ${redCount} failure(s), ${result.attacks.length} inventoried attack(s); ${(result.durationMs / 1000).toFixed(2)}s\n`;
   (redCount > 0 ? process.stderr : process.stdout).write(summary);
   return redCount > 0 ? 1 : 0;
 }

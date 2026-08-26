@@ -4,9 +4,9 @@ use super::super::DatabaseBinding;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::marker::PhantomData;
-use std::num::{NonZeroU64, NonZeroU128};
+use std::num::{NonZeroU64, NonZeroU128, NonZeroUsize};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 mod administrator;
 mod bearer;
@@ -20,23 +20,6 @@ mod registry;
 mod step_up;
 mod verifier;
 mod writers;
-
-// @ref LLP 0313#4-private-evidence-and-permits — inherited visibility keeps
-// the evidence name inside `core`; the Rc marker makes it neither Send nor
-// Sync, and evidence is immediately consumed rather than returned.
-struct KernelVerifiedEvidence<'tx> {
-    transaction: &'tx TransactionIdentity,
-    single_use_nonce: NonZeroU128,
-    proof_kind: ProofKind,
-    subject: VerifiedSubject,
-    authority_class: AuthorityClass,
-    purpose: AuthorityPurpose,
-    predecessors: NonEmpty<DurablePredecessor>,
-    time: VerifiedTime,
-    write_set: ProtectedWriteSet,
-    successor_digest: [u8; 32],
-    _not_send_sync: PhantomData<Rc<()>>,
-}
 
 #[derive(Eq, PartialEq)]
 enum ProofKind {
@@ -182,20 +165,18 @@ struct ProtectedWriteSet {
 struct DatabaseOrigin {
     binding: DatabaseBinding,
     durable_store_identity: [u8; 32],
+    connection_identity: ConnectionIdentity,
 }
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+struct ConnectionIdentity(NonZeroUsize);
 
 struct TransactionIdentity {
     database_origin: DatabaseOrigin,
     connection_epoch: NonZeroU64,
-    live_identity: Arc<LiveTransactionIdentity>,
     nonce_registry: RefCell<BTreeSet<NonZeroU128>>,
     authorizer_permit_cell: Arc<Mutex<AuthorizerPermitCell>>,
     _not_send_sync: PhantomData<Rc<()>>,
-}
-
-struct LiveTransactionIdentity {
-    database_origin: DatabaseOrigin,
-    connection_epoch: NonZeroU64,
 }
 
 struct AuthorityTransaction<'conn> {
@@ -204,21 +185,23 @@ struct AuthorityTransaction<'conn> {
 }
 
 struct ConnectionAuthorizer {
-    database_origin: DatabaseOrigin,
-    connection_epoch: NonZeroU64,
+    binding: DatabaseBinding,
+    durable_store_identity: [u8; 32],
     permit_cell: Arc<Mutex<AuthorizerPermitCell>>,
 }
 
 struct AuthorizerPermitCell {
-    database_origin: DatabaseOrigin,
-    connection_epoch: NonZeroU64,
+    database_origin: Option<DatabaseOrigin>,
+    connection_epoch: Option<NonZeroU64>,
     protected_tables: BTreeSet<&'static str>,
     dynamic_membership_tables: BTreeSet<String>,
     active: Option<ActivePermit>,
+    execution_violation: bool,
+    transaction_tainted: bool,
 }
 
 struct ActivePermit {
-    transaction: Weak<LiveTransactionIdentity>,
+    connection_epoch: NonZeroU64,
     nonce: NonZeroU128,
     mutation: AuthorityMutation,
     write_set: ProtectedWriteSet,
@@ -236,15 +219,6 @@ struct AuthorityWritePermit<'tx, 'conn> {
     _not_send_sync: PhantomData<Rc<()>>,
 }
 
-struct VerifiedProof {
-    proof_kind: ProofKind,
-    subject: VerifiedSubject,
-    authority_class: AuthorityClass,
-    purpose: AuthorityPurpose,
-    predecessors: NonEmpty<DurablePredecessor>,
-    time: VerifiedTime,
-}
-
 struct ConsumptionExpectation<'a> {
     transaction: &'a TransactionIdentity,
     database_origin: &'a DatabaseOrigin,
@@ -258,6 +232,9 @@ struct ConsumptionExpectation<'a> {
 enum AuthorityTransitionError {
     AuthorizerPoisoned,
     CurrentProcessMismatch,
+    AuthorizerConnectionMismatch,
+    AuthorizerNotInstalled,
+    ConnectionEpochExhausted,
     DatabaseOriginMismatch,
     TransactionMismatch,
     NonceGenerationFailed,

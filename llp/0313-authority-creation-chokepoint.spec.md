@@ -6,7 +6,7 @@
 **Author:** codex `gpt-5.6-sol` (read-only design), commissioned by Claude (Opus 5)
 orchestrating LLP 0283 F-1, for Charlie Cheever
 **Date:** 2026-08-26
-**Revised:** 2026-08-26 (a — initial design)
+**Revised:** 2026-08-26 (b — Landing A Round 4 hardening and executed witnesses)
 **Related:** LLP 0283 (F-1), LLP 0285 (§5.1, §6 — superseded in part by this document),
 LLP 0291 (the enumerated forgery surface), LLP 0303, LLP 0284, LLP 0225
 
@@ -166,6 +166,31 @@ SealedInternalService
 
 **[INFERRED]** The SQLite authorizer denies protected inserts, updates, deletes, replacements, triggers, schema operations, attached-database access, and dynamic membership effects unless the active permit’s exact write set authorizes them.
 
+### 4.1 Landing A substrate constraints
+
+**[READ-CONFIRMED]** Landing A remains private and inert. The authorizer substrate has no
+production installation site, no public ceremony or re-export, and moves no protected writer.
+
+**[READ-CONFIRMED]** An authorizer binds on first installation to identity derived from the
+actual SQLite connection. A second connection receives a distinct permanently unarmed callback
+cell and installation reports a mismatch; it never shares the first connection's permit cell.
+
+**[READ-CONFIRMED]** The connection epoch is allocated internally, advances on every commit and
+rollback callback, and fails closed on exhaustion. Commit and rollback clear active authority
+independently of Rust destructor reachability, so leaking the permit and transaction cannot keep
+authority alive or pin the cell against later legitimate work.
+
+**[READ-CONFIRMED]** Permit drop clears the exact active permit and reinstalls SQLite's
+authorizer, forcing already-live prepared statements to reauthorize before execution. The
+execution-time pre-update hook separately observes semantic `INSERT`, `UPDATE`, and `DELETE`
+effects. `REPLACE` therefore requires an exact `Replace` write-set entry for both its delete and
+insert effects; a refused partial execution taints the transaction and its commit is rolled back.
+
+**[READ-CONFIRMED]** Nonce registration requires a token constructible only inside the evidence
+custodian. The reachable activation function consumes that registered nonce and checks the
+mutation's canonical write set, exact connection, origin, epoch, and successor digest. A writer
+can name activation but cannot use an earlier ceremony to mint or reactivate different authority.
+
 ## 5. Public prepared operations
 
 **[INFERRED]** Replace `ResolvedAppAuthority` and generic `PreparedAuthority` with exact, opaque `PreparedOperation<Kind>` values.
@@ -306,7 +331,18 @@ contains LocalDatabase or an adoptable equivalent.
 
 **[INFERRED]** Keep hostile dependent-crate `rustc --message-format=json` checks with primary-span assertions, but treat them only as spelling evidence.
 
+**[READ-CONFIRMED]** Landing A's owning-crate decomposition witness now uses a named-field
+pattern and is compiled alone so rustc reaches its late privacy check (`E0451`). The reinstall
+witness makes a correctly typed call to the real private consumer and fails on reachability
+(`E0603`), rather than on an intentionally wrong argument.
+
 **[INFERRED]** Each LLP 0291 family and inventory row additionally needs an alternate-route effect witness using another producer and consumer. Refused runtime cases assert protected rows unchanged; accepted cases assert exact durable columns and receipts.
+
+**[READ-CONFIRMED]** The security-boundary gate executes, rather than merely compiles, six named
+Landing A regressions: leaked transaction ownership across raw `COMMIT`, cross-connection
+authorizer reuse, live prepared-statement execution after permit drop, `REPLACE` under an Insert
+permit, arbitrary writer reactivation, and epoch advance on commit and rollback. The gate requires
+an `ok` result for every exact test name.
 
 **[READ-CONFIRMED]** Syn, metadata, and compiler spans cannot prove complete body-flow semantics or evidence-to-write correspondence.
 

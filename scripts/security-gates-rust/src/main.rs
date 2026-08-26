@@ -3816,8 +3816,15 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
     let authority_root = source_root.join("storage/authority_transition");
     let authority_mod = authority_root.join("mod.rs");
     let core_mod = authority_root.join("core/mod.rs");
+    let evidence_path = authority_root.join("core/evidence.rs");
     let writers_root = authority_root.join("core/writers");
-    let required_paths = [&storage_path, &authority_mod, &core_mod, &writers_root];
+    let required_paths = [
+        &storage_path,
+        &authority_mod,
+        &core_mod,
+        &evidence_path,
+        &writers_root,
+    ];
     for path in required_paths {
         if !path.exists() {
             return Ok(AuthorityTransitionAudit {
@@ -3842,6 +3849,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
     let storage_syntax = parse(&storage_path)?;
     let authority_syntax = parse(&authority_mod)?;
     let core_syntax = parse(&core_mod)?;
+    let evidence_syntax = parse(&evidence_path)?;
     let mut violations = Vec::new();
 
     let storage_authority = storage_syntax.items.iter().find_map(|item| match item {
@@ -3878,25 +3886,30 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
     let mut evidence_declarations = 0_usize;
     let mut proof_kind_seen = false;
     let mut authority_class_seen = false;
-    for item in &core_syntax.items {
+    for (item, item_path) in evidence_syntax
+        .items
+        .iter()
+        .map(|item| (item, &evidence_path))
+        .chain(core_syntax.items.iter().map(|item| (item, &core_mod)))
+    {
         match item {
             Item::Struct(item) if ident_matches(&item.ident, EVIDENCE) => {
                 evidence_declarations += 1;
-                if !matches!(item.vis, Visibility::Inherited) {
+                if !is_pub_super(&item.vis) {
                     push_authority_violation(
                         &mut violations,
                         crate_root,
-                        &core_mod,
+                        item_path,
                         item.vis.span(),
                         "evidence-visibility",
-                        "KernelVerifiedEvidence must use inherited visibility",
+                        "KernelVerifiedEvidence must use exactly pub(super) inside core::evidence",
                     );
                 }
                 let Fields::Named(fields) = &item.fields else {
                     push_authority_violation(
                         &mut violations,
                         crate_root,
-                        &core_mod,
+                        item_path,
                         item.fields.span(),
                         "evidence-fields",
                         "KernelVerifiedEvidence must have named fields",
@@ -3922,7 +3935,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                     push_authority_violation(
                         &mut violations,
                         crate_root,
-                        &core_mod,
+                        item_path,
                         fields.span(),
                         "evidence-fields",
                         format!("evidence fields were {observed:?}, expected {expected:?}"),
@@ -3933,7 +3946,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                         push_authority_violation(
                             &mut violations,
                             crate_root,
-                            &core_mod,
+                            item_path,
                             attribute.span(),
                             "evidence-forbidden-trait",
                             "serde attributes are forbidden on evidence",
@@ -3949,7 +3962,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                                 push_authority_violation(
                                     &mut violations,
                                     crate_root,
-                                    &core_mod,
+                                    item_path,
                                     path.span(),
                                     "evidence-forbidden-trait",
                                     format!("evidence derives forbidden trait {name}"),
@@ -3974,7 +3987,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                     push_authority_violation(
                         &mut violations,
                         crate_root,
-                        &core_mod,
+                        item_path,
                         item.span(),
                         "proof-kind",
                         format!("private ProofKind variants were {observed:?}, expected {expected:?}"),
@@ -3996,7 +4009,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                     push_authority_violation(
                         &mut violations,
                         crate_root,
-                        &core_mod,
+                        item_path,
                         item.span(),
                         "authority-class",
                         format!(
@@ -4012,8 +4025,8 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
         push_authority_violation(
             &mut violations,
             crate_root,
-            &core_mod,
-            core_syntax.span(),
+            &evidence_path,
+            evidence_syntax.span(),
             "evidence-declaration",
             format!("found {evidence_declarations} KernelVerifiedEvidence declarations, expected 1"),
         );
@@ -4138,7 +4151,11 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                 continue;
             }
             if direct_item_visibility(item).is_some_and(|visibility| {
-                !matches!(visibility, Visibility::Inherited) && tokens.contains(EVIDENCE)
+                !matches!(visibility, Visibility::Inherited)
+                    && tokens.contains(EVIDENCE)
+                    && !matches!(item, Item::Struct(structure)
+                        if ident_matches(&structure.ident, EVIDENCE)
+                            && is_pub_super(&structure.vis))
             }) {
                 push_authority_violation(
                     &mut violations,

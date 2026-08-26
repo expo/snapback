@@ -5,11 +5,13 @@ use sha2::{Digest, Sha256};
 
 pub(super) fn origins_match(left: &DatabaseOrigin, right: &DatabaseOrigin) -> bool {
     left.durable_store_identity == right.durable_store_identity
+        && left.connection_identity == right.connection_identity
         && left.binding.matches(&right.binding)
 }
 
 pub(super) fn register_nonce(
     transaction: &TransactionIdentity,
+    _mint_authority: &evidence::EvidenceMintAuthority,
 ) -> AuthorityTransitionResult<NonZeroU128> {
     for _ in 0..16 {
         let mut bytes = [0_u8; 16];
@@ -22,6 +24,10 @@ pub(super) fn register_nonce(
         }
     }
     Err(AuthorityTransitionError::NonceGenerationFailed)
+}
+
+pub(super) fn discard_nonce(transaction: &TransactionIdentity, nonce: NonZeroU128) {
+    transaction.nonce_registry.borrow_mut().remove(&nonce);
 }
 
 pub(super) fn consume_nonce(

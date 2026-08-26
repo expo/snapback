@@ -6,7 +6,7 @@ pub(super) fn consume_verified_proof<'tx, 'conn>(
     sqlite_transaction: &'tx rusqlite::Transaction<'conn>,
     transaction: &'tx TransactionIdentity,
     database_origin: &DatabaseOrigin,
-    proof: VerifiedProof,
+    proof: evidence::VerifiedProof,
     mutation: AuthorityMutation,
     successor_digest: [u8; 32],
     commit_time_ms: u64,

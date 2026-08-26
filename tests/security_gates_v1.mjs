@@ -19,6 +19,7 @@ import {
 } from '../scripts/security-gates-lib.mjs';
 import {
   loadAttacks,
+  runAuthorityRuntimeRegressions,
   runAttack,
   validateAuthorityTransitionCore,
   validateFixtureInventory,
@@ -47,12 +48,11 @@ test('authority-transition syn gate rejects visibility and SQL-custody regressio
     );
     cpSync(resolve(root, 'crates/snapback-kernel/src/storage.rs'), join(sourceRoot, 'storage.rs'));
 
-    const core = join(sourceRoot, 'storage/authority_transition/core/mod.rs');
     const evidence = join(sourceRoot, 'storage/authority_transition/core/evidence.rs');
     writeFileSync(
-      core,
-      readFileSync(core, 'utf8').replace(
-        'struct KernelVerifiedEvidence',
+      evidence,
+      readFileSync(evidence, 'utf8').replace(
+        'pub(super) struct KernelVerifiedEvidence',
         'pub(crate) struct KernelVerifiedEvidence',
       ),
     );
@@ -68,6 +68,20 @@ test('authority-transition syn gate rejects visibility and SQL-custody regressio
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+test('authority-transition runtime gate executes rather than only compiling regressions', () => {
+  let observedArgs;
+  const result = runAuthorityRuntimeRegressions({
+    root,
+    spawnCargo(_command, args) {
+      observedArgs = args;
+      return { status: 0, stdout: 'running 0 tests\n\ntest result: ok. 0 passed; 0 failed\n', stderr: '' };
+    },
+  });
+  assert.equal(observedArgs.includes('--no-run'), false);
+  assert.equal(result.passed, false);
+  assert.match(result.line, /missing executed ok result/u);
 });
 
 function inertGuideFixture() {

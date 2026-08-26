@@ -28,6 +28,10 @@ hkdf = "0.12"
 hmac = "0.12"
 http = "1"
 libc = "0.2"
+# rusqlite 0.31 does not expose the pre-update hook, but the dormant
+# authority-transition authorizer needs SQLite's semantic DML callback to
+# distinguish INSERT from REPLACE's implicit delete at execution time.
+libsqlite3-sys = { version = "0.28", features = ["preupdate_hook"] }
 rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
 ring = "0.17"
 ryu-js = "1.0.2"

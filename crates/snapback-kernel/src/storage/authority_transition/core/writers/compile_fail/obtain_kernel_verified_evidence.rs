@@ -1,6 +1,6 @@
 pub(super) fn obtain_kernel_verified_evidence() {
     // @attack
-    let _: KernelVerifiedEvidence<'_> = super::super::super::evidence::verify_and_consume(
+    let _: evidence::KernelVerifiedEvidence<'_> = super::super::super::evidence::verify_and_consume(
         todo!(),
         todo!(),
         todo!(),

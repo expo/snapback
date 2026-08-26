@@ -2,6 +2,41 @@
 
 use super::*;
 
+// @ref LLP 0313#4-private-evidence-and-permits — the carrier is visible to
+// the core so owning-crate probes can name it, but its fields are private to
+// this custody module. A protected writer therefore cannot destructure the
+// transaction, nonce, or authority facts out of evidence.
+pub(super) struct KernelVerifiedEvidence<'tx> {
+    transaction: &'tx TransactionIdentity,
+    single_use_nonce: NonZeroU128,
+    proof_kind: ProofKind,
+    subject: VerifiedSubject,
+    authority_class: AuthorityClass,
+    purpose: AuthorityPurpose,
+    predecessors: NonEmpty<DurablePredecessor>,
+    time: VerifiedTime,
+    write_set: ProtectedWriteSet,
+    successor_digest: [u8; 32],
+    _not_send_sync: PhantomData<Rc<()>>,
+}
+
+// Exact proof verifiers produce this opaque value. Its components stay in
+// the evidence custodian, so writers cannot turn caller facts into proof.
+pub(super) struct VerifiedProof {
+    proof_kind: ProofKind,
+    subject: VerifiedSubject,
+    authority_class: AuthorityClass,
+    purpose: AuthorityPurpose,
+    predecessors: NonEmpty<DurablePredecessor>,
+    time: VerifiedTime,
+}
+
+// register_nonce accepts this private-field token so descendants such as
+// core::writers cannot populate the nonce registry before calling activate.
+pub(super) struct EvidenceMintAuthority {
+    _private: (),
+}
+
 // @ref LLP 0313#6-legitimate-minting-ceremonies — this function returns only
 // the consumed transaction permit; evidence never becomes an argument or
 // return value at the core boundary.
@@ -15,7 +50,8 @@ pub(super) fn verify_and_consume<'tx, 'conn>(
     commit_time_ms: u64,
 ) -> AuthorityTransitionResult<AuthorityWritePermit<'tx, 'conn>> {
     let write_set = registry::write_set_for(&mutation);
-    let single_use_nonce = registry::register_nonce(transaction)?;
+    let mint_authority = EvidenceMintAuthority { _private: () };
+    let single_use_nonce = registry::register_nonce(transaction, &mint_authority)?;
     let evidence = KernelVerifiedEvidence {
         transaction,
         single_use_nonce,
@@ -29,7 +65,7 @@ pub(super) fn verify_and_consume<'tx, 'conn>(
         successor_digest,
         _not_send_sync: PhantomData,
     };
-    consume(
+    let result = consume(
         evidence,
         sqlite_transaction,
         ConsumptionExpectation {
@@ -40,7 +76,11 @@ pub(super) fn verify_and_consume<'tx, 'conn>(
             successor_digest,
             commit_time_ms,
         },
-    )
+    );
+    if result.is_err() {
+        registry::discard_nonce(transaction, single_use_nonce);
+    }
+    result
 }
 
 fn consume<'tx, 'conn>(
@@ -65,7 +105,6 @@ fn consume<'tx, 'conn>(
     if !std::ptr::eq(evidence.transaction, expectation.transaction) {
         return Err(AuthorityTransitionError::TransactionMismatch);
     }
-    registry::consume_nonce(evidence.transaction, evidence.single_use_nonce)?;
     if !registry::proof_relation_is_valid(
         &evidence.proof_kind,
         &evidence.purpose,
@@ -105,4 +144,27 @@ fn consume<'tx, 'conn>(
         evidence.write_set,
         evidence.successor_digest,
     )
+}
+
+#[cfg(test)]
+pub(super) fn password_proof_for_test() -> VerifiedProof {
+    VerifiedProof {
+        proof_kind: ProofKind::Password,
+        subject: VerifiedSubject::Human([1; 32]),
+        authority_class: AuthorityClass::Human,
+        purpose: AuthorityPurpose::PasswordSessionIssuance,
+        predecessors: NonEmpty {
+            head: DurablePredecessor {
+                object: ProtectedObject::AuthPasswordCredentials,
+                generation: NonZeroU64::new(1).expect("nonzero predecessor generation"),
+                digest: [2; 32],
+            },
+            tail: Vec::new(),
+        },
+        time: VerifiedTime {
+            durable_floor_ms: 5,
+            verified_at_ms: 10,
+            not_after_ms: 20,
+        },
+    }
 }

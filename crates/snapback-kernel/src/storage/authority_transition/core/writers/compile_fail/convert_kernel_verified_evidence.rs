@@ -1,6 +1,6 @@
 pub(super) fn convert_kernel_verified_evidence() {
-    let proof: VerifiedProof = todo!();
+    let proof: evidence::VerifiedProof = todo!();
 
     // @attack
-    let _: KernelVerifiedEvidence<'_> = proof.into();
+    let _: evidence::KernelVerifiedEvidence<'_> = proof.into();
 }
