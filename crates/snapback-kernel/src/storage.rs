@@ -57,6 +57,10 @@ pub mod auth_rehearsal;
 #[path = "storage/auth_logical_transfer.rs"]
 pub mod auth_logical_transfer;
 mod branch_ops;
+// @ref LLP 0313#8-green-landing-order — Landing A is a private, dormant
+// connection-owned authorization substrate. No production constructor or
+// writer reaches it until a later atomic migration landing.
+mod authority_transition;
 mod checkpoints;
 // The item-3 provider integration consumes these crate-private seams after this
 // catalog lane lands; keep the catalog module narrow without making unfinished
