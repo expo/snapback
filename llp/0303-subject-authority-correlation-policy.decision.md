@@ -730,6 +730,44 @@ evolved, one witness began failing `E0560` (no such field) instead of `E0451` (p
 *shape* error rather than a *privacy* error, which would have proved nothing. The corpus reported the
 mismatch rather than counting the row closed.
 
+### (t) Allocation identity fails open across fork, and the ruling belongs here
+
+`Arc::ptr_eq` on a private allocation is the right primitive for in-process graph identity, and this
+programme reaches for it constantly: `EngineAppStateGraphIdentity`, `DatabaseBinding`, and the carriers
+behind C005, C009, F143, F244, F126, F202 and the asset rows all rest on it. **Fifteen files under
+`crates/` compare identity this way.**
+
+It fails **open** across `fork()`. The child inherits the same virtual addresses and reference-count
+state, so a carrier copied into the child still compares equal to one minted by the parent. Every
+reviewer who looked for it found it, against four separate lanes, each spending review budget
+rediscovering the same fact.
+
+**The ruling: fork is in scope, and inherited graphs are fail-closed in the child.** This is not a new
+decision — LLP 0312 reached it for the asset carriers after independent review, and it is recorded
+here so it applies programme-wide rather than being re-argued per row. The mechanism it specifies:
+
+> Both `EngineAppStateGraphIdentity` and the database-origin comparison must include a private
+> creator-process identity and compare it with the **current** process, not merely compare the two
+> stored PIDs. After a fork, every inherited graph is fail-closed in the child. The child must `exec`
+> or construct a fresh `LocalSnapback`; there is no rebind operation for inherited carriers.
+
+Two parts of that are load-bearing and easy to get wrong. **A PID alone is not identity**, and PID
+reuse is not relied upon — the check is against the *current* process, not a stored-PID comparison.
+And within a live process, allocation identity remains the discriminator; the process check only
+detects inheritance. Across restart, non-serialization and a fresh allocation already apply.
+
+**Why fork is in scope at all**, since the obvious objection is that a process which can `fork()`
+already holds the parent's entire address space. Two reasons. The threat model here is *structural
+guarantees against future incorrect code*, not against an attacker with debugger access — the same
+reason the severity note below applies to every row in this programme. And a fork is a thing correct
+code does routinely: a child that inherits a graph and keeps acting on it is a plausible accident, not
+an attack, and fail-closed is the behaviour that makes the accident visible instead of silent.
+
+The corresponding implementation work is one change to the shared primitive rather than a change per
+row, tracked at `issues/20260826-allocation-identity-fails-open-across-fork.md`. Reviewers should
+raise fork only where a carrier does **not** yet carry the creator-process identity, and should cite
+this revision rather than re-deriving the argument.
+
 ## Severity context
 
 Every defect behind these questions is reachable only from in-crate code, not remotely. These are
