@@ -102,3 +102,38 @@ three of the five — at the cost of one field per row.
 Structural failures (setup-stage aborts, removed spellings) still need the alternate-route execution
 that LLP 0303 revision (s) already demands. But codes are cheap and currently optional, and making them
 mandatory is the highest-value change available to the instrument.
+
+## Correction — the proposed defence was wrong
+
+The "minimum viable defence" above is mistaken and should not be implemented as written. I checked the
+harness after proposing it.
+
+**The runner already does both things I recommended.** `scripts/run-row-attacks.mjs:292-298` selects
+the diagnostic matching `expectedCode` and reports `compile failed at @attack, but expected X; saw Y`
+on a mismatch. It also already distinguishes a failure away from the marker —
+`compile failed away from @attack; the fixture needs maintenance` (`:286-290`). Both defences exist.
+
+**Why F145 slipped through anyway, precisely.** F145 is recorded `"expected": "OPEN"` **with**
+`"expectedCode": "E0061"`. The stale-arity failure produces `E0061`. The recorded code and the
+mechanical failure code **coincide**, at the marked line, so every existing check passed.
+
+**The actual defect is `expectedCode` on an OPEN row.** An OPEN row asserts the attack *compiles* and
+reaches the effect — there is no compile error, so no code applies. The field is vestigial there, but
+the harness still consults it if the row ever starts failing. That converts a meaningless recorded
+value into the thing that certifies a false closure.
+
+**Revised recommendation, narrower and actually new:**
+
+1. **Reject `expectedCode` on rows recorded OPEN**, in `loadRowAttackLedger`'s validation. It cannot
+   describe anything true about an open row, and its only effect is to pre-authorise a future
+   mechanical failure. Eleven of thirty-five rows currently carry no code at all, which is correct for
+   the OPEN ones among them.
+2. **A row transitioning OPEN → CLOSED must not be certified by a code match alone.** LLP 0303
+   revision (s) already requires executed alternate-route evidence for a closure claim; the harness
+   should surface such a transition as `NEWLY CLOSED — needs alternate-route evidence` rather than a
+   silent pass. `classifyExpectation` already returns `NEWLY CLOSED` for this case, so the machinery
+   exists; it is the *treatment* of that classification that needs to be non-silent.
+
+The generalisation in the section above stands — a mechanical failure is indistinguishable from a
+structural one — and the landing A probes calling invented methods remain a genuine second instance.
+Only the proposed remedy was wrong.
