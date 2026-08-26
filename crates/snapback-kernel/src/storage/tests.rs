@@ -488,9 +488,27 @@ mod resolved_principal_tests {
 
     #[test]
     fn additive_mint_and_bind_cannot_create_or_hijack_human_session_authority() {
+        struct FixedBearerRandom(u8);
+
+        impl crate::auth::crypto::RandomSource for FixedBearerRandom {
+            fn fill(&self, destination: &mut [u8]) -> Result<(), crate::auth::crypto::CryptoError> {
+                destination.fill(self.0);
+                Ok(())
+            }
+        }
+
         let mut db = LocalDatabase::memory().expect("test-support attack database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        let victim_digest = crate::contract_types::TokenDigest::from_bytes([0x33; 32]);
+        let victim_bearer = crate::auth::crypto::SessionBearer::generate(&FixedBearerRandom(0x33))
+            .expect("victim bearer");
+        let attacker_bearer =
+            crate::auth::crypto::SessionBearer::generate(&FixedBearerRandom(0x44))
+                .expect("attacker bearer");
+        let replacement_bearer =
+            crate::auth::crypto::SessionBearer::generate(&FixedBearerRandom(0x55))
+                .expect("replacement bearer");
+        let victim_hash = victim_bearer.token_hash();
+        let victim_digest = crate::contract_types::TokenDigest::from_bytes(*victim_hash.as_bytes());
         db.auth_catalog()
             .insert_email_session_for_test(
                 "victim",
@@ -498,7 +516,7 @@ mod resolved_principal_tests {
                 "session-victim",
                 "authority-victim",
                 "victim@example.com",
-                victim_digest.as_bytes(),
+                victim_hash.as_bytes(),
                 1,
                 1,
                 1_000,
@@ -509,7 +527,9 @@ mod resolved_principal_tests {
             .auth_catalog()
             .mint_human_user_for_test(2)
             .expect("feature-public helper mints a kernel-chosen human id");
-        let attacker_digest = crate::contract_types::TokenDigest::from_bytes([0x44; 32]);
+        let attacker_hash = attacker_bearer.token_hash();
+        let attacker_digest =
+            crate::contract_types::TokenDigest::from_bytes(*attacker_hash.as_bytes());
 
         let create_error = db
             .auth_catalog()
@@ -519,7 +539,8 @@ mod resolved_principal_tests {
                 "session-attacker",
                 "authority-attacker",
                 "attacker@example.com",
-                attacker_digest.as_bytes(),
+                &attacker_bearer,
+                &replacement_bearer,
                 1,
                 2,
                 1_000,
@@ -534,13 +555,14 @@ mod resolved_principal_tests {
         let hijack_error = db
             .auth_catalog()
             .bind_email_session_bearer_for_test(
-                &attacker_user,
-                "identity-attacker",
+                "victim",
+                "identity-victim",
                 "session-victim",
-                "authority-attacker",
-                "attacker@example.com",
-                attacker_digest.as_bytes(),
-                2,
+                "authority-victim",
+                "victim@example.com",
+                &attacker_bearer,
+                &replacement_bearer,
+                1,
                 2,
                 1_000,
             )
@@ -560,10 +582,11 @@ mod resolved_principal_tests {
                 "victim",
                 "identity-victim",
                 "session-victim",
-                "authority-victim-rotated",
+                "authority-victim",
                 "victim@example.com",
-                attacker_digest.as_bytes(),
-                2,
+                &victim_bearer,
+                &attacker_bearer,
+                1,
                 2,
                 1_000,
             )
