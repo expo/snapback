@@ -1255,8 +1255,9 @@ fn deactivation_would_strand(resources: &[String]) -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::SchemaManifest;
+    use crate::manifest::{AgentsManifest, AuthManifest, InvitedBy, SchemaManifest};
     use crate::storage::auth::AUTH_CATALOG_VERSION;
+    use std::path::{Path, PathBuf};
 
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
@@ -1267,6 +1268,214 @@ mod tests {
 
     fn empty_manifest() -> SchemaManifest {
         serde_json::from_value(json!({ "tables": [] })).expect("empty manifest")
+    }
+
+    fn dev_schema_with_agents(mode: AgentsMode) -> SchemaManifest {
+        SchemaManifest {
+            app_id: "f182-registration-policy".to_owned(),
+            auth: Some(AuthManifest {
+                mode: AuthMode::Dev,
+                agents: Some(AgentsManifest::explicit(mode, InvitedBy::Operators)),
+                password_identifier_mode: None,
+                password_minimum_length: None,
+            }),
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn file_database_with_agents(mode: AgentsMode) -> (tempfile::TempDir, PathBuf, LocalDatabase) {
+        let directory = tempfile::tempdir().expect("registration policy tempdir");
+        let path = directory.path().join("registration-policy.sqlite3");
+        let mut database = LocalDatabase::open(&path).expect("open registration policy database");
+        database
+            .activate_current_auth_catalog()
+            .expect("activate registration policy auth catalog");
+        database
+            .schema_seed()
+            .apply_schema(dev_schema_with_agents(mode))
+            .expect("publish registration policy schema");
+        (directory, path, database)
+    }
+
+    fn publish_agents_mode(path: &Path, mode: AgentsMode) {
+        let mut publisher = LocalDatabase::open(path).expect("open registration policy publisher");
+        publisher
+            .schema_seed()
+            .apply_schema(dev_schema_with_agents(mode))
+            .expect("publish successor registration policy schema");
+    }
+
+    fn register_open_agent(
+        database: &mut LocalDatabase,
+        display_name: &str,
+        now_ms: u64,
+    ) -> IssuedAgentCredential {
+        database
+            .register_agent_principal(
+                None,
+                Some(display_name.to_owned()),
+                None,
+                ServerProfile::Test,
+                now_ms,
+                &crate::auth::crypto::OsRandom,
+            )
+            .expect("open-mode registration")
+    }
+
+    fn assert_credential_resolves(
+        database: &mut LocalDatabase,
+        issued: &IssuedAgentCredential,
+        now_ms: u64,
+    ) {
+        let resolved = database
+            .resolve_agent_credential(&issued.secret, now_ms)
+            .expect("resolve issued credential");
+        assert_eq!(resolved.user_id, issued.user_id);
+        assert_eq!(resolved.credential_id, issued.credential_id);
+        assert_eq!(resolved.generation, issued.generation);
+    }
+
+    fn registration_row_counts(database: &LocalDatabase) -> (i64, i64) {
+        let agents = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _auth_users WHERE kind = 'agent'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count agent principals");
+        let credentials = database
+            .conn
+            .query_row("SELECT COUNT(*) FROM _auth_agent_credentials", [], |row| {
+                row.get(0)
+            })
+            .expect("count agent credentials");
+        (agents, credentials)
+    }
+
+    #[test]
+    fn registration_policy_single_handle_open_flow_remains_live() {
+        let (_directory, _path, mut database) = file_database_with_agents(AgentsMode::Open);
+        let issued = register_open_agent(&mut database, "single handle", 10);
+        assert_credential_resolves(&mut database, &issued, 11);
+    }
+
+    #[test]
+    fn stale_disabled_handle_accepts_legitimate_registration_after_open_mode_change() {
+        let (_directory, path, mut stale) = file_database_with_agents(AgentsMode::Disabled);
+        publish_agents_mode(&path, AgentsMode::Open);
+        assert_eq!(
+            stale.schema().effective_agents_manifest().mode,
+            AgentsMode::Disabled,
+            "the caller remains genuinely stale before the legitimate operation"
+        );
+
+        let issued = register_open_agent(&mut stale, "post-change registration", 20);
+        let mut readback = LocalDatabase::open(&path).expect("open post-change readback");
+        assert_credential_resolves(&mut readback, &issued, 21);
+    }
+
+    #[test]
+    fn concurrent_open_mode_registrations_on_distinct_handles_both_commit() {
+        let (_directory, path, database) = file_database_with_agents(AgentsMode::Open);
+        drop(database);
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let workers: Vec<_> = (0..2)
+            .map(|ordinal| {
+                let path = path.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    let mut database =
+                        LocalDatabase::open(path).expect("open concurrent registration handle");
+                    barrier.wait();
+                    register_open_agent(
+                        &mut database,
+                        &format!("concurrent handle {ordinal}"),
+                        30,
+                    )
+                })
+            })
+            .collect();
+        barrier.wait();
+        let issued: Vec<_> = workers
+            .into_iter()
+            .map(|worker| worker.join().expect("registration worker did not panic"))
+            .collect();
+        assert_ne!(issued[0].user_id, issued[1].user_id);
+
+        let mut readback = LocalDatabase::open(&path).expect("open concurrent readback");
+        for (ordinal, credential) in issued.iter().enumerate() {
+            assert_credential_resolves(&mut readback, credential, 40 + ordinal as u64);
+        }
+    }
+
+    #[test]
+    fn registration_policy_survives_reopen_and_credential_readback_restart() {
+        let (_directory, path, database) = file_database_with_agents(AgentsMode::Open);
+        drop(database);
+
+        let issued = {
+            let mut reopened = LocalDatabase::open(&path).expect("reopen for registration");
+            register_open_agent(&mut reopened, "restarted registration", 50)
+        };
+        let mut restarted = LocalDatabase::open(&path).expect("restart for credential readback");
+        assert_credential_resolves(&mut restarted, &issued, 51);
+    }
+
+    #[test]
+    fn stale_open_handle_refuses_registration_after_disabled_publication() {
+        let (_directory, path, mut stale) = file_database_with_agents(AgentsMode::Open);
+        publish_agents_mode(&path, AgentsMode::Disabled);
+        assert_eq!(
+            stale.schema().effective_agents_manifest().mode,
+            AgentsMode::Open,
+            "the attacking handle must retain the historical stale view"
+        );
+
+        let before = registration_row_counts(&stale);
+        let error = stale
+            .register_agent_principal(
+                None,
+                Some("stale registration".to_owned()),
+                None,
+                ServerProfile::Test,
+                60,
+                &crate::auth::crypto::OsRandom,
+            )
+            .expect_err("durable Disabled mode must refuse the stale Open handle");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
+        );
+        assert_eq!(registration_row_counts(&stale), before);
+        let readback = LocalDatabase::open(&path).expect("open refused-effect readback");
+        assert_eq!(registration_row_counts(&readback), before);
+    }
+
+    #[test]
+    fn alternate_integration_registration_route_uses_the_same_resource_policy() {
+        let (_directory, path, mut stale) = file_database_with_agents(AgentsMode::Open);
+        publish_agents_mode(&path, AgentsMode::Disabled);
+        let before = registration_row_counts(&stale);
+
+        let error = stale
+            .register_agent_principal_with_class(
+                None,
+                Some("stale integration registration".to_owned()),
+                None,
+                super::super::auth_integrations::AgentRegistrationClass::Integration,
+                super::super::auth_integrations::IntegrationRegistrationFacts::default(),
+                ServerProfile::Test,
+                70,
+                &crate::auth::crypto::OsRandom,
+            )
+            .expect_err("alternate integration route must derive durable Disabled mode");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED"
+        );
+        let readback = LocalDatabase::open(&path).expect("open alternate-route readback");
+        assert_eq!(registration_row_counts(&readback), before);
     }
 
     fn seed_human(db: &LocalDatabase, id: &str) {

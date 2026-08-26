@@ -42,37 +42,49 @@ fn main() -> Result<(), String> {
 
     // @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability — exercise an alternate effect route, not the removed partial APIs.
     // @attack
-    let result = (|| {
-        let issued = stale
-            .register_agent_principal(
-                None,
-                Some("stale-open registration".to_owned()),
-                None,
-                ServerProfile::Test,
-                NOW,
-                &OsRandom,
-            )
-            .map_err(|error| format!("stale handle refused registration: {error:?}"))?;
-
-        let mut readback = LocalDatabase::open(&path)
-            .map_err(|error| format!("open durable readback handle: {error:?}"))?;
-        let resolved = readback
-            .resolve_agent_credential(&issued.secret, NOW + 1)
-            .map_err(|error| format!("durable credential readback failed: {error:?}"))?;
-        if resolved.user_id != issued.user_id
-            || resolved.credential_id != issued.credential_id
-            || resolved.generation != issued.generation
+    let result = match stale.register_agent_principal(
+        None,
+        Some("stale-open registration".to_owned()),
+        None,
+        ServerProfile::Test,
+        NOW,
+        &OsRandom,
+    ) {
+        Err(error)
+            if error.diagnostic.code == "SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED" =>
         {
+            Err(format!(
+                "stale handle refused registration with {}",
+                error.diagnostic.code
+            ))
+        }
+        Err(error) => {
             return Err(format!(
-                "durable registration mismatch: issued={issued:?} resolved={resolved:?}"
+                "stale handle refused at the marked attack with unexpected diagnostic: {error:?}"
             ));
         }
+        Ok(issued) => {
 
-        Ok(format!(
-            "pre-activation handle retained Open after a second handle published Disabled; durable user={} credential={} generation={}",
-            resolved.user_id, resolved.credential_id, resolved.generation,
-        ))
-    })();
+            let mut readback = LocalDatabase::open(&path)
+                .map_err(|error| format!("open durable readback handle: {error:?}"))?;
+            let resolved = readback
+                .resolve_agent_credential(&issued.secret, NOW + 1)
+                .map_err(|error| format!("durable credential readback failed: {error:?}"))?;
+            if resolved.user_id != issued.user_id
+                || resolved.credential_id != issued.credential_id
+                || resolved.generation != issued.generation
+            {
+                return Err(format!(
+                    "durable registration mismatch: issued={issued:?} resolved={resolved:?}"
+                ));
+            }
+
+            Ok(format!(
+                "pre-activation handle retained Open after a second handle published Disabled; durable user={} credential={} generation={}",
+                resolved.user_id, resolved.credential_id, resolved.generation,
+            ))
+        }
+    };
 
     report_observation("F182", result);
     Ok(())

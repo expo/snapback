@@ -45,7 +45,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
       C009: 'CLOSED',
       F094: 'CLOSED',
       F143: 'CLOSED',
-      F182: 'OPEN',
+      F182: 'CLOSED',
       F112: 'CLOSED',
       F113: 'CLOSED',
       C006: 'CLOSED',
