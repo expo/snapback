@@ -15193,6 +15193,110 @@ pub(crate) mod membership_write_tests {
         db
     }
 
+    #[test]
+    #[ignore = "open stale-schema defect measurement; run explicitly"]
+    fn stale_predecessor_manifest_reaches_membership_remove_effect() {
+        let directory = tempfile::tempdir().expect("stale membership policy tempdir");
+        let path = directory.path().join("stale-membership-policy.sqlite3");
+        let mut stale = LocalDatabase::open(&path).expect("open stale handle A");
+        stale
+            .activate_current_auth_catalog()
+            .expect("activate auth catalog");
+        stale
+            .schema_seed()
+            .apply_schema(membership_schema())
+            .expect("publish predecessor membership policy");
+        let mut publisher = LocalDatabase::open(&path).expect("open publisher handle B");
+        let (event_id, _) = create_event(&mut stale, "alice");
+        invite(&mut stale, "alice", &event_id, "bob");
+        let bob = member_id(&stale, &event_id, "bob");
+        set_role(&mut stale, "bob", &bob, "guest").expect("bob accepts invite");
+
+        let mut successor = membership_schema();
+        let transitions = &mut successor.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration")
+            .transitions;
+        let predecessor_transition_count = transitions.len();
+        transitions.retain(|transition| {
+            !(transition.op == MembershipOp::Remove
+                && transition.target == MembershipTarget::Other
+                && transition.by == ["host"]
+                && transition.from.as_deref() == Some(&["guest".to_owned(), "cohost".to_owned()]))
+        });
+        assert_eq!(
+            transitions.len() + 1,
+            predecessor_transition_count,
+            "successor must remove exactly the host-removes-other transition"
+        );
+        publisher
+            .schema_seed()
+            .apply_schema(successor)
+            .expect("durably publish restrictive successor through handle B");
+        assert_eq!(
+            stale.schema().tables[1]
+                .membership
+                .as_ref()
+                .expect("stale membership")
+                .transitions
+                .len(),
+            predecessor_transition_count,
+            "handle A must retain the permissive predecessor"
+        );
+        assert_eq!(
+            publisher.schema().tables[1]
+                .membership
+                .as_ref()
+                .expect("successor membership")
+                .transitions
+                .len(),
+            predecessor_transition_count - 1,
+            "handle B must hold the restrictive successor before use"
+        );
+        let successor_refusal = publisher
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &bob)
+            .expect_err("the successor must refuse the removed transition");
+        assert_eq!(
+            successor_refusal.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
+
+        let planned =
+            stale
+                .membership_plans()
+                .plan_membership_remove(&user("alice"), "event_members", &bob);
+        let outcome = match planned {
+            Ok(plan) => stale
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), plan)
+                .map(Some),
+            Err(error) => Err(error),
+        };
+        let row_present: bool = publisher
+            .conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM event_members WHERE _id = ?1)",
+                [&bob],
+                |row| row.get(0),
+            )
+            .expect("read exact membership-row effect");
+        match outcome {
+            Err(error) => {
+                assert_eq!(
+                    error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED",
+                    "a safe refusal must fire while using the successor transition policy"
+                );
+                assert!(row_present, "a refusal must preserve Bob's membership");
+            }
+            Ok(commit) => panic!(
+                "FAMILY3_REACHES_EFFECT: use returned Ok({commit:?}); \
+                 publisher handle B observed row_present={row_present}"
+            ),
+        }
+    }
+
     fn authority_lattice_error(schema: SchemaManifest) -> SnapbackError {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
