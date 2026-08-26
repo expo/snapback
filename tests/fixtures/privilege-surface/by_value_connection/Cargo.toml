@@ -5,5 +5,6 @@ members = [
   "crates/privilege-source",
   "crates/rusqlite",
   "crates/synthetic-kernel",
+  "crates/trait-impl-forms",
 ]
 exclude = ["external/opaque-bridge"]

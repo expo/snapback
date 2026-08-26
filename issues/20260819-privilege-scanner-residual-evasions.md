@@ -28,9 +28,10 @@ as follow-up work without blocking the bounded final F-2 hardening round.
    same graph. A controlled product scan remained at the same 103 inherited
    F-1 findings with propagation disabled and enabled; no legitimate item was
    newly rejected.
-2. **Trait and impl forms: open.** Direct raw-handle/seed names in either the
-   trait or self position, including `impl From<Wrapper> for
-   rusqlite::Connection`, are covered. These exact shapes remain missed:
+2. **Trait and impl forms: closed for the demonstrated shapes.** Direct
+   raw-handle/seed names in either the trait or self position, including `impl
+   From<Wrapper> for rusqlite::Connection`, remain covered. The replacement
+   crate commits these exact shapes:
 
    ```rust
    pub trait Project { type Output; fn project(self) -> Self::Output; }
@@ -50,8 +51,16 @@ as follow-up work without blocking the bounded final F-2 hardening round.
    pub trait PublicHandle: hidden::GivesHandle {}
    ```
 
-   The first requires type substitution; the second and third require resolving
-   a private-path trait contract and inherited private supertrait contract.
+   Fail-first, none of the three expected items appeared. The scanner now
+   recognizes the first only when a public wrapper field exposes the generic
+   parameter, a local public trait projects an associated type, its local impl
+   maps that projection back to the exposed parameter, and the crate has a
+   normal `rusqlite` dependency. It inventories private local trait contracts
+   and resolves local supertrait inheritance to a fixpoint for the second and
+   third. The after-run independently rejects `Wrapper::Project`, `leak`, and
+   `PublicHandle`. The product scan stayed at the same 103 inherited F-1
+   findings. This is a bounded syn rule, not a claim of full rustc trait
+   selection, specialization, external-impl, or where-clause reasoning.
 3. **Cross-module split-token macros: closed; expansion synthesis: open.** The
    committed macro corpus now fails when `pub` exists only in a `make!`
    definition in one module and `rusqlite::Connection` only in its invocation
@@ -68,6 +77,11 @@ as follow-up work without blocking the bounded final F-2 hardening round.
 
    So is `external_emit::privilege_api!();` when an external macro emits the
    entire public sensitive item and the invocation carries no sensitive token.
+   Reconfirmed 2026-08-26: the gate recursively inventories literal tokens but
+   matches complete canonical identifiers; `rusq` + `lite` and `Connec` +
+   `tion` therefore do not become sensitive names without expansion. The
+   pinned rustc 1.97.0 exposes no usable stable rustdoc-JSON/expansion path, so
+   these synthesis cases remain honest limits rather than attempted heuristics.
 4. **Authority-discriminator indirection and sink names.** I-16 performs no
    body-flow taint analysis. This exact shape is missed (with the registry
    spellings resolving elsewhere in the scanned corpus):
@@ -88,6 +102,11 @@ as follow-up work without blocking the bounded final F-2 hardening round.
 
    Renaming the real sink to `renamed_sanctioned` is also missed when an
    unrelated `sanctioned` elsewhere keeps the global registry entry observed.
+   Reconfirmed 2026-08-26: I-16 intersects caller-constructible names written
+   directly in registered sink signatures and records sink observation in a
+   crate-wide set. It does not visit bodies or bind an observation to each call
+   site, so the helper/wrapper flow and unrelated-spelling control remain exact
+   descriptions of the boundary.
 
 ## Done when
 

@@ -136,6 +136,24 @@ test('From impls expose a raw foreign self type', () => {
   assert.match(output, /synthetic_kernel::Connection::From: public trait implementation exposes rusqlite::Connection/u);
 });
 
+test('trait substitution and private trait contracts expose raw handles', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations.map(({ item, detail }) => `${item}: ${detail}`).join('\n');
+  assert.match(
+    output,
+    /trait_impl_forms::Wrapper::Project: public generic trait projection permits rusqlite::Connection substitution/u,
+  );
+  assert.match(
+    output,
+    /trait_impl_forms::leak: public return type exposes private trait contract hidden::GivesHandle returning rusqlite::Connection/u,
+  );
+  assert.match(
+    output,
+    /trait_impl_forms::PublicHandle: public supertrait exposes private trait contract hidden::GivesHandle returning rusqlite::Connection/u,
+  );
+});
+
 test('privilege sink registry resolves real items and fails closed when one disappears', () => {
   const source = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(source);

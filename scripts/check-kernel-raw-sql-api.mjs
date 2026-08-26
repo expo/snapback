@@ -136,6 +136,10 @@ function parsePrivilegeCell(root, pkg, cell, externalSeeds = {}) {
     '--lib', lib.src_path,
     '--features', cell.features.join(','),
   ];
+  if (pkg.dependencies.some((dependency) => dependency.kind === null
+    && rustCrateName(dependency.rename ?? dependency.name) === 'rusqlite')) {
+    args.push('--raw-sql-substitution');
+  }
   if (Object.keys(externalSeeds).length > 0) {
     args.push('--external-seeds', JSON.stringify(externalSeeds));
   }

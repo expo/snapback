@@ -310,6 +310,7 @@ struct PrivilegeScanner {
     crate_lib: PathBuf,
     active_features: BTreeSet<String>,
     external_seed_paths: BTreeMap<String, String>,
+    raw_sql_substitution: bool,
     findings: Vec<Finding>,
     visited: HashSet<(PathBuf, bool, String)>,
     reexport_visits: HashSet<(PathBuf, String, String, String)>,
@@ -321,6 +322,11 @@ struct PrivilegeScanner {
     obtainability_edges: Vec<ObtainabilityEdge>,
     seed_returns: Vec<SeedReturnCandidate>,
     discriminator_sinks: Vec<DiscriminatorSinkCandidate>,
+    trait_contracts: Vec<TraitContractDefinition>,
+    trait_contract_uses: Vec<TraitContractUseCandidate>,
+    projecting_traits: BTreeSet<String>,
+    public_generic_wrappers: BTreeMap<String, BTreeSet<String>>,
+    generic_projection_candidates: Vec<GenericProjectionCandidate>,
     crate_public_api_macros: BTreeSet<String>,
     crate_generated_include_macros: BTreeSet<String>,
 }
@@ -357,6 +363,34 @@ struct SeedReturnCandidate {
 
 struct DiscriminatorSinkCandidate {
     type_names: BTreeSet<String>,
+    item: String,
+    file: PathBuf,
+    span: Span,
+}
+
+#[derive(Clone)]
+struct TraitContractDefinition {
+    path: String,
+    module: Vec<String>,
+    effective_public: bool,
+    raw_handle: Option<String>,
+    seed_type: Option<String>,
+    supertraits: Vec<String>,
+}
+
+struct TraitContractUseCandidate {
+    paths: BTreeSet<String>,
+    module: Vec<String>,
+    item: String,
+    file: PathBuf,
+    span: Span,
+    context: String,
+}
+
+struct GenericProjectionCandidate {
+    wrapper: String,
+    trait_path: String,
+    projected_parameters: BTreeSet<String>,
     item: String,
     file: PathBuf,
     span: Span,
@@ -461,10 +495,8 @@ impl PrivilegeScanner {
             if self.private_public_types.contains(&candidate.type_name)
                 && self.heuristic_accepts.contains(&candidate.type_name)
                 && !SEED_TYPES.contains(&candidate.type_name.as_str())
-                && !POWERLESS_ROUTING_TYPES.contains(&(
-                    self.crate_name.as_str(),
-                    candidate.type_name.as_str(),
-                ))
+                && !POWERLESS_ROUTING_TYPES
+                    .contains(&(self.crate_name.as_str(), candidate.type_name.as_str()))
             {
                 self.push_finding(
                     "seed-obtain",
@@ -479,6 +511,8 @@ impl PrivilegeScanner {
                 );
             }
         }
+        self.report_trait_contract_uses();
+        self.report_generic_projections();
         self.findings.sort_by(|left, right| {
             (&left.file, left.line, &left.kind, &left.item, &left.detail).cmp(&(
                 &right.file,
@@ -567,6 +601,14 @@ impl PrivilegeScanner {
                     }
                 }
             }
+            if let Item::Trait(item_trait) = item {
+                self.record_trait_definition(
+                    item_trait,
+                    &names,
+                    module,
+                    module_public && public(&item_trait.vis),
+                );
+            }
             match item {
                 Item::Fn(function) if module_public && public(&function.vis) => {
                     let item_name = self.item_name(module, &ident_name(&function.sig.ident));
@@ -576,11 +618,13 @@ impl PrivilegeScanner {
                         source,
                         &item_name,
                         function.sig.ident.span(),
+                        module,
                         None,
                     );
                 }
                 Item::Struct(structure) if module_public && public(&structure.vis) => {
                     let item_name = self.item_name(module, &ident_name(&structure.ident));
+                    self.record_public_generic_wrapper(structure, &item_name);
                     if public_structure_constructor(&structure.fields) {
                         self.record_constructible(
                             &ident_name(&structure.ident),
@@ -707,6 +751,24 @@ impl PrivilegeScanner {
                 }
                 Item::Trait(item_trait) if module_public && public(&item_trait.vis) => {
                     let item_name = self.item_name(module, &ident_name(&item_trait.ident));
+                    let supertraits = item_trait
+                        .supertraits
+                        .iter()
+                        .filter_map(|bound| match bound {
+                            syn::TypeParamBound::Trait(bound) => {
+                                Some(macro_path_label(&bound.path))
+                            }
+                            _ => None,
+                        })
+                        .collect::<BTreeSet<_>>();
+                    self.record_trait_contract_paths(
+                        supertraits,
+                        module,
+                        source,
+                        item_trait.ident.span(),
+                        &item_name,
+                        "public supertrait",
+                    );
                     let mut trait_module = module.to_vec();
                     trait_module.push(ident_name(&item_trait.ident));
                     for member in &item_trait.items {
@@ -720,6 +782,7 @@ impl PrivilegeScanner {
                                 source,
                                 &format!("{item_name}::{}", ident_name(&function.sig.ident)),
                                 function.sig.ident.span(),
+                                module,
                                 None,
                             ),
                             syn::TraitItem::Type(item_type) => {
@@ -1091,6 +1154,14 @@ impl PrivilegeScanner {
                 .last()
                 .map(|segment| ident_name(&segment.ident))
                 .unwrap_or_default();
+            self.record_generic_projection_candidate(
+                item_impl,
+                trait_path,
+                module,
+                &owner,
+                &trait_name,
+                source,
+            );
             let trait_type = Type::Path(syn::TypePath {
                 qself: None,
                 path: trait_path.clone(),
@@ -1196,6 +1267,7 @@ impl PrivilegeScanner {
                         source,
                         &format!("{owner}::{}", ident_name(&function.sig.ident)),
                         function.sig.ident.span(),
+                        module,
                         Some(&self_name),
                     )
                 }
@@ -1244,6 +1316,7 @@ impl PrivilegeScanner {
         source: &Path,
         item_name: &str,
         span: Span,
+        module: &[String],
         receiver_type: Option<&str>,
     ) {
         let requires_receiver = signature
@@ -1258,6 +1331,14 @@ impl PrivilegeScanner {
         });
         if let ReturnType::Type(_, ty) = &signature.output {
             let info = inspect_type(ty, names);
+            self.record_trait_contract_type(
+                ty,
+                module,
+                source,
+                span,
+                item_name,
+                "public return type",
+            );
             self.report_type_exposure(
                 &info,
                 source,
@@ -1448,6 +1529,303 @@ impl PrivilegeScanner {
                 source,
                 span,
                 format!("publicly re-exports privilege module/type {rendered}"),
+                None,
+            );
+        }
+    }
+
+    fn record_trait_definition(
+        &mut self,
+        item_trait: &syn::ItemTrait,
+        names: &ModuleNames,
+        module: &[String],
+        effective_public: bool,
+    ) {
+        let path = module
+            .iter()
+            .cloned()
+            .chain(std::iter::once(ident_name(&item_trait.ident)))
+            .collect::<Vec<_>>()
+            .join("::");
+        let mut raw_handle = None;
+        let mut seed_type = None;
+        let mut absorb = |info: TypeInfo| {
+            if raw_handle.is_none() {
+                raw_handle = info.raw_handle;
+            }
+            if seed_type.is_none() {
+                seed_type = info.seed_type;
+            }
+        };
+        for member in &item_trait.items {
+            if !attrs_active(trait_item_attrs(member), &self.active_features) {
+                continue;
+            }
+            match member {
+                syn::TraitItem::Fn(function) => {
+                    if let ReturnType::Type(_, ty) = &function.sig.output {
+                        absorb(inspect_type(ty, names));
+                    }
+                }
+                syn::TraitItem::Type(item_type) => {
+                    if let Some((_, ty)) = &item_type.default {
+                        absorb(inspect_type(ty, names));
+                    }
+                }
+                syn::TraitItem::Const(item_const) => {
+                    absorb(inspect_type(&item_const.ty, names));
+                }
+                _ => {}
+            }
+        }
+        let associated_types = item_trait
+            .items
+            .iter()
+            .filter_map(|member| match member {
+                syn::TraitItem::Type(item_type) => Some(ident_name(&item_type.ident)),
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        if effective_public
+            && item_trait.items.iter().any(|member| match member {
+                syn::TraitItem::Fn(function) => match &function.sig.output {
+                    ReturnType::Type(_, ty) => associated_projection_name(ty)
+                        .is_some_and(|name| associated_types.contains(&name)),
+                    ReturnType::Default => false,
+                },
+                _ => false,
+            })
+        {
+            self.projecting_traits.insert(path.clone());
+        }
+        self.trait_contracts.push(TraitContractDefinition {
+            path,
+            module: module.to_vec(),
+            effective_public,
+            raw_handle,
+            seed_type,
+            supertraits: item_trait
+                .supertraits
+                .iter()
+                .filter_map(|bound| match bound {
+                    syn::TypeParamBound::Trait(bound) => Some(macro_path_label(&bound.path)),
+                    _ => None,
+                })
+                .collect(),
+        });
+    }
+
+    fn record_public_generic_wrapper(&mut self, structure: &syn::ItemStruct, item_name: &str) {
+        let parameters = structure
+            .generics
+            .type_params()
+            .map(|parameter| ident_name(&parameter.ident))
+            .collect::<BTreeSet<_>>();
+        let exposed = structure
+            .fields
+            .iter()
+            .filter(|field| public(&field.vis))
+            .filter_map(|field| direct_type_name(&field.ty))
+            .filter(|name| parameters.contains(name))
+            .collect::<BTreeSet<_>>();
+        if !exposed.is_empty() {
+            self.public_generic_wrappers
+                .insert(item_name.to_owned(), exposed);
+        }
+    }
+
+    fn record_generic_projection_candidate(
+        &mut self,
+        item_impl: &ItemImpl,
+        trait_path: &syn::Path,
+        module: &[String],
+        owner: &str,
+        trait_name: &str,
+        source: &Path,
+    ) {
+        if !self.raw_sql_substitution {
+            return;
+        }
+        let parameters = item_impl
+            .generics
+            .type_params()
+            .map(|parameter| ident_name(&parameter.ident))
+            .collect::<BTreeSet<_>>();
+        let self_parameters = direct_generic_arguments(&item_impl.self_ty)
+            .intersection(&parameters)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        if self_parameters.is_empty() {
+            return;
+        }
+        let mut projected_parameters = BTreeSet::new();
+        for member in &item_impl.items {
+            match member {
+                ImplItem::Type(item_type) => {
+                    if let Some(name) = direct_type_name(&item_type.ty)
+                        && self_parameters.contains(&name)
+                    {
+                        projected_parameters.insert(name);
+                    }
+                }
+                ImplItem::Fn(function) => {
+                    if let ReturnType::Type(_, ty) = &function.sig.output
+                        && let Some(name) = direct_type_name(ty)
+                        && self_parameters.contains(&name)
+                    {
+                        projected_parameters.insert(name);
+                    }
+                }
+                _ => {}
+            }
+        }
+        if projected_parameters.is_empty() {
+            return;
+        }
+        self.generic_projection_candidates
+            .push(GenericProjectionCandidate {
+                wrapper: owner.to_owned(),
+                trait_path: canonical_local_path(module, &macro_path_label(trait_path)),
+                projected_parameters,
+                item: format!("{owner}::{trait_name}"),
+                file: source.to_path_buf(),
+                span: item_impl.span(),
+            });
+    }
+
+    fn record_trait_contract_type(
+        &mut self,
+        ty: &Type,
+        module: &[String],
+        source: &Path,
+        span: Span,
+        item: &str,
+        context: &str,
+    ) {
+        self.record_trait_contract_paths(
+            collect_type_paths(ty),
+            module,
+            source,
+            span,
+            item,
+            context,
+        );
+    }
+
+    fn record_trait_contract_paths(
+        &mut self,
+        paths: BTreeSet<String>,
+        module: &[String],
+        source: &Path,
+        span: Span,
+        item: &str,
+        context: &str,
+    ) {
+        if paths.is_empty() {
+            return;
+        }
+        self.trait_contract_uses.push(TraitContractUseCandidate {
+            paths,
+            module: module.to_vec(),
+            item: item.to_owned(),
+            file: source.to_path_buf(),
+            span,
+            context: context.to_owned(),
+        });
+    }
+
+    fn report_trait_contract_uses(&mut self) {
+        let definitions = std::mem::take(&mut self.trait_contracts);
+        let mut contracts = definitions
+            .iter()
+            .cloned()
+            .map(|definition| (definition.path.clone(), definition))
+            .collect::<BTreeMap<_, _>>();
+        loop {
+            let snapshot = contracts.clone();
+            let mut changed = false;
+            for definition in contracts.values_mut() {
+                for supertrait in &definition.supertraits {
+                    let Some(key) =
+                        resolve_local_contract(&definition.module, supertrait, &snapshot)
+                    else {
+                        continue;
+                    };
+                    let inherited = &snapshot[&key];
+                    if definition.raw_handle.is_none() && inherited.raw_handle.is_some() {
+                        definition.raw_handle.clone_from(&inherited.raw_handle);
+                        changed = true;
+                    }
+                    if definition.seed_type.is_none() && inherited.seed_type.is_some() {
+                        definition.seed_type.clone_from(&inherited.seed_type);
+                        changed = true;
+                    }
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        for candidate in std::mem::take(&mut self.trait_contract_uses) {
+            for path in &candidate.paths {
+                let Some(key) = resolve_local_contract(&candidate.module, path, &contracts) else {
+                    continue;
+                };
+                let contract = &contracts[&key];
+                if contract.effective_public {
+                    continue;
+                }
+                if let Some(raw) = &contract.raw_handle {
+                    self.push_finding(
+                        "sql-egress",
+                        candidate.item.clone(),
+                        &candidate.file,
+                        candidate.span,
+                        format!(
+                            "{} exposes private trait contract {path} returning rusqlite::{raw}",
+                            candidate.context
+                        ),
+                        None,
+                    );
+                }
+                if let Some(seed) = &contract.seed_type {
+                    self.push_finding(
+                        "seed-obtain",
+                        candidate.item.clone(),
+                        &candidate.file,
+                        candidate.span,
+                        format!(
+                            "{} exposes private trait contract {path} returning privilege seed {seed}",
+                            candidate.context
+                        ),
+                        Some(seed.clone()),
+                    );
+                }
+            }
+        }
+    }
+
+    fn report_generic_projections(&mut self) {
+        if !self.raw_sql_substitution {
+            return;
+        }
+        for candidate in std::mem::take(&mut self.generic_projection_candidates) {
+            let Some(exposed) = self.public_generic_wrappers.get(&candidate.wrapper) else {
+                continue;
+            };
+            if !self.projecting_traits.contains(&candidate.trait_path)
+                || exposed.is_disjoint(&candidate.projected_parameters)
+            {
+                continue;
+            }
+            self.push_finding(
+                "sql-egress",
+                candidate.item,
+                &candidate.file,
+                candidate.span,
+                "public generic trait projection permits rusqlite::Connection substitution"
+                    .to_owned(),
                 None,
             );
         }
@@ -1879,6 +2257,7 @@ impl PrivilegeScanner {
                 source,
                 exported_item,
                 function.sig.ident.span(),
+                module,
                 None,
             ),
             Item::Struct(structure) => {
@@ -2015,6 +2394,7 @@ impl PrivilegeScanner {
                             source,
                             &format!("{exported_item}::{}", ident_name(&function.sig.ident)),
                             function.sig.ident.span(),
+                            module,
                             None,
                         ),
                         syn::TraitItem::Type(item_type) => {
@@ -2105,6 +2485,105 @@ impl PrivilegeScanner {
             generated_expression: None,
         });
     }
+}
+
+fn direct_type_name(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Path(path)
+            if path.qself.is_none()
+                && path.path.leading_colon.is_none()
+                && path.path.segments.len() == 1 =>
+        {
+            path.path
+                .segments
+                .first()
+                .map(|segment| ident_name(&segment.ident))
+        }
+        _ => None,
+    }
+}
+
+fn direct_generic_arguments(ty: &Type) -> BTreeSet<String> {
+    let Type::Path(path) = ty else {
+        return BTreeSet::new();
+    };
+    let Some(segment) = path.path.segments.last() else {
+        return BTreeSet::new();
+    };
+    let PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+        return BTreeSet::new();
+    };
+    arguments
+        .args
+        .iter()
+        .filter_map(|argument| match argument {
+            syn::GenericArgument::Type(ty) => direct_type_name(ty),
+            _ => None,
+        })
+        .collect()
+}
+
+fn associated_projection_name(ty: &Type) -> Option<String> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+    let segments = path
+        .path
+        .segments
+        .iter()
+        .map(|segment| ident_name(&segment.ident))
+        .collect::<Vec<_>>();
+    (path.qself.is_none() && segments.len() == 2 && segments[0] == "Self")
+        .then(|| segments[1].clone())
+}
+
+fn collect_type_paths(ty: &Type) -> BTreeSet<String> {
+    struct Collector(BTreeSet<String>);
+    impl<'ast> Visit<'ast> for Collector {
+        fn visit_path(&mut self, path: &'ast syn::Path) {
+            self.0.insert(macro_path_label(path));
+            visit::visit_path(self, path);
+        }
+    }
+    let mut collector = Collector(BTreeSet::new());
+    collector.visit_type(ty);
+    collector.0
+}
+
+fn canonical_local_path(module: &[String], rendered: &str) -> String {
+    let mut remaining = rendered
+        .trim_start_matches("::")
+        .split("::")
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>();
+    let mut rooted = module.to_vec();
+    if remaining.first().is_some_and(|segment| *segment == "crate") {
+        rooted.clear();
+        remaining.remove(0);
+    } else {
+        while remaining.first().is_some_and(|segment| *segment == "super") {
+            rooted.pop();
+            remaining.remove(0);
+        }
+        if remaining.first().is_some_and(|segment| *segment == "self") {
+            remaining.remove(0);
+        }
+    }
+    rooted.extend(remaining.into_iter().map(str::to_owned));
+    rooted.join("::")
+}
+
+fn resolve_local_contract(
+    module: &[String],
+    rendered: &str,
+    contracts: &BTreeMap<String, TraitContractDefinition>,
+) -> Option<String> {
+    let local = canonical_local_path(module, rendered);
+    if contracts.contains_key(&local) {
+        return Some(local);
+    }
+    let rooted = canonical_local_path(&[], rendered);
+    contracts.contains_key(&rooted).then_some(rooted)
 }
 
 fn public_structure_constructor(fields: &Fields) -> bool {
@@ -3160,6 +3639,9 @@ fn run() -> Result<(), String> {
                 })
                 .transpose()?
                 .unwrap_or_default();
+            let raw_sql_substitution = args
+                .iter()
+                .any(|argument| argument == "--raw-sql-substitution");
             let (crate_public_api_macros, crate_generated_include_macros) =
                 discover_crate_macros(&lib, &features)?;
             let findings = PrivilegeScanner {
@@ -3168,6 +3650,7 @@ fn run() -> Result<(), String> {
                 crate_lib: lib.clone(),
                 active_features: features,
                 external_seed_paths,
+                raw_sql_substitution,
                 findings: Vec::new(),
                 visited: HashSet::new(),
                 reexport_visits: HashSet::new(),
@@ -3179,6 +3662,11 @@ fn run() -> Result<(), String> {
                 obtainability_edges: Vec::new(),
                 seed_returns: Vec::new(),
                 discriminator_sinks: Vec::new(),
+                trait_contracts: Vec::new(),
+                trait_contract_uses: Vec::new(),
+                projecting_traits: BTreeSet::new(),
+                public_generic_wrappers: BTreeMap::new(),
+                generic_projection_candidates: Vec::new(),
                 crate_public_api_macros,
                 crate_generated_include_macros,
             }

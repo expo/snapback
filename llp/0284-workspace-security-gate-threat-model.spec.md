@@ -9,6 +9,10 @@
 metadata orders normal local dependencies before dependents and carries
 canonical seed identity through named opaque re-exports, with an excluded
 bridge probe and a zero-new-finding product comparison.)
+**Revised:** 2026-08-26 (closes the demonstrated trait/impl residuals with a
+bounded generic-projection rule and a local private-trait/supertrait contract
+fixpoint; all three probes failed first and the product finding set did not
+grow.)
 **Revised:** 2026-08-26 (corrects the server-mount conclusion: the server
 storage alias is crate-private, but the public secret-read operator and registry
 remain privilege seeds. I-12 mounts `snapback-server` for their clone/mint
@@ -704,10 +708,10 @@ as security evidence. An unrelated error whose message matches a regex is a
   audited repository into independently audited workspace members; it follows
   local library bridges under the audit root whose normal-dependency graph
   leads back to a workspace package.
-- **Trait/impl egress coverage still has structural gaps.** Raw handles and
-  privilege seeds directly named in either the trait or self position are now
-  scanned, including `impl From<Wrapper> for rusqlite::Connection`. The
-  following exact shapes remain missed:
+- **The demonstrated trait/impl structural gaps are closed within a bounded
+  local contract graph.** Raw handles and privilege seeds directly named in
+  either the trait or self position remain scanned, including `impl
+  From<Wrapper> for rusqlite::Connection`. The committed corpus also covers:
 
   ```rust
   pub trait Project { type Output; fn project(self) -> Self::Output; }
@@ -733,8 +737,18 @@ as security evidence. An unrelated error whose message matches a regex is a
   pub trait PublicHandle: hidden::GivesHandle {}
   ```
 
-  These require type substitution and private-path trait-contract resolution,
-  neither of which the current syn ratchet performs.
+  In a crate with a normal `rusqlite` dependency, the first shape is now a
+  conservative substitution finding only when all three structural facts hold:
+  a public wrapper exposes the generic parameter in a public field, a local
+  public trait projects an associated type through a method, and its local impl
+  maps that associated type or method return back to the exposed parameter.
+  The scanner separately inventories local traits in private modules, resolves
+  their direct raw-handle/seed contracts and local supertrait inheritance to a
+  fixpoint, and applies those contracts when a public signature or public
+  supertrait path names the private trait. This is not rustc trait selection or
+  coherence: external trait implementations, specialization, arbitrary
+  where-clause implication, synthesized macro output, and opaque hidden
+  `impl Trait` concrete types remain outside the syn claim.
 - **I-16 is direct-signature matching, not taint analysis.** The scanner does
   not inspect bodies. This exact shape produces no caller-discriminant finding
   (assuming the fixed registry spellings resolve elsewhere in the corpus):
@@ -893,6 +907,7 @@ text is not.
 | Renamed imports / private-module re-exports / trait forms | `use rusqlite::Connection as Handle`; `mod hidden { pub fn leak() -> KernelCommitAuthority } pub use hidden::leak`; `impl AsRef<rusqlite::Connection> for PublicWrapper` |
 | Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
 | Cross-crate opaque seed re-exports | excluded local dependency exports `KernelCommitAuthority` only as `Root`; workspace façade has only `pub use opaque_bridge::Root as Facade` |
+| Generic projection and private trait contracts | `impl<T> Project for Wrapper<T> { type Output = T; }`; public boxed private-path trait return; public trait inheriting a private raw-handle supertrait |
 | Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
 | Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
 | Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; the Guide's `include_bytes!` artifact is inert data and creates no generated-API finding |
@@ -1319,6 +1334,7 @@ is a fourth live defect.
 | `include-escape` | `include!("../../snapback-kernel/src/lib.rs");` | `tests/fixtures/path-includes/include/` | MISS (not `#[path]`) | RED |
 | `raw-identifier-include-escape` | `r#include!("../../victim/src/lib.rs");` | `tests/fixtures/path-includes/raw-include/` | MISS | RED `include-escape` |
 | `cross-crate-opaque-seed-facade` | excluded local dependency exports the seed only as `Root`; workspace member re-exports `opaque_bridge::Root as Facade` | privilege corpus | MISS at the workspace façade | `opaque_facade::Facade` RED as a `KernelCommitAuthority` re-export |
+| `trait-substitution-private-contracts` | generic `Project::Output = T` over public `Wrapper<T>`; boxed private-path raw-handle trait return; public trait inheriting that private supertrait | privilege corpus | all three MISS | generic projection, public return, and public supertrait each RED at their own item |
 
 Corpus and path-include fixtures are **synthetic trees** under
 `tests/fixtures/`, not mutations of `crates/`. Harness tests live in
@@ -1533,6 +1549,16 @@ carry canonical seed identity through named public re-exports. The same probe
 then reports `opaque_facade::Facade` at its own span. A controlled product-tree
 comparison reported 103 inherited F-1 violations both before and after graph
 propagation, so this closure introduced no legitimate workspace rejection.
+
+The same 2026-08-26 hardening added a separate trait/impl probe containing the
+three literal residual forms from §3.7. Fail-first, none produced a finding.
+The scanner now resolves local private trait contracts and supertrait
+inheritance to a fixpoint and applies them to effective-public signatures. Its
+generic projection rule requires a local projecting trait, an exposed public
+wrapper parameter, a matching local impl projection, and a normal `rusqlite`
+dependency. The probe then reports all three items independently. The product
+tree remained at the same 103 inherited F-1 findings, so no legitimate item was
+newly rejected.
 
 ## 8. Acceptance
 
