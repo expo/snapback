@@ -32242,11 +32242,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-effect-approval-pending"></a>`SNAPBACK_EFFECT_APPROVAL_PENDING` | server | — | [guide](../backend/external-api.md#approval-gated-effects) | `crates/snapback-kernel/src/storage/pending_effects.rs:993` | 3 |
 | <a id="diagnostic-snapback-effect-authority-invalid"></a>`SNAPBACK_EFFECT_AUTHORITY_INVALID` | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:7452` | 10 |
 | <a id="diagnostic-snapback-effect-binding-stale"></a>`SNAPBACK_EFFECT_BINDING_STALE` | server | 409 | — | `crates/snapback-engine/src/local/engine.rs:3891` | 14 |
-| <a id="diagnostic-snapback-effect-catalog-corrupt"></a>`SNAPBACK_EFFECT_CATALOG_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1355` | 3 |
+| <a id="diagnostic-snapback-effect-catalog-corrupt"></a>`SNAPBACK_EFFECT_CATALOG_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1359` | 3 |
 | <a id="diagnostic-snapback-effect-expired"></a>`SNAPBACK_EFFECT_EXPIRED` | server | 410 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:823` | 6 |
-| <a id="diagnostic-snapback-effect-input-invalid"></a>`SNAPBACK_EFFECT_INPUT_INVALID` | server | 400 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1318` | 3 |
-| <a id="diagnostic-snapback-effect-not-found"></a>`SNAPBACK_EFFECT_NOT_FOUND` | server | 404 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1323` | 2 |
-| <a id="diagnostic-snapback-effect-state-invalid"></a>`SNAPBACK_EFFECT_STATE_INVALID` | server | 409 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1339` | 3 |
+| <a id="diagnostic-snapback-effect-input-invalid"></a>`SNAPBACK_EFFECT_INPUT_INVALID` | server | 400 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1322` | 3 |
+| <a id="diagnostic-snapback-effect-not-found"></a>`SNAPBACK_EFFECT_NOT_FOUND` | server | 404 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1327` | 2 |
+| <a id="diagnostic-snapback-effect-state-invalid"></a>`SNAPBACK_EFFECT_STATE_INVALID` | server | 409 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1343` | 3 |
 | <a id="diagnostic-snapback-elevated-read-capability-undeclared"></a>`SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED` | codegen | 500 | — | `crates/snapback-types/src/manifest/types.rs:4764` | 3 |
 | <a id="diagnostic-snapback-elevated-read-site-unclassifiable"></a>`SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE` | codegen | — | — | `packages/snapback-codegen/define.mjs:330` | 10 |
 | <a id="diagnostic-snapback-elevated-read-trace"></a>`SNAPBACK_ELEVATED_READ_TRACE` | server | — | — | `crates/snapback-runtime/src/elevated_read_trace.rs:18` | 1 |

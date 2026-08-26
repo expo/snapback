@@ -1285,7 +1285,11 @@ impl LocalDatabase {
         } = command;
         self.with_auth_transaction(|tx| {
             let current = read_record(tx, &id)?.ok_or_else(not_found)?;
-            if current.approver_principal_id.as_deref() != Some(owner_principal_id.as_str()) {
+            if current
+                .approver_principal_id
+                .as_deref()
+                .is_some_and(|expected| expected != owner_principal_id)
+            {
                 return Err(owner_invalid(
                     "pending-effect refusal owner does not match the stored effect",
                 ));

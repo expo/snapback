@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:aa66baa6c5ada9596f6ed395b612f89fee8eb29c2f344b3cb918829e0aaecbc5"
+    "sourceDigest": "sha256:1489b18e8d008f24060fd91a539d7febfd22e21faaa24c4be5df45f1a860e953"
   },
   "limits": {
     "lookupBytes": 16384
@@ -47399,17 +47399,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1331,
+          "line": 1335,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 2077,
+          "line": 2081,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 2084,
+          "line": 2088,
           "column": 14
         },
         {
@@ -47496,7 +47496,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 2056,
+          "line": 2060,
           "column": 41
         },
         {
@@ -47601,12 +47601,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1355,
+          "line": 1359,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 2122,
+          "line": 2126,
           "column": 14
         },
         {
@@ -47636,12 +47636,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1347,
+          "line": 1351,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 2106,
+          "line": 2110,
           "column": 14
         },
         {
@@ -47666,7 +47666,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1318,
+          "line": 1322,
           "column": 27
         },
         {
@@ -47691,7 +47691,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1323,
+          "line": 1327,
           "column": 10
         },
         {
@@ -47711,7 +47711,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/pending_effects.rs",
-          "line": 1339,
+          "line": 1343,
           "column": 10
         },
         {
