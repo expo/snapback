@@ -4067,6 +4067,27 @@ struct GraphCorpusAuthorityFixtures {
     other_session_id: String,
 }
 
+#[cfg(test)]
+#[derive(Clone)]
+struct ProductionSessionFixture {
+    bearer: String,
+    provider: Arc<crate::auth::provider::AuthProvider>,
+}
+
+#[cfg(test)]
+struct ProductionSessionFixtureClock;
+
+#[cfg(test)]
+impl crate::auth::provider::AuthClock for ProductionSessionFixtureClock {
+    fn epoch_ms(&self) -> u64 {
+        1
+    }
+
+    fn monotonic_now(&self) -> Instant {
+        Instant::now()
+    }
+}
+
 #[cfg(any(test, feature = "test-support"))]
 fn commit_graph_corpus_password_plan(
     provider: &crate::auth::provider::AuthProvider,
@@ -4159,7 +4180,7 @@ pub struct LocalSnapback {
     #[cfg(any(test, feature = "test-support"))]
     graph_corpus_authority_fixtures: Option<GraphCorpusAuthorityFixtures>,
     #[cfg(test)]
-    production_session_fixtures: HashMap<String, String>,
+    production_session_fixtures: HashMap<String, ProductionSessionFixture>,
     /// Target-owned class-2/evaluator facts. The production map starts empty;
     /// its test-support installer cannot be reached from handler input.
     graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
@@ -9927,17 +9948,19 @@ impl LocalSnapback {
         keyring
             .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
             .expect("initialize unit-test provider keyring");
-        let provider = crate::auth::provider::AuthProvider::new(
-            crate::contract_types::AuthProviderProfile::Test,
-            keyring,
-        )
-        .expect("construct unit-test production provider");
-        let bearer = if let Some(bearer) = self
+        let provider = Arc::new(
+            crate::auth::provider::AuthProvider::new(
+                crate::contract_types::AuthProviderProfile::Test,
+                keyring,
+            )
+            .expect("construct unit-test production provider"),
+        );
+        let bearer = if let Some(fixture) = self
             .production_session_fixtures
             .get(_fixture_user_label)
             .cloned()
         {
-            bearer
+            fixture.bearer
         } else {
             let idempotency_key = format!(
                 "engine-session-ceremony-{}",
@@ -9973,8 +9996,13 @@ impl LocalSnapback {
             };
             let issue = plan.into_issue(session, committed_revocations);
             let bearer = issue.response().token().expose_secret().to_owned();
-            self.production_session_fixtures
-                .insert(_fixture_user_label.to_owned(), bearer.clone());
+            self.production_session_fixtures.insert(
+                _fixture_user_label.to_owned(),
+                ProductionSessionFixture {
+                    bearer: bearer.clone(),
+                    provider,
+                },
+            );
             bearer
         };
 
@@ -10066,11 +10094,15 @@ impl LocalSnapback {
             keyring
                 .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
                 .expect("initialize password-session fixture keyring");
-            let provider = crate::auth::provider::AuthProvider::new(
-                crate::contract_types::AuthProviderProfile::Test,
-                keyring,
-            )
-            .expect("construct password-session production provider");
+            let provider = Arc::new(
+                crate::auth::provider::AuthProvider::new_with_dependencies(
+                    crate::contract_types::AuthProviderProfile::Test,
+                    keyring,
+                    Arc::new(crate::auth::crypto::OsRandom),
+                    Arc::new(ProductionSessionFixtureClock),
+                )
+                .expect("construct password-session production provider"),
+            );
             let sequence = NEXT_PASSWORD_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst);
             let identifier = format!("engine-human-{sequence}@example.test");
             let issue = graph_corpus_register_password(
@@ -10083,7 +10115,86 @@ impl LocalSnapback {
             );
             self.production_session_fixtures.insert(
                 fixture_label.to_owned(),
-                issue.response().token().expose_secret().to_owned(),
+                ProductionSessionFixture {
+                    bearer: issue.response().token().expose_secret().to_owned(),
+                    provider,
+                },
+            );
+        }
+        self.prepare_resolved_session_fixture(
+            source,
+            fixture_label,
+            fixture_label,
+            fixture_label,
+            1,
+            session_not_after_ms,
+        )
+    }
+
+    /// Build an email-code session through the production request/exchange
+    /// ceremony. Authority-creating grant approval requires this provider
+    /// because its step-up address must come from a previously verified
+    /// address rather than a caller-authored fixture fact.
+    #[cfg(test)]
+    fn prepare_resolved_email_session_for_test(
+        &mut self,
+        source: InvocationSource,
+        fixture_label: &str,
+        session_not_after_ms: u64,
+    ) -> PreparedAuthority {
+        static NEXT_EMAIL_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
+        self.db
+            .activate_current_auth_catalog()
+            .expect("activate email-session fixture catalog");
+        if !self.production_session_fixtures.contains_key(fixture_label) {
+            let runtime = tokio::runtime::Runtime::new().expect("email-session fixture runtime");
+            let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+            keyring
+                .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
+                .expect("initialize email-session fixture keyring");
+            let provider = Arc::new(
+                crate::auth::provider::AuthProvider::new_with_dependencies(
+                    crate::contract_types::AuthProviderProfile::Test,
+                    keyring,
+                    Arc::new(crate::auth::crypto::OsRandom),
+                    Arc::new(ProductionSessionFixtureClock),
+                )
+                .expect("construct email-session production provider"),
+            );
+            let sequence = NEXT_EMAIL_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst);
+            let address = format!("engine-step-up-{sequence}@example.test");
+            let address_admission = runtime
+                .block_on(provider.admit_email(&address))
+                .expect("admit email-session fixture address");
+            let request = address_admission
+                .request_code(self.db.auth_database_mut(), 1)
+                .expect("request email-session fixture code");
+            drop(address_admission);
+            let mailbox = runtime
+                .block_on(provider.mailbox_entry(&request.challenge_id))
+                .expect("capture email-session fixture code");
+            let mailbox = serde_json::to_value(mailbox)
+                .expect("serialize email-session fixture mailbox response");
+            let code = mailbox["code"]
+                .as_str()
+                .expect("email-session fixture mailbox carries a code");
+            let admission = runtime.block_on(provider.admit());
+            let coordination = admission
+                .exchange_coordination(self.db.auth_database_mut(), &request.challenge_id)
+                .expect("coordinate email-session fixture exchange")
+                .expect("email-session fixture challenge remains current");
+            let exchange = runtime
+                .block_on(admission.for_exchange(coordination))
+                .expect("admit email-session fixture exchange");
+            let issue = exchange
+                .exchange(self.db.auth_database_mut(), code, 1)
+                .expect("exchange email-session fixture code");
+            self.production_session_fixtures.insert(
+                fixture_label.to_owned(),
+                ProductionSessionFixture {
+                    bearer: issue.response().token().expose_secret().to_owned(),
+                    provider,
+                },
             );
         }
         self.prepare_resolved_session_fixture(
@@ -10246,9 +10357,8 @@ impl LocalSnapback {
                 &random,
             )
             .expect("atomically register unit-test service principal");
-        let actor_user_id = credential.user_id.clone();
         let effective_user_label = effective_user_id.expect("delegated service label");
-        let human_authority = self.prepare_resolved_password_session_for_test(
+        let human_authority = self.prepare_resolved_email_session_for_test(
             InvocationSource::AgentGrantManagement,
             effective_user_label,
             expires_at_ms,
@@ -10307,12 +10417,58 @@ impl LocalSnapback {
                 now_ms,
             )
             .expect("present delegated service pairing code through production ceremony");
+        let proof_admission = scopes
+            .iter()
+            .any(|scope| scope.authority_creating)
+            .then(|| {
+                let provider = self
+                    .production_session_fixtures
+                    .get(effective_user_label)
+                    .expect("delegated service retains its email-code provider")
+                    .provider
+                    .clone();
+                let binding = crate::auth::provider::StepUpBinding::grant_approval(
+                    human.user_id().to_owned(),
+                    human.session_id().to_owned(),
+                    human.generation(),
+                    human.authority_instance_id().to_owned(),
+                    pairing.request_id.clone(),
+                );
+                let runtime =
+                    tokio::runtime::Runtime::new().expect("service step-up fixture runtime");
+                let admission = runtime.block_on(provider.admit());
+                let address = admission
+                    .step_up_address(self.db.auth_database_mut(), &binding, now_ms)
+                    .expect("derive service grant step-up address");
+                let address_admission = runtime
+                    .block_on(admission.for_address(address))
+                    .expect("admit service grant step-up address");
+                let request = address_admission
+                    .request_step_up(self.db.auth_database_mut(), &binding)
+                    .expect("request service grant step-up challenge");
+                drop(address_admission);
+                let mailbox = runtime
+                    .block_on(provider.mailbox_entry(&request.challenge_id))
+                    .expect("capture service grant step-up code");
+                let mailbox = serde_json::to_value(mailbox)
+                    .expect("serialize service grant step-up mailbox response");
+                let code = mailbox["code"]
+                    .as_str()
+                    .expect("service grant step-up mailbox carries a code");
+                let admission = runtime.block_on(provider.admit());
+                let coordination = admission
+                    .step_up_coordination(self.db.auth_database_mut(), &request.challenge_id)
+                    .expect("coordinate service grant step-up proof");
+                runtime
+                    .block_on(admission.for_step_up(coordination, binding, code))
+                    .expect("verify service grant step-up proof")
+            });
         let approval = self
             .approve_grant_request(
                 &human_authority,
                 &pairing.request_id,
                 Some(expires_at_ms.saturating_sub(now_ms)),
-                None,
+                proof_admission.as_ref().map(|admission| admission.proof()),
                 now_ms,
             )
             .expect("approve delegated service grant through production ceremony");

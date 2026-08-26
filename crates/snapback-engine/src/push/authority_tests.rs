@@ -767,11 +767,16 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
     validate_audience_args(&audience, &args).expect("exact declared union");
 
     let fixture = PushAuthorizationTestFixture::app_members().expect("membership fixture");
+    let authority = session_authority(&sender);
+    let resolved_sender = authority
+        .projection()
+        .user_id()
+        .expect("production session resolves one user")
+        .to_owned();
     fixture
-        .grant_app_sender(&sender)
+        .grant_app_sender(&resolved_sender)
         .expect("sender membership");
     let schema = app_membership_schema();
-    let authority = session_authority(&sender);
     authorize_send_for_prepared(
         &fixture,
         &schema,

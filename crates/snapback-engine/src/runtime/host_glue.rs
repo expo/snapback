@@ -12275,7 +12275,7 @@ mod direct_human_projection_tests {
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{HandlerInput, IbexModule};
     use crate::storage::{DbRead, LocalDatabase};
-    use serde_json::{Value, json};
+    use serde_json::Value;
 
     fn run(authority: ResolvedAppAuthority) -> Value {
         let db = LocalDatabase::memory().unwrap();
@@ -12371,10 +12371,17 @@ mod direct_human_projection_tests {
             .as_str()
             .expect("durable actor has a user id");
         assert_eq!(delegated_actor["kind"], "agent");
-        assert_eq!(
-            delegated_actor["grantId"],
-            format!("grant-{delegated_actor_id}")
+        let grant_id = delegated_actor["grantId"]
+            .as_str()
+            .expect("durable actor has a host-minted grant id");
+        let grant_body = grant_id
+            .strip_prefix(&format!("{}_", crate::ids::Kind::Grant.prefix()))
+            .expect("service actor carries the registered grant prefix");
+        assert!(
+            crate::ids::decode_body(grant_body).is_some(),
+            "service actor carries one canonical host-minted grant id"
         );
+        assert_ne!(grant_id, format!("grant-{delegated_actor_id}"));
         assert_eq!(delegated[0]["actorPrototypeIsNull"], true);
         assert_eq!(delegated[0]["actorFrozen"], true);
 
