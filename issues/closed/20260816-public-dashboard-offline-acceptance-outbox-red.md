@@ -957,3 +957,114 @@ issues/20260727-backend-bakeoff-improvement-program.md` is empty.
 
 No generated projection check is claimed green at this HEAD. Integration owns
 the requested projection regeneration.
+
+### Round-21 dual-review closure (2026-08-25)
+
+Fresh positive replay capability now mints and durably enqueues one
+`clientMutationId` before any mutation POST, even when the caller supplied no
+id and generated presentation is disabled. A response lost after an applied
+POST therefore leaves the same identity for replay. Positive capability facts
+whose IndexedDB compare-and-swap did not commit are classified as
+`uncommitted` and take the same enqueue-only, zero-POST path as cached facts.
+
+Standalone acknowledgement now establishes target eligibility before custody
+reconciliation and limits that reconciliation to the eligible record ids. A
+target-B client therefore cannot strand, privacy-delete, or acknowledge a
+target-A record under B's authority.
+
+Cross-target and legacy targetless adoption remain unimplemented. The checked
+sidecar API returns a typed retained pause naming
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` or
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`, while the Guide points to
+`issues/20260825-outbox-target-adoption-protocol.md`. That ticket now owns the
+upgrade-while-offline legacy migration and the independent adoption-authority
+proof. The deprecated `stopped` field remains for public API compatibility;
+callers use the new discriminated `outcome` for the pause reason and retained
+count.
+
+The watched regressions failed before the production fix with these verbatim
+lines:
+
+```text
+✖ an uncommitted positive capability fact is enqueue-only for an IndexedDB follower (21.381167ms)
+✖ fresh automatic queue reuses one pre-POST identity after an applied response is lost (4.637417ms)
+✖ checked sidecar adoption cannot bypass persisted target without target adoption (3.118042ms)
+✖ sidecar adoption target mismatch precedes authority-instance custody reconciliation (12.106166ms)
+✖ sidecar adoption keeps identity-divergent intent pending for rollback (1.524625ms)
+✖ foreign-target standalone ACK never reconciles that record under a different authority (3.963125ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+```
+
+The uncommitted-positive case incorrectly reached transport; the fresh
+response-loss case recorded no foreground id and replayed a different id; the
+foreign-target ACK changed the target-A record from pending to stranded. The
+three adoption receipt cases still exposed only the old bare stop.
+
+At the final JS implementation commit
+`919bf869a7e614b3485bdc73ef917fefdc3a187a`, the focused outbox suite reports:
+
+```text
+ℹ tests 151
+ℹ suites 0
+ℹ pass 151
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1988.929417
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches the
+already-recorded, out-of-scope RQS assertion after the outbox and custody
+suites pass 151/151 and 18/18:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (9.642125ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2565.705542
+```
+
+The strict TypeScript fixture command was run separately after that stop and
+exits zero. Commands sequenced after the RQS failure in the package script are
+not claimed from that invocation.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and prove the JS lane rather than a
+same-commit server binary.
+
+`node scripts/check-guide.mjs` reports the following verbatim final summary:
+
+```text
+[guide-check] FAILED — 18 passed, 4 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 96 warnings
+```
+
+Every remaining failure is an integration-owned generated projection:
+diagnostics registry, symbol registry, Guide manifest/MCP projection, and flat
+guides. Snippet transclusions and capability/surface joins pass. The expired
+`backend.structured-stored-fields` review was evidence-audited without changing
+its claim and now names the owning ticket's 2026-09-30 review.
+
+`./ref-check --verbose` reports `311 LLP docs, 6647 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output. All generated
+projection paths remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`; integration owns regeneration.
