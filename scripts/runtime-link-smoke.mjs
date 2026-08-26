@@ -276,7 +276,6 @@ export async function runRuntimeLinkProbe({
       const cargoNotFound = result.spawnError?.code === 'ENOENT'
         && result.spawnError?.path === cargoCommand;
       let code = 'SNAPBACK_IBEX_CARGO_BUILD_FAILED';
-      // diagnostics-registry: emission SNAPBACK_IBEX_CARGO_NOT_FOUND
       if (cargoNotFound) code = IBEX_CARGO_NOT_FOUND_CODE;
       else if (result.spawnError) code = 'SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED';
       else if (result.interruptedSignal) code = 'SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED';

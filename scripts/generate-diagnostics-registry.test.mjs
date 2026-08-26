@@ -54,6 +54,161 @@ function sourceLinesContaining(repoPath, expression) {
     .flatMap((line, index) => line.includes(expression) ? [index + 1] : []);
 }
 
+function previousCommittedRevision(repoRoot, dirtyPath) {
+  try {
+    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', dirtyPath], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+  } catch (error) {
+    if (error.status !== 1) throw error;
+    return 'HEAD';
+  }
+  try {
+    execFileSync('git', ['diff', '--quiet', 'HEAD^', 'HEAD', '--', dirtyPath], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+  } catch (error) {
+    if (error.status !== 1) throw error;
+    return 'HEAD^';
+  }
+  return 'HEAD';
+}
+
+function committedJson(repoRoot, revision, path, fallback = undefined) {
+  try {
+    return JSON.parse(execFileSync('git', ['show', `${revision}:${path}`], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }));
+  } catch (error) {
+    if (fallback !== undefined && error.status === 128) return fallback;
+    throw error;
+  }
+}
+
+function codeRemovalProblems(
+  previousCodes,
+  currentCodes,
+  allowlist,
+  previousAllowlist = { removals: {} },
+) {
+  const validReasons = new Set(['test-only', 'renamed', 'prefix']);
+  const problems = [];
+  assert.equal(
+    allowlist.schemaVersion,
+    'snapback-diagnostics-code-removals.v1',
+    'diagnostics removal allowlist schema version',
+  );
+  assert.equal(
+    allowlist.removals !== null && typeof allowlist.removals === 'object'
+      && !Array.isArray(allowlist.removals),
+    true,
+    'diagnostics removal allowlist must contain an object-valued removals map',
+  );
+  for (const [code, justification] of Object.entries(allowlist.removals)) {
+    assert.match(code, /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u);
+    assert.equal(
+      justification !== null && typeof justification === 'object'
+        && !Array.isArray(justification),
+      true,
+      `${code} removal justification must be an object`,
+    );
+    assert.ok(
+      validReasons.has(justification.reason),
+      `${code} removal reason must be test-only, renamed, or prefix`,
+    );
+    assert.ok(
+      typeof justification.detail === 'string' && justification.detail.trim().length >= 12,
+      `${code} removal detail must explain the source-classification change`,
+    );
+    if (justification.reason === 'renamed') {
+      assert.match(
+        justification.replacement ?? '',
+        /^SNAPBACK_[A-Z0-9_]*[A-Z0-9]$/u,
+        `${code} renamed removal must name its replacement`,
+      );
+    }
+  }
+  for (const code of previousCodes) {
+    if (currentCodes.has(code)) continue;
+    const justification = allowlist.removals[code];
+    if (justification === undefined) {
+      problems.push(`${code}: missing checked-in removal justification`);
+    } else if (
+      JSON.stringify(previousAllowlist.removals?.[code]) === JSON.stringify(justification)
+    ) {
+      problems.push(`${code}: removal justification was not added or revised with this change`);
+    }
+  }
+  return problems;
+}
+
+test('diagnostic removal allowlist requires a classified, explained justification', () => {
+  const previous = new Set(['SNAPBACK_FIXTURE_OLD_CODE']);
+  const current = new Set();
+  assert.deepEqual(
+    codeRemovalProblems(previous, current, {
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    }),
+    ['SNAPBACK_FIXTURE_OLD_CODE: missing checked-in removal justification'],
+  );
+  assert.deepEqual(
+    codeRemovalProblems(previous, current, {
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {
+        SNAPBACK_FIXTURE_OLD_CODE: {
+          reason: 'test-only',
+          detail: 'The only emitter is compiled exclusively by #[cfg(test)].',
+        },
+      },
+    }),
+    [],
+  );
+  const existingJustification = {
+    reason: 'test-only',
+    detail: 'The only emitter is compiled exclusively by #[cfg(test)].',
+  };
+  assert.deepEqual(
+    codeRemovalProblems(
+      previous,
+      current,
+      {
+        schemaVersion: 'snapback-diagnostics-code-removals.v1',
+        removals: { SNAPBACK_FIXTURE_OLD_CODE: existingJustification },
+      },
+      { removals: { SNAPBACK_FIXTURE_OLD_CODE: existingJustification } },
+    ),
+    ['SNAPBACK_FIXTURE_OLD_CODE: removal justification was not added or revised with this change'],
+  );
+});
+
+test('generated registry never silently loses a previously committed diagnostic code', () => {
+  const repoRoot = resolve(import.meta.dirname, '..');
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const revision = previousCommittedRevision(repoRoot, registryPath);
+  const previous = committedJson(repoRoot, revision, registryPath);
+  const current = JSON.parse(readFileSync(resolve(repoRoot, registryPath), 'utf8'));
+  const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
+  const previousAllowlist = committedJson(repoRoot, revision, allowlistPath, { removals: {} });
+  const problems = codeRemovalProblems(
+    new Set(Object.keys(previous.diagnostics)),
+    new Set(Object.keys(current.diagnostics)),
+    allowlist,
+    previousAllowlist,
+  );
+  assert.deepEqual(
+    problems,
+    [],
+    `diagnostic codes disappeared from the previous committed registry:\n${problems.join('\n')}`,
+  );
+});
+
 test('diagnostic source classifier excludes environment reads per site and retains emissions', () => {
   const fixture = readFileSync(resolve(
     import.meta.dirname,
@@ -549,6 +704,12 @@ test('Rust production classification excludes compound cfg(test) regions', () =>
     'fn comma_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_COMMA_TEST_FAILURE"); }',
     '#[cfg(any(test, feature = "fixture"))]',
     'fn any_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_ANY_TEST_FAILURE"); }',
+    '#[cfg(any(all(test, feature = "a"), all(test, feature = "b")))]',
+    'fn every_branch_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_EVERY_BRANCH_TEST_FAILURE"); }',
+    '#[cfg(all(any(test, feature = "fixture"), target_os = "linux"))]',
+    'fn production_feature_branch() { panic!("SNAPBACK_FIXTURE_CFG_FEATURE_BRANCH_FAILURE"); }',
+    '#[cfg(any(test, not(target_os = "linux")))]',
+    'fn production_target_branch() { panic!("SNAPBACK_FIXTURE_CFG_TARGET_BRANCH_FAILURE"); }',
     'fn production_fixture() { panic!("SNAPBACK_FIXTURE_CFG_PRODUCTION_FAILURE"); }',
   ].join('\n');
 
@@ -557,7 +718,12 @@ test('Rust production classification excludes compound cfg(test) regions', () =>
       ordinaryMultiline: true,
       excludeRustTestRegions: true,
     }).map(({ match, kind }) => ({ code: match[0], kind })),
-    [{ code: 'SNAPBACK_FIXTURE_CFG_PRODUCTION_FAILURE', kind: 'emission' }],
+    [
+      { code: 'SNAPBACK_FIXTURE_CFG_ANY_TEST_FAILURE', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_CFG_FEATURE_BRANCH_FAILURE', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_CFG_TARGET_BRANCH_FAILURE', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_CFG_PRODUCTION_FAILURE', kind: 'emission' },
+    ],
   );
 });
 
@@ -778,6 +944,34 @@ test('Rust identifier flow recognizes generic error helpers and interpolated bai
       { code: 'SNAPBACK_FIXTURE_VECTOR_ERROR', line: 5, kind: 'emission' },
       { code: 'SNAPBACK_FIXTURE_FORK_ERROR', line: 6, kind: 'emission' },
       { code: 'SNAPBACK_FIXTURE_BAIL_ERROR', line: 7, kind: 'emission' },
+    ],
+  );
+});
+
+test('identifier flow follows unambiguous whole-string constants across files', () => {
+  const fixture = [
+    'use crate::contract::WRITER_COVERAGE_GAP_CODE;',
+    'fn imported() { fork_error(WRITER_COVERAGE_GAP_CODE, "gap"); }',
+    'fn qualified() {',
+    '    SnapbackError::error(crate::instance_fork::WRITER_COVERAGE_GAP_CODE, "fork", "gap");',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, {
+      ordinaryMultiline: true,
+      externalWholeStringDeclarations: [{
+        code: 'SNAPBACK_FORK_WRITER_COVERAGE_GAP',
+        identifier: 'WRITER_COVERAGE_GAP_CODE',
+      }],
+    }).map(({ match, kind }) => ({
+      code: match[0],
+      line: fixture.slice(0, match.index).split('\n').length,
+      kind,
+    })),
+    [
+      { code: 'SNAPBACK_FORK_WRITER_COVERAGE_GAP', line: 2, kind: 'emission' },
+      { code: 'SNAPBACK_FORK_WRITER_COVERAGE_GAP', line: 4, kind: 'emission' },
     ],
   );
 });
@@ -1042,6 +1236,55 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     true,
     'declarations alone never retain a public diagnostic code',
   );
+
+  for (const code of [
+    'SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT',
+    'SNAPBACK_AUTH_IDENTITY_COLLISION',
+    'SNAPBACK_AUTH_PASSWORD_ALREADY_SET',
+    'SNAPBACK_FORK_WRITER_COVERAGE_GAP',
+    'SNAPBACK_OPERATION_COVERAGE_INVALID',
+    'SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED',
+    'SNAPBACK_TEST_FIXTURE_INVALID',
+    'SNAPBACK_TEST_OPERATION_CRASH_CUT',
+  ]) {
+    assert.ok(registry.diagnostics[code], `${code} must remain in the generated registry`);
+    assert.match(
+      diagnosticTypes,
+      new RegExp(`^  (?:\\| )?'${code}'$`, 'mu'),
+      `${code} must remain in SnapbackDiagnosticCode`,
+    );
+  }
+  const forkGapSites = registry.diagnostics.SNAPBACK_FORK_WRITER_COVERAGE_GAP.sites;
+  assert.ok(
+    forkGapSites.some(({ file, kind }) => (
+      file === 'crates/snapback-types/src/instance_fork/contract.rs'
+      && kind === 'declaration'
+    )),
+    'fork writer-coverage gap retains its whole-string declaration',
+  );
+  for (const file of [
+    'crates/snapback-services/src/instance_fork/service.rs',
+    'crates/snapback-kernel/src/storage/connections.rs',
+  ]) {
+    assert.ok(
+      forkGapSites.some((site) => site.file === file && site.kind === undefined),
+      `fork writer-coverage gap follows its cross-file constant into ${file}`,
+    );
+  }
+  for (const [code, file] of [
+    ['SNAPBACK_IBEX_CARGO_NOT_FOUND', 'scripts/runtime-link-smoke.mjs'],
+    ['SNAPBACK_RESUME_JOURNAL_FLOOR', 'crates/snapback-engine/src/local/engine.rs'],
+    ['SNAPBACK_RESUME_POLICY_REPLACED', 'crates/snapback-engine/src/local/engine.rs'],
+    ['SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED', 'crates/snapback-engine/src/local/engine.rs'],
+    ['SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH', 'crates/snapback-engine/src/local/engine.rs'],
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => (
+        site.file === file && site.kind === undefined && site.synthetic !== true
+      )),
+      `${code} follows its imported whole-string constant without a marker`,
+    );
+  }
 
   const artifactHeaderCodes = [
     'SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND',

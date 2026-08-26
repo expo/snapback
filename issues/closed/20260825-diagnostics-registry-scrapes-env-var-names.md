@@ -115,25 +115,35 @@ code has production emitters elsewhere.
 
 Whole-string constants now publish `kind: "declaration"` at the literal and
 identifier-flow publishes the call/property/shorthand coordinate that actually
-emits it. The final registry has 167 declaration sites across 140 codes; 137
+emits it. The round-21 registry had 167 declaration sites across 140 codes; 137
 pre-existing codes move off a declaration coordinate to at least one real use
 site, including `SNAPBACK_APP_READINESS_DECLARATION_INVALID` from
 `operational_readiness.rs:27` to its `SnapbackError::error(...)` call at line
 617. Sixty-three of those codes had no other emitting coordinate in the
 round-20 registry.
 
-Nine cross-file, Rust-format-interpolation, or otherwise non-local flows need
-explicit synthetic emission markers at their real uses:
+The former nine-entry exception list is fully dispositioned at round 30.
+Repository-unambiguous whole-string constants now flow across files into both
+bare imported uses and qualified `path::CONST` uses. Import and re-export
+declarations are never emissions. Six formerly marker-backed cross-file flows
+are consequently marker-free and pinned at their real uses:
 
 - `SNAPBACK_FORK_WRITER_COVERAGE_GAP`
 - `SNAPBACK_IBEX_CARGO_NOT_FOUND`
-- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID`
-- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED`
-- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED`
 - `SNAPBACK_RESUME_JOURNAL_FLOOR`
 - `SNAPBACK_RESUME_POLICY_REPLACED`
 - `SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED`
 - `SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH`
+
+The other three former exceptions —
+`SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID`,
+`SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED`, and
+`SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED` — are same-file
+whole-string constants and resolve through ordinary local identifier flow.
+Synthetic markers remain only for genuinely dynamic construction: the six
+finite Tigris partial-credential spellings, four finite stale-artifact
+kind/version spellings, `SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED`,
+and `SNAPBACK_DECLARATION_SUGGESTION_STALE`.
 
 The explicitly dead-code stable spellings `SNAPBACK_RESUME_BUDGET_EXCEEDED`
 and `SNAPBACK_RESUME_RATE_LIMITED` are retained honestly as reservations, not
@@ -250,7 +260,11 @@ then emits a real diagnostic; before the fix the scanner returned zero sites,
 and after the fix it retains both. The hosted-target partial-credential path
 also replaces role-name interpolation with a private exhaustive six-role code
 mapping. That adds the grammar-valid `CONTROL_STATE` spelling without changing
-the closed role/action policy.
+the closed role/action policy. This is the accepted compatibility change
+recorded explicitly in
+`issues/closed/20260825-hosted-target-tigris-role-code-spelling.md`: the old
+hyphenated output was never a valid registry identity and is retired without
+an alias.
 
 Round 25 closes the remaining classifier and surface-review findings. A
 semicolon-less JavaScript `throw` now stops at the first ASI boundary where its
@@ -378,28 +392,118 @@ non-sites. The production All Aboard build therefore adds
 environment registry and `SnapbackEnvironmentVariable` without changing the
 diagnostic population.
 
-Round 28 adds the four missing comment-only synthetic emission markers at the
-kernel vector constructors that forward through `vector_error`. The current
-count table from the round-28 tree is:
+Round 28 added four comment-only synthetic emission markers at the kernel
+vector constructors that forward through `vector_error`. Round 30's generic
+`*_error(...)` first-argument flow supersedes those markers while retaining
+the same real constructor coordinates.
 
-| Count | Round 27 | Round 28 |
-| --- | ---: | ---: |
-| Codes | 3,541 | 3,541 |
-| Source files | 626 | 626 |
-| Emitting sites | 9,286 | 9,290 |
-| Received sites | 378 | 378 |
-| Reserved sites | 11 | 11 |
-| HTTP-classified | 1,704 | 1,704 |
-| Guide-anchored | 431 | 431 |
-| Environment variables | 188 | 188 |
-| Environment sites | 366 | 366 |
+### Round-30 regression and final reconciliation
 
-The complete Guide check passed. Its verbatim terminal summary was:
+Commit `048d646bc` broadened the Rust test-region matcher from pure
+`#[cfg(test)]` to any `cfg(all(...))` or `cfg(any(...))` text containing the
+word `test`. That is logically wrong for `cfg(any(test, feature = "..."))`:
+the feature branch compiles independently of the test harness. Whole functions,
+statements, and external modules behind `test-support` or `remainder-tests`
+were masked as production-absent. Independently, removing the fork gap's
+synthetic marker exposed that identifier flow stopped at file boundaries.
+
+The fail-first committed-code guard compared the round-28 registry with the
+working projection and reported these exact eight unexplained removals:
 
 ```text
+SNAPBACK_AUTHORIZED_LEASE_STATE_CORRUPT: missing checked-in removal justification
+SNAPBACK_AUTH_IDENTITY_COLLISION: missing checked-in removal justification
+SNAPBACK_AUTH_PASSWORD_ALREADY_SET: missing checked-in removal justification
+SNAPBACK_FORK_WRITER_COVERAGE_GAP: missing checked-in removal justification
+SNAPBACK_OPERATION_COVERAGE_INVALID: missing checked-in removal justification
+SNAPBACK_TELEMETRY_TEST_CONFIG_FAILED: missing checked-in removal justification
+SNAPBACK_TEST_FIXTURE_INVALID: missing checked-in removal justification
+SNAPBACK_TEST_OPERATION_CRASH_CUT: missing checked-in removal justification
+```
+
+All eight are restored. None is allowlisted: every test-named code above has a
+non-test feature branch, and the other five have direct production or
+feature-shippable emitters. The checked
+`scripts/diagnostics-registry-code-removals.json` allowlist is therefore empty.
+Future removal of a previously committed spelling fails unless the same change
+checks in a concrete explanation classified as `test-only`, `renamed`, or
+`prefix` (with a replacement required for `renamed`).
+
+The cfg classifier now parses predicate structure. `cfg(test)`,
+`cfg(all(test, ...))`, nested `any(...)` whose every branch requires test, and
+`#[test]` are masked; `cfg(any(test, feature = "..."))`, target alternatives,
+and every other feature-gated production branch remain inventoried. Cross-file
+whole-string flow is limited to identifiers whose declarations resolve to one
+repository-wide code, so same-named constants cannot be guessed across module
+boundaries.
+
+Relative to the round-28 registry at `dbd34089b`, the final code-set diff is:
+
+- **Dropped: none.** The eight round-30 losses were regressions and are back.
+- **Added: `SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INSTALL_FAILED`.**
+  The shipped package-prepare helper emits it while installing the qualified
+  receipt; round 30 correctly admitted that operator source.
+- **Added: `SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_UNREADABLE`.** The
+  same shipped helper emits it when the qualification receipt cannot be read.
+
+The final registry has 169 declaration sites across 141 codes. The reconciled
+count table is:
+
+| Count | Round 28 (`dbd34089b`) | Round-30 regression (`048d646bc`) | Round-30 final |
+| --- | ---: | ---: | ---: |
+| Codes | 3,541 | 3,535 | 3,543 |
+| Source files | 626 | 627 | 628 |
+| Emitting sites | 9,290 | 9,291 | 9,375 |
+| Received sites | 378 | 378 | 378 |
+| Reserved sites | 11 | 11 | 11 |
+| HTTP-classified | 1,704 | 1,698 | 1,704 |
+| Guide-anchored | 431 | 430 | 431 |
+| Environment variables | 188 | 188 | 188 |
+| Environment sites | 366 | 366 | 366 |
+
+### Round-30 final verification
+
+The final tree was verified after regenerating this lane's diagnostics, symbol,
+manifest, and flat Guide projections. The verbatim terminal summaries were:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+tests 39
+pass 39
+fail 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3543 codes, 9375 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1704 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1872 snippets
+
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
+
 node scripts/check-guide.mjs
 [guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
+./ref-check --verbose
+ref-check: ok — 311 LLP docs, 7872 refs in 16054 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+
+crates non-comment diff against merge-base e370bb8f789007cffae1f4d80c4feabdedc81cb5
+(no output; empty)
 ```
+
+The inventory/Guide runs also printed six pre-existing GAP review warnings;
+the Guide run's remaining warnings were authority-freshness notices. All were
+warning-only and are included in the 100-warning summary above. Nothing in the
+requested verification remains unverified.
 
 ### Known JS/native lookup divergence
 

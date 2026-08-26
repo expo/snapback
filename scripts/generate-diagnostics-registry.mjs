@@ -53,6 +53,7 @@ import {
   indirectEnvironmentReadContracts,
   rustExternalTestModulePaths,
   rustProductionSource,
+  wholeStringDiagnosticDeclarations,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
 
@@ -254,8 +255,8 @@ const operatorProductionPaths = [
   // assembly. It both emits package-preparation diagnostics and supplies the
   // named-argument contract that flows into `environment[...]`.
   'scripts/runtime-package-authority.mjs',
-  // This operator emits a package-declared code through an imported binding;
-  // its named marker is the cross-file identifier-flow boundary.
+  // This operator emits package-declared codes through imported bindings;
+  // repository-unambiguous whole-string constant flow follows those uses.
   'scripts/runtime-link-smoke.mjs',
 ];
 
@@ -277,6 +278,28 @@ function lineAndColumn(source, offset) {
   const line = before.split('\n').length;
   const lastNewline = before.lastIndexOf('\n');
   return { line, column: offset - lastNewline };
+}
+
+function sourceImportsOrQualifiesConstant(source, identifier) {
+  const qualified = new RegExp(
+    `(?:\\b[A-Za-z_][A-Za-z0-9_]*::)+${identifier}(?![A-Za-z0-9_])`,
+    'u',
+  );
+  if (qualified.test(source)) return true;
+  for (const statement of source.matchAll(
+    /\b(?:pub(?:\([^)]*\))?\s+)?use\s+([\s\S]*?);/gu,
+  )) {
+    if (
+      new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
+        .test(statement[1])
+      || /::\s*\*/u.test(statement[1])
+    ) return true;
+  }
+  for (const statement of source.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]/gu)) {
+    if (new RegExp(`(?<![A-Za-z0-9_])${identifier}(?![A-Za-z0-9_])`, 'u')
+      .test(statement[1])) return true;
+  }
+  return false;
 }
 
 function subsystemFor(code, sites) {
@@ -350,6 +373,25 @@ function collectSites() {
         : readFileSync(join(root, path), 'utf8'),
     ]
   )));
+  const declarationsByIdentifier = new Map();
+  for (const [path, source] of sources) {
+    for (const declaration of wholeStringDiagnosticDeclarations(source, {
+      javascript: /\.(?:cjs|js|mjs)$/u.test(path),
+      ordinaryMultiline: path.endsWith('.rs'),
+      shell: path.endsWith('.sh'),
+    })) {
+      if (!/^[A-Z][A-Z0-9_]*$/u.test(declaration.identifier)) continue;
+      const declarations = declarationsByIdentifier.get(declaration.identifier) ?? [];
+      declarations.push({ ...declaration, file: path });
+      declarationsByIdentifier.set(declaration.identifier, declarations);
+    }
+  }
+  // Cross-file flow is deliberately limited to repository-unambiguous,
+  // whole-string constants. That covers imported bindings and qualified
+  // `path::CONST` uses without guessing between same-named module constants.
+  const crossFileDeclarations = [...declarationsByIdentifier.values()].flatMap((declarations) => (
+    new Set(declarations.map(({ code }) => code)).size === 1 ? [declarations[0]] : []
+  ));
   const readContracts = [
     ...sources.values(),
   ].flatMap(indirectEnvironmentReadContracts);
@@ -371,6 +413,11 @@ function collectSites() {
     const source = sources.get(path);
     const sourceOptions = {
       environmentNames,
+      externalWholeStringDeclarations: crossFileDeclarations.filter((declaration) => (
+        declaration.file !== path
+        && source.includes(declaration.identifier)
+        && sourceImportsOrQualifiesConstant(source, declaration.identifier)
+      )),
       indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
@@ -683,6 +730,7 @@ for (const name of environmentNames) {
 const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
   'scripts/diagnostics-registry-source.mjs',
+  'scripts/diagnostics-registry-code-removals.json',
   ...diagnosticCatalogPaths,
   'scripts/guide-lib.mjs',
   ...productionPaths,

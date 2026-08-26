@@ -58,6 +58,16 @@ assert.equal(diagnostic.diagnostic.httpStatus, 401);
 assert.equal(diagnostic.diagnostic.sites, undefined);
 assert.match(diagnostic.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(diagnostic)) <= 16_384);
+const restoredPasswordDiagnostic = lookupGuideReference(
+  ['SNAPBACK_AUTH_PASSWORD_ALREADY_SET'],
+  { projectRoot: root },
+);
+assert.equal(restoredPasswordDiagnostic.match, 'diagnostic');
+assert.equal(
+  restoredPasswordDiagnostic.diagnostic.code,
+  'SNAPBACK_AUTH_PASSWORD_ALREADY_SET',
+);
+assert.equal(restoredPasswordDiagnostic.diagnostic.httpStatus, 409);
 const capabilityDiagnostic = lookupGuideReference(
   ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
   { projectRoot: root },

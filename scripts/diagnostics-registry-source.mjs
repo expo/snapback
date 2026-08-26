@@ -33,13 +33,93 @@ export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
   'clients/swift/',
 ]);
 
-const RUST_TEST_CFG_ATTRIBUTE_SOURCE = String.raw`cfg\s*\(\s*(?:test(?:\s*,[^\]\r\n]*)?|(?:all|any)\s*\([^\]\r\n]*\btest\b[^\]\r\n]*\))\s*\)`;
+function skipRustCfgWhitespace(source, offset) {
+  let cursor = offset;
+  while (/\s/u.test(source[cursor] ?? '')) cursor += 1;
+  return cursor;
+}
+
+function rustCfgPredicate(source, offset) {
+  let cursor = skipRustCfgWhitespace(source, offset);
+  const identifier = source.slice(cursor).match(/^[A-Za-z_][A-Za-z0-9_-]*/u)?.[0];
+  if (identifier === undefined) return null;
+  cursor = skipRustCfgWhitespace(source, cursor + identifier.length);
+  if (source[cursor] === '=') {
+    cursor = skipRustCfgWhitespace(source, cursor + 1);
+    const quote = source[cursor];
+    if (quote === '"' || quote === "'") {
+      cursor += 1;
+      while (cursor < source.length && source[cursor] !== quote) {
+        cursor += source[cursor] === '\\' ? 2 : 1;
+      }
+      if (source[cursor] !== quote) return null;
+      cursor += 1;
+    } else {
+      const value = source.slice(cursor).match(/^[A-Za-z0-9_.-]+/u)?.[0];
+      if (value === undefined) return null;
+      cursor += value.length;
+    }
+    return { end: cursor, requiresTest: false };
+  }
+  if (source[cursor] !== '(') {
+    return { end: cursor, requiresTest: identifier === 'test' };
+  }
+  const list = rustCfgPredicateList(source, cursor + 1);
+  if (list === null) return null;
+  const requiresTest = identifier === 'all'
+    ? list.predicates.some((predicate) => predicate.requiresTest)
+    : identifier === 'any'
+      ? list.predicates.length > 0
+        && list.predicates.every((predicate) => predicate.requiresTest)
+      : false;
+  return { end: list.end, requiresTest };
+}
+
+function rustCfgPredicateList(source, offset) {
+  const predicates = [];
+  let cursor = skipRustCfgWhitespace(source, offset);
+  while (source[cursor] !== ')') {
+    const predicate = rustCfgPredicate(source, cursor);
+    if (predicate === null) return null;
+    predicates.push(predicate);
+    cursor = skipRustCfgWhitespace(source, predicate.end);
+    if (source[cursor] === ',') {
+      cursor = skipRustCfgWhitespace(source, cursor + 1);
+      if (source[cursor] === ')') break;
+    } else if (source[cursor] !== ')') {
+      return null;
+    }
+  }
+  return source[cursor] === ')' ? { end: cursor + 1, predicates } : null;
+}
+
+function rustTestOnlyAttributeCandidates(source) {
+  const candidates = [];
+  for (const attribute of source.matchAll(/#\s*\[\s*cfg\s*\(/gu)) {
+    const list = rustCfgPredicateList(source, attribute.index + attribute[0].length);
+    if (list === null || !list.predicates.some((predicate) => predicate.requiresTest)) continue;
+    const close = skipRustCfgWhitespace(source, list.end);
+    if (source[close] !== ']') continue;
+    candidates.push({
+      start: source.lastIndexOf('\n', attribute.index - 1) + 1,
+      marker: attribute.index,
+      end: close + 1,
+    });
+  }
+  for (const attribute of source.matchAll(/#\s*\[\s*test\s*\]/gu)) {
+    candidates.push({
+      start: source.lastIndexOf('\n', attribute.index - 1) + 1,
+      marker: attribute.index,
+      end: attribute.index + attribute[0].length,
+    });
+  }
+  return candidates.sort((left, right) => left.marker - right.marker);
+}
 
 function hasRustTestCfgAttribute(attributes) {
-  return new RegExp(
-    String.raw`#\s*\[\s*${RUST_TEST_CFG_ATTRIBUTE_SOURCE}\s*\]`,
-    'u',
-  ).test(attributes);
+  return rustTestOnlyAttributeCandidates(attributes).some((attribute) => (
+    /#\s*\[\s*cfg\s*\(/u.test(attributes.slice(attribute.marker, attribute.end))
+  ));
 }
 
 function rustExternalModuleDeclarations(source, inheritedTestOnly) {
@@ -1115,31 +1195,26 @@ function rustAttributedRegionEnd(source, start, literals, delimiterCloses) {
 // Preserve byte offsets and line numbers while removing Rust regions that are
 // compiled only by the test harness from the production registry population.
 export function rustProductionSource(source) {
-  const testAttributeSource = String.raw`(?:${RUST_TEST_CFG_ATTRIBUTE_SOURCE}|test)`;
-  if (!new RegExp(String.raw`#\s*\[\s*${testAttributeSource}\s*\]`, 'u').test(source)) {
-    return source;
-  }
+  const testAttributes = rustTestOnlyAttributeCandidates(source);
+  if (testAttributes.length === 0) return source;
   const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
   const delimiterCloses = new Map(
     lexicalDelimiterPairs(source, literals).map(({ open, close }) => [open, close]),
   );
   const ranges = [];
-  const attributes = new RegExp(
-    String.raw`^\s*#\s*\[\s*(${testAttributeSource})\s*\]`,
-    'gmu',
-  );
-  for (const attribute of source.matchAll(attributes)) {
-    const marker = attribute.index + attribute[0].indexOf('#');
-    if (!codeOffset(marker, literals)) continue;
-    if (ranges.some((range) => range.start <= marker && marker < range.end)) continue;
+  for (const attribute of testAttributes) {
+    if (!codeOffset(attribute.marker, literals)) continue;
+    if (ranges.some((range) => range.start <= attribute.marker && attribute.marker < range.end)) {
+      continue;
+    }
     const end = rustAttributedRegionEnd(
       source,
-      attribute.index + attribute[0].length,
+      attribute.end,
       literals,
       delimiterCloses,
     );
     if (end === null) continue;
-    ranges.push({ start: attribute.index, end });
+    ranges.push({ start: attribute.start, end });
   }
   if (ranges.length === 0) return source;
   ranges.sort((left, right) => left.start - right.start);
@@ -1531,10 +1606,56 @@ function wholeStringCodeDeclaration(source, match, literals, bracePairs) {
   return null;
 }
 
-function identifierFlowEmissionSites(source, analysis) {
+export function wholeStringDiagnosticDeclarations(source, {
+  javascript,
+  ordinaryMultiline,
+  shell,
+  excludeRustTestRegions = false,
+} = {}) {
+  const classifiedSource = excludeRustTestRegions ? rustProductionSource(source) : source;
+  const literals = stringLiteralBounds(classifiedSource, {
+    javascript,
+    ordinaryMultiline,
+    shell,
+  });
+  const bracePairs = lexicalDelimiterPairs(classifiedSource, literals)
+    .filter(({ open }) => classifiedSource[open] === '{');
+  return [...classifiedSource.matchAll(DIAGNOSTIC_CODE_PATTERN)].flatMap((match) => {
+    const declaration = wholeStringCodeDeclaration(
+      classifiedSource,
+      match,
+      literals,
+      bracePairs,
+    );
+    return declaration === null
+      ? []
+      : [{ code: declaration.code, identifier: declaration.identifier }];
+  });
+}
+
+function isImportOrReexportIdentifierPosition(source, offset) {
+  const statementStart = source.lastIndexOf(';', offset - 1) + 1;
+  const statement = source.slice(statementStart, offset);
+  return (
+    /(?:^|[{}])\s*(?:#\s*\[[^\]]+\]\s*)*(?:pub(?:\([^)]*\))?\s+)?use\b/su.test(statement)
+    || /(?:^|[{}])\s*(?:export\s+)?import\b/su.test(statement)
+    || /(?:^|[{}])\s*export\s*\{/su.test(statement)
+  );
+}
+
+function identifierFlowEmissionSites(source, analysis, externalDeclarations = []) {
   const sites = [];
   const seen = new Set();
-  for (const declaration of analysis.declarations.values()) {
+  const declarations = [
+    ...analysis.declarations.values(),
+    ...externalDeclarations.map((declaration) => ({
+      ...declaration,
+      identifierOffset: -1,
+      scopeEnd: source.length,
+      scopeStart: 0,
+    })),
+  ];
+  for (const declaration of declarations) {
     const identifier = escapeRegExp(declaration.identifier);
     const uses = new RegExp(
       `(?<![A-Za-z0-9_])(?:(?:[A-Za-z_][A-Za-z0-9_]*::)*)${identifier}(?![A-Za-z0-9_])`,
@@ -1545,6 +1666,10 @@ function identifierFlowEmissionSites(source, analysis) {
       const useOffset = declaration.scopeStart + use.index;
       const identifierOffset = useOffset + use[0].lastIndexOf(declaration.identifier);
       if (identifierOffset === declaration.identifierOffset) continue;
+      if (
+        declaration.identifierOffset === -1
+        && isImportOrReexportIdentifierPosition(source, identifierOffset)
+      ) continue;
       const formatInterpolatedBail = isRustFormatInterpolatedBailIdentifierPosition(
         source,
         identifierOffset,
@@ -2171,6 +2296,7 @@ function uniqueDiagnosticSourceLines(source, sites) {
 
 export function diagnosticSourceSites(source, {
   environmentNames,
+  externalWholeStringDeclarations = [],
   indirectEnvironmentReadContracts: readContracts,
   javascript,
   ordinaryMultiline,
@@ -2193,7 +2319,11 @@ export function diagnosticSourceSites(source, {
     const kind = diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell });
     return kind === null ? [] : [{ match, kind }];
   });
-  const flowSites = identifierFlowEmissionSites(classifiedSource, analysis);
+  const flowSites = identifierFlowEmissionSites(
+    classifiedSource,
+    analysis,
+    externalWholeStringDeclarations,
+  );
   sites.push(...flowSites);
   sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments).filter(
     (syntheticSite) => !flowSites.some((flowSite) => (
