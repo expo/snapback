@@ -556,6 +556,73 @@ test('whole-string constants declare codes and flow to real diagnostic call site
   );
 });
 
+test('identifier flow excludes membership and comparison consumers', () => {
+  const fixture = [
+    "const LOCAL_CODE = 'SNAPBACK_FIXTURE_CONST_MEMBERSHIP';",
+    'if (allowed.includes(LOCAL_CODE)) accept();',
+    'if (allowed.has(LOCAL_CODE)) accept();',
+    'if (allowed.contains(LOCAL_CODE)) accept();',
+    'if (received === LOCAL_CODE) accept();',
+    'match received { LOCAL_CODE => accept(), _ => reject() }',
+    'throw codedError(LOCAL_CODE);',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_CONST_MEMBERSHIP', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_CONST_MEMBERSHIP', line: 7, kind: 'emission' },
+    ],
+  );
+});
+
+test('dual-role spellings classify each identifier, receive, and environment site independently', () => {
+  const fixture = [
+    "const DUAL_ROLE_CODE = 'SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW';",
+    'const configured = process.env.SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW;',
+    'const RECEIVED_CODES = [',
+    "  'SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW',",
+    '];',
+    'if (RECEIVED_CODES.includes(receivedCode)) accept();',
+    'match received {',
+    '  "SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW" => accept(),',
+    '  _ => reject(),',
+    '}',
+    'throw codedError(DUAL_ROLE_CODE);',
+  ].join('\n');
+  const options = {
+    javascript: true,
+    ordinaryMultiline: true,
+    receivedProtocolVocabulary: true,
+  };
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, options)
+      .map(({ match, kind }) => ({
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { line: 1, kind: 'declaration' },
+      { line: 4, kind: 'received' },
+      { line: 11, kind: 'emission' },
+    ],
+  );
+  assert.deepEqual(
+    environmentVariableSites(fixture, options)
+      .map(({ match, kind }) => ({
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [{ line: 2, kind: 'read' }],
+  );
+});
+
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
   const firstCode = 'SNAPBACK_FIXTURE_LONG_MATCH_ARM_FIRST';
   const longRustOrPatternFixture = [
@@ -1018,9 +1085,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     [{
       file: 'crates/snapback-cli/src/cli.rs',
       kind: 'read',
-    }, {
-      file: 'crates/snapback-server/src/server/api_error.rs',
-      kind: 'mention',
     }],
   );
 
@@ -1110,6 +1174,23 @@ test('received protocol classifier follows shipped membership-table idioms', () 
       { code: 'SNAPBACK_FIXTURE_RECEIVED_RUST_BINARY_SEARCH', kind: 'received' },
     ],
   );
+});
+
+test('environment allowlists remain environment tables rather than received diagnostics', () => {
+  const source = [
+    "const allowed = new Set(['SNAPBACK_FIXTURE_ENV_ALLOWLIST']);",
+    'for (const [key, value] of Object.entries(process.env)) {',
+    '  if (allowed.has(key.toUpperCase())) environment[key] = value;',
+    '}',
+  ].join('\n');
+  const options = { javascript: true, receivedProtocolVocabulary: true };
+
+  assert.deepEqual(
+    environmentVariableSites(source, options)
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_FIXTURE_ENV_ALLOWLIST', kind: 'table-entry' }],
+  );
+  assert.deepEqual(diagnosticSourceSites(source, options), []);
 });
 
 test('same-line named markers retain only their target site', () => {

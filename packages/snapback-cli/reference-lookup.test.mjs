@@ -73,6 +73,14 @@ const internalDiagnostic = lookupGuideReference(
   { projectRoot: root, includeDiagnosticSites: true },
 );
 assert.ok(internalDiagnostic.diagnostic.sites.length > 0);
+const declarationDiagnostic = lookupGuideReference(
+  ['SNAPBACK_APP_READINESS_DECLARATION_INVALID'],
+  { projectRoot: root, includeDiagnosticSites: true },
+);
+assert.match(
+  formatGuideReferenceLookup(declarationDiagnostic),
+  /Declaration sites:\n- crates\/snapback-activation\/src\/operational_readiness\.rs:/u,
+);
 const receivedDiagnostic = lookupGuideReference(
   ['SNAPBACK_INVALID_FLOAT'],
   { projectRoot: root, includeDiagnosticSites: true },

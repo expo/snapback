@@ -22,6 +22,7 @@ fn vector_error(code: &'static str, message: &'static str) -> SnapbackError {
 }
 
 pub fn value_invalid() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_VALUE_INVALID
     vector_error(code::VALUE_INVALID, "vector value is invalid")
 }
 
@@ -30,6 +31,7 @@ pub fn query_invalid() -> SnapbackError {
 }
 
 pub fn corpus_bound() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_CORPUS_BOUND
     vector_error(
         code::CORPUS_BOUND,
         "vector destination visibility partition exceeds its declared corpus bound",
@@ -37,6 +39,7 @@ pub fn corpus_bound() -> SnapbackError {
 }
 
 pub fn work_limit() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_WORK_LIMIT
     vector_error(
         code::WORK_LIMIT,
         "vector query exceeds its logical work limit",
@@ -52,6 +55,7 @@ pub fn index_corrupt() -> SnapbackError {
 }
 
 pub fn maintenance_limit() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_MAINTENANCE_LIMIT
     vector_error(
         code::MAINTENANCE_LIMIT,
         "aggregate vector maintenance exceeds the mutation-global ceiling",

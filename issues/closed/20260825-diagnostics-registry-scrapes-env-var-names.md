@@ -58,8 +58,9 @@ environment read and zero diagnostics. It also binds Rust `matches!(...)`
 reference detection to the macro's matched closing parenthesis. This restores
 five production emitters following completed macros, including the four
 reviewed sites at `admin_link.rs:765,1008` and `cli.rs:4467,6641`; the fifth is
-`admin.rs:696`. The round-19 projection contains 9,216 emitting sites after
-whitespace-delimited prose is excluded.
+`admin.rs:696`. The historical round-19 intermediate projection contained
+9,216 emitting sites after whitespace-delimited prose was excluded; that
+figure is superseded by the final count table below.
 
 The final round-16 correction binds environment-name tables to the opener
 found for their declaration by the lexical delimiter stack. Comment braces,
@@ -183,6 +184,83 @@ other 140 remain environment removals. A delimiter-aware pass over every
 carrier finds no whole-string or `CODE:` diagnostic emitter among those 140;
 the four round-19 throw sentences are environment mentions.
 
+Round 22 restricts declaration-to-identifier flow to proven diagnostic
+positions: a throw, a known diagnostic constructor/helper, a diagnostic-code
+property/shorthand, or the first argument of a diagnostic print/log operator.
+Membership calls such as `allowed.includes(LOCAL_CODE)`, `.has`, and
+`.contains`, ordinary comparisons, catalogues, and match arms no longer become
+emissions merely because the argument is a diagnostic constant. The two live
+false positives leave the projection:
+
+- `packages/snapback-cli/index.mjs:7276` —
+  `DECLARATION_SUGGESTION_REASON_CODES.includes(code)`;
+- `crates/snapback-types/src/auth/mode.rs:428` — the
+  `Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE)` coherence comparison.
+
+The 137 round-21 identifier-flow-resolved codes were re-audited before
+regeneration. Twenty-eight would have lost their only proven emitter under the
+new rule, so each now has an explicit synthetic marker at one real custom
+emission use; no code was dropped:
+
+- `SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY`
+- `SNAPBACK_BUNDLE_ENTRY_INVALID`
+- `SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED`
+- `SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH`
+- `SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH`
+- `SNAPBACK_BUNDLE_LIMIT_QUERIES`
+- `SNAPBACK_BUNDLE_PENDING_CAPACITY`
+- `SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED`
+- `SNAPBACK_DECLARATION_SUGGESTION_STALE`
+- `SNAPBACK_FORK_ADMISSION_TIMEOUT`
+- `SNAPBACK_FORK_APP_BINDING_MISMATCH`
+- `SNAPBACK_FORK_APP_BINDING_REQUIRED`
+- `SNAPBACK_FORK_ASSET_CUT_INCOMPLETE`
+- `SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED`
+- `SNAPBACK_FORK_DIFF_ORACLE_MISMATCH`
+- `SNAPBACK_FORK_NET_DIFF_UNAVAILABLE`
+- `SNAPBACK_FORK_RENEW_EXPIRED`
+- `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED`
+- `SNAPBACK_FORK_SERVER_EXPIRED`
+- `SNAPBACK_LEASE_CONVERGENCE_CONNECTION_REQUIRED`
+- `SNAPBACK_LEASE_CONVERGENCE_PENDING_INTENT`
+- `SNAPBACK_RESUME_WITNESS_INVALID`
+- `SNAPBACK_RESUME_WITNESS_OVERSIZE`
+- `SNAPBACK_VECTOR_CORPUS_BOUND`
+- `SNAPBACK_VECTOR_MAINTENANCE_LIMIT`
+- `SNAPBACK_VECTOR_VALUE_INVALID`
+- `SNAPBACK_VECTOR_WORK_LIMIT`
+- `SNAPBACK_VISIBILITY_GOVERNANCE_DEV_CONFIG_WRITE_FAILED`
+
+Dual-role classification is now site-specific. A spelling's environment role
+elsewhere no longer suppresses an identifier emission or a protocol receive
+table. `SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT` consequently keeps its three real
+emitters, gains the `OVERLOAD_CODES` site as `received`, keeps its Cloudflare
+environment read, and no longer records either the receive table or HTTP match
+arm as an environment mention. Proven environment-key allowlists remain
+environment `table-entry` sites rather than becoming received diagnostics.
+
+The JavaScript exact-lookup formatter now renders the 167 declaration sites in
+a `Declaration sites:` group. The native-parity follow-up explicitly includes
+that fourth diagnostic site kind alongside emitting, received, and reserved
+sites.
+
+The round-22 before/after registry counts are:
+
+| Count | Before | After |
+| --- | ---: | ---: |
+| Codes | 3,540 | 3,540 |
+| Source files | 626 | 626 |
+| Emitting sites | 9,551 | 9,239 |
+| Received sites | 339 | 340 |
+| Reserved sites | 11 | 11 |
+| HTTP-classified | 1,704 | 1,704 |
+| Guide-anchored | 431 | 431 |
+| Environment variables | 186 | 186 |
+| Environment sites | 368 | 364 |
+
+The post-marker re-audit reports no added code, no dropped code, and no
+declaration-backed code whose emitter set fell to zero.
+
 The canonical embedded measurement was rerun after the final implementation and
 projection regeneration. Its captured output is:
 
@@ -192,21 +270,21 @@ projection regeneration. Its captured output is:
   "counts": {
     "codes": 3540,
     "sourceFiles": 626,
-    "emittingSites": 9551,
-    "receivedSites": 339,
+    "emittingSites": 9239,
+    "receivedSites": 340,
     "reservedSites": 11,
     "httpClassified": 1704,
     "guideAnchored": 431,
     "environmentVariables": 186,
-    "environmentSites": 368
+    "environmentSites": 364
   },
   "environmentKinds": {
     "read": 259,
-    "mention": 41,
+    "mention": 35,
     "declaration": 14,
     "remove": 9,
     "write": 24,
-    "table-entry": 6,
+    "table-entry": 8,
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
@@ -218,20 +296,61 @@ projection regeneration. Its captured output is:
     "SNAPBACK_APP_BINDING_EXPIRED"
   ],
   "fixtureRawTokens": 87,
-  "receivedCodes": 263,
+  "receivedCodes": 264,
   "httpReservations": 7,
   "cloudflareDeployEmissionCodes": 12,
   "s3TestEnvironmentNames": []
 }
 ```
 
+### Round-22 final verification
+
+The final candidate tree was verified immediately before its local-only commit;
+no source or generated projection changed between these results and the commit.
+The command summaries were:
+
+```text
+node --test scripts/generate-diagnostics-registry.test.mjs
+tests 22; pass 22; fail 0
+
+node scripts/generate-diagnostics-registry.mjs --check
+[diagnostics-registry] ok — 3540 codes, 9239 emitting sites, 340 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
+
+node scripts/generate-symbol-registry.mjs --check
+[symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
+
+node packages/snapback-cli/reference-lookup.test.mjs
+reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
+
+node packages/snapback-cli/reference-lookup-reserved-code.test.mjs
+reference-lookup-reserved-code.test.mjs: reserved sites retain their non-emitting label
+
+node --test tests/check-inventories.test.mjs tests/local_proof_selection_v0.mjs
+tests 38; pass 38; fail 0
+
+node scripts/check-inventories.mjs
+[check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1872 snippets
+
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
+./scripts/check-generated-artifacts
+[check-generated-artifacts] ok: review manifests, ignored caches, and committed projections are current
+
+./ref-check --verbose
+ref-check: ok — 311 LLP docs, 7213 refs in 15516 files, 0 errors, 0 unchecked
+
+git diff --check
+(no output; exit 0)
+```
+
 ### Known JS/native lookup divergence
 
 The generated registry and JavaScript Guide wrapper expose environment-only
 and dual-role names, but the embedded Rust CLI/MCP lookup does not yet consult
-the registry's `environment` section and mislabels received/reserved sites as
-emissions. This closed ticket does not claim native parity; the exact Rust
-change and parity tests are tracked in
+the registry's `environment` section and mislabels declaration, received, and
+reserved sites as emissions. This closed ticket does not claim native parity;
+the exact Rust change and parity tests are tracked in
 `issues/20260825-native-guide-lookup-registry-kinds-parity.md`.
 That ticket explicitly records that v1 diagnostic `sites` entries now carry an
 optional `kind` field and native must consume it.

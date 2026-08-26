@@ -439,6 +439,7 @@ export function formatGuideReferenceLookup(result) {
     if (result.diagnostic.sites?.length) {
       const siteGroups = [
         ['Emitting sites:', result.diagnostic.sites.filter((site) => site.kind === undefined || site.kind === 'emission')],
+        ['Declaration sites:', result.diagnostic.sites.filter((site) => site.kind === 'declaration')],
         ['Received sites:', result.diagnostic.sites.filter((site) => site.kind === 'received')],
         ['Reserved sites:', result.diagnostic.sites.filter((site) => site.kind === 'reserved')],
       ];

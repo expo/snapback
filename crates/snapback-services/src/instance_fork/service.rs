@@ -608,6 +608,7 @@ fn canonical_app_root_string(app_root: &Path) -> SnapbackResult<(PathBuf, String
 /// trusting the selected registry row to identify its own caller.
 pub fn ensure_expected_app(app_root: &Path, app_id: &str) -> SnapbackResult<ExpectedForkAppV1> {
     if app_id.is_empty() {
+        // diagnostics-registry: emission SNAPBACK_FORK_APP_BINDING_REQUIRED
         return Err(fork_error(
             APP_BINDING_REQUIRED_CODE,
             "fork lifecycle app identity requires a non-empty logical app id",
@@ -631,6 +632,7 @@ pub fn ensure_expected_app(app_root: &Path, app_id: &str) -> SnapbackResult<Expe
                 )
             })?;
             if recorded != expected {
+                // diagnostics-registry: emission SNAPBACK_FORK_APP_BINDING_MISMATCH
                 return Err(fork_error(
                     APP_BINDING_MISMATCH_CODE,
                     "invoking app root is already bound to a different canonical root or logical app id",
@@ -726,6 +728,7 @@ fn wall_clock_now_ms() -> u64 {
 /// Reserved Phase-1 admission path for the concrete fork/byte/diff bounds
 /// defined by LLP 0185 Phase 3. No limit is invented or enforced here.
 pub fn resource_limit_refusal(resource: &str, message: impl Into<String>) -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED
     fork_error(RESOURCE_LIMIT_REFUSED_CODE, message).with_details(json!({ "resource": resource }))
 }
 
@@ -2506,6 +2509,7 @@ fn renew_managed_with_cut(
         )
     })?;
     if previous_expires_at_ms <= now_ms {
+        // diagnostics-registry: emission SNAPBACK_FORK_RENEW_EXPIRED
         return Err(fork_error(
             RENEW_EXPIRED_CODE,
             "renewal refused: the fork is already past its finite expiry; reap it and create a fresh fork",
@@ -2942,6 +2946,7 @@ fn admit_creation_with_timeout(
             }
             let elapsed = started.elapsed();
             if elapsed >= timeout {
+                // diagnostics-registry: emission SNAPBACK_FORK_ADMISSION_TIMEOUT
                 return Err(fork_error(
                     ADMISSION_TIMEOUT_CODE,
                     "fork create timed out waiting for the root-wide admission interval; inspect the active creator before retrying",
@@ -3401,6 +3406,7 @@ fn net_diff_receipt_with_limits(
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     let base_receipt_path = directory.join(BASE_RECEIPT_FILE);
     if !base_receipt_path.exists() {
+        // diagnostics-registry: emission SNAPBACK_FORK_NET_DIFF_UNAVAILABLE
         return Err(fork_error(
             NET_DIFF_UNAVAILABLE_CODE,
             "this fork has no retained base snapshot; create it with --retain-base to enable the exact net diff",
@@ -3556,6 +3562,7 @@ fn net_diff_receipt_with_limits(
         if let Some(latest_rows) = latest_covered_journal_post_images.get(table) {
             for (row_id, journal_post_image) in latest_rows {
                 if head_rows.get(row_id) != journal_post_image.as_ref() {
+                    // diagnostics-registry: emission SNAPBACK_FORK_DIFF_ORACLE_MISMATCH
                     return Err(fork_error(
                         DIFF_ORACLE_MISMATCH_CODE,
                         "the covered journal's final post-image disagrees with the base/head oracle",
@@ -4230,6 +4237,7 @@ fn copy_fork_private_assets(
         .map_err(|error| io_error("create fork asset staging tree", error))?;
     for (physical_key, store, digest_algorithm, digest, byte_length) in blobs {
         if store != "local-fs" {
+            // diagnostics-registry: emission SNAPBACK_FORK_ASSET_CUT_UNSUPPORTED
             return Err(fork_error(
                 ASSET_CUT_UNSUPPORTED_CODE,
                 "only local-fs asset custody has a proven fork-private copy; other stores remain refusal-scope",
@@ -4251,6 +4259,7 @@ fn copy_fork_private_assets(
         let bytes = match fs::read(&source_path) {
             Ok(bytes) => bytes,
             Err(error) if error.kind() == ErrorKind::NotFound => {
+                // diagnostics-registry: emission SNAPBACK_FORK_ASSET_CUT_INCOMPLETE
                 return Err(fork_error(
                     ASSET_CUT_INCOMPLETE_CODE,
                     "a blob named by the metadata cut is missing from the parent store; refusing a torn asset custody cut",

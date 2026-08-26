@@ -22,10 +22,11 @@ only under `environment`. The equivalent native MCP resource
 way. The JavaScript CLI lookup is correct.
 
 The native formatter currently groups every diagnostic site under `Emitting
-sites:` near line 606. Concretely, native output prints received and reserved
-sites under `Emitting sites:` instead of `Received sites:` and `Reserved
-sites:`. The JavaScript wrapper already labels emitting, received, reserved,
-and environment sites separately. A dual-role name such as
+sites:` near line 606. Concretely, native output prints declaration, received,
+and reserved sites under `Emitting sites:` instead of `Declaration sites:`,
+`Received sites:`, and `Reserved sites:`. The JavaScript wrapper already labels
+emitting, declaration, received, reserved, and environment sites separately.
+A dual-role name such as
 `SNAPBACK_ACCEPTED_SOCKET_LIMIT` also needs one combined exact result containing
 the diagnostic record and its environment binding sites instead of allowing
 diagnostic precedence to hide the binding.
@@ -56,10 +57,10 @@ Keep this work in the Rust-capable native lane:
    no site kind disappears at a page boundary.
 3. In the native v1 registry reader and `format_lookup`, preserve and group
    diagnostic `sites[].kind`: missing or
-   `"emission"` → `Emitting sites:`, `"received"` → `Received sites:`, and
-   `"reserved"` → `Reserved sites:`. Render a separate `Environment sites:`
-   section with each environment site's own kind. A combined result must render
-   both halves.
+   `"emission"` → `Emitting sites:`, `"declaration"` → `Declaration sites:`,
+   `"received"` → `Received sites:`, and `"reserved"` → `Reserved sites:`.
+   Render a separate `Environment sites:` section with each environment site's
+   own kind. A combined result must render both halves.
 
 ## Parity tests to add
 
@@ -70,7 +71,8 @@ Keep this work in the Rust-capable native lane:
   kind.
 - Add formatter assertions that `SNAPBACK_INVALID_FLOAT` is shown under
   `Received sites:` and `SNAPBACK_IBEX_CLI_UNAVAILABLE` under `Reserved sites:`,
-  never `Emitting sites:`; assert the combined socket-limit result also renders
+  never `Emitting sites:`; assert a declaration-backed code renders
+  `Declaration sites:` and the combined socket-limit result also renders
   `Environment sites:`.
 - Extend the native MCP acceptance coverage in
   `crates/snapback/tests/guide_mcp_v1.rs` so reading

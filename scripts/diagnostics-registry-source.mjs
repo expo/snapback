@@ -445,7 +445,17 @@ function environmentNameTableOffsets(source, literals, matches) {
       /\b(?:pub\s+)?const\s+([A-Z][A-Z0-9_]*)\s*:[^=;]{0,512}=\s*&?\s*$/u,
     );
     const identifier = javaScriptDeclaration?.[1] ?? rustDeclaration?.[1];
-    if (identifier === undefined || !isEnvironmentIdentifier(identifier)) continue;
+    if (identifier === undefined) continue;
+    const after = source.slice(close + 1, close + 4097);
+    const environmentEntryLoop = after.match(
+      /\bfor\s*\(\s*const\s*\[\s*([A-Za-z_$][\w$]*)[^\]]*\]\s+of\s+Object\.entries\s*\(\s*(?:process|Bun)\.env\s*\)/u,
+    );
+    const environmentMembershipConsumer = environmentEntryLoop !== null
+      && new RegExp(
+        String.raw`\b${escapeRegExp(identifier)}\s*\.(?:has|includes|contains)\s*\(\s*${escapeRegExp(environmentEntryLoop[1])}(?:\.toUpperCase\s*\(\s*\))?\s*\)`,
+        'u',
+      ).test(after.slice(environmentEntryLoop.index));
+    if (!isEnvironmentIdentifier(identifier) && !environmentMembershipConsumer) continue;
 
     const masked = maskedNameCollection(source, open, close, literals);
     const stringArray = source[open] === '['
@@ -1365,6 +1375,7 @@ export function environmentVariableSites(source, {
   ordinaryMultiline,
   shell,
   excludeRustTestRegions = false,
+  receivedProtocolVocabulary = false,
 } = {}) {
   const classifiedSource = excludeRustTestRegions ? rustProductionSource(source) : source;
   const analysis = environmentAnalysis(classifiedSource, {
@@ -1374,6 +1385,9 @@ export function environmentVariableSites(source, {
     shell,
   });
   const classifiedNames = environmentNames ?? analysis.names;
+  analysis.receivedOffsets = receivedProtocolVocabulary
+    ? receivedProtocolOffsets(classifiedSource, analysis.matches)
+    : new Set();
   return analysis.matches.flatMap((match) => {
     const kind = analysis.siteKinds.get(match.index);
     if (kind !== undefined) {
@@ -1384,6 +1398,8 @@ export function environmentVariableSites(source, {
       && diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell }) === null
       && analysis.literals.byContentStart.has(match.index)
       && !isCommentReference(match.index, analysis.literals.comments)
+      && !isRustMatchArmPattern(classifiedSource, match.index, match[0])
+      && !isCodeReferenceCatalogue(classifiedSource, match.index)
     ) {
       return [{ match, kind: 'mention' }];
     }
@@ -1491,11 +1507,10 @@ function wholeStringCodeDeclaration(source, match, literals, bracePairs) {
   return null;
 }
 
-function identifierFlowEmissionSites(source, analysis, environmentNames) {
+function identifierFlowEmissionSites(source, analysis) {
   const sites = [];
   const seen = new Set();
   for (const declaration of analysis.declarations.values()) {
-    if (environmentNames.has(declaration.code)) continue;
     const identifier = escapeRegExp(declaration.identifier);
     const uses = new RegExp(
       `(?<![A-Za-z0-9_])(?:(?:[A-Za-z_][A-Za-z0-9_]*::)*)${identifier}(?![A-Za-z0-9_])`,
@@ -1509,12 +1524,13 @@ function identifierFlowEmissionSites(source, analysis, environmentNames) {
       if (!codeOffset(identifierOffset, analysis.literals)) continue;
       const before = source.slice(Math.max(declaration.scopeStart, useOffset - 512), useOffset);
       const after = source.slice(useOffset + use[0].length, useOffset + use[0].length + 32);
-      const firstCallArgument = /\b[A-Za-z_][A-Za-z0-9_]*(?:(?:::|\.)[A-Za-z_][A-Za-z0-9_]*)*\s*\(\s*(?:&\s*)?$/su.test(before);
-      const diagnosticProperty = /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code|refusalCode|refusal_code|capabilityCode)\s*(?::|=(?!=|>))\s*$/su.test(before);
+      const explicitDiagnosticPosition = isExplicitDiagnosticIdentifierPosition(source, useOffset);
+      const diagnosticProperty = /\b(?:code|[A-Za-z0-9_]*(?:diagnosticCode|errorCode|refusalCode|capabilityCode|diagnostic_code|error_code|refusal_code|capability_code))\s*(?::|=(?!=|>))\s*(?:Some\s*\(\s*)?$/su.test(before);
       const diagnosticShorthand = /(?:^|[{,])\s*$/su.test(before)
         && /^\s*[,}]/u.test(after)
+        && !before.endsWith('${')
         && /^(?:code|.*Code|.*_CODE)$/u.test(declaration.identifier);
-      if (!firstCallArgument && !diagnosticProperty && !diagnosticShorthand) {
+      if (!explicitDiagnosticPosition && !diagnosticProperty && !diagnosticShorthand) {
         continue;
       }
       const siteKey = `${declaration.code}\0${useOffset}`;
@@ -1527,6 +1543,21 @@ function identifierFlowEmissionSites(source, analysis, environmentNames) {
     }
   }
   return sites;
+}
+
+function isExplicitDiagnosticIdentifierPosition(source, offset) {
+  const before = source.slice(Math.max(0, offset - 512), offset);
+  return (
+    /\bthrow\b[^;\n]*$/u.test(before)
+    || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*(?:&\s*)?$/u.test(before)
+    || /\b(?:e?println)!\s*\(\s*(?:&\s*)?$/su.test(before)
+    || /\b(?:tracing|log)::[a-z_][a-z0-9_]*!\s*\(\s*(?:&\s*)?$/su.test(before)
+    || /\bconsole\.(?:error|warn)\s*\(\s*(?:&\s*)?$/su.test(before)
+    || /(?:^|[;&|()])\s*deploy_fail\s+$/u.test(before)
+  );
 }
 
 function isComparisonOrPrefixCheck(source, offset, code) {
@@ -1739,10 +1770,9 @@ function receivedMembershipTables(source) {
   return tables;
 }
 
-function receivedProtocolOffsets(source, matches, environmentNames) {
+function receivedProtocolOffsets(source, matches) {
   const offsets = new Set();
   for (const match of matches) {
-    if (environmentNames.has(match[0])) continue;
     if (!isCodeReferenceCatalogue(source, match.index)) continue;
     const open = source.lastIndexOf('[', match.index);
     const close = source.indexOf(']', match.index);
@@ -1750,7 +1780,6 @@ function receivedProtocolOffsets(source, matches, environmentNames) {
   }
   const tables = receivedMembershipTables(source);
   for (const match of matches) {
-    if (environmentNames.has(match[0])) continue;
     if (tables.some(({ open, close, objectTable }) => (
       open < match.index
       && match.index < close
@@ -1876,13 +1905,13 @@ export function diagnosticSourceSites(source, {
   });
   const classifiedNames = environmentNames ?? analysis.names;
   analysis.receivedOffsets = receivedProtocolVocabulary
-    ? receivedProtocolOffsets(classifiedSource, analysis.matches, classifiedNames)
+    ? receivedProtocolOffsets(classifiedSource, analysis.matches)
     : new Set();
   const sites = analysis.matches.flatMap((match) => {
     const kind = diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell });
     return kind === null ? [] : [{ match, kind }];
   });
-  sites.push(...identifierFlowEmissionSites(classifiedSource, analysis, classifiedNames));
+  sites.push(...identifierFlowEmissionSites(classifiedSource, analysis));
   sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments));
   return sites.sort((left, right) => (
     left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])
