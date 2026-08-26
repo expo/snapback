@@ -670,7 +670,9 @@ fail 1
 Removal justifications are now a standing historical ledger. An entry is unused
 only when its code remains in the current diagnostic set, or when a newly added
 ledger key names a code absent from the baseline diagnostic set. A current
-removal still needs a newly added or revised justification. The baseline is the
+removal still needs a newly added or revised justification when the baseline
+is a merge-base (history and dirty-tree baselines require a checked-in
+justification; see the 2026-08-26 post-landing note). The baseline is the
 merge-base with `origin/main` when that differs from `HEAD`; otherwise it is the
 parent of the latest registry-changing commit, falling back to the committed
 registry itself when no earlier snapshot exists. Fixtures cover a historical
