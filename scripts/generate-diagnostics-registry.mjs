@@ -105,14 +105,6 @@ const diagnosticCatalogPaths = [
   // the registry input digest below without treating catalog entries as sites.
   'packages/snapback-codegen/handler-runtime-profile.mjs',
 ];
-const classificationContractPaths = [
-  // Package prepare scripts import this repository-owned helper during
-  // assembly. Its named argument flows into `environment[...]`, so the helper
-  // contract is an input even though the helper itself is not an emitted-site
-  // production carrier.
-  'scripts/runtime-package-authority.mjs',
-];
-
 const rustProductionRoots = DIAGNOSTICS_RUST_PRODUCTION_ROOTS.map((path) => (
   path.replace(/\/$/u, '')
 ));
@@ -258,6 +250,10 @@ const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   && !/^targets\/[^/]+\/app\//u.test(path)
 ));
 const operatorProductionPaths = [
+  // Package prepare scripts import this repository-owned helper during
+  // assembly. It both emits package-preparation diagnostics and supplies the
+  // named-argument contract that flows into `environment[...]`.
+  'scripts/runtime-package-authority.mjs',
   // This operator emits a package-declared code through an imported binding;
   // its named marker is the cross-file identifier-flow boundary.
   'scripts/runtime-link-smoke.mjs',
@@ -356,7 +352,6 @@ function collectSites() {
   )));
   const readContracts = [
     ...sources.values(),
-    ...classificationContractPaths.map((path) => readFileSync(join(root, path), 'utf8')),
   ].flatMap(indirectEnvironmentReadContracts);
   const environmentNames = new Set();
   for (const [path, source] of sources) {
@@ -689,7 +684,6 @@ const inputPaths = [
   'scripts/generate-diagnostics-registry.mjs',
   'scripts/diagnostics-registry-source.mjs',
   ...diagnosticCatalogPaths,
-  ...classificationContractPaths,
   'scripts/guide-lib.mjs',
   ...productionPaths,
   ...walk(join(root, 'guide'), (path) => (

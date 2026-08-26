@@ -1134,7 +1134,6 @@ fn wall_clock_now_ms() -> u64 {
 }
 
 pub fn server_expired_error(lineage: &DerivedForkLineageV1, observed_at_ms: u64) -> SnapbackError {
-    // diagnostics-registry: emission SNAPBACK_FORK_SERVER_EXPIRED
     fork_error(
         SERVER_EXPIRED_CODE,
         "derived-fork server is past its finite expiry; shutting down and refusing new work",

@@ -23,6 +23,7 @@
     "service.mjs",
     "external-store.mjs",
     "hosted-edge-admission.mjs",
+    "internal/",
     "index.d.mts",
     "index.mjs",
     "operator-authority.d.mts",

@@ -3694,7 +3694,6 @@ fn packaged_store_qualification_receipt_command(
 
     let identity = crate::identity::binary_identity();
     let build_distribution = crate::identity::build_distribution();
-    // diagnostics-registry: emission SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED
     if !crate::manifest::packaged_store_runtime_identity_is_qualified(&identity, build_distribution)
     {
         anyhow::bail!(
@@ -3702,7 +3701,6 @@ fn packaged_store_qualification_receipt_command(
         );
     }
 
-    // diagnostics-registry: emission SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED
     let suite = serde_json::from_value::<crate::manifest::PackagedStoreQualificationSuiteV1>(
         read_json_file(suite_result).map_err(|error| anyhow::anyhow!("{SUITE_CODE}: {error:#}"))?,
     )
@@ -3712,7 +3710,6 @@ fn packaged_store_qualification_receipt_command(
             "{SUITE_CODE}: suite must pass at least one check with zero failures and zero skips"
         );
     }
-    // diagnostics-registry: emission SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID
     let package_closure =
         serde_json::from_value::<Vec<crate::manifest::PackagedStoreClosureEntryV1>>(
             read_json_file(closure_manifest)

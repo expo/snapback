@@ -33,6 +33,15 @@ export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
   'clients/swift/',
 ]);
 
+const RUST_TEST_CFG_ATTRIBUTE_SOURCE = String.raw`cfg\s*\(\s*(?:test(?:\s*,[^\]\r\n]*)?|(?:all|any)\s*\([^\]\r\n]*\btest\b[^\]\r\n]*\))\s*\)`;
+
+function hasRustTestCfgAttribute(attributes) {
+  return new RegExp(
+    String.raw`#\s*\[\s*${RUST_TEST_CFG_ATTRIBUTE_SOURCE}\s*\]`,
+    'u',
+  ).test(attributes);
+}
+
 function rustExternalModuleDeclarations(source, inheritedTestOnly) {
   const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
   const declarations = [];
@@ -41,7 +50,7 @@ function rustExternalModuleDeclarations(source, inheritedTestOnly) {
     const marker = declaration.index + declaration[0].lastIndexOf('mod');
     if (!codeOffset(marker, literals)) continue;
     const attributes = declaration[1].replace(/^[ \t]*\/\/[^\r\n]*/gmu, '');
-    const cfgTest = /#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]/u.test(attributes);
+    const cfgTest = hasRustTestCfgAttribute(attributes);
     const cfgNotTest = /#\s*\[\s*cfg\s*\(\s*not\s*\(\s*test\s*\)\s*\)\s*\]/u.test(attributes);
     if ((!inheritedTestOnly && !cfgTest) || (inheritedTestOnly && cfgNotTest)) continue;
     const explicitPath = attributes.match(/#\s*\[\s*path\s*=\s*"([^"]+)"\s*\]/u)?.[1];
@@ -193,7 +202,7 @@ function isEnvironmentIdentifier(identifier) {
     /^(?:env|environment)$/u.test(identifier)
     || /(?:Env|Environment)$/u.test(identifier)
     || /(?:^|_)(?:ENV|ENVIRONMENT)(?:_|$)/u.test(identifier)
-    || /(?:env|environment)(?:[A-Z]|$)/u.test(identifier)
+    || /(?:^|[._])(?:env|environment)(?:[A-Z]|$)/u.test(identifier)
   );
 }
 
@@ -1106,13 +1115,19 @@ function rustAttributedRegionEnd(source, start, literals, delimiterCloses) {
 // Preserve byte offsets and line numbers while removing Rust regions that are
 // compiled only by the test harness from the production registry population.
 export function rustProductionSource(source) {
-  if (!/#\s*\[\s*(?:cfg\s*\(\s*test\s*\)|test)\s*\]/u.test(source)) return source;
+  const testAttributeSource = String.raw`(?:${RUST_TEST_CFG_ATTRIBUTE_SOURCE}|test)`;
+  if (!new RegExp(String.raw`#\s*\[\s*${testAttributeSource}\s*\]`, 'u').test(source)) {
+    return source;
+  }
   const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
   const delimiterCloses = new Map(
     lexicalDelimiterPairs(source, literals).map(({ open, close }) => [open, close]),
   );
   const ranges = [];
-  const attributes = /^\s*#\s*\[\s*(cfg\s*\(\s*test\s*\)|test)\s*\]/gmu;
+  const attributes = new RegExp(
+    String.raw`^\s*#\s*\[\s*(${testAttributeSource})\s*\]`,
+    'gmu',
+  );
   for (const attribute of source.matchAll(attributes)) {
     const marker = attribute.index + attribute[0].indexOf('#');
     if (!codeOffset(marker, literals)) continue;
@@ -1530,14 +1545,15 @@ function identifierFlowEmissionSites(source, analysis) {
       const useOffset = declaration.scopeStart + use.index;
       const identifierOffset = useOffset + use[0].lastIndexOf(declaration.identifier);
       if (identifierOffset === declaration.identifierOffset) continue;
-      if (!codeOffset(identifierOffset, analysis.literals)) continue;
+      const formatInterpolatedBail = isRustFormatInterpolatedBailIdentifierPosition(
+        source,
+        identifierOffset,
+      );
+      if (!codeOffset(identifierOffset, analysis.literals) && !formatInterpolatedBail) continue;
       const before = source.slice(Math.max(declaration.scopeStart, useOffset - 512), useOffset);
       const after = source.slice(useOffset + use[0].length, useOffset + use[0].length + 32);
-      const explicitDiagnosticPosition = isExplicitDiagnosticIdentifierPosition(
-        source,
-        useOffset,
-        analysis.literals,
-      );
+      const explicitDiagnosticPosition = formatInterpolatedBail
+        || isExplicitDiagnosticIdentifierPosition(source, useOffset, analysis.literals);
       const diagnosticProperty = /\b(?:code|[A-Za-z0-9_]*(?:diagnosticCode|errorCode|refusalCode|capabilityCode|diagnostic_code|error_code|refusal_code|capability_code))\s*(?::|=(?!=|>))\s*(?:Some\s*\(\s*)?$/su.test(before);
       const diagnosticShorthand = /(?:^|[{,])\s*$/su.test(before)
         && /^\s*[,}]/u.test(after)
@@ -1684,6 +1700,15 @@ function isThrowExpressionIdentifierPosition(source, offset, literals) {
   return throwExpressionContainsOffset(source, start + candidate.index, offset, literals);
 }
 
+function isRustFormatInterpolatedBailIdentifierPosition(source, offset) {
+  const before = source.slice(Math.max(0, offset - 2048), offset);
+  const after = source.slice(offset, offset + 256);
+  return (
+    /\b(?:anyhow::)?bail!\s*\(\s*(?:r#*)?"[^"\r\n]*\{$/u.test(before)
+    && /^[A-Za-z_][A-Za-z0-9_]*\}(?::[^}\r\n]+)?[^"\r\n]*"/u.test(after)
+  );
+}
+
 function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
   const before = source.slice(Math.max(0, offset - 512), offset);
   const outsideRustMatches = !isRustMatchesReference(source, offset);
@@ -1699,6 +1724,7 @@ function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
     || rustResultError
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
+    || /\b[A-Za-z_][A-Za-z0-9_]*_error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:e?println)!\s*\(\s*(?:&\s*)?$/su.test(before)

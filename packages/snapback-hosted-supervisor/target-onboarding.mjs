@@ -47,6 +47,7 @@ import {
   certificateSha256,
   publicKeyForSeed,
 } from './hosted-edge-admission.mjs';
+import { assertTargetTigrisCredentialPair } from './internal/target-tigris-credentials.mjs';
 
 export const TARGET_ONBOARDING_VERSION = 'snapback.hosted-target-onboarding.v1';
 export const TARGET_DEFAULTS = Object.freeze({
@@ -71,39 +72,6 @@ export const TARGET_TIGRIS_ROLES = Object.freeze({
   logs: ['s3:GetObject', 's3:PutObject'],
   cleanup: ['s3:DeleteObject', 's3:ListBucket'],
 });
-
-const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES = Object.freeze({
-  // diagnostics-registry: reference-only
-  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
-  // diagnostics-registry: reference-only
-  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
-  // diagnostics-registry: reference-only
-  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
-  // diagnostics-registry: reference-only
-  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
-  // diagnostics-registry: reference-only
-  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
-  // diagnostics-registry: reference-only
-  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
-});
-
-function assertTargetTigrisCredentialPair(role, {
-  accessKeyId = null,
-  secretAccessKey = null,
-} = {}) {
-  if (!Object.hasOwn(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES, role)) {
-    throw new Error('SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID');
-  }
-  if (Boolean(accessKeyId) !== Boolean(secretAccessKey)) {
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL
-    // diagnostics-registry: emission SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL
-    throw new Error(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role]);
-  }
-}
 
 const BASE_SUPERVISOR_SECRET_FILES = Object.freeze([
   ['/run/secrets/fly-read-token', 'SUPERVISOR_FLY_READ_TOKEN'],

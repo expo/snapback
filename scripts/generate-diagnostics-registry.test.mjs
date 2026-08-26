@@ -8,6 +8,7 @@ import {
   diagnosticCodeMatches,
   diagnosticSourceSites,
   environmentVariableSites,
+  indirectEnvironmentReadContracts,
   rustExternalTestModulePaths,
 } from './diagnostics-registry-source.mjs';
 
@@ -46,6 +47,12 @@ test('rejects multiple diagnostic-primary markers for one diagnostic', () => {
   );
   assert.match(result.stderr, /SNAPBACK_AUTH_STALE_RESULT/u);
 });
+
+function sourceLinesContaining(repoPath, expression) {
+  return readFileSync(resolve(import.meta.dirname, '..', repoPath), 'utf8')
+    .split('\n')
+    .flatMap((line, index) => line.includes(expression) ? [index + 1] : []);
+}
 
 test('diagnostic source classifier excludes environment reads per site and retains emissions', () => {
   const fixture = readFileSync(resolve(
@@ -534,6 +541,26 @@ test('Rust production classification excludes inline test-gated regions', () => 
   );
 });
 
+test('Rust production classification excludes compound cfg(test) regions', () => {
+  const fixture = [
+    '#[cfg(all(test, feature = "fixture"))]',
+    'fn all_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_ALL_TEST_FAILURE"); }',
+    '#[cfg(test, feature = "fixture")]',
+    'fn comma_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_COMMA_TEST_FAILURE"); }',
+    '#[cfg(any(test, feature = "fixture"))]',
+    'fn any_test_fixture() { panic!("SNAPBACK_FIXTURE_CFG_ANY_TEST_FAILURE"); }',
+    'fn production_fixture() { panic!("SNAPBACK_FIXTURE_CFG_PRODUCTION_FAILURE"); }',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, {
+      ordinaryMultiline: true,
+      excludeRustTestRegions: true,
+    }).map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_FIXTURE_CFG_PRODUCTION_FAILURE', kind: 'emission' }],
+  );
+});
+
 test('Rust test-attributed final match arms stop at the depth-zero closing brace', () => {
   const fixture = [
     'pub fn production_after_test_arm() {',
@@ -725,6 +752,47 @@ test('Rust identifier flow recognizes error-producing combinators but not matche
   );
 });
 
+test('Rust identifier flow recognizes generic error helpers and interpolated bail codes', () => {
+  const fixture = [
+    'pub const VECTOR_CODE: &str = "SNAPBACK_FIXTURE_VECTOR_ERROR";',
+    'pub const FORK_CODE: &str = "SNAPBACK_FIXTURE_FORK_ERROR";',
+    'pub const BAIL_CODE: &str = "SNAPBACK_FIXTURE_BAIL_ERROR";',
+    'fn refuse() -> anyhow::Result<()> {',
+    '    vector_error(code::VECTOR_CODE, "invalid vector");',
+    '    fork_error(FORK_CODE, "invalid fork");',
+    '    anyhow::bail!("{BAIL_CODE}: invalid package");',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_VECTOR_ERROR', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_FORK_ERROR', line: 2, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_BAIL_ERROR', line: 3, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_VECTOR_ERROR', line: 5, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_FORK_ERROR', line: 6, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_BAIL_ERROR', line: 7, kind: 'emission' },
+    ],
+  );
+});
+
+test('environment helper discovery requires environment to be a full identifier segment', () => {
+  const fixture = [
+    '// loadEnvironmentConfig and its case-folded twin are configuration helpers, not env objects.',
+    'function loadReceipt({ receiptName, loadenvironmentConfig }) {',
+    '  return loadenvironmentConfig[receiptName];',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(indirectEnvironmentReadContracts(fixture), []);
+});
+
 test('Rust matches references do not swallow emissions after lifetime and char literals', () => {
   const fixture = [
     "fn inspect<'a>(value: char) {",
@@ -904,33 +972,29 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   }
 
-  for (const [code, file, lines] of [
+  for (const [code, file] of [
     [
       'SNAPBACK_ADMIN_LAN_TARGET_INVALID',
       'crates/snapback-server/src/admin_link.rs',
-      [744, 765],
     ],
     [
       'SNAPBACK_ADMIN_TAILSCALE_TARGET_UNSUPPORTED',
       'crates/snapback-server/src/admin_link.rs',
-      [998, 1008],
     ],
     [
       'SNAPBACK_PROFILE_FORBIDS',
       'crates/snapback-cli/src/cli.rs',
-      [4467],
     ],
     [
       'SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID',
       'crates/snapback-cli/src/cli.rs',
-      [6622, 6626, 6632, 6641],
     ],
   ]) {
     assert.deepEqual(
       registry.diagnostics[code]?.sites
         .filter((site) => site.file === file)
-        .map((site) => site.line),
-      lines,
+        .map(({ line, kind }) => ({ line, kind })),
+      sourceLinesContaining(file, code).map((line) => ({ line, kind: undefined })),
       `${code} must retain every emitter surrounding a completed matches! call`,
     );
   }
@@ -955,20 +1019,20 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   }
 
+  const readinessFile = 'crates/snapback-activation/src/operational_readiness.rs';
   assert.deepEqual(
-    registry.diagnostics.SNAPBACK_APP_READINESS_DECLARATION_INVALID.sites,
+    registry.diagnostics.SNAPBACK_APP_READINESS_DECLARATION_INVALID.sites
+      .filter(({ file }) => file === readinessFile)
+      .map(({ line, kind }) => ({ line, kind })),
     [
-      {
-        file: 'crates/snapback-activation/src/operational_readiness.rs',
-        line: 27,
-        column: 55,
-        kind: 'declaration',
-      },
-      {
-        file: 'crates/snapback-activation/src/operational_readiness.rs',
-        line: 617,
-        column: 26,
-      },
+      ...sourceLinesContaining(
+        readinessFile,
+        'pub const READINESS_DECLARATION_INVALID_CODE',
+      ).map((line) => ({ line, kind: 'declaration' })),
+      ...sourceLinesContaining(
+        readinessFile,
+        'SnapbackError::error(READINESS_DECLARATION_INVALID_CODE',
+      ).map((line) => ({ line, kind: undefined })),
     ],
   );
   assert.equal(
@@ -1205,7 +1269,7 @@ test('generated registry retains target emitters and dynamic artifact-header emi
         synthetic,
       })),
       [{
-        file: 'packages/snapback-hosted-supervisor/target-onboarding.mjs',
+        file: 'packages/snapback-hosted-supervisor/internal/target-tigris-credentials.mjs',
         kind: undefined,
         synthetic: true,
       }],
@@ -1322,6 +1386,19 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       registry.environment[name]?.sites.some((site) => site.file === file && site.kind === 'read'),
       `${name} must retain its indirect helper-argument environment read`,
     );
+  }
+
+  for (const code of [
+    'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_UNREADABLE',
+    'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INSTALL_FAILED',
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some(({ file, kind }) => (
+        file === 'scripts/runtime-package-authority.mjs' && kind === undefined
+      )),
+      `${code} must retain its package-preparation helper emission`,
+    );
+    assert.match(diagnosticTypes, new RegExp(`'${code}'`, 'u'));
   }
 
   assert.deepEqual(

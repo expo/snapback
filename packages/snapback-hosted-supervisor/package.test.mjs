@@ -30,6 +30,7 @@ try {
     'service.mjs',
     'external-store.mjs',
     'hosted-edge-admission.mjs',
+    'internal/target-tigris-credentials.mjs',
     'target-onboarding.mjs',
     'bootstrap.mjs',
     'Dockerfile',

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assertTargetTigrisCredentialPair } from './internal/target-tigris-credentials.mjs';
 import {
   buildTargetOnboardingPlan,
   TARGET_DEFAULTS,
@@ -12,6 +13,14 @@ const targetOnboardingSource = readFileSync(
   new URL('./target-onboarding.mjs', import.meta.url),
   'utf8',
 );
+const targetTigrisCredentialsSource = readFileSync(
+  new URL('./internal/target-tigris-credentials.mjs', import.meta.url),
+  'utf8',
+);
+const packageManifest = JSON.parse(readFileSync(
+  new URL('./package.json', import.meta.url),
+  'utf8',
+));
 
 const plan = buildTargetOnboardingPlan();
 assert.equal(plan.schemaVersion, 'snapback.hosted-target-onboarding.v1');
@@ -40,13 +49,23 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
-assert.doesNotMatch(
-  targetOnboardingSource,
-  /export\s+(?:const|function)\s+(?:TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES|assertTargetTigrisCredentialPair)\b/u,
-  'the Tigris refusal mapping and credential-pair helper remain private',
+assert.throws(
+  () => assertTargetTigrisCredentialPair('control-state', {
+    accessKeyId: 'present-without-secret',
+  }),
+  /SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL/,
+);
+assert.throws(
+  () => assertTargetTigrisCredentialPair('unknown-role'),
+  /SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID/,
+);
+assert.equal(
+  Object.keys(packageManifest.exports).some((specifier) => specifier.includes('target-tigris')),
+  false,
+  'the credential-pair validator has no package export',
 );
 const partialCredentialCodes = Object.fromEntries([
-  ...targetOnboardingSource.matchAll(
+  ...targetTigrisCredentialsSource.matchAll(
     /^\s*(?:'([^']+)'|([a-z][a-z-]*)):\s*'(SNAPBACK_HOSTED_TARGET_TIGRIS_[A-Z_]+_PARTIAL)',?$/gmu,
   ),
 ].map((match) => [match[1] ?? match[2], match[3]]));
@@ -59,14 +78,19 @@ assert.deepEqual(partialCredentialCodes, {
   cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
 });
 assert.match(
-  targetOnboardingSource,
+  targetTigrisCredentialsSource,
   /if\s*\(!Object\.hasOwn\(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES, role\)\)\s*\{\s*throw new Error\('SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID'\);\s*\}/u,
   'unknown roles must fail closed with a registered code',
 );
 assert.match(
-  targetOnboardingSource,
+  targetTigrisCredentialsSource,
   /if\s*\(Boolean\(accessKeyId\)\s*!==\s*Boolean\(secretAccessKey\)\)\s*\{[\s\S]*?throw new Error\(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES\[role\]\);\s*\}/u,
   'partial credentials must throw the private exhaustive role mapping entry',
+);
+assert.match(
+  targetOnboardingSource,
+  /async function ensureTargetTigrisRole\([^)]*\)\s*\{[\s\S]*?assertTargetTigrisCredentialPair\(role, \{ accessKeyId, secretAccessKey \}\);/u,
+  'the effectful onboarding path must call the pure credential-pair validator',
 );
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
