@@ -595,6 +595,38 @@ try {
       'a pre-signal identity discharge must never signal the numeric group',
     );
 
+    const persistentlyDischargedSignals = [];
+    let persistentlyDischargedInspections = 0;
+    const persistentlyDischargedOutcome = await teardownTest.stopGuardedProcessGroup(
+      4142,
+      { ...simulatedLeader, pid: 4142 },
+      1,
+      1,
+      {
+        inspect() {
+          persistentlyDischargedInspections += 1;
+          return 'changed';
+        },
+        sendSignal(_pgid, name) { persistentlyDischargedSignals.push(name); },
+        wait: async () => {},
+      },
+    );
+    assert.deepEqual(
+      persistentlyDischargedOutcome,
+      { status: 'discharged' },
+      'a persistently non-empty pre-signal identity discharge must retain custody',
+    );
+    assert.equal(
+      persistentlyDischargedInspections >= 2,
+      true,
+      'the discharged group must remain under observation through the grace window',
+    );
+    assert.deepEqual(
+      persistentlyDischargedSignals,
+      [],
+      'a persistently discharged numeric group must never be signalled',
+    );
+
     const simulatedSignals = [];
     let simulatedGroup = 'owned';
     await teardownTest.stopGuardedProcessGroup(4242, simulatedLeader, 250, 250, {
