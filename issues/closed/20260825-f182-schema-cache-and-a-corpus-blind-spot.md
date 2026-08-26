@@ -1,6 +1,6 @@
 # F182 has a runtime route the row-attack corpus cannot see
 
-- Status: open
+- Status: closed
 - Created: 2026-08-25
 - Area: agents-mode schema cache; row-attack corpus coverage
 - Found by: the LLP 0311 blast-radius analysis
@@ -57,3 +57,19 @@ review rather than being folded into the interlock work that surfaced it.
 Related: `llp/0311-authorization-interlock-resource-binding.rfc.md`,
 `issues/20260825-a-second-database-handle-publishes-without-the-interlock.md`,
 LLP 0303 revision (s).
+
+## Resolution (2026-08-26)
+
+F182 now derives the active schema manifest from the SQLite resource after the registration
+transaction has begun and applies the agents-mode decision to that manifest. The historical
+two-handle witness was first committed while still reporting `OPEN`; after the fix, the same marked
+registration call reports `CLOSED` with `SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED` in both the
+production and additive-test-support cells. A third-handle row-count check confirms that refusal
+leaves no durable agent principal or credential.
+
+The row-attack fixture is now a runtime witness rather than compile-fail evidence. It therefore
+measures the ordering and second-handle route that originally escaped the corpus.
+
+The broader cached-schema surface is tracked separately in
+`issues/20260826-stale-handle-schema-policy-sibling-survey.md`; this resolution changes only the
+shared agent-registration transaction.

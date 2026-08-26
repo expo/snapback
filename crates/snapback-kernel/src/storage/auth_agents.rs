@@ -1388,11 +1388,7 @@ mod tests {
                     let mut database =
                         LocalDatabase::open(path).expect("open concurrent registration handle");
                     barrier.wait();
-                    register_open_agent(
-                        &mut database,
-                        &format!("concurrent handle {ordinal}"),
-                        30,
-                    )
+                    register_open_agent(&mut database, &format!("concurrent handle {ordinal}"), 30)
                 })
             })
             .collect();

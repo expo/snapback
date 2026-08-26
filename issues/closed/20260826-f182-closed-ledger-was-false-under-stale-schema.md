@@ -1,10 +1,10 @@
 # F182's CLOSED ledger verdict was false under a stale-schema second-handle schedule
 
-- Status: open
+- Status: closed
 - Created: 2026-08-26
 - Area: agents-mode schema cache; row-attack acceptance ledger
 - Related: LLP 0303 revision (s), LLP 0311,
-  `issues/20260825-f182-schema-cache-and-a-corpus-blind-spot.md`
+  `issues/closed/20260825-f182-schema-cache-and-a-corpus-blind-spot.md`
 
 ## Finding
 
@@ -34,3 +34,14 @@ LD_LIBRARY_PATH=$PWD/vendor/ibex/linux/lib cargo run --quiet \
 
 The row ledger and its executable contract now record F182 as `OPEN`. This audit deliberately does
 not fix the schema-cache defect.
+
+## Resolution (2026-08-26)
+
+The audit's `OPEN` state was retained as a committed historical fail-first checkpoint before the
+repair. Agent registration now loads the active schema manifest through the same connection after
+`BEGIN IMMEDIATE`, so a stale handle cannot supply its cached agents mode to the committing effect.
+
+Re-running this exact fixture in both production and additive-test-support now reaches the marked
+attack expression and returns `SNAPBACK_AUTH_AGENT_REGISTRATION_DISABLED`. The fixture treats that
+exact diagnostic as `CLOSED`; any other error is a harness failure. The alternate integration-class
+registration route is covered independently and is refused by the same resource-derived policy.
