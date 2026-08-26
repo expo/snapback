@@ -1,5 +1,15 @@
 # The row acceptance ledger: 62 units of independent work remain
 
+> **CORRECTION (2026-08-26): these dispositions have now been executed, and 11 of 28
+> tested units were WRONG.** See
+> [`issues/20260826-row-acceptance-ledger-execution-report.md`](20260826-row-acceptance-ledger-execution-report.md).
+> The sampled DELETED error rate was **5 of 10**, and every error pointed the same way —
+> **false DELETED**, a public route still reached the authority effect. Six of fifteen
+> OUTSIDE-AUTHORITY-CREATION units were also wrong: their compositions created grants,
+> sessions, or challenges leading to sessions. Do not quote the counts below as settled
+> work remaining without that report. The sample was purposive and cross-crate, so 5/10
+> measures that sample and is **not** a confidence interval for the 37 unsampled deletions.
+
 **Status:** open (living measurement)
 **Produced:** 2026-08-26, read-only audit of `4eb138b55`. No build or attack executed.
 
