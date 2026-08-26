@@ -34,3 +34,25 @@ replaces the raw principal-plus-credential composition. Do not restore either
 raw kernel method to public or expose them through server/activation
 `test-support`; LLP 0303 identifies the two-call composition as an authority
 producer.
+
+## Resolution — 2026-08-26
+
+The two named errors can no longer occur: `crates/snapback-server/src/server/tests.rs` has **zero**
+references to either `create_agent_principal` or `issue_initial_agent_credential`. The test callers
+that tripped the narrowing were removed or migrated by intervening work.
+
+Both methods remain `pub(crate)` (`storage/auth_agents.rs:73`,
+`storage/auth_agent_credentials.rs:223`), which is correct — the narrowing was deliberate and is
+retained. What changed is that the tests no longer reach past it.
+
+**Scope of this verification, stated plainly:** this is source inspection, not compilation. I confirmed
+the offending call sites are absent; I did not build the server unit-test target on `main`. Supporting
+but indirect evidence: the `landingA` lane, based on `main`, carries a commit
+`test: restore workspace all-target compilation` and reports `cargo check --all-targets --workspace`
+green — which covers this target, though in a tree with its own additions.
+
+If the target still fails for some other reason, that is a different defect and wants a fresh ticket
+naming the actual errors rather than reopening this one.
+
+Related: the sibling `E0599` build break that blocked this target for twenty commits is closed at
+`issues/closed/20260826-main-did-not-compile-and-no-gate-caught-it.md`.
