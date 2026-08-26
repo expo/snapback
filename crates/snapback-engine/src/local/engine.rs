@@ -17,9 +17,9 @@ use crate::auth::invalidation::{
 };
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
-    CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
+    CallerAuthorityTerminalCause, HandlerAuthProjection, InvocationGate,
     InvocationSource, PreparedAuthority, PreparedEffectApproverAttribution, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
