@@ -1,7 +1,7 @@
 # LLP 0314: Shipped runtime binary size
 
 **Type:** Research
-**Status:** Draft
+**Status:** Review
 **Systems:** Packaging, Build, Runtime, Distribution, Developer experience
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-25
