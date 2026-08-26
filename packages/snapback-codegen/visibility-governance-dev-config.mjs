@@ -562,7 +562,6 @@ export function mintVisibilityGovernanceDevConfig({
     renameSync(temporary, path);
   } catch (error) {
     rmSync(temporary, { force: true });
-    // diagnostics-registry: emission SNAPBACK_VISIBILITY_GOVERNANCE_DEV_CONFIG_WRITE_FAILED
     throw new VisibilityGovernanceError(
       WRITE_FAILED,
       `visibility governance dev config could not be published: ${error.message}`,

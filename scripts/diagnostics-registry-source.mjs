@@ -567,18 +567,6 @@ function javaScriptIndirectEnvironmentOffsets(source) {
   return offsets;
 }
 
-function matchingBrace(source, open) {
-  let depth = 0;
-  for (let index = open; index < source.length; index += 1) {
-    if (source[index] === '{') depth += 1;
-    else if (source[index] === '}') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  return source.length;
-}
-
 function environmentHelperNames(source) {
   const helpers = new Set();
   const blockDeclarations = [
@@ -594,7 +582,7 @@ function environmentHelperNames(source) {
   ];
   for (const declaration of blockDeclarations) {
     const open = declaration.index + declaration[0].lastIndexOf('{');
-    const body = source.slice(open, matchingBrace(source, open) + 1);
+    const body = source.slice(open, matchingDelimiter(source, open) + 1);
     const parameter = escapeRegExp(declaration[2]);
     const dynamicRead = new RegExp(
       `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:std::)?env::(?:var|var_os)\\(\\s*${parameter}\\s*\\))`,
@@ -651,7 +639,7 @@ export function indirectEnvironmentReadContracts(source) {
       .map(({ binding }) => binding);
     if (environmentBindings.length === 0) continue;
     const open = declaration.index + declaration[0].lastIndexOf('{');
-    const body = source.slice(open, matchingBrace(source, open) + 1);
+    const body = source.slice(open, matchingDelimiter(source, open) + 1);
     for (const { property, binding } of parameters) {
       if (environmentBindings.includes(binding)) continue;
       const parameter = escapeRegExp(binding);
@@ -675,7 +663,7 @@ function helperObjectCallContains(source, helper, offset) {
   for (const call of source.matchAll(callPattern)) {
     const open = call.index + call[0].lastIndexOf('{');
     if (open >= offset) break;
-    if (matchingBrace(source, open) > offset) return true;
+    if (matchingDelimiter(source, open) > offset) return true;
   }
   return false;
 }
@@ -1547,8 +1535,13 @@ function identifierFlowEmissionSites(source, analysis) {
 
 function isExplicitDiagnosticIdentifierPosition(source, offset) {
   const before = source.slice(Math.max(0, offset - 512), offset);
+  const rustResultError = !isRustMatchesReference(source, offset) && (
+    /\breturn\s+Err\s*\(\s*$/u.test(before)
+    || (/\bErr\s*\(\s*$/u.test(before) && source.startsWith('code::', offset))
+  );
   return (
-    /\bthrow\b[^;\n]*$/u.test(before)
+    /\bthrow\b[^;]*$/u.test(before)
+    || rustResultError
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
     || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*(?:&\s*)?$/u.test(before)
@@ -1736,7 +1729,7 @@ function membershipConsumerFor(member, after, { objectTable = false } = {}) {
   }
   return (
     new RegExp(
-      `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:has|includes|contains|binary_search)\\s*\\(`,
+      `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:get|has|includes|contains|binary_search)\\s*\\(`,
       'u',
     ).test(after)
     || new RegExp(
@@ -1760,14 +1753,39 @@ function receivedMembershipTables(source) {
       if (close === source.length) continue;
       const after = source.slice(close + 1);
       const objectTable = declaration[2] === '{';
+      const mapTable = /\bnew\s+Map\s*\(\s*\[$/u.test(declaration[0]);
       if (membershipConsumerFor(declaration[1], after, {
         objectTable,
       })) {
-        tables.push({ open, close, objectTable });
+        tables.push({ open, close, mapTable, objectTable });
       }
     }
   }
   return tables;
+}
+
+function isMapKeyPosition(source, tableOpen, tableClose, offset) {
+  const entryOpen = source.lastIndexOf('[', offset);
+  if (entryOpen <= tableOpen) return false;
+  const entryClose = matchingDelimiter(source, entryOpen);
+  if (entryClose >= tableClose || offset >= entryClose) return false;
+  const entryPrefix = source.slice(entryOpen + 1, offset);
+  const keyStart = /^(?:\s|\/\/[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)*(["'`])/u.exec(
+    entryPrefix,
+  );
+  if (keyStart === null) return false;
+  const delimiter = keyStart[1];
+  let escaped = false;
+  for (
+    let index = entryOpen + 1 + keyStart[0].length;
+    index < entryClose;
+    index += 1
+  ) {
+    if (escaped) escaped = false;
+    else if (source[index] === '\\') escaped = true;
+    else if (source[index] === delimiter) return offset < index;
+  }
+  return false;
 }
 
 function receivedProtocolOffsets(source, matches) {
@@ -1780,12 +1798,16 @@ function receivedProtocolOffsets(source, matches) {
   }
   const tables = receivedMembershipTables(source);
   for (const match of matches) {
-    if (tables.some(({ open, close, objectTable }) => (
+    if (tables.some(({ open, close, mapTable, objectTable }) => (
       open < match.index
       && match.index < close
       && (
-        !objectTable
-        || /^(?:["'])?\s*:/u.test(source.slice(match.index + match[0].length))
+        (!objectTable && !mapTable)
+        || (
+          objectTable
+          && /^(?:["'])?\s*:/u.test(source.slice(match.index + match[0].length))
+        )
+        || (mapTable && isMapKeyPosition(source, open, close, match.index))
       )
     ))) {
       offsets.add(match.index);
@@ -1817,16 +1839,11 @@ function emissionWinsEnvironmentSite(source, match, analysis) {
     hasEmissionMarker(source, offset, match[0])
     && !isCommentReference(offset, analysis.literals.comments)
   ) return true;
-  // Proven direct environment access is the stronger syntax even when it is
-  // nested inside a broad throw/error shape. Explicit emission markers above
-  // remain the escape hatch for a genuinely dual-role spelling at one offset.
-  if (
-    analysis.siteKinds.has(offset)
-    && (
-      directEnvironmentSiteKind(source, offset, match[0]) !== null
-      || shellEnvironmentSiteKind(source, offset, match[0], analysis.literals) !== null
-    )
-  ) return false;
+  // A proven environment site is the stronger syntax even when it is nested
+  // inside a broad throw/error shape. This includes helper-mediated reads;
+  // explicit emission markers above remain the escape hatch for a genuinely
+  // dual-role spelling at one offset.
+  if (analysis.siteKinds.has(offset)) return false;
   if (
     isGeneratedSourceDiagnosticPosition(source, match, analysis.literals)
     || isStoredDiagnosticSqlPosition(source, match, analysis.literals)

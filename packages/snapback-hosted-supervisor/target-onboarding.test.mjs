@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
 import {
+  assertTargetTigrisCredentialPair,
   buildTargetOnboardingPlan,
   TARGET_DEFAULTS,
   TARGET_SUPERVISOR_SECRET_FILES,
+  TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES,
   TARGET_TIGRIS_ROLES,
   targetRolePolicy,
 } from './target-onboarding.mjs';
@@ -36,21 +36,24 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
-const onboardingSource = readFileSync(new URL('./target-onboarding.mjs', import.meta.url), 'utf8');
-for (const [role, code] of Object.entries({
-  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
-  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
-  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
-  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
-  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
-  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
-})) {
-  assert.match(
-    onboardingSource,
-    new RegExp(`(?:['"]${role}['"]|${role})\\s*:\\s*['"]${code}['"]`, 'u'),
-    `private partial-credential code mapping must cover ${role}`,
+for (const role of Object.keys(TARGET_TIGRIS_ROLES)) {
+  assert.throws(
+    () => assertTargetTigrisCredentialPair(role, {
+      accessKeyId: `partial-${role}-id`,
+      secretAccessKey: null,
+    }),
+    (error) => error.message === TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role],
+    `partial ${role} credentials must throw the role-indexed code`,
   );
 }
+assert.throws(
+  () => assertTargetTigrisCredentialPair('unknown-role', {
+    accessKeyId: 'unknown-id',
+    secretAccessKey: null,
+  }),
+  /SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID/u,
+  'unknown roles must fail closed with a registered code',
+);
 const artifactPolicy = targetRolePolicy(
   TARGET_DEFAULTS,
   'artifact',

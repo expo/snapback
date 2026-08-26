@@ -597,6 +597,56 @@ test('identifier flow excludes membership and comparison consumers', () => {
   );
 });
 
+test('identifier flow recognizes multiline throw arguments', () => {
+  const fixture = [
+    "const CODE = 'SNAPBACK_FIXTURE_MULTILINE_THROW';",
+    'throw helper(',
+    '  CODE,',
+    "  'fixture detail',",
+    ');',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_MULTILINE_THROW', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_MULTILINE_THROW', line: 3, kind: 'emission' },
+    ],
+  );
+});
+
+test('Rust identifier flow recognizes Err returns but not matches references', () => {
+  const fixture = [
+    'pub const ENTRY_INVALID: &str = "SNAPBACK_FIXTURE_ERR_RETURN";',
+    'pub const MATCH_ONLY: &str = "SNAPBACK_FIXTURE_ERR_MATCH_REFERENCE";',
+    'fn refuse() -> Result<(), &\'static str> {',
+    '    return Err(code::ENTRY_INVALID);',
+    '}',
+    'fn inspect(value: Result<(), &\'static str>) -> bool {',
+    '    matches!(value, Err(code::MATCH_ONLY))',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_ERR_RETURN', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_ERR_MATCH_REFERENCE', line: 2, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_ERR_RETURN', line: 4, kind: 'emission' },
+    ],
+  );
+});
+
 test('dual-role spellings classify each identifier, receive, and environment site independently', () => {
   const fixture = [
     "const DUAL_ROLE_CODE = 'SNAPBACK_FIXTURE_DUAL_ROLE_ENV_FLOW';",
@@ -1068,6 +1118,29 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_API_BUDGETS_UNAVAILABLE is not an HTTP-table-only reservation',
   );
 
+  const resultCoreSource = readFileSync(resolve(
+    import.meta.dirname,
+    '../packages/snapback-app-cli/result-core.mjs',
+  ), 'utf8');
+  const exactCodeExitTable = resultCoreSource.slice(
+    resultCoreSource.indexOf('const EXACT_CODE_EXITS'),
+    resultCoreSource.indexOf('const AUTH_FAMILY'),
+  );
+  const exactCodeExitCodes = [...exactCodeExitTable.matchAll(
+    /\['(SNAPBACK_[A-Z0-9_]+)'/gu,
+  )].map((match) => match[1]);
+  assert.equal(exactCodeExitCodes.length, 34);
+  for (const code of exactCodeExitCodes) {
+    const sites = registry.diagnostics[code]?.sites.filter((site) => (
+      site.file === 'packages/snapback-app-cli/result-core.mjs'
+    )) ?? [];
+    assert.ok(sites.length > 0, `${code} must retain its EXACT_CODE_EXITS receive site`);
+    assert.ok(
+      sites.every((site) => site.kind === 'received'),
+      `${code} must classify EXACT_CODE_EXITS Map.get lookup vocabulary as received`,
+    );
+  }
+
   for (const [name, file] of [
     [
       'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE',
@@ -1160,7 +1233,7 @@ test('received protocol classifier follows shipped membership-table idioms', () 
     'if (SET_CODES.has(receivedCode)) accept();',
     "const ARRAY_CODES = ['SNAPBACK_FIXTURE_RECEIVED_ARRAY'];",
     'if (ARRAY_CODES.includes(receivedCode)) accept();',
-    "const MAP_CODES = new Map([['SNAPBACK_FIXTURE_RECEIVED_MAP', 'accepted']]);",
+    "const MAP_CODES = new Map([['POST /fixture 409 SNAPBACK_FIXTURE_RECEIVED_MAP', { code: 'SNAPBACK_FIXTURE_MAP_VALUE_EMISSION' }]]);",
     'if (MAP_CODES.has(receivedCode)) accept();',
     "const OBJECT_CODES = Object.freeze({ SNAPBACK_FIXTURE_RECEIVED_OBJECT: 'accepted' });",
     'if (receivedCode in OBJECT_CODES) accept();',
@@ -1185,10 +1258,36 @@ test('received protocol classifier follows shipped membership-table idioms', () 
       { code: 'SNAPBACK_FIXTURE_RECEIVED_SET', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_ARRAY', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_MAP', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_MAP_VALUE_EMISSION', kind: 'emission' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_OBJECT', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_SWIFT', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_RUST_HELPER', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_RUST_BINARY_SEARCH', kind: 'received' },
+    ],
+  );
+});
+
+test('received protocol classifier recognizes the production EXACT_CODE_EXITS Map.get idiom', () => {
+  const source = [
+    'const EXACT_CODE_EXITS = new Map([',
+    "  ['SNAPBACK_APP_CLI_USAGE', EXIT.USAGE],",
+    "  ['SNAPBACK_APP_CLI_AUTH_REFUSED', EXIT.AUTH_REFUSED],",
+    ']);',
+    'export function classifyDiagnosticExit(record) {',
+    '  const exact = EXACT_CODE_EXITS.get(record.code);',
+    '  if (exact !== undefined) return exact;',
+    '  return EXIT.FUNCTION_ERROR;',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(source, {
+      javascript: true,
+      receivedProtocolVocabulary: true,
+    }).map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_APP_CLI_USAGE', kind: 'received' },
+      { code: 'SNAPBACK_APP_CLI_AUTH_REFUSED', kind: 'received' },
     ],
   );
 });
@@ -1250,6 +1349,27 @@ test('environment helper discovery rejects language keywords', () => {
   ].join('\n');
 
   assert.deepEqual(environmentVariableSites(fixture), []);
+});
+
+test('environment helper discovery ignores closing braces in helper strings', () => {
+  const fixture = [
+    'function readEnv(name) {',
+    '  const marker = "}";',
+    '  return process.env[name];',
+    '}',
+    'throw new Error(readEnv("SNAPBACK_WRAPPED_ENV"));',
+  ].join('\n');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_WRAPPED_ENV', kind: 'read' }],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .filter(({ match }) => match[0] === 'SNAPBACK_WRAPPED_ENV'),
+    [],
+  );
 });
 
 test('synthetic emission markers attach to the following statement', () => {

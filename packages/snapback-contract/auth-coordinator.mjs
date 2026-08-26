@@ -3584,7 +3584,6 @@ export class AuthCoordinator {
       || this.#exhaustedWakeupCut !== null
       || this.#activeCutCompletions.size > 0
     ) {
-      // diagnostics-registry: emission SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY
       throw coordinatorError(
         BARRIER_PHASE_CLOSURE_RETRY,
         'a destructive cut overlapped final authority phase closure',

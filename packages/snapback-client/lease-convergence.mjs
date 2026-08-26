@@ -57,7 +57,6 @@ export function createLeaseConvergenceCoordinator({ leaseOwner, successorOwner }
   return Object.freeze({
     async converge({ connected, predecessor, successor }) {
       if (connected !== true) {
-        // diagnostics-registry: emission SNAPBACK_LEASE_CONVERGENCE_CONNECTION_REQUIRED
         throw convergenceError(
           SNAPBACK_LEASE_CONVERGENCE_CONNECTION_REQUIRED,
           'lease convergence may begin only during a connected attempt',
@@ -69,7 +68,6 @@ export function createLeaseConvergenceCoordinator({ leaseOwner, successorOwner }
       // owner operation decides dependency identity; the coordinator never
       // inspects, rewrites, settles, or discards an intent.
       if (await hasDependentPendingIntent(predecessor)) {
-        // diagnostics-registry: emission SNAPBACK_LEASE_CONVERGENCE_PENDING_INTENT
         throw convergenceError(
           SNAPBACK_LEASE_CONVERGENCE_PENDING_INTENT,
           'a pending outbox intent depends on the predecessor instance',
