@@ -90,6 +90,6 @@
     { "id": "record-effect-approver-without-authority", "bin": "record-effect-approver-without-authority", "source": "src/bin/record_effect_approver_without_authority.rs", "mount": "snapback-sync", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F129" },
     { "id": "publish-scope-retirement-without-commit", "bin": "publish-scope-retirement-without-commit", "source": "src/bin/publish_scope_retirement_without_commit.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0308", "row": "F082" },
     { "id": "poison-scope-retirement-ceiling", "bin": "poison-scope-retirement-ceiling", "source": "src/bin/poison_scope_retirement_ceiling.rs", "mount": "snapback-auth", "featureSets": [[], ["snapback-engine/test-support"]], "expectedCode": "E0061", "row": "F082" },
-    { "id": "supply-room-reauthorization-results", "bin": "supply-room-reauthorization-results", "source": "src/bin/supply_room_reauthorization_results.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-engine/test-support", "snapback-auth/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]] }
+    { "id": "supply-room-reauthorization-results", "bin": "supply-room-reauthorization-results", "source": "src/bin/supply_room_reauthorization_results.rs", "mount": "snapback-engine", "featureSets": [[], ["snapback-engine/test-support", "snapback-auth/test-support", "snapback-kernel/test-support", "snapback-sync/test-support"]], "expectedCode": "E0061", "row": "F244" }
   ]
 }
