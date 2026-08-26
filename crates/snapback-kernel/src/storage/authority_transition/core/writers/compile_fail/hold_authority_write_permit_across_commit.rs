@@ -3,12 +3,12 @@ pub(super) fn hold_authority_write_permit_across_commit() {
     create_schema(&connection).expect("create probe schema before install");
     let authorizer = authorizer();
     authorizer.install(&connection);
-    let (transaction, identity) = authorizer
+    let transaction = authorizer
         .begin_immediate(&mut connection)
         .expect("begin immediate protected transaction");
     let permit = super::super::super::verifier::consume_verified_proof(
-        &transaction,
-        &identity,
+        transaction.sqlite(),
+        transaction.identity(),
         &authorizer.database_origin,
         password_proof(),
         AuthorityMutation::IssuePasswordSession,

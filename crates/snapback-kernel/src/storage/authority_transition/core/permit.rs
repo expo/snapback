@@ -10,13 +10,16 @@ impl ConnectionAuthorizer {
         durable_store_identity: [u8; 32],
         connection_epoch: NonZeroU64,
     ) -> Self {
+        let database_origin = DatabaseOrigin {
+            binding,
+            durable_store_identity,
+        };
         Self {
-            database_origin: DatabaseOrigin {
-                binding,
-                durable_store_identity,
-            },
+            database_origin: database_origin.clone(),
             connection_epoch,
             permit_cell: Arc::new(Mutex::new(AuthorizerPermitCell {
+                database_origin,
+                connection_epoch,
                 protected_tables: registry::protected_table_registry(),
                 dynamic_membership_tables: BTreeSet::new(),
                 active: None,
@@ -42,6 +45,7 @@ impl ConnectionAuthorizer {
             .permit_cell
             .lock()
             .map_err(|_| AuthorityTransitionError::AuthorizerPoisoned)?;
+        clear_stale_active(&mut cell);
         if cell.active.is_some() {
             return Err(AuthorityTransitionError::PermitAlreadyActive);
         }
@@ -54,16 +58,51 @@ impl ConnectionAuthorizer {
     pub(super) fn begin_immediate<'conn>(
         &self,
         connection: &'conn mut Connection,
-    ) -> rusqlite::Result<(Transaction<'conn>, TransactionIdentity)> {
-        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    ) -> rusqlite::Result<AuthorityTransaction<'conn>> {
+        let sqlite_transaction =
+            connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let live_identity = Arc::new(LiveTransactionIdentity {
+            database_origin: self.database_origin.clone(),
+            connection_epoch: self.connection_epoch,
+        });
         let identity = TransactionIdentity {
             database_origin: self.database_origin.clone(),
             connection_epoch: self.connection_epoch,
+            live_identity,
             nonce_registry: RefCell::new(BTreeSet::new()),
             authorizer_permit_cell: Arc::clone(&self.permit_cell),
             _not_send_sync: PhantomData,
         };
-        Ok((transaction, identity))
+        Ok(AuthorityTransaction {
+            sqlite_transaction,
+            identity,
+        })
+    }
+}
+
+impl AuthorityTransaction<'_> {
+    pub(super) fn sqlite(&self) -> &Transaction<'_> {
+        &self.sqlite_transaction
+    }
+
+    pub(super) fn identity(&self) -> &TransactionIdentity {
+        &self.identity
+    }
+
+    pub(super) fn commit(self) -> rusqlite::Result<()> {
+        let Self {
+            sqlite_transaction,
+            identity: _identity,
+        } = self;
+        sqlite_transaction.commit()
+    }
+
+    pub(super) fn rollback(self) -> rusqlite::Result<()> {
+        let Self {
+            sqlite_transaction,
+            identity: _identity,
+        } = self;
+        sqlite_transaction.rollback()
     }
 }
 
@@ -79,11 +118,12 @@ pub(super) fn activate<'tx, 'conn>(
         .authorizer_permit_cell
         .lock()
         .map_err(|_| AuthorityTransitionError::AuthorizerPoisoned)?;
+    clear_stale_active(&mut cell);
     if cell.active.is_some() {
         return Err(AuthorityTransitionError::PermitAlreadyActive);
     }
     cell.active = Some(ActivePermit {
-        connection_epoch: transaction.connection_epoch,
+        transaction: Arc::downgrade(&transaction.live_identity),
         nonce,
         mutation,
         write_set,
@@ -98,6 +138,29 @@ pub(super) fn activate<'tx, 'conn>(
         successor_digest,
         _not_send_sync: PhantomData,
     })
+}
+
+// @ref LLP 0313#4-private-evidence-and-permits — the authorizer derives
+// transaction liveness from the exact transaction allocation on every
+// protected check. The cached write set is powerless after commit because
+// `ActivePermit` holds only a weak identity reference.
+fn live_active(
+    cell: &AuthorizerPermitCell,
+) -> Option<(&ActivePermit, Arc<LiveTransactionIdentity>)> {
+    let active = cell.active.as_ref()?;
+    let transaction = active.transaction.upgrade()?;
+    if transaction.connection_epoch != cell.connection_epoch
+        || !registry::origins_match(&transaction.database_origin, &cell.database_origin)
+    {
+        return None;
+    }
+    Some((active, transaction))
+}
+
+fn clear_stale_active(cell: &mut AuthorizerPermitCell) {
+    if cell.active.is_some() && live_active(cell).is_none() {
+        cell.active = None;
+    }
 }
 
 fn authorize(
@@ -216,7 +279,7 @@ fn authorize_dml(
     {
         return Authorization::Allow;
     }
-    let Some(active) = cell.active.as_ref() else {
+    let Some((active, _live_transaction)) = live_active(cell) else {
         return Authorization::Deny;
     };
     let allowed = active.write_set.writes.iter().any(|write| {
@@ -262,7 +325,7 @@ fn authorize_trigger(
     trigger_name: &str,
     create: bool,
 ) -> Authorization {
-    let Some(active) = cell.active.as_ref() else {
+    let Some((active, _live_transaction)) = live_active(cell) else {
         return Authorization::Deny;
     };
     let allowed = active.write_set.writes.iter().any(|write| {
@@ -287,7 +350,7 @@ fn authorize_trigger(
 }
 
 fn authorize_schema(cell: &AuthorizerPermitCell, table_name: Option<&str>) -> Authorization {
-    let Some(active) = cell.active.as_ref() else {
+    let Some((active, _live_transaction)) = live_active(cell) else {
         return Authorization::Deny;
     };
     let allowed = active.write_set.writes.iter().any(|write| {
@@ -313,7 +376,7 @@ fn authorize_connection_operation(
     cell: &AuthorizerPermitCell,
     operation: &ProtectedWriteOperation,
 ) -> Authorization {
-    let allowed = cell.active.as_ref().is_some_and(|active| {
+    let allowed = live_active(cell).is_some_and(|(active, _live_transaction)| {
         active.write_set.writes.iter().any(|write| {
             matches!(write.object, ProtectedObject::Connection)
                 && &write.operation == operation
@@ -332,8 +395,9 @@ impl Drop for AuthorityWritePermit<'_, '_> {
         let Ok(mut cell) = self.transaction.authorizer_permit_cell.lock() else {
             return;
         };
+        let transaction = Arc::downgrade(&self.transaction.live_identity);
         let owns_active = cell.active.as_ref().is_some_and(|active| {
-            active.connection_epoch == self.transaction.connection_epoch
+            active.transaction.ptr_eq(&transaction)
                 && active.nonce == self.nonce
                 && active.mutation == self.mutation
                 && active.successor_digest == self.successor_digest

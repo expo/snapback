@@ -5,6 +5,7 @@ pub(super) fn obtain_kernel_verified_evidence() {
         todo!(),
         todo!(),
         todo!(),
+        todo!(),
         [1; 32],
         1,
     );

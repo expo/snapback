@@ -22,6 +22,10 @@ pub(super) fn insert_expected_session(
     transaction.execute("INSERT INTO _auth_sessions(id) VALUES('session-1')", [])
 }
 
+pub(super) fn insert_auth_session(connection: &Connection, id: &str) -> rusqlite::Result<usize> {
+    connection.execute("INSERT INTO _auth_sessions(id) VALUES(?1)", [id])
+}
+
 pub(super) fn insert_ordinary(connection: &Connection) -> rusqlite::Result<usize> {
     connection.execute("INSERT INTO ordinary(id) VALUES('ordinary-1')", [])
 }
@@ -150,12 +154,12 @@ mod tests {
         create_schema(&connection).expect("create probe schema before install");
         let authorizer = authorizer();
         authorizer.install(&connection);
-        let (transaction, identity) = authorizer
+        let transaction = authorizer
             .begin_immediate(&mut connection)
             .expect("begin immediate protected transaction");
         let permit = verifier::consume_verified_proof(
-            &transaction,
-            &identity,
+            transaction.sqlite(),
+            transaction.identity(),
             &authorizer.database_origin,
             password_proof(),
             AuthorityMutation::IssuePasswordSession,
@@ -165,17 +169,18 @@ mod tests {
         .expect("consume exact password evidence");
 
         assert_eq!(
-            insert_expected_session(&transaction, &permit)
+            insert_expected_session(transaction.sqlite(), &permit)
                 .expect("exact session insert is authorized"),
             1
         );
-        let mismatch = insert_auth_user(&transaction)
+        let mismatch = insert_auth_user(transaction.sqlite())
             .expect_err("another protected table is outside the exact write set");
         assert!(
             denied(&mismatch),
             "unexpected write-set mismatch: {mismatch:?}"
         );
         drop(permit);
+        assert!(transaction.identity().nonce_registry.borrow().is_empty());
         transaction.commit().expect("commit exact protected write");
 
         let after_drop = insert_auth_user(&connection)
@@ -184,7 +189,6 @@ mod tests {
             denied(&after_drop),
             "unexpected post-drop error: {after_drop:?}"
         );
-        assert!(identity.nonce_registry.borrow().is_empty());
     }
 
     #[test]
@@ -193,13 +197,13 @@ mod tests {
         create_schema(&connection).expect("create probe schema before install");
         let authorizer = authorizer();
         authorizer.install(&connection);
-        let (transaction, identity) = authorizer
+        let transaction = authorizer
             .begin_immediate(&mut connection)
             .expect("begin immediate protected transaction");
 
         let error = match verifier::consume_verified_proof(
-            &transaction,
-            &identity,
+            transaction.sqlite(),
+            transaction.identity(),
             &authorizer.database_origin,
             password_proof(),
             AuthorityMutation::RotateRecoveryCredential,
@@ -210,9 +214,10 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error, AuthorityTransitionError::MutationMismatch);
-        assert!(identity.nonce_registry.borrow().is_empty());
+        assert!(transaction.identity().nonce_registry.borrow().is_empty());
         assert!(
-            identity
+            transaction
+                .identity()
                 .authorizer_permit_cell
                 .lock()
                 .expect("permit cell")
@@ -220,6 +225,114 @@ mod tests {
                 .is_none()
         );
         transaction.rollback().expect("rollback rejected ceremony");
+    }
+
+    fn assert_post_commit_session_insert_denied(connection: &Connection, id: &str, bypass: &str) {
+        let error = insert_auth_session(connection, id)
+            .expect_err("a skipped permit destructor must not authorize after commit");
+        assert!(
+            denied(&error),
+            "unexpected post-commit error after {bypass}: {error:?}"
+        );
+        eprintln!("{bypass} bypass: post-commit protected insert refused ({error})");
+    }
+
+    #[test]
+    fn forgotten_permit_is_inert_after_its_transaction_commits() {
+        let mut connection = Connection::open_in_memory().expect("open mem::forget probe");
+        create_schema(&connection).expect("create probe schema before install");
+        let authorizer = authorizer();
+        authorizer.install(&connection);
+        let transaction = authorizer
+            .begin_immediate(&mut connection)
+            .expect("begin mem::forget transaction");
+        let permit = verifier::consume_verified_proof(
+            transaction.sqlite(),
+            transaction.identity(),
+            &authorizer.database_origin,
+            password_proof(),
+            AuthorityMutation::IssuePasswordSession,
+            [9; 32],
+            15,
+        )
+        .expect("consume mem::forget evidence");
+
+        std::mem::forget(permit);
+        transaction
+            .commit()
+            .expect("commit forgotten permit transaction");
+        assert!(
+            authorizer
+                .permit_cell
+                .lock()
+                .expect("permit cell after mem::forget")
+                .active
+                .is_some(),
+            "mem::forget must demonstrate that Drop cleanup was skipped"
+        );
+        assert_post_commit_session_insert_denied(
+            &connection,
+            "post-commit-mem-forget",
+            "mem::forget",
+        );
+    }
+
+    #[test]
+    fn leaked_boxed_permit_is_inert_after_its_transaction_commits() {
+        let mut connection = Connection::open_in_memory().expect("open Box::leak probe");
+        create_schema(&connection).expect("create probe schema before install");
+        let authorizer = authorizer();
+        authorizer.install(&connection);
+        let transaction = authorizer
+            .begin_immediate(&mut connection)
+            .expect("begin Box::leak transaction");
+        let permit = verifier::consume_verified_proof(
+            transaction.sqlite(),
+            transaction.identity(),
+            &authorizer.database_origin,
+            password_proof(),
+            AuthorityMutation::IssuePasswordSession,
+            [9; 32],
+            15,
+        )
+        .expect("consume Box::leak evidence");
+
+        let _leaked = Box::leak(Box::new(permit));
+        transaction
+            .commit()
+            .expect("commit leaked boxed permit transaction");
+        assert_post_commit_session_insert_denied(&connection, "post-commit-box-leak", "Box::leak");
+    }
+
+    #[test]
+    fn manually_dropped_permit_is_inert_after_its_transaction_commits() {
+        let mut connection = Connection::open_in_memory().expect("open ManuallyDrop probe");
+        create_schema(&connection).expect("create probe schema before install");
+        let authorizer = authorizer();
+        authorizer.install(&connection);
+        let transaction = authorizer
+            .begin_immediate(&mut connection)
+            .expect("begin ManuallyDrop transaction");
+        let permit = verifier::consume_verified_proof(
+            transaction.sqlite(),
+            transaction.identity(),
+            &authorizer.database_origin,
+            password_proof(),
+            AuthorityMutation::IssuePasswordSession,
+            [9; 32],
+            15,
+        )
+        .expect("consume ManuallyDrop evidence");
+
+        let _permit_without_drop = std::mem::ManuallyDrop::new(permit);
+        transaction
+            .commit()
+            .expect("commit manually dropped permit transaction");
+        assert_post_commit_session_insert_denied(
+            &connection,
+            "post-commit-manually-drop",
+            "ManuallyDrop",
+        );
     }
 
     // These owning-crate probes compile only when the security-boundary gate

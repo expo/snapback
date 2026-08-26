@@ -70,7 +70,6 @@ export function fixtureDependencyNames(root, fixtureRoot) {
   const product = runCargoMetadata(resolve(root, 'Cargo.toml'));
   const productPackages = workspacePackages(product);
   const productNames = new Set(productPackages.map(({ name }) => name));
-  const kernel = productPackages.find(({ name }) => name === 'snapback-kernel');
   const fixture = runCargoMetadata(resolve(fixtureRoot, 'Cargo.toml'));
   const pkg = workspacePackages(fixture)
     .find(({ name }) => name === 'snapback-security-boundary-fixtures');
@@ -85,7 +84,9 @@ export function validateFixtureInventory(
   privilegeFindings = auditPrivilegeSurface(root).findings,
 ) {
   const product = runCargoMetadata(resolve(root, 'Cargo.toml'));
-  const productNames = new Set(workspacePackages(product).map(({ name }) => name));
+  const productPackages = workspacePackages(product);
+  const productNames = new Set(productPackages.map(({ name }) => name));
+  const kernel = productPackages.find(({ name }) => name === 'snapback-kernel');
   const fixture = runCargoMetadata(resolve(fixtureRoot, 'Cargo.toml'));
   const fixturePackage = fixture.packages.find((pkg) => pkg.name === 'snapback-security-boundary-fixtures');
   if (!fixturePackage) {
