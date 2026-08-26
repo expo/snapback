@@ -158,7 +158,8 @@ test('privilege sink registry resolves real items and fails closed when one disa
   const source = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
   const result = auditPrivilegeSurface(source);
   assert.equal(
-    result.violations.some(({ kind }) => kind === 'sink-registry-unresolved'),
+    result.violations.some(({ kind, item }) => kind === 'sink-registry-unresolved'
+      && !item.includes('renamed_authority_sink::execute_membership::renamed_sanctioned')),
     false,
   );
   assert(
@@ -202,6 +203,26 @@ test('direct sink signatures naming caller-constructible discriminants are ratch
   assert.match(output, /MembershipWriter.*caller-constructible.*named directly/u);
   assert.match(output, /plan_privileged_membership_insert/u);
   assert.match(output, /sanctioned/u);
+});
+
+test('authority discriminants follow bounded body flow and bind the terminal sink call', () => {
+  const corpus = resolve(root, 'tests/fixtures/privilege-surface/by_value_connection');
+  const result = auditPrivilegeSurface(corpus);
+  const output = result.violations
+    .map(({ kind, item, detail }) => `${kind} ${item}: ${detail}`)
+    .join('\n');
+  assert.match(
+    output,
+    /caller-discriminant synthetic_kernel::authority_indirection::execute_membership: caller-constructible UserWriter reaches registered privilege sink sanctioned through bounded body flow/u,
+  );
+  assert.match(
+    output,
+    /caller-discriminant synthetic_kernel::renamed_authority_sink::execute_membership: caller-constructible UserWriter reaches unregistered terminal call renamed_sanctioned through bounded body flow/u,
+  );
+  assert.match(
+    output,
+    /sink-registry-unresolved synthetic_kernel::renamed_authority_sink::execute_membership::renamed_sanctioned: terminal authority-discriminator call renamed_sanctioned is not registered/u,
+  );
 });
 
 test('obtainability propagates through obtainable seed receivers in the default cell', () => {

@@ -329,7 +329,7 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
   const packages = workspacePackages(metadata).filter(libraryTarget);
   const graphPackages = localSymbolGraphPackages(root, packages);
   let registeredPrivilegeSinks;
-  const observedPrivilegeSinks = new Set();
+  const declaredPrivilegeSinks = new Set();
   const aggregated = new Map();
   let cellCount = 0;
 
@@ -346,8 +346,8 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
         .map((finding) => finding.seedType)
         .filter(Boolean));
       for (const finding of parsed) {
-        if (finding.kind === 'sink-registry-observed') {
-          observedPrivilegeSinks.add(finding.item.split('::').at(-1));
+        if (finding.kind === 'sink-registry-declared') {
+          declaredPrivilegeSinks.add(finding.item.split('::').at(-1));
           continue;
         }
         if (finding.kind === 'seed-ingress-candidate') {
@@ -367,11 +367,12 @@ export function auditPrivilegeSurface(root = DEFAULT_ROOT) {
     ...finding,
     features: activeLabels(labels),
   }));
-  // @ref LLP 0284#38-authority-discriminators — a remembered sink spelling
-  // is not coverage unless that spelling resolves somewhere in the corpus the
-  // gate actually scanned. Keep registry drift as its own stable violation.
+  // @ref LLP 0284#38-authority-discriminators — declaration liveness remains
+  // a corpus-wide registry check, but it supplies no body-flow coverage. The
+  // Rust pass binds every flowed terminal call at its own span and emits an
+  // immediate unresolved-sink violation when that call is renamed.
   for (const sink of registeredPrivilegeSinks) {
-    if (observedPrivilegeSinks.has(sink)) continue;
+    if (declaredPrivilegeSinks.has(sink)) continue;
     findings.push({
       crate: '<registry>',
       file: 'scripts/security-gates-rust/src/main.rs',

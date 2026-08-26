@@ -1,6 +1,6 @@
 # Privilege scanner residual evasions
 
-**Status:** Open — residuals 1 and 2 closed 2026-08-26; 3 and 4 remain
+**Status:** Open — residuals 1, 2, and 4 closed 2026-08-26; residual 3 remains
 **Systems:** Security/authorization, Build, Verification, Rust core
 **Date:** 2026-08-19
 **Related:** LLP 0284 §3.7, LLP 0283 F-2
@@ -82,9 +82,8 @@ as follow-up work without blocking the bounded final F-2 hardening round.
    `tion` therefore do not become sensitive names without expansion. The
    pinned rustc 1.97.0 exposes no usable stable rustdoc-JSON/expansion path, so
    these synthesis cases remain honest limits rather than attempted heuristics.
-4. **Authority-discriminator indirection and sink names.** I-16 performs no
-   body-flow taint analysis. This exact shape is missed (with the registry
-   spellings resolving elsewhere in the scanned corpus):
+4. **Authority-discriminator indirection and sink names: closed for the
+   demonstrated shapes.** The committed probe preserves this exact program:
 
    ```rust
    pub enum UserWriter { User, Admin }
@@ -100,13 +99,26 @@ as follow-up work without blocking the bounded final F-2 hardening round.
    }
    ```
 
-   Renaming the real sink to `renamed_sanctioned` is also missed when an
-   unrelated `sanctioned` elsewhere keeps the global registry entry observed.
-   Reconfirmed 2026-08-26: I-16 intersects caller-constructible names written
-   directly in registered sink signatures and records sink observation in a
-   crate-wide set. It does not visit bodies or bind an observation to each call
-   site, so the helper/wrapper flow and unrelated-spelling control remain exact
-   descriptions of the boundary.
+   Fail-first, neither this flow nor its `renamed_sanctioned` sibling produced
+   a residual-4 finding. I-16 now adds a bounded syn pass over public
+   free-function bodies: direct local rebinding, `match` arm returns including
+   a catch-all binding, same-module helpers whose final expression returns a
+   parameter unchanged, struct-literal wrapping, references, and the terminal
+   statement call. The first probe now produces `caller-discriminant` at the
+   registered `sanctioned` call. The sibling retains an unrelated
+   `sanctioned` declaration but calls `renamed_sanctioned`; that exact call
+   independently produces `caller-discriminant` and
+   `sink-registry-unresolved`. Corpus-wide declaration liveness remains only a
+   dead-registry check and cannot satisfy body-flow coverage.
+
+   This closes only the committed shapes. The rule is not rustc dataflow: it
+   does not analyze public methods, arbitrary helper semantics,
+   mutation/assignment, loops, closures, arbitrary projections, trait dispatch,
+   alias analysis, or type/name resolution. It requires the demonstrated
+   struct-wrapper and terminal statement-call shape. Body-flow findings remain
+   call-site-local even when the same discriminator type appears in a direct
+   sink signature elsewhere. LLP 0284 §3.7 is authoritative for the exact
+   boundary.
 
 ## Done when
 
@@ -153,9 +165,59 @@ evidence plus an independent 28/28 suite run by the orchestrator. It did **not**
 adversarial review, on the grounds that it is instrument code rather than product code and the
 false-positive risk — the thing that would matter — was measured workspace-wide.
 
+## Residual 4 closed — 2026-08-26
+
+The exact fail-first probe-only command was:
+
+```text
+$ node --input-type=module -e "import { auditPrivilegeSurface } from './scripts/check-kernel-raw-sql-api.mjs'; const result = auditPrivilegeSurface('./tests/fixtures/privilege-surface/by_value_connection'); const findings = result.violations.filter(({ item, kind }) => item.includes('authority_indirection::execute_membership') || item.includes('renamed_authority_sink::execute_membership') || (kind === 'sink-registry-unresolved' && item.includes('renamed_sanctioned'))).map(({ kind, item, detail, features }) => ({ kind, item, detail, features })); console.log('residual-4 findings:', JSON.stringify(findings, null, 2));"
+residual-4 findings: []
+```
+
+The focused test also exited 1 before the implementation (`tests 1`, `pass 0`,
+`fail 1`) because its first required `caller-discriminant` was absent. After
+the implementation the same probe-only command printed:
+
+```text
+residual-4 findings: [
+  {
+    "kind": "caller-discriminant",
+    "item": "synthetic_kernel::authority_indirection::execute_membership",
+    "detail": "caller-constructible UserWriter reaches registered privilege sink sanctioned through bounded body flow",
+    "features": [
+      "default"
+    ]
+  },
+  {
+    "kind": "caller-discriminant",
+    "item": "synthetic_kernel::renamed_authority_sink::execute_membership",
+    "detail": "caller-constructible UserWriter reaches unregistered terminal call renamed_sanctioned through bounded body flow",
+    "features": [
+      "default"
+    ]
+  },
+  {
+    "kind": "sink-registry-unresolved",
+    "item": "synthetic_kernel::renamed_authority_sink::execute_membership::renamed_sanctioned",
+    "detail": "terminal authority-discriminator call renamed_sanctioned is not registered",
+    "features": [
+      "default"
+    ]
+  }
+]
+```
+
+The focused test then passed 1/1. The full product command was
+`node scripts/check-kernel-raw-sql-api.mjs` before and after. Both runs exited
+1 on the inherited F-1 surface and printed
+`SNAPBACK_PRIVILEGE_SURFACE: 100 violation(s)` and
+`privilege-surface: scanned 30 feature cells`; no legitimate product item was
+newly rejected.
+
 ## What remains
 
-**Residual 3 (macro expansion synthesis)** and **residual 4 (authority-discriminator indirection and
-body-flow taint)** are unchanged and were deliberately out of scope. Both are genuinely beyond a
-syntactic scanner on the pinned `rustc 1.97.0`, where rustdoc JSON is unavailable. The honest-limits
-statement in LLP 0284 §3.7 remains the authority for what this gate does and does not prove.
+**Residual 3 (macro expansion synthesis)** remains open and was deliberately
+untouched. The pinned rustc 1.97.0 exposes no usable stable rustdoc-JSON or
+expansion path, so `paste!` identifier synthesis and an external macro emitting
+the whole item remain honest limits. No spelling heuristic was added. LLP 0284
+§3.7 remains the authority for what the gate does and does not prove.
