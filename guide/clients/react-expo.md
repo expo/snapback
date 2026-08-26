@@ -551,13 +551,25 @@ for the provider state contract.
 
 `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
 `AppDescriptor` and the delivered `AppBinding` name different descriptor
-identities. Stop any older supervisor, regenerate the conventional
-`snapback/generated/` app from the backend you intend to run, and let the
-active supervisor observe its `generated-and-loaded` event. Restart only when
-the mismatch came from a different or stale supervisor rather than a watched
-edit. Do not overwrite the identity, construct a second
-descriptor in application code, or weaken admission: the refusal prevents a
-client generated for one backend shape from being bound to another.
+identities. Diagnose which transition produced the split before choosing a
+recovery:
+
+- A **same-owner successor** is the known case where the backend reports
+  `startup-successor-activated` but the running Expo extra still names that
+  owner's predecessor descriptor. This is a **product bug**, not a
+  wrong-backend refusal. Do not pkill by process name, and do not present a
+  restart as the paved recovery. Until Track A's in-process recook lands,
+  **owner restart against the same sqlite is a fallback**, not the paved path;
+  preserve and reopen that owner's same SQLite store.
+- A foreign backend, stale supervisor, or unmatched predecessor remains an
+  identity mismatch with no recook. Stop only an older supervisor whose
+  ownership you have identified, regenerate the conventional
+  `snapback/generated/` app from the backend you intend to run, and let the
+  active supervisor observe its `generated-and-loaded` event.
+
+In either case, do not overwrite the identity, construct a second descriptor
+in application code, or weaken admission. The refusal must continue to prevent
+a client generated for one backend shape from being bound to another.
 
 ### Choose simulator, emulator, or USB routing
 
