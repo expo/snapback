@@ -29,17 +29,6 @@ export type TargetTigrisRole =
   | 'cleanup';
 
 export const TARGET_TIGRIS_ROLES: Readonly<Record<TargetTigrisRole, readonly string[]>>;
-export const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES: Readonly<
-  Record<TargetTigrisRole, string>
->;
-
-export function assertTargetTigrisCredentialPair(
-  role: TargetTigrisRole | string,
-  credentials?: Readonly<{
-    accessKeyId?: string | null;
-    secretAccessKey?: string | null;
-  }>,
-): void;
 
 /** `[guestSecretFilePath, flySecretName]` projection pairs for the supervisor Machine. */
 export const TARGET_SUPERVISOR_SECRET_FILES: ReadonlyArray<readonly [string, string]>;

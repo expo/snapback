@@ -525,11 +525,9 @@ pub fn decode_witness(
     max_entries: usize,
 ) -> Result<Vec<WitnessPair>, &'static str> {
     if witness.count as usize != witness.entries.len() {
-        // diagnostics-registry: emission SNAPBACK_RESUME_WITNESS_INVALID
         return Err(refusal::WITNESS_INVALID);
     }
     if witness.entries.len() > max_entries {
-        // diagnostics-registry: emission SNAPBACK_RESUME_WITNESS_OVERSIZE
         return Err(refusal::WITNESS_OVERSIZE);
     }
     let mut pairs = Vec::with_capacity(witness.entries.len());

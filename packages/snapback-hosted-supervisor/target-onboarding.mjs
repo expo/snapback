@@ -72,7 +72,7 @@ export const TARGET_TIGRIS_ROLES = Object.freeze({
   cleanup: ['s3:DeleteObject', 's3:ListBucket'],
 });
 
-export const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES = Object.freeze({
+const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES = Object.freeze({
   // diagnostics-registry: reference-only
   artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
   // diagnostics-registry: reference-only
@@ -87,7 +87,7 @@ export const TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES = Object.freeze({
   cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
 });
 
-export function assertTargetTigrisCredentialPair(role, {
+function assertTargetTigrisCredentialPair(role, {
   accessKeyId = null,
   secretAccessKey = null,
 } = {}) {

@@ -277,7 +277,7 @@ function directEnvironmentSiteKind(source, offset, code) {
   ) ? 'read' : null;
 }
 
-function javaScriptEnvironmentObjectKind(source, offset, code) {
+function javaScriptEnvironmentObjectKind(source, offset, code, literals) {
   const after = source.slice(offset + code.length, offset + code.length + 16);
   if (!/^\s*:/u.test(after)) return null;
 
@@ -325,7 +325,7 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
     }
   }
   return candidates.sort((left, right) => right.open - left.open)
-    .find(({ open }) => matchingDelimiter(source, open) > offset)?.kind ?? null;
+    .find(({ open }) => matchingDelimiter(source, open, literals) > offset)?.kind ?? null;
 }
 
 function literalTokenBounds(source, literal) {
@@ -567,7 +567,7 @@ function javaScriptIndirectEnvironmentOffsets(source) {
   return offsets;
 }
 
-function environmentHelperNames(source) {
+function environmentHelperNames(source, literals) {
   const helpers = new Set();
   const blockDeclarations = [
     ...source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)[^)]*\)\s*\{/gu),
@@ -582,7 +582,7 @@ function environmentHelperNames(source) {
   ];
   for (const declaration of blockDeclarations) {
     const open = declaration.index + declaration[0].lastIndexOf('{');
-    const body = source.slice(open, matchingDelimiter(source, open) + 1);
+    const body = source.slice(open, matchingDelimiter(source, open, literals) + 1);
     const parameter = escapeRegExp(declaration[2]);
     const dynamicRead = new RegExp(
       `(?:process\\.env(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:this\\.)?(?:env|environment)(?:\\?\\.)?\\[\\s*${parameter}\\s*\\]|(?:std::)?env::(?:var|var_os)\\(\\s*${parameter}\\s*\\))`,
@@ -621,6 +621,7 @@ function environmentHelperNames(source) {
 
 export function indirectEnvironmentReadContracts(source) {
   const contracts = [];
+  const literals = javaScriptLiteralBounds(source);
   for (const declaration of source.matchAll(
     /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(\s*\{([\s\S]{0,4096}?)\}\s*\)\s*\{/gu,
   )) {
@@ -639,7 +640,7 @@ export function indirectEnvironmentReadContracts(source) {
       .map(({ binding }) => binding);
     if (environmentBindings.length === 0) continue;
     const open = declaration.index + declaration[0].lastIndexOf('{');
-    const body = source.slice(open, matchingDelimiter(source, open) + 1);
+    const body = source.slice(open, matchingDelimiter(source, open, literals) + 1);
     for (const { property, binding } of parameters) {
       if (environmentBindings.includes(binding)) continue;
       const parameter = escapeRegExp(binding);
@@ -658,18 +659,18 @@ export function indirectEnvironmentReadContracts(source) {
   ));
 }
 
-function helperObjectCallContains(source, helper, offset) {
+function helperObjectCallContains(source, helper, offset, literals) {
   const callPattern = new RegExp(`\\b${escapeRegExp(helper)}\\s*\\(\\s*\\{`, 'gu');
   for (const call of source.matchAll(callPattern)) {
     const open = call.index + call[0].lastIndexOf('{');
     if (open >= offset) break;
-    if (matchingDelimiter(source, open) > offset) return true;
+    if (matchingDelimiter(source, open, literals) > offset) return true;
   }
   return false;
 }
 
-function indirectEnvironmentHelperOffsets(source, matches, readContracts) {
-  const helpers = [...environmentHelperNames(source)];
+function indirectEnvironmentHelperOffsets(source, matches, readContracts, literals) {
+  const helpers = [...environmentHelperNames(source, literals)];
   const call = helpers.length === 0 ? null : new RegExp(
     `\\b(?:${helpers.map(escapeRegExp).join('|')})\\s*\\(\\s*["']$`,
     'u',
@@ -681,7 +682,7 @@ function indirectEnvironmentHelperOffsets(source, matches, readContracts) {
       new RegExp(`\\b${escapeRegExp(property)}\\s*:\\s*["']$`, 'u').test(
         source.slice(Math.max(0, match.index - 256), match.index),
       )
-      && helperObjectCallContains(source, helper, match.index)
+      && helperObjectCallContains(source, helper, match.index, literals)
     ));
   }).map((match) => match.index));
 }
@@ -1092,7 +1093,7 @@ function rustAttributedRegionEnd(source, start, literals, delimiterCloses) {
       const close = delimiterCloses.get(index);
       return close === undefined ? null : close + 1;
     } else if (
-      (source[index] === ';' || source[index] === ',')
+      (source[index] === ';' || source[index] === ',' || source[index] === '}')
       && parenDepth === 0
       && bracketDepth === 0
     ) {
@@ -1310,6 +1311,7 @@ function environmentAnalysis(source, options) {
     source,
     matches,
     options.indirectEnvironmentReadContracts,
+    literals,
   )) {
     siteKinds.set(offset, 'read');
   }
@@ -1328,7 +1330,7 @@ function environmentAnalysis(source, options) {
       ? shellEnvironmentSiteKind(source, match.index, match[0], literals)
       : null;
     const directKind = directEnvironmentSiteKind(source, match.index, match[0]);
-    const objectKind = javaScriptEnvironmentObjectKind(source, match.index, match[0]);
+    const objectKind = javaScriptEnvironmentObjectKind(source, match.index, match[0], literals);
     if (shellKind !== null) {
       siteKinds.set(match.index, shellKind);
     } else if (directKind !== null) {
@@ -1374,7 +1376,7 @@ export function environmentVariableSites(source, {
   });
   const classifiedNames = environmentNames ?? analysis.names;
   analysis.receivedOffsets = receivedProtocolVocabulary
-    ? receivedProtocolOffsets(classifiedSource, analysis.matches)
+    ? receivedProtocolOffsets(classifiedSource, analysis.matches, analysis.literals)
     : new Set();
   return analysis.matches.flatMap((match) => {
     const kind = analysis.siteKinds.get(match.index);
@@ -1512,7 +1514,11 @@ function identifierFlowEmissionSites(source, analysis) {
       if (!codeOffset(identifierOffset, analysis.literals)) continue;
       const before = source.slice(Math.max(declaration.scopeStart, useOffset - 512), useOffset);
       const after = source.slice(useOffset + use[0].length, useOffset + use[0].length + 32);
-      const explicitDiagnosticPosition = isExplicitDiagnosticIdentifierPosition(source, useOffset);
+      const explicitDiagnosticPosition = isExplicitDiagnosticIdentifierPosition(
+        source,
+        useOffset,
+        analysis.literals,
+      );
       const diagnosticProperty = /\b(?:code|[A-Za-z0-9_]*(?:diagnosticCode|errorCode|refusalCode|capabilityCode|diagnostic_code|error_code|refusal_code|capability_code))\s*(?::|=(?!=|>))\s*(?:Some\s*\(\s*)?$/su.test(before);
       const diagnosticShorthand = /(?:^|[{,])\s*$/su.test(before)
         && /^\s*[,}]/u.test(after)
@@ -1533,14 +1539,144 @@ function identifierFlowEmissionSites(source, analysis) {
   return sites;
 }
 
-function isExplicitDiagnosticIdentifierPosition(source, offset) {
+function enclosingStartEndRange(offset, ranges) {
+  let low = 0;
+  let high = ranges.length - 1;
+  let candidate = null;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const range = ranges[middle];
+    if (range.start <= offset) {
+      candidate = range;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return candidate !== null && offset < candidate.end ? candidate : null;
+}
+
+function throwExpressionContainsOffset(source, throwOffset, offset, literals) {
+  let index = throwOffset + 'throw'.length;
+  let canEndExpression = false;
+  const delimiters = [];
+  const prefixWords = new Set([
+    'async', 'await', 'delete', 'in', 'instanceof', 'new', 'typeof', 'void', 'yield',
+  ]);
+
+  while (index < offset) {
+    const comment = enclosingStartEndRange(index, literals.comments);
+    if (comment !== null) {
+      const newline = source.indexOf('\n', index);
+      if (
+        newline !== -1
+        && newline < comment.end
+        && delimiters.length === 0
+        && canEndExpression
+      ) return false;
+      index = comment.end;
+      continue;
+    }
+    const regex = enclosingStartEndRange(index, literals.lexicalExcluded ?? []);
+    if (regex !== null) {
+      index = regex.end;
+      canEndExpression = true;
+      continue;
+    }
+    const openingLiteral = literals.byContentStart.get(index + 1);
+    if (
+      openingLiteral !== undefined
+      && (source[index] === '"' || source[index] === "'" || source[index] === '`')
+    ) {
+      index = openingLiteral.end + 1;
+      canEndExpression = true;
+      continue;
+    }
+    const literal = enclosingStringLiteral(index, literals);
+    if (literal !== null) {
+      index = literal.end;
+      canEndExpression = true;
+      continue;
+    }
+
+    const character = source[index];
+    if (character === '\n' || character === '\r') {
+      if (delimiters.length === 0 && canEndExpression) return false;
+      index += character === '\r' && source[index + 1] === '\n' ? 2 : 1;
+      continue;
+    }
+    if (/\s/u.test(character)) {
+      index += 1;
+      continue;
+    }
+    if (/[A-Za-z_$]/u.test(character)) {
+      const word = source.slice(index).match(/^[A-Za-z_$][\w$]*/u)[0];
+      index += word.length;
+      canEndExpression = !prefixWords.has(word);
+      continue;
+    }
+    if (/\d/u.test(character)) {
+      const number = source.slice(index).match(/^(?:0[xob][\da-f_]+|\d[\d._e+-]*)/iu)[0];
+      index += number.length;
+      canEndExpression = true;
+      continue;
+    }
+    if (character === '(' || character === '[' || character === '{') {
+      delimiters.push(character === '(' ? ')' : character === '[' ? ']' : '}');
+      index += 1;
+      canEndExpression = false;
+      continue;
+    }
+    if (character === ')' || character === ']' || character === '}') {
+      if (delimiters.at(-1) === character) delimiters.pop();
+      index += 1;
+      canEndExpression = true;
+      continue;
+    }
+    if (character === ';' && delimiters.length === 0) return false;
+    if (character === '.') {
+      index += source.startsWith('...', index) ? 3 : source.startsWith('?.', index) ? 2 : 1;
+      canEndExpression = false;
+      continue;
+    }
+    if (character === ',' || character === ':' || character === '?') {
+      index += 1;
+      canEndExpression = false;
+      continue;
+    }
+    if ('=+-*/%&|^!~<>'.includes(character)) {
+      const operator = source.slice(index).match(
+        /^(?:===|!==|>>>|\*\*|&&|\|\||\?\?|=>|==|!=|<=|>=|<<|>>|\+\+|--|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|[=+\-*/%&|^!~<>])/u,
+      )[0];
+      index += operator.length;
+      canEndExpression = (operator === '++' || operator === '--') && canEndExpression;
+      continue;
+    }
+    index += 1;
+  }
+  return true;
+}
+
+function isThrowExpressionIdentifierPosition(source, offset, literals) {
+  const start = Math.max(0, offset - 4096);
+  const candidates = [...source.slice(start, offset).matchAll(/\bthrow\b/gu)].reverse();
+  const candidate = candidates.find((match) => codeOffset(start + match.index, literals));
+  if (candidate === undefined) return false;
+  return throwExpressionContainsOffset(source, start + candidate.index, offset, literals);
+}
+
+function isExplicitDiagnosticIdentifierPosition(source, offset, literals) {
   const before = source.slice(Math.max(0, offset - 512), offset);
-  const rustResultError = !isRustMatchesReference(source, offset) && (
+  const outsideRustMatches = !isRustMatchesReference(source, offset);
+  const rustResultError = outsideRustMatches && (
     /\breturn\s+Err\s*\(\s*$/u.test(before)
     || (/\bErr\s*\(\s*$/u.test(before) && source.startsWith('code::', offset))
+    || /\.(?:ok_or|context)\s*\(\s*$/u.test(before)
+    || /\.ok_or_else\s*\(\s*(?:move\s+)?\|\s*\|\s*$/u.test(before)
+    || /\.map_err\s*\(\s*(?:move\s+)?\|[^|\r\n]*\|\s*$/u.test(before)
   );
   return (
-    /\bthrow\b[^;]*$/u.test(before)
+    isThrowExpressionIdentifierPosition(source, offset, literals)
     || rustResultError
     || /\bnew\s+(?:Snapback)?Error\s*\(\s*(?:&\s*)?$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*(?:&\s*)?$/u.test(before)
@@ -1678,32 +1814,53 @@ function hasReceivedMembershipConsumer(source, open, close) {
   return false;
 }
 
-function matchingDelimiter(source, open) {
+function matchingDelimiter(source, open, literals) {
   const pairs = { '(': ')', '[': ']', '{': '}' };
   const stack = [pairs[source[open]]];
+  const excluded = literals === undefined
+    ? []
+    : [
+      ...literals.comments,
+      ...literals.ranges.map(({ contentStart, end }) => ({ start: contentStart, end })),
+      ...(literals.lexicalExcluded ?? []),
+    ].sort((left, right) => left.start - right.start || left.end - right.end);
+  let excludedIndex = 0;
   let quote = null;
   let escaped = false;
   for (let index = open + 1; index < source.length; index += 1) {
+    while (excluded[excludedIndex]?.end <= index) excludedIndex += 1;
+    const excludedRange = excluded[excludedIndex];
+    if (
+      excludedRange !== undefined
+      && excludedRange.start <= index
+      && index < excludedRange.end
+    ) {
+      index = excludedRange.end - 1;
+      continue;
+    }
     const character = source[index];
-    if (quote !== null) {
+    if (literals === undefined && quote !== null) {
       if (escaped) escaped = false;
       else if (character === '\\') escaped = true;
       else if (character === quote) quote = null;
       continue;
     }
-    if (source.startsWith('//', index)) {
+    if (literals === undefined && source.startsWith('//', index)) {
       const newline = source.indexOf('\n', index + 2);
       if (newline === -1) return source.length;
       index = newline;
       continue;
     }
-    if (source.startsWith('/*', index)) {
+    if (literals === undefined && source.startsWith('/*', index)) {
       const close = source.indexOf('*/', index + 2);
       if (close === -1) return source.length;
       index = close + 1;
       continue;
     }
-    if (character === '"' || character === "'" || character === '`') {
+    if (
+      literals === undefined
+      && (character === '"' || character === "'" || character === '`')
+    ) {
       quote = character;
       continue;
     }
@@ -1739,7 +1896,7 @@ function membershipConsumerFor(member, after, { objectTable = false } = {}) {
   );
 }
 
-function receivedMembershipTables(source) {
+function receivedMembershipTables(source, literals) {
   const tables = [];
   const declarations = [
     /\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+(?:Set|Map)|Set(?:<[^>]+>)?)\s*\(\s*)?([\[{])/gu,
@@ -1749,7 +1906,7 @@ function receivedMembershipTables(source) {
   for (const pattern of declarations) {
     for (const declaration of source.matchAll(pattern)) {
       const open = declaration.index + declaration[0].lastIndexOf(declaration[2]);
-      const close = matchingDelimiter(source, open);
+      const close = matchingDelimiter(source, open, literals);
       if (close === source.length) continue;
       const after = source.slice(close + 1);
       const objectTable = declaration[2] === '{';
@@ -1764,10 +1921,10 @@ function receivedMembershipTables(source) {
   return tables;
 }
 
-function isMapKeyPosition(source, tableOpen, tableClose, offset) {
+function isMapKeyPosition(source, tableOpen, tableClose, offset, literals) {
   const entryOpen = source.lastIndexOf('[', offset);
   if (entryOpen <= tableOpen) return false;
-  const entryClose = matchingDelimiter(source, entryOpen);
+  const entryClose = matchingDelimiter(source, entryOpen, literals);
   if (entryClose >= tableClose || offset >= entryClose) return false;
   const entryPrefix = source.slice(entryOpen + 1, offset);
   const keyStart = /^(?:\s|\/\/[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)*(["'`])/u.exec(
@@ -1788,7 +1945,7 @@ function isMapKeyPosition(source, tableOpen, tableClose, offset) {
   return false;
 }
 
-function receivedProtocolOffsets(source, matches) {
+function receivedProtocolOffsets(source, matches, literals) {
   const offsets = new Set();
   for (const match of matches) {
     if (!isCodeReferenceCatalogue(source, match.index)) continue;
@@ -1796,7 +1953,7 @@ function receivedProtocolOffsets(source, matches) {
     const close = source.indexOf(']', match.index);
     if (hasReceivedMembershipConsumer(source, open, close)) offsets.add(match.index);
   }
-  const tables = receivedMembershipTables(source);
+  const tables = receivedMembershipTables(source, literals);
   for (const match of matches) {
     if (tables.some(({ open, close, mapTable, objectTable }) => (
       open < match.index
@@ -1807,7 +1964,7 @@ function receivedProtocolOffsets(source, matches) {
           objectTable
           && /^(?:["'])?\s*:/u.test(source.slice(match.index + match[0].length))
         )
-        || (mapTable && isMapKeyPosition(source, open, close, match.index))
+        || (mapTable && isMapKeyPosition(source, open, close, match.index, literals))
       )
     ))) {
       offsets.add(match.index);
@@ -1904,6 +2061,24 @@ function diagnosticSiteKind(source, match, analysis, environmentNames, { shell =
   return 'emission';
 }
 
+function uniqueDiagnosticSourceLines(source, sites) {
+  const unique = new Map();
+  const priority = (site) => {
+    if (site.kind === 'emission') return site.synthetic === true ? 4 : 5;
+    if (site.kind === 'reserved') return 3;
+    if (site.kind === 'received') return 2;
+    return 1;
+  };
+  for (const site of sites) {
+    const key = `${site.match[0]}\0${lineBounds(source, site.match.index).start}`;
+    const previous = unique.get(key);
+    if (previous === undefined || priority(site) > priority(previous)) unique.set(key, site);
+  }
+  return [...unique.values()].sort((left, right) => (
+    left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])
+  ));
+}
+
 export function diagnosticSourceSites(source, {
   environmentNames,
   indirectEnvironmentReadContracts: readContracts,
@@ -1922,17 +2097,22 @@ export function diagnosticSourceSites(source, {
   });
   const classifiedNames = environmentNames ?? analysis.names;
   analysis.receivedOffsets = receivedProtocolVocabulary
-    ? receivedProtocolOffsets(classifiedSource, analysis.matches)
+    ? receivedProtocolOffsets(classifiedSource, analysis.matches, analysis.literals)
     : new Set();
   const sites = analysis.matches.flatMap((match) => {
     const kind = diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell });
     return kind === null ? [] : [{ match, kind }];
   });
-  sites.push(...identifierFlowEmissionSites(classifiedSource, analysis));
-  sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments));
-  return sites.sort((left, right) => (
-    left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])
+  const flowSites = identifierFlowEmissionSites(classifiedSource, analysis);
+  sites.push(...flowSites);
+  sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments).filter(
+    (syntheticSite) => !flowSites.some((flowSite) => (
+      flowSite.match[0] === syntheticSite.match[0]
+      && lineBounds(classifiedSource, flowSite.match.index).start
+        === lineBounds(classifiedSource, syntheticSite.match.index).start
+    )),
   ));
+  return uniqueDiagnosticSourceLines(classifiedSource, sites);
 }
 
 export function diagnosticCodeMatches(source, options) {

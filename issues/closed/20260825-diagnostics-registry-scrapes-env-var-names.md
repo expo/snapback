@@ -252,14 +252,34 @@ also replaces role-name interpolation with a private exhaustive six-role code
 mapping. That adds the grammar-valid `CONTROL_STATE` spelling without changing
 the closed role/action policy.
 
-The canonical round-21-intermediate versus round-23-final count table is:
+Round 25 closes the remaining classifier and surface-review findings. A
+semicolon-less JavaScript `throw` now stops at the first ASI boundary where its
+balanced expression is complete; the inverse fixture keeps a following
+`.includes(CODE)` reference non-emitting. Delimiter matching reuses the
+JavaScript tokenizer's exclusions for strings, comments, regex literals, and
+template literals, so `/}/` inside an environment helper cannot truncate the
+helper body. Rust identifier flow recognizes error-producing `ok_or`,
+`ok_or_else`, `map_err`, `Err`-returning `unwrap_or_else` closures, and
+`.context(...)`, while `matches!(..., Err(code::X))` remains a reference.
+
+Synthetic marker sites are suppressed when identifier flow proves the same
+code on the same statement, and registry sites are unique by `code@file:line`.
+The eight redundant markers on direct `return Err(code::...)` /
+`return Err(refusal::...)` statements were removed; markers on custom helpers
+and dynamic throws remain. The Tigris partial-code mapping and credential-pair
+helper are private again, with the six pairs and the registered unknown-role
+refusal pinned through a non-executing module-text seam. Finally, a depth-zero
+`}` terminates a Rust test-attributed region, so a production diagnostic after
+a last match arm without a trailing comma is retained.
+
+The canonical round-21-intermediate versus round-25-final count table is:
 
 | Count | Before | After |
 | --- | ---: | ---: |
 | Codes | 3,540 | 3,541 |
 | Source files | 626 | 626 |
-| Emitting sites | 9,551 | 9,240 |
-| Received sites | 339 | 340 |
+| Emitting sites | 9,551 | 9,286 |
+| Received sites | 339 | 382 |
 | Reserved sites | 11 | 11 |
 | HTTP-classified | 1,704 | 1,704 |
 | Guide-anchored | 431 | 431 |
@@ -268,7 +288,8 @@ The canonical round-21-intermediate versus round-23-final count table is:
 
 The round-22 post-marker re-audit reported no added or dropped code and no
 declaration-backed code whose emitter set fell to zero. Round 23 deliberately
-adds the one formerly unregisterable `CONTROL_STATE` code and drops none.
+added the one formerly unregisterable `CONTROL_STATE` code and dropped none;
+round 25 changes sites only and keeps the code population fixed.
 
 The canonical embedded measurement was rerun after the final implementation and
 projection regeneration. Its captured output is:
@@ -279,8 +300,8 @@ projection regeneration. Its captured output is:
   "counts": {
     "codes": 3541,
     "sourceFiles": 626,
-    "emittingSites": 9240,
-    "receivedSites": 340,
+    "emittingSites": 9286,
+    "receivedSites": 382,
     "reservedSites": 11,
     "httpClassified": 1704,
     "guideAnchored": 431,
@@ -305,14 +326,14 @@ projection regeneration. Its captured output is:
     "SNAPBACK_APP_BINDING_EXPIRED"
   ],
   "fixtureRawTokens": 87,
-  "receivedCodes": 264,
+  "receivedCodes": 298,
   "httpReservations": 7,
   "cloudflareDeployEmissionCodes": 12,
   "s3TestEnvironmentNames": []
 }
 ```
 
-### Round-23 final verification
+### Round-25 final verification
 
 The final candidate tree was verified immediately before its local-only commit;
 no source or generated projection changed between these results and the commit.
@@ -320,10 +341,10 @@ The command summaries were:
 
 ```text
 node --test scripts/generate-diagnostics-registry.test.mjs
-tests 23; pass 23; fail 0
+tests 30; pass 30; fail 0
 
 node scripts/generate-diagnostics-registry.mjs --check
-[diagnostics-registry] ok — 3541 codes, 9240 emitting sites, 340 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
+[diagnostics-registry] ok — 3541 codes, 9286 emitting sites, 382 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
 
 node scripts/generate-symbol-registry.mjs --check
 [symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
@@ -334,20 +355,17 @@ reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounde
 node packages/snapback-cli/reference-lookup-reserved-code.test.mjs
 reference-lookup-reserved-code.test.mjs: reserved sites retain their non-emitting label
 
-node --test packages/snapback-hosted-supervisor/*.test.mjs
-tests 12; pass 12; fail 0
+node --test packages/snapback-hosted-supervisor/target-onboarding.test.mjs
+tests 1; pass 1; fail 0
 
-node --test tests/check-inventories.test.mjs tests/local_proof_selection_v0.mjs
-tests 38; pass 38; fail 0
+node --test packages/snapback-app-cli/*.test.mjs
+tests 11; pass 11; fail 0
 
 node scripts/check-inventories.mjs
 [check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1872 snippets
 
-node scripts/check-guide.mjs
-[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
-
-./scripts/check-generated-artifacts
-[check-generated-artifacts] ok: review manifests, ignored caches, and committed projections are current
+node scripts/check-first-read.mjs
+[first-read] ok — 5 profiles checked
 
 ./ref-check --verbose
 ref-check: ok — 311 LLP docs, 7213 refs in 15516 files, 0 errors, 0 unchecked
@@ -356,7 +374,7 @@ git diff --check
 (no output; exit 0)
 
 invariant grep
-six Tigris role codes present in SnapbackDiagnosticCode; zero occurrences of the hyphenated control-state code
+target-onboarding.mjs exports exactly the same seven names as merge-base; no added export lines; six Tigris role codes present in SnapbackDiagnosticCode; zero occurrences of the hyphenated control-state code
 ```
 
 ### Known JS/native lookup divergence

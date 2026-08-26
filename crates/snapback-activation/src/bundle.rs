@@ -469,7 +469,6 @@ pub fn admit_mixed_profile_v2(
         return Err(code::MODE_INVALID);
     }
     if !entry.mixed_group_eligible || entry.register_group_eligible {
-        // diagnostics-registry: emission SNAPBACK_BUNDLE_ENTRY_INVALID
         return Err(code::ENTRY_INVALID);
     }
     let profile = entry.mixed_profile.as_ref().ok_or(code::ENTRY_INVALID)?;
@@ -1018,7 +1017,6 @@ pub fn validate_entry_against_params(
         return Err(code::ENTRY_INVALID);
     }
     if entry.queries.len() > BUNDLE_MAX_QUERIES {
-        // diagnostics-registry: emission SNAPBACK_BUNDLE_LIMIT_QUERIES
         return Err(code::LIMIT_QUERIES);
     }
     for name in params.keys() {
@@ -1204,24 +1202,20 @@ impl PendingBundleRegistry {
     ) -> Result<RegisterAdmission, &'static str> {
         let mut state = self.lock();
         if state.resolved.contains_key(key) {
-            // diagnostics-registry: emission SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED
             return Err(code::IDEMPOTENCY_EXPIRED);
         }
         if let Some(owner) = state.by_key.get(key) {
             if owner.scope.sender_identity != scope.sender_identity
                 || owner.scope.credential_incarnation != scope.credential_incarnation
             {
-                // diagnostics-registry: emission SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH
                 return Err(code::IDEMPOTENCY_SENDER_MISMATCH);
             }
             if owner.scope != *scope {
-                // diagnostics-registry: emission SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH
                 return Err(code::IDEMPOTENCY_SCOPE_MISMATCH);
             }
             if owner.subscription_ids.is_empty() && owner.attach_deadline_ms == u64::MAX {
                 // A reservation for the same key is still evaluating; refuse
                 // transiently rather than superseding an in-flight mint.
-                // diagnostics-registry: emission SNAPBACK_BUNDLE_PENDING_CAPACITY
                 return Err(code::PENDING_CAPACITY);
             }
             return Ok(RegisterAdmission::Replay {

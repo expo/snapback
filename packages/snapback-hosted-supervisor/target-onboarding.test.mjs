@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
-  assertTargetTigrisCredentialPair,
   buildTargetOnboardingPlan,
   TARGET_DEFAULTS,
   TARGET_SUPERVISOR_SECRET_FILES,
-  TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES,
   TARGET_TIGRIS_ROLES,
   targetRolePolicy,
 } from './target-onboarding.mjs';
+
+const targetOnboardingSource = readFileSync(
+  new URL('./target-onboarding.mjs', import.meta.url),
+  'utf8',
+);
 
 const plan = buildTargetOnboardingPlan();
 assert.equal(plan.schemaVersion, 'snapback.hosted-target-onboarding.v1');
@@ -36,22 +40,27 @@ assert.deepEqual(Object.keys(TARGET_TIGRIS_ROLES).sort(), [
   'control-state',
   'logs',
 ]);
-for (const role of Object.keys(TARGET_TIGRIS_ROLES)) {
-  assert.throws(
-    () => assertTargetTigrisCredentialPair(role, {
-      accessKeyId: `partial-${role}-id`,
-      secretAccessKey: null,
-    }),
-    (error) => error.message === TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role],
-    `partial ${role} credentials must throw the role-indexed code`,
-  );
-}
-assert.throws(
-  () => assertTargetTigrisCredentialPair('unknown-role', {
-    accessKeyId: 'unknown-id',
-    secretAccessKey: null,
-  }),
-  /SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID/u,
+assert.doesNotMatch(
+  targetOnboardingSource,
+  /export\s+(?:const|function)\s+(?:TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES|assertTargetTigrisCredentialPair)\b/u,
+  'the Tigris refusal mapping and credential-pair helper remain private',
+);
+const partialCredentialCodes = Object.fromEntries([
+  ...targetOnboardingSource.matchAll(
+    /^\s*(?:'([^']+)'|([a-z][a-z-]*)):\s*'(SNAPBACK_HOSTED_TARGET_TIGRIS_[A-Z_]+_PARTIAL)',?$/gmu,
+  ),
+].map((match) => [match[1] ?? match[2], match[3]]));
+assert.deepEqual(partialCredentialCodes, {
+  artifact: 'SNAPBACK_HOSTED_TARGET_TIGRIS_ARTIFACT_PARTIAL',
+  backup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_BACKUP_PARTIAL',
+  'control-state': 'SNAPBACK_HOSTED_TARGET_TIGRIS_CONTROL_STATE_PARTIAL',
+  audit: 'SNAPBACK_HOSTED_TARGET_TIGRIS_AUDIT_PARTIAL',
+  logs: 'SNAPBACK_HOSTED_TARGET_TIGRIS_LOGS_PARTIAL',
+  cleanup: 'SNAPBACK_HOSTED_TARGET_TIGRIS_CLEANUP_PARTIAL',
+});
+assert.match(
+  targetOnboardingSource,
+  /if\s*\(!Object\.hasOwn\(TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES, role\)\)\s*\{\s*throw new Error\('SNAPBACK_HOSTED_TARGET_TIGRIS_BOOTSTRAP_INVALID'\);\s*\}/u,
   'unknown roles must fail closed with a registered code',
 );
 const artifactPolicy = targetRolePolicy(

@@ -514,6 +514,26 @@ test('Rust production classification excludes inline test-gated regions', () => 
   );
 });
 
+test('Rust test-attributed final match arms stop at the depth-zero closing brace', () => {
+  const fixture = [
+    'pub fn production_after_test_arm() {',
+    '    match "test" {',
+    '        #[cfg(test)]',
+    '        "test" => panic!("SNAPBACK_FIXTURE_CFG_TEST_FINAL_ARM_FAILURE")',
+    '    }',
+    '    eprintln!("SNAPBACK_FIXTURE_AFTER_CFG_FINAL_ARM_FAILURE");',
+    '}',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, {
+      ordinaryMultiline: true,
+      excludeRustTestRegions: true,
+    }).map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_FIXTURE_AFTER_CFG_FINAL_ARM_FAILURE', kind: 'emission' }],
+  );
+});
+
 test('Rust zero-hash raw strings do not swallow following diagnostics', () => {
   const fixture = String.raw`let raw = r"ends with a backslash \";
 SnapbackError::error("SNAPBACK_AFTER_RAW_STRING", "real diagnostic");
@@ -620,12 +640,40 @@ test('identifier flow recognizes multiline throw arguments', () => {
   );
 });
 
-test('Rust identifier flow recognizes Err returns but not matches references', () => {
+test('identifier flow stops a semicolon-less throw at its complete expression newline', () => {
+  const fixture = [
+    "const ALLOWED_CODE = 'SNAPBACK_FIXTURE_THROW_ASI_REFERENCE';",
+    'throw helper()',
+    'values.includes(ALLOWED_CODE);',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [{ code: 'SNAPBACK_FIXTURE_THROW_ASI_REFERENCE', line: 1, kind: 'declaration' }],
+  );
+});
+
+test('Rust identifier flow recognizes error-producing combinators but not matches references', () => {
   const fixture = [
     'pub const ENTRY_INVALID: &str = "SNAPBACK_FIXTURE_ERR_RETURN";',
+    'pub const OK_OR: &str = "SNAPBACK_FIXTURE_OK_OR";',
+    'pub const OK_OR_ELSE: &str = "SNAPBACK_FIXTURE_OK_OR_ELSE";',
+    'pub const MAP_ERR: &str = "SNAPBACK_FIXTURE_MAP_ERR";',
+    'pub const UNWRAP_ERR: &str = "SNAPBACK_FIXTURE_UNWRAP_ERR";',
+    'pub const CONTEXT: &str = "SNAPBACK_FIXTURE_CONTEXT";',
     'pub const MATCH_ONLY: &str = "SNAPBACK_FIXTURE_ERR_MATCH_REFERENCE";',
     'fn refuse() -> Result<(), &\'static str> {',
     '    return Err(code::ENTRY_INVALID);',
+    '    value.ok_or(code::OK_OR)?;',
+    '    value.ok_or_else(|| code::OK_OR_ELSE)?;',
+    '    value.map_err(|_| code::MAP_ERR)?;',
+    '    value.unwrap_or_else(|_| Err(code::UNWRAP_ERR))?;',
+    '    value.context(code::CONTEXT)?;',
     '}',
     'fn inspect(value: Result<(), &\'static str>) -> bool {',
     '    matches!(value, Err(code::MATCH_ONLY))',
@@ -641,8 +689,18 @@ test('Rust identifier flow recognizes Err returns but not matches references', (
       })),
     [
       { code: 'SNAPBACK_FIXTURE_ERR_RETURN', line: 1, kind: 'declaration' },
-      { code: 'SNAPBACK_FIXTURE_ERR_MATCH_REFERENCE', line: 2, kind: 'declaration' },
-      { code: 'SNAPBACK_FIXTURE_ERR_RETURN', line: 4, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_OK_OR', line: 2, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_OK_OR_ELSE', line: 3, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_MAP_ERR', line: 4, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_UNWRAP_ERR', line: 5, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_CONTEXT', line: 6, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_ERR_MATCH_REFERENCE', line: 7, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_ERR_RETURN', line: 9, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_OK_OR', line: 10, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_OK_OR_ELSE', line: 11, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_MAP_ERR', line: 12, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_UNWRAP_ERR', line: 13, kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_CONTEXT', line: 14, kind: 'emission' },
     ],
   );
 });
@@ -719,6 +777,17 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     import.meta.dirname,
     '../packages/snapback-client/diagnostic-codes.d.mts',
   ), 'utf8');
+
+  const duplicateSourceSites = Object.entries(registry.diagnostics).flatMap(([code, record]) => {
+    const seen = new Set();
+    return record.sites.flatMap(({ file, line }) => {
+      const key = `${code}@${file}:${line}`;
+      if (seen.has(key)) return [key];
+      seen.add(key);
+      return [];
+    });
+  });
+  assert.deepEqual(duplicateSourceSites, [], 'generated source sites are unique by code@file:line');
 
   const cloudflareCodes = [
     'SNAPBACK_ACTION_STREAM_CANCELLED',
@@ -1368,6 +1437,24 @@ test('environment helper discovery ignores closing braces in helper strings', ()
   assert.deepEqual(
     diagnosticSourceSites(fixture, { javascript: true })
       .filter(({ match }) => match[0] === 'SNAPBACK_WRAPPED_ENV'),
+    [],
+  );
+});
+
+test('environment helper discovery ignores closing braces in JavaScript regex literals', () => {
+  const fixture = [
+    'function readEnv(name) { const marker = /}/; return process.env[name]; }',
+    'throw new Error(readEnv("SNAPBACK_WRAPPED_REGEX_ENV"));',
+  ].join('\n');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_WRAPPED_REGEX_ENV', kind: 'read' }],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .filter(({ match }) => match[0] === 'SNAPBACK_WRAPPED_REGEX_ENV'),
     [],
   );
 });
