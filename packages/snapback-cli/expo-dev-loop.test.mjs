@@ -3924,6 +3924,17 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(rotated.previousDescriptorIdentity, predecessorDescriptorIdentity);
   assert.notEqual(rotated.descriptorIdentity, predecessorDescriptorIdentity);
   assert.equal(JSON.parse(readFileSync(settled.readyFile, 'utf8')).pid, predecessorBackendPid);
+  const successorMetroReload = await eventually(
+    () => events.slice(rotationEventStart).find((candidate) => (
+      candidate.state === 'metro-reloaded'
+      && candidate.descriptorIdentity === rotated.descriptorIdentity
+    )),
+    { timeoutMs: 30_000, label: 'successor binding drives Metro reload' },
+  );
+  assert.equal(successorMetroReload.reason, 'successor-binding');
+  assert.equal(successorMetroReload.previousPid, predecessorMetroPid);
+  assert.notEqual(successorMetroReload.pid, predecessorMetroPid);
+  assert.equal(successorMetroReload.backendPid, predecessorBackendPid);
   const successorExchange = await (
     await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
@@ -3938,9 +3949,10 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     },
     { timeoutMs: 30_000, label: 'Metro serves successor generated descriptor' },
   );
-  assert.equal(successorBundle.response.headers.get('x-metro-files-changed-count'), '1');
+  assert.equal(successorBundle.response.headers.get('x-metro-files-changed-count'), '0');
   assert.equal(successorBundle.source.includes(predecessorDescriptorIdentity), false);
-  assert.equal(supervisor.inspection().metro.pid, predecessorMetroPid);
+  assert.equal(supervisor.inspection().metro.pid, successorMetroReload.pid);
+  assert.equal(JSON.parse(readFileSync(settled.readyFile, 'utf8')).pid, predecessorBackendPid);
   const successorApp = JSON.parse(readFileSync(
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),
     'utf8',
@@ -4052,7 +4064,9 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // — keep one provider arm mounted while schema and functions successors
   // replace its generated app. Each successor injects one stale predecessor
   // exchange so the arm must recover through boot-only I2 rather than a fresh
-  // TestRenderer root or a supervisor/browser push plane.
+  // TestRenderer root or a supervisor/browser push plane. Each binding
+  // publication also proves I1 by observing the supervisor-driven Metro child
+  // replacement while the backend process identity remains unchanged.
   const liveSuccessor = fixture('live-successor-arm', { sessions: false });
   const liveSuccessorRun = await startFixture(liveSuccessor, { platform: 'web' });
   const liveSupervisor = liveSuccessorRun.supervisor;
@@ -4177,11 +4191,9 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     },
   );
   const liveBackendPid = JSON.parse(readFileSync(liveSuccessor.readyFile, 'utf8')).pid;
-  const liveMetroPid = liveSupervisor.inspection().metro.pid;
+  let liveMetroPid = liveSupervisor.inspection().metro.pid;
   const initialLiveBundle = await fetch(`${liveSupervisor.metroOrigin}/bundle`);
-  let liveMetroChangeCount = Number(
-    initialLiveBundle.headers.get('x-metro-files-changed-count'),
-  );
+  assert.equal(initialLiveBundle.headers.get('x-metro-files-changed-count'), '0');
   assert.match(await initialLiveBundle.text(), new RegExp(
     initialLiveGenerated.app.identity.descriptor,
     'u',
@@ -4203,6 +4215,24 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
       { timeoutMs: 60_000, label: `${label} binding rotation` },
     );
     assert.match(rotated.changed, pathPattern);
+    const reloaded = await eventually(
+      () => {
+        const successorEvents = liveEvents.slice(eventStart);
+        const event = successorEvents.find((candidate) => (
+          candidate.state === 'metro-reloaded'
+          && candidate.descriptorIdentity === rotated.descriptorIdentity
+        ));
+        if (event) return event;
+        const failed = successorEvents.find((candidate) => candidate.state === 'metro-reload-failed');
+        if (failed) throw new Error(JSON.stringify(failed));
+        return false;
+      },
+      { timeoutMs: 30_000, label: `${label} supervisor-driven Metro reload` },
+    );
+    assert.equal(reloaded.reason, 'successor-binding');
+    assert.equal(reloaded.previousPid, liveMetroPid);
+    assert.notEqual(reloaded.pid, liveMetroPid);
+    assert.equal(reloaded.backendPid, liveBackendPid);
     const bootstrap = await (
       await fetch(`${liveSupervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
     ).json();
@@ -4216,13 +4246,10 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
       },
       { timeoutMs: 30_000, label: `${label} successor Metro bundle` },
     );
-    liveMetroChangeCount += 1;
-    assert.equal(
-      Number(bundle.response.headers.get('x-metro-files-changed-count')),
-      liveMetroChangeCount,
-    );
+    assert.equal(bundle.response.headers.get('x-metro-files-changed-count'), '0');
     assert.equal(JSON.parse(readFileSync(liveSuccessor.readyFile, 'utf8')).pid, liveBackendPid);
-    assert.equal(liveSupervisor.inspection().metro.pid, liveMetroPid);
+    assert.equal(liveSupervisor.inspection().metro.pid, reloaded.pid);
+    liveMetroPid = reloaded.pid;
     return rotated;
   };
 

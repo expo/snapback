@@ -56,9 +56,39 @@ const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
 let bootSequence = 0;
 
-const SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS = 8;
 const SUPERVISED_BOOT_ADMISSION_BACKOFF_BASE_MS = 100;
 const SUPERVISED_BOOT_ADMISSION_BACKOFF_CAP_MS = 2_000;
+// The successor graph is exposed before the CLI finishes activation. In
+// packages/snapback-cli/index.mjs, native() gives the load request a 30-second
+// default timeout; operational readiness is a second fallible request before
+// `generated-and-loaded` publishes the successor binding. Give both activation
+// steps that request budget and derive the attempt count from the resulting
+// horizon instead of choosing a small round number of attempts.
+const SUPERVISED_SUCCESSOR_ACTIVATION_STEP_BUDGET_MS = 30_000;
+const SUPERVISED_SUCCESSOR_ACTIVATION_STEP_COUNT = 2;
+const SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS =
+  SUPERVISED_SUCCESSOR_ACTIVATION_STEP_BUDGET_MS
+  * SUPERVISED_SUCCESSOR_ACTIVATION_STEP_COUNT;
+
+function supervisedBootAdmissionBackoffMs(attempt) {
+  return Math.min(
+    SUPERVISED_BOOT_ADMISSION_BACKOFF_BASE_MS * (2 ** (attempt - 1)),
+    SUPERVISED_BOOT_ADMISSION_BACKOFF_CAP_MS,
+  );
+}
+
+function supervisedBootAdmissionAttemptsForHorizon(horizonMs) {
+  let attempt = 1;
+  let elapsedMs = 0;
+  while (elapsedMs < horizonMs) {
+    elapsedMs += supervisedBootAdmissionBackoffMs(attempt);
+    attempt += 1;
+  }
+  return attempt;
+}
+
+const SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS =
+  supervisedBootAdmissionAttemptsForHorizon(SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS);
 
 function freezeRecord(value) {
   return Object.freeze({ ...value });
@@ -360,13 +390,6 @@ function errorState(error, correlationId) {
   });
 }
 
-function supervisedBootAdmissionBackoffMs(attempt) {
-  return Math.min(
-    SUPERVISED_BOOT_ADMISSION_BACKOFF_BASE_MS * (2 ** (attempt - 1)),
-    SUPERVISED_BOOT_ADMISSION_BACKOFF_CAP_MS,
-  );
-}
-
 function waitForSupervisedBootAdmissionRetry(delayMs, signal) {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -398,6 +421,7 @@ function supervisedBootAdmissionRetryState(error, correlationId, attempt, delayM
       reason: 'supervised-dev-identity-mismatch',
       attempt,
       maxAttempts: SUPERVISED_BOOT_ADMISSION_MAX_ATTEMPTS,
+      horizonMs: SUPERVISED_BOOT_ADMISSION_RETRY_HORIZON_MS,
       delayMs,
       diagnostic: normalizedDiagnostic(error, correlationId),
     }),

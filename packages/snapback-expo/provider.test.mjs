@@ -509,6 +509,7 @@ assert.equal(retryingState.status, 'starting');
 assert.equal(retryingState.stage, 'binding');
 assert.equal(retryingState.retry.attempt, 1);
 assert.equal(retryingState.retry.maxAttempts > retryingState.retry.attempt, true);
+assert.equal(retryingState.retry.horizonMs, 60_000);
 assert.equal(retryingState.retry.delayMs > 0, true);
 assert.equal(
   retryingState.retry.diagnostic.code,
@@ -630,7 +631,16 @@ const foreignBoot = createSnapbackExpoBoot({
   },
 });
 foreignBoot.subscribe(() => foreignStates.push(foreignBoot.getSnapshot()));
-const foreignState = await foreignBoot.start();
+// Preserve the production delay values in each published retry state while
+// advancing this exhaustive unit fixture without waiting out the full horizon.
+const nativeSetTimeout = globalThis.setTimeout;
+globalThis.setTimeout = (callback, _delayMs, ...args) => nativeSetTimeout(callback, 0, ...args);
+let foreignState;
+try {
+  foreignState = await foreignBoot.start();
+} finally {
+  globalThis.setTimeout = nativeSetTimeout;
+}
 assert.equal(foreignState.status, 'error');
 assert.equal(
   foreignState.diagnostic.code,
@@ -650,6 +660,16 @@ assert.equal(
   foreignRetryStates.length,
   foreignBindingResolutions - 1,
   'every bounded foreign candidate is refused by full admission before exhaustion',
+);
+assert.equal(
+  foreignRetryStates.reduce((total, state) => total + state.retry.delayMs, 0) >= 60_000,
+  true,
+  'the bounded retry schedule outlasts both 30-second successor activation request budgets',
+);
+assert.equal(
+  Math.max(...foreignRetryStates.map((state) => state.retry.delayMs)) <= 2_000,
+  true,
+  'the duration-derived schedule retains its capped backoff',
 );
 assert.equal(foreignAuthorityAdoptions, 0, 'a foreign backend never reaches authority/store work');
 await foreignBoot.dispose();
