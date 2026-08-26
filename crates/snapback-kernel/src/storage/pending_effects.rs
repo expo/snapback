@@ -1756,17 +1756,16 @@ mod tests {
 
     fn install_loaded_policy(db: &mut ServingDatabase, authority_creating: bool) {
         let manifest = policy_manifest(authority_creating);
+        db.stage_function_generation_composition(manifest)
+            .expect("stage composed function policy");
         db.generation_commit_ops()
             .commit_function_generation(crate::storage::CommitFunctionGeneration {
-                manifest: manifest.clone(),
                 trusted_active_generation: false,
                 projection_publications: Vec::new(),
             })
             .expect("commit durable function policy projection and generation identity");
-        db.active_function_policies = crate::storage::active_function_policies(&manifest)
-            .expect("install canonical process-loaded function policy");
-        db.active_function_policy_manifest_digest =
-            crate::manifest::canonical_content_identity(&manifest);
+        db.publish_staged_function_generation_composition()
+            .expect("publish committed composed function policy");
     }
 
     fn principal(db: &mut ServingDatabase, principal: &str, token_byte: u8) -> ResolvedPrincipal {
@@ -2627,13 +2626,14 @@ mod tests {
             db.pending_effect(&created.id, 20).unwrap().status,
             PendingEffectStatus::Pending,
         );
+        db.stage_function_generation_composition(policy_manifest(false))
+            .expect("stage a different actual composition");
         db.generation_commit_ops()
             .commit_function_generation(crate::storage::CommitFunctionGeneration {
-                manifest: policy_manifest(false),
                 trusted_active_generation: false,
                 projection_publications: Vec::new(),
             })
-            .expect("caller can commit durable generation metadata but not publish loaded policy");
+            .expect("commit staged successor but do not publish it");
         let approval = db
             .prepare_pending_effect_approval(&approver, &created.id, 20)
             .unwrap();
@@ -2646,7 +2646,7 @@ mod tests {
     }
 
     #[test]
-    fn caller_cannot_install_false_canonical_and_projected_policy_for_true_generation() {
+    fn caller_cannot_commit_a_false_policy_without_composing_it() {
         let mut local = LocalDatabase::memory().expect("policy attack database");
         local
             .activate_current_auth_catalog()
@@ -2655,19 +2655,8 @@ mod tests {
         local.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         local.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
         insert_session_on(&mut local, "human-a", 0xa0);
-        local
-            .generation_commit_ops()
-            .commit_function_generation(crate::storage::CommitFunctionGeneration {
-                manifest: policy_manifest(true),
-                trusted_active_generation: false,
-                projection_publications: Vec::new(),
-            })
-            .expect("commit actually authority-creating generation");
-        let (mut db, publisher) =
-            ServingDatabase::adopt_with_loaded_function_policy_publisher(local)
-                .expect("obtain the public policy publisher with the serving facade");
-        db.install_loaded_function_policies(&publisher, &policy_manifest(true))
-            .expect("install the exact committed loaded policy");
+        let mut db = ServingDatabase::adopt(local).expect("adopt policy attack database");
+        install_loaded_policy(&mut db, true);
 
         let request = request(10, DEFAULT_TTL_MS);
         let creation_owner = test_owner(db.auth_database_mut(), request.authority.clone(), None);
@@ -2675,11 +2664,17 @@ mod tests {
             .create_pending_effect_admitted(&creation_owner, request)
             .expect("effect under true generation");
 
-        // Exercise both public writer spellings even though either may refuse first. The
-        // security assertion is at the approval sink: if both protections are defanged,
-        // false canonical and false projected policy must not compose into approval.
-        let _canonical_write =
-            db.install_loaded_function_policies(&publisher, &policy_manifest(false));
+        let false_commit = db
+            .generation_commit_ops()
+            .commit_function_generation(crate::storage::CommitFunctionGeneration {
+                trusted_active_generation: false,
+                projection_publications: Vec::new(),
+            })
+            .expect_err("commit cannot select a manifest independently of composition");
+        assert_eq!(
+            false_commit.diagnostic.code,
+            "SNAPBACK_FUNCTION_GENERATION_INVALID"
+        );
         let _projected_write = db
             .auth_database_mut()
             .reconcile_auth_scope_bases(&policy_manifest(false));

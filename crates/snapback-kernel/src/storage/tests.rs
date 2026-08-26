@@ -5180,11 +5180,13 @@ mod guarded_commit_tests {
         let (_after_dir, after_path, mut after) = file_database();
         let manifest = raw_function_generation_manifest();
         let committed = after
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest: manifest.clone(),
-                trusted_active_generation: false,
-                projection_publications: vec![pending_projection_publication("raw-after")],
-            })
+            .commit_function_generation(
+                &manifest,
+                CommitFunctionGeneration {
+                    trusted_active_generation: false,
+                    projection_publications: vec![pending_projection_publication("raw-after")],
+                },
+            )
             .expect("commit raw-dev generation before simulated process crash");
         assert_eq!(committed.generation_high_water, 1);
         assert!(
@@ -5217,11 +5219,13 @@ mod guarded_commit_tests {
         );
 
         let successor = after_reopen
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest,
-                trusted_active_generation: true,
-                projection_publications: Vec::new(),
-            })
+            .commit_function_generation(
+                &manifest,
+                CommitFunctionGeneration {
+                    trusted_active_generation: true,
+                    projection_publications: Vec::new(),
+                },
+            )
             .expect("post-reopen generation advances durable high-water");
         assert_eq!(successor.generation_high_water, 2);
         assert_eq!(
@@ -5245,12 +5249,15 @@ mod guarded_commit_tests {
             })
             .expect("seed non-replayable brownfield scope before enrollment");
 
+        let manifest = raw_function_generation_manifest();
         let error = db
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest: raw_function_generation_manifest(),
-                trusted_active_generation: true,
-                projection_publications: vec![pending_projection_publication("rolled-back")],
-            })
+            .commit_function_generation(
+                &manifest,
+                CommitFunctionGeneration {
+                    trusted_active_generation: true,
+                    projection_publications: vec![pending_projection_publication("rolled-back")],
+                },
+            )
             .expect_err("sequence validation failure rolls back the composite");
         assert_eq!(
             error.diagnostic.code,
@@ -5294,13 +5301,15 @@ mod guarded_commit_tests {
         let manifest = raw_streaming_function_generation_manifest();
 
         let error = db
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest: manifest.clone(),
-                trusted_active_generation: false,
-                projection_publications: vec![pending_projection_publication(
-                    "transcript-rolled-back",
-                )],
-            })
+            .commit_function_generation(
+                &manifest,
+                CommitFunctionGeneration {
+                    trusted_active_generation: false,
+                    projection_publications: vec![pending_projection_publication(
+                        "transcript-rolled-back",
+                    )],
+                },
+            )
             .expect_err("transcript catalog refusal rolls back the composite");
         assert_eq!(
             error.diagnostic.code,
@@ -5328,13 +5337,15 @@ mod guarded_commit_tests {
             )
             .expect("repair injected catalog corruption");
         let committed = db
-            .commit_function_generation(CommitFunctionGeneration {
-                manifest,
-                trusted_active_generation: false,
-                projection_publications: vec![pending_projection_publication(
-                    "transcript-rolled-back",
-                )],
-            })
+            .commit_function_generation(
+                &manifest,
+                CommitFunctionGeneration {
+                    trusted_active_generation: false,
+                    projection_publications: vec![pending_projection_publication(
+                        "transcript-rolled-back",
+                    )],
+                },
+            )
             .expect("retry commits one complete generation");
         assert_eq!(committed.generation_high_water, 1);
         assert_eq!(

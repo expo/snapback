@@ -1823,12 +1823,6 @@ pub(super) struct ActiveFunctionPolicy {
 
 type ActiveFunctionPolicies = Arc<BTreeMap<String, ActiveFunctionPolicy>>;
 
-/// Single-owner capability held beside the engine's private loaded-function
-/// state. Public reconciliation and generation-commit APIs never receive it.
-pub struct LoadedFunctionPolicyPublisher {
-    database_binding: DatabaseBinding,
-}
-
 fn active_function_policies(
     manifest: &crate::manifest::FunctionManifest,
 ) -> SnapbackResult<ActiveFunctionPolicies> {
@@ -1864,11 +1858,14 @@ pub struct ServingDatabase {
     stream_attempt_persistence_verifier:
         Option<crate::stream_attempt::StreamAttemptPersistenceVerifier>,
     stream_attempt_startup_reconciliation: Option<StreamAttemptStartupReconciliation>,
-    /// Canonical process-loaded function policy installed only for the exact
-    /// durable function generation. Its projection is published in that same
-    /// generation transaction and cannot be rewritten independently.
-    active_function_policies: ActiveFunctionPolicies,
-    active_function_policy_manifest_digest: Option<String>,
+    /// The function composition actually published into this serving graph.
+    /// Policy is derived from this value at the approval sink; it is never
+    /// installed through an independently caller-authored manifest.
+    loaded_function_manifest: Arc<crate::manifest::FunctionManifest>,
+    /// Candidate composition used as the source of the next durable
+    /// generation commit. Publication consumes it only after the commit
+    /// digest matches, keeping composed code and policy one fact.
+    pub(super) staged_function_manifest: Option<Arc<crate::manifest::FunctionManifest>>,
 }
 
 /// One-use authority for the process-death reconciliation cut. Its private
@@ -1895,7 +1892,7 @@ impl ServingDatabase {
     }
 
     pub fn adopt(db: LocalDatabase) -> SnapbackResult<Self> {
-        Self::adopt_with_optional_stream_attempt_verifier(db, None).map(|(db, _publisher)| db)
+        Self::adopt_with_optional_stream_attempt_verifier(db, None)
     }
 
     /// Construct the serving graph authorized to persist batches authenticated
@@ -1907,20 +1904,6 @@ impl ServingDatabase {
         verifier: crate::stream_attempt::StreamAttemptPersistenceVerifier,
     ) -> SnapbackResult<Self> {
         Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
-            .map(|(db, _publisher)| db)
-    }
-
-    pub fn adopt_with_stream_attempt_verifier_and_loaded_function_policy_publisher(
-        db: LocalDatabase,
-        verifier: crate::stream_attempt::StreamAttemptPersistenceVerifier,
-    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
-        Self::adopt_with_optional_stream_attempt_verifier(db, Some(verifier))
-    }
-
-    pub fn adopt_with_loaded_function_policy_publisher(
-        db: LocalDatabase,
-    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
-        Self::adopt_with_optional_stream_attempt_verifier(db, None)
     }
 
     fn adopt_with_optional_stream_attempt_verifier(
@@ -1928,7 +1911,7 @@ impl ServingDatabase {
         stream_attempt_persistence_verifier: Option<
             crate::stream_attempt::StreamAttemptPersistenceVerifier,
         >,
-    ) -> SnapbackResult<(Self, LoadedFunctionPolicyPublisher)> {
+    ) -> SnapbackResult<Self> {
         let authority = db.claim_commit_authority().ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_ALREADY_CLAIMED",
@@ -1952,20 +1935,14 @@ impl ServingDatabase {
             SettlementKernel::new(&mut db)
                 .reconcile_orphaned_stream_attempts(startup_recovery, now_ms)?,
         );
-        let publisher = LoadedFunctionPolicyPublisher {
-            database_binding: db.binding(),
-        };
-        Ok((
-            Self {
-                db,
-                authority,
-                stream_attempt_persistence_verifier,
-                stream_attempt_startup_reconciliation,
-                active_function_policies: Arc::new(BTreeMap::new()),
-                active_function_policy_manifest_digest: None,
-            },
-            publisher,
-        ))
+        Ok(Self {
+            db,
+            authority,
+            stream_attempt_persistence_verifier,
+            stream_attempt_startup_reconciliation,
+            loaded_function_manifest: Arc::new(crate::manifest::FunctionManifest::default()),
+            staged_function_manifest: None,
+        })
     }
 
     /// Take the already-completed startup result for transcript repair. This
@@ -1977,43 +1954,64 @@ impl ServingDatabase {
         self.stream_attempt_startup_reconciliation.take()
     }
 
-    pub fn install_loaded_function_policies(
+    pub fn stage_function_generation_composition(
         &mut self,
-        publisher: &LoadedFunctionPolicyPublisher,
-        manifest: &crate::manifest::FunctionManifest,
+        manifest: crate::manifest::FunctionManifest,
     ) -> SnapbackResult<()> {
-        if !publisher.database_binding.matches(&self.binding()) {
-            return Err(SnapbackError::error(
+        active_function_policies(&manifest)?;
+        crate::manifest::canonical_content_identity(&manifest).ok_or_else(|| {
+            SnapbackError::error(
                 "SNAPBACK_FUNCTION_GENERATION_INVALID",
                 "storage",
-                "loaded function policy publisher belongs to another database",
-            ));
-        }
-        let manifest_digest =
-            crate::manifest::canonical_content_identity(manifest).ok_or_else(|| {
+                "composed function manifest is not canonically digestible",
+            )
+        })?;
+        self.staged_function_manifest = Some(Arc::new(manifest));
+        Ok(())
+    }
+
+    pub fn discard_staged_function_generation_composition(&mut self) {
+        self.staged_function_manifest = None;
+    }
+
+    pub fn publish_staged_function_generation_composition(
+        &mut self,
+    ) -> SnapbackResult<crate::manifest::FunctionManifest> {
+        let staged = self.staged_function_manifest.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "function generation publication requires a staged composition",
+            )
+        })?;
+        let manifest_digest = crate::manifest::canonical_content_identity(staged.as_ref())
+            .ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_FUNCTION_GENERATION_INVALID",
                     "storage",
-                    "loaded function manifest is not canonically digestible",
+                    "composed function manifest is not canonically digestible",
                 )
             })?;
         let committed = self.db.function_generation_record()?.ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_FUNCTION_GENERATION_INVALID",
                 "storage",
-                "loaded function policy requires a committed function generation",
+                "function generation publication requires a committed generation",
             )
         })?;
         if committed.function_manifest_digest != manifest_digest {
             return Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_GENERATION_INVALID",
                 "storage",
-                "loaded function policy does not match the committed function generation",
+                "committed generation does not match the composed function successor",
             ));
         }
-        self.active_function_policies = active_function_policies(manifest)?;
-        self.active_function_policy_manifest_digest = Some(manifest_digest);
-        Ok(())
+        let staged = self
+            .staged_function_manifest
+            .take()
+            .expect("staged composition was checked above");
+        self.loaded_function_manifest = staged.clone();
+        Ok(staged.as_ref().clone())
     }
 
     pub fn binding(&self) -> DatabaseBinding {
@@ -2842,11 +2840,12 @@ impl ServingDatabase {
         step_up: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
+        let loaded_function_manifest = self.loaded_function_manifest.as_ref();
         let command = self.authority.admit_pending_effect_approval(
             owner,
             approval,
-            self.active_function_policies.clone(),
-            self.active_function_policy_manifest_digest.clone(),
+            active_function_policies(loaded_function_manifest)?,
+            crate::manifest::canonical_content_identity(loaded_function_manifest),
             step_up,
             now_ms,
         )?;

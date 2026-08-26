@@ -17,7 +17,6 @@ use std::sync::Arc;
 
 /// Typed input to the raw-dev generation's single durable activation cut.
 pub struct CommitFunctionGeneration {
-    pub manifest: crate::manifest::FunctionManifest,
     pub trusted_active_generation: bool,
     pub projection_publications: Vec<PendingProjectionPublication>,
 }
@@ -42,17 +41,15 @@ pub struct FunctionGenerationRecord {
 /// @ref LLP 0225#1-ownership-map — owner 2 (storage/migration kernel)
 pub struct GenerationCommitOps<'a> {
     db: &'a mut LocalDatabase,
-}
-
-impl LocalDatabase {
-    pub fn generation_commit_ops(&mut self) -> GenerationCommitOps<'_> {
-        GenerationCommitOps { db: self }
-    }
+    composed_manifest: Option<Arc<FunctionManifest>>,
 }
 
 impl super::ServingDatabase {
     pub fn generation_commit_ops(&mut self) -> GenerationCommitOps<'_> {
-        GenerationCommitOps { db: &mut self.db }
+        GenerationCommitOps {
+            db: &mut self.db,
+            composed_manifest: self.staged_function_manifest.clone(),
+        }
     }
 }
 
@@ -61,22 +58,35 @@ impl GenerationCommitOps<'_> {
         &mut self,
         commit: CommitFunctionGeneration,
     ) -> SnapbackResult<FunctionGenerationRecord> {
-        self.db.commit_function_generation(commit)
+        let manifest = self.composed_manifest.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "function generation commit requires a staged composed function successor",
+            )
+        })?;
+        self.db.commit_function_generation(manifest, commit)
     }
 
     pub fn apply_same_mode_network_deployment_with_functions_classified(
         &mut self,
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
-        functions: FunctionManifest,
         seed: Option<SeedData>,
         projection_publications: Vec<PendingProjectionPublication>,
     ) -> DurableModeCommit<NetworkDeploymentCommit> {
+        let Some(functions) = self.composed_manifest.as_ref() else {
+            return DurableModeCommit::RolledBack(SnapbackError::error(
+                "SNAPBACK_FUNCTION_GENERATION_INVALID",
+                "storage",
+                "network deployment commit requires a staged composed function successor",
+            ));
+        };
         self.db
             .apply_same_mode_network_deployment_with_functions_classified(
                 deployment,
                 manifest,
-                functions,
+                functions.as_ref().clone(),
                 seed,
                 projection_publications,
             )
@@ -144,15 +154,15 @@ impl LocalDatabase {
     ///   and installs process state only after this durable fact commits.
     pub(super) fn commit_function_generation(
         &mut self,
+        manifest: &FunctionManifest,
         commit: CommitFunctionGeneration,
     ) -> SnapbackResult<FunctionGenerationRecord> {
         let CommitFunctionGeneration {
-            manifest,
             trusted_active_generation,
             projection_publications,
         } = commit;
-        let sequence_declarations = sequence_declarations_from_function_manifest(&manifest);
-        let function_manifest_digest = crate::manifest::canonical_content_identity(&manifest)
+        let sequence_declarations = sequence_declarations_from_function_manifest(manifest);
+        let function_manifest_digest = crate::manifest::canonical_content_identity(manifest)
             .ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_FUNCTION_GENERATION_INVALID",
@@ -189,15 +199,15 @@ impl LocalDatabase {
         // @ref LLP 0303#removing-a-constructor-is-not-removing-the-capability —
         // bind the producer of the policy fact to the committed generation.
         if super::auth_scope_bases::scope_basis_catalog_exists_on(&tx)? {
-            super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, &manifest)?;
+            super::auth_scope_bases::reconcile_auth_scope_bases_on(&tx, manifest)?;
         }
         // @ref LLP 0225#1-ownership-map — transcript-catalog publication is
         //   generation-coupled durable state, so owner 1 composes it through
         //   owner 2's exact raw-dev transaction instead of a post-commit cut.
         if self.schema.ask_manifest().is_some() {
-            super::stream_transcripts::activate_manifests_in(&tx, &self.schema, Some(&manifest))?;
+            super::stream_transcripts::activate_manifests_in(&tx, &self.schema, Some(manifest))?;
         } else {
-            super::stream_transcripts::activate_manifest_in(&tx, &manifest)?;
+            super::stream_transcripts::activate_manifest_in(&tx, manifest)?;
         }
         let previous: Option<String> = tx
             .query_row(
