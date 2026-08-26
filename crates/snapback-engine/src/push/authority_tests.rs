@@ -71,7 +71,11 @@ fn authorize_send_for_prepared(
             request,
         )
     } else {
-        fixture.authorize_other_send(schema, audience, trigger_mode, deferred_grant, request)
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_PERMISSION_DENIED",
+            "auth",
+            "the current authority cannot use this push audience",
+        ))
     }
 }
 

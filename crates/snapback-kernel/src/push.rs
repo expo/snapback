@@ -3051,24 +3051,6 @@ pub mod test_support {
             )
         }
 
-        pub fn authorize_other_send(
-            &self,
-            schema: &crate::manifest::SchemaManifest,
-            audience: &PushAudienceDeclarationV1,
-            trigger_mode: PushTriggerModeV1,
-            deferred_grant: Option<&PushDeferredGrantV1>,
-            request: &PushSendRequestV1,
-        ) -> SnapbackResult<()> {
-            self.authorize_send_as(
-                PushStorageAuthorityKind::Other,
-                schema,
-                audience,
-                trigger_mode,
-                deferred_grant,
-                request,
-            )
-        }
-
         pub fn resolve_audience(
             &self,
             schema: &crate::manifest::SchemaManifest,
