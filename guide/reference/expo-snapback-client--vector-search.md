@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:65c1e36dd4cfd507238a9bb34dab540c790306040c4f
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:f872c0fda62d90344c074c0a417ecaafb3258fce2969591caf8f4ff46f2dad23`.
+`sha256:b5a24c90aa80e8a2939ac8ce1c45aac96979b6eb348390ce3b25b55836c79b9b`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1858`
+Source: `packages/snapback-client/index.d.mts:1865`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {

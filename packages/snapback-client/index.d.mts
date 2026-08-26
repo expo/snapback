@@ -1214,7 +1214,7 @@ export interface EphemeralRoomHandle<Value> {
   getServerSnapshot(): EphemeralRoomSnapshot<Value>;
   readonly grantedConnectionId: string | null;
   started(): Promise<void>;
-  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<EphemeralPublishOutcome>;
+  publish(value: Value, options?: { readonly ttlMs?: number }): Promise<EphemeralPublishOutcome | EphemeralOfflineDroppedOutcome>;
   delete(options?: EphemeralWithdrawalOptions): Promise<EphemeralDeleteSettlement | unknown>;
   dispose(): void;
   settled(): Promise<void>;
@@ -1227,8 +1227,8 @@ export class EphemeralOverlay<Scope = Record<string, unknown>, Value = unknown> 
   onChange(
     listener: (result: string, overlay: EphemeralOverlay<Scope, Value>) => void,
   ): () => void;
-  publish(value: Value, options?: { ttlMs?: number; connectionId?: string }): Promise<EphemeralPublishOutcome>;
-  delete(options?: { connectionId?: string } & EphemeralWithdrawalOptions): Promise<EphemeralDeleteSettlement | unknown>;
+  publish(value: Value, options?: { ttlMs?: number; connectionId?: string }): Promise<EphemeralPublishOutcome | EphemeralOfflineDroppedOutcome>;
+  delete(options?: { connectionId?: string } & EphemeralWithdrawalOptions): Promise<EphemeralDeleteSettlement | EphemeralOfflineDroppedOutcome | unknown>;
   drain(): Promise<unknown>;
   currentEntries(options?: { prune?: boolean }): EphemeralEntry<Value>[];
   dispose(): void;
@@ -1238,6 +1238,13 @@ export interface EphemeralPublishOutcome {
   readonly scope_epoch: number;
   readonly entry_version: number;
   readonly [member: string]: unknown;
+}
+
+export interface EphemeralOfflineDroppedOutcome {
+  readonly status: 'dropped';
+  readonly reason: 'offline';
+  readonly queued: false;
+  readonly diagnostic: SnapbackDiagnostic;
 }
 
 export interface EphemeralWithdrawalOptions {

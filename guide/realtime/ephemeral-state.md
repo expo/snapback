@@ -314,6 +314,25 @@ Each current entry is:
 { key, value, expiresAtMs, receivedAtMs, scopeEpoch, entryVersion }
 ```
 
+## Test intentional offline behavior with the dev overlay
+
+Presence and typing writes made through a subscribed overlay are best-effort.
+If fetch dispatch proves the transport is offline, `publish()` or `delete()`
+resolves a classified `status: "dropped"`, `reason: "offline"`, `queued: false`
+outcome and emits the warning `SNAPBACK_EPHEMERAL_OFFLINE_DROPPED` on the client
+dev channel. The attempt never enters the durable mutation outbox. React and
+Expo activity presence absorb that outcome into `publisher.status:
+"publish-error"` plus `lastError`; they do not create an unhandled promise
+rejection that opens the Expo error overlay.
+
+Keep the offline scenario interactable by observing `publisher`/`lastError` or
+`client.diagnosticsChannel()`, not by installing a global rejection handler or
+removing the overlay DOM. A still-active React activity intent remains only in
+provider memory and may publish after reconnect before its idle deadline;
+idle, explicit withdrawal, unmount, or process loss prevents later replay.
+Permission, validation, and server refusals are not classified as offline and
+remain loud.
+
 The client prunes by the server-stamped expiry deadline. Server expiry,
 explicit delete, and disconnect normally emit remove deltas, but TTL is the
 backstop when that remove is lost.

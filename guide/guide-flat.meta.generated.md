@@ -407,6 +407,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Time-windowed live reads](./recipes/time-windowed-live-reads.md) — use a
+  load-pinned client clock with server-authored row times under the protected
+  query determinism guard.
 - [Capability links for Expo and web](./recipes/capability-links.md) — mint,
   share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
   secret URL out of sessions, durable storage, logs, analytics, and referrers.
@@ -2304,6 +2307,21 @@ blanking all history is not an equivalent answer.
      Required guidance per page:
      `start/expo-chat.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
      `auth/passwords.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+
+105. **Time-windowed protected live reads:** "My authenticated trending query
+     needs the last hour, but `ctx.runtime.now()` fails with
+     `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`. How should the result age?"
+     The run fails if it weakens the determinism guard, substitutes ambient
+     `Date.now()` in the handler, omits the generated argument contract, or
+     claims live push advances a pinned clock without a database commit.
+     Expected pages: `realtime/live-queries.md`,
+     `recipes/time-windowed-live-reads.md`,
+     `backend/trusted-runtime-values.md`.
+     Route terms: "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY", "trending in the last hour", "time-windowed live reads", "expiring soon".
+     Required guidance: "pinned clock argument", "explicit refresh boundary",
+     "server-authored row time".
+     Exact diagnostic target: `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` ->
+     `/_snapback/guide/recipes/time-windowed-live-reads.md#recipe-time-windowed-live-reads`.
 
 
 ## Static routing check

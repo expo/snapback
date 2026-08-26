@@ -163,6 +163,17 @@ function diagnosticError(code, message, details = {}) {
   return error;
 }
 
+function errorFromDiagnostic(value, fallbackCode, fallbackMessage) {
+  const projected = value?.schemaVersion === 'snapback.client-diagnostic.v1'
+    && typeof value.code === 'string'
+    ? value
+    : diagnostic(fallbackCode, fallbackMessage);
+  const error = new Error(`${projected.code}: ${projected.message}`);
+  error.code = projected.code;
+  error.diagnostic = projected;
+  return error;
+}
+
 function committedEffectError(error, clientMutationId) {
   const source = error?.diagnostic;
   const committed = diagnosticError(
@@ -2951,14 +2962,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     connection,
   });
   const roomPublisherState = (room, token) => {
-    if (!room?.desired || !token?.desired) {
-      return Object.freeze({ status: 'observing', diagnostic: null });
-    }
-    if (room.publisherDiagnostic) {
+    if (token?.publisherDiagnostic) {
       return Object.freeze({
         status: 'publish-error',
-        diagnostic: room.publisherDiagnostic,
+        diagnostic: token.publisherDiagnostic,
       });
+    }
+    if (!room?.desired || !token?.desired) {
+      return Object.freeze({ status: 'observing', diagnostic: null });
     }
     return Object.freeze({
       status: room.publishing || room.acknowledgedPair === null ? 'publishing' : 'published',
@@ -3101,6 +3112,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (previous === null && room.desired !== null) publishers += 1;
     if (previous !== null && room.desired === null) publishers = Math.max(0, publishers - 1);
   };
+  const desiredTokenForRoom = (room) => [...room.tokens.values()].find(
+    (token) => token.desired === room.desired,
+  ) ?? null;
   const resetChangedValuePublishChurn = (room) => {
     const detector = room.changedValuePublishChurn;
     if (detector === null) return;
@@ -3205,7 +3219,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       expectedScopeEpoch: pair.scopeEpoch,
       expectedEntryVersion: pair.entryVersion,
       authorityCapture: pair.authorityCapture,
-    }));
+    })).then((outcome) => {
+      if (outcome?.status === 'dropped') {
+        // @ref LLP 0257#result-and-error-surface — a best-effort transport
+        // drop is still an observable withdrawal failure at the activity
+        // boundary; resolving it as success would erase lastError.
+        throw errorFromDiagnostic(
+          outcome.diagnostic,
+          'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+          'managed presence withdrawal was dropped because the transport is offline',
+        );
+      }
+      return outcome;
+    });
     room.withdrawalTasks.add(task);
     void task.finally(() => room.withdrawalTasks.delete(task)).catch(() => {});
     return task;
@@ -3219,8 +3245,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     room,
     generation = room.intentGeneration,
     cause = 'lifecycle',
+    originToken = desiredTokenForRoom(room),
   ) => {
-    room.publisherDiagnostic = null;
+    if (originToken) originToken.publisherDiagnostic = null;
     room.publishing = true;
     notifyRoom(room);
     const desired = room.desired;
@@ -3235,6 +3262,17 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         const handle = room.handle;
         observePresencePublish(room, desired.encoded, cause);
         const outcome = await handle.publish(desired.value, { ttlMs: desired.ttlMs });
+        if (outcome?.status === 'dropped' && outcome?.reason === 'offline') {
+          // @ref LLP 0257#offline — preserve provider-memory desired intent.
+          // The dropped attempt is never queued; reconnect-before-idle retries.
+          room.acknowledgedPair = null;
+          room.publishing = false;
+          room.suspended = true;
+          if (originToken) originToken.publisherDiagnostic = outcome.diagnostic;
+          clearRoomHeartbeat(room);
+          notifyRoom(room);
+          return;
+        }
         const pair = acknowledgedPairFromOutcome(outcome);
         if (
           room.closed
@@ -3247,7 +3285,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         room.acknowledgedPair = pair;
         room.publishing = false;
         room.suspended = false;
-        room.publisherDiagnostic = null;
+        if (originToken) originToken.publisherDiagnostic = null;
         notifyRoom(room);
         scheduleRoomHeartbeat(room, generation);
       } catch (error) {
@@ -3258,7 +3296,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         ) return;
         room.suspended = true;
         room.publishing = false;
-        room.publisherDiagnostic = serializeError(error);
+        if (originToken) originToken.publisherDiagnostic = serializeError(error);
         clearRoomHeartbeat(room);
         notifyRoom(room);
       }
@@ -3284,7 +3322,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     clearRoomHeartbeat(room);
     notifyRoom(room);
     return room.raw.status === 'ready'
-      ? enqueueRoomPublish(room, room.intentGeneration, changedValue ? 'changed-value' : 'intent')
+      ? enqueueRoomPublish(
+          room,
+          room.intentGeneration,
+          changedValue ? 'changed-value' : 'intent',
+          token,
+        )
       : Promise.resolve();
   };
   const deleteTokenIntent = async (room, token) => {
@@ -3325,12 +3368,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       await withdrawAcknowledgedPair(room);
       if (room.closed || room.intentGeneration !== generation) return;
       room.suspended = false;
-      room.publisherDiagnostic = null;
+      token.publisherDiagnostic = null;
       notifyRoom(room);
     } catch (error) {
       if (room.closed || room.intentGeneration !== generation) return;
       room.suspended = true;
-      room.publisherDiagnostic = serializeError(error);
+      token.publisherDiagnostic = serializeError(error);
       notifyRoom(room);
       throw error;
     }
@@ -3414,9 +3457,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || room.desired === null
           || canonicalizeClientValueV1(context.scope ?? {}) !== scopeKey
         ) return;
+        const originToken = desiredTokenForRoom(room);
+        if (originToken) originToken.publisherDiagnostic = null;
         const outcome = await context.publish(room.desired.value, { ttlMs: room.desired.ttlMs });
+        if (outcome?.status === 'dropped' && outcome?.reason === 'offline') {
+          // @ref LLP 0257#offline — keep provider-memory intent for the
+          // next ready transition; an ephemeral refusal never becomes an outbox.
+          room.acknowledgedPair = null;
+          room.publishing = false;
+          room.suspended = true;
+          if (originToken) originToken.publisherDiagnostic = outcome.diagnostic;
+          clearRoomHeartbeat(room);
+          notifyRoom(room);
+          return;
+        }
         room.acknowledgedPair = acknowledgedPairFromOutcome(outcome);
         room.publishing = false;
+        if (originToken) originToken.publisherDiagnostic = null;
         notifyRoom(room);
       },
     );
@@ -3454,7 +3511,6 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       acknowledgedPair: null,
       publishing: false,
       suspended: false,
-      publisherDiagnostic: null,
       intentGeneration: 0,
       generation: 0,
       version: 0,
@@ -3490,6 +3546,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     token.listeners.clear();
     token.room = null;
     token.desired = null;
+    token.publisherDiagnostic = null;
     recomputeRoomDesired(room);
     if (wasDesired && room.desired === null) {
       room.intentGeneration += 1;
@@ -3615,6 +3672,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       listeners: new Set(),
       desired: null,
       source: 'observer',
+      publisherDiagnostic: null,
       released: false,
       unsupported: null,
       view: null,
@@ -3811,7 +3869,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         room.raw = PRESENCE_SERVER_PENDING;
         room.acknowledgedPair = null;
         room.publishing = false;
-        room.publisherDiagnostic = null;
+        for (const token of room.tokens.values()) token.publisherDiagnostic = null;
         notifyRoom(room);
       }
       notifyConnection();

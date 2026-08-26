@@ -76,6 +76,9 @@ function fakeClient() {
   let publishAttempts = 0;
   let deletes = 0;
   const published = [];
+  let dropNextPublishOffline = false;
+  let dropNextDeleteOffline = false;
+  let reconnectRoom = null;
   return {
     liveQuery() {},
     async inspect() {
@@ -117,6 +120,15 @@ function fakeClient() {
         });
         for (const listener of [...listeners]) listener();
       };
+      reconnectRoom = () => {
+        snapshot = Object.freeze({ ...snapshot, status: 'resyncing', connection: 'connecting' });
+        notify();
+        queueMicrotask(() => {
+          if (disposed) return;
+          snapshot = Object.freeze({ ...snapshot, status: 'ready', connection: 'live' });
+          notify();
+        });
+      };
       let settleStarted;
       const started = new Promise((resolve) => { settleStarted = resolve; });
       queueMicrotask(() => {
@@ -141,6 +153,21 @@ function fakeClient() {
         started: () => started,
         async publish(value, { ttlMs }) {
           publishAttempts += 1;
+          if (dropNextPublishOffline) {
+            dropNextPublishOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ queued: false }),
+              }),
+            });
+          }
           const retained = Object.freeze({ ...value });
           published.push(retained);
           selfEntry = Object.freeze({
@@ -156,6 +183,21 @@ function fakeClient() {
         },
         async delete() {
           deletes += 1;
+          if (dropNextDeleteOffline) {
+            dropNextDeleteOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ operation: 'delete', queued: false }),
+              }),
+            });
+          }
           selfEntry = null;
           notify();
           return { status: 'deleted' };
@@ -172,6 +214,11 @@ function fakeClient() {
         async settled() {},
       });
     },
+    controls: Object.freeze({
+      dropPublishOffline() { dropNextPublishOffline = true; },
+      dropDeleteOffline() { dropNextDeleteOffline = true; },
+      reconnect() { reconnectRoom?.(); },
+    }),
     inspection: () => ({ publishAttempts, deletes, published: [...published] }),
   };
 }
@@ -241,6 +288,7 @@ async function createHarness({ context, value, onError = undefined }) {
   });
   return {
     client,
+    provider,
     get current() { return current; },
     async unmount() {
       await act(async () => {
@@ -404,4 +452,73 @@ async function createHarness({ context, value, onError = undefined }) {
   await harness.unmount();
 }
 
-console.log('activity-presence.test.mjs: Expo lifecycle gating, source sharing, retained admission, background withdrawal, and failure pass');
+// The Expo wrapper delegates an active touch through the React best-effort
+// publisher. An intentional outage remains classified, provider desired-state
+// survives it, and reconnect-before-idle republishes without an unhandled
+// rejection escaping to Expo's error overlay.
+{
+  const source = lifecycleSource('active');
+  const errors = [];
+  const harness = await createHarness({
+    context: { source, environment: {} },
+    value: () => ({ userHandle: 'ada', name: 'Ada' }),
+    onError: (error) => errors.push(error),
+  });
+  harness.client.controls.dropPublishOffline();
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    act(() => { harness.current.touch(); });
+    await act(async () => { await flush(); await flush(); });
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  assert.equal(unhandled.length, 0);
+  assert.equal(harness.current.active, true, 'memory intent remains until its deadline');
+  assert.equal(harness.current.publisher.status, 'publish-error');
+  assert.equal(harness.current.publisher.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(errors.at(-1).code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(harness.provider.inspection().publishers, 1, 'provider desired-state survives the drop');
+  await act(async () => {
+    harness.client.controls.reconnect();
+    await flush();
+    await flush();
+  });
+  assert.equal(harness.current.active, true);
+  assert.equal(harness.client.inspection().publishAttempts, 2);
+  assert.equal(harness.client.inspection().published.length, 1, 'reconnect republishes retained intent');
+  assert.equal(harness.provider.inspection().publishers, 1);
+  assert.equal(harness.current.publisher.status, 'published');
+  await harness.unmount();
+}
+
+// Expo preserves the React activity withdrawal contract: a dropped DELETE is
+// visible through publisher state and lastError, while withdraw() itself
+// resolves after the classified attempt settles.
+{
+  const source = lifecycleSource('active');
+  const errors = [];
+  const harness = await createHarness({
+    context: { source, environment: {} },
+    value: () => ({ userHandle: 'ada', name: 'Ada' }),
+    onError: (error) => errors.push(error),
+  });
+  act(() => { harness.current.touch(); });
+  await act(async () => { await flush(); });
+  harness.client.controls.dropDeleteOffline();
+  await act(async () => {
+    await assert.doesNotReject(harness.current.withdraw());
+    await flush();
+  });
+  assert.equal(harness.current.active, false);
+  assert.equal(harness.current.publisher.status, 'publish-error');
+  assert.equal(harness.current.publisher.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(harness.current.publisher.diagnostic.details.operation, 'delete');
+  assert.equal(harness.current.lastError?.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(errors.at(-1), harness.current.lastError);
+  assert.equal(harness.client.inspection().deletes, 1);
+  await harness.unmount();
+}
+
+console.log('activity-presence.test.mjs: Expo lifecycle gating, offline classification, source sharing, retained admission, background withdrawal, and failure pass');

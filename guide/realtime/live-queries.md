@@ -57,6 +57,13 @@ export const listTodos = defineJsLiveQuery({
 (see [auth](../auth/sessions-and-principals.md)). Subscribing to a non-live
 function fails with `SNAPBACK_FUNCTION_NOT_LIVE`.
 
+For “trending in the last hour”, “expiring soon”, or another result whose
+visibility changes with time, do not sample `ctx.runtime.now()` in the
+authenticated live query. That exact shape is refused with
+`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`; use the
+[time-windowed live reads recipe](../recipes/time-windowed-live-reads.md) to
+declare a pinned clock argument and an explicit refresh boundary.
+
 Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's

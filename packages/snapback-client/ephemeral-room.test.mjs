@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { SnapbackClient } from './index.mjs';
+import { EphemeralOverlay, SnapbackClient } from './index.mjs';
 
 const admitted = Object.freeze({
   reference: Object.freeze({
@@ -239,4 +239,64 @@ await assert.rejects(
 terminal.dispose();
 await terminal.settled();
 
-console.log('ephemeral-room.test.mjs: negotiation, immediate handle, terminal errors, late cleanup, pre-opened socket readiness, and settlement pass');
+// @ref LLP 0257#offline — an overlay write is best-effort ephemeral intent:
+// a transport-dispatch outage is classified and dropped, never queued and
+// never exposed as an unhandled rejection. Other refusals remain rejecting.
+{
+  const events = [];
+  const offlineError = () => Object.assign(new TypeError('intentional offline'), {
+    fetchDispatchFailed: true,
+  });
+  const offlineClient = {
+    registerEphemeralConsumer() { return () => {}; },
+    registerAuthMaterialization() { return () => {}; },
+    diagnosticsChannel() { return { emit: (event) => events.push(event) }; },
+    async publishEphemeral() { throw offlineError(); },
+    async deleteEphemeral() { throw offlineError(); },
+  };
+  const bestEffort = new EphemeralOverlay(offlineClient, admitted.reference, {
+    connectionId: 'offline-room',
+    scope: { roomId: 'one' },
+  });
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    void bestEffort.publish({ name: 'ignored-result' });
+    await new Promise((resolve) => setImmediate(resolve));
+    const publish = await bestEffort.publish({ name: 'Ada' });
+    const withdrawal = await bestEffort.delete();
+    assert.deepEqual(
+      { status: publish.status, reason: publish.reason, queued: publish.queued },
+      { status: 'dropped', reason: 'offline', queued: false },
+    );
+    assert.equal(publish.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+    assert.equal(withdrawal.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+    assert.equal(unhandled.length, 0);
+    assert.equal(events.length, 3);
+    assert(events.every((event) => event.severity === 'warning'));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+    bestEffort.dispose();
+  }
+
+  const refusedClient = {
+    ...offlineClient,
+    async publishEphemeral() {
+      const error = new Error('permission denied');
+      error.code = 'SNAPBACK_AUTH_PERMISSION_DENIED';
+      throw error;
+    },
+  };
+  const refused = new EphemeralOverlay(refusedClient, admitted.reference, {
+    connectionId: 'refused-room',
+    scope: { roomId: 'one' },
+  });
+  await assert.rejects(
+    refused.publish({ name: 'Ada' }),
+    (error) => error?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
+  );
+  refused.dispose();
+}
+
+console.log('ephemeral-room.test.mjs: negotiation, offline best-effort classification, terminal errors, late cleanup, pre-opened socket readiness, and settlement pass');

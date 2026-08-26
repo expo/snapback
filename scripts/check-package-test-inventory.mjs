@@ -401,6 +401,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'generated-mutation-ir.test.mjs',
       'generation-lock.test.mjs',
       'graph-query.test.mjs',
+      'guide-time-windowed-live-reads.test.mjs',
       'guide-pointer.test.mjs',
       'handler-graph-parity.test.mjs',
       'handler-runtime-profile.test.mjs',
@@ -607,7 +608,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 362,
+  expectedTotal = 363,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1157,6 +1158,9 @@ export function checkPackageTestInventories(options = {}) {
 // owner-bound dev-control socket occupancy, EOF/deadline, and cleanup-lease suite.
 // 361 -> 362 (2026-08-25, diagnostics registry round-9 review):
 // @expo/snapback-cli gains the focused reserved-code lookup-label regression.
+// 362 -> 363 (2026-08-26, papercuts review): @expo/snapback-codegen gains the
+// executable time-windowed live-read recipe proof, including the exact naive
+// clock-dependent refusal and the authorable pinned-argument success shape.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

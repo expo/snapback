@@ -66,7 +66,12 @@ const capabilityManifest = Object.freeze({
 function fakeClient(
   profile = 'local-dev-sqlite-ibex',
   deployment = { schema, functions },
-  { failNextPublish = false, delayNextDelete = false } = {},
+  {
+    failNextPublish = false,
+    delayNextDelete = false,
+    dropNextPublishOffline = false,
+    dropNextDeleteOffline = false,
+  } = {},
 ) {
   let starts = 0;
   let publishAttempts = 0;
@@ -146,6 +151,21 @@ function fakeClient(
         started: () => started,
         async publish(value, { ttlMs }) {
           publishAttempts += 1;
+          if (dropNextPublishOffline) {
+            dropNextPublishOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ operation: 'publish', queued: false }),
+              }),
+            });
+          }
           if (failNextPublish) {
             failNextPublish = false;
             throw new Error('simulated connectivity loss');
@@ -169,6 +189,21 @@ function fakeClient(
         async delete(options = {}) {
           deletes += 1;
           deleteCalls.push(options);
+          if (dropNextDeleteOffline) {
+            dropNextDeleteOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ operation: 'delete', queued: false }),
+              }),
+            });
+          }
           if (delayNextDelete) {
             delayNextDelete = false;
             return new Promise((resolve) => {
@@ -210,6 +245,10 @@ function fakeClient(
         settleDelayedDelete,
       };
     },
+    controls: Object.freeze({
+      dropPublishOffline() { dropNextPublishOffline = true; },
+      dropDeleteOffline() { dropNextDeleteOffline = true; },
+    }),
   };
 }
 
@@ -343,6 +382,63 @@ assert.equal(recoveringClient.inspection().publishAttempts, 2);
 assert.equal(recoveringClient.inspection().publishes, 1);
 await recoveringObserver.dispose();
 await recoveringProvider.dispose();
+
+// Publisher diagnostics belong to the token whose best-effort operation
+// failed. A same-room `value: skip` sibling observes entries only and never
+// inherits either the publisher's failed send or failed withdrawal.
+{
+  const scopedClient = fakeClient();
+  const scopedBinding = await prepareReactBindingForClient(scopedClient, {
+    generatedManifest: { functions, schema, capabilityManifest },
+  });
+  const scopedProvider = createSnapbackReactProvider(scopedBinding, {
+    connectionId: 'presence-token-scoped-diagnostic',
+  });
+  const publisher = observeSnapbackPresence(
+    scopedProvider,
+    scopedBinding.ephemeral.presence,
+    { scope: { roomId: 'token-scoped-diagnostic' }, value: skip },
+    () => {},
+  );
+  const siblingObserver = observeSnapbackPresence(
+    scopedProvider,
+    scopedBinding.ephemeral.presence,
+    { scope: { roomId: 'token-scoped-diagnostic' }, value: skip },
+    () => {},
+  );
+  await flush();
+  scopedClient.controls.dropPublishOffline();
+  await publisher.publish({ name: 'Ada' }, { ttlMs: 1_000 });
+  await flush();
+  assert.equal(publisher.snapshot().publisher.status, 'publish-error');
+  assert.equal(
+    publisher.snapshot().publisher.diagnostic.code,
+    'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+  );
+  assert.deepEqual(
+    siblingObserver.snapshot().publisher,
+    { status: 'observing', diagnostic: null },
+    'a skip sibling does not inherit the originating token publish failure',
+  );
+
+  await publisher.publish({ name: 'Ada' }, { ttlMs: 1_000 });
+  assert.equal(publisher.snapshot().publisher.status, 'published');
+  scopedClient.controls.dropDeleteOffline();
+  await assert.rejects(
+    publisher.delete(),
+    (error) => error?.code === 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+  );
+  assert.equal(publisher.snapshot().publisher.status, 'publish-error');
+  assert.equal(publisher.snapshot().publisher.diagnostic.details.operation, 'delete');
+  assert.deepEqual(
+    siblingObserver.snapshot().publisher,
+    { status: 'observing', diagnostic: null },
+    'a skip sibling does not inherit the originating token withdrawal failure',
+  );
+  await publisher.dispose();
+  await siblingObserver.dispose();
+  await scopedProvider.dispose();
+}
 
 // @ref LLP 0247#d3-presence-has-explicit-active-and-withdrawn-states — declarative
 // published→skip keeps the read room but withdraws the exact acknowledged

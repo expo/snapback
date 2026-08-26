@@ -62,6 +62,13 @@ export const listTodos = defineJsLiveQuery({
 (see [auth](../auth/sessions-and-principals.md)). Subscribing to a non-live
 function fails with `SNAPBACK_FUNCTION_NOT_LIVE`.
 
+For “trending in the last hour”, “expiring soon”, or another result whose
+visibility changes with time, do not sample `ctx.runtime.now()` in the
+authenticated live query. That exact shape is refused with
+`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`; use the
+[time-windowed live reads recipe](../recipes/time-windowed-live-reads.md) to
+declare a pinned clock argument and an explicit refresh boundary.
+
 Offline cold retention is a separate per-query opt-in: `auth: 'public'` +
 `authorityIndependent: true` on a declarative live query makes it
 `rqsEligible`; without the declaration nothing persists and the handle's
@@ -657,6 +664,25 @@ Each current entry is:
 ```text fragment reason="Normalized public entry shape assembled by EphemeralOverlay.currentEntries()."
 { key, value, expiresAtMs, receivedAtMs, scopeEpoch, entryVersion }
 ```
+
+## Test intentional offline behavior with the dev overlay
+
+Presence and typing writes made through a subscribed overlay are best-effort.
+If fetch dispatch proves the transport is offline, `publish()` or `delete()`
+resolves a classified `status: "dropped"`, `reason: "offline"`, `queued: false`
+outcome and emits the warning `SNAPBACK_EPHEMERAL_OFFLINE_DROPPED` on the client
+dev channel. The attempt never enters the durable mutation outbox. React and
+Expo activity presence absorb that outcome into `publisher.status:
+"publish-error"` plus `lastError`; they do not create an unhandled promise
+rejection that opens the Expo error overlay.
+
+Keep the offline scenario interactable by observing `publisher`/`lastError` or
+`client.diagnosticsChannel()`, not by installing a global rejection handler or
+removing the overlay DOM. A still-active React activity intent remains only in
+provider memory and may publish after reconnect before its idle deadline;
+idle, explicit withdrawal, unmount, or process loss prevents later replay.
+Permission, validation, and server refusals are not classified as offline and
+remain loud.
 
 The client prunes by the server-stamped expiry deadline. Server expiry,
 explicit delete, and disconnect normally emit remove deltas, but TTL is the

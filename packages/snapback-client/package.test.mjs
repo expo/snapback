@@ -425,6 +425,7 @@ assert.deepEqual(
     if (path === '/live/messages.list/unsubscribe') {
       return Response.json({ subscription_id: 'sub_lag_fixture', disposed: true });
     }
+    if (path.startsWith('/outbox/')) return Response.json([]);
     throw new Error(`unexpected lag-inspection request: ${path}`);
   };
   try {
@@ -442,6 +443,14 @@ assert.deepEqual(
       ownerLabel: 'caller-owner-user@example.test',
       persistResume: false,
     });
+    await lagHandle.poll();
+    await lagHandle.poll();
+    const manualPollEvents = lagClient.diagnosticsChannel().snapshot().events.filter(
+      (event) => event.code === 'SNAPBACK_CLIENT_LIVE_QUERY_MANUAL_POLL',
+    );
+    assert.equal(manualPollEvents.length, 1, 'manual polling is loud once per live handle');
+    assert.equal(manualPollEvents[0].details.transport, 'poll');
+    assert.match(manualPollEvents[0].message, /transport: 'stream'/u);
     const lagInspection = lagClient.localResourceInspection([rawConnectionId]);
     assert.equal(lagInspection.subscriptions[0].subscriptionId, 'sub_lag_fixture');
     assert.equal(lagInspection.subscriptions[0].authoritativeRevision, 7);

@@ -61,6 +61,15 @@ contributor-source builds of the local target since 2026-08-04); public
 runtime packages and hosted targets retain a structured GAP. Do not hand-roll
 it from these values either.
 
+`ctx.runtime.now()` is trusted for authoring a durable timestamp in a mutation
+or action; it is not an advancing clock for protected live visibility. A live
+query that directly samples it is refused with
+`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`. For “last hour” or “expiring soon”
+reads, follow the [time-windowed live reads
+recipe](../recipes/time-windowed-live-reads.md): persist the server-authored row
+time, declare a client-pinned clock argument, and re-issue at an explicit
+product freshness boundary.
+
 For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
 handler. The [safe standard patterns](./standard-patterns.md) page covers that

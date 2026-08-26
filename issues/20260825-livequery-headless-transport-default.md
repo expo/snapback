@@ -24,6 +24,21 @@ live-query surface (LLP 0108/0095 chain) rules which.
 
 ## Acceptance
 
-- A default headless liveQuery on a stream-capable target either streams
-  or emits one dev advisory naming `transport: 'stream'`.
-- Guide reflects the ruling; a test pins the default.
+- [x] A default headless liveQuery emits one dev advisory on its first manual
+  poll cycle naming `transport: 'stream'`.
+- [x] Guide reflects the conservative ruling; a test pins the polling default
+  and once-per-handle diagnostic.
+
+## Orchestrator ruling and Lane P2 disposition (2026-08-26)
+
+Ship the conservative fix now: preserve manual polling as the headless
+`liveQuery` default, and emit `SNAPBACK_CLIENT_LIVE_QUERY_MANUAL_POLL` on the
+first actual `poll()` cycle for that handle. The warning is carried by the
+LLP 0219 dev diagnostics channel, names `transport: 'stream'`, and does not
+fire for stream handles or merely constructing an unused polling handle.
+`guide/clients/headless.md#subscribe-to-durable-state` steers callers to the
+stream option and explains when explicit polling is intentional.
+
+This ticket remains **Open**. Whether stream should become the default is an
+unresolved design decision for the LLP 0108/0095 owner; Lane P2 neither decides
+nor implies that default change.

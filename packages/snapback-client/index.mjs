@@ -18340,6 +18340,7 @@ export class SnapbackClient {
     let resyncFencedSubscriptionId = null;
     let disposalTask = null;
     let ownerInspectionToken = null;
+    let manualPollDiagnosticEmitted = false;
     let unregisterOutboxBarrierProvider = () => {};
     // Cardinality alone cannot distinguish a lifecycle blank from a malformed
     // server snapshot. Keep provenance on the exact client-created carriers so
@@ -21630,6 +21631,22 @@ export class SnapbackClient {
 
     handle.poll = async () => {
       if (disposed || paused) return handle.rows;
+      if (transport === 'poll' && !manualPollDiagnosticEmitted) {
+        manualPollDiagnosticEmitted = true;
+        // @ref LLP 0219#producers-pilot-scoped-detectors — the first actual
+        // manual drain proves that a headless caller selected polling.
+        try {
+          client.__clientDiagnosticsChannel.emit({
+            schemaVersion: 'snapback.client-diagnostic.v2',
+            code: 'SNAPBACK_CLIENT_LIVE_QUERY_MANUAL_POLL',
+            severity: 'warning',
+            subsystem: 'live-query',
+            message: "Headless liveQuery is using manual polling. Pass transport: 'stream' for managed WebSocket push; polling remains the explicit fallback. See guide/clients/headless.md#subscribe-to-durable-state.",
+            details: { function: name, transport: 'poll' },
+            site: `liveQuery:${name}`,
+          });
+        } catch { /* diagnostics are observational */ }
+      }
       return drainOnce();
     };
 
@@ -22907,6 +22924,36 @@ function clientDiagnosticFromError(error) {
   });
 }
 
+function ephemeralOfflineDroppedOutcome(client, error, operation, collection) {
+  if (error?.fetchDispatchFailed !== true) return null;
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+    severity: 'error',
+    message: 'ephemeral best-effort write was dropped because the transport is offline',
+    details: Object.freeze({ operation, collection, queued: false }),
+  });
+  // @ref LLP 0219#channel-semantics — expected-offline ephemeral loss is a
+  // structured, payload-free dev fact; it never becomes an unhandled rejection.
+  try {
+    client.diagnosticsChannel?.().emit({
+      schemaVersion: 'snapback.client-diagnostic.v2',
+      code: diagnostic.code,
+      severity: 'warning',
+      subsystem: 'ephemeral',
+      message: `${diagnostic.message}. Reconnect and publish fresh intent; ephemeral writes are never queued. See guide/realtime/ephemeral-state.md#test-intentional-offline-behavior-with-the-dev-overlay.`,
+      details: diagnostic.details,
+      site: `${collection}:${operation}`,
+    });
+  } catch { /* diagnostics are observational */ }
+  return Object.freeze({
+    status: 'dropped',
+    reason: 'offline',
+    queued: false,
+    diagnostic,
+  });
+}
+
 function clientDiagnosticFromEphemeralErrorFrame(frame) {
   const ephemeralCode = frame?.error?.code;
   const code = ephemeralCode === 'PermissionDenied'
@@ -23156,45 +23203,63 @@ export class EphemeralOverlay {
     }
   }
 
-  publish(value, options = {}) {
+  async publish(value, options = {}) {
     // @ref LLP 0013#capability-fixture-obligations — a membership-denied
     // overlay generation is terminal. Refuse locally from the trusted
     // diagnostic so a writer cannot depend on a later server round trip to
     // rediscover the revocation.
     if (this.terminalDiagnostic !== null) {
-      return Promise.reject(new SnapbackDiagnosticError(this.terminalDiagnostic, {
+      throw new SnapbackDiagnosticError(this.terminalDiagnostic, {
         operation: 'ephemeral-publish',
         refKind: 'ephemeralCollectionReference',
         effectCommitted: false,
         effectMayHaveCommitted: false,
-      }));
+      });
     }
-    return this.client.publishEphemeral(this.ref, {
-      connectionId: options.connectionId ?? this.connectionId,
-      scope: this.scope,
-      value,
-      ttlMs: options.ttlMs ?? null,
-      userId: options.userId ?? this.userId,
-      permissions: options.permissions ?? this.permissions,
-      sessionId: options.sessionId ?? null,
-      ownerUserId: options.ownerUserId ?? null,
-      customKey: options.customKey ?? null,
-    });
+    try {
+      return await this.client.publishEphemeral(this.ref, {
+        connectionId: options.connectionId ?? this.connectionId,
+        scope: this.scope,
+        value,
+        ttlMs: options.ttlMs ?? null,
+        userId: options.userId ?? this.userId,
+        permissions: options.permissions ?? this.permissions,
+        sessionId: options.sessionId ?? null,
+        ownerUserId: options.ownerUserId ?? null,
+        customKey: options.customKey ?? null,
+      });
+    } catch (error) {
+      // @ref LLP 0257#offline — overlay writes are best-effort ephemeral
+      // intent: a no-response outage drops this attempt and never queues it.
+      const dropped = ephemeralOfflineDroppedOutcome(
+        this.client, error, 'publish', collectionName(this.ref),
+      );
+      if (dropped !== null) return dropped;
+      throw error;
+    }
   }
 
-  delete(options = {}) {
-    return this.client.deleteEphemeral(this.ref, {
-      connectionId: options.connectionId ?? this.connectionId,
-      scope: this.scope,
-      userId: options.userId ?? this.userId,
-      permissions: options.permissions ?? this.permissions,
-      sessionId: options.sessionId ?? null,
-      ownerUserId: options.ownerUserId ?? null,
-      customKey: options.customKey ?? null,
-      expectedScopeEpoch: options.expectedScopeEpoch ?? null,
-      expectedEntryVersion: options.expectedEntryVersion ?? null,
-      authorityCapture: options.authorityCapture ?? this.authorityCapture,
-    });
+  async delete(options = {}) {
+    try {
+      return await this.client.deleteEphemeral(this.ref, {
+        connectionId: options.connectionId ?? this.connectionId,
+        scope: this.scope,
+        userId: options.userId ?? this.userId,
+        permissions: options.permissions ?? this.permissions,
+        sessionId: options.sessionId ?? null,
+        ownerUserId: options.ownerUserId ?? null,
+        customKey: options.customKey ?? null,
+        expectedScopeEpoch: options.expectedScopeEpoch ?? null,
+        expectedEntryVersion: options.expectedEntryVersion ?? null,
+        authorityCapture: options.authorityCapture ?? this.authorityCapture,
+      });
+    } catch (error) {
+      const dropped = ephemeralOfflineDroppedOutcome(
+        this.client, error, 'delete', collectionName(this.ref),
+      );
+      if (dropped !== null) return dropped;
+      throw error;
+    }
   }
 
   async drain() {

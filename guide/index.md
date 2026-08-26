@@ -402,6 +402,9 @@ proof command, and honest nonclaims without opening every demo.
 - [Activity presence](./recipes/activity-presence.md) — distinguish a
   continuously bound value from activity touch, heartbeat, and explicit
   withdrawal.
+- [Time-windowed live reads](./recipes/time-windowed-live-reads.md) — use a
+  load-pinned client clock with server-authored row times under the protected
+  query determinism guard.
 - [Capability links for Expo and web](./recipes/capability-links.md) — mint,
   share, inertly preview, explicitly invoke, expire/use/revoke, and keep the
   secret URL out of sessions, durable storage, logs, analytics, and referrers.

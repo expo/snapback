@@ -1298,6 +1298,13 @@ retirement.
 generation, so application code cannot substitute a foreign id into the
 idempotent path.
 
+On the first actual `poll()` cycle of each manual-poll handle, the client dev
+channel emits `SNAPBACK_CLIENT_LIVE_QUERY_MANUAL_POLL`. It names
+`transport: 'stream'` so an accidental slow path is visible without changing
+the conservative default. Explicit polling remains valid for headless owners
+that deliberately control every drain; inspect the structured event through
+`client.diagnosticsChannel()`.
+
 The managed stream sends application ping frames every five seconds and forces
 reconnect only after its 15-second freshness budget is missed. A quiet socket
 is not stale merely because no data rows changed. Mobile hosts map observable

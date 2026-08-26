@@ -93,7 +93,9 @@ function fakeClient() {
   let deletes = 0;
   let activeHandles = 0;
   let failNextPublish = false;
+  let dropNextPublishOffline = false;
   let failNextDelete = false;
+  let dropNextDeleteOffline = false;
   return {
     liveQuery() {},
     async inspect() {
@@ -154,6 +156,15 @@ function fakeClient() {
           }));
           publishSnapshot();
         },
+        reconnect() {
+          snapshot = Object.freeze({ ...snapshot, status: 'resyncing', connection: 'connecting' });
+          publishSnapshot();
+          queueMicrotask(() => {
+            if (disposed) return;
+            snapshot = Object.freeze({ ...snapshot, status: 'ready', connection: 'live' });
+            publishSnapshot();
+          });
+        },
       };
       handles.add(handle);
       queueMicrotask(() => {
@@ -178,6 +189,21 @@ function fakeClient() {
         started: () => started,
         async publish(value, { ttlMs }) {
           publishAttempts += 1;
+          if (dropNextPublishOffline) {
+            dropNextPublishOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ queued: false }),
+              }),
+            });
+          }
           if (failNextPublish) {
             failNextPublish = false;
             throw codedError('SNAPBACK_REACT_QUERY_FAILED', 'simulated publish failure');
@@ -197,6 +223,21 @@ function fakeClient() {
         },
         async delete() {
           deletes += 1;
+          if (dropNextDeleteOffline) {
+            dropNextDeleteOffline = false;
+            return Object.freeze({
+              status: 'dropped',
+              reason: 'offline',
+              queued: false,
+              diagnostic: Object.freeze({
+                schemaVersion: 'snapback.client-diagnostic.v1',
+                code: 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED',
+                severity: 'error',
+                message: 'ephemeral best-effort write was dropped because the transport is offline',
+                details: Object.freeze({ operation: 'delete', queued: false }),
+              }),
+            });
+          }
           if (failNextDelete) {
             failNextDelete = false;
             throw codedError('SNAPBACK_REACT_PROVIDER_CLOSED', 'simulated withdrawal failure');
@@ -218,7 +259,12 @@ function fakeClient() {
     },
     controls: Object.freeze({
       failPublish() { failNextPublish = true; },
+      dropPublishOffline() { dropNextPublishOffline = true; },
+      dropDeleteOffline() { dropNextDeleteOffline = true; },
       failDelete() { failNextDelete = true; },
+      reconnect() {
+        for (const handle of handles) handle.reconnect();
+      },
       setPeers(entries) {
         for (const handle of handles) handle.setPeers(entries);
       },
@@ -629,6 +675,65 @@ async function fireTimerAt(timer, now) {
   assert.equal(harness.current.lastError?.code, 'SNAPBACK_REACT_PROVIDER_CLOSED');
   await act(async () => { await harness.current.withdraw(); });
   assert.equal(harness.current.lastError, null, 'successful withdrawal clears the error');
+  await harness.unmount();
+}
+
+// An expected offline best-effort outcome is state, not a rejected activity
+// action. Provider-memory desired intent survives the drop and republishes on
+// reconnect before the idle deadline.
+{
+  const errors = [];
+  const harness = await createHarness({ onError: (error) => errors.push(error) });
+  harness.client.controls.dropPublishOffline();
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    act(() => { captureActivityTimer(() => harness.current.touch()); });
+    await act(async () => { await flush(); await flush(); });
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  assert.equal(unhandled.length, 0);
+  assert.equal(harness.current.active, true);
+  assert.equal(harness.current.publisher.status, 'publish-error');
+  assert.equal(harness.current.publisher.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(harness.current.publisher.diagnostic.details.queued, false);
+  assert.equal(errors.at(-1).code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(harness.provider.inspection().publishers, 1, 'provider desired-state survives the drop');
+  await act(async () => {
+    harness.client.controls.reconnect();
+    await flush();
+    await flush();
+  });
+  assert.equal(harness.current.active, true);
+  assert.equal(harness.client.inspection().publishAttempts, 2);
+  assert.equal(harness.client.inspection().publishes, 1, 'reconnect republishes retained intent');
+  assert.equal(harness.provider.inspection().publishers, 1);
+  assert.equal(harness.current.publisher.status, 'published');
+  await harness.unmount();
+}
+
+// A classified dropped DELETE is an observable withdrawal failure. It must
+// not be mistaken for the successful withdrawal that clears publisher state
+// and activity lastError.
+{
+  const errors = [];
+  const harness = await createHarness({ onError: (error) => errors.push(error) });
+  act(() => { captureActivityTimer(() => harness.current.touch()); });
+  await act(async () => { await flush(); });
+  harness.client.controls.dropDeleteOffline();
+  await act(async () => {
+    await assert.doesNotReject(harness.current.withdraw());
+    await flush();
+  });
+  assert.equal(harness.current.active, false);
+  assert.equal(harness.current.publisher.status, 'publish-error');
+  assert.equal(harness.current.publisher.diagnostic.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(harness.current.publisher.diagnostic.details.operation, 'delete');
+  assert.equal(harness.current.lastError?.code, 'SNAPBACK_EPHEMERAL_OFFLINE_DROPPED');
+  assert.equal(errors.at(-1), harness.current.lastError);
+  assert.equal(harness.client.inspection().deletes, 1);
   await harness.unmount();
 }
 

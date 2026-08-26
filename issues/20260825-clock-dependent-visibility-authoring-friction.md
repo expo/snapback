@@ -26,3 +26,14 @@ soon"), which is a bread-and-butter product need.
   buckets, or a declared clock-quantization argument type) so the pattern
   is generated rather than hand-designed. Design-level; do not weaken the
   determinism guard itself.
+
+## Lane P2 update (2026-08-26)
+
+The Guide recipe shipped at `guide/recipes/time-windowed-live-reads.md`, with
+a CI-verified fixture covering the load-pinned client clock argument,
+server-authored row time, staleness semantics, refresh/re-issue boundary, and
+the exact `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` refusal it resolves.
+
+This ticket remains **Open** for the paved-primitive evaluation. Lane P2 did
+not choose server-authored buckets, a declared clock-quantization argument,
+or any weakening of the determinism guard.
