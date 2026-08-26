@@ -63,3 +63,30 @@ as closed as the weaker of the two.**
 - `issues/20260826-fork-identity-primitive-census.md` (lands with the `forkseam` change)
 - `issues/20260826-authorization-denominator-and-seam-map.md` — F127 seam holds F097 plus four others
 - LLP 0303 revisions (s) and (t)
+
+## Addendum, same day: fork is a general route, not an F097 quirk
+
+A second, unrelated lane (`addradm`, HEAD `a4dedb174`) independently reported a succeeding fork
+composition on a different row:
+
+> F070 remains **OPEN**: fork inheritance succeeds, and a field-by-field rebuilt public catalog
+> plan commits and yields a resolvable bearer.
+
+Two lanes working different rows, neither aware of the other, both found that inherited state
+survives `fork()` and is accepted. That reclassifies the finding: **fork is a general route into
+the authority surface, not a peculiarity of F097's publication path.** Any row whose closure rests
+on compile-fail witnesses alone should be assumed open across fork until a runtime fork
+composition has been run against it.
+
+`addradm` also re-confirmed LLP 0291's third enumerated forgery from scratch — a *field-by-field
+rebuilt public catalog plan* that commits and yields a resolvable bearer, needing no feature at
+all. That is independent corroboration of LLP 0291's central claim that authority creation has no
+chokepoint, arrived at by a lane that was not looking for it.
+
+`addradm` behaved correctly throughout: it removed all unproven `Closes-rows` trailers, kept the
+30/30 historical fail-first matrix, and reported the 14 inherited engine compile errors without
+chasing them.
+
+**Consequence for LLP 0313:** this is evidence for §10's recommendation. Two lanes independently
+demonstrating live forgery routes — one of them a route LLP 0291 already enumerated — is the
+pattern that document predicts, and it is not something more row lanes can fix.
