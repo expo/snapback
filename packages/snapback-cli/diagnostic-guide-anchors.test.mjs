@@ -97,32 +97,34 @@ if (historicalRevision) {
 }
 
 try {
-  const staleAuth = lookupGuideReference(
-    ['SNAPBACK_AUTH_STALE_RESULT'],
-    { projectRoot },
-  );
-  assert.equal(staleAuth.match, 'diagnostic');
-  assert.equal(staleAuth.truncation, null);
-  assert.equal(staleAuth.diagnostic.sites, undefined);
-  assert.deepEqual(
-    staleAuth.diagnostic.guideAnchors,
-    staleAuthGuideAnchors,
-  );
+  await test('SNAPBACK_AUTH_STALE_RESULT lookup retains the intended Guide anchor', async () => {
+    const staleAuth = lookupGuideReference(
+      ['SNAPBACK_AUTH_STALE_RESULT'],
+      { projectRoot },
+    );
+    assert.equal(staleAuth.match, 'diagnostic');
+    assert.equal(staleAuth.truncation, null);
+    assert.equal(staleAuth.diagnostic.sites, undefined);
+    assert.deepEqual(
+      staleAuth.diagnostic.guideAnchors,
+      staleAuthGuideAnchors,
+    );
 
-  const staleAuthJson = JSON.parse(await captureCli([
-    'guide',
-    'SNAPBACK_AUTH_STALE_RESULT',
-    '--json',
-  ]));
-  assert.deepEqual(staleAuthJson.result.diagnostic.guideAnchors, staleAuthGuideAnchors);
+    const staleAuthJson = JSON.parse(await captureCli([
+      'guide',
+      'SNAPBACK_AUTH_STALE_RESULT',
+      '--json',
+    ]));
+    assert.deepEqual(staleAuthJson.result.diagnostic.guideAnchors, staleAuthGuideAnchors);
 
-  const staleAuthText = await captureCli(['guide', 'SNAPBACK_AUTH_STALE_RESULT']);
-  const staleAuthTextAnchors = staleAuthText.split('\n').flatMap((line) => {
-    if (line.startsWith('Guide: ')) return [line.slice('Guide: '.length)];
-    if (line.startsWith('- /_snapback/guide/')) return [line.slice(2)];
-    return [];
+    const staleAuthText = await captureCli(['guide', 'SNAPBACK_AUTH_STALE_RESULT']);
+    const staleAuthTextAnchors = staleAuthText.split('\n').flatMap((line) => {
+      if (line.startsWith('Guide: ')) return [line.slice('Guide: '.length)];
+      if (line.startsWith('- /_snapback/guide/')) return [line.slice(2)];
+      return [];
+    });
+    assert.deepEqual(staleAuthTextAnchors, staleAuthGuideAnchors);
   });
-  assert.deepEqual(staleAuthTextAnchors, staleAuthGuideAnchors);
 
   await test('SNAPBACK_CAPABILITY_UNSUPPORTED retains fragment-bearing Guide anchors', () => {
     const capability = lookupGuideReference(

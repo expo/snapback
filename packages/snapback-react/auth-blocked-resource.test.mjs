@@ -264,8 +264,6 @@ async function assertBlockedStability(mounted, client, expectedAttempts) {
     answerClass: 'unknown',
     retention: null,
     optimisticPresentation: null,
-    authoritativeRevision: 0,
-    lastDeliveryAtMs: null,
   });
   const flipsAtBlocked = mounted.flips();
   for (let interval = 0; interval < 1_000; interval += 1) {
@@ -310,8 +308,6 @@ test('protected React live resources remain auth-blocked until barrier resume', 
         answerClass: 'unknown',
         retention: null,
         optimisticPresentation: null,
-        authoritativeRevision: 0,
-        lastDeliveryAtMs: null,
       });
       assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
       releaseGate.resolve();

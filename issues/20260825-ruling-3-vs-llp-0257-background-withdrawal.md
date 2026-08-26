@@ -6,6 +6,14 @@
 **Related:** LLP 0257 §Expo: backgrounding and resume; LLP 0310.000 Ruling 3;
 `issues/closed/20260825-guide-gap-activity-presence-url-first.md`
 
+## Guide-lane process posture
+
+LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
+2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
+The three teaching pages retain LLP 0310.000 in their authority declarations,
+but keep this status and landing history here so retrieval guidance stays
+stable across later RFC process transitions.
+
 ## Conflict
 
 LLP 0257 requires the `@expo/snapback-expo` facade hook to observe AppState and

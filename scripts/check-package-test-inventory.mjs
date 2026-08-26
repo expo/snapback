@@ -573,17 +573,14 @@ export function auditInventory({ root = ROOT, inventory }) {
     .sort();
 
   const expected = [...inventory.expectedFiles].sort();
-  const nonGating = [...(inventory.nonGatingFiles ?? [])].sort();
-  const gated = discovered.filter((path) => !nonGating.includes(path));
   return {
     id: inventory.id,
-    count: gated.length,
-    files: gated,
-    nonGatingFiles: nonGating,
-    unexpectedOnDisk: multisetDifference(discovered, [...expected, ...nonGating]),
-    missingOnDisk: multisetDifference([...expected, ...nonGating], discovered),
-    undeclaredInScripts: multisetDifference(gated, declared),
-    missingFromDiskButDeclared: multisetDifference(declared, gated),
+    count: discovered.length,
+    files: discovered,
+    unexpectedOnDisk: multisetDifference(discovered, expected),
+    missingOnDisk: multisetDifference(expected, discovered),
+    undeclaredInScripts: multisetDifference(discovered, declared),
+    missingFromDiskButDeclared: multisetDifference(declared, discovered),
   };
 }
 

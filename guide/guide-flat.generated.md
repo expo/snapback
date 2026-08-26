@@ -2240,9 +2240,9 @@ platform, and generated-directory assumptions from that run.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
      Required guidance per page:
-     `backend/familiar-profile.md`: "LLP 0310.000 Ruling 3 is an RFC in Review", "landed on `origin/main` on 2026-08-25", "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the RFC's proposed paved contract", "still-open", "before treating the boundary as settled".
-     `realtime/ephemeral-state.md`: "LLP 0310.000 Ruling 3 is an RFC in Review", "landed on `origin/main` on 2026-08-25", "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the RFC's proposed paved contract", "still-open", "immediate background withdrawal on web today", "Do not treat the provider boundary as settled".
-     `recipes/activity-presence.md`: "LLP 0310.000 Ruling 3 is an RFC in Review", "landed on `origin/main` on 2026-08-25", "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the RFC's proposed paved contract", "still-open", "before treating the boundary as settled".
+     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
      "Use the `@expo/snapback-expo` facade under a bare `SnapbackProvider`; that is the paved choice",
      "The Expo facade is the supported bare-provider contract".
@@ -8635,21 +8635,19 @@ Enclave/Keystore proof transport remains outside the shipped native target.
 
 ## One Expo Router journey
 
-LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
-2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice for this lane. Use the `@expo/snapback-expo` facade only in a
+choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it adds AppState-driven background
 withdrawal. Under a bare `SnapbackProvider`, the React hook has no
-AppState-driven background withdrawal. If the app backgrounds, typing intent
-expires by the presence deadline rather than being withdrawn immediately. Do
-not invent a third hook.
+AppState-driven background withdrawal, so backgrounded typing intent expires
+by the presence deadline rather than being withdrawn immediately. Do not
+invent a third hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That composition is not the RFC's proposed paved contract; the still-open
+That behavior conflicts with the paved provider boundary; the still-open
 [recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
-is for the RFC owner to resolve before treating the boundary as settled.
+must be resolved before treating the boundary as settled.
 
 Search vocabulary: URL-first activity presence.
 
@@ -24630,20 +24628,18 @@ First decide whether the value is continuously bound or activity-driven. The
 and lifecycle guide, including the Supabase `track()` analogue, bound `skip`
 withdrawal, `idleMs` product deadline, heartbeat ownership, and delete path.
 
-LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
-2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice for this lane. Use the `@expo/snapback-expo` facade only in a
+choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it gates the first publication until
 AppState observation is established and withdraws on backgrounding. The React
 hook under a bare `SnapbackProvider` has no AppState-driven background
-withdrawal. If the app backgrounds, typing intent expires by the presence
-deadline rather than being withdrawn immediately. Do not invent a third hook.
+withdrawal, so backgrounded typing intent expires by the presence deadline
+rather than being withdrawn immediately. Do not invent a third hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That composition is not the RFC's proposed paved contract and is pending the
-RFC owner's decision in [the still-open LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md);
+That behavior conflicts with the paved provider boundary and is pending the
+owner decision in [the still-open LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md);
 use it only if immediate background withdrawal on web today outweighs relying
 on the currently non-paved boundary. Do not treat the provider boundary as
 settled while that conflict remains open.
@@ -29109,21 +29105,19 @@ five-second TTL or acceptance ceiling does not make that value disappear after
 five seconds of no typing. Bound withdrawal is `skip`; `null` is a value publish
 attempt and fails the generated value contract.
 
-LLP 0310.000 Ruling 3 is an RFC in Review, landed on `origin/main` on
-2026-08-25. While that review remains open, Ruling 3 directs this guide lane.
 For URL-first web under a bare `SnapbackProvider`, import
 `useSnapbackActivityPresence` from `@expo/snapback-react`; that is the paved
-choice for this lane. Use the `@expo/snapback-expo` facade only in a
+choice. Use the `@expo/snapback-expo` facade only in a
 `SnapbackExpoProvider` tree; there it adds AppState-driven background
 withdrawal. Under a bare `SnapbackProvider`, the React hook has no
-AppState-driven background withdrawal. If the app backgrounds, typing intent
-expires by the presence deadline rather than being withdrawn immediately.
-There is no third activity-presence hook.
+AppState-driven background withdrawal, so backgrounded typing intent expires
+by the presence deadline rather than being withdrawn immediately. There is no
+third activity-presence hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
-That composition is not the RFC's proposed paved contract; the still-open
+That behavior conflicts with the paved provider boundary; the still-open
 [recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
-is for the RFC owner to resolve before treating the boundary as settled.
+must be resolved before treating the boundary as settled.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
@@ -30078,7 +30072,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5be11b1bf4a2ffb4cb129f56fa7e4a8d414b1c9af1045fad6ec3b41760917663
+reviewed-authorities-digest: sha256:cb5e02859abd85c24cbcce91cb00673c057e42b4d444f21c54d3701bb3a6d6b1
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -30202,8 +30196,6 @@ blocked transition:
         answerClass: 'unknown',
         retention: null,
         optimisticPresentation: null,
-        authoritativeRevision: 0,
-        lastDeliveryAtMs: null,
       });
       assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
 ```
@@ -31196,7 +31188,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-guest-already-claimed"></a>`SNAPBACK_AUTH_GUEST_ALREADY_CLAIMED` | auth | 409 | — | `crates/snapback-server/src/server.rs:19712` | 2 |
 | <a id="diagnostic-snapback-auth-guest-catalog-unavailable"></a>`SNAPBACK_AUTH_GUEST_CATALOG_UNAVAILABLE` | auth | 503 | — | `crates/snapback-kernel/src/storage/auth_catalog_ops.rs:2686` | 2 |
 | <a id="diagnostic-snapback-auth-guest-claim-collision"></a>`SNAPBACK_AUTH_GUEST_CLAIM_COLLISION` | auth | 409 | [guide](../auth/passwords.md#claim-a-guest-with-a-password) | `crates/snapback-kernel/src/storage/auth_identity.rs:2989` | 7 |
-| <a id="diagnostic-snapback-auth-guest-claim-unavailable"></a>`SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE` | auth | 403 | — | `crates/snapback-server/src/server.rs:14861` | 3 |
+| <a id="diagnostic-snapback-auth-guest-claim-unavailable"></a>`SNAPBACK_AUTH_GUEST_CLAIM_UNAVAILABLE` | auth | 403 | — | `crates/snapback-server/src/server.rs:14861` | 2 |
 | <a id="diagnostic-snapback-auth-guest-cleanup-invalid"></a>`SNAPBACK_AUTH_GUEST_CLEANUP_INVALID` | auth | — | — | `packages/snapback-codegen/define.mjs:2464` | 1 |
 | <a id="diagnostic-snapback-auth-guest-cleanup-unclassified"></a>`SNAPBACK_AUTH_GUEST_CLEANUP_UNCLASSIFIED` | auth | — | — | `packages/snapback-codegen/define.mjs:2456` | 1 |
 | <a id="diagnostic-snapback-auth-guest-cleanup-unsupported"></a>`SNAPBACK_AUTH_GUEST_CLEANUP_UNSUPPORTED` | auth | 503 | — | `crates/snapback-server/src/server.rs:19540` | 2 |

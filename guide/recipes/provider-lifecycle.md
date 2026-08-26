@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5be11b1bf4a2ffb4cb129f56fa7e4a8d414b1c9af1045fad6ec3b41760917663
+reviewed-authorities-digest: sha256:cb5e02859abd85c24cbcce91cb00673c057e42b4d444f21c54d3701bb3a6d6b1
 ---
 
 # Recipe: provider connection and subscription lifecycle
@@ -134,8 +134,6 @@ blocked transition:
         answerClass: 'unknown',
         retention: null,
         optimisticPresentation: null,
-        authoritativeRevision: 0,
-        lastDeliveryAtMs: null,
       });
       assert.equal(client.state.attempts, 0, 'held custody starts no live transport');
 ```
