@@ -272,27 +272,13 @@ refusal pinned through a non-executing module-text seam. Finally, a depth-zero
 `}` terminates a Rust test-attributed region, so a production diagnostic after
 a last match arm without a trailing comma is retained.
 
-The canonical round-21-intermediate versus round-25-final count table is:
-
-| Count | Before | After |
-| --- | ---: | ---: |
-| Codes | 3,540 | 3,541 |
-| Source files | 626 | 626 |
-| Emitting sites | 9,551 | 9,286 |
-| Received sites | 339 | 382 |
-| Reserved sites | 11 | 11 |
-| HTTP-classified | 1,704 | 1,704 |
-| Guide-anchored | 431 | 431 |
-| Environment variables | 186 | 186 |
-| Environment sites | 368 | 364 |
-
 The round-22 post-marker re-audit reported no added or dropped code and no
 declaration-backed code whose emitter set fell to zero. Round 23 deliberately
 added the one formerly unregisterable `CONTROL_STATE` code and dropped none;
 round 25 changes sites only and keeps the code population fixed.
 
-The canonical embedded measurement was rerun after the final implementation and
-projection regeneration. Its captured output is:
+The round-27 baseline embedded measurement was rerun after projection
+regeneration. Its captured output is:
 
 ```json
 {
@@ -392,19 +378,21 @@ non-sites. The production All Aboard build therefore adds
 environment registry and `SnapbackEnvironmentVariable` without changing the
 diagnostic population.
 
-The final count table from the round-27 tree is:
+Round 28 adds the four missing comment-only synthetic emission markers at the
+kernel vector constructors that forward through `vector_error`. The current
+count table from the round-28 tree is:
 
-| Count | Round 26 | Round 27 |
+| Count | Round 27 | Round 28 |
 | --- | ---: | ---: |
 | Codes | 3,541 | 3,541 |
 | Source files | 626 | 626 |
-| Emitting sites | 9,286 | 9,286 |
+| Emitting sites | 9,286 | 9,290 |
 | Received sites | 378 | 378 |
 | Reserved sites | 11 | 11 |
 | HTTP-classified | 1,704 | 1,704 |
 | Guide-anchored | 431 | 431 |
-| Environment variables | 186 | 188 |
-| Environment sites | 364 | 366 |
+| Environment variables | 188 | 188 |
+| Environment sites | 366 | 366 |
 
 The complete Guide check passed. Its verbatim terminal summary was:
 

@@ -27,6 +27,7 @@ pub fn value_invalid() -> SnapbackError {
 }
 
 pub fn query_invalid() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_QUERY_INVALID
     vector_error(code::QUERY_INVALID, "vector query is invalid")
 }
 
@@ -47,10 +48,12 @@ pub fn work_limit() -> SnapbackError {
 }
 
 pub fn index_unavailable() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_INDEX_UNAVAILABLE
     vector_error(code::INDEX_UNAVAILABLE, "vector index is unavailable")
 }
 
 pub fn index_corrupt() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_INDEX_CORRUPT
     vector_error(code::INDEX_CORRUPT, "vector index state is corrupt")
 }
 
@@ -63,6 +66,7 @@ pub fn maintenance_limit() -> SnapbackError {
 }
 
 pub fn maintenance_failed() -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_VECTOR_MAINTENANCE_FAILED
     vector_error(code::MAINTENANCE_FAILED, "vector index maintenance failed")
 }
 
