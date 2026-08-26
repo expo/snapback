@@ -21,6 +21,18 @@ That narrows the deployment race but does not make inspection and mutation
 dispatch atomic. Sessions servers already enforce the assertion against the
 manifest pair selected for invocation; v0-dev does not.
 
+The round-32 dual review found the same residual window on queue-capable
+**foreground string-named mutations**. The call has no generated-reference
+generation, but its successful capability inspection does establish a complete
+operation target. Before the client fix, the foreground POST omitted
+`expectedGeneration`; a same-origin, same-app deployment switch after the final
+capability answer could therefore execute generation-one intent under
+generation two even on a Sessions target, because there was no wire assertion
+for the server to reject. The JS client now derives the assertion from the
+inspected operation target and locally refuses a changed durable target fact,
+but only mutation-time server validation can close the remaining
+answer-to-POST window atomically.
+
 ## Required behavior
 
 - `validate_expected_generation_against_manifests` must validate a supplied
@@ -33,11 +45,17 @@ manifest pair selected for invocation; v0-dev does not.
 - Tests must exercise the real v0-dev invocation path across a generation
   change after inspection and prove zero application effects and zero replay
   settlement for the stale carrier.
+- The same real invocation-path coverage must include a queue-capable
+  foreground string-named mutation whose final capability answer names G1,
+  whose POST carries G1 in `expectedGeneration`, and whose selected active
+  manifests are G2. It must prove zero G2 application effects and no durable
+  settlement for the stale identity.
 - Sessions behavior must remain unchanged and covered.
 
 ## Bound on current evidence
 
 The public-dashboard offline-local-first 9/9 acceptance does not cover the
-inspection-to-POST deployment race. Client tests prove the persisted wire pin
-and immediate pre-POST reinspection; they do not prove v0-dev server-side
-mutation-generation enforcement.
+inspection-to-POST deployment race. Client tests prove both the persisted
+replay wire pin/immediate pre-POST reinspection and the foreground string-name
+wire assertion against a Sessions-shaped rejection fixture; they do not prove
+v0-dev server-side mutation-generation enforcement.

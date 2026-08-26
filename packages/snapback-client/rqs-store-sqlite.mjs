@@ -1096,6 +1096,20 @@ export async function createSqliteRqsResumeStore({
         outboxOps.discard(state, id, expectedAuthorizationFence)
       ));
     },
+    outboxDiscardPendingInsertion(
+      id,
+      insertionSequence,
+      expectedAuthorizationFence = null,
+    ) {
+      return mutateOutbox('outbox-discard-pending-insertion', (state) => (
+        outboxOps.discardPendingInsertion(
+          state,
+          id,
+          insertionSequence,
+          expectedAuthorizationFence,
+        )
+      ));
+    },
     outboxRecordAcknowledgement(id, userId = null, descriptor = null) {
       return mutateOutbox('outbox-record-ack', (state) => outboxOps.recordAck(state, id, userId, descriptor));
     },

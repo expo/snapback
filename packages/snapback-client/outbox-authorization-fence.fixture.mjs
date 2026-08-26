@@ -41,6 +41,15 @@ const RESULT_GONE = Object.freeze({
   outcome: 'committed',
   receiptDigest: `sha256:${'d'.repeat(64)}`,
 });
+const ENQUEUE_TARGET = Object.freeze({
+  schemaVersion: 'snapback.outbox-enqueue-target.v1',
+  canonicalOrigin: 'https://outbox-fence-shared-contract.example',
+  targetProfileId: 'outbox-fence-shared-contract',
+  artifactIdentity: Object.freeze({
+    kind: 'app',
+    appId: 'outbox-fence-shared-contract',
+  }),
+});
 
 const expectStale = async (operation, message) => assert.rejects(
   operation,
@@ -82,7 +91,12 @@ export async function exerciseOutboxAuthorizationFenceCompareAndCommit(store, { 
     PRINCIPAL_SCOPE,
     capturedFence,
   );
-  await store.outboxEnqueue({ id: acknowledgementId, function: 'sharedFenceMutation' }, capturedFence);
+  await store.outboxEnqueue({
+    id: acknowledgementId,
+    function: 'sharedFenceMutation',
+    outboxRecordSchemaVersion: 2,
+    enqueueTarget: ENQUEUE_TARGET,
+  }, capturedFence);
   await store.outboxDurablyConsume(
     acknowledgementId,
     { result: { ok: true } },
@@ -90,7 +104,13 @@ export async function exerciseOutboxAuthorizationFenceCompareAndCommit(store, { 
     [],
     capturedFence,
   );
-  await store.outboxMarkAcknowledgementsReady([acknowledgementId]);
+  await store.outboxMarkAcknowledgementsReady(
+    [acknowledgementId],
+    undefined,
+    undefined,
+    null,
+    ENQUEUE_TARGET,
+  );
 
   await store.outboxApplyAuthorizationObligation(
     OBLIGATION,
@@ -130,6 +150,7 @@ export async function exerciseOutboxAuthorizationFenceCompareAndCommit(store, { 
       undefined,
       undefined,
       capturedFence,
+      ENQUEUE_TARGET,
     ),
     `${label}: stale ACK confirmation refuses`,
   );
@@ -168,6 +189,7 @@ export async function exerciseOutboxAuthorizationFenceCompareAndCommit(store, { 
       undefined,
       undefined,
       currentFence,
+      ENQUEUE_TARGET,
     ),
     1,
   );

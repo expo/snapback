@@ -2084,10 +2084,10 @@ An inspect answer whose store CAS loses to a current negative or different
 positive authority is refused in automatic queue mode as
 `inspection-superseded`. The shared/local re-read occurs before a new
 `clientMutationId` is minted, repeats at the enqueue boundary, and cannot
-degrade to an online-only POST. The retryable-inspection matrix now exercises
-HTTP 425 beside 408 and 429 at enqueue, cycle start, and final pre-POST. LLP
-0043's revision header now uses the same terminal-4xx exclusion as its body
-and LLP 0058.
+degrade to an online-only POST. Coverage was added for HTTP 425 beside 408 and
+429 at enqueue, cycle start, and final pre-POST; production already classified
+425 as unavailable. LLP 0043's revision header now uses the same terminal-4xx
+exclusion as its body and LLP 0058.
 
 The fail-first regressions reported these reviewed defects before production
 changes:

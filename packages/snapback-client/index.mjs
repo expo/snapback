@@ -3307,7 +3307,11 @@ const isOfflineMutationReplayEnqueueOnlyEvidence = (evidence) => (
   evidence === 'cached' || evidence === 'uncommitted'
 );
 
-const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
+const offlineMutationOperationTargetChangedError = (
+  target,
+  currentBaseUrl,
+  currentFact = null,
+) => {
   const current = normalizedOperationBaseUrl(currentBaseUrl);
   const message = 'the client target changed after mutation/replay admission; transport was refused';
   return diagnosticError(
@@ -3316,12 +3320,30 @@ const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
     {
       reason: 'operation-target-changed',
       pinnedOrigin: target.origin,
-      currentOrigin: canonicalServerOrigin(current),
+      currentOrigin: currentFact === null
+        ? canonicalServerOrigin(current)
+        : canonicalServerOrigin(currentFact.origin),
       targetProfileId: target.targetProfileId,
       artifactGeneration: target.artifactGeneration,
       ledgerIncarnation: target.ledgerIncarnation ?? null,
+      ...(currentFact === null ? {} : {
+        currentTargetProfileId: currentFact.targetProfileId,
+        currentArtifactGeneration: currentFact.artifactGeneration,
+        currentLedgerIncarnation: currentFact.ledgerIncarnation ?? null,
+      }),
     },
   );
+};
+
+const requireOutboxPendingInsertionDiscard = (store) => {
+  if (typeof store?.outboxDiscardPendingInsertion === 'function') {
+    return store.outboxDiscardPendingInsertion.bind(store);
+  }
+  const error = new Error(
+    'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot discard an exact owned pending insertion',
+  );
+  error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+  throw error;
 };
 
 const offlineMutationOutboxEnqueueTarget = (
@@ -11654,12 +11676,10 @@ export class SnapbackClient {
       authority === null
       || this.authorityFence?.isCurrent?.(authority.capture) === true
     ) return true;
-    if (
-      insertionOwnership !== null
-      && typeof store.outboxDiscardPendingInsertion === 'function'
-    ) {
+    if (insertionOwnership !== null) {
+      const discardPendingInsertion = requireOutboxPendingInsertionDiscard(store);
       try {
-        await store.outboxDiscardPendingInsertion(
+        await discardPendingInsertion(
           clientMutationId,
           insertionOwnership.sequence,
           expectedAuthorizationFence,
@@ -12930,11 +12950,8 @@ export class SnapbackClient {
       if (typeof beforeEnqueue === 'function' && await beforeEnqueue() !== true) {
         if (!alreadyCommitted) {
           const insertionOwnership = outboxInsertionOwnershipFrom(stored);
-          if (
-            insertionOwnership !== null
-            && typeof store.outboxDiscardPendingInsertion === 'function'
-          ) {
-            await store.outboxDiscardPendingInsertion(
+          if (insertionOwnership !== null) {
+            await requireOutboxPendingInsertionDiscard(store)(
               stored.id,
               insertionOwnership.sequence,
               outboxAuthorizationFenceFrom(stored),
@@ -15309,19 +15326,11 @@ export class SnapbackClient {
       if (!await capabilityIsCurrent()) {
         const insertionOwnership = outboxInsertionOwnershipFrom(stored);
         if (insertionOwnership !== null) {
-          let discarded = false;
-          if (typeof store.outboxDiscardPendingInsertion === 'function') {
-            discarded = await store.outboxDiscardPendingInsertion(
-              stored.id,
-              insertionOwnership.sequence,
-              outboxAuthorizationFenceFrom(stored),
-            );
-          } else if (typeof store.outboxDiscard === 'function') {
-            discarded = await store.outboxDiscard(
-              stored.id,
-              outboxAuthorizationFenceFrom(stored),
-            );
-          }
+          const discarded = await requireOutboxPendingInsertionDiscard(store)(
+            stored.id,
+            insertionOwnership.sequence,
+            outboxAuthorizationFenceFrom(stored),
+          );
           if (discarded !== true) {
             const current = (await store.outboxRecords())
               .find((record) => record?.id === stored.id) ?? null;
@@ -15546,8 +15555,19 @@ export class SnapbackClient {
       read_set: readSet,
       wireVersion: WIRE_VERSION_TOKEN,
     };
-    if (mutationWireExpectedGeneration !== null) {
-      body.expectedGeneration = mutationWireExpectedGeneration;
+    const inspectedWireExpectedGeneration = mutationWireExpectedGeneration ?? (
+      dispatchLane === 'foreground'
+      && queueCapabilityVerified === true
+      && generation === null
+      && operationTarget.artifactGeneration !== null
+        ? normalizeExpectedGeneration(
+            operationTarget.artifactGeneration,
+            'foreground string-named mutation inspected generation',
+          )
+        : null
+    );
+    if (inspectedWireExpectedGeneration !== null) {
+      body.expectedGeneration = inspectedWireExpectedGeneration;
     }
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
     // the receipt; the provider never interprets it.
@@ -15886,19 +15906,11 @@ export class SnapbackClient {
         ? null
         : outboxAuthorizationFenceFrom(durableOnlineStoredRecord);
       if (queueInsertionOwnership !== null) {
-        let discarded = false;
-        if (typeof queueStore.outboxDiscardPendingInsertion === 'function') {
-          discarded = await queueStore.outboxDiscardPendingInsertion(
-            clientMutationId,
-            queueInsertionOwnership.sequence,
-            expectedAuthorizationFence,
-          );
-        } else if (typeof queueStore.outboxDiscard === 'function') {
-          discarded = await queueStore.outboxDiscard(
-            clientMutationId,
-            expectedAuthorizationFence,
-          );
-        }
+        const discarded = await requireOutboxPendingInsertionDiscard(queueStore)(
+          clientMutationId,
+          queueInsertionOwnership.sequence,
+          expectedAuthorizationFence,
+        );
         if (discarded !== true) {
           const current = (await queueStore.outboxRecords())
             .find((record) => record?.id === clientMutationId) ?? null;
@@ -15922,11 +15934,16 @@ export class SnapbackClient {
       );
       const capabilityCurrent = !operationTargetChanged
         && await this.#isOfflineMutationReplayCapabilityFactCurrent(
-        queueCapabilityFact,
-        queueCapabilityRequestSequence,
-        operationTarget,
-      );
+          queueCapabilityFact,
+          queueCapabilityRequestSequence,
+          operationTarget,
+        );
       if (capabilityCurrent) return true;
+      const currentFact = operationTargetChanged
+        ? null
+        : await this.#currentOfflineMutationReplayCapabilityFact(operationTarget);
+      const completeTargetChanged = currentFact?.supported === true
+        && !offlineMutationOperationTargetMatchesFact(operationTarget, currentFact);
       if (retireRecord) await retireSupersededCapabilityRecord();
       queueCapabilityVerified = false;
       queueCapabilityEvidence = null;
@@ -15935,8 +15952,13 @@ export class SnapbackClient {
       if (
         operationTargetChanged
         || !this.#isOfflineMutationOperationTargetCurrent(operationTarget)
+        || completeTargetChanged
       ) {
-        throw offlineMutationOperationTargetChangedError(operationTarget, this.baseUrl);
+        throw offlineMutationOperationTargetChangedError(
+          operationTarget,
+          this.baseUrl,
+          completeTargetChanged ? currentFact : null,
+        );
       }
       return false;
     };

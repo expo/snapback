@@ -2463,6 +2463,12 @@ export const outboxOps = {
     enqueueTarget = undefined,
   ) {
     requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
+    // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01 — collection is authorized by complete settlement target custody.
+    // Match markAcksReady: acknowledgement collection requires the complete
+    // target that authorized consumption. Omission cannot mean every target.
+    if (normalizeOutboxEnqueueTarget(enqueueTarget) === null) {
+      return { state, result: 0 };
+    }
     const requested = new Set(ids);
     const confirmed = new Set(state.acks
       .filter((ack) => (

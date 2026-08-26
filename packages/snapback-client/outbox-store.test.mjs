@@ -698,6 +698,11 @@ async function exerciseOutboxContract(store, { label }) {
     'function',
     `${label}: carries the settle-time submission fence`,
   );
+  assert.equal(
+    typeof store.outboxDiscardPendingInsertion,
+    'function',
+    `${label}: carries exact pending-insertion compensation`,
+  );
   const first = await store.outboxEnqueue({
     id: 'cm-1',
     function: 'createThing',
@@ -1163,9 +1168,10 @@ test('operation range, next counter, and intent move in one outbox transition', 
 });
 
 test('ACK pressure refuses settlement publication without losing pending intent', () => {
+  const target = currentOutboxTarget({ origin: 'https://ack-pressure.example' });
   const pending = outboxOps.enqueue(
     emptyOutboxState(),
-    { id: 'cm-pressure', function: 'createThing' },
+    { id: 'cm-pressure', function: 'createThing', ...target },
     1,
   ).state;
   const full = {
@@ -1173,6 +1179,7 @@ test('ACK pressure refuses settlement publication without losing pending intent'
     acks: Array.from({ length: OUTBOX_MAX_PENDING_ACKS }, (_, index) => ({
       id: `cm-old-${index}`,
       userId: null,
+      enqueueTarget: target.enqueueTarget,
     })),
   };
   assert.throws(
@@ -1255,6 +1262,51 @@ test('ACK custody is scoped by authority instance as well as user', async () => 
     ['cm-authority'], 'user_a', first, null, target.enqueueTarget,
   ), 1);
   assert.deepEqual(await store.outboxRecords(), []);
+});
+
+test('ACK confirmation without an enqueue target is a no-op', async () => {
+  const store = createMemoryRqsResumeStore();
+  const target = currentOutboxTarget({
+    origin: 'https://ack-confirm-target-required.example',
+    targetProfileId: 'ack-confirm-target-required',
+  });
+  await store.outboxEnqueue({
+    id: 'cm-ack-confirm-target-required',
+    function: 'createThing',
+    ...target,
+  });
+  await store.outboxDurablyConsume(
+    'cm-ack-confirm-target-required',
+    { result: { ok: true } },
+    null,
+  );
+  await store.outboxMarkAcknowledgementsReady(
+    ['cm-ack-confirm-target-required'],
+    undefined,
+    undefined,
+    null,
+    target.enqueueTarget,
+  );
+
+  assert.equal(
+    await store.outboxConfirmAcknowledgements(['cm-ack-confirm-target-required']),
+    0,
+    'an omitted target cannot collect a target-bound settlement',
+  );
+  assert.equal((await store.outboxRecords())[0]?.status, 'settled');
+  assert.equal(
+    await store.outboxConfirmAcknowledgements(
+      ['cm-ack-confirm-target-required'],
+      undefined,
+      undefined,
+      null,
+      target.enqueueTarget,
+    ),
+    1,
+    'the exact enqueue target collects the settlement',
+  );
+  assert.deepEqual(await store.outboxRecords(), []);
+  await store.close();
 });
 
 test('memory arm carries the optional React binding receipt outside entry accounting', async () => {
@@ -1348,6 +1400,95 @@ test('sqlite arm carries the outbox contract atomically', async () => {
     const inspection = await store.inspection();
     assert.equal(inspection.outbox.pending, 0);
   } finally {
+    await store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('sqlite stale-authority compensation deletes only its owned insertion before retry', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-sqlite-stale-enqueue-'));
+  const store = await createSqliteRqsResumeStore({
+    sqlite: createNodeSqliteNamespace(directory),
+    databaseName: 'outbox.sqlite',
+  });
+  const coordinator = createSuccessorCoordinator();
+  const origin = 'https://sqlite-stale-enqueue.example';
+  const targetProfileId = 'sqlite-stale-enqueue-sessions';
+  let makeFirstInsertionStale = true;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      return Response.json({
+        ...sessionHandshake(TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR),
+        deploymentIdentity: {
+          ...sessionHandshake(TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR).deploymentIdentity,
+          appId: TEST_ARTIFACT_GENERATION.appId,
+        },
+      });
+    }
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+      }));
+    }
+    mutationPosts += 1;
+    throw new TypeError('sqlite stale-authority fixture is offline');
+  };
+  const injectedStore = Object.create(store);
+  const enqueue = store.outboxEnqueue.bind(store);
+  const isCurrent = coordinator.isCurrent.bind(coordinator);
+  let authorityArtificiallyStale = false;
+  coordinator.isCurrent = (capture) => (
+    authorityArtificiallyStale ? false : isCurrent(capture)
+  );
+  injectedStore.outboxEnqueue = async (...args) => {
+    const stored = await enqueue(...args);
+    if (makeFirstInsertionStale) {
+      makeFirstInsertionStale = false;
+      authorityArtificiallyStale = true;
+    }
+    return stored;
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: injectedStore,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    await settleSuccessorCoordinator(coordinator);
+    await client.authSession();
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'stale owned insertion' },
+        clientMutationId: 'cm-sqlite-stale-owned-insertion',
+      }),
+      (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+    );
+    assert.deepEqual(
+      await store.outboxRecords(),
+      [],
+      'the stale invocation deletes its exact owned insertion',
+    );
+
+    authorityArtificiallyStale = false;
+    const retry = await client.mutate('createThing', {
+      args: { title: 'fresh retry insertion' },
+      clientMutationId: 'cm-sqlite-stale-owned-insertion-retry',
+    });
+    assert.equal(retry.status, 'queued');
+    assert.deepEqual(
+      (await store.outboxRecords()).map((record) => record.id),
+      ['cm-sqlite-stale-owned-insertion-retry'],
+      'the fresh retry leaves exactly one durable identity',
+    );
+    assert.equal(mutationPosts, 1, 'only the fresh retry reaches foreground transport');
+  } finally {
+    await client.close();
     await store.close();
     rmSync(directory, { recursive: true, force: true });
   }
@@ -1576,7 +1717,13 @@ test('delete tombstones survive same-authority observation, discard after proof,
 
 test('active authorization root retains settled ACK collection until proof', async () => {
   const store = createMemoryRqsResumeStore();
-  await store.outboxEnqueue({ id: 'cm-ack-under-root', function: 'createThing', args: {} });
+  const target = currentOutboxTarget({ origin: 'https://ack-under-root.example' });
+  await store.outboxEnqueue({
+    id: 'cm-ack-under-root',
+    function: 'createThing',
+    args: {},
+    ...target,
+  });
   const prepared = await store.outboxPrepareSubmission('cm-ack-under-root');
   await store.outboxDurablyConsume(
     'cm-ack-under-root',
@@ -1585,7 +1732,13 @@ test('active authorization root retains settled ACK collection until proof', asy
     [],
     prepared.fence,
   );
-  await store.outboxMarkAcknowledgementsReady(['cm-ack-under-root']);
+  await store.outboxMarkAcknowledgementsReady(
+    ['cm-ack-under-root'],
+    undefined,
+    undefined,
+    null,
+    target.enqueueTarget,
+  );
   await applyQueueRoot(store, testQueueObligation);
   const suspendedAckFence = await store.outboxAuthorizationStatus();
   await assert.rejects(
@@ -1594,6 +1747,7 @@ test('active authorization root retains settled ACK collection until proof', asy
       undefined,
       undefined,
       suspendedAckFence,
+      target.enqueueTarget,
     ),
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
   );
@@ -1605,6 +1759,7 @@ test('active authorization root retains settled ACK collection until proof', asy
       undefined,
       undefined,
       await store.outboxAuthorizationStatus(),
+      target.enqueueTarget,
     ),
     1,
   );
@@ -5216,7 +5371,7 @@ test('replay persists a changed positive authority before releasing a waiting fo
     assert.equal(foreground.value, null);
     assert.equal(
       foreground.error?.code,
-      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED',
     );
     assert.equal(mutationPosts, 0, 'neither predecessor-pinned mutation reaches transport');
     const currentFact = await store.readOfflineMutationReplayCapabilityFact();
@@ -5891,6 +6046,153 @@ test('string-named replay carries its persisted generation across an inspect-to-
     );
   } finally {
     await replayClient.close();
+    await store.close();
+  }
+});
+
+test('foreground string-named mutation carries the inspected generation across the final-answer deployment race', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const coordinator = createSuccessorCoordinator();
+  const origin = 'https://foreground-string-generation-race.example';
+  const targetProfileId = 'foreground-string-generation-sessions';
+  const generationOne = {
+    ...TEST_ARTIFACT_GENERATION,
+  };
+  const generationTwo = {
+    ...generationOne,
+    schemaHash: testDigest('1'),
+    bundleHash: testDigest('2'),
+    inputsHash: testDigest('3'),
+  };
+  let servedGeneration = generationOne;
+  let switchAfterFinalCapabilityAnswer = false;
+  let mutationPosts = 0;
+  let successorEffects = 0;
+  let wireExpectedGeneration = null;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      const handshake = sessionHandshake(TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR);
+      return Response.json({
+        ...handshake,
+        deploymentIdentity: {
+          ...handshake.deploymentIdentity,
+          appId: generationOne.appId,
+        },
+      });
+    }
+    if (path === '/inspect') {
+      const response = Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+        generation: servedGeneration,
+      }));
+      if (switchAfterFinalCapabilityAnswer) servedGeneration = generationTwo;
+      return response;
+    }
+    mutationPosts += 1;
+    const body = JSON.parse(init.body);
+    wireExpectedGeneration = body.expectedGeneration ?? null;
+    if (
+      wireExpectedGeneration === null
+      || JSON.stringify(wireExpectedGeneration) !== JSON.stringify(servedGeneration)
+    ) {
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+          message: 'the asserted mutation generation is not active',
+        },
+      }, { status: 409 });
+    }
+    successorEffects += 1;
+    return Response.json({ result: { wronglyApplied: true }, version: 2 });
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    await settleSuccessorCoordinator(coordinator);
+    await client.authSession();
+    switchAfterFinalCapabilityAnswer = true;
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'belongs to generation one' },
+        clientMutationId: 'cm-foreground-string-generation-race',
+      }),
+      (error) => error?.code === 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+    );
+    assert.equal(mutationPosts, 1, 'the Sessions target receives one foreground POST');
+    assert.deepEqual(
+      wireExpectedGeneration,
+      generationOne,
+      'the string-named foreground carrier asserts its inspected generation',
+    );
+    assert.equal(successorEffects, 0, 'generation two executes zero predecessor effects');
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('foreground string-named mutation locally refuses a changed complete dispatch target', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://foreground-string-target-change.example';
+  const targetProfileId = 'foreground-string-target-change-profile';
+  const generationOne = {
+    ...TEST_ARTIFACT_GENERATION,
+    appId: 'foreground-string-target-change-app',
+  };
+  const generationTwo = {
+    ...generationOne,
+    bundleHash: testDigest('4'),
+  };
+  let servedGeneration = generationOne;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+        generation: servedGeneration,
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { wronglyApplied: true }, version: 2 });
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'must remain pinned to generation one' },
+        clientMutationId: 'cm-foreground-string-target-change',
+        __beforeTransportDispatch: async () => {
+          servedGeneration = generationTwo;
+          await replacingClient.inspect();
+        },
+      }),
+      (error) => (
+        error?.code === 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED'
+        && error?.diagnostic?.details?.reason === 'operation-target-changed'
+      ),
+    );
+    assert.equal(mutationPosts, 0, 'the changed complete target is refused before POST');
+    assert.deepEqual(await store.outboxRecords(), [], 'pre-dispatch custody is retired exactly once');
+  } finally {
+    await replacingClient.close();
+    await client.close();
     await store.close();
   }
 });
