@@ -4320,6 +4320,11 @@ export async function runExpoDev(options = {}) {
     // reloadMetroVerb itself, so this path only has to keep the rejection
     // handled.
     const queueSuccessorMetroReload = (successorDescriptorIdentity) => {
+      // `controlDispatcher` is assigned later in startup than this closure is
+      // defined, so a successor that rotates before readiness gets no reload.
+      // That is deliberate, not a hole: there is no live browser arm to rescue
+      // before `ready`, and the boot-admission retry (A2) covers an arm that
+      // boots into the window. Do not "fix" it by buffering a pending reload.
       if (closed || controlDispatcher === null) return;
       let operation;
       try {
