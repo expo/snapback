@@ -6,6 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
+**Revised:** 2026-08-26 (u — a retainable value guarded by a destructor is the same defect)
 **Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
@@ -767,6 +768,56 @@ The corresponding implementation work is one change to the shared primitive rath
 row, tracked at `issues/20260826-allocation-identity-fails-open-across-fork.md`. Reviewers should
 raise fork only where a carrier does **not** yet carry the creator-process identity, and should cite
 this revision rather than re-deriving the argument.
+
+### (u) A retainable value guarded by a destructor is the same defect
+
+**The observation.** Three separate lanes in this programme have now shipped a fix that
+hands the caller an **owned value carrying authority or coordination rights, whose
+validity depends on a destructor running** — and every one of them was rejected on a route
+the previous round had not considered.
+
+- Landing A returned an `AuthorityWritePermit`. Round 1 was rejected; round 2 was rejected;
+  round 3 moved the strong identity one object outward and was rejected on forgetting the
+  *owner* instead of the permit; round 4 closed all seven of those findings — each with an
+  executed regression and a mutation proof — and was rejected on four more, including a
+  writer replacing the kernel authorizer through the raw transaction accessor.
+- The room-completion lane removed a genuine lock-order cycle, then returned an owned,
+  lifetime-free completion whose state changes only through terminal methods or `Drop`.
+  `std::mem::forget` on it, in entirely safe Rust, leaves authorization writers polling
+  forever and participant replacement unable to finish.
+
+These are unrelated subsystems reached by unrelated reviewers. The recurrence is the
+finding.
+
+**Why patching does not converge.** Each round asks "which retention route is open?" and
+closes the one it was shown. The architecture keeps the question askable, so the next
+review asks it about a different route: `mem::forget` of the value, then of its owner, then
+`Box::leak`, then `ManuallyDrop`, then a raw accessor that bypasses the object entirely,
+then a second handle obtained elsewhere. Closing routes one at a time is not progress
+toward a bound; the set is not enumerable from inside the design.
+
+**The ruling.** Do not return, to arbitrary caller code, a value whose retention confers
+authority, holds a lock, or gates another party's progress. Confine the effect to a closed
+operation that runs the work itself, so there is nothing to retain — or bound the value's
+lifetime by something other than a destructor, and say explicitly what bounds it. "We also
+handle `mem::forget`" is not a fix; it is the next round's finding.
+
+**The harm inverts, as always.** Consistent with revisions (p) and (r): a stranded permit
+pins its cell and refuses later *legitimate* writes; a stranded completion wedges
+authorization progress permanently. So this defect class does not merely permit forgery —
+its failure mode is denial, and denial is the harder half to notice in review because
+nothing looks unauthorized.
+
+**Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
+own correctness are fine. The rule binds where the value's continued existence is what
+authorizes an effect, or what another thread is waiting on.
+
+**How to apply.** Reviewers should cite this revision rather than re-deriving the argument,
+and should treat "can safe code retain this past its intended lifetime?" as a required
+question, not an optional one. Authors proposing a fix in this class should state which of
+the two remedies they chose and why — and if they chose a deadline or a bound rather than
+removing the retainable value, they must justify why the bound is safe and say what happens
+to work that returns after it expires.
 
 ## Severity context
 
