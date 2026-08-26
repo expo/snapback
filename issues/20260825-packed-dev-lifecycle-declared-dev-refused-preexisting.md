@@ -15,7 +15,14 @@
 before any lane change) with:
 
 ```text
+file:///private/var/folders/4_/6m2cbnz54r34g_k18rxs7h800000gn/T/snapback-packed-dev-lifecycle-EHxrYF/external-consumer/node_modules/@expo/snapback-client/diagnostic-error.mjs:153
+  return new SnapbackDiagnosticError(diagnostic, { ...facts, message });
+         ^
 
+SnapbackDiagnosticError: SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED: The declared-dev capability is not installed on this exact generated app object.
+    at snapbackDiagnosticError (file:///private/var/folders/4_/6m2cbnz54r34g_k18rxs7h800000gn/T/snapback-packed-dev-lifecycle-EHxrYF/external-consumer/node_modules/@expo/snapback-c
+    at refusal (file:///private/var/folders/4_/6m2cbnz54r34g_k18rxs7h800000gn/T/snapback-packed-dev-lifecycle-EHxrYF/external-consumer/node_modules/@expo/snapback-client/app-client
+    at preflight (file:///private/var/folders/4_/6m2cbnz54r34g_k18rxs7h800000gn/T/snapback-packed-dev-lifecycle-EHxrYF/external-consumer/node_modules/@expo/snapback-client/app-clie
 ```
 
 The packed importer's declared-dev binding refuses because the declared-dev
