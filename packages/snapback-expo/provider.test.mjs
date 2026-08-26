@@ -139,7 +139,7 @@ const environment = Object.freeze({
     };
   },
   async resolveAppClientPlatform() {
-    return Object.freeze({ kind: 'expo-web' });
+    return 'expo-web';
   },
   async adoptAuthority({ adoptSupervisedSession }) {
     assert.equal(

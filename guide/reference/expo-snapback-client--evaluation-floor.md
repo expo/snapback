@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:d167212ceef2d4a353757bc966d0003e4815395c173e
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:c00502caeb3a905d181a22bbaa41b8f5107b2a36b9b2d3bb5e03d9c0baf9933f`.
+`sha256:42c50f2230ef1089038e65ecce721cd28d8a730de152926760cab6c08cc5b61d`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 

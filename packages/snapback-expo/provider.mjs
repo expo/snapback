@@ -222,9 +222,17 @@ function firstPartyBootstrapOptIn(app) {
     && app?.capabilities?.required?.includes(APPLICATION_AUTH_BOOTSTRAP_CAPABILITY);
 }
 
+function normalizeAppClientPlatform(platform) {
+  return typeof platform === 'string'
+    ? Object.freeze({ kind: platform })
+    : platform;
+}
+
 async function resolveAppClientPlatform(environment, app) {
   if (typeof environment.resolveAppClientPlatform === 'function') {
-    return environment.resolveAppClientPlatform({ app });
+    return normalizeAppClientPlatform(
+      await environment.resolveAppClientPlatform({ app }),
+    );
   }
   if (globalThis.indexedDB?.open) return Object.freeze({ kind: 'expo-web' });
   const operatingSystem = await resolveNativeOperatingSystem(environment);
@@ -781,7 +789,9 @@ export function createSnapbackExpoBoot(options = {}) {
         adoptSupervisedSession === undefined
         && typeof environment.resolveAppClientPlatform === 'function'
       ) {
-        legacyPlatform = await awaitBoundary(environment.resolveAppClientPlatform({ app }));
+        legacyPlatform = normalizeAppClientPlatform(
+          await awaitBoundary(environment.resolveAppClientPlatform({ app })),
+        );
       }
       // @ref LLP 0300#p4--the-dev-session-becomes-explicit — legacy generated
       // apps use the same native-default/web-opt-in adoption posture as the
@@ -1289,10 +1299,15 @@ export function isSnapbackExpoBootDiagnostic(error) {
 }
 
 async function resolveExpoRuntimePosture(environment, platform) {
-  // An explicit platform resolver outranks and therefore bypasses native OS seams.
-  if (typeof environment.resolveAppClientPlatform === 'function') {
-    return ['browser', 'expo-web'].includes(platform?.kind) ? 'web' : 'native';
-  }
+  const normalizedPlatform = normalizeAppClientPlatform(platform);
+  if (['browser', 'expo-web'].includes(normalizedPlatform?.kind)) return 'web';
+  if (
+    typeof normalizedPlatform?.kind === 'string'
+    && normalizedPlatform.kind !== 'memory'
+  ) return 'native';
+  // Memory is a custody choice, not a runtime posture. It is valid on Expo
+  // web without IndexedDB and on native volatile-explicit apps, so resolve it
+  // from the host rather than classifying every explicit resolver as native.
   const operatingSystem = await resolveNativeOperatingSystem(environment);
   if (operatingSystem === 'web') return 'web';
   if (operatingSystem !== 'unknown') return 'native';

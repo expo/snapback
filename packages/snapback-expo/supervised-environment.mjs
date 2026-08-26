@@ -686,8 +686,13 @@ export function createSupervisedExpoEnvironment({
       binding,
       signal,
       rqsStore,
-      adoptSupervisedSession = true,
+      adoptSupervisedSession = undefined,
     }) {
+      // @ref LLP 0300#p4--the-dev-session-becomes-explicit — direct callers
+      // share the provider's runtime posture: web stays anonymous by default,
+      // while native retains the supervised convenience session.
+      const shouldAdoptSupervisedSession = adoptSupervisedSession
+        ?? (runtimePlatform ?? inferredRuntimePlatform()) === 'native';
       const key = bindingKey(binding);
       const storedExchange = exchanges.get(key);
       const cached = storedExchange === undefined ? offlineFallbacks.get(key) : null;
@@ -720,7 +725,7 @@ export function createSupervisedExpoEnvironment({
           },
         });
       }
-      const exchange = adoptSupervisedSession
+      const exchange = shouldAdoptSupervisedSession
         ? await fetchAuthorityExchange(signal, key, storedExchange)
         : storedExchange ?? await fetchExchange(signal);
       exchanges.delete(key);
@@ -741,7 +746,7 @@ export function createSupervisedExpoEnvironment({
           ? resolvedClientOptions.rqsStore
           : rqsStore,
       };
-      const client = adoptSupervisedSession
+      const client = shouldAdoptSupervisedSession
         ? createExternalSessionClient(binding.target.origin, {
             ...sharedClientOptions,
             bearerToken: exchange.authority.token,
@@ -750,6 +755,7 @@ export function createSupervisedExpoEnvironment({
         : new SnapbackClient(binding.target.origin, {
             ...sharedClientOptions,
             bearerToken: null,
+            custody: 'anonymous-public',
           });
       let facts;
       try {
@@ -762,11 +768,11 @@ export function createSupervisedExpoEnvironment({
       adopted = {
         binding,
         client,
-        token: adoptSupervisedSession ? exchange.authority.token : null,
+        token: shouldAdoptSupervisedSession ? exchange.authority.token : null,
         publicFacts: facts,
         offline: false,
       };
-      if (adoptSupervisedSession) saveCachedBinding(exchange.binding, facts);
+      if (shouldAdoptSupervisedSession) saveCachedBinding(exchange.binding, facts);
       return Object.freeze({
         status: 'ready',
         client,

@@ -142,6 +142,105 @@ assert.equal(requests[0].options.method, 'GET');
 assert.equal(JSON.stringify(binding).includes('token'), false);
 await boot.dispose();
 
+const directWebBootstrapRequests = [];
+const directWebEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  runtimePlatform: 'web',
+  clientOptions: { rqsStore: null },
+  async fetch(url, options) {
+    directWebBootstrapRequests.push({ url, options });
+    assert.equal(
+      options.method,
+      'GET',
+      'direct web authority adoption defaults to binding-only and never requests a mint',
+    );
+    return Response.json({
+      format: SUPERVISED_EXCHANGE_FORMAT,
+      correlationId: 'direct-web-adoption-correlation',
+      binding,
+      authority: { status: 'unavailable' },
+    });
+  },
+});
+const directWebAdmission = await directWebEnvironment.resolveBinding({
+  app,
+  signal: new AbortController().signal,
+});
+const previousFetch = globalThis.fetch;
+globalThis.fetch = async (url) => {
+  assert.equal(new URL(url).pathname, '/auth/session');
+  return Response.json({
+    protocolVersion: 1,
+    serverStartupNonce: 'direct-web-adoption-test',
+    authorizationStreamIncarnation: '018f0d90-7b11-7a22-8c33-445566778899',
+    transitionGeneration: 0,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: {
+        available: true,
+        minimumAuthInvalidationProtocol: 1,
+        reason: null,
+      },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'local-password', available: true },
+    transports: ['bearer'],
+    authority: {
+      kind: 'anonymous',
+      userId: null,
+      sessionId: null,
+      isAuthenticated: false,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: '018f0d90-7b11-7a22-8c33-445566778899',
+      sessionGeneration: 0,
+    },
+    deploymentIdentity: {
+      schemaVersion: 'snapback.v1',
+      authMode: 'sessions',
+      appId: app.identity.app,
+      schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+      bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+      inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+    },
+    authorizedLease: null,
+  });
+};
+try {
+  const directWebAdoption = await directWebEnvironment.adoptAuthority({
+    binding: directWebAdmission.binding,
+    signal: new AbortController().signal,
+  });
+  assert.equal(directWebAdoption.status, 'ready');
+  assert.equal(directWebAdoption.publicFacts.sessionId, null);
+  assert.equal(directWebBootstrapRequests.length, 1);
+  await directWebAdoption.dispose();
+} finally {
+  globalThis.fetch = previousFetch;
+}
+
 await assert.rejects(
   () => createSupervisedExpoEnvironment({ exchangeOrigin: 'https://example.test' })
     .resolveBinding({ signal: new AbortController().signal }),

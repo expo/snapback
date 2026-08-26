@@ -1370,6 +1370,22 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   ).json();
   assert.equal(firstExchange.authority.status, 'unavailable');
   assert.equal(Object.hasOwn(firstExchange.authority, 'token'), false);
+  const supervisorOriginMint = await fetch(
+    `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: {
+        Origin: supervisor.exchangeOrigin,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ correlationId: firstExchange.correlationId }),
+    },
+  );
+  assert.equal(
+    supervisorOriginMint.status,
+    403,
+    'shared-auth scripts on the supervisor origin cannot request an ordinary-session mint',
+  );
 
   const injectedMetroEnvironment = JSON.parse(readFileSync(settled.metroEnv, 'utf8'));
   assert.equal(

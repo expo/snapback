@@ -426,9 +426,8 @@ const noIndexedDbWebSupervisor = {
 };
 const {
   resolveNativeAuthCustodyOperatingSystem: _noIndexedDbRuntimeOverride,
-  resolveAppClientPlatform: _noIndexedDbPlatformOverride,
   ...noIndexedDbWebEnvironment
-} = environmentFor(Object.freeze({ kind: 'memory', cryptoObject: webcrypto }), noIndexedDbWebSupervisor);
+} = environmentFor('memory', noIndexedDbWebSupervisor);
 const previousWebDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
 assert.equal(globalThis.indexedDB, undefined, 'the regression requires IndexedDB to be absent');
 Object.defineProperty(globalThis, 'document', {

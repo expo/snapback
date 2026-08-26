@@ -374,7 +374,7 @@ test('native custody provider admits only the evidenced tuple and refuses every 
       });
     }
 
-    await t.test('platform override has precedence over OS and module seams', async () => {
+    await t.test('memory platform override consults runtime posture without loading native custody', async () => {
       let overrideCalls = 0;
       let operatingSystemCalls = 0;
       let moduleCalls = 0;
@@ -398,7 +398,7 @@ test('native custody provider admits only the evidenced tuple and refuses every 
       const result = await runBoot(Object.freeze(environment));
       assert.equal(result.state.status, 'ready');
       assert.equal(overrideCalls, 1);
-      assert.equal(operatingSystemCalls, 0);
+      assert.equal(operatingSystemCalls, 1);
       assert.equal(moduleCalls, 0);
       assert.equal(result.applicationClientInputs[0].platform, overridePlatform);
       await result.boot.dispose();

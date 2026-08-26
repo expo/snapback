@@ -2572,10 +2572,11 @@ export async function runExpoDev(options = {}) {
     metroPlaceholder = reservedListeners.metroPlaceholder;
     const metroPort = reservedListeners.clientPort;
     const metroProcessPort = reservedListeners.metroProcessPort;
-    admittedAuthorityOrigins = Object.freeze([
-      ...expoBackendClientOrigins(metroPort),
-      bootstrap.origin,
-    ]);
+    // The shared-auth page is served from the supervisor origin, so that
+    // control-plane origin must never be allowed to mint an application
+    // session. Metro client origins and originless correlation-bound native
+    // requests are the complete product caller set.
+    admittedAuthorityOrigins = Object.freeze(expoBackendClientOrigins(metroPort));
     portPlan = materializeDevPortPlan(requestedPortPlan, reservedListeners.assigned);
     const backendEnv = expoBackendDevAuthEnvironment(childEnv, metroPort);
     emit({
