@@ -13838,6 +13838,19 @@ impl LocalSnapback {
         ))
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn graph_corpus_scheduler_control_for_test(
+        &self,
+    ) -> SnapbackResult<Arc<crate::live_coalesce::LiveFanoutCoalescer>> {
+        self.live_coalescer.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the graph corpus scheduler is not configured",
+            )
+        })
+    }
+
     // @ref LLP 0148#d3-body-bytes-uuidv7-everywhere-random-for-usr_ — graph corpus catalog fixtures use the production kind-prefix encoder.
     #[cfg(any(test, feature = "test-support"))]
     fn graph_corpus_catalog_id_for_test(kind: crate::ids::Kind, discriminator: u8) -> String {
@@ -13852,6 +13865,13 @@ impl LocalSnapback {
     #[cfg(any(test, feature = "test-support"))]
     fn graph_corpus_principal_id_for_test() -> String {
         crate::ids::format_id(crate::ids::Kind::User, &[0; 16])
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_other_principal_id_for_test() -> String {
+        let mut body = [0; 16];
+        body[15] = 1;
+        crate::ids::format_id(crate::ids::Kind::User, &body)
     }
 
     // @ref LLP 0303#the-governing-principle — the scheduler's catalog facts, resolved session, and connection fence share one canonical authority tuple.
@@ -13951,16 +13971,29 @@ impl LocalSnapback {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    fn graph_corpus_session_authority_for_test(
+    fn graph_corpus_session_authority_for_principal_test(
         &mut self,
         source: InvocationSource,
+        other_principal: bool,
         alternate_instance: bool,
     ) -> SnapbackResult<PreparedAuthority> {
-        let principal_id = Self::graph_corpus_principal_id_for_test();
-        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x31);
+        let principal_id = if other_principal {
+            Self::graph_corpus_other_principal_id_for_test()
+        } else {
+            Self::graph_corpus_principal_id_for_test()
+        };
+        let session_id = Self::graph_corpus_catalog_id_for_test(
+            crate::ids::Kind::Session,
+            if other_principal { 0x34 } else { 0x31 },
+        );
         let authority_instance_id = Self::graph_corpus_catalog_id_for_test(
             crate::ids::Kind::AuthorityInstance,
-            if alternate_instance { 0x33 } else { 0x32 },
+            match (other_principal, alternate_instance) {
+                (false, false) => 0x32,
+                (false, true) => 0x33,
+                (true, false) => 0x35,
+                (true, true) => 0x36,
+            },
         );
         Ok(self.prepare_resolved_session_fixture(
             source,
@@ -13969,6 +14002,56 @@ impl LocalSnapback {
             &authority_instance_id,
             1,
             4_000_000_000_000,
+        ))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_session_authority_for_test(
+        &mut self,
+        source: InvocationSource,
+        alternate_instance: bool,
+    ) -> SnapbackResult<PreparedAuthority> {
+        self.graph_corpus_session_authority_for_principal_test(source, false, alternate_instance)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_other_principal_authority_for_test(
+        &mut self,
+        source: InvocationSource,
+        alternate_instance: bool,
+    ) -> SnapbackResult<PreparedAuthority> {
+        self.graph_corpus_session_authority_for_principal_test(source, true, alternate_instance)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn graph_corpus_other_principal_connection_for_test(
+        &mut self,
+        authorization: crate::storage::AuthorizationVersion,
+    ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        let _authority = self.graph_corpus_other_principal_authority_for_test(
+            InvocationSource::LiveInitialQuery,
+            false,
+        )?;
+        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x34);
+        let invalidation = self.auth_invalidation.as_ref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the graph corpus scheduler is not configured",
+            )
+        })?;
+        if invalidation.obligations.expectation().authorization != authorization {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_FIXTURE_INVALID",
+                "query",
+                "the other-principal corpus connection did not retain the configured authorization stream",
+            ));
+        }
+        invalidation.reserve_connection(crate::ephemeral::ConnectionEffectFence::session(
+            authorization.incarnation,
+            "graph-corpus-other-principal-grant",
+            session_id,
+            1,
         ))
     }
 
@@ -13998,6 +14081,44 @@ impl LocalSnapback {
     ) -> SnapbackResult<LiveSubscribeOutput> {
         let authority =
             self.graph_corpus_session_authority_for_test(InvocationSource::LiveInitialQuery, true)?;
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::new(connection).with_session_mode(true),
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn subscribe_graph_corpus_other_principal_case_for_test(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        connection: AuthorizationInvalidationConnection,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        let authority = self.graph_corpus_other_principal_authority_for_test(
+            InvocationSource::LiveInitialQuery,
+            false,
+        )?;
+        self.subscribe_live_prepared_with_invalidation(
+            name,
+            input,
+            authority,
+            LiveInvalidationAdmission::new(connection).with_session_mode(true),
+        )
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn subscribe_graph_corpus_other_principal_partition_case_for_test(
+        &mut self,
+        name: &str,
+        input: LiveSubscribeInput,
+        connection: AuthorizationInvalidationConnection,
+    ) -> SnapbackResult<LiveSubscribeOutput> {
+        let authority = self.graph_corpus_other_principal_authority_for_test(
+            InvocationSource::LiveInitialQuery,
+            true,
+        )?;
         self.subscribe_live_prepared_with_invalidation(
             name,
             input,

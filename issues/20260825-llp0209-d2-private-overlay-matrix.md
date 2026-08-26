@@ -9,9 +9,7 @@ Add positive own-principal, absent, and other-principal rows for both `viewState
 ## Implementation update — 2026-08-25
 
 **Status:** Open. The requested implementation and scoped qualification are
-present locally; this ticket remains open per the implementation brief. The two
-final-tree `snapback` corpus commands are still compile-blocked by the unrelated
-`AuthProvider::agent_random_source` error described below.
+present locally; this ticket remains open per the implementation brief.
 
 The canonical freezer now emits
 `tests/conformance/graph/private-overlay-matrix.v1.json`, a corpus-local
@@ -30,25 +28,35 @@ transition, and unchanged replace-only delta dispositions. The executable tests
 assert:
 
 - own rows appear, absent rows project `null`, and own data commits produce one
-  exact replacement with exact successor proofs;
+  exact successor row payload. The served own-update arm compares completeness
+  shape after normalizing the harness-specific proof tuple and intentionally
+  widens the test carrier's page allowance; it does **not** claim the frozen
+  carrier's exact successor identity/proof tuple;
 - paired worlds with and without another principal's row have identical bytes
   and completeness proofs;
-- writes to principal B's row produce a target-node `skip`, zero deliveries,
-  and no change to principal A's complete served observation;
-- principal B's canonical authority-instance rotation is admitted only in the
-  private case's scoped manifest, produces `skip` and zero deliveries, and
-  leaves principal A's bytes, partition, and proofs byte-identical;
-- active authority generation 0 is fenced before exactly one generation 1
-  delivery, with zero stale deliveries and the overlay still scoped correctly;
-- list and detail use `partition-of-one`; active and other canonical principals
-  have distinct partition hashes, while each active hash is stable across its
-  own data update.
+- principal B's UPDATE, DELETE, and INSERT overlay commits each produce a
+  target-node `skip`, zero deliveries, no executed evaluation, and no change to
+  principal A's complete served observation;
+- an ordinary write to principal B's `identityBinding` row remains a separately
+  named capture-skip proof; it is not represented as an authority transition;
+- retained principal B rotates through the scheduler's real second owner-issued
+  authority instance while retained principal A observes zero fence, wake, or
+  delivery and keeps a byte-identical served observation;
+- active authority generation 0 has an in-flight predecessor data evaluation
+  fenced before delivery; the delivery-time gate discards that late result,
+  then the transition emits the closed census of exactly one fence and one
+  generation-1 snapshot, with no other wire kind;
+- the frozen crew/removed pair has byte-identical class-2 inputs and present,
+  distinct class-3 inputs. The served normal/alternate owner-issued instances
+  likewise differ only in class 3, and their engine-issued partition hashes are
+  reconstructed and compared without hash normalization;
+- every Rust matrix case executes the frozen unchanged replace-only
+  `deltaEligibility` disposition.
 
-Authority fixtures use the canonical mints from `0b140beb3`:
-`usr_00000000000000000000000000` and `usr_00000000000000000000000001`,
-with `aut_01hw6s0ysjf8h8rct4ank7f24s`,
-`aut_01hw6s0ysmf8h8rct4ank7f24s`, and the transition instance
-`aut_01hw6s0ysnf8h8rct4ank7f24s`.
+Authority fixtures use the canonical ordinary, crew, and removed principals.
+The freezer uses crew/removed only for the same-class-2 input proof; the served
+rotation obtains both authority instances from the engine-owned session
+fixture rather than adding authority data to application tables.
 
 The canonical freezer passes with 16 private-overlay cases. Existing frozen
 digests remain byte-identical:
@@ -64,39 +72,21 @@ the diff, and no `PendingLiveFanout` constructor was added or changed.
 
 ### Verification record
 
-- `bun install` at the repository root: PASS (1,039 packages).
-- `bun install` in `demos/zerobugs/control`: PASS (374 packages).
-- `SNAPBACK_OUTBOUND_ACTIONS=1 bun run generate` at the repository root:
-  FAIL, because the root package has no `generate` script.
-- The same required command from `demos/zerobugs/control`: PASS (23 tables,
-  56 operations, 139 files, 122 warnings). Ambient control manifest rewrites
-  were restored; D1 bytes are absent from the diff.
-- `scripts/bootstrap-ibex-runtime`: FAIL at its final binary build with
-  `SNAPBACK_IBEX_CARGO_BUILD_FAILED`. `scripts/ibex-doctor` found the Hermes
-  sources/framework/stamp and local Cargo/Node/Bun inputs present; the final
-  build reaches the unrelated OAuth compile error below.
-- `cargo test -p snapback --test graph_corpus_v1` on the final tree: FAIL before
-  the test binary runs, exit 101, `E0599` at
-  `crates/snapback-server/src/server/oauth.rs:700` because
-  `AuthProvider::agent_random_source` no longer exists. Freshly fetched
-  `origin/main` (`029164f60`) has the same compile defect.
-- `cargo test -p snapback --test relational_corpus_v0` on the final tree: FAIL
-  before the test binary runs, exit 101, at the same unrelated OAuth error.
-- Qualification with a temporary one-line `&OsRandom` compile shim (fully
-  reverted before this record): graph corpus PASS, 56 passed / 0 failed in
-  1167.96s; relational corpus PASS, 4 passed / 0 failed in 1.13s. All three new
-  private-overlay tests pass inside that full graph run.
+- `scripts/bootstrap-ibex-runtime`: PASS, including link, launch, and restricted
+  handler-VM qualification (`SNAPBACK_IBEX_RUNTIME_LINK_OK`; 532,740,808-byte
+  binary, 8.75% above the recorded baseline).
+- `cargo test -p snapback --test graph_corpus_v1`: PASS, 58 passed / 0 failed
+  in 1,287.45s.
+- `cargo test -p snapback --test relational_corpus_v0`: PASS, 4 passed / 0
+  failed in 1.55s.
 - `cargo test -p snapback-kernel live_matcher`: PASS, 28 passed / 0 failed /
   830 filtered out in 0.04s.
-- `./ref-check --verbose`: PASS, 316 LLP docs, 7,424 refs in 16,016 files,
+- `./ref-check --verbose`: PASS, 316 LLP docs, 7,430 refs in 16,050 files,
   0 errors, 0 unchecked.
-- `volta run --node 24.18.0 node scripts/check-inventories.mjs`: PASS, 358
-  package tests, 31 script tests, 31 demos/catalog entries, 487 publication
-  leaves, 157 guide pages, and 1,872 snippets (with the existing gap-review
-  warnings).
-- `cargo test -p snapback-engine`: expected unrelated FAIL, exit 101, with 14
-  `E0599` compile errors: missing test-only `store_for_test` /
-  `replace_store_for_test` helpers and `AdmissionLease::unmanaged`, matching
-  `issues/20260825-engine-unit-tests-do-not-compile-on-main.md`.
+- `volta run --node 24.18.0 node scripts/check-inventories.mjs`: PASS after
+  regenerating the diagnostics registry and chained guide manifest for moved
+  Rust diagnostic sites: 360 package tests, 32 script tests, 31 demos/catalog
+  entries, 487 publication leaves, 157 guide pages, and 1,872 snippets (with
+  the existing gap-review warnings).
 - `cargo fmt --all -- --check`, `git diff --check`, and the canonical freezer
   `--check`: PASS.

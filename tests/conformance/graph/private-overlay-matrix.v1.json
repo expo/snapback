@@ -13,15 +13,12 @@
     "principals": {
       "active": {
         "principal": "usr_00000000000000000000000000",
-        "userID": "user_f57940f9cf974984ee36c7b2",
-        "authorityInstanceID": "aut_01hw6s0ysjf8h8rct4ank7f24s"
+        "userID": "user_f57940f9cf974984ee36c7b2"
       },
       "other": {
         "principal": "usr_00000000000000000000000001",
         "userID": "user_804808a3aa5ef7440e34bd42",
-        "authorityInstanceID": "aut_01hw6s0ysmf8h8rct4ank7f24s",
-        "bindingRowID": "graph_identity_binding_1",
-        "transitionAuthorityInstanceID": "aut_01hw6s0ysnf8h8rct4ank7f24s"
+        "bindingRowID": "graph_identity_binding_1"
       }
     },
     "rows": {
@@ -854,112 +851,8 @@
     {
       "query": "issueListPrivateOverlays",
       "rule": "partition-of-one",
-      "active": {
-        "invocation": {
-          "planHash": "sha256:14adf26c4b9699affdaee812e277b3c1e910e06964d69f37f326ce346e473c59",
-          "args": {
-            "sourceIssueID": "SZ8UieCHMznEsf_Q6EybI"
-          },
-          "windows": [
-            {
-              "nodeId": "n0",
-              "intervals": [
-                {
-                  "parentKey": null,
-                  "window": {
-                    "order": [
-                      {
-                        "direction": "Asc",
-                        "field": "sourceIssueID"
-                      }
-                    ],
-                    "direction": "forward",
-                    "lower": {
-                      "kind": "unbounded"
-                    },
-                    "upper": {
-                      "kind": "unbounded"
-                    },
-                    "take": 1
-                  }
-                }
-              ]
-            }
-          ],
-          "advancedNodeId": "n0",
-          "materialization": {
-            "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g0-corpus",
-            "databaseId": "g0-corpus-fixtures-v1",
-            "deploymentId": "g0-stage-b",
-            "targetProfileId": "local",
-            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-            "function": {
-              "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v1",
-              "appId": "zerobugs-graph-g0-corpus",
-              "id": "graph-f326ce346e473c59",
-              "name": "issueListPrivateOverlays",
-              "kind": "LiveQuery",
-              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "resultContractHash": "sha256:67e03c8d64e39e1ae09b6ba99c0d18cd7c5315104de91228000580a2a943a3aa",
-              "expectedGeneration": {
-                "schemaVersion": "snapback.v1",
-                "appId": "zerobugs-graph-g0-corpus",
-                "schemaHash": "corpus-schema-v1",
-                "bundleHash": "corpus-bundle-v1",
-                "inputsHash": "corpus-inputs-v1"
-              }
-            },
-            "graphInstanceHash": "sha256:49e6ba55e64f702c758766bd560476848e75653f6db60be24006d79683ec2ebc"
-          },
-          "partition": {
-            "format": "snapback.graph-authority-partition.v1",
-            "graphPlanHash": "sha256:14adf26c4b9699affdaee812e277b3c1e910e06964d69f37f326ce346e473c59",
-            "class2": [
-              {
-                "nodeId": "n0",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:2993e03c84a340d4d2fee103ae42fc95deecd7d8605df59caf9b666993031e07",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issue",
-                "scopeIdentity": "sha256:f9508eb116c28ba330d543a0bf0077cac974dec0b14f5e378aa3a12a32bc9067",
-                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
-              },
-              {
-                "nodeId": "n1",
-                "declarationId": "issueListRead",
-                "scopeIdentity": "sha256:69c00a60f8b53135b980121f21f2ea58cd07dc0f6496a00731a19b48b7737b47",
-                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
-              }
-            ],
-            "class3": {
-              "format": "snapback.authority-partition.v1",
-              "principalDataScope": {
-                "authMode": "sessions",
-                "userId": "usr_00000000000000000000000000",
-                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
-              },
-              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
-              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
-              "tenantId": null,
-              "providerId": "g0-corpus-provider",
-              "delegation": null
-            }
-          },
-          "authorizationVersion": {
-            "incarnation": "g0-corpus-authorization-v1",
-            "epoch": 0
-          },
-          "evaluationCut": 1
-        },
-        "partitionHash": "sha256:441ea7cf375b85024098eb46e3d102c3ef61a428a8fbc60f203e8508435b877e"
-      },
-      "other": {
+      "differingInput": "class3",
+      "first": {
         "invocation": {
           "planHash": "sha256:14adf26c4b9699affdaee812e277b3c1e910e06964d69f37f326ce346e473c59",
           "args": {
@@ -1064,14 +957,9 @@
         },
         "partitionHash": "sha256:56f716df59bd54adcefb30373478749a33994cf00a5faa447a5fa02e93272cb8"
       },
-      "stableAcrossOwnDataUpdate": true
-    },
-    {
-      "query": "issueDetailPrivateOverlays",
-      "rule": "partition-of-one",
-      "active": {
+      "second": {
         "invocation": {
-          "planHash": "sha256:091225f7545998108210e80e2394c8691fbb343b296af18c3f0862f4e025cc65",
+          "planHash": "sha256:14adf26c4b9699affdaee812e277b3c1e910e06964d69f37f326ce346e473c59",
           "args": {
             "sourceIssueID": "SZ8UieCHMznEsf_Q6EybI"
           },
@@ -1085,7 +973,7 @@
                     "order": [
                       {
                         "direction": "Asc",
-                        "field": "id"
+                        "field": "sourceIssueID"
                       }
                     ],
                     "direction": "forward",
@@ -1113,12 +1001,12 @@
               "artifactKind": "functionReference",
               "schemaVersion": "snapback.v1",
               "appId": "zerobugs-graph-g0-corpus",
-              "id": "graph-3f0862f4e025cc65",
-              "name": "issueDetailPrivateOverlays",
+              "id": "graph-f326ce346e473c59",
+              "name": "issueListPrivateOverlays",
               "kind": "LiveQuery",
               "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
               "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-              "resultContractHash": "sha256:4030983b82f66c2135a71cdb36efd35a9a8f88719c57d8cd13657c115d579be3",
+              "resultContractHash": "sha256:67e03c8d64e39e1ae09b6ba99c0d18cd7c5315104de91228000580a2a943a3aa",
               "expectedGeneration": {
                 "schemaVersion": "snapback.v1",
                 "appId": "zerobugs-graph-g0-corpus",
@@ -1127,28 +1015,40 @@
                 "inputsHash": "corpus-inputs-v1"
               }
             },
-            "graphInstanceHash": "sha256:c6133512129748bcf4f3771b86cd4076626ab4d359598807018f24f925549710"
+            "graphInstanceHash": "sha256:49e6ba55e64f702c758766bd560476848e75653f6db60be24006d79683ec2ebc"
           },
           "partition": {
             "format": "snapback.graph-authority-partition.v1",
-            "graphPlanHash": "sha256:091225f7545998108210e80e2394c8691fbb343b296af18c3f0862f4e025cc65",
+            "graphPlanHash": "sha256:14adf26c4b9699affdaee812e277b3c1e910e06964d69f37f326ce346e473c59",
             "class2": [
               {
                 "nodeId": "n0",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:ace34938a1c519bb2d9ab3211cd33c61529708401e950f8ab47f79fda33ef607",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
+              },
+              {
+                "nodeId": "n1",
                 "declarationId": "issue",
-                "scopeIdentity": "sha256:c1882db9957e894cfde7aac41053a6d22530934e942a1a7a83d22d7f2d26b82f",
+                "scopeIdentity": "sha256:4604eb731a257451afbafbc0752b07f58678e23df08a3210efd717e882d69b44",
                 "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              },
+              {
+                "nodeId": "n1",
+                "declarationId": "issueListRead",
+                "scopeIdentity": "sha256:d4c05fc3aa1ceb04bf38beef81de602603351cb25f9e7dab1a1daf6df78a631d",
+                "policyIdentity": "sha256:ae5494a6a9c52f2bddda33da1194333ed4f9dc0b601cacf45a733b1d5fbe0d7e"
               }
             ],
             "class3": {
               "format": "snapback.authority-partition.v1",
               "principalDataScope": {
                 "authMode": "sessions",
-                "userId": "usr_00000000000000000000000000",
+                "userId": "usr_00000000000000000000000002",
                 "authorizationStreamIncarnation": "g0-corpus-stream-v1"
               },
-              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
-              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
+              "authorityInstanceId": "aut_01hw6s0ysnf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:b23d27baff7fd07ca498fcc13c619dfd22d6cead0b56ad9fc6d3b8ff010fd698",
               "tenantId": null,
               "providerId": "g0-corpus-provider",
               "delegation": null
@@ -1160,9 +1060,15 @@
           },
           "evaluationCut": 1
         },
-        "partitionHash": "sha256:a3da52de67aa4673945798057c51b6260f5de72eadbd304d62316eec27a7ea56"
+        "partitionHash": "sha256:f4c4d83b0a36d16971cdea0a3043b3d959ec6ed04b5d7eea58f92fa885834d62"
       },
-      "other": {
+      "stableAcrossOwnDataUpdate": true
+    },
+    {
+      "query": "issueDetailPrivateOverlays",
+      "rule": "partition-of-one",
+      "differingInput": "class3",
+      "first": {
         "invocation": {
           "planHash": "sha256:091225f7545998108210e80e2394c8691fbb343b296af18c3f0862f4e025cc65",
           "args": {
@@ -1254,6 +1160,99 @@
           "evaluationCut": 1
         },
         "partitionHash": "sha256:4359c1aa71abc280233ca49cb45a163b9bf072130ae11b93f0a576864f47ba77"
+      },
+      "second": {
+        "invocation": {
+          "planHash": "sha256:091225f7545998108210e80e2394c8691fbb343b296af18c3f0862f4e025cc65",
+          "args": {
+            "sourceIssueID": "SZ8UieCHMznEsf_Q6EybI"
+          },
+          "windows": [
+            {
+              "nodeId": "n0",
+              "intervals": [
+                {
+                  "parentKey": null,
+                  "window": {
+                    "order": [
+                      {
+                        "direction": "Asc",
+                        "field": "id"
+                      }
+                    ],
+                    "direction": "forward",
+                    "lower": {
+                      "kind": "unbounded"
+                    },
+                    "upper": {
+                      "kind": "unbounded"
+                    },
+                    "take": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "advancedNodeId": "n0",
+          "materialization": {
+            "format": "snapback.graph-materialization.v1",
+            "appId": "zerobugs-graph-g0-corpus",
+            "databaseId": "g0-corpus-fixtures-v1",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "function": {
+              "artifactKind": "functionReference",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-3f0862f4e025cc65",
+              "name": "issueDetailPrivateOverlays",
+              "kind": "LiveQuery",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "resultContractHash": "sha256:4030983b82f66c2135a71cdb36efd35a9a8f88719c57d8cd13657c115d579be3",
+              "expectedGeneration": {
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
+              }
+            },
+            "graphInstanceHash": "sha256:c6133512129748bcf4f3771b86cd4076626ab4d359598807018f24f925549710"
+          },
+          "partition": {
+            "format": "snapback.graph-authority-partition.v1",
+            "graphPlanHash": "sha256:091225f7545998108210e80e2394c8691fbb343b296af18c3f0862f4e025cc65",
+            "class2": [
+              {
+                "nodeId": "n0",
+                "declarationId": "issue",
+                "scopeIdentity": "sha256:3a0b9b380c6f17d0123cb25ef9ee16ba7313e55aade15f16726e79b40a28115f",
+                "policyIdentity": "sha256:9cd32697e82556ebf2b07a8e7614dcc1e2b091d8c8e090ab86007353f7bc20d8"
+              }
+            ],
+            "class3": {
+              "format": "snapback.authority-partition.v1",
+              "principalDataScope": {
+                "authMode": "sessions",
+                "userId": "usr_00000000000000000000000002",
+                "authorizationStreamIncarnation": "g0-corpus-stream-v1"
+              },
+              "authorityInstanceId": "aut_01hw6s0ysnf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:b23d27baff7fd07ca498fcc13c619dfd22d6cead0b56ad9fc6d3b8ff010fd698",
+              "tenantId": null,
+              "providerId": "g0-corpus-provider",
+              "delegation": null
+            }
+          },
+          "authorizationVersion": {
+            "incarnation": "g0-corpus-authorization-v1",
+            "epoch": 0
+          },
+          "evaluationCut": 1
+        },
+        "partitionHash": "sha256:e11c411a546a3d9cc049d3e75546f777a6bcbb7da24f11c6cc6e520f85ddae7c"
       },
       "stableAcrossOwnDataUpdate": true
     }
@@ -2044,23 +2043,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -3189,23 +3184,19 @@
         "matcher": {
           "ownUpdate": "match",
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": "live_replace",
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -3996,23 +3987,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -5040,23 +5027,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -5847,23 +5830,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -6993,23 +6972,19 @@
         "matcher": {
           "ownUpdate": "match",
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": "live_replace",
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -7800,23 +7775,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -8844,23 +8815,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -9468,23 +9435,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -10380,23 +10343,19 @@
         "matcher": {
           "ownUpdate": "match",
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": "live_replace",
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -11004,23 +10963,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -11827,23 +11782,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -12451,23 +12402,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -13364,23 +13311,19 @@
         "matcher": {
           "ownUpdate": "match",
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": "live_replace",
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -13988,23 +13931,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -14811,23 +14750,19 @@
         "matcher": {
           "ownUpdate": null,
           "crossPrincipalWrite": "skip",
-          "otherPrincipalAuthorityTransition": "skip"
+          "otherPrincipalBindingWrite": "skip"
         },
         "servedScheduler": {
           "initialSnapshot": "exact",
           "ownUpdate": null,
           "crossPrincipalDeliveries": 0,
-          "otherPrincipalAuthorityDeliveries": 0
+          "otherPrincipalBindingWriteDeliveries": 0
         },
         "authorityTransition": {
           "activePrincipal": {
             "staleDeliveries": 0,
             "fenceFrames": 1,
             "successorDeliveries": 1
-          },
-          "otherPrincipal": {
-            "fenceFrames": 0,
-            "deliveries": 0
           }
         },
         "deltaEligibility": "unchanged-principal-bound-replace-only"
@@ -14851,5 +14786,5 @@
     ],
     "caseCount": 16
   },
-  "contentDigest": "sha256:7028ef3302f083fa0d7259023c498fd4ff1bb7bae6a3e2d465b7de2b22504e57"
+  "contentDigest": "sha256:899483bf703458b12f2d5c2d23753c9663388de6fa5baa7abb3ab1c2e3cbc52a"
 }

@@ -766,6 +766,24 @@ pub fn configure_graph_corpus_scheduler(
     snapback.configure_graph_corpus_scheduler_for_test(authorization, data_version_stream)
 }
 
+/// Bind the corpus scheduler's authorization stream to the canonical second
+/// principal's real sessions-mode connection.
+pub fn graph_corpus_other_principal_connection(
+    snapback: &mut LocalSnapback,
+    authorization: crate::storage::AuthorizationVersion,
+) -> SnapbackResult<crate::auth::invalidation::AuthorizationInvalidationConnection> {
+    snapback.graph_corpus_other_principal_connection_for_test(authorization)
+}
+
+/// Return the configured corpus scheduler's authority-fence control so a
+/// delivery-time-gate test can overlap a retained evaluation with the exact
+/// lock-free marking step used by the production authority transition.
+pub fn graph_corpus_scheduler_control(
+    snapback: &LocalSnapback,
+) -> SnapbackResult<std::sync::Arc<crate::live_coalesce::LiveFanoutCoalescer>> {
+    snapback.graph_corpus_scheduler_control_for_test()
+}
+
 /// Bind a sessions-mode fixture clone's existing authorization stream for a
 /// read-only served-path measurement. No catalog or identity rows are added.
 pub fn configure_graph_measurement_scheduler(
@@ -798,6 +816,30 @@ pub fn subscribe_graph_corpus_partition_case(
 ) -> SnapbackResult<LiveSubscribeOutput> {
     snapback.require_host_plan_for_test_support(name)?;
     snapback.subscribe_graph_corpus_partition_case_for_test(name, input, connection)
+}
+
+/// Establish the corpus graph for the canonical second principal under its
+/// first owner-issued authority instance.
+pub fn subscribe_graph_corpus_other_principal_case(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    input: LiveSubscribeInput,
+    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
+) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.subscribe_graph_corpus_other_principal_case_for_test(name, input, connection)
+}
+
+/// Rotate the canonical second principal to its second owner-issued authority
+/// instance through the same retained-live scheduler path.
+pub fn subscribe_graph_corpus_other_principal_partition_case(
+    snapback: &mut LocalSnapback,
+    name: &str,
+    input: LiveSubscribeInput,
+    connection: crate::auth::invalidation::AuthorizationInvalidationConnection,
+) -> SnapbackResult<LiveSubscribeOutput> {
+    snapback.require_host_plan_for_test_support(name)?;
+    snapback.subscribe_graph_corpus_other_principal_partition_case_for_test(name, input, connection)
 }
 
 /// Commit one declarative corpus mutation through the ordinary mutation and

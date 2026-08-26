@@ -2116,20 +2116,16 @@ function privateOverlayProjection(query, tables, fixture, principal) {
 function freezePrivateOverlayMatrix({baseTables, carriers, issueRow}) {
   const active = authorityFact(GRAPH_CORPUS_ORDINARY_PRINCIPAL);
   const other = authorityFact(GRAPH_CORPUS_CREW_PRINCIPAL);
-  const transitionedOther = authorityFact(GRAPH_CORPUS_REMOVED_PRINCIPAL);
   const fixture = {
     format: 'snapback.graph-private-overlay-fixture.v1',
     issue: {physicalID: issueRow._id, sourceID: issueRow.id, title: issueRow.title},
     principals: {
       active: {
         principal: active.principal, userID: active.userID,
-        authorityInstanceID: graphCorpusAuthorityInstanceId(active.principal),
       },
       other: {
         principal: other.principal, userID: other.userID,
-        authorityInstanceID: graphCorpusAuthorityInstanceId(other.principal),
         bindingRowID: 'graph_identity_binding_1',
-        transitionAuthorityInstanceID: graphCorpusAuthorityInstanceId(transitionedOther.principal),
       },
     },
     rows: {
@@ -2282,17 +2278,16 @@ function freezePrivateOverlayMatrix({baseTables, carriers, issueRow}) {
         matcher: {
           ownUpdate: update ? 'match' : null,
           crossPrincipalWrite: 'skip',
-          otherPrincipalAuthorityTransition: 'skip',
+          otherPrincipalBindingWrite: 'skip',
         },
         servedScheduler: {
           initialSnapshot: 'exact',
           ownUpdate: update ? 'live_replace' : null,
           crossPrincipalDeliveries: 0,
-          otherPrincipalAuthorityDeliveries: 0,
+          otherPrincipalBindingWriteDeliveries: 0,
         },
         authorityTransition: {
           activePrincipal: {staleDeliveries: 0, fenceFrames: 1, successorDeliveries: 1},
-          otherPrincipal: {fenceFrames: 0, deliveries: 0},
         },
         deltaEligibility: 'unchanged-principal-bound-replace-only',
       },
@@ -2300,24 +2295,34 @@ function freezePrivateOverlayMatrix({baseTables, carriers, issueRow}) {
   });
 
   const partitions = Object.entries(carriers).map(([query, carrier]) => {
-    const activeCall = invocation(
-      carrier, {sourceIssueID: issueRow.id}, active.principal, 0, query, [], {rootTake: 1},
+    const firstCall = invocation(
+      carrier, {sourceIssueID: issueRow.id}, GRAPH_CORPUS_CREW_PRINCIPAL,
+      0, query, [], {rootTake: 1},
     );
-    const otherCall = invocation(
-      carrier, {sourceIssueID: issueRow.id}, other.principal, 0, query, [], {rootTake: 1},
+    const secondCall = invocation(
+      carrier, {sourceIssueID: issueRow.id}, GRAPH_CORPUS_REMOVED_PRINCIPAL,
+      0, query, [], {rootTake: 1},
     );
-    const activeHash = domainHash(
-      'snapback:graph-authority-partition:v1:', activeCall.partition,
+    assert.deepEqual(
+      firstCall.partition.class2,
+      secondCall.partition.class2,
+      `${query} same-class-2 fixture pair is unconfounded`,
     );
-    const otherHash = domainHash(
-      'snapback:graph-authority-partition:v1:', otherCall.partition,
+    assert(firstCall.partition.class3, `${query} first class-3 input is present`);
+    assert(secondCall.partition.class3, `${query} second class-3 input is present`);
+    const firstHash = domainHash(
+      'snapback:graph-authority-partition:v1:', firstCall.partition,
     );
-    assert.notEqual(activeHash, otherHash, `${query} partitions principals distinctly`);
+    const secondHash = domainHash(
+      'snapback:graph-authority-partition:v1:', secondCall.partition,
+    );
+    assert.notEqual(firstHash, secondHash, `${query} class-3 partitions principals distinctly`);
     return {
       query,
       rule: 'partition-of-one',
-      active: {invocation: activeCall, partitionHash: activeHash},
-      other: {invocation: otherCall, partitionHash: otherHash},
+      differingInput: 'class3',
+      first: {invocation: firstCall, partitionHash: firstHash},
+      second: {invocation: secondCall, partitionHash: secondHash},
       stableAcrossOwnDataUpdate: true,
     };
   });

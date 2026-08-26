@@ -30,9 +30,12 @@ use snapback_engine::graph_evaluator::{
 use snapback_engine::test_support::{
     apply_graph_delta_to_result_for_test, configure_graph_corpus_scheduler,
     configure_graph_measurement_scheduler, drain_graph_corpus_stream,
-    graph_corpus_authorization_frames, graph_corpus_memo_entries, invoke_graph_corpus_mutation,
-    measure_graph_serving_groups, refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits,
-    subscribe_graph_corpus_case, subscribe_graph_corpus_partition_case,
+    graph_corpus_authorization_frames, graph_corpus_memo_entries,
+    graph_corpus_other_principal_connection, graph_corpus_scheduler_control,
+    invoke_graph_corpus_mutation, measure_graph_serving_groups, refresh_graph_corpus_scheduler,
+    set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
+    subscribe_graph_corpus_other_principal_case,
+    subscribe_graph_corpus_other_principal_partition_case, subscribe_graph_corpus_partition_case,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -80,7 +83,10 @@ const GRAPH_CORPUS_PATCH_ASSIGNEE_USER: &str = "graphCorpusPatchAssigneeUser";
 const GRAPH_CORPUS_PATCH_LABEL: &str = "graphCorpusPatchLabel";
 const GRAPH_CORPUS_PATCH_VIEW_STATE: &str = "graphCorpusPatchViewState";
 const GRAPH_CORPUS_PATCH_NOTIFICATION_STATE: &str = "graphCorpusPatchNotificationState";
-const GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL: &str = "graphCorpusTransitionOtherPrincipal";
+const GRAPH_CORPUS_INSERT_VIEW_STATE: &str = "graphCorpusInsertViewState";
+const GRAPH_CORPUS_DELETE_VIEW_STATE: &str = "graphCorpusDeleteViewState";
+const GRAPH_CORPUS_INSERT_NOTIFICATION_STATE: &str = "graphCorpusInsertNotificationState";
+const GRAPH_CORPUS_DELETE_NOTIFICATION_STATE: &str = "graphCorpusDeleteNotificationState";
 const GRAPH_CORPUS_ADD_MEMBERSHIP: &str = "graphCorpusAddMembership";
 const DELTA_DISPOSITIONS_FILE: &str = "tests/conformance/graph/delta-dispositions.v1.json";
 const OWNER_SCOPE_DOMAIN: &str = "snapback:g0-corpus-authority-scope:v1:";
@@ -1135,18 +1141,6 @@ fn private_overlay_seed_tables(
             .unwrap_or_else(|| panic!("private-overlay table {table}"))
             .retain(|row| row["issueID"] != issue_id);
     }
-    let active = &matrix["fixture"]["principals"]["active"];
-    let other = &matrix["fixture"]["principals"]["other"];
-    for binding in tables.get_mut("identityBinding").unwrap() {
-        let authority_instance = if binding["principal"] == active["principal"] {
-            &active["authorityInstanceID"]
-        } else if binding["principal"] == other["principal"] {
-            &other["authorityInstanceID"]
-        } else {
-            &other["transitionAuthorityInstanceID"]
-        };
-        binding.insert("authorityInstanceID".to_owned(), authority_instance.clone());
-    }
     let updated = world.get("updated").and_then(Value::as_str);
     for (overlay, own_key, other_key) in [
         ("viewState", "ownViewState", "otherViewState"),
@@ -1516,6 +1510,16 @@ fn insert_change(table: &str, row: Value) -> ChangedRow {
         table: table.to_owned(),
         id: row["_id"].as_str().unwrap().to_owned(),
         op: ChangeOp::Insert,
+        row: Some(row),
+        changed_fields: Vec::new(),
+    }
+}
+
+fn delete_change(table: &str, row: Value) -> ChangedRow {
+    ChangedRow {
+        table: table.to_owned(),
+        id: row["_id"].as_str().unwrap().to_owned(),
+        op: ChangeOp::Delete,
         row: Some(row),
         changed_fields: Vec::new(),
     }
@@ -1957,6 +1961,38 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
             })),
         )
     };
+    let insert = |name: &str, table: &str, fields: &[&str]| {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                owner_write_checks: Vec::new(),
+                steps: vec![MutationStep::Insert {
+                    table: table.to_owned(),
+                    values: fields
+                        .iter()
+                        .map(|field| ((*field).to_owned(), ValueExpr::Arg((*field).to_owned())))
+                        .collect(),
+                    bind_id_as: Some("rowID".to_owned()),
+                }],
+                return_value: Some(ReturnValue::Binding("rowID".to_owned())),
+            })),
+        )
+    };
+    let delete = |name: &str, table: &str| {
+        FunctionDefinition::new(
+            name,
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                owner_write_checks: Vec::new(),
+                steps: vec![MutationStep::Delete {
+                    table: table.to_owned(),
+                    id: ValueExpr::Arg("rowID".to_owned()),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        )
+    };
     let patch_issue_two_fields = FunctionDefinition::new(
         GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS,
         FunctionKind::Mutation,
@@ -2013,11 +2049,23 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
         patch(GRAPH_CORPUS_PATCH_ASSIGNEE_USER, "user", "login"),
         patch(GRAPH_CORPUS_PATCH_LABEL, "label", "name"),
         patch(GRAPH_CORPUS_PATCH_VIEW_STATE, "viewState", "viewed"),
+        insert(
+            GRAPH_CORPUS_INSERT_VIEW_STATE,
+            "viewState",
+            &["issueID", "userID", "viewed"],
+        ),
+        delete(GRAPH_CORPUS_DELETE_VIEW_STATE, "viewState"),
         patch(
             GRAPH_CORPUS_PATCH_NOTIFICATION_STATE,
             "issueNotifications",
             "subscribed",
         ),
+        insert(
+            GRAPH_CORPUS_INSERT_NOTIFICATION_STATE,
+            "issueNotifications",
+            &["issueID", "userID", "subscribed", "created"],
+        ),
+        delete(GRAPH_CORPUS_DELETE_NOTIFICATION_STATE, "issueNotifications"),
         add_membership,
     ]
 }
@@ -2042,30 +2090,6 @@ fn served_graph_manifest(
             .collect(),
         ..FunctionManifest::default()
     }
-}
-
-fn private_overlay_served_graph_manifest(
-    corpus: &Value,
-    carriers: &[(String, GraphQueryCarrierV1, FunctionDefinition)],
-) -> FunctionManifest {
-    let mut manifest = served_graph_manifest(corpus, carriers);
-    manifest.functions.push(FunctionDefinition::new(
-        GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL,
-        FunctionKind::Mutation,
-        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
-            steps: vec![MutationStep::Patch {
-                table: "identityBinding".to_owned(),
-                id: ValueExpr::Arg("rowID".to_owned()),
-                values: BTreeMap::from([(
-                    "authorityInstanceID".to_owned(),
-                    ValueExpr::Arg("value".to_owned()),
-                )]),
-            }],
-            return_value: None,
-        })),
-    ));
-    manifest
 }
 
 fn scheduler_invocation_from_observation(call: &Value, observation: &Value) -> Value {
@@ -9799,19 +9823,35 @@ fn private_overlay_matrix_executes_evaluator_and_matcher_paths() {
         )
         .expect("private-overlay partition carrier shape");
         assert_eq!(partition_case["rule"], "partition-of-one");
-        let (_, active) =
-            validate_corpus_invocation(&carrier, &partition_case["active"]["invocation"], query);
-        let (_, other) =
-            validate_corpus_invocation(&carrier, &partition_case["other"]["invocation"], query);
+        assert_eq!(partition_case["differingInput"], "class3");
+        let first_call = &partition_case["first"]["invocation"];
+        let second_call = &partition_case["second"]["invocation"];
         assert_eq!(
-            active.partition_hash.as_str(),
-            partition_case["active"]["partitionHash"].as_str().unwrap(),
+            first_call["partition"]["class2"],
+            second_call["partition"]["class2"]
+        );
+        assert!(first_call["partition"]["class3"].is_object());
+        assert!(second_call["partition"]["class3"].is_object());
+        let mut first_without_class3 = first_call["partition"].clone();
+        let mut second_without_class3 = second_call["partition"].clone();
+        first_without_class3["class3"] = Value::Null;
+        second_without_class3["class3"] = Value::Null;
+        assert_eq!(first_without_class3, second_without_class3);
+        assert_ne!(
+            first_call["partition"]["class3"],
+            second_call["partition"]["class3"]
+        );
+        let (_, first) = validate_corpus_invocation(&carrier, first_call, query);
+        let (_, second) = validate_corpus_invocation(&carrier, second_call, query);
+        assert_eq!(
+            first.partition_hash.as_str(),
+            partition_case["first"]["partitionHash"].as_str().unwrap(),
         );
         assert_eq!(
-            other.partition_hash.as_str(),
-            partition_case["other"]["partitionHash"].as_str().unwrap(),
+            second.partition_hash.as_str(),
+            partition_case["second"]["partitionHash"].as_str().unwrap(),
         );
-        assert_ne!(active.partition_hash, other.partition_hash);
+        assert_ne!(first.partition_hash, second.partition_hash);
         assert_eq!(partition_case["stableAcrossOwnDataUpdate"], true);
     }
 
@@ -9878,24 +9918,6 @@ fn private_overlay_matrix_executes_evaluator_and_matcher_paths() {
         } else {
             "subscribed"
         };
-        let other_change = update_change(
-            other["table"].as_str().unwrap(),
-            other["value"].clone(),
-            &[other_field],
-        );
-        let other_decision = live_subscription_match_decision_with_graph_registration(
-            &definition,
-            &matcher_input,
-            &registered,
-            &[other_change],
-        );
-        assert_eq!(
-            match_outcome_name(other_decision.outcome),
-            case["dispositions"]["matcher"]["crossPrincipalWrite"]
-                .as_str()
-                .unwrap(),
-            "{case_id} cross-principal matcher disposition",
-        );
         let target_node = carrier
             .normalized_plan
             .nodes
@@ -9903,20 +9925,55 @@ fn private_overlay_matrix_executes_evaluator_and_matcher_paths() {
             .find(|node| node.edge_name() == overlay)
             .expect("private-overlay target node")
             .node_id();
-        assert_eq!(
-            other_decision
-                .graph_nodes
-                .iter()
-                .find(|node| node.node_id == target_node)
-                .expect("cross-principal target disposition")
-                .disposition,
-            GraphNodeMatchDispositionV1::Skip,
-            "{case_id} target principal node skips the other principal",
-        );
-        assert!(
-            other_decision.graph_nodes.iter().all(|node| {
+        for (operation, other_change) in [
+            (
+                "update",
+                update_change(
+                    other["table"].as_str().unwrap(),
+                    other["value"].clone(),
+                    &[other_field],
+                ),
+            ),
+            (
+                "insert",
+                insert_change(other["table"].as_str().unwrap(), other["value"].clone()),
+            ),
+            (
+                "delete",
+                delete_change(other["table"].as_str().unwrap(), other["value"].clone()),
+            ),
+        ] {
+            let other_decision = live_subscription_match_decision_with_graph_registration(
+                &definition,
+                &matcher_input,
+                &registered,
+                &[other_change],
+            );
+            assert_eq!(
+                match_outcome_name(other_decision.outcome),
+                case["dispositions"]["matcher"]["crossPrincipalWrite"]
+                    .as_str()
+                    .unwrap(),
+                "{case_id} cross-principal {operation} matcher disposition",
+            );
+            assert_eq!(
+                other_decision
+                    .graph_nodes
+                    .iter()
+                    .find(|node| node.node_id == target_node)
+                    .expect("cross-principal target disposition")
+                    .disposition,
+                GraphNodeMatchDispositionV1::Skip,
+                "{case_id} target principal node skips other-principal {operation}",
+            );
+            assert!(other_decision.graph_nodes.iter().all(|node| {
                 node.disposition != GraphNodeMatchDispositionV1::ConservativeFallback
-            })
+            }));
+        }
+
+        assert_eq!(
+            case["dispositions"]["deltaEligibility"], "unchanged-principal-bound-replace-only",
+            "{case_id} frozen delta disposition executes in Rust",
         );
 
         if case["arm"] == "other-principal" {
@@ -10032,9 +10089,9 @@ fn private_overlay_matrix_executes_evaluator_and_matcher_paths() {
 }
 
 /// Every frozen arm establishes through the retained serving path. The active
-/// principal's data update produces one exact replacement, while both another
-/// principal's overlay write and its principal-to-app binding transition are
-/// mechanically skipped and publish no frame.
+/// principal's data update produces one exact replacement, while another
+/// principal's overlay UPDATE, DELETE, and INSERT are mechanically skipped
+/// and publish no frame or hidden evaluation.
 ///
 /// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — point/miss plus
 /// principal-field capture proves per-principal disjointness without a
@@ -10058,8 +10115,7 @@ fn private_overlay_matrix_executes_served_data_and_cross_principal_paths() {
             .into_iter()
             .filter(|(name, _, _)| name == query)
             .collect::<Vec<_>>();
-        let diagnostics =
-            snapback.load_functions(private_overlay_served_graph_manifest(&corpus, &carriers));
+        let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
         assert!(
             diagnostics
                 .iter()
@@ -10155,98 +10211,99 @@ fn private_overlay_matrix_executes_served_data_and_cross_principal_paths() {
         } else {
             "subscribed"
         };
-        let other_change = update_change(
-            other["table"].as_str().unwrap(),
-            other["value"].clone(),
-            &[changed_field],
-        );
-        let served_decision = snapback
-            .replay_graph_matcher_for_test(&established.subscription_id, &[other_change])
-            .expect("served cross-principal matcher replay");
-        assert_eq!(
-            match_outcome_name(served_decision.outcome),
-            case["dispositions"]["matcher"]["crossPrincipalWrite"]
-                .as_str()
-                .unwrap(),
-        );
-        assert_eq!(
-            served_decision
-                .graph_nodes
-                .iter()
-                .find(|node| node.node_id == target_node)
-                .unwrap()
-                .disposition,
-            GraphNodeMatchDispositionV1::Skip,
-        );
-        snapback
-            .invoke_mutation(
+        let other_table = other["table"].as_str().unwrap();
+        let matcher_changes = [
+            (
+                "update",
+                update_change(other_table, other["value"].clone(), &[changed_field]),
+            ),
+            ("delete", delete_change(other_table, other["value"].clone())),
+            ("insert", insert_change(other_table, other["value"].clone())),
+        ];
+        for (operation, change) in matcher_changes {
+            let served_decision = snapback
+                .replay_graph_matcher_for_test(&established.subscription_id, &[change])
+                .expect("served cross-principal matcher replay");
+            assert_eq!(
+                match_outcome_name(served_decision.outcome),
+                case["dispositions"]["matcher"]["crossPrincipalWrite"]
+                    .as_str()
+                    .unwrap(),
+                "{case_id} cross-principal {operation} skips",
+            );
+            assert_eq!(
+                served_decision
+                    .graph_nodes
+                    .iter()
+                    .find(|node| node.node_id == target_node)
+                    .unwrap()
+                    .disposition,
+                GraphNodeMatchDispositionV1::Skip,
+            );
+        }
+
+        let writes = [
+            (
+                "update",
                 if overlay == "viewState" {
                     GRAPH_CORPUS_PATCH_VIEW_STATE
                 } else {
                     GRAPH_CORPUS_PATCH_NOTIFICATION_STATE
                 },
-                graph_corpus_dev_mutation_input(json!({
+                json!({
                     "rowID":other["value"]["_id"],
                     "value":other["value"][changed_field],
-                })),
-            )
-            .unwrap_or_else(|error| panic!("cross-principal commit {case_id}: {error:?}"));
-        let _ = snapback.flush_pending_live_fanout();
-        assert_eq!(
-            snapback.drain_live_stream(&connection_id).len(),
-            case["dispositions"]["servedScheduler"]["crossPrincipalDeliveries"]
-                .as_u64()
-                .unwrap() as usize,
-            "{case_id} other-principal write publishes no delivery",
-        );
-
-        let transition_tables = private_overlay_seed_tables(&corpus, &matrix, &case["world"]);
-        let mut binding = transition_tables["identityBinding"]
-            .iter()
-            .find(|row| row["_id"] == matrix["fixture"]["principals"]["other"]["bindingRowID"])
-            .expect("other-principal binding row")
-            .clone();
-        binding["authorityInstanceID"] =
-            matrix["fixture"]["principals"]["other"]["transitionAuthorityInstanceID"].clone();
-        let binding_change = update_change(
-            "identityBinding",
-            Value::Object(binding),
-            &["authorityInstanceID"],
-        );
-        let binding_decision = snapback
-            .replay_graph_matcher_for_test(&established.subscription_id, &[binding_change])
-            .expect("served other-principal authority matcher replay");
-        assert_eq!(
-            match_outcome_name(binding_decision.outcome),
-            case["dispositions"]["matcher"]["otherPrincipalAuthorityTransition"]
-                .as_str()
-                .unwrap(),
-            "{case_id} another principal's binding transition skips: {binding_decision:#?}",
-        );
-        snapback
-            .invoke_mutation(
-                GRAPH_CORPUS_TRANSITION_OTHER_PRINCIPAL,
-                graph_corpus_dev_mutation_input(json!({
-                    "rowID":matrix["fixture"]["principals"]["other"]["bindingRowID"],
-                    "value":matrix["fixture"]["principals"]["other"]
-                        ["transitionAuthorityInstanceID"],
-                })),
-            )
-            .unwrap_or_else(|error| panic!("other-principal transition {case_id}: {error:?}"));
-        let _ = snapback.flush_pending_live_fanout();
-        assert_eq!(
-            snapback.drain_live_stream(&connection_id).len(),
-            case["dispositions"]["authorityTransition"]["otherPrincipal"]["deliveries"]
-                .as_u64()
-                .unwrap() as usize,
-            "{case_id} another principal's authority transition publishes no frame",
-        );
+                }),
+            ),
+            (
+                "delete",
+                if overlay == "viewState" {
+                    GRAPH_CORPUS_DELETE_VIEW_STATE
+                } else {
+                    GRAPH_CORPUS_DELETE_NOTIFICATION_STATE
+                },
+                json!({"rowID":other["value"]["_id"]}),
+            ),
+            (
+                "insert",
+                if overlay == "viewState" {
+                    GRAPH_CORPUS_INSERT_VIEW_STATE
+                } else {
+                    GRAPH_CORPUS_INSERT_NOTIFICATION_STATE
+                },
+                other["value"].clone(),
+            ),
+        ];
+        for (operation, mutation, args) in writes {
+            let before_skip = snapback
+                .inspect_core()
+                .expect("inspect before skipped wake");
+            snapback
+                .invoke_mutation(mutation, graph_corpus_dev_mutation_input(args))
+                .unwrap_or_else(|error| {
+                    panic!("cross-principal {operation} commit {case_id}: {error:?}")
+                });
+            let _ = snapback.flush_pending_live_fanout();
+            let after_skip = snapback.inspect_core().expect("inspect after skipped wake");
+            assert_eq!(
+                after_skip.live_evaluation.evaluations_executed,
+                before_skip.live_evaluation.evaluations_executed,
+                "{case_id} cross-principal {operation} executes no hidden evaluation",
+            );
+            assert_eq!(
+                snapback.drain_live_stream(&connection_id).len(),
+                case["dispositions"]["servedScheduler"]["crossPrincipalDeliveries"]
+                    .as_u64()
+                    .unwrap() as usize,
+                "{case_id} other-principal {operation} publishes no delivery",
+            );
+        }
         assert_eq!(
             snapback
                 .graph_serving_observation_for_test(&established.subscription_id)
                 .unwrap(),
             observation,
-            "{case_id} active-principal bytes, partition, and proofs remain exact after both cross-principal probes",
+            "{case_id} active-principal observation is byte-identical after all cross-principal writes",
         );
     }
 
@@ -10372,6 +10429,308 @@ fn private_overlay_matrix_executes_served_data_and_cross_principal_paths() {
     }
 }
 
+/// A principal-to-app binding is ordinary data. This probe intentionally
+/// proves only that a complete principal-field capture skips another
+/// principal's binding-row write; it is not an authority transition.
+///
+/// @ref LLP 0209#51-captured-vocabulary-by-normalized-node — complete
+/// principal-field capture makes another principal's binding row decidably
+/// irrelevant to the retained graph.
+#[test]
+fn private_overlay_other_principal_binding_row_data_write_skips_capture() {
+    let corpus = graph_corpus();
+    let matrix = private_overlay_matrix();
+    let case = matrix["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| {
+            case["query"] == "issueListPrivateOverlays"
+                && case["overlay"] == "viewState"
+                && case["arm"] == "own-positive"
+        })
+        .expect("binding-row capture probe case");
+    let query = case["query"].as_str().unwrap();
+    let call = &case["invocation"];
+    let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+    let tables = private_overlay_seed_tables(&corpus, &matrix, &case["world"]);
+    let mut binding = tables["identityBinding"]
+        .iter()
+        .find(|row| row["_id"] == matrix["fixture"]["principals"]["other"]["bindingRowID"])
+        .expect("other-principal binding row")
+        .clone();
+    binding.insert(
+        "sourceUserID".to_owned(),
+        json!("binding-row-data-write-probe"),
+    );
+
+    let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+    snapback.declare_graph_query_v1_capability();
+    let carriers = private_overlay_carriers(&snapback, &matrix)
+        .into_iter()
+        .filter(|(name, _, _)| name == query)
+        .collect::<Vec<_>>();
+    let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+    );
+    snapback.install_graph_serving_authority_context_for_test(
+        query,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+        },
+    );
+    let mut input = graph_scheduler_memo_input(call, &authority, "private-binding-write", 1, None);
+    input.authorization_namespace = None;
+    let established = snapback
+        .subscribe_live(query, input)
+        .expect("serve binding-row capture probe");
+    assert!(
+        snapback
+            .drain_live_stream("private-binding-write")
+            .is_empty()
+    );
+    let before_observation = snapback
+        .graph_serving_observation_for_test(&established.subscription_id)
+        .unwrap();
+    let before = snapback.inspect_core().unwrap();
+    let decision = snapback
+        .replay_graph_matcher_for_test(
+            &established.subscription_id,
+            &[update_change(
+                "identityBinding",
+                Value::Object(binding),
+                &["sourceUserID"],
+            )],
+        )
+        .expect("replay other-principal binding-row data write");
+    assert_eq!(
+        match_outcome_name(decision.outcome),
+        case["dispositions"]["matcher"]["otherPrincipalBindingWrite"],
+    );
+    let after = snapback.inspect_core().unwrap();
+    assert_eq!(
+        after.live_evaluation.evaluations_executed,
+        before.live_evaluation.evaluations_executed,
+    );
+    assert!(
+        snapback
+            .drain_live_stream("private-binding-write")
+            .is_empty()
+    );
+    assert_eq!(
+        snapback
+            .graph_serving_observation_for_test(&established.subscription_id)
+            .unwrap(),
+        before_observation,
+    );
+}
+
+/// Rotate retained principal B through a second owner-issued authority
+/// instance while principal A remains served. B's two engine observations share every
+/// partition input except class 3; their engine-issued partition identities
+/// must therefore differ, and A must observe no fence, wake, or delivery.
+///
+/// @ref LLP 0209#32-authority-partition-identity-and-versioning — the full
+/// owner-issued authority instance is a class-3 partition input.
+#[test]
+fn private_overlay_real_other_principal_authority_instance_rotation_is_isolated() {
+    let corpus = graph_corpus();
+    let matrix = private_overlay_matrix();
+    let cases = matrix["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|case| case["arm"] == "own-positive" && case["overlay"] == "viewState")
+        .collect::<Vec<_>>();
+    assert_eq!(cases.len(), 2, "one list and one detail rotation probe");
+
+    for case in cases {
+        let case_id = case["id"].as_str().unwrap();
+        let query = case["query"].as_str().unwrap();
+        let call = &case["invocation"];
+        let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
+        let partition_case = matrix["partitions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|partition| partition["query"] == query)
+            .expect("other-principal partition fixture");
+        let b_call = &partition_case["first"]["invocation"];
+        let b_authority = corpus_authority(&corpus, corpus_invocation_principal(b_call));
+        assert_eq!(
+            corpus_invocation_principal(call),
+            GRAPH_CORPUS_ORDINARY_PRINCIPAL,
+        );
+        assert_eq!(
+            corpus_invocation_principal(b_call),
+            GRAPH_CORPUS_CREW_PRINCIPAL,
+        );
+        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        snapback.declare_graph_query_v1_capability();
+        let mut carriers = private_overlay_carriers(&snapback, &matrix)
+            .into_iter()
+            .filter(|(name, _, _)| name == query)
+            .collect::<Vec<_>>();
+        let b_query = format!("{query}OtherPrincipalRotation");
+        let (_, b_carrier, mut b_definition) = carriers[0].clone();
+        b_definition.id = format!("fn:{b_query}");
+        b_definition.name = b_query.clone();
+        b_definition.exported_name = Some(b_query.clone());
+        b_definition.bundle_entrypoint = Some(b_query.clone());
+        carriers.push((b_query.clone(), b_carrier, b_definition));
+        let diagnostics = snapback.load_functions(served_graph_manifest(&corpus, &carriers));
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+            "{case_id} rotation manifest diagnostics: {diagnostics:#?}",
+        );
+        snapback.install_graph_serving_authority_context_for_test(
+            query,
+            GraphServingAuthorityContextV1 {
+                evaluation: authority.clone(),
+                class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+            },
+        );
+        snapback.install_graph_serving_authority_context_for_test(
+            &b_query,
+            GraphServingAuthorityContextV1 {
+                evaluation: b_authority.clone(),
+                class2: serde_json::from_value(b_call["partition"]["class2"].clone()).unwrap(),
+            },
+        );
+        let predecessor: snapback_types::storage::AuthorizationVersion =
+            serde_json::from_value(json!({
+                "incarnation":GRAPH_CORPUS_AUTHORIZATION_INCARNATION,
+                "epoch":0,
+            }))
+            .unwrap();
+        let a_scheduler_connection = configure_graph_corpus_scheduler(
+            &mut snapback,
+            predecessor.clone(),
+            GRAPH_CORPUS_DATA_VERSION_STREAM,
+        )
+        .unwrap();
+        let b_scheduler_connection =
+            graph_corpus_other_principal_connection(&mut snapback, predecessor).unwrap();
+        let a_connection = format!("private-rotation-a-{case_id}");
+        let b_connection = format!("private-rotation-b-{case_id}");
+        let a = subscribe_graph_corpus_case(
+            &mut snapback,
+            query,
+            graph_scheduler_memo_input(call, &authority, &a_connection, 1, None),
+            a_scheduler_connection,
+        )
+        .expect("establish retained lane A");
+        let b_predecessor = subscribe_graph_corpus_other_principal_case(
+            &mut snapback,
+            &b_query,
+            graph_scheduler_memo_input(b_call, &b_authority, &b_connection, 2, None),
+            b_scheduler_connection.clone(),
+        )
+        .expect("establish principal B predecessor authority instance");
+        assert!(drain_graph_corpus_stream(&snapback, &a_connection).is_empty());
+        assert!(drain_graph_corpus_stream(&snapback, &b_connection).is_empty());
+        let a_before = snapback
+            .graph_serving_observation_for_test(&a.subscription_id)
+            .expect("retained lane A observation");
+        let b_before = snapback
+            .graph_serving_observation_for_test(&b_predecessor.subscription_id)
+            .expect("lane B predecessor partition observation");
+        let metrics_before = snapback.inspect_core().unwrap();
+
+        let mut replacement_input =
+            graph_scheduler_memo_input(b_call, &b_authority, &b_connection, 3, None);
+        replacement_input.supersedes = Some(b_predecessor.subscription_id.clone());
+        let b_successor = subscribe_graph_corpus_other_principal_partition_case(
+            &mut snapback,
+            &b_query,
+            replacement_input,
+            b_scheduler_connection,
+        )
+        .expect("rotate principal B to the alternate owner-issued authority instance");
+        assert!(b_successor.superseded.is_some());
+        let b_after = snapback
+            .graph_serving_observation_for_test(&b_successor.subscription_id)
+            .expect("lane B successor partition observation");
+
+        let first_preimage: GraphAuthorityPartitionPreimageV1 =
+            serde_json::from_value(b_before["partition"].clone()).unwrap();
+        let second_preimage: GraphAuthorityPartitionPreimageV1 =
+            serde_json::from_value(b_after["partition"].clone()).unwrap();
+        let first_identity = graph_authority_partition_identity_v1(first_preimage).unwrap();
+        let second_identity = graph_authority_partition_identity_v1(second_preimage).unwrap();
+        assert_eq!(
+            b_before["partitionHash"],
+            first_identity.partition_hash.as_str()
+        );
+        assert_eq!(
+            b_after["partitionHash"],
+            second_identity.partition_hash.as_str()
+        );
+        assert_ne!(
+            first_identity.partition_hash,
+            second_identity.partition_hash
+        );
+        assert_eq!(
+            b_before["partition"]["class2"],
+            b_after["partition"]["class2"]
+        );
+        assert!(b_before["partition"]["class3"].is_object());
+        assert!(b_after["partition"]["class3"].is_object());
+        let mut first_without_class3 = b_before["partition"].clone();
+        let mut second_without_class3 = b_after["partition"].clone();
+        first_without_class3["class3"] = Value::Null;
+        second_without_class3["class3"] = Value::Null;
+        assert_eq!(first_without_class3, second_without_class3);
+        assert_ne!(
+            b_before["partition"]["class3"],
+            b_after["partition"]["class3"]
+        );
+        assert_eq!(
+            a_before["partition"]["class3"]["principalDataScope"]["userId"],
+            GRAPH_CORPUS_ORDINARY_PRINCIPAL,
+        );
+        assert_eq!(
+            b_before["partition"]["class3"]["principalDataScope"]["userId"],
+            GRAPH_CORPUS_CREW_PRINCIPAL,
+        );
+        assert_ne!(
+            a_before["partition"]["class3"]["principalDataScope"]["userId"],
+            b_before["partition"]["class3"]["principalDataScope"]["userId"],
+        );
+
+        let metrics_after = snapback.inspect_core().unwrap();
+        assert_eq!(
+            metrics_after.live_authority.fences_applied,
+            metrics_before.live_authority.fences_applied,
+            "{case_id} lane B rotation applies zero fences to retained lane A",
+        );
+        assert_eq!(
+            metrics_after.live_matcher, metrics_before.live_matcher,
+            "{case_id} lane B rotation wakes no retained data subscription",
+        );
+        assert!(drain_graph_corpus_stream(&snapback, &a_connection).is_empty());
+        assert!(
+            graph_corpus_authorization_frames(&mut snapback, &a_connection)
+                .unwrap()
+                .is_empty(),
+            "{case_id} retained lane A receives zero fence or delivery frames",
+        );
+        assert_eq!(
+            snapback
+                .graph_serving_observation_for_test(&a.subscription_id)
+                .unwrap(),
+            a_before,
+            "{case_id} retained lane A observation remains byte-identical",
+        );
+    }
+}
+
 /// Advancing the active principal's authority fences the predecessor and then
 /// restores exactly one successor snapshot. Both private overlays remain
 /// scoped to the same partition of one on list and detail graphs.
@@ -10379,6 +10738,8 @@ fn private_overlay_matrix_executes_served_data_and_cross_principal_paths() {
 /// @ref LLP 0209#32-authority-partition-identity-and-versioning — authority
 /// versions are adjacent to, but do not replace, the stable principal-scoped
 /// partition identity.
+/// @ref LLP 0200#24-the-authorization-lane-splits-in-two--by-declared-classification —
+/// a concurrent fence gates the predecessor evaluation at delivery time.
 /// @ref LLP 0268#4-decision-the-fail-closed-lane-owns-every-individualized-boundary — the retained
 /// scheduler publishes a fence before any successor-authority graph bytes.
 #[test]
@@ -10398,7 +10759,21 @@ fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
         let query = case["query"].as_str().unwrap();
         let call = &case["invocation"];
         let authority = corpus_authority(&corpus, corpus_invocation_principal(call));
-        let mut snapback = private_overlay_store(&corpus, &matrix, &case["world"]);
+        let directory = tempfile::tempdir().expect("private-overlay authority tempdir");
+        let tables = private_overlay_seed_tables(&corpus, &matrix, &case["world"]);
+        let mut snapback = LocalSnapback::open(directory.path().join("authority.sqlite3"))
+            .expect("open private-overlay authority store");
+        let schema_diagnostics = snapback
+            .apply_schema(corpus_schema(&tables))
+            .expect("apply private-overlay authority schema");
+        assert!(
+            schema_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error)
+        );
+        snapback
+            .seed(SeedData { tables })
+            .expect("seed private-overlay authority store");
         snapback.declare_graph_query_v1_capability();
         let mut carriers = private_overlay_carriers(&snapback, &matrix)
             .into_iter()
@@ -10477,6 +10852,71 @@ fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
             .graph_serving_observation_for_test(&established.subscription_id)
             .expect("private-overlay predecessor observation");
 
+        let replacement_title = format!("{case_id} predecessor result completed after fence");
+        let data_committed = invoke_graph_corpus_mutation(
+            &mut snapback,
+            GRAPH_CORPUS_PATCH_ISSUE,
+            HandlerInput {
+                args: json!({
+                    "rowID":matrix["fixture"]["issue"]["physicalID"],
+                    "value":replacement_title,
+                }),
+                ..HandlerInput::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("commit {case_id} predecessor data turn: {error:?}"));
+        let gate_before = snapback
+            .inspect_core()
+            .expect("inspect before delivery gate");
+        let scheduler_control =
+            graph_corpus_scheduler_control(&snapback).expect("private-overlay scheduler control");
+        let (reached_tx, reached_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let snapshot_hook =
+            snapback.set_graph_evaluation_snapshot_debug_hook(reached_tx, release_rx);
+        let subscription_id = established.subscription_id.clone();
+        let evaluation = std::thread::spawn(move || {
+            let flushed = snapback.flush_pending_live_fanout();
+            (snapback, flushed)
+        });
+        let pinned_cut = reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("predecessor data evaluation pins before the authority fence");
+        assert_eq!(pinned_cut, data_committed.version);
+        let successor_version: snapback_types::storage::AuthorizationVersion =
+            serde_json::from_value(json!({
+                "incarnation":GRAPH_CORPUS_AUTHORIZATION_INCARNATION,
+                "epoch":1,
+            }))
+            .unwrap();
+        // This is the production transition's concurrent, lock-free marking
+        // step. The durable transition below drives its complete obligation
+        // and restoration path after the late predecessor result is gated.
+        scheduler_control.fence_authority(&subscription_id, successor_version.clone());
+        release_tx.send(()).expect("release predecessor evaluation");
+        let (mut snapback, predecessor_flushed) = evaluation.join().expect("evaluation joins");
+        drop(snapshot_hook);
+        assert!(predecessor_flushed, "{case_id} predecessor turn executed");
+        let gate_after = snapback
+            .inspect_core()
+            .expect("inspect after delivery gate");
+        assert_eq!(
+            gate_after.live_evaluation.evaluations_executed
+                - gate_before.live_evaluation.evaluations_executed,
+            1,
+            "{case_id} predecessor data evaluation really executed",
+        );
+        assert_eq!(
+            gate_after.live_authority.stale_authority_frames_discarded
+                - gate_before.live_authority.stale_authority_frames_discarded,
+            1,
+            "{case_id} predecessor's late result is discarded by the delivery-time gate",
+        );
+        assert!(
+            drain_graph_corpus_stream(&snapback, &connection_id).is_empty(),
+            "{case_id} gated predecessor publishes no data or watermark frame",
+        );
+
         let committed = invoke_graph_corpus_mutation(
             &mut snapback,
             GRAPH_CORPUS_AUTHORITY_MUTATION,
@@ -10500,6 +10940,17 @@ fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
             .iter()
             .map(|frame| serde_json::from_str::<Value>(frame).unwrap())
             .collect::<Vec<_>>();
+        let frame_census = frames.iter().fold(BTreeMap::new(), |mut census, frame| {
+            *census
+                .entry(frame["kind"].as_str().unwrap().to_owned())
+                .or_insert(0_usize) += 1;
+            census
+        });
+        assert_eq!(
+            frame_census,
+            BTreeMap::from([("authorization_invalidation".to_owned(), 2_usize)]),
+            "{case_id} closed frame census from transition through generation-1 delivery",
+        );
         let successor = json!({
             "incarnation":GRAPH_CORPUS_AUTHORIZATION_INCARNATION,
             "epoch":1,
@@ -10552,8 +11003,19 @@ fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
         );
         assert_eq!(
             serde_json::to_string(&deliveries[0].1["snapshot"]["rows"]).unwrap(),
-            case["expect"]["initial"]["resultBytes"].as_str().unwrap(),
-            "{case_id} exact overlay bytes survive authority restoration",
+            {
+                let mut rows: Value = serde_json::from_str(
+                    case["expect"]["initial"]["resultBytes"].as_str().unwrap(),
+                )
+                .unwrap();
+                if query == "issueListPrivateOverlays" {
+                    rows[0]["issue"]["title"] = json!(replacement_title);
+                } else {
+                    rows[0]["issueTitle"] = json!(replacement_title);
+                }
+                serde_json::to_string(&rows).unwrap()
+            },
+            "{case_id} only the successor-authority data result is delivered",
         );
 
         let after = snapback
@@ -10561,7 +11023,7 @@ fn private_overlay_matrix_active_authority_transition_fences_and_restores() {
             .expect("private-overlay successor observation");
         assert_eq!(
             after["resultBytes"],
-            case["expect"]["initial"]["resultBytes"]
+            serde_json::to_string(&deliveries[0].1["snapshot"]["rows"]).unwrap(),
         );
         assert_eq!(after["partitionHash"], before["partitionHash"]);
         assert_eq!(after["authorizationVersion"], successor);
