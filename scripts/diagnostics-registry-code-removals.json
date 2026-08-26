@@ -361,10 +361,6 @@
       "reason": "test-only",
       "detail": "SNAPBACK_EMISSION_TEST_FAILURE occurs only in excluded test or classifier-fixture source."
     },
-    "SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE": {
-      "reason": "reference-only",
-      "detail": "origin/main removed the caller-supplied reauthorization result vector whose length mismatch emitted this code, then retired the obsolete HTTP-classification reference; no production emission remains."
-    },
     "SNAPBACK_EPOCH__": {
       "reason": "prefix",
       "detail": "SNAPBACK_EPOCH__ is an incomplete diagnostic-family prefix, not a complete emitted code."
@@ -788,11 +784,6 @@
     "SNAPBACK_SECRETS__": {
       "reason": "prefix",
       "detail": "SNAPBACK_SECRETS__ is an incomplete diagnostic-family prefix, not a complete emitted code."
-    },
-    "SNAPBACK_SERVICE_AUTHORITY_UNAVAILABLE": {
-      "reason": "renamed",
-      "replacement": "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-      "detail": "origin/main's database-derived service-terminal composition removed the old unavailable emitters and now reports the surviving authority-policy refusal as SNAPBACK_AUTH_POLICY_UNAVAILABLE."
     },
     "SNAPBACK_SESSIONS_SCHEMA_VERSION": {
       "reason": "reference-only",
