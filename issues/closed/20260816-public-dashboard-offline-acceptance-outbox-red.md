@@ -1624,3 +1624,118 @@ generated projection files remain byte-identical to merge base
 
 `./ref-check --verbose` reports `311 LLP docs, 6651 refs in 12506 files, 0
 errors, 0 unchecked`. `git diff --check` produces no output.
+
+### Round-27 dual-review closure (2026-08-26)
+
+An answered failure from the immediate pre-POST replay inspection now pauses
+the queue with retriable code
+`SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`. The current record remains
+pending, replay breaks before the POST, and later records are not walked into
+terminal failure. Standalone ACK now consumes the shared replay-capability fact
+again while holding the authorization-dispatch lock and requires that fact to
+remain the same current positive immediately before transport.
+
+The injected-store declaration now carries the sixth `legacyPolicy` argument,
+the `quarantined`/`quarantinedIds` reconciliation result, and the versioned
+`supportsLegacyQuarantine: true` capability. Principal transition fails closed
+with `SNAPBACK_OUTBOX_LEGACY_QUARANTINE_UNSUPPORTED` before reconciliation when
+an injected store cannot prove that contract, preserving predecessor intent.
+
+The three fail-first runtime regressions produced these verbatim lines before
+the production fixes:
+
+```text
+✖ answered pre-POST inspection failure pauses the pending queue without failing records
+AssertionError [ERR_ASSERTION]: the answered pre-POST failure is retriable, not terminal
+2 !== 0
+✖ standalone ACK rechecks a same-target positive after acquiring authorization dispatch
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+  {
++   acknowledged: 1
+-   acknowledged: 0
+  }
+✖ legacy-quarantine-incapable injected store refuses principal switch without deleting intent
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+```
+
+The type fixture also failed first with these verbatim diagnostics:
+
+```text
+packages/snapback-client/rqs-store-types.fixture.ts(8,12): error TS2339: Property 'outboxCapabilities' does not exist on type 'RqsResumeStore'.
+packages/snapback-client/rqs-store-types.fixture.ts(18,5): error TS2554: Expected 5 arguments, but got 6.
+packages/snapback-client/rqs-store-types.fixture.ts(24,40): error TS2339: Property 'quarantined' does not exist on type 'Readonly<{ deleted: number; deletedIds: readonly string[]; stranded: number; strandedIds: readonly string[]; }>'.
+packages/snapback-client/rqs-store-types.fixture.ts(25,54): error TS2339: Property 'quarantinedIds' does not exist on type 'Readonly<{ deleted: number; deletedIds: readonly string[]; stranded: number; strandedIds: readonly string[]; }>'.
+```
+
+At the final JS implementation commit
+`ce9feacf0494b7555482385e0addc70af5ff967d`, the required combined suite
+reports:
+
+```text
+ℹ tests 236
+ℹ suites 0
+ℹ pass 236
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7780.996459
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion after the affected suites pass 183/183,
+22/22, 22/22, and 4/4:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (10.14925ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2532.948083
+```
+
+The strict client TypeScript fixture command, including the new injected-store
+contract fixture, exits zero when run separately because the full script stops
+at that inherited RQS red.
+
+The export-types gate reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`node scripts/check-guide.mjs` passes snippet transclusions and reports this
+verbatim final summary:
+
+```text
+[guide-check] FAILED — 17 passed, 5 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 137 warnings
+```
+
+The remaining diagnostics-registry, symbol-registry, capability/surface join,
+manifest/MCP, and flat-guide projection/corpus reds are integration-owned; the
+generated projection files remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+`./ref-check --verbose` reports `311 LLP docs, 6651 refs in 12507 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
