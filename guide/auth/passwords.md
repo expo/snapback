@@ -215,6 +215,21 @@ makes the recovery handoff explicit:
         ) : null}
 ```
 
+### Wait for the authenticated dispatcher before profile work
+
+After `signUpWithPassword` / `signInWithPassword`, do not call an
+authenticated mutation in the same tick. Wait until the provider's
+authenticated dispatcher exists: the current-principal projection has reached
+its `authenticated` arm and the provider has rebound generated mutation hooks
+to that authority.
+
+Profile hydration is a separate ordering boundary. Do not mount a profile
+editor that can save until `getMine` (or equivalent) has a row; keep a loading
+or read-only shell until the seed/query settles, then initialize the form from
+that row. Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth
+change, so a refusal remains visible even when the session-gated subtree is
+replaced.
+
 The application must hand those codes to the user for separate safe custody
 at signup. They are not session credentials: do not put them in the app
 client, general persistence, logs, analytics, diagnostics, or a later account

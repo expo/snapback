@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:2262c14cc625d9c9e75a227d75abd92cb03684ccbd7125d672f13777dc289114 -->
+<!-- start-packet:begin expo-chat digest=sha256:27a6547842abb8b003346375181a8532070ce4d99814418d4dd4f339f68bdeb4 -->
 This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
@@ -56,24 +56,23 @@ only `generated/`.
 
 ## Posture
 
-- **Auth: sessions mode, guest-first plus password entry.** The app reaches
-  anonymous `ready`; call `auth.enterAsGuest()` on the same `useSnapbackAuth()`
-  owner before sends/uploads, or enter a password. Recovery codes appear once
-  after signup or guest claim.
-  Web starts sessionless. Native auto-adopts; the session is minted on that
-  first adoption request. `adoptSupervisedSession` opts web in/native out.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row. Node `memory` refuses `durable-required` custody with
+- **Auth: sessions, guest-first plus password.** From anonymous `ready`, use
+  the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
+  before sends/uploads. Recovery codes appear once. Web starts sessionless;
+  native auto-adopts. `adoptSupervisedSession` opts web in/native out.
+  After `signUpWithPassword` / `signInWithPassword`, do not call an
+  authenticated mutation in the same tick. Wait until the provider's
+  authenticated dispatcher exists. Do not mount a profile editor that can save
+  until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
+  outside a tree that unmounts on auth change.
+- **Custody: `volatile-explicit`.** Native restarts return anonymous. Use
+  `durable-required` only on an admitted platform. Node `memory` refuses
+  `durable-required` custody with
   `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
   [`expo-web` + `fake-indexeddb` acceptance helper](/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
   under “Recover when durable auth custody is unavailable.”
-- **Security caveat — client-supplied `senderId` is a demo convenience, never a boundary.**
-  The **TEST PERSONA** control passes its id as `senderId`/`userId`. In real
-  apps, derive the sender server-side from `ctx.auth.userId`, drop the
-  argument, and keep personas display-only.
+- **Security:** **TEST PERSONA** `senderId`/`userId` is not a boundary. Real apps
+  derive the sender from `ctx.auth.userId`; personas are display-only.
 
 ## Safety traps (reconciled at landing)
 

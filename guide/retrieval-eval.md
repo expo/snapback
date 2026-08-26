@@ -1139,6 +1139,19 @@ blanking all history is not an equivalent answer.
     "Only after that transition settles, allow later message sends",
     "message committed immediately after the role-transition settlement".
 
+104. **Signup dispatcher and profile hydration:** "After password signup, my
+     profile mutation used the anonymous dispatcher, HANDLE_TAKEN disappeared,
+     and the editor saved before getMine returned. What order should React or
+     Expo use?" The run fails if it calls an authenticated mutation in the auth
+     method's tick, enables profile save before the profile row exists, places
+     refusal UI inside the auth-gated remount, or invents a new Snapback API.
+     Expected pages: `start/expo-chat.md`, `auth/passwords.md`.
+     Route terms: "authenticated dispatcher", "HANDLE_TAKEN", "getMine".
+     Required guidance per page:
+     `start/expo-chat.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+     `auth/passwords.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
+
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

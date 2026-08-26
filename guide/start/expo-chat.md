@@ -70,24 +70,23 @@ only `generated/`.
 
 ## Posture
 
-- **Auth: sessions mode, guest-first plus password entry.** The app reaches
-  anonymous `ready`; call `auth.enterAsGuest()` on the same `useSnapbackAuth()`
-  owner before sends/uploads, or enter a password. Recovery codes appear once
-  after signup or guest claim.
-  Web starts sessionless. Native auto-adopts; the session is minted on that
-  first adoption request. `adoptSupervisedSession` opts web in/native out.
-- **Custody: `volatile-explicit`.** This disposable template deliberately says
-  memory custody, so a native process restart returns anonymous and must enter
-  again. It does not silently weaken a durable policy; select
-  `durable-required` only for a platform tuple admitted by the native custody
-  capability row. Node `memory` refuses `durable-required` custody with
+- **Auth: sessions, guest-first plus password.** From anonymous `ready`, use
+  the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
+  before sends/uploads. Recovery codes appear once. Web starts sessionless;
+  native auto-adopts. `adoptSupervisedSession` opts web in/native out.
+  After `signUpWithPassword` / `signInWithPassword`, do not call an
+  authenticated mutation in the same tick. Wait until the provider's
+  authenticated dispatcher exists. Do not mount a profile editor that can save
+  until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
+  outside a tree that unmounts on auth change.
+- **Custody: `volatile-explicit`.** Native restarts return anonymous. Use
+  `durable-required` only on an admitted platform. Node `memory` refuses
+  `durable-required` custody with
   `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
   [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
   under “Recover when durable auth custody is unavailable.”
-- **Security caveat — client-supplied `senderId` is a demo convenience, never a boundary.**
-  The **TEST PERSONA** control passes its id as `senderId`/`userId`. In real
-  apps, derive the sender server-side from `ctx.auth.userId`, drop the
-  argument, and keep personas display-only.
+- **Security:** **TEST PERSONA** `senderId`/`userId` is not a boundary. Real apps
+  derive the sender from `ctx.auth.userId`; personas are display-only.
 
 ## Safety traps (reconciled at landing)
 
