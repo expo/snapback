@@ -3502,6 +3502,119 @@ mod tests {
         database
     }
 
+    #[test]
+    #[ignore = "stale-schema family measurement; run explicitly"]
+    fn stale_predecessor_history_configuration_rereads_durable_successor_policy() {
+        let temp = tempfile::tempdir().expect("stale history policy tempdir");
+        let database_path = temp.path().join("stale-history-policy.sqlite");
+        let mut predecessor = schema();
+        predecessor.tables[0].history = None;
+        let mut stale = LocalDatabase::open(&database_path).expect("open stale handle A");
+        stale
+            .schema_seed()
+            .apply_schema(predecessor)
+            .expect("publish predecessor without schema history");
+        let mut publisher = LocalDatabase::open(&database_path).expect("open publisher handle B");
+        publisher
+            .schema_seed()
+            .apply_schema(schema())
+            .expect("durably publish schema-declared history successor");
+        assert!(
+            stale.schema().tables[0].history.is_none(),
+            "handle A must retain the predecessor"
+        );
+        assert!(
+            publisher.schema().tables[0].history.is_some(),
+            "handle B must hold the successor before use"
+        );
+
+        let error = stale
+            .versions_read()
+            .configure_history_policy(&HistoryRetentionPolicyV1 {
+                table: "items".to_owned(),
+                retain_ms: 20_000,
+                max_rows: 20,
+            })
+            .expect_err("durable v2 policy must refuse stale legacy configuration");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT"
+        );
+        let observer = Connection::open(&database_path).expect("open effect observer C");
+        let legacy_rows: u64 = observer
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {HISTORY_POLICY_TABLE} WHERE table_name='items'"),
+                [],
+                |row| row.get(0),
+            )
+            .expect("read exact legacy-policy effect");
+        assert_eq!(legacy_rows, 0, "the refusal must leave no legacy policy");
+        eprintln!(
+            "FAMILY10_BENIGN: use returned SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT; \
+             publisher handle B observed legacy_rows={legacy_rows}"
+        );
+    }
+
+    #[test]
+    #[ignore = "open stale-schema defect measurement; run explicitly"]
+    fn stale_predecessor_schema_identity_reaches_named_checkpoint_receipt() {
+        let temp = tempfile::tempdir().expect("stale checkpoint schema tempdir");
+        let database_path = temp.path().join("stale-checkpoint-schema.sqlite");
+        let mut predecessor = schema();
+        predecessor.schema_hash = Some("sha256:checkpoint-predecessor".to_owned());
+        let mut stale = LocalDatabase::open(&database_path).expect("open stale handle A");
+        stale
+            .schema_seed()
+            .apply_schema(predecessor)
+            .expect("publish checkpoint predecessor");
+        let mut publisher = LocalDatabase::open(&database_path).expect("open publisher handle B");
+        let mut successor = schema();
+        successor.schema_hash = Some("sha256:checkpoint-successor".to_owned());
+        publisher
+            .schema_seed()
+            .apply_schema(successor)
+            .expect("durably publish checkpoint successor");
+        assert_eq!(
+            stale.schema().schema_hash.as_deref(),
+            Some("sha256:checkpoint-predecessor"),
+            "handle A must retain the predecessor identity"
+        );
+        assert_eq!(
+            publisher.schema().schema_hash.as_deref(),
+            Some("sha256:checkpoint-successor"),
+            "handle B must hold the successor identity before use"
+        );
+
+        let mut request = checkpoint_request(1_000);
+        request.substrate = CheckpointSubstrateV1::ReceiptOnly;
+        let outcome = stale.checkpoints().create_named_checkpoint(None, &request);
+        match outcome {
+            Err(error) => {
+                eprintln!(
+                    "FAMILY10_REFUSED_AT_USE: code={} message={}",
+                    error.diagnostic.code, error.diagnostic.message
+                );
+            }
+            Ok(receipt) => {
+                let durable = publisher
+                    .checkpoints_read()
+                    .inspect_named_checkpoint(&receipt.checkpoint_id, 1_001)
+                    .expect("publisher B reads durable checkpoint receipt");
+                panic!(
+                    "FAMILY10_REACHES_EFFECT: use returned Ok; receipt schema_hash={}; \
+                     publisher handle B observed durable schema_hash={} while active={}",
+                    receipt.schema_hash,
+                    durable.schema_hash,
+                    publisher
+                        .schema()
+                        .schema_hash
+                        .as_deref()
+                        .unwrap_or("missing")
+                );
+            }
+        }
+    }
+
     fn checkpoint_erasure_table_count(conn: &Connection) -> u64 {
         CHECKPOINT_ERASURE_TABLES
             .iter()
