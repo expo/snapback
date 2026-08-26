@@ -21,6 +21,10 @@ export const PACKAGE_TEST_INVENTORIES = [
     expectedFiles: [
       'tests/capability-maturity.test.mjs',
       'tests/check-inventories.test.mjs',
+      // @ref LLP 0310#work-to-do — P20's standing regression: the Expo
+      // activity-presence facade must keep working under a bare URL-first
+      // SnapbackProvider on web.
+      'tests/probes/expo-presence-bare-provider-20260826/probe.test.mjs',
     ],
   },
   {
@@ -607,7 +611,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 362,
+  expectedTotal = 363,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1157,6 +1161,10 @@ export function checkPackageTestInventories(options = {}) {
 // owner-bound dev-control socket occupancy, EOF/deadline, and cleanup-lease suite.
 // 361 -> 362 (2026-08-25, diagnostics registry round-9 review):
 // @expo/snapback-cli gains the focused reserved-code lookup-label regression.
+// 362 -> 363 (2026-08-26, LLP 0310 P20): the bare-provider Expo presence probe
+// becomes a standing regression under snapback-maturity-records — if the facade
+// ever stops working under a bare URL-first SnapbackProvider on web, the
+// 0.1.27 Clique lane's reading becomes true and LLP 0257's fallback has broken.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

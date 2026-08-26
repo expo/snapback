@@ -19,7 +19,7 @@
     "preinstall": "node scripts/require-bun-package-manager.mjs",
     "check:artifacts": "scripts/check-generated-artifacts",
     "check:package-tests": "node scripts/check-package-test-inventory.mjs",
-    "test:maturity": "node tests/capability-maturity.test.mjs && node tests/check-inventories.test.mjs",
+    "test:maturity": "node tests/capability-maturity.test.mjs && node tests/check-inventories.test.mjs && node tests/probes/expo-presence-bare-provider-20260826/probe.test.mjs",
     "check:export-types": "node scripts/check-package-export-types.mjs",
     "check:types": "scripts/check-generated-types",
     "check:surfaces": "scripts/check-demo-surfaces",
