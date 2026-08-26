@@ -18,6 +18,16 @@ function gitOutput(repoRoot, args) {
 
 function stableRegistryHistory(repoRoot, dirtyPath) {
   try {
+    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', dirtyPath], {
+      cwd: repoRoot,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+  } catch (error) {
+    if (error.status === 1) return { baseline: 'HEAD' };
+    throw error;
+  }
+
+  try {
     const baseline = gitOutput(repoRoot, ['merge-base', 'HEAD', 'origin/main']);
     const head = gitOutput(repoRoot, ['rev-parse', 'HEAD']);
     if (baseline !== head) return { baseline };

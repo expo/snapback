@@ -110,12 +110,17 @@ const environment = lookupGuideReference(
 );
 assert.equal(environment.match, 'environment');
 assert.equal(environment.environment.name, 'SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE');
-assert.deepEqual(
-  environment.environment.sites.map(({ file, kind }) => ({ file, kind })),
-  [{ file: 'crates/snapback-kernel/src/live_matcher.rs', kind: 'read' }],
-);
+assert.equal(environment.environment.sites, undefined);
 assert.match(environment.identity.diagnosticsSourceDigest, /^sha256:[0-9a-f]{64}$/u);
 assert.ok(Buffer.byteLength(JSON.stringify(environment)) <= 16_384);
+const internalEnvironment = lookupGuideReference(
+  ['SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE'],
+  { projectRoot: root, includeDiagnosticSites: true },
+);
+assert.deepEqual(
+  internalEnvironment.environment.sites.map(({ file, kind }) => ({ file, kind })),
+  [{ file: 'crates/snapback-kernel/src/live_matcher.rs', kind: 'read' }],
+);
 assert.equal(
   lookupGuideReference(['SnapbackEnvironmentVariable'], { projectRoot: root }),
   null,
@@ -137,14 +142,19 @@ assert.equal(dualRole.match, 'diagnostic-environment');
 assert.equal(dualRole.diagnostic.code, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
 assert.equal(dualRole.diagnostic.sites, undefined);
 assert.equal(dualRole.environment.name, 'SNAPBACK_ACCEPTED_SOCKET_LIMIT');
-assert.deepEqual(
-  dualRole.environment.sites.map(({ file, kind }) => ({ file, kind })),
-  [{ file: 'targets/cloudflare/src/coordinator.js', kind: 'read' }],
-);
+assert.equal(dualRole.environment.sites, undefined);
 assert.ok(Buffer.byteLength(JSON.stringify(dualRole)) <= 16_384);
-assert.match(
+assert.doesNotMatch(
   formatGuideReferenceLookup(dualRole),
-  /snapback[^]*environment variable[^]*Environment sites:[^]*- read: targets\/cloudflare\/src\/coordinator\.js:/u,
+  /Environment sites:/u,
+);
+const internalDualRole = lookupGuideReference(
+  ['SNAPBACK_ACCEPTED_SOCKET_LIMIT'],
+  { projectRoot: root, includeDiagnosticSites: true },
+);
+assert.deepEqual(
+  internalDualRole.environment.sites.map(({ file, kind }) => ({ file, kind })),
+  [{ file: 'targets/cloudflare/src/coordinator.js', kind: 'read' }],
 );
 
 const syntheticRoot = mkdtempSync(join(tmpdir(), 'snapback-reference-lookup-'));

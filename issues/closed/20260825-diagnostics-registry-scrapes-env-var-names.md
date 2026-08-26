@@ -70,8 +70,11 @@ retains 12 unique `deploy_fail` diagnostics from
 `targets/cloudflare/deploy.sh` and separates `${SNAPBACK_X}`/`$SNAPBACK_X`
 reads. Inline `#[cfg(test)]` modules and `#[test]` functions are excluded from
 Rust production classification, leaving every `SNAPBACK_S3_TEST_*` name out
-of `SnapbackEnvironmentVariable`. The affected-source selector covers `.sh`,
-and the package-manifest rule is restricted to `packages/*/package.json`.
+of the environment registry. The round-16 wording described this as exclusion
+from `SnapbackEnvironmentVariable`; that claim is superseded by the round-33
+public-surface ruling below because the type was never shipped. The
+affected-source selector covers `.sh`, and the package-manifest rule is
+restricted to `packages/*/package.json`.
 
 Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
@@ -180,12 +183,13 @@ neither is HTTP-table-only. The open deletion-review ticket therefore lists
 seven genuine HTTP-only reservations, not nine.
 
 `SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` is absent from the diagnostic registry
-and `SnapbackDiagnosticCode`, but remains in the environment registry and
-`SnapbackEnvironmentVariable`. `SNAPBACK_APP_BINDING_EXPIRED` has three
-emitting sites (`app-binding.mjs:586` and
-`supervised-environment.mjs:595,712`) and is absent from
-`SnapbackEnvironmentVariable`. The five other false Expo environment names
-identified in round 17 are also absent from that type.
+and `SnapbackDiagnosticCode`, but remains in the environment registry.
+`SNAPBACK_APP_BINDING_EXPIRED` has three emitting sites
+(`app-binding.mjs:586` and `supervised-environment.mjs:595,712`) and is absent
+from the environment registry. The five other false Expo environment names
+identified in round 17 are absent there too. The round-27 claims that these
+facts were also projected through `SnapbackEnvironmentVariable` are
+superseded: that public type was candidate-only and never shipped.
 
 The complete earlier 141-name environment-removal claim was re-audited against
 the merge-base carrier files. Only `SNAPBACK_APP_BINDING_EXPIRED` has
@@ -282,9 +286,11 @@ The eight redundant markers on direct `return Err(code::...)` /
 `return Err(refusal::...)` statements were removed; markers on custom helpers
 and dynamic throws remain. The Tigris partial-code mapping and credential-pair
 helper are private again, with the six pairs and the registered unknown-role
-refusal pinned through a non-executing module-text seam. Finally, a depth-zero
-`}` terminates a Rust test-attributed region, so a production diagnostic after
-a last match arm without a trailing comma is retained.
+refusal pinned through an imported internal helper that is not a package export;
+the test executes the refusal helper and separately inspects module text for the
+complete six-pair table. Finally, a depth-zero `}` terminates a Rust
+test-attributed region, so a production diagnostic after a last match arm
+without a trailing comma is retained.
 
 The round-22 post-marker re-audit reported no added or dropped code and no
 declaration-backed code whose emitter set fell to zero. Round 23 deliberately
@@ -389,8 +395,9 @@ assignments. Prefix assignments, `export NAME=value`, and
 `env NAME=value command` are writes; quoted strings and comments remain
 non-sites. The production All Aboard build therefore adds
 `SNAPBACK_ALL_ABOARD_API` and `SNAPBACK_ALL_ABOARD_TARGET_PROFILE` to the
-environment registry and `SnapbackEnvironmentVariable` without changing the
-diagnostic population.
+environment registry without changing the diagnostic population. The
+round-27 claim that they were also added to `SnapbackEnvironmentVariable` is
+superseded because that public type never shipped.
 
 Round 28 added four comment-only synthetic emission markers at the kernel
 vector constructors that forward through `vector_error`. Round 30's generic
@@ -680,12 +687,13 @@ git show e370bb8f789007cffae1f4d80c4feabdedc81cb5:packages/snapback-client/diagn
 0
 ```
 
-Because the union did not exist there, `SnapbackEnvironmentVariable` was
-removed from the generated client declaration and root export rather than
-adding a public client contract in this lane. The 188 names remain available in
+Because the union did not exist there, the candidate-only
+`SnapbackEnvironmentVariable` declaration and root export were not shipped;
+the earlier round-33 wording that the type was "removed" is superseded by this
+shipping-status clarification. The 188 names remain available in
 `registry.environment`, generated Guide reference, and exact Guide lookup; the
-reference-lookup test also pins that the retired type name has no symbol result.
-No LLP 0193 stability-contract amendment applies.
+reference-lookup test also pins that the unshipped type name has no symbol
+result. No LLP 0193 stability-contract amendment applies.
 
 `SNAPBACK_RESUME_RATE_LIMITED` now has one site, the inline `reserved` marker at
 `crates/snapback-sync/src/rqs.rs:112`; the stray declaration site is gone. The

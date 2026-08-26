@@ -86,6 +86,13 @@ function resultIdentity(registry, diagnostics, manifest) {
   };
 }
 
+function registryRecordForDistribution(record, includeSites) {
+  if (includeSites) return record;
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => key !== 'sites'),
+  );
+}
+
 function budgetedDiagnostic(query, diagnostic, identity, slice, budget) {
   const complete = {
     schemaVersion: 'snapback.guide-symbol-lookup.v1',
@@ -378,16 +385,16 @@ export function lookupGuideReference(argv, options = {}) {
   // @ref LLP 0193#program — stable diagnostic codes route exactly before API
   // symbols and the native command's Markdown fallback.
   if (diagnostics.diagnostics?.[query]) {
-    const diagnostic = options.includeDiagnosticSites === true
-      ? diagnostics.diagnostics[query]
-      : Object.fromEntries(
-          Object.entries(diagnostics.diagnostics[query]).filter(([key]) => key !== 'sites'),
-        );
+    const includeSites = options.includeDiagnosticSites === true;
+    const diagnostic = registryRecordForDistribution(
+      diagnostics.diagnostics[query],
+      includeSites,
+    );
     if (diagnostics.environment?.[query]) {
       return budgetedDiagnosticEnvironment(
         query,
         diagnostic,
-        diagnostics.environment[query],
+        registryRecordForDistribution(diagnostics.environment[query], includeSites),
         identity,
         slice,
         budget,
@@ -398,7 +405,10 @@ export function lookupGuideReference(argv, options = {}) {
   if (diagnostics.environment?.[query]) {
     return budgetedEnvironment(
       query,
-      diagnostics.environment[query],
+      registryRecordForDistribution(
+        diagnostics.environment[query],
+        options.includeDiagnosticSites === true,
+      ),
       identity,
       slice,
       budget,

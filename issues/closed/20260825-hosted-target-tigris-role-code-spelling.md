@@ -59,11 +59,13 @@ roles retain their existing codes. `ensureTargetTigrisRole` and the mapping
 remain private, and `TARGET_TIGRIS_ROLES`, `targetRolePolicy`, and every IAM
 action/resource decision are unchanged.
 
-The existing onboarding test reads the module text as a non-executing test seam
-and pins all six exact role-to-code pairs. It cannot invoke credential creation
-or policy attachment. The diagnostics-registry projection test separately pins
-all six spellings to the private dynamic throw site and keeps the hyphenated
-spelling absent.
+The existing onboarding test imports and executes the pure internal
+`assertTargetTigrisCredentialPair` helper; the helper is not a package export.
+The test pins the `control-state` and unknown-role refusals without invoking
+credential creation or policy attachment, and separately reads the module text
+to pin all six exact role-to-code pairs. The diagnostics-registry projection
+test pins all six spellings to the private dynamic throw site and keeps the
+hyphenated spelling absent.
 
 The old output with a hyphen between `CONTROL` and `STATE` is retired, not
 aliased or reserved: it never satisfied the registry grammar and therefore was

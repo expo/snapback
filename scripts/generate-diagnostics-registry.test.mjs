@@ -353,6 +353,51 @@ test('diagnostic removal guard accepts its historical ledger after HEAD lands on
   }
 });
 
+test('diagnostic removal guard compares a dirty working registry with HEAD', () => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-dirty-registry-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry');
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      SNAPBACK_FIXTURE_DIRTY_REMOVAL: {},
+    } })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'add diagnostic');
+    const landedHead = git('rev-parse', 'HEAD');
+    git('update-ref', 'refs/remotes/origin/main', landedHead);
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [
+        'SNAPBACK_FIXTURE_DIRTY_REMOVAL: missing checked-in removal justification',
+      ],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test('diagnostic removal guard keeps its merge-base after an unrelated commit', () => {
   const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-history-'));
   const registryPath = 'guide/reference/diagnostics-registry.json';
@@ -1638,11 +1683,14 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   assert.deepEqual(
     demandMismatchSites.map(({ file, line, kind }) => ({ file, line, kind })),
-    [{
+    sourceLinesContaining(
+      'crates/snapback-kernel/src/live_matcher.rs',
+      'eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
+    ).map((line) => ({
       file: 'crates/snapback-kernel/src/live_matcher.rs',
-      line: 215,
+      line,
       kind: undefined,
-    }],
+    })),
   );
   assert.ok(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH);
   assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
@@ -1753,9 +1801,22 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     registry.diagnostics.SNAPBACK_APP_BINDING_EXPIRED.sites
       .map(({ file, line, kind }) => ({ file, line, kind })),
     [
-      { file: 'packages/snapback-expo/app-binding.mjs', line: 586, kind: undefined },
-      { file: 'packages/snapback-expo/supervised-environment.mjs', line: 595, kind: undefined },
-      { file: 'packages/snapback-expo/supervised-environment.mjs', line: 712, kind: undefined },
+      ...sourceLinesContaining(
+        'packages/snapback-expo/app-binding.mjs',
+        "'SNAPBACK_APP_BINDING_EXPIRED'",
+      ).map((line) => ({
+        file: 'packages/snapback-expo/app-binding.mjs',
+        line,
+        kind: undefined,
+      })),
+      ...sourceLinesContaining(
+        'packages/snapback-expo/supervised-environment.mjs',
+        "'SNAPBACK_APP_BINDING_EXPIRED'",
+      ).map((line) => ({
+        file: 'packages/snapback-expo/supervised-environment.mjs',
+        line,
+        kind: undefined,
+      })),
     ],
   );
   const falselyClassifiedEnvironmentNames = [
