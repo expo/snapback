@@ -3614,9 +3614,13 @@ test('a new default client stays online-only without an established app binding'
     await second.rqsStore.whenLockSettled();
     let inspectCalls = 0;
     let mutationPosts = 0;
-    globalThis.fetch = async (url) => {
+    let wireExpectedGeneration = null;
+    globalThis.fetch = async (url, init = {}) => {
       if (new URL(url).pathname === '/inspect') inspectCalls += 1;
-      else if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+      else if (new URL(url).pathname.startsWith('/mutation/')) {
+        mutationPosts += 1;
+        wireExpectedGeneration = JSON.parse(init.body).expectedGeneration ?? null;
+      }
       throw new TypeError('fetch failed');
     };
     await assert.rejects(
@@ -3628,6 +3632,11 @@ test('a new default client stays online-only without an established app binding'
     );
     assert.equal(inspectCalls, 1, 'the successor still attempts one fresh capability probe');
     assert.equal(mutationPosts, 1, 'an unbound successor makes one online-only mutation POST');
+    assert.equal(
+      wireExpectedGeneration,
+      null,
+      'the unbound successor does not pin the predecessor generation after inspection loss',
+    );
     assert.deepEqual(
       (await second.rqsStore.outboxPending()).map((record) => record.id),
       [],
@@ -6123,12 +6132,12 @@ test('string-named replay carries its persisted generation across an inspect-to-
   }
 });
 
-test('online-only string-named mutation carries the inspected generation across the final-answer deployment race', async (t) => {
+test('queue:false string-named mutation does not pin a generation left by a prior client', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const coordinator = createSuccessorCoordinator();
-  const origin = 'https://foreground-string-generation-race.example';
-  const targetProfileId = 'foreground-string-generation-sessions';
+  const origin = 'https://foreground-string-leftover-generation.example';
+  const targetProfileId = 'foreground-string-leftover-sessions';
   const generationOne = {
     ...TEST_ARTIFACT_GENERATION,
   };
@@ -6138,8 +6147,15 @@ test('online-only string-named mutation carries the inspected generation across 
     bundleHash: testDigest('2'),
     inputsHash: testDigest('3'),
   };
-  let servedGeneration = generationOne;
-  let switchAfterFinalCapabilityAnswer = false;
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId,
+    artifactGeneration: generationOne,
+  });
+  let inspectCalls = 0;
   let mutationPosts = 0;
   let successorEffects = 0;
   let wireExpectedGeneration = null;
@@ -6156,21 +6172,17 @@ test('online-only string-named mutation carries the inspected generation across 
       });
     }
     if (path === '/inspect') {
-      const response = Response.json(offlineReplayInspection({
+      inspectCalls += 1;
+      return Response.json(offlineReplayInspection({
         supported: true,
         targetProfileId,
-        generation: servedGeneration,
+        generation: generationTwo,
       }));
-      if (switchAfterFinalCapabilityAnswer) servedGeneration = generationTwo;
-      return response;
     }
     mutationPosts += 1;
     const body = JSON.parse(init.body);
     wireExpectedGeneration = body.expectedGeneration ?? null;
-    if (
-      wireExpectedGeneration === null
-      || JSON.stringify(wireExpectedGeneration) !== JSON.stringify(servedGeneration)
-    ) {
+    if (wireExpectedGeneration !== null) {
       return Response.json({
         diagnostic: {
           code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
@@ -6191,23 +6203,20 @@ test('online-only string-named mutation carries the inspected generation across 
   try {
     await settleSuccessorCoordinator(coordinator);
     await client.authSession();
-    switchAfterFinalCapabilityAnswer = true;
-    await client.inspect();
-    await assert.rejects(
-      () => client.mutate('createThing', {
-        args: { title: 'belongs to generation one' },
-        clientMutationId: 'cm-foreground-string-generation-race',
-        queue: false,
-      }),
-      (error) => error?.code === 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
-    );
+    const result = await client.mutate('createThing', {
+      args: { title: 'belongs to the active generation' },
+      clientMutationId: 'cm-foreground-string-leftover-generation',
+      queue: false,
+    });
+    assert.equal(result.status, 'settled');
+    assert.equal(inspectCalls, 0, 'queue:false performs no capability inspection');
     assert.equal(mutationPosts, 1, 'the Sessions target receives one foreground POST');
-    assert.deepEqual(
+    assert.equal(
       wireExpectedGeneration,
-      generationOne,
-      'the online-only string-named foreground carrier asserts its inspected generation',
+      null,
+      'the online-only carrier does not reuse the prior client generation',
     );
-    assert.equal(successorEffects, 0, 'generation two executes zero predecessor effects');
+    assert.equal(successorEffects, 1, 'the active generation accepts the unpinned compatibility POST');
   } finally {
     await client.close();
     await store.close();

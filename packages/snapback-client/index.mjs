@@ -15446,20 +15446,6 @@ export class SnapbackClient {
     if (queueCapabilityVerified === true && clientMutationId === null) {
       clientMutationId = createClientMutationId();
     }
-    if (
-      queue === false
-      && generation === null
-      && operationTarget.artifactGeneration === null
-    ) {
-      const inspectedFact = await this.#currentOfflineMutationReplayCapabilityFact(
-        operationTarget,
-      );
-      const inspectedTarget = completeOfflineMutationOperationTarget(
-        operationTarget,
-        inspectedFact,
-      );
-      if (inspectedTarget !== null) operationTarget = inspectedTarget;
-    }
     let generatedMutation = null;
     let generatedComposedStore = null;
     if (generatedReference) {

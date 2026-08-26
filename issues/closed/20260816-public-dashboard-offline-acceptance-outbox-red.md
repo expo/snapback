@@ -2361,12 +2361,14 @@ matching the runtime's typed incapability refusal and every shipped carrier.
 The type fixture proves both that required member and the complete
 `pendingAcknowledgementsFor` signature.
 
-An explicit online-only (`queue:false`) string-named foreground mutation now
-hydrates its operation target from already-inspected complete target evidence
-and derives the mutation-wire `expectedGeneration` from that pin. The
-final-answer deployment-race regression proves the carrier asserts generation
-G1 and the switched generation G2 executes zero effects. A fresh unbound
-offline client remains online-only without guessing an app or generation.
+An explicit online-only (`queue:false`) string-named foreground mutation does
+not hydrate its operation target or mutation-wire `expectedGeneration` from a
+capability fact left in the shared store by an earlier invocation or client.
+Only the current mutation invocation's inspected target may supply that pin;
+cached enqueue evidence remains subject to the established matching-app gate.
+When automatic mode falls back to online-only after inspection is unavailable,
+it sends no pin from leftover evidence. A fresh unbound offline client remains
+online-only without guessing an app or generation.
 
 The fail-first regressions reported the reviewed defects before production
 changes:

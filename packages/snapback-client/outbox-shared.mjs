@@ -299,8 +299,7 @@ const acknowledgementEnqueueTarget = (state, acknowledgement) => (
 );
 
 const acknowledgementTargetMatches = (state, acknowledgement, enqueueTarget) => (
-  enqueueTarget === undefined
-  || sameOutboxEnqueueTarget(
+  sameOutboxEnqueueTarget(
     acknowledgementEnqueueTarget(state, acknowledgement),
     enqueueTarget,
   )
