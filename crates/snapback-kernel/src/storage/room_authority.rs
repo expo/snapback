@@ -1368,11 +1368,12 @@ impl AuthorizationCommitParticipant {
         let known_commit = Arc::new(OnceLock::new());
         for room in &affected_rooms {
             // @ref LLP 0290#71-lock-ordering — the set was re-intersected
-            // after the settlement wait; tolerate a missing control defensively
-            // while the selector-level dependency fences later recreation.
-            let Some(control) = state.rooms.get_mut(room) else {
-                continue;
-            };
+            // after the settlement wait while this registry lock remained
+            // held, so every retained room must still have its control.
+            let control = state
+                .rooms
+                .get_mut(room)
+                .expect("re-intersected room remains installed under the registry lock");
             control.pending_tickets.insert(ticket_id);
             // The durable writer cut is installed before invalidating an
             // in-flight room completion. If that completion returns later,
@@ -4278,6 +4279,7 @@ mod tests {
             .begin_room_reauthorization_fence(&room, generation)
             .expect("claim the exact completion fence");
         assert!(fence.begin_settlement());
+        let completion = fence.completion.clone();
 
         let ReadyFixture {
             database,
@@ -4307,7 +4309,36 @@ mod tests {
             .begin_room_retirement_admission(&room)
             .expect("generation-exhaustion retirement admission")
             .retire_generation_exhausted();
+        assert!(
+            matches!(writer_rx.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "generation-exhaustion retirement cannot release the writer before terminal settlement"
+        );
+        {
+            let state = participant.registry.lock();
+            let control = state
+                .rooms
+                .get(&room)
+                .expect("settling control remains installed for deferred retirement");
+            assert!(
+                control.retire_after_settlement,
+                "generation exhaustion records retirement for terminal reconciliation"
+            );
+            assert!(
+                !control.retired,
+                "retirement remains deferred while settling"
+            );
+            assert_eq!(
+                completion.disposition.load(Ordering::Acquire),
+                ROOM_REAUTHORIZATION_SETTLING,
+                "generation exhaustion cannot preempt the settling completion"
+            );
+        }
         drop(fence);
+        assert_eq!(
+            completion.disposition.load(Ordering::Acquire),
+            ROOM_REAUTHORIZATION_ABANDONED,
+            "dropping the fence authors terminal abandonment"
+        );
 
         let reservation = writer_rx
             .recv_timeout(Duration::from_secs(1))
@@ -4315,6 +4346,10 @@ mod tests {
             .expect("writer remains operational after generation exhaustion");
         reservation.cancel();
         writer.join().expect("writer joins without panic");
+        assert!(
+            !participant.registry.lock().rooms.contains_key(&room),
+            "terminal reconciliation removes the deferred control before releasing the writer"
+        );
 
         drop(database);
         drop(settler);
