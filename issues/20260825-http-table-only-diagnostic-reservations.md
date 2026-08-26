@@ -6,13 +6,12 @@ Related: `crates/snapback-server/src/server/api_error.rs`, LLP 0193
 
 ## Why
 
-The diagnostics registry now reserves eight spellings that remain only in the
+The diagnostics registry now reserves seven spellings that remain only in the
 server's HTTP-status match table. Removing those dead match arms is a Rust
 product change and was deliberately kept out of the JS-only `registry-envvar`
 lane:
 
 - `SNAPBACK_AUTH_MODE_CHANGED`
-- `SNAPBACK_OPERATION_CANCELLED`
 - `SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED`
 - `SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID`
 - `SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING`
@@ -32,6 +31,13 @@ therefore retains its `crates/snapback-types/src/error_tracking.rs` site as
 `received`. It also remains governed by `schemas/operation-class.v1.json` and
 LLP 0154's closed classifier vocabulary.
 
+`SNAPBACK_OPERATION_CANCELLED` is likewise not HTTP-table-only. It is a member
+of `CANCELLATION_CODES`, consumed through
+`is_code_member(code, CANCELLATION_CODES)`, so the registry retains that table
+entry as received classifier vocabulary. The generic helper delegates to
+`membership.binary_search(&code)`; that parameter-level search is evidence for
+the named table only through the `is_code_member` call site, not by itself.
+
 `SNAPBACK_API_BUDGETS_UNAVAILABLE` is likewise not HTTP-table-only. Codegen
 accepts it from isolated definition evaluation through
 `DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)`, so the generated
@@ -41,7 +47,7 @@ HTTP reservation.
 ## Follow-up
 
 Confirm each code has no live producer, protocol obligation, persisted-record
-compatibility requirement, or Guide contract. If all eight are dead, delete
+compatibility requirement, or Guide contract. If all seven are dead, delete
 their match arms in a Rust-capable lane and remove the adjacent
 `diagnostics-registry: reserved SNAPBACK_X` comments in the same change. Regenerate the
 diagnostics registry, symbol registry, and Guide projections afterwards.

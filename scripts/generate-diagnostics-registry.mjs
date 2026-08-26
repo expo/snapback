@@ -178,10 +178,10 @@ function packageScriptTargets(scripts) {
   ));
 }
 
-function isExcludedProductionJavaScript(path) {
+function isExcludedProductionSource(path) {
   return (
     /(?:^|\/)(?:test|tests|fixtures?|examples?)(?:\/|$)/u.test(path)
-    || /(?:^|\.)(?:test|fixture|example)\.(?:cjs|js|mjs)$/u.test(path)
+    || /(?:^|\.)(?:test|fixture|example)\.(?:cjs|js|mjs|swift|kt)$/u.test(path)
   );
 }
 
@@ -210,8 +210,8 @@ function shippedPackageProductionPaths() {
       ...packageScriptTargets(manifest.scripts),
     ])];
     const candidates = walk(packageRoot, (repoPath) => {
-      if (!/\.(?:cjs|js|mjs)$/u.test(repoPath)) return false;
-      if (isExcludedProductionJavaScript(repoPath)) return false;
+      if (!/\.(?:cjs|js|mjs|swift|kt)$/u.test(repoPath)) return false;
+      if (isExcludedProductionSource(repoPath)) return false;
       if (diagnosticCatalogPaths.includes(repoPath)) return false;
       return true;
     });
@@ -256,7 +256,7 @@ function shippedPackageProductionPaths() {
 const packageProductionPaths = shippedPackageProductionPaths();
 const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   /\.(?:cjs|js|mjs)$/u.test(path)
-  && !isExcludedProductionJavaScript(path)
+  && !isExcludedProductionSource(path)
   // Target app bundles are reference/application fixtures, not framework or
   // operator carriers; their app-authored diagnostic vocabulary is not part
   // of the production Snapback registry.

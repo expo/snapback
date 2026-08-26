@@ -117,9 +117,7 @@ pub fn validate_artifact_header(
 ) -> SnapbackResult<()> {
     // The concrete expansions below are emitted by the dynamic format strings.
     // diagnostics-registry: emission SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND
-    // diagnostics-registry: emission SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION
     // diagnostics-registry: emission SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND
-    // diagnostics-registry: emission SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION
     if artifact_kind != expected_kind {
         return Err(SnapbackError::error(
             format!(
@@ -138,6 +136,8 @@ pub fn validate_artifact_header(
         ));
     }
 
+    // diagnostics-registry: emission SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION
+    // diagnostics-registry: emission SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION
     if !matches!(
         schema_version,
         SNAPBACK_SCHEMA_VERSION | SNAPBACK_SESSIONS_SCHEMA_VERSION

@@ -306,6 +306,24 @@ test('JavaScript tokenizer skips regex literals but preserves division and templ
   );
 });
 
+test('environment-name tables end at their matching closing delimiter', () => {
+  const fixture = readFileSync(resolve(
+    import.meta.dirname,
+    '../tests/fixtures/diagnostics-registry/environment-name-table-boundary.mjs',
+  ), 'utf8');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_FOO_ENV', kind: 'table-entry' }],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_REAL_FAILURE', kind: 'emission' }],
+  );
+});
+
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
   const firstCode = 'SNAPBACK_FIXTURE_LONG_MATCH_ARM_FIRST';
   const longRustOrPatternFixture = [
@@ -438,6 +456,22 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     );
   }
 
+  for (const [file, code] of [
+    [
+      'packages/snapback-expo-custody/ios/SnapbackExpoCustodyCore.swift',
+      'SNAPBACK_AUTH_CUSTODY_EXTENSION_IO_OCCURRED',
+    ],
+    [
+      'packages/snapback-expo-custody/android/src/main/java/expo/modules/snapbackcustody/SnapbackExpoCustodyModule.kt',
+      'SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_IO_OCCURRED',
+    ],
+  ]) {
+    assert.ok(
+      registry.diagnostics[code]?.sites.some((site) => site.file === file),
+      `${code} must retain its shipped native source ${file}`,
+    );
+  }
+
   assert.deepEqual(
     registry.diagnostics.SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED.sites
       .filter((site) => site.kind === 'reserved')
@@ -493,7 +527,6 @@ test('generated registry retains target emitters and dynamic artifact-header emi
 
   for (const code of [
     'SNAPBACK_AUTH_MODE_CHANGED',
-    'SNAPBACK_OPERATION_CANCELLED',
     'SNAPBACK_ADMIN_SECRET_READ_MINT_DENIED',
     'SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID',
     'SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING',
@@ -509,6 +542,21 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       `${code} must retain its HTTP-table reservation`,
     );
   }
+
+  assert.ok(
+    registry.diagnostics.SNAPBACK_OPERATION_CANCELLED?.sites.some((site) => (
+      site.file === 'crates/snapback-types/src/error_tracking.rs'
+      && site.kind === 'received'
+    )),
+    'SNAPBACK_OPERATION_CANCELLED must retain its cancellation-classifier receive table',
+  );
+  assert.equal(
+    registry.diagnostics.SNAPBACK_OPERATION_CANCELLED.sites.some(
+      (site) => site.kind === 'reserved',
+    ),
+    false,
+    'SNAPBACK_OPERATION_CANCELLED is not an HTTP-table-only reservation',
+  );
 
   assert.ok(
     registry.diagnostics.SNAPBACK_API_BUDGETS_UNAVAILABLE?.sites.some((site) => (
@@ -628,6 +676,14 @@ test('received protocol classifier follows shipped membership-table idioms', () 
     '  "SNAPBACK_FIXTURE_RECEIVED_SWIFT",',
     ']',
     'if Self.swiftCodes.contains(receivedCode) { accept() }',
+    'pub const RUST_HELPER_CODES: &[&str] = &[',
+    '  "SNAPBACK_FIXTURE_RECEIVED_RUST_HELPER",',
+    '];',
+    'if is_code_member(code, RUST_HELPER_CODES) { accept(); }',
+    'pub const RUST_BINARY_SEARCH_CODES: &[&str] = &[',
+    '  "SNAPBACK_FIXTURE_RECEIVED_RUST_BINARY_SEARCH",',
+    '];',
+    'if RUST_BINARY_SEARCH_CODES.binary_search(&code).is_ok() { accept(); }',
   ].join('\n');
 
   assert.deepEqual(
@@ -639,6 +695,8 @@ test('received protocol classifier follows shipped membership-table idioms', () 
       { code: 'SNAPBACK_FIXTURE_RECEIVED_MAP', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_OBJECT', kind: 'received' },
       { code: 'SNAPBACK_FIXTURE_RECEIVED_SWIFT', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_RUST_HELPER', kind: 'received' },
+      { code: 'SNAPBACK_FIXTURE_RECEIVED_RUST_BINARY_SEARCH', kind: 'received' },
     ],
   );
 });

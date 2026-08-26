@@ -302,7 +302,7 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
     ({ id }) => id === 'diagnostics-production-sources',
   );
   assert.deepEqual(productionRule.prefixes, DIAGNOSTICS_PRODUCTION_ROOTS);
-  assert.deepEqual(productionRule.extensions, ['.rs', '.js', '.mjs', '.cjs', '.swift']);
+  assert.deepEqual(productionRule.extensions, ['.rs', '.js', '.mjs', '.cjs', '.swift', '.kt']);
 
   const guideTriggerPrefixes = context.policy.driftProneGates.guide.triggerRules.prefixes;
   for (const rootPrefix of DIAGNOSTICS_PRODUCTION_ROOTS) {
@@ -317,6 +317,8 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
     'crates/snapback-kernel/src/live_matcher.rs',
     'crates/snapback-types/src/manifest/mod.rs',
     'crates/snapback-server/src/server/api_error.rs',
+    'packages/snapback-expo-custody/ios/SnapbackExpoCustodyCore.swift',
+    'packages/snapback-expo-custody/android/src/main/java/expo/modules/snapbackcustody/SnapbackExpoCustodyModule.kt',
   ]) {
     includesAll(select([source]), ['diagnostics-registry-fixtures']);
     assert(

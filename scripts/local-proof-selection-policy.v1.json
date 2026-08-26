@@ -715,7 +715,8 @@
         ".js",
         ".mjs",
         ".cjs",
-        ".swift"
+        ".swift",
+        ".kt"
       ]
     },
     {

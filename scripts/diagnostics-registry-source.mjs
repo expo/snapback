@@ -243,6 +243,8 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
 function isEnvironmentNameTable(source, offset) {
   const open = Math.max(source.lastIndexOf('{', offset), source.lastIndexOf('[', offset));
   if (open === -1) return false;
+  const close = matchingDelimiter(source, open);
+  if (close === source.length || offset >= close) return false;
   const prefix = source.slice(Math.max(0, open - 1024), open);
   const javaScriptDeclaration = prefix.match(
     /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:(?:Object\.freeze|new\s+Set)\s*\()?\s*$/u,
@@ -1188,10 +1190,16 @@ function membershipConsumerFor(member, after, { objectTable = false } = {}) {
       || new RegExp(`\\bObject\\.hasOwn\\s*\\(\\s*(?:(?:Self|self|this)\\.)?${name}\\s*,`, 'u').test(after)
     );
   }
-  return new RegExp(
-    `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:has|includes|contains)\\s*\\(`,
-    'u',
-  ).test(after);
+  return (
+    new RegExp(
+      `(?:\\b(?:Self|self|this)\\.)?\\b${name}\\s*\\.(?:has|includes|contains|binary_search)\\s*\\(`,
+      'u',
+    ).test(after)
+    || new RegExp(
+      `\\bis_code_member\\s*\\(\\s*[^,)]*\\s*,\\s*&?\\s*(?:(?:Self|self)::)?${name}\\b`,
+      'u',
+    ).test(after)
+  );
 }
 
 function receivedMembershipTables(source) {

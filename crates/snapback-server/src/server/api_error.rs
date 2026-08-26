@@ -615,7 +615,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // no v1 read path surfaces it, but its reviewed status is a conflict
         // with the durable terminal row.
         | "SNAPBACK_ACTION_STREAM_CANCELLED"
-        // diagnostics-registry: reserved SNAPBACK_OPERATION_CANCELLED
         | "SNAPBACK_OPERATION_CANCELLED"
         | "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED"
         | "SNAPBACK_OPERATION_STORED_REFUSAL"
