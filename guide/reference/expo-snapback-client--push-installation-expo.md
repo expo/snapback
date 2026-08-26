@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:2109279db70b99d09fc5bf06a0cffa6a4c4bbde1ded5
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:510c4b4d2f89a78471836db4a092a16365898272c1395f77b3935c198c72bc4e`.
+`sha256:7a7f1e7f8953a1d6c815aae24d1b3997183d3abf0a76f0a9ad95dadea22ac7af`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 

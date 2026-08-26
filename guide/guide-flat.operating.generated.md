@@ -9,13 +9,13 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, crates/snapback-server/src/control_catalog.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/process-teardown.mjs, packages/snapback-cli/carrier-kit.mjs, packages/snapback-cli/mcp-control.mjs, packages/snapback-client/index.mjs]
 examples: []
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:03b9df8b8507e75ab0d5c3001950f2fb5df4c44f2f94bf8869213868c103d05b
+reviewed: 2026-08-26
+reviewed-authorities-digest: sha256:9a942c8dd07ead029e6ef6422d8232ec1b912cd5ba9fa7487570554c5ae87a45
 ---
 
 # Discover agent controls
@@ -87,6 +87,190 @@ missing, `resources/list` reports
 `SNAPBACK_MCP_NATIVE_DOCUMENTATION_UNAVAILABLE` in resource diagnostics and
 does not list pretend Guide/catalog resources. Direct reads fail explicitly;
 documentation absence never appears as success.
+
+## Control a detached Expo dev supervisor
+
+The ordinary non-interactive plane is the token-gated HTTP route advertised by
+`.snapback/expo-supervisor.json`: send `POST` to
+`exchangeOrigin + controlPath` (currently
+`/_snapback/expo/v1/control`) with `content-type: application/json`, an
+`x-snapback-operator-token` header, and a body such as
+`{"verb":"reload-metro","requestId":"reload-1"}`. Read the token from the
+owner-only `adminTokenFile` named by the managed ready descriptor; on the
+default store this is `.snapback/dev.sqlite3.admin-token`. The closed HTTP verb
+set is `dev-fresh`, `reload-metro`, and `stop-children`. Unauthorized requests
+refuse with `SNAPBACK_EXPO_CONTROL_UNAUTHORIZED`; unknown verbs refuse with
+`SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN`. This owner-process route is not a browser
+API: its CORS projection advertises only `GET, OPTIONS`, not `POST` or the
+operator-token header.
+
+A declared token file that is missing or fails its owner-only custody check
+emits `SNAPBACK_DEV_ADMIN_TOKEN_FILE_INVALID`, marks HTTP control unavailable,
+and continues to owner-socket publication instead of stopping before that
+fallback can be attempted.
+
+The detached-control precedence is exact: authenticated HTTP with the managed
+token first, the owner-bound Unix socket second, and interactive or
+newline-delimited JSON stdin third. `snapback dev --expo --json` publishes the
+socket in the same state directory as its ready file. The socket is required
+only when the managed ready descriptor has no usable admin-token file and
+stdin is unavailable: HTTP then has no bearer to authenticate, while the
+owner-only pathname and descriptor can still gate the same `reload-metro` /
+`stop-children` implementations. The default path is
+`.snapback/.dc-sock`; read the exact path and lifecycle binding from
+the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
+`snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
+by name.
+
+The state directory must resolve to a same-UID real directory with no
+group/other permission bits (normally mode `0700`); the default dev loop creates
+or repairs `.snapback/` to that posture only when the complete directory chain
+is already secure. Snapback walks every canonical ancestor through `/`,
+including parents above the caller's project or proposed state-directory trust
+anchor. Each component must be root-owned with no group/other write, same-UID
+with no group/other write, or a root-owned mode-`1777` sticky system directory.
+A group-writable project root such as mode `0775` remains ineligible even when
+`.snapback/` is `0700`, and a mode-`0755` project beneath a non-sticky
+mode-`0777` parent is likewise ineligible, because another writer could rename
+the project or leaf. Use `--ready-file` inside a separate `0700` owner-only tree
+with a secure ancestry or fix the named directory mode. Snapback also checks the
+complete lexical spelling: a symlink refuses unless the symlink itself is
+root-owned and resolves to a trusted or root-owned sticky system directory.
+Consequently Darwin's root-owned `/tmp` symlink to `/private/tmp` is admitted,
+the socket is bound under `/private/tmp/...`, and that canonical socket path is
+published in the descriptor. A non-root-owned symlink and a non-sticky
+group/other-writable parent still refuse. Both the lexical components and the
+canonical chain are identity-rechecked, including the admitted leaf immediately
+before private bind and again before publication. The descriptor is mode
+`0600`, and the socket is
+also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
+mode bits. Directory search permission plus the owner-only descriptor is the
+cross-UID kernel gate. The UID repeated in command JSON is an advisory
+descriptor-consistency check, not a peer-credential check. The instance cleanup
+lease removes the exact socket inode on ordinary shutdown or owner death. If the
+`--ready-file` directory is not a same-UID owner-only real directory, the
+supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and publishes
+`controlSocket: null`. It continues when authenticated HTTP is usable, or when
+stdin is an interactive TTY or readable command channel. A non-empty regular
+file redirected to stdin is a readable newline-delimited JSON carrier; an
+empty regular file, `/dev/null`, and a closed pipe have already reached EOF and
+are unavailable. With `--json`, Snapback refuses startup with
+`SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE` only when all three planes are
+unavailable: no usable managed-token HTTP route, no owner-bound socket, and no
+usable stdin. The diagnostic names the exact chain component and reason; when
+HTTP remains usable, the socket-unavailable diagnostic advertises that fallback
+route instead of aborting startup. Choose `--ready-file` inside a `0700`
+owner-only tree or fix the named directory mode. A Unix-socket bind or
+advertised-path probe failure uses the same authenticated-HTTP or usable-stdin
+fallback, and refuses only when neither remains. Its message identifies the
+bind/publication or advertised-path
+probe failure and its cause instead of calling it directory-chain admission.
+The `--ready-file` recovery remains present; a state directory beyond the
+platform's `sockaddr_un` path budget is the common `ENAMETOOLONG` bind case.
+A live or otherwise occupied well-known endpoint still refuses startup rather
+than being downgraded.
+
+Template carrier command placeholders have two distinct path meanings for both
+web and native carriers. `{artifacts}` expands exactly to the caller-visible
+directory selected by `--artifacts`; retained proofs and any other ordinary
+artifact written there stay alongside `director-log.json`, logs, and
+screenshots. `{supervisorState}` expands to a run-unique owner-only directory
+below the platform temporary tree. The shipped Expo web carriers put their
+`--ready-file` and `expo-supervisor.json` structured-readiness path below
+`{supervisorState}`; structured Expo readiness is rejected unless it uses that
+private placeholder. The carrier removes this temporary tree after supervised
+cleanup. Do not use `{supervisorState}` for an artifact the caller expects to
+find directly under `--artifacts`, and do not use `{artifacts}` as an alias for
+private supervisor state. A caller-owned `0775` project or artifacts directory
+therefore does not prevent the web or native carrier from starting.
+
+This is transient instance-local state: do not copy it with the database or
+treat a leftover endpoint as durable owner authority. Each request must repeat
+the descriptor's `ownerPid`, `ownerUid`, `ownerIncarnationId`, and
+`lifecycleReceipt`:
+
+```json fragment reason="illustrative descriptor-bound control request"
+{"schemaVersion":"snapback.dev-control-command.v1","requestId":"reload-1","verb":"reload-metro","owner":{"pid":1234,"uid":501,"incarnationId":"supervisor-…"},"lifecycleReceipt":"sha256:…"}
+```
+
+One socket connection carries one newline-delimited request. A valid verb first
+returns `snapback.dev-control-ack.v1` with the same request id, then a
+`snapback.dev-control-result.v1` after the operation settles. All acknowledged
+socket verbs, admitted HTTP verbs, and packaged-stdin lifecycle mutations
+(`reload`, `restart`, `dev-fresh`, `reload-metro`, and `stop-children`) share
+one serialized lane. Once
+`stop-children` is acknowledged, new work on either channel refuses with
+`SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
+to settle. After child teardown settles, the lane accepts work again and the
+same owner may run `reload-metro`. The HTTP response for `stop-children` is its
+correlated acknowledgement; teardown starts only after that response flushes.
+The socket returns its ordinary settled result. In both cases the owner and its
+control endpoints survive until SIGTERM, interactive `q`, or the packaged
+`stop` action. After each socket result flushes, the supervisor destroys that
+one-request connection; a client cannot retain a supervisor-side file descriptor
+by leaving its writable half open. Wait for the result or observable child
+effect, as appropriate, before claiming the operation took effect. A client may call
+`socket.end(request)` after sending the complete newline-delimited request; the
+server keeps its writable half until both the acknowledgement and settled result
+flush. A client that reaches EOF before its newline, or stays incomplete for
+five seconds, is closed without retaining a half-open connection.
+
+The socket's closed verb set is:
+
+| Verb | Settled result |
+| --- | --- |
+| `reload-metro` | Stops the owned Metro process group, launches Metro again on the same planned port, re-verifies listener ownership, updates `expo-supervisor.json`, and reports the previous and replacement PIDs. |
+| `stop-children` | Reclaims the supervisor-owned backend and Metro process groups plus port forwards. The bootstrap/front control listeners, Unix endpoint, and CLI owner remain; a later `reload-metro` on that owner respawns Metro. |
+
+An endpoint or request naming another UID, owner incarnation, or lifecycle
+receipt refuses with `SNAPBACK_DEV_CONTROL_OTHER_UID`,
+`SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`, or
+`SNAPBACK_DEV_CONTROL_STALE_INCARNATION`. A live listener is always a foreign
+owner. On relaunch, the lifecycle owner itself may reclaim a leftover only
+under the state-directory lock when all of these hold: the endpoint is
+same-UID; a bounded `connect()` probe returns `ECONNREFUSED` (timeout or any
+other result is “not proven dead”); and the inode remains unchanged throughout
+the check. The persisted `dev-control.owner.json` must be present, readable,
+valid, and bind that exact inode and a self-consistent owner incarnation. The
+owner cleanup-leases a random same-directory `.d<random>` name before binding
+it, calls `listen()` on that private name, and publishes the bound inode with
+`link(2)` while holding the state-directory lock. `link(2)` never replaces a
+socket created at the well-known name after the initial probe: `EEXIST` refuses
+as `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`. The private name is removed and its
+lease discharged after publication; if the owner is killed between private
+`listen()` and removal, the detached reaper matches the dead reservation-owner
+identity and removes that lease-unique socket artifact. Path-lock publication
+also uses a `.dc-c-<pid>-<token>` candidate. If SIGKILL leaves that
+candidate behind, a later publisher removes it only when it is a same-UID
+regular file with one link, has reached the minimum stale age, names a dead
+publisher (or contains its complete dead PID/start-time record), and a second
+observation verifies the same inode, bytes, age, and link count. Ambiguous or
+linked candidates are preserved. A public endpoint with an absent or corrupt
+marker is not legitimate crash residue and refuses
+the same way, just like a valid record naming another inode or incarnation.
+Recovery is operator-explicit:
+inspect ownership and remove both artifacts, or relaunch with `--ready-file` in
+a different owner-only state directory. A post-link bind-phase crash may leave
+the binding marker and well-known socket after publication but before the owner
+can observe the inode, publish the bound record, and activate the exact-inode
+cleanup lease. The reserved pre-activation lease has no endpoint identity and
+deliberately preserves that ambiguous residue, so it requires the same explicit
+recovery above. Once activation completes, the lease is bound to the observed
+inode and incarnation. This owner recovery is not client authority. The detached
+reaper uses a separate, stricter deletion predicate: its cleanup lease must
+match the exact socket inode and incarnation. A client must never unlink or
+replace an endpoint to bypass a refusal.
+
+Interactive humans keep the existing stdin channel: TTY keys remain
+`s`/`r`/`R`/`f`/`q`, and non-TTY
+`snapback.dev-command.v1` input remains available when a launcher preserves a
+pipe. Stdin carries `status`, `reload`, `restart`, and `dev-fresh`, plus
+`reload-metro` and `stop-children` for Expo. The TTY has no `stop-children`
+keybinding; `q` or `SIGTERM` remains the human stop path. Stdin EOF still does
+not stop the supervisor. The HTTP route is the
+ordinary agent path when stdin is `/dev/null`; the socket covers the
+no-admin-token pathname-authority case. It is not a FIFO and does not add
+recook as a client verb.
 
 ## Run functions against sessions mode
 

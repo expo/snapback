@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0d2206b9e85ec7a34d383f1554133c504a35d182fc17
 # Generated API reference
 
 One build-bound projection of 1460 public symbols (606 runtime values and 854 explicit type-only symbols).
-Registry source identity: `sha256:510c4b4d2f89a78471836db4a092a16365898272c1395f77b3935c198c72bc4e`.
+Registry source identity: `sha256:7a7f1e7f8953a1d6c815aae24d1b3997183d3abf0a76f0a9ad95dadea22ac7af`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 

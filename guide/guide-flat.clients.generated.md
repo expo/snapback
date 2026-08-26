@@ -3489,7 +3489,7 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/index.mjs, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
@@ -3966,11 +3966,21 @@ forwards on exit
 ([LLP 0181 §Supervised development baseline](repo:llp/0181-zero-configuration-expo.rfc.md#supervised-development-baseline),
 [`runExpoDev`](repo:packages/snapback-cli/expo-dev.mjs)).
 
-For a headless `--json` launch whose stdin is `/dev/null`, read the
-`controlSocket` field from `.snapback/expo-supervisor.json` and use its
-owner-bound acknowledgement protocol; do not signal a process by pattern.
-The exact request shape, `reload-metro` / `stop-children` verb set, and
-stale/foreign refusal rules are in
+For detached control, use the three planes in order: the token-gated HTTP route
+at `exchangeOrigin + controlPath` from `.snapback/expo-supervisor.json` when
+the managed ready descriptor names a usable owner-only admin-token file; the
+descriptor's owner-bound `controlSocket` when HTTP has no managed token; then
+interactive or newline-delimited JSON stdin when it remains readable. The
+three planes serialize lifecycle mutations through one dispatcher; do not
+signal a process by pattern. A headless `--json` launch
+refuses with `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE` only when authenticated
+HTTP, the socket, and stdin are all unavailable. `/dev/null`, a closed pipe,
+and an empty regular-file redirect are unavailable stdin carriers; a non-empty
+regular file may carry newline-delimited JSON commands, including
+`stop-children`. That verb leaves the CLI owner alive, so a later
+`reload-metro` on that owner respawns Metro.
+The exact request shapes, HTTP and socket responses, and stale/foreign refusal
+rules are in
 [Control a detached Expo dev supervisor](../operating/agent-controls.md#control-a-detached-expo-dev-supervisor).
 
 When a watched backend edit reaches `generated-and-loaded`, the supervisor
