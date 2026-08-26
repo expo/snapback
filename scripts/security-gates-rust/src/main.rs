@@ -4033,6 +4033,736 @@ fn collect_block_candidates(statements: &[Stmt], output: &mut Vec<Span>) {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthorityTransitionViolation {
+    file: String,
+    line: usize,
+    kind: String,
+    detail: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthorityTransitionAudit {
+    violations: Vec<AuthorityTransitionViolation>,
+    guarded_connection_fields: usize,
+    protected_tx_fields: usize,
+    fixed_writer_files: usize,
+}
+
+fn authority_tokens(value: &impl ToTokens) -> String {
+    value
+        .to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect()
+}
+
+fn authority_path(crate_root: &Path, path: &Path) -> String {
+    path.strip_prefix(crate_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn push_authority_violation(
+    violations: &mut Vec<AuthorityTransitionViolation>,
+    crate_root: &Path,
+    path: &Path,
+    span: Span,
+    kind: &str,
+    detail: impl Into<String>,
+) {
+    violations.push(AuthorityTransitionViolation {
+        file: authority_path(crate_root, path),
+        line: span.start().line,
+        kind: kind.to_owned(),
+        detail: detail.into(),
+    });
+}
+
+fn collect_authority_rust_files(root: &Path, output: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(root).map_err(|error| {
+        format!(
+            "cannot read Rust source directory {}: {error}",
+            root.display()
+        )
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!(
+                "cannot enumerate Rust source directory {}: {error}",
+                root.display()
+            )
+        })?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|error| {
+            format!(
+                "cannot inspect Rust source path {}: {error}",
+                path.display()
+            )
+        })?;
+        if file_type.is_dir() {
+            collect_authority_rust_files(&path, output)?;
+        } else if file_type.is_file() && path.extension().is_some_and(|extension| extension == "rs")
+        {
+            output.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn authority_item_visibility(item: &Item) -> Option<&Visibility> {
+    match item {
+        Item::Const(item) => Some(&item.vis),
+        Item::Enum(item) => Some(&item.vis),
+        Item::ExternCrate(item) => Some(&item.vis),
+        Item::Fn(item) => Some(&item.vis),
+        Item::Mod(item) => Some(&item.vis),
+        Item::Static(item) => Some(&item.vis),
+        Item::Struct(item) => Some(&item.vis),
+        Item::Trait(item) => Some(&item.vis),
+        Item::TraitAlias(item) => Some(&item.vis),
+        Item::Type(item) => Some(&item.vis),
+        Item::Union(item) => Some(&item.vis),
+        Item::Use(item) => Some(&item.vis),
+        _ => None,
+    }
+}
+
+fn authority_private_external_modules(syntax: &syn::File) -> BTreeSet<String> {
+    syntax
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Mod(module)
+                if module.content.is_none() && matches!(module.vis, Visibility::Inherited) =>
+            {
+                Some(ident_name(&module.ident))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAudit, String> {
+    const GUARDED_FIELDS: &[&str] = &[
+        "connection",
+        "durable_origin",
+        "resource_binding",
+        "statement_cache_policy",
+        "authorizer_cell",
+    ];
+    const PROTECTED_TX_FIELDS: &[&str] = &[
+        "connection",
+        "authorizer_cell",
+        "generation",
+        "operation",
+        "_scope",
+        "_not_send_sync",
+    ];
+    const FORBIDDEN_TYPES: &[&str] = &[
+        "AuthorityTransaction",
+        "AuthorityWritePermit",
+        "ActivePermit",
+        "LiveTransactionIdentity",
+        "ConnectionAuthorizer",
+        "ProtectedWriteOperation",
+    ];
+    const RAW_ESCAPE_TRAITS: &[&str] =
+        &["AsMut", "AsRef", "Borrow", "BorrowMut", "Deref", "DerefMut"];
+
+    let source_root = crate_root.join("src");
+    let storage_path = source_root.join("storage.rs");
+    let authority_root = source_root.join("storage/authority_transition");
+    let authority_mod = authority_root.join("mod.rs");
+    let core_mod = authority_root.join("core/mod.rs");
+    let evidence_path = authority_root.join("core/evidence.rs");
+    let writers_root = authority_root.join("core/writers");
+    let required_paths = [
+        &storage_path,
+        &authority_mod,
+        &core_mod,
+        &evidence_path,
+        &writers_root,
+    ];
+    for path in required_paths {
+        if !path.exists() {
+            return Ok(AuthorityTransitionAudit {
+                violations: vec![AuthorityTransitionViolation {
+                    file: authority_path(crate_root, path),
+                    line: 1,
+                    kind: "module-hierarchy".to_owned(),
+                    detail: "required authority-transition path is missing".to_owned(),
+                }],
+                guarded_connection_fields: 0,
+                protected_tx_fields: 0,
+                fixed_writer_files: 0,
+            });
+        }
+    }
+
+    let parse = |path: &Path| -> Result<syn::File, String> {
+        let source = fs::read_to_string(path)
+            .map_err(|error| format!("cannot read Rust source {}: {error}", path.display()))?;
+        syn::parse_file(&source)
+            .map_err(|error| format!("cannot parse Rust source {}: {error}", path.display()))
+    };
+    let storage_syntax = parse(&storage_path)?;
+    let authority_syntax = parse(&authority_mod)?;
+    let core_syntax = parse(&core_mod)?;
+    let evidence_syntax = parse(&evidence_path)?;
+    let mut violations = Vec::new();
+
+    let storage_mount = storage_syntax.items.iter().find_map(|item| match item {
+        Item::Mod(module) if ident_matches(&module.ident, "authority_transition") => Some(module),
+        _ => None,
+    });
+    if !storage_mount.is_some_and(|module| {
+        module.content.is_none() && matches!(module.vis, Visibility::Inherited)
+    }) {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &storage_path,
+            storage_mount.map_or(storage_syntax.span(), |module| module.span()),
+            "module-visibility",
+            "storage::authority_transition must remain a private external module",
+        );
+    }
+    let authority_modules = authority_private_external_modules(&authority_syntax);
+    if authority_modules != BTreeSet::from(["core".to_owned()]) {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &authority_mod,
+            authority_syntax.span(),
+            "module-hierarchy",
+            format!("private authority modules were {authority_modules:?}, expected core only"),
+        );
+    }
+    let core_modules = authority_private_external_modules(&core_syntax);
+    let expected_core = BTreeSet::from([
+        "evidence".to_owned(),
+        "registry".to_owned(),
+        "writers".to_owned(),
+    ]);
+    if core_modules != expected_core {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "module-hierarchy",
+            format!("private core modules were {core_modules:?}, expected {expected_core:?}"),
+        );
+    }
+
+    let mut guarded_connection_fields = 0_usize;
+    let mut protected_tx_fields = 0_usize;
+    let mut authorizer_cell_seen = false;
+    let mut scope_phase_seen = false;
+    let mut operation_seen = false;
+    for item in &core_syntax.items {
+        match item {
+            Item::Struct(item) if ident_matches(&item.ident, "GuardedConnection") => {
+                if !matches!(item.vis, Visibility::Inherited) {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.vis.span(),
+                        "guarded-connection-visibility",
+                        "GuardedConnection must use inherited visibility",
+                    );
+                }
+                let Fields::Named(fields) = &item.fields else {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.fields.span(),
+                        "guarded-connection-fields",
+                        "GuardedConnection must have named private fields",
+                    );
+                    continue;
+                };
+                let observed = fields
+                    .named
+                    .iter()
+                    .map(|field| field.ident.as_ref().map(ident_name).unwrap_or_default())
+                    .collect::<Vec<_>>();
+                guarded_connection_fields = observed.len();
+                if observed != GUARDED_FIELDS
+                    || fields
+                        .named
+                        .iter()
+                        .any(|field| !matches!(field.vis, Visibility::Inherited))
+                    || !authority_tokens(item).contains("connection:Connection")
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        fields.span(),
+                        "guarded-connection-fields",
+                        format!(
+                            "GuardedConnection fields were {observed:?}, expected {GUARDED_FIELDS:?} with an owned Connection"
+                        ),
+                    );
+                }
+            }
+            Item::Struct(item) if ident_matches(&item.ident, "ProtectedTx") => {
+                let Fields::Named(fields) = &item.fields else {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.fields.span(),
+                        "protected-tx-fields",
+                        "ProtectedTx must have named private fields",
+                    );
+                    continue;
+                };
+                let observed = fields
+                    .named
+                    .iter()
+                    .map(|field| field.ident.as_ref().map(ident_name).unwrap_or_default())
+                    .collect::<Vec<_>>();
+                protected_tx_fields = observed.len();
+                if !matches!(item.vis, Visibility::Inherited)
+                    || item.generics.lifetimes().count() != 1
+                    || observed != PROTECTED_TX_FIELDS
+                    || fields
+                        .named
+                        .iter()
+                        .any(|field| !matches!(field.vis, Visibility::Inherited))
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "protected-tx-fields",
+                        format!(
+                            "ProtectedTx fields were {observed:?}, expected one generative lifetime and {PROTECTED_TX_FIELDS:?}"
+                        ),
+                    );
+                }
+            }
+            Item::Struct(item) if ident_matches(&item.ident, "AuthorizerCell") => {
+                authorizer_cell_seen = true;
+                let observed = match &item.fields {
+                    Fields::Named(fields) => fields
+                        .named
+                        .iter()
+                        .map(|field| field.ident.as_ref().map(ident_name).unwrap_or_default())
+                        .collect::<Vec<_>>(),
+                    _ => Vec::new(),
+                };
+                if !matches!(item.vis, Visibility::Inherited)
+                    || observed != vec!["phase".to_owned()]
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "authorizer-cell-fields",
+                        format!(
+                            "AuthorizerCell fields were {observed:?}; it may contain only the canonical scope phase, never copied origin/resource/epoch proxies"
+                        ),
+                    );
+                }
+            }
+            Item::Enum(item) if ident_matches(&item.ident, "ScopePhase") => {
+                scope_phase_seen = true;
+                let variants = item
+                    .variants
+                    .iter()
+                    .map(|variant| ident_name(&variant.ident))
+                    .collect::<BTreeSet<_>>();
+                let expected = BTreeSet::from([
+                    "Idle".to_owned(),
+                    "Active".to_owned(),
+                    "Committing".to_owned(),
+                ]);
+                if variants != expected {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "scope-state-machine",
+                        format!("ScopePhase variants were {variants:?}, expected {expected:?}"),
+                    );
+                }
+                let shape = authority_tokens(item);
+                if !shape.contains("Idle{generation:u64,}")
+                    || !shape.contains("Active{generation:u64,operation:RegisteredOperation,}")
+                    || !shape.contains("Committing{generation:u64,}")
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "scope-generation-custody",
+                        "the one canonical generation must move with Idle -> Active -> Committing",
+                    );
+                }
+            }
+            Item::Enum(item) if ident_matches(&item.ident, "RegisteredOperation") => {
+                operation_seen = true;
+                let variants = item
+                    .variants
+                    .iter()
+                    .map(|variant| ident_name(&variant.ident))
+                    .collect::<Vec<_>>();
+                if variants != ["IssuePasswordSession"] {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &core_mod,
+                        item.span(),
+                        "fixed-operation-registry",
+                        format!(
+                            "registered operations were {variants:?}; Landing A permits only IssuePasswordSession"
+                        ),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+    if guarded_connection_fields == 0
+        || protected_tx_fields == 0
+        || !authorizer_cell_seen
+        || !scope_phase_seen
+        || !operation_seen
+    {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "required-shape",
+            "GuardedConnection, ProtectedTx, ScopePhase, or RegisteredOperation is missing",
+        );
+    }
+
+    let mut effect_scope_functions = 0_usize;
+    for item in &evidence_syntax.items {
+        if let Item::Fn(function) = item
+            && ident_matches(&function.sig.ident, "execute_verified_effect")
+        {
+            effect_scope_functions += 1;
+            let signature = authority_tokens(&function.sig);
+            let body = authority_tokens(&function.block);
+            if !matches!(function.vis, Visibility::Inherited)
+                || !signature.contains("for<'scope>FnOnce(&mutProtectedTx<'scope>")
+                || !body.contains("registry::guard_matches_connection")
+                || !body.contains("transaction_with_behavior(TransactionBehavior::Immediate)")
+                || !body.contains("ScopePhase::Active")
+                || !body.contains("ScopePhase::Committing")
+                || !body.contains("transaction.commit()")
+            {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &evidence_path,
+                    function.span(),
+                    "effect-scope-control-flow",
+                    "execute_verified_effect must privately own the HRTB scope, durable guard read, state transitions, and commit",
+                );
+            }
+        }
+        if let Item::Fn(function) = item
+            && ident_matches(&function.sig.ident, "issue_password_session")
+        {
+            let signature = authority_tokens(&function.sig);
+            if !signature.contains("proof:RawPasswordProof")
+                || !signature.contains("payload:PasswordSessionPayload")
+                || ["write_set", "nonce", "mutation", "epoch", "successor"]
+                    .iter()
+                    .any(|forbidden| signature.contains(forbidden))
+            {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &evidence_path,
+                    function.sig.span(),
+                    "ceremony-arguments",
+                    "exact ceremonies may accept raw proof and ordinary payload only",
+                );
+            }
+        }
+    }
+    if effect_scope_functions != 1 {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &evidence_path,
+            evidence_syntax.span(),
+            "effect-scope-count",
+            format!(
+                "found {effect_scope_functions} execute_verified_effect functions, expected one"
+            ),
+        );
+    }
+
+    let mut files = Vec::new();
+    collect_authority_rust_files(&authority_root, &mut files)?;
+    files.sort();
+    let mut fixed_writer_files = 0_usize;
+    let mut authorizer_installs = 0_usize;
+    let mut zero_cache_configurations = 0_usize;
+    for path in files {
+        let relative_path = authority_path(crate_root, &path);
+        let unit_only = relative_path.ends_with("/tests.rs")
+            || relative_path.ends_with("/attacks.rs")
+            || relative_path.contains("/compile_fail/");
+        if unit_only {
+            continue;
+        }
+        let syntax = parse(&path)?;
+        let under_writers = path.starts_with(&writers_root);
+        if under_writers && path.file_name().is_some_and(|name| name != "mod.rs") {
+            fixed_writer_files += 1;
+        }
+
+        for item in &syntax.items {
+            if authority_item_visibility(item).is_some_and(|visibility| {
+                matches!(visibility, Visibility::Public(_))
+                    || matches!(visibility, Visibility::Restricted(restricted) if path_is_ident(&restricted.path, "crate"))
+            }) {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &path,
+                    item.span(),
+                    "public-surface",
+                    "Landing A authority-transition items must not be pub or pub(crate)",
+                );
+            }
+            let tokens = authority_tokens(item);
+            for forbidden in FORBIDDEN_TYPES {
+                if tokens.contains(forbidden) {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &path,
+                        item.span(),
+                        "detached-proxy-type",
+                        format!("forbidden detached proxy type {forbidden} remains"),
+                    );
+                }
+            }
+            if under_writers && tokens.contains("execute_verified_effect") {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &path,
+                    item.span(),
+                    "writer-scope-activation",
+                    "core::writers must not call the private effect-scope opener",
+                );
+            }
+            if let Item::Impl(item_impl) = item {
+                let target = authority_tokens(&item_impl.self_ty);
+                if target.contains("ProtectedTx") || target.contains("GuardedConnection") {
+                    if let Some((_, trait_path, _)) = &item_impl.trait_
+                        && trait_path.segments.last().is_some_and(|segment| {
+                            RAW_ESCAPE_TRAITS.contains(&ident_name(&segment.ident).as_str())
+                        })
+                    {
+                        push_authority_violation(
+                            &mut violations,
+                            crate_root,
+                            &path,
+                            item_impl.span(),
+                            "raw-connection-escape",
+                            "GuardedConnection and ProtectedTx cannot implement raw-handle escape traits",
+                        );
+                    }
+                    for member in &item_impl.items {
+                        if let ImplItem::Fn(function) = member {
+                            let signature = authority_tokens(&function.sig);
+                            if !matches!(function.vis, Visibility::Inherited)
+                                && (signature.contains("Connection")
+                                    || signature.contains("Transaction")
+                                    || signature.contains("Statement"))
+                            {
+                                push_authority_violation(
+                                    &mut violations,
+                                    crate_root,
+                                    &path,
+                                    function.sig.span(),
+                                    "raw-connection-accessor",
+                                    "no exposed method may return or accept a raw SQLite handle",
+                                );
+                            }
+                            if target.contains("ProtectedTx")
+                                && [
+                                    "commit",
+                                    "rollback",
+                                    "execute",
+                                    "execute_batch",
+                                    "prepare",
+                                    "prepare_cached",
+                                    "transaction",
+                                ]
+                                .contains(&ident_name(&function.sig.ident).as_str())
+                            {
+                                push_authority_violation(
+                                    &mut violations,
+                                    crate_root,
+                                    &path,
+                                    function.sig.span(),
+                                    "protected-tx-generic-operation",
+                                    "ProtectedTx may expose only exact fixed writer operations",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        struct AuthorityLiteralVisitor {
+            literals: Vec<(String, Span)>,
+            authorizer_installs: usize,
+            zero_cache_configurations: usize,
+        }
+        impl<'ast> Visit<'ast> for AuthorityLiteralVisitor {
+            fn visit_lit_str(&mut self, literal: &'ast syn::LitStr) {
+                self.literals.push((literal.value(), literal.span()));
+                visit::visit_lit_str(self, literal);
+            }
+
+            fn visit_expr_method_call(&mut self, expression: &'ast syn::ExprMethodCall) {
+                if ident_matches(&expression.method, "authorizer") {
+                    self.authorizer_installs += 1;
+                }
+                if ident_matches(&expression.method, "set_prepared_statement_cache_capacity")
+                    && expression.args.len() == 1
+                    && expression
+                        .args
+                        .first()
+                        .is_some_and(|argument| authority_tokens(argument) == "0")
+                {
+                    self.zero_cache_configurations += 1;
+                }
+                visit::visit_expr_method_call(self, expression);
+            }
+        }
+        let mut visitor = AuthorityLiteralVisitor {
+            literals: Vec::new(),
+            authorizer_installs: 0,
+            zero_cache_configurations: 0,
+        };
+        visitor.visit_file(&syntax);
+        authorizer_installs += visitor.authorizer_installs;
+        zero_cache_configurations += visitor.zero_cache_configurations;
+        for (literal, span) in visitor.literals {
+            let upper = literal.to_ascii_uppercase();
+            let writes_sql = [
+                "INSERT INTO",
+                "INSERT OR",
+                "UPDATE ",
+                "DELETE FROM",
+                "CREATE TABLE",
+                "DROP TABLE",
+                "ALTER TABLE",
+                "CREATE TRIGGER",
+                "DROP TRIGGER",
+                "ATTACH DATABASE",
+                "DETACH DATABASE",
+            ]
+            .iter()
+            .any(|verb| upper.contains(verb));
+            if writes_sql && !under_writers {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &path,
+                    span,
+                    "protected-sql-custody",
+                    "write SQL must live below core::writers",
+                );
+            }
+            if upper.contains("REPLACE") {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &path,
+                    span,
+                    "replace-sql",
+                    "REPLACE and INSERT OR REPLACE are unrepresentable",
+                );
+            }
+            let trimmed = upper.trim_start();
+            if ["BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE"]
+                .iter()
+                .any(|keyword| {
+                    trimmed == *keyword
+                        || trimmed.starts_with(&format!("{keyword};"))
+                        || trimmed.starts_with(&format!("{keyword} "))
+                })
+            {
+                push_authority_violation(
+                    &mut violations,
+                    crate_root,
+                    &path,
+                    span,
+                    "transaction-control-sql",
+                    "transaction-control SQL is unrepresentable in production protected writers",
+                );
+            }
+        }
+    }
+    if fixed_writer_files != 1 {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &writers_root,
+            Span::call_site(),
+            "fixed-writer-count",
+            format!(
+                "found {fixed_writer_files} fixed writer files, expected one in dormant Landing A"
+            ),
+        );
+    }
+    if authorizer_installs != 1 || zero_cache_configurations != 1 {
+        push_authority_violation(
+            &mut violations,
+            crate_root,
+            &core_mod,
+            core_syntax.span(),
+            "connection-owned-installation",
+            format!(
+                "found {authorizer_installs} authorizer installs and {zero_cache_configurations} zero-cache configurations; expected exactly one of each in the owning constructor"
+            ),
+        );
+    }
+
+    violations.sort_by(|left, right| {
+        left.file
+            .cmp(&right.file)
+            .then(left.line.cmp(&right.line))
+            .then(left.kind.cmp(&right.kind))
+            .then(left.detail.cmp(&right.detail))
+    });
+    Ok(AuthorityTransitionAudit {
+        violations,
+        guarded_connection_fields,
+        protected_tx_fields,
+        fixed_writer_files,
+    })
+}
+
 fn required_arg(args: &[String], flag: &str) -> Result<String, String> {
     let index = args
         .iter()
@@ -4178,9 +4908,18 @@ fn run() -> Result<(), String> {
                     .map_err(|error| format!("cannot serialize crate references: {error}"))?
             );
         }
+        "authority-transition" => {
+            let crate_root = PathBuf::from(required_arg(&args, "--crate-root")?);
+            println!(
+                "{}",
+                serde_json::to_string(&authority_transition_audit(&crate_root)?).map_err(
+                    |error| format!("cannot serialize authority-transition audit: {error}")
+                )?
+            );
+        }
         _ => {
             return Err(
-                "usage: security-gates-rust <privilege|privilege-sinks|privilege-identifiers|api-shape|local-shared-methods|units|attack-span|crate-references> ..."
+                "usage: security-gates-rust <privilege|privilege-sinks|privilege-identifiers|api-shape|local-shared-methods|units|attack-span|crate-references|authority-transition> ..."
                     .to_owned(),
             );
         }

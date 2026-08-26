@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 68,
-    "unmappedAttackIdsSha256": "220f90b3b6aba886d3b85648b0cedac8b91c3d5bb3a9068fd0313b7df111a772",
+    "unmappedAttackCount": 72,
+    "unmappedAttackIdsSha256": "d67351deb016c39f18e26720be287d584746e273aadce3a87dd68bec84f86b98",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
@@ -1265,6 +1265,62 @@
       ],
       "expectedCode": "E0061",
       "row": "F082"
+    },
+    {
+      "id": "commit-protected-tx",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/commit_protected_tx.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0599",
+      "historicalFailFirst": "ProtectedTx did not exist before LLP 0313 Landing A."
+    },
+    {
+      "id": "deref-protected-tx",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/deref_protected_tx.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0614",
+      "historicalFailFirst": "ProtectedTx did not exist before LLP 0313 Landing A."
+    },
+    {
+      "id": "open-effect-scope-from-writer",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/open_effect_scope_from_writer.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0603",
+      "historicalFailFirst": "The private effect-scope function did not exist before LLP 0313 Landing A."
+    },
+    {
+      "id": "raw-guarded-connection-accessor",
+      "mode": "kernel-unit-compile-fail",
+      "source": "crates/snapback-kernel/src/storage/authority_transition/core/compile_fail/raw_connection_accessor.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "test-support"
+        ]
+      ],
+      "expectedCode": "E0599",
+      "historicalFailFirst": "GuardedConnection did not exist before LLP 0313 Landing A."
     }
   ]
 }
