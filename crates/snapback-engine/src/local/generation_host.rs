@@ -23,12 +23,18 @@ impl ActivationHost for LocalSnapback {
         });
     }
 
-    fn compose_function_generation_successor(
+    fn stage_function_generation_successor(
         &mut self,
         manifest: FunctionManifest,
+    ) -> SnapbackResult<()> {
+        self.db.stage_function_generation_composition(manifest)
+    }
+
+    fn publish_staged_function_generation_successor(
+        &mut self,
         order_field_bounds: BTreeMap<(String, String), u64>,
-    ) {
-        self.functions = manifest;
+    ) -> SnapbackResult<()> {
+        self.functions = self.db.publish_staged_function_generation_composition()?;
         // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
         //   publish exact release identity before the activation marker and
         //   every subsequently admitted operation.
@@ -37,14 +43,11 @@ impl ActivationHost for LocalSnapback {
         self.functions_loaded = true;
         self.db.set_projections(self.functions.projections.clone());
         self.db.set_order_field_bounds(order_field_bounds);
+        Ok(())
     }
 
-    fn install_loaded_function_policies(
-        &mut self,
-        manifest: &FunctionManifest,
-    ) -> SnapbackResult<()> {
-        self.db
-            .install_loaded_function_policies(&self.loaded_function_policy_publisher, manifest)
+    fn discard_staged_function_generation_successor(&mut self) {
+        self.db.discard_staged_function_generation_composition();
     }
 
     fn install_process_generation_marker(&mut self, generation: u64) {

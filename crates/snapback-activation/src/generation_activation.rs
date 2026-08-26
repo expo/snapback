@@ -139,16 +139,17 @@ pub trait ActivationHost {
 
     fn function_generation_recovery_state(&self) -> &FunctionGenerationRecoveryState;
 
-    fn compose_function_generation_successor(
+    fn stage_function_generation_successor(
         &mut self,
         manifest: FunctionManifest,
-        order_field_bounds: BTreeMap<(String, String), u64>,
-    );
-
-    fn install_loaded_function_policies(
-        &mut self,
-        manifest: &FunctionManifest,
     ) -> SnapbackResult<()>;
+
+    fn publish_staged_function_generation_successor(
+        &mut self,
+        order_field_bounds: BTreeMap<(String, String), u64>,
+    ) -> SnapbackResult<()>;
+
+    fn discard_staged_function_generation_successor(&mut self);
 
     fn set_function_generation_recovery_state(&mut self, state: FunctionGenerationRecoveryState);
 }
@@ -277,17 +278,27 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
             return diagnostics;
         }
 
+        if let Err(error) = self
+            .snapback
+            .stage_function_generation_successor(manifest.clone())
+        {
+            diagnostics.push(error.diagnostic);
+            self.snapback
+                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
+        }
+
         if !rehydrating {
             match self
                 .snapback
                 .generation_commit_ops()
                 .commit_function_generation(CommitFunctionGeneration {
-                    manifest: manifest.clone(),
                     trusted_active_generation,
                     projection_publications,
                 }) {
                 Ok(_) => {}
                 Err(error) => {
+                    self.snapback.discard_staged_function_generation_successor();
                     // Transcript activation now fails before COMMIT. Do not
                     // synthesize the former post-commit AwaitingReload fence:
                     // an existing fence still names its durable predecessor,
@@ -309,14 +320,15 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
         self.snapback
             .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
-        if let Err(error) = self.snapback.install_loaded_function_policies(&manifest) {
+        if let Err(error) = self
+            .snapback
+            .publish_staged_function_generation_successor(order_field_bounds)
+        {
             diagnostics.push(error.diagnostic);
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
-        self.snapback
-            .compose_function_generation_successor(manifest, order_field_bounds);
         self.snapback.publish_generation_ephemeral_collections();
         Self::install_process_generation(self.snapback, generation);
         self.snapback
@@ -421,22 +433,26 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
             crate::storage::sequence_declarations_from_function_manifest(&functions);
         let order_field_bounds = order_field_bounds_from_functions(&functions, &schema)
             .map_err(ModeCommitFailure::RolledBack)?;
+        self.snapback
+            .stage_function_generation_successor(functions.clone())
+            .map_err(ModeCommitFailure::RolledBack)?;
         let committed = self
             .snapback
             .generation_commit_ops()
             .apply_same_mode_network_deployment_with_functions_classified(
                 deployment,
                 schema,
-                functions.clone(),
                 seed,
                 projection_publications,
             );
         let commit = match committed {
             DurableModeCommit::Committed(committed) => committed,
             DurableModeCommit::RolledBack(error) => {
+                self.snapback.discard_staged_function_generation_successor();
                 return Err(ModeCommitFailure::RolledBack(error));
             }
             DurableModeCommit::Uncertain(error) => {
+                self.snapback.discard_staged_function_generation_successor();
                 return Err(ModeCommitFailure::Uncertain(error));
             }
         };
@@ -455,10 +471,8 @@ impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
         // commit installed; a post-commit publisher failure stays uncertain
         // and leaves admission closed rather than serving a stale map.
         self.snapback
-            .install_loaded_function_policies(&functions)
+            .publish_staged_function_generation_successor(order_field_bounds)
             .map_err(ModeCommitFailure::Uncertain)?;
-        self.snapback
-            .compose_function_generation_successor(functions, order_field_bounds);
         Self::install_process_generation(self.snapback, publication_generation);
         self.snapback
             .set_function_generation_recovery_state(FunctionGenerationRecoveryState::Resolved);
