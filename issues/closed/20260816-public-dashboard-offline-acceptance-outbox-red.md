@@ -1072,3 +1072,100 @@ its claim and now names the owning ticket's 2026-09-30 review.
 errors, 0 unchecked`. `git diff --check` produces no output. All generated
 projection paths remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`; integration owns regeneration.
+
+### Round-22 dual-review closure (2026-08-25)
+
+Every client custody reconciliation is now record-scoped after the persisted
+target fence. Stranded observation is a read over already-stranded
+current-target rows; discard, re-record, quarantine re-entry, replay, ACK, and
+the two mutation authority-unsettled handlers admit exact record ids before
+custody can change. Quarantined payloads remain private: the four store arms
+provide a narrow id/schema/enqueue-target view solely for client target
+filtering while the public projection remains the existing redacted tombstone.
+
+Standalone ACK now obtains fresh `/inspect` evidence bound to its pinned
+transport target before custody or POST, then rechecks that shared fact under
+the authorization-dispatch lock. A same-origin successor generation cannot
+send or collect its predecessor's ACK. Durable injected stores must implement
+the shared capability reservation/read/commit contract; otherwise the client
+refuses with `SNAPBACK_OFFLINE_QUEUE_CAPABILITY_STORE_INCAPABLE` before
+transport. The `RqsResumeStore` declaration makes those methods mandatory.
+
+The watched regressions failed before the production fix with these verbatim
+lines across the fail-first invocations:
+
+```text
+▶ shared-store recovery APIs never reconcile foreign-target custody
+  ✖ stranded-read (22.855667ms)
+  ✖ stranded-discard (4.87075ms)
+  ✖ stranded-rerecord (4.191ms)
+  ✖ quarantine-reentry (4.629208ms)
+✖ shared-store recovery APIs never reconcile foreign-target custody (37.444667ms)
+✖ operation-range authority-unsettled recovery is scoped to the current target record (29.036208ms)
+✖ mutation transport authority-unsettled recovery is scoped to the current target record (6.655625ms)
+✖ standalone ACK refreshes same-origin generation evidence before custody or POST (3.854834ms)
+✖ durable injected stores without shared capability evidence methods refuse before peer-stale ACK (2.844041ms)
+```
+
+At the final JS implementation commit
+`2872bf678617030451e047091200f5bfb2971a96`, the focused outbox suite reports:
+
+```text
+ℹ tests 160
+ℹ suites 0
+ℹ pass 160
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1671.334667
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only the
+already-recorded, out-of-scope RQS assertion after the affected outbox,
+custody, and quarantine suites pass 160/160, 18/18, and 4/4:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (10.789167ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2565.6325
+```
+
+The strict client TypeScript fixture command exits zero. The export-types gate
+compiles all 121 fixtures and retains only its inherited codegen red:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and prove the JS lane rather than a
+same-commit server binary.
+
+The lane-carried `backend.structured-stored-fields` review-date and ticket
+disposition changes were reverted to merge-base bytes; the final scoped diff
+for `guide/capabilities.md` and
+`issues/20260727-backend-bakeoff-improvement-program.md` is empty.
+`./ref-check --verbose` reports `311 LLP docs, 6647 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output. All generated
+projection paths remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
