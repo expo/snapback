@@ -228,7 +228,7 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
   )) {
     if (isEnvironmentIdentifier(assignment[1])) {
       candidates.push({
-        kind: 'table-entry',
+        kind: 'write',
         open: contextStart + assignment.index + assignment[0].lastIndexOf('{'),
       });
     }
@@ -260,16 +260,121 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
     const beforeReturn = source.slice(Math.max(0, open - 4096), open);
     const functions = [...beforeReturn.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/gu)];
     if (isEnvironmentIdentifier(functions.at(-1)?.[1] ?? '')) {
-      candidates.push({ kind: 'table-entry', open });
+      candidates.push({ kind: 'write', open });
     }
   }
   return candidates.sort((left, right) => right.open - left.open)
     .find(({ open }) => matchingDelimiter(source, open) > offset)?.kind ?? null;
 }
 
-function environmentNameTables(source, literals) {
-  const tables = [];
-  for (const { open, close } of lexicalDelimiterPairs(source, literals)) {
+function literalTokenBounds(source, literal) {
+  const delimiter = source[literal.contentStart - 1];
+  if (delimiter !== '"' && delimiter !== "'") return null;
+  let start = literal.contentStart - 1;
+  let end = literal.end + 1;
+  if (delimiter === '"') {
+    const rawPrefix = source.slice(Math.max(0, start - 64), start).match(/(?:br|r)(#+)$/u);
+    if (rawPrefix !== null) {
+      start -= rawPrefix[0].length;
+      end += rawPrefix[1].length;
+    }
+  }
+  return { start, end };
+}
+
+function maskedNameCollection(source, open, close, literals) {
+  const masked = source.slice(open + 1, close).split('');
+  function mask(start, end, placeholder = null) {
+    const boundedStart = Math.max(open + 1, start);
+    const boundedEnd = Math.min(close, end);
+    for (let offset = boundedStart; offset < boundedEnd; offset += 1) {
+      masked[offset - open - 1] = ' ';
+    }
+    if (placeholder !== null && boundedStart < boundedEnd) {
+      masked[boundedStart - open - 1] = placeholder;
+    }
+  }
+  for (const comment of literals.comments) mask(comment.start, comment.end);
+  for (const literal of literals.ranges) {
+    const bounds = literalTokenBounds(source, literal);
+    if (bounds !== null) mask(bounds.start, bounds.end, '§');
+  }
+  return masked.join('');
+}
+
+function skipCollectionTrivia(source, offset, end, commentsByStart) {
+  let cursor = offset;
+  while (cursor < end) {
+    while (/\s/u.test(source[cursor] ?? '')) cursor += 1;
+    const commentEnd = commentsByStart.get(cursor);
+    if (commentEnd === undefined) break;
+    cursor = commentEnd;
+  }
+  return cursor;
+}
+
+function directCollectionSegments(source, open, close, literals, pairs) {
+  const excludedByStart = new Map();
+  for (const range of [
+    ...literals.comments,
+    ...literals.ranges.map((literal) => literalTokenBounds(source, literal)).filter(Boolean),
+    ...pairs.filter((pair) => open < pair.open && pair.close < close),
+  ]) {
+    excludedByStart.set(range.start ?? range.open, Math.max(
+      excludedByStart.get(range.start ?? range.open) ?? 0,
+      range.end ?? (range.close + 1),
+    ));
+  }
+  const segments = [];
+  let segmentStart = open + 1;
+  let cursor = segmentStart;
+  while (cursor < close) {
+    const excludedEnd = excludedByStart.get(cursor);
+    if (excludedEnd !== undefined) {
+      cursor = excludedEnd;
+    } else if (source[cursor] === ',') {
+      segments.push({ start: segmentStart, end: cursor });
+      segmentStart = cursor + 1;
+      cursor += 1;
+    } else {
+      cursor += 1;
+    }
+  }
+  segments.push({ start: segmentStart, end: close });
+  return segments;
+}
+
+function stringKeyNameCollectionOffsets(source, open, close, literals, matches, pairs) {
+  const commentsByStart = new Map(literals.comments.map(({ start, end }) => [start, end]));
+  const literalsByTokenStart = new Map(literals.ranges.flatMap((literal) => {
+    const bounds = literalTokenBounds(source, literal);
+    return bounds === null ? [] : [[bounds.start, { ...bounds, literal }]];
+  }));
+  const matchesByOffset = new Map(matches.map((match) => [match.index, match]));
+  const offsets = new Set();
+  let properties = 0;
+  for (const segment of directCollectionSegments(source, open, close, literals, pairs)) {
+    const keyStart = skipCollectionTrivia(source, segment.start, segment.end, commentsByStart);
+    if (keyStart === segment.end) continue;
+    properties += 1;
+    const key = literalsByTokenStart.get(keyStart);
+    if (key === undefined) return null;
+    const match = matchesByOffset.get(key.literal.contentStart);
+    if (
+      match === undefined
+      || key.literal.end !== match.index + match[0].length
+    ) return null;
+    const colon = skipCollectionTrivia(source, key.end, segment.end, commentsByStart);
+    if (source[colon] !== ':') return null;
+    offsets.add(match.index);
+  }
+  return properties === 0 ? null : offsets;
+}
+
+function environmentNameTableOffsets(source, literals, matches) {
+  const offsets = new Set();
+  const pairs = lexicalDelimiterPairs(source, literals);
+  for (const { open, close } of pairs) {
     if (source[open] !== '[' && source[open] !== '{') continue;
     const prefix = source.slice(Math.max(0, open - 2048), open);
     const javaScriptDeclaration = prefix.match(
@@ -279,11 +384,41 @@ function environmentNameTables(source, literals) {
       /\b(?:pub\s+)?const\s+([A-Z][A-Z0-9_]*)\s*:[^=;]{0,512}=\s*&?\s*$/u,
     );
     const identifier = javaScriptDeclaration?.[1] ?? rustDeclaration?.[1];
-    if (identifier !== undefined && isEnvironmentIdentifier(identifier)) {
-      tables.push({ open, close });
+    if (identifier === undefined || !isEnvironmentIdentifier(identifier)) continue;
+
+    const masked = maskedNameCollection(source, open, close, literals);
+    const stringArray = source[open] === '['
+      && /^(?:\s*§\s*(?:,\s*§\s*)*,?\s*)?$/u.test(masked);
+    const key = String.raw`(?:[A-Za-z_$][\w$]*|§)`;
+    const property = String.raw`${key}\s*:\s*§`;
+    const stringValueObject = source[open] === '{'
+      && new RegExp(`^(?:\\s*${property}\\s*(?:,\\s*${property}\\s*)*,?\\s*)?$`, 'u').test(masked);
+    const stringKeyOffsets = source[open] === '{'
+      ? stringKeyNameCollectionOffsets(source, open, close, literals, matches, pairs)
+      : null;
+    if (!stringArray && !stringValueObject && stringKeyOffsets === null) continue;
+
+    for (const match of matches) {
+      if (!(open < match.index && match.index < close)) continue;
+      const literal = enclosingStringLiteral(match.index, literals);
+      if (
+        literal === null
+        || literal.contentStart !== match.index
+        || literal.end !== match.index + match[0].length
+      ) continue;
+      const nested = pairs.some((pair) => (
+        open < pair.open
+        && pair.open < match.index
+        && match.index < pair.close
+        && pair.close < close
+      ));
+      if (
+        !nested
+        && (stringArray || stringValueObject || stringKeyOffsets.has(match.index))
+      ) offsets.add(match.index);
     }
   }
-  return tables;
+  return offsets;
 }
 
 function lexicalDelimiterPairs(source, literals) {
@@ -973,11 +1108,11 @@ function isExplicitDiagnosticCodePosition(source, offset) {
   const before = source.slice(Math.max(0, offset - 512), offset);
   return (
     /\bthrow\b[^;\n]*$/u.test(before)
-    || /\bnew\s+Error\s*\(\s*["'`]$/u.test(before)
+    || /\bnew\s+(?:Snapback)?Error\s*\(\s*["'`]$/u.test(before)
     || /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code)\s*:\s*["'`]$/u.test(before)
     || /\.code\s*=\s*["'`]$/u.test(before)
     || /\b(?:kitError|requestDiagnostic)\s*\(\s*\d{3}\s*,\s*["'`]$/u.test(before)
-    || /\b(?:diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
+    || /\b(?:bindingFailure|diagnosticError|codedError|verifyError|codegenError|conformanceDiagnostic|graph_serving_error|__snapbackFail|__snapbackFamiliarFail|snapbackError)\s*\(\s*["'`]$/u.test(before)
     || /\b(?:SnapbackError|Diagnostic)::(?:error|warning|info|new)\s*\(\s*["'`]$/u.test(before)
   );
 }
@@ -1071,7 +1206,7 @@ function shellEnvironmentSiteKind(source, offset, code, literals) {
 function environmentAnalysis(source, options) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
   const literals = stringLiteralBounds(source, options);
-  const nameTables = environmentNameTables(source, literals);
+  const nameTableOffsets = environmentNameTableOffsets(source, literals, matches);
   const siteKinds = new Map();
   for (const offset of rustIndirectEnvironmentOffsets(source)) {
     siteKinds.set(offset, 'indirect-read');
@@ -1108,7 +1243,7 @@ function environmentAnalysis(source, options) {
       siteKinds.set(match.index, directKind);
     } else if (objectKind !== null) {
       siteKinds.set(match.index, objectKind);
-    } else if (nameTables.some(({ open, close }) => open < match.index && match.index < close)) {
+    } else if (nameTableOffsets.has(match.index)) {
       siteKinds.set(match.index, 'table-entry');
     }
   }
@@ -1136,7 +1271,9 @@ export function environmentVariableSites(source, {
   const classifiedNames = environmentNames ?? analysis.names;
   return analysis.matches.flatMap((match) => {
     const kind = analysis.siteKinds.get(match.index);
-    if (kind !== undefined) return [{ match, kind }];
+    if (kind !== undefined) {
+      return emissionWinsEnvironmentSite(source, match, analysis) ? [] : [{ match, kind }];
+    }
     if (
       classifiedNames.has(match[0])
       && diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell }) === null
@@ -1467,6 +1604,23 @@ function shellDiagnosticOperator(source, offset) {
   return null;
 }
 
+function emissionWinsEnvironmentSite(source, match, analysis) {
+  const offset = match.index;
+  if (
+    hasEmissionMarker(source, offset, match[0])
+    && !isCommentReference(offset, analysis.literals.comments)
+  ) return true;
+  if (
+    isGeneratedSourceDiagnosticPosition(source, match, analysis.literals)
+    || isStoredDiagnosticSqlPosition(source, match, analysis.literals)
+    || isEscapedPoisonDiagnosticPosition(source, match, analysis.literals)
+    || isLeadingDiagnosticCodePosition(source, match, analysis.literals)
+  ) return true;
+  const literalShape = diagnosticLiteralShape(match, analysis.literals);
+  return literalShape === 'prefix'
+    || (literalShape === 'whole' && isExplicitDiagnosticCodePosition(source, offset));
+}
+
 function diagnosticSiteKind(source, match, analysis, environmentNames, { shell = false } = {}) {
   const offset = match.index;
   if (hasReservedMarker(source, offset, match[0])) return 'reserved';
@@ -1476,6 +1630,10 @@ function diagnosticSiteKind(source, match, analysis, environmentNames, { shell =
     && !isCommentReference(offset, analysis.literals.comments)
   ) return 'emission';
   if (isCommentReference(offset, analysis.literals.comments)) return null;
+  if (
+    (analysis.siteKinds.has(offset) || environmentNames.has(match[0]))
+    && emissionWinsEnvironmentSite(source, match, analysis)
+  ) return 'emission';
   if (
     hasReferenceOnlyMarker(source, offset)
     || analysis.siteKinds.has(offset)

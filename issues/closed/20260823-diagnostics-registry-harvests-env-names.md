@@ -39,15 +39,25 @@ match arms, `matches!`, comparisons, prefix checks, and inert catalogues do
 not.
 
 Environment-name tables are bounded by their matching closing delimiter using
-the existing nested bracket/brace, comment, escape, and string-aware scanner.
-The fail-first fixture is exactly:
+the existing nested bracket/brace, comment, escape, and string-aware scanner,
+and are admitted only when their direct structure proves a name collection:
+arrays of ordinary string literals or objects proven by ordinary string-literal
+name keys or values. Only direct elements, keys, and values become table entries; nested
+functions, methods, calls, objects, arrays, and template bodies never do.
+Explicit throw/error/failure/diagnostic syntax wins over any environment site
+kind at the same offset. The round-17 fail-first fixture is exactly:
 
 ```js
-const SNAPBACK_ENVIRONMENT_NAMES = ['SNAPBACK_FOO_ENV']; throw new Error('SNAPBACK_REAL_FAILURE');
+const environment = {
+  refresh() {
+    throw codedError('SNAPBACK_APP_BINDING_EXPIRED');
+  },
+};
+bindingFailure('SNAPBACK_APP_BINDING_EXPIRED');
 ```
 
-It retains only `SNAPBACK_FOO_ENV` as a table entry and
-`SNAPBACK_REAL_FAILURE` as an emission.
+Both literals are emissions and neither is an environment site. The older
+direct-array-plus-following-throw delimiter fixture remains covered separately.
 
 The final round-16 correction derives each table's opener from the lexical
 delimiter stack and then tests containment against that exact declaration
@@ -59,7 +69,9 @@ Generic environment-object mutations are classified before the read fallback:
 the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
 `delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The object-boundary
 fixture also retains environment entries after a `}` embedded in a string
-value.
+value. `SNAPBACK_ADMIN_TOKEN` is now correctly dual-role: its environment sites
+remain, and the refusal in `targets/cloudflare/config-set.mjs` is a diagnostic
+emission.
 
 Manifest-derived package inventory now admits shipped `.swift` and `.kt`
 files alongside JavaScript. Six native package files join the production
@@ -98,16 +110,31 @@ membership spellings.
 The synthetic stale-artifact markers are attached to the branches that emit
 them: kind spellings annotate the artifact-kind branch and version spellings
 annotate the schema-version branch. Environment-only exemplars such as
-`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE`, `SNAPBACK_ADMIN_TOKEN`,
-`SNAPBACK_DEV_PORT`, and `SNAPBACK_RUNTIME_BINARY` remain absent from the
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE`, `SNAPBACK_DEV_PORT`, and
+`SNAPBACK_RUNTIME_BINARY` remain absent from the
 diagnostic registry and `SnapbackDiagnosticCode`, while remaining present in
 the environment registry and `SnapbackEnvironmentVariable`.
 
 The final comparison with merge-base
-`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 239 removed diagnostic
-names: 141 are now environment variables and 98 are other non-emitting
-vocabulary. The companion mixed-language fixture contains 87 raw
-`SNAPBACK_*` substrings. The final registry contains 262 codes with at least
+`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 234 removed diagnostic
+names: 136 are now environment variables and 98 are other non-emitting
+vocabulary. The earlier 141-name environment claim was audited in full. Five
+real emitters were re-typed back:
+`SNAPBACK_ADMIN_TOKEN`, `SNAPBACK_APP_BINDING_EXPIRED`,
+`SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID`,
+`SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN`, and
+`SNAPBACK_PUBLICATION_AUTHORITY_PORT`. An independent syntax-context scan of
+all merge-base carrier files for the remaining 136 names found zero remaining
+throw/error/failure/diagnostic/code-assignment candidates.
+
+`SNAPBACK_APP_BINDING_EXPIRED` is pinned to exactly three emitting sites:
+`packages/snapback-expo/app-binding.mjs:586` and
+`packages/snapback-expo/supervised-environment.mjs:595,712`. It and the five
+other false Expo environment names identified in round 17 are absent from
+`SnapbackEnvironmentVariable`.
+
+The companion mixed-language fixture contains 87 raw `SNAPBACK_*` substrings.
+The final registry contains 263 codes with at least
 one received site and seven reservations in the server HTTP table.
 
 The exact final measurement script was rerun after the implementation and all
@@ -122,6 +149,9 @@ const mergeBase = 'e370bb8f789007cffae1f4d80c4feabdedc81cb5';
 const base = JSON.parse(execFileSync('git', ['show', `${mergeBase}:${registryPath}`], {
   encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
 }));
+const reviewedHead = JSON.parse(execFileSync('git', ['show',
+  `8bfa89fc075968fc9ad069a80371a23ea9e1f0b7:${registryPath}`,
+], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }));
 const environmentKinds = {};
 for (const record of Object.values(registry.environment)) {
   for (const site of record.sites) {
@@ -131,6 +161,11 @@ for (const record of Object.values(registry.environment)) {
 const removed = Object.keys(base.diagnostics)
   .filter((code) => !(code in registry.diagnostics));
 const environmentRemovals = removed.filter((code) => code in registry.environment);
+const retypedBack = Object.keys(registry.diagnostics).filter((code) => (
+  !(code in reviewedHead.diagnostics)
+  && code in reviewedHead.environment
+  && code in base.diagnostics
+)).sort();
 const fixture = readFileSync(
   'tests/fixtures/diagnostics-registry/non-emitting-reference-sites.txt', 'utf8',
 );
@@ -143,6 +178,7 @@ console.log(JSON.stringify({
     environment: environmentRemovals.length,
     other: removed.length - environmentRemovals.length,
   },
+  retypedBack,
   fixtureRawTokens: [...fixture.matchAll(/SNAPBACK_[A-Z0-9_]+/gu)].length,
   receivedCodes: Object.values(registry.diagnostics).filter((record) => (
     record.sites.some((site) => site.kind === 'received')
@@ -167,32 +203,39 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3538,
+    "codes": 3543,
     "sourceFiles": 642,
-    "emittingSites": 9196,
-    "receivedSites": 338,
+    "emittingSites": 9216,
+    "receivedSites": 339,
     "reservedSites": 9,
     "httpClassified": 1709,
-    "guideAnchored": 426,
-    "environmentVariables": 191,
-    "environmentSites": 390
+    "guideAnchored": 428,
+    "environmentVariables": 185,
+    "environmentSites": 364
   },
   "environmentKinds": {
     "read": 258,
-    "mention": 56,
+    "mention": 38,
     "declaration": 14,
     "remove": 9,
-    "write": 18,
-    "table-entry": 20,
+    "write": 24,
+    "table-entry": 6,
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 239,
-    "environment": 141,
+    "total": 234,
+    "environment": 136,
     "other": 98
   },
+  "retypedBack": [
+    "SNAPBACK_ADMIN_TOKEN",
+    "SNAPBACK_APP_BINDING_EXPIRED",
+    "SNAPBACK_PUBLICATION_AUTHORITY_INSTALLATION_ID",
+    "SNAPBACK_PUBLICATION_AUTHORITY_ORIGIN",
+    "SNAPBACK_PUBLICATION_AUTHORITY_PORT"
+  ],
   "fixtureRawTokens": 87,
-  "receivedCodes": 262,
+  "receivedCodes": 263,
   "httpReservations": 7,
   "cloudflareDeployEmissionCodes": 12,
   "s3TestEnvironmentNames": []

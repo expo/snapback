@@ -64,6 +64,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
       'SNAPBACK_FIXTURE_PREFIXED_CODE',
       'SNAPBACK_FIXTURE_LEADING_ERROR_CODE',
+      'SNAPBACK_FIXTURE_PUBLICATION_PORT',
       'SNAPBACK_FIXTURE_GENERATED_JS_EMISSION',
       'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
       'SNAPBACK_FIXTURE_ESCAPED_POISON',
@@ -271,7 +272,6 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_EXAMPLE_ENV',
     'SNAPBACK_FIXTURE_LIST_ENV',
     'SNAPBACK_FIXTURE_LIST_SECOND_ENV',
-    'SNAPBACK_FIXTURE_PUBLICATION_PORT',
     'SNAPBACK_FIXTURE_MATCH_ARM_REFERENCE',
     'SNAPBACK_FIXTURE_MATCH_ARM_SECOND_REFERENCE',
     'SNAPBACK_FIXTURE_CATALOG_REFERENCE',
@@ -321,7 +321,7 @@ test('JavaScript tokenizer skips regex literals but preserves division and templ
   );
 });
 
-test('environment-name tables end at their matching closing delimiter', () => {
+test('environment-name tables classify direct strings without swallowing nested emissions', () => {
   const fixture = readFileSync(resolve(
     import.meta.dirname,
     '../tests/fixtures/diagnostics-registry/environment-name-table-boundary.mjs',
@@ -336,6 +336,7 @@ test('environment-name tables end at their matching closing delimiter', () => {
       { name: 'SNAPBACK_STRING_BRACE_ENV', kind: 'table-entry' },
       { name: 'SNAPBACK_REGEX_BRACE_ENV', kind: 'table-entry' },
       { name: 'SNAPBACK_AFTER_NESTED_VALUE_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_STRING_KEY_ENV', kind: 'table-entry' },
       { name: 'SNAPBACK_OBJECT_BEFORE_STRING_BRACE', kind: 'write' },
       { name: 'SNAPBACK_OBJECT_AFTER_STRING_BRACE', kind: 'write' },
     ],
@@ -343,7 +344,11 @@ test('environment-name tables end at their matching closing delimiter', () => {
   assert.deepEqual(
     diagnosticSourceSites(fixture, { javascript: true })
       .map(({ match, kind }) => ({ code: match[0], kind })),
-    [{ code: 'SNAPBACK_REAL_FAILURE', kind: 'emission' }],
+    [
+      { code: 'SNAPBACK_REAL_FAILURE', kind: 'emission' },
+      { code: 'SNAPBACK_APP_BINDING_EXPIRED', kind: 'emission' },
+      { code: 'SNAPBACK_APP_BINDING_EXPIRED', kind: 'emission' },
+    ],
   );
 });
 
@@ -435,6 +440,10 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     import.meta.dirname,
     '../guide/reference/diagnostics-registry.json',
   ), 'utf8'));
+  const diagnosticTypes = readFileSync(resolve(
+    import.meta.dirname,
+    '../packages/snapback-client/diagnostic-codes.d.mts',
+  ), 'utf8');
 
   const cloudflareCodes = [
     'SNAPBACK_ACTION_STREAM_CANCELLED',
@@ -562,11 +571,41 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     )),
     'delegatedEnvironment.SNAPBACK_ADMIN_TOKEN assignment must be classified as a write',
   );
-  assert.equal(
-    registry.diagnostics.SNAPBACK_ADMIN_TOKEN,
-    undefined,
-    'printing an environment name from shell is not a diagnostic emission',
+  assert.ok(
+    registry.diagnostics.SNAPBACK_ADMIN_TOKEN.sites.some((site) => (
+      site.file === 'targets/cloudflare/config-set.mjs' && site.kind === undefined
+    )),
+    'the protected-config refusal keeps SNAPBACK_ADMIN_TOKEN as a dual-role diagnostic',
   );
+
+  assert.deepEqual(
+    registry.diagnostics.SNAPBACK_APP_BINDING_EXPIRED.sites
+      .map(({ file, line, kind }) => ({ file, line, kind })),
+    [
+      { file: 'packages/snapback-expo/app-binding.mjs', line: 586, kind: undefined },
+      { file: 'packages/snapback-expo/supervised-environment.mjs', line: 595, kind: undefined },
+      { file: 'packages/snapback-expo/supervised-environment.mjs', line: 712, kind: undefined },
+    ],
+  );
+  const falselyClassifiedEnvironmentNames = [
+    'SNAPBACK_APP_BINDING_EXPIRED',
+    'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
+    'SNAPBACK_AUTHORITY_REQUIRED',
+    'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+    'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED',
+    'SNAPBACK_EXPO_ENVIRONMENT_INVALID',
+  ];
+  const environmentType = diagnosticTypes.slice(
+    diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
+  );
+  for (const name of falselyClassifiedEnvironmentNames) {
+    assert.equal(registry.environment[name], undefined, `${name} is not environment vocabulary`);
+    assert.doesNotMatch(
+      environmentType,
+      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
+      `${name} must be absent from SnapbackEnvironmentVariable`,
+    );
+  }
 
   for (const [file, code] of [
     ['packages/snapback-harness/allowlist-install.js', 'SNAPBACK_TEXT_DECODER_INSTALL_FAILED'],
