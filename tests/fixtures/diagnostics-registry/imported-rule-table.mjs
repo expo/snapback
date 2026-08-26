@@ -1,0 +1,13 @@
+export const IMPORTED_RULES = Object.freeze({
+  direct: { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_DIRECT' },
+  indexed: ['SNAPBACK_FIXTURE_IMPORTED_RULE_INDEXED'],
+  named: 'SNAPBACK_FIXTURE_IMPORTED_RULE_NAMED',
+});
+
+export const ITERATED_RULES = Object.freeze([
+  { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_ITERATED' },
+]);
+
+export const DYNAMIC_RULES = Object.freeze([
+  'SNAPBACK_FIXTURE_IMPORTED_RULE_DYNAMIC',
+]);

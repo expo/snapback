@@ -429,11 +429,12 @@ Round 31 makes the guard compare the working registry with the merge-base of
 `HEAD` and `origin/main`, so an unrelated commit after a removal cannot make
 the registry its own baseline. In a checkout without that remote-tracking ref,
 the fallback compares with the parent of the latest registry-changing commit.
-The merge-base predates this classifier lane, and the guard inspects every
-registry-changing commit in the range so a spelling introduced and later
-removed cannot escape. The checked allowlist now records all 248 intentional
-lane removals: the 140 environment names removed from the merge-base plus four
-temporary environment misclassifications, 29 incomplete prefixes, 50
+The merge-base predates this classifier lane, so the removal ledger records
+only codes present at that comparison point; transient lane misclassifications
+are not removals. The guard rejects allowlist entries that do not correspond
+to that merge-base delta. The checked allowlist now records all 244 intentional
+lane removals: the 140 environment names removed from the merge-base, 29
+incomplete prefixes, 50
 reference-only spellings, and 25 test-only spellings. This is a retrospective
 classification ledger, not a further code-set change. Future
 removals require a concrete checked-in explanation classified as
@@ -582,6 +583,59 @@ crates non-comment diff against merge-base e370bb8f789007cffae1f4d80c4feabdedc81
 The inventory/Guide runs emitted the same six warning-only GAP review notices;
 the other Guide warnings were authority-freshness notices. Nothing in the
 round-31 verification remains unverified.
+
+### Round-32 declaration-table flow and removal-ledger trim
+
+The fail-first suite pinned an imported diagnostic rule table whose object,
+array, and nested `{ code: ... }` entries were incorrectly classified as
+emissions. Before the implementation, the two failing assertions reported:
+
+```text
+SNAPBACK_FIXTURE_NOT_REMOVED: unused checked-in removal justification
+SNAPBACK_FIXTURE_IMPORTED_RULE_DIRECT: actual kind `emission`, expected kind `declaration`
+```
+
+Static uppercase const/exported diagnostic tables now retain a declaration
+site for every whole-string entry and carry an access path through direct
+properties, bracket properties, array elements, and nested `code` records.
+Cross-file flow resolves imported aliases, including
+`HANDLER_TYPESCRIPT_DIAGNOSTIC_RULES as RULES`, and records exact property,
+dynamic `TABLE[k]`, record, and iteration-variable uses in the consuming
+module. Lower-case runtime records such as `const warning = { code: ... }`
+remain direct emissions, and environment tables remain environment-only.
+
+The production audit began with 402 non-test `code: 'SNAPBACK_*'` literal
+candidates and then compared the generated site identities against
+`48640bd1e`. It reclassified **44 sites** from emission to declaration across
+four real tables: 20 in `typescript-profile.mjs`, 12 in
+`result-transform.mjs`, seven in `authority-transition.mjs`, and five in
+`verify.mjs`. The consumer-flow pass added the corresponding real use sites;
+for example, the TypeScript rules now emit from `typescript-transform.mjs`,
+and the verify next-action records emit from `NEXT_BY_STAGE[id]`.
+
+The diagnostic code set is byte-for-byte unchanged relative to `48640bd1e`:
+**added none; dropped none**. Only site evidence moved or expanded:
+
+| Count | `48640bd1e` | Round-32 candidate |
+| --- | ---: | ---: |
+| Codes | 3,543 | 3,543 |
+| Source files | 628 | 628 |
+| Emitting sites | 9,375 | 9,413 |
+| Received sites | 378 | 378 |
+| Reserved sites | 11 | 11 |
+| HTTP-classified | 1,704 | 1,704 |
+| Guide-anchored | 431 | 431 |
+| Environment variables | 188 | 188 |
+| Environment sites | 366 | 366 |
+
+The removal guard now compares the allowlist with the merge-base diagnostic
+set and reports entries that are absent from that removal delta as unused.
+`SNAPBACK_DERIVED_INSTANCE_ID`, `SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT`,
+`SNAPBACK_SUBSCRIPTION_ARGS_BYTES`, and
+`SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT` were transient lane
+misclassifications, not merge-base removals, so they were trimmed. The ledger
+contains **244** intentional removals: 140 environment names, 29 prefixes, 50
+reference-only spellings, and 25 test-only spellings.
 
 ### Known JS/native lookup divergence
 

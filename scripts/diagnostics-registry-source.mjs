@@ -1427,8 +1427,8 @@ function shellEnvironmentSiteKind(source, offset, code, literals) {
 function environmentAnalysis(source, options) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
   const literals = stringLiteralBounds(source, options);
-  const bracePairs = lexicalDelimiterPairs(source, literals)
-    .filter(({ open }) => source[open] === '{');
+  const delimiterPairs = lexicalDelimiterPairs(source, literals);
+  const bracePairs = delimiterPairs.filter(({ open }) => source[open] === '{');
   const nameTableOffsets = environmentNameTableOffsets(source, literals, matches);
   const siteKinds = new Map();
   for (const offset of rustIndirectEnvironmentOffsets(source)) {
@@ -1475,7 +1475,13 @@ function environmentAnalysis(source, options) {
     .filter((match) => siteKinds.has(match.index))
     .map((match) => match[0]));
   const declarations = new Map(matches.flatMap((match) => {
-    const declaration = wholeStringCodeDeclaration(source, match, literals, bracePairs);
+    const declaration = wholeStringCodeDeclaration(
+      source,
+      match,
+      literals,
+      bracePairs,
+      delimiterPairs,
+    );
     return declaration === null ? [] : [[match.index, declaration]];
   }));
   return {
@@ -1598,7 +1604,85 @@ function syntheticEmissionSites(source, comments) {
   return sites;
 }
 
-function wholeStringCodeDeclaration(source, match, literals, bracePairs) {
+function positionIsNestedInPair(position, container, delimiterPairs) {
+  return delimiterPairs.some(({ open, close }) => (
+    container.open < open && open < position && position < close && close < container.close
+  ));
+}
+
+function tableEntrySegment(source, container, target, delimiterPairs) {
+  let start = container.open + 1;
+  let index = 0;
+  for (let cursor = start; cursor < target; cursor += 1) {
+    if (source[cursor] !== ',') continue;
+    if (positionIsNestedInPair(cursor, container, delimiterPairs)) continue;
+    start = cursor + 1;
+    index += 1;
+  }
+  return { index, source: source.slice(start, target) };
+}
+
+function wholeStringTableDeclaration(source, match, delimiterPairs) {
+  const containers = delimiterPairs
+    .filter(({ open, close }) => (
+      (source[open] === '{' || source[open] === '[')
+      && open < match.index
+      && match.index < close
+    ))
+    .sort((left, right) => left.open - right.open);
+  const outerIndex = containers.findIndex(({ open }) => (
+    /\b(?:export\s+)?const\s+[A-Za-z_$][\w$]*\s*=\s*(?:Object\.freeze\s*\(\s*)?$/u
+      .test(source.slice(Math.max(0, open - 2048), open))
+  ));
+  if (outerIndex === -1) return null;
+  const outer = containers[outerIndex];
+  const declarationPrefixStart = Math.max(0, outer.open - 2048);
+  const declarationPrefix = source.slice(declarationPrefixStart, outer.open);
+  const assigned = declarationPrefix.match(
+    /\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:Object\.freeze\s*\(\s*)?$/u,
+  );
+  if (assigned === null) return null;
+  // Static diagnostic vocabularies follow the repository's constant-table
+  // convention. Lower-case const objects are runtime diagnostic records (for
+  // example `const warning = { code: ... }`) and remain direct emissions.
+  if (!/^[A-Z][A-Z0-9_]*$/u.test(assigned[1])) return null;
+
+  const accessPath = [];
+  const pathContainers = containers.slice(outerIndex);
+  for (let index = 0; index < pathContainers.length; index += 1) {
+    const container = pathContainers[index];
+    const target = pathContainers[index + 1]?.open ?? match.index;
+    const segment = tableEntrySegment(source, container, target, delimiterPairs);
+    if (source[container.open] === '[') {
+      accessPath.push({ kind: 'element', value: segment.index });
+      continue;
+    }
+    const property = segment.source.match(
+      /^\s*(?:(['"])([^'"]+)\1|([A-Za-z_$][\w$]*))\s*:/u,
+    );
+    if (property === null) return null;
+    accessPath.push({ kind: 'property', value: property[2] ?? property[3] });
+  }
+  return {
+    accessPath,
+    code: match[0],
+    identifier: assigned[1],
+    identifierOffset: declarationPrefixStart + assigned.index
+      + assigned[0].indexOf(assigned[1]),
+    scopeEnd: source.length,
+    scopeStart: 0,
+    table: true,
+    literalOffset: match.index,
+  };
+}
+
+function wholeStringCodeDeclaration(
+  source,
+  match,
+  literals,
+  bracePairs,
+  delimiterPairs = bracePairs,
+) {
   if (diagnosticLiteralShape(match, literals) !== 'whole') return null;
   const beforeStart = Math.max(0, match.index - 2048);
   const before = source.slice(beforeStart, match.index);
@@ -1624,7 +1708,7 @@ function wholeStringCodeDeclaration(source, match, literals, bracePairs) {
       scopeStart: enclosingBrace === undefined ? 0 : enclosingBrace.open + 1,
     };
   }
-  return null;
+  return wholeStringTableDeclaration(source, match, delimiterPairs);
 }
 
 export function wholeStringDiagnosticDeclarations(source, {
@@ -1639,18 +1723,29 @@ export function wholeStringDiagnosticDeclarations(source, {
     ordinaryMultiline,
     shell,
   });
-  const bracePairs = lexicalDelimiterPairs(classifiedSource, literals)
-    .filter(({ open }) => classifiedSource[open] === '{');
+  const delimiterPairs = lexicalDelimiterPairs(classifiedSource, literals);
+  const bracePairs = delimiterPairs.filter(({ open }) => classifiedSource[open] === '{');
   return [...classifiedSource.matchAll(DIAGNOSTIC_CODE_PATTERN)].flatMap((match) => {
     const declaration = wholeStringCodeDeclaration(
       classifiedSource,
       match,
       literals,
       bracePairs,
+      delimiterPairs,
     );
     return declaration === null
       ? []
-      : [{ code: declaration.code, identifier: declaration.identifier }];
+      : [{
+        code: declaration.code,
+        identifier: declaration.identifier,
+        ...(declaration.accessPath === undefined
+          ? {}
+          : {
+            accessPath: declaration.accessPath,
+            literalOffset: match.index,
+            table: true,
+          }),
+      }];
   });
 }
 
@@ -1662,6 +1757,69 @@ function isImportOrReexportIdentifierPosition(source, offset) {
     || /(?:^|[{}])\s*(?:export\s+)?import\b/su.test(statement)
     || /(?:^|[{}])\s*export\s*\{/su.test(statement)
   );
+}
+
+function importedIdentifierAliases(source, identifier) {
+  const aliases = new Set([identifier]);
+  const escaped = escapeRegExp(identifier);
+  for (const statement of source.matchAll(
+    /\bimport\s+([\s\S]*?)\s+from\s+['"][^'"]+['"]/gu,
+  )) {
+    if (!new RegExp(`(?<![A-Za-z0-9_$])${escaped}(?![A-Za-z0-9_$])`, 'u')
+      .test(statement[1])) continue;
+    const alias = statement[1].match(
+      new RegExp(`(?<![A-Za-z0-9_$])${escaped}\\s+as\\s+([A-Za-z_$][\\w$]*)`, 'u'),
+    );
+    if (alias !== null) aliases.add(alias[1]);
+  }
+  for (const statement of source.matchAll(/\buse\s+([\s\S]*?);/gu)) {
+    if (!new RegExp(`(?<![A-Za-z0-9_])${escaped}(?![A-Za-z0-9_])`, 'u')
+      .test(statement[1])) continue;
+    const alias = statement[1].match(
+      new RegExp(`(?<![A-Za-z0-9_])${escaped}\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)`, 'u'),
+    );
+    if (alias !== null) aliases.add(alias[1]);
+  }
+  return [...aliases];
+}
+
+function diagnosticTableAccessPattern(base, accessPath) {
+  return escapeRegExp(base) + accessPath.map(({ kind, value }) => (
+    kind === 'element'
+      ? `\\s*\\[\\s*${value}\\s*\\]`
+      : `(?:\\s*\\.\\s*${escapeRegExp(value)}|\\s*\\[\\s*['"]${escapeRegExp(value)}['"]\\s*\\])`
+  )).join('');
+}
+
+function diagnosticTableDynamicAccessPattern(base, accessPath) {
+  if (accessPath.length === 0) return null;
+  return `${escapeRegExp(base)}\\s*\\[\\s*[A-Za-z_$][\\w$]*\\s*\\]${diagnosticTableAccessPattern('', accessPath.slice(1))}`;
+}
+
+function diagnosticTableIterationUses(source, base, accessPath) {
+  const uses = [];
+  const first = accessPath[0];
+  if (first === undefined) return uses;
+  const escapedBase = escapeRegExp(base);
+  const directIteration = new RegExp(
+    `\\bfor\\s*\\(\\s*(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s+of\\s+${escapedBase}\\s*\\)`,
+    'gu',
+  );
+  const valuesIteration = new RegExp(
+    `\\bfor\\s*\\(\\s*(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s+of\\s+Object\\.values\\s*\\(\\s*${escapedBase}\\s*\\)\\s*\\)`,
+    'gu',
+  );
+  if (first.kind === 'element') {
+    for (const iteration of source.matchAll(directIteration)) {
+      uses.push({ base: iteration[1], path: accessPath.slice(1) });
+    }
+  }
+  if (first.kind === 'property') {
+    for (const iteration of source.matchAll(valuesIteration)) {
+      uses.push({ base: iteration[1], path: accessPath.slice(1) });
+    }
+  }
+  return uses;
 }
 
 function identifierFlowEmissionSites(source, analysis, externalDeclarations = []) {
@@ -1677,15 +1835,51 @@ function identifierFlowEmissionSites(source, analysis, externalDeclarations = []
     })),
   ];
   for (const declaration of declarations) {
-    const identifier = escapeRegExp(declaration.identifier);
-    const uses = new RegExp(
-      `(?<![A-Za-z0-9_])(?:(?:[A-Za-z_][A-Za-z0-9_]*::)*)${identifier}(?![A-Za-z0-9_])`,
-      'gu',
-    );
+    if (
+      declaration.table === true
+      && declaration.literalOffset !== undefined
+      && analysis.siteKinds.has(declaration.literalOffset)
+    ) continue;
+    const bases = importedIdentifierAliases(source, declaration.identifier);
+    const usePatterns = declaration.accessPath === undefined
+      ? bases.map((base) => ({
+        table: false,
+        pattern: `(?:(?:[A-Za-z_][A-Za-z0-9_]*::)*)${escapeRegExp(base)}`,
+      }))
+      : bases.flatMap((base) => {
+        const accessPaths = [declaration.accessPath];
+        if (
+          declaration.accessPath.length > 1
+          && declaration.accessPath.at(-1).kind === 'property'
+          && declaration.accessPath.at(-1).value === 'code'
+        ) accessPaths.push(declaration.accessPath.slice(0, -1));
+        return [
+          ...accessPaths.flatMap((accessPath) => [
+            {
+              table: true,
+              pattern: diagnosticTableAccessPattern(base, accessPath),
+            },
+            ...[diagnosticTableDynamicAccessPattern(base, accessPath)]
+              .filter((pattern) => pattern !== null)
+              .map((pattern) => ({ table: true, pattern })),
+          ]),
+          ...diagnosticTableIterationUses(source, base, declaration.accessPath)
+            .map((iteration) => ({
+              iteration: true,
+              table: true,
+              pattern: diagnosticTableAccessPattern(iteration.base, iteration.path),
+            })),
+        ];
+      });
     const scopedSource = source.slice(declaration.scopeStart, declaration.scopeEnd);
-    for (const use of scopedSource.matchAll(uses)) {
+    for (const usePattern of usePatterns) {
+      const uses = new RegExp(
+        `(?<![A-Za-z0-9_$])${usePattern.pattern}(?![A-Za-z0-9_$])`,
+        'gu',
+      );
+      for (const use of scopedSource.matchAll(uses)) {
       const useOffset = declaration.scopeStart + use.index;
-      const identifierOffset = useOffset + use[0].lastIndexOf(declaration.identifier);
+      const identifierOffset = useOffset;
       if (identifierOffset === declaration.identifierOffset) continue;
       if (
         declaration.identifierOffset === -1
@@ -1705,7 +1899,20 @@ function identifierFlowEmissionSites(source, analysis, externalDeclarations = []
         && /^\s*[,}]/u.test(after)
         && !before.endsWith('${')
         && /^(?:code|.*Code|.*_CODE)$/u.test(declaration.identifier);
-      if (!explicitDiagnosticPosition && !diagnosticProperty && !diagnosticShorthand) {
+      if (
+        !usePattern.table
+        && !explicitDiagnosticPosition
+        && !diagnosticProperty
+        && !diagnosticShorthand
+      ) {
+        continue;
+      }
+      if (
+        usePattern.iteration === true
+        && !explicitDiagnosticPosition
+        && !diagnosticProperty
+        && !diagnosticShorthand
+      ) {
         continue;
       }
       const siteKey = `${declaration.code}\0${useOffset}`;
@@ -1715,6 +1922,7 @@ function identifierFlowEmissionSites(source, analysis, externalDeclarations = []
         match: syntheticMatch(declaration.code, useOffset, source),
         kind: 'emission',
       });
+      }
     }
   }
   return sites;
@@ -2357,5 +2565,7 @@ export function diagnosticSourceSites(source, {
 }
 
 export function diagnosticCodeMatches(source, options) {
-  return diagnosticSourceSites(source, options).map(({ match }) => match);
+  return diagnosticSourceSites(source, options)
+    .filter(({ kind }) => kind !== 'declaration')
+    .map(({ match }) => match);
 }

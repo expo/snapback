@@ -325,10 +325,6 @@
       "reason": "environment",
       "detail": "SNAPBACK_DEV_PORT_RANGE is a configuration/environment name with no proven diagnostic emission site."
     },
-    "SNAPBACK_DERIVED_INSTANCE_ID": {
-      "reason": "environment",
-      "detail": "SNAPBACK_DERIVED_INSTANCE_ID is a configuration/environment name with no proven diagnostic emission site."
-    },
     "SNAPBACK_DIFFERENT_FAULT": {
       "reason": "test-only",
       "detail": "SNAPBACK_DIFFERENT_FAULT occurs only in excluded test or classifier-fixture source."
@@ -793,10 +789,6 @@
       "reason": "environment",
       "detail": "SNAPBACK_SHUTDOWN_CHECKPOINT_TIMEOUT_MS is a configuration/environment name with no proven diagnostic emission site."
     },
-    "SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT": {
-      "reason": "environment",
-      "detail": "SNAPBACK_SOCKETS_PER_CONNECTION_LIMIT is a configuration/environment name with no proven diagnostic emission site."
-    },
     "SNAPBACK_SOFT_NOTE": {
       "reason": "test-only",
       "detail": "SNAPBACK_SOFT_NOTE occurs only in excluded test or classifier-fixture source."
@@ -812,14 +804,6 @@
     "SNAPBACK_STALE_": {
       "reason": "prefix",
       "detail": "SNAPBACK_STALE_ is an incomplete diagnostic-family prefix, not a complete emitted code."
-    },
-    "SNAPBACK_SUBSCRIPTION_ARGS_BYTES": {
-      "reason": "environment",
-      "detail": "SNAPBACK_SUBSCRIPTION_ARGS_BYTES is a configuration/environment name with no proven diagnostic emission site."
-    },
-    "SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT": {
-      "reason": "environment",
-      "detail": "SNAPBACK_SUBSCRIPTION_PER_CONNECTION_LIMIT is a configuration/environment name with no proven diagnostic emission site."
     },
     "SNAPBACK_SUPERVISOR_CLIENT_CA": {
       "reason": "environment",

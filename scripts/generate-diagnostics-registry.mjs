@@ -368,21 +368,30 @@ function collectSites() {
   // Cross-file flow is deliberately limited to repository-unambiguous,
   // whole-string constants. That covers imported bindings and qualified
   // `path::CONST` uses without guessing between same-named module constants.
-  const crossFileDeclarations = [...declarationsByIdentifier.values()].flatMap((declarations) => (
-    new Set(declarations.map(({ code }) => code)).size === 1 ? [declarations[0]] : []
-  ));
+  const crossFileDeclarations = [...declarationsByIdentifier.values()].flatMap((declarations) => {
+    if (new Set(declarations.map(({ code }) => code)).size === 1) return [declarations[0]];
+    if (
+      declarations.every(({ table }) => table === true)
+      && new Set(declarations.map(({ file }) => file)).size === 1
+    ) return declarations;
+    return [];
+  });
   const readContracts = [
     ...sources.values(),
   ].flatMap(indirectEnvironmentReadContracts);
   const environmentNames = new Set();
+  const environmentDeclarationOffsets = new Set();
   for (const [path, source] of sources) {
-    for (const { match } of environmentVariableSites(source, {
+    for (const { match, kind } of environmentVariableSites(source, {
       indirectEnvironmentReadContracts: readContracts,
       javascript: /\.(?:cjs|js|mjs)$/u.test(path),
       ordinaryMultiline: path.endsWith('.rs'),
       shell: path.endsWith('.sh'),
     })) {
       environmentNames.add(match[0]);
+      if (kind === 'declaration' || kind === 'table-entry') {
+        environmentDeclarationOffsets.add(`${path}\0${match.index}`);
+      }
     }
   }
 
@@ -394,6 +403,9 @@ function collectSites() {
       environmentNames,
       externalWholeStringDeclarations: crossFileDeclarations.filter((declaration) => (
         declaration.file !== path
+        && !environmentDeclarationOffsets.has(
+          `${declaration.file}\0${declaration.literalOffset}`,
+        )
         && source.includes(declaration.identifier)
         && sourceImportsOrQualifiesConstant(source, declaration.identifier)
       )),

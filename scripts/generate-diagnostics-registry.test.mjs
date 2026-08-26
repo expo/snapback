@@ -19,6 +19,7 @@ import {
   indirectEnvironmentReadContracts,
   rustExternalTestModulePaths,
   sourceImportsOrQualifiesConstant,
+  wholeStringDiagnosticDeclarations,
 } from './diagnostics-registry-source.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -181,17 +182,24 @@ function codeRemovalProblems(
       problems.push(`${code}: removal justification was not added or revised with this change`);
     }
   }
+  for (const code of Object.keys(allowlist.removals)) {
+    if (!previousCodes.has(code) || currentCodes.has(code)) {
+      problems.push(`${code}: unused checked-in removal justification`);
+    }
+  }
   return problems;
 }
 
 function registryRemovalProblems(repoRoot, registryPath, allowlistPath) {
   const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
-  const { baseline, revisions } = stableRegistryHistory(repoRoot, registryPath);
-  const previousCodes = new Set();
-  for (const revision of [baseline, ...revisions]) {
-    const registry = committedJson(repoRoot, revision, registryPath, { diagnostics: {} });
-    for (const code of Object.keys(registry.diagnostics)) previousCodes.add(code);
-  }
+  const { baseline } = stableRegistryHistory(repoRoot, registryPath);
+  const baselineRegistry = committedJson(
+    repoRoot,
+    baseline,
+    registryPath,
+    { diagnostics: {} },
+  );
+  const previousCodes = new Set(Object.keys(baselineRegistry.diagnostics));
   const currentRegistry = JSON.parse(readFileSync(resolve(repoRoot, registryPath), 'utf8'));
   const previousAllowlist = committedJson(
     repoRoot,
@@ -245,6 +253,22 @@ test('diagnostic removal allowlist requires a classified, explained justificatio
     ),
     ['SNAPBACK_FIXTURE_OLD_CODE: removal justification was not added or revised with this change'],
   );
+  assert.deepEqual(
+    codeRemovalProblems(
+      new Set(),
+      new Set(['SNAPBACK_FIXTURE_NOT_REMOVED']),
+      {
+        schemaVersion: 'snapback-diagnostics-code-removals.v1',
+        removals: {
+          SNAPBACK_FIXTURE_NOT_REMOVED: {
+            reason: 'environment',
+            detail: 'This entry does not describe a historical diagnostic removal.',
+          },
+        },
+      },
+    ),
+    ['SNAPBACK_FIXTURE_NOT_REMOVED: unused checked-in removal justification'],
+  );
 });
 
 test('generated registry never silently loses a previously committed diagnostic code', () => {
@@ -259,7 +283,7 @@ test('generated registry never silently loses a previously committed diagnostic 
   );
 });
 
-test('diagnostic removal guard survives an unrelated commit after the removal', () => {
+test('diagnostic removal guard keeps its merge-base after an unrelated commit', () => {
   const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-history-'));
   const registryPath = 'guide/reference/diagnostics-registry.json';
   const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
@@ -305,7 +329,6 @@ test('diagnostic removal guard survives an unrelated commit after the removal', 
       registryRemovalProblems(repoRoot, registryPath, allowlistPath),
       [
         'SNAPBACK_FIXTURE_REMOVED: missing checked-in removal justification',
-        'SNAPBACK_FIXTURE_TRANSIENT: missing checked-in removal justification',
       ],
     );
     git('update-ref', '-d', 'refs/remotes/origin/main');
@@ -1085,6 +1108,65 @@ test('identifier flow follows unambiguous whole-string constants across files', 
       { code: 'SNAPBACK_FORK_WRITER_COVERAGE_GAP', line: 2, kind: 'emission' },
       { code: 'SNAPBACK_FORK_WRITER_COVERAGE_GAP', line: 4, kind: 'emission' },
     ],
+  );
+});
+
+test('imported diagnostic rule tables classify declarations and follow consuming uses', () => {
+  const declarationSource = readFileSync(resolve(
+    import.meta.dirname,
+    '../tests/fixtures/diagnostics-registry/imported-rule-table.mjs',
+  ), 'utf8');
+  const consumerSource = readFileSync(resolve(
+    import.meta.dirname,
+    '../tests/fixtures/diagnostics-registry/imported-rule-table-consumer.mjs',
+  ), 'utf8');
+  const declarations = wholeStringDiagnosticDeclarations(declarationSource, {
+    javascript: true,
+  });
+
+  assert.deepEqual(
+    diagnosticSourceSites(declarationSource, { javascript: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_DIRECT', kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_INDEXED', kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_NAMED', kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_ITERATED', kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_DYNAMIC', kind: 'declaration' },
+    ],
+  );
+  assert.deepEqual(
+    diagnosticSourceSites(consumerSource, {
+      externalWholeStringDeclarations: declarations,
+      javascript: true,
+    }).map(({ match, kind }) => ({
+      code: match[0],
+      kind,
+      line: consumerSource.slice(0, match.index).split('\n').length,
+    })),
+    [
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_DIRECT', kind: 'emission', line: 3 },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_INDEXED', kind: 'emission', line: 4 },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_NAMED', kind: 'emission', line: 5 },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_ITERATED', kind: 'emission', line: 7 },
+      { code: 'SNAPBACK_FIXTURE_IMPORTED_RULE_DYNAMIC', kind: 'emission', line: 9 },
+    ],
+  );
+  assert.deepEqual(
+    new Set([
+      ...diagnosticSourceSites(declarationSource, { javascript: true }),
+      ...diagnosticSourceSites(consumerSource, {
+        externalWholeStringDeclarations: declarations,
+        javascript: true,
+      }),
+    ].map(({ match }) => match[0])),
+    new Set([
+      'SNAPBACK_FIXTURE_IMPORTED_RULE_DIRECT',
+      'SNAPBACK_FIXTURE_IMPORTED_RULE_INDEXED',
+      'SNAPBACK_FIXTURE_IMPORTED_RULE_NAMED',
+      'SNAPBACK_FIXTURE_IMPORTED_RULE_ITERATED',
+      'SNAPBACK_FIXTURE_IMPORTED_RULE_DYNAMIC',
+    ]),
   );
 });
 
