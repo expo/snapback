@@ -3898,10 +3898,10 @@ impl LocalEphemeralBackend {
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
-        // Reauthorization may remove entries and, at generation exhaustion,
-        // retire the whole room and publish an epoch boundary. Serialize that
-        // producer with definition/reset wipes so neither can clear the
-        // other's terminal marker after missing the already-removed room.
+        // Lock order: lifecycle -> SQLite IMMEDIATE -> registry -> rooms ->
+        // room -> subscriber outboxes. SQLite waits with no registry/room held,
+        // isolating contention to this owner. Lifecycle also serializes terminal
+        // revocation with definition/reset so neither clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
         let completion = match self
             .shared

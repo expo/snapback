@@ -1343,12 +1343,6 @@ impl AuthorizationCommitParticipant {
             min_commit_version,
             resolutions,
         } = batch;
-        let admission = match self.begin_room_reauthorization_admission(&room, generation) {
-            Ok(admission) => admission,
-            Err(_) => return Ok(None),
-        };
-        let durable_fence =
-            Transaction::new_unchecked(&database.db.conn, TransactionBehavior::Immediate)?;
         let projection = collection.permission_backing.as_ref().ok_or_else(|| {
             projection_unavailable(
                 "resolved protected room lacks its durable permissionBacking projection",
@@ -1370,6 +1364,12 @@ impl AuthorizationCommitParticipant {
                     })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
+        let durable_fence =
+            Transaction::new_unchecked(&database.db.conn, TransactionBehavior::Immediate)?;
+        let admission = match self.begin_room_reauthorization_admission(&room, generation) {
+            Ok(admission) => admission,
+            Err(_) => return Ok(None),
+        };
         for resolution in &resolutions {
             let current = resolve_room_reauthorization_subject_on(
                 &durable_fence,
@@ -3774,5 +3774,140 @@ mod tests {
         let widened = selector_for_app_writes(&[collection], &schema, &[unknown]);
         assert!(widened.matches(&affected));
         assert!(widened.matches(&unrelated));
+    }
+
+    fn ready_file_fixture(database_path: &std::path::Path) -> ReadyFixture {
+        let local =
+            LocalDatabase::open(database_path).expect("file-backed reauthorization fixture");
+        let mut database = ServingDatabase::adopt(local).expect("serving database");
+        let reservation = database
+            .reserve_invalidation_boot_issuer()
+            .expect("durable authorization snapshot");
+        let authorization = reservation.authorization().clone();
+        let participant = database
+            .take_authorization_commit_participant()
+            .expect("sole participant");
+        database
+            .bind_authorization_commit_participant(&participant)
+            .expect("exact construction bind");
+        let view = database
+            .authorization_expectation_view_for_participant_install(&participant)
+            .expect("kernel-owned expectation view");
+        assert_eq!(view.current().unwrap(), authorization);
+        let issuer_projection = view.clone().into_issuer_projection().unwrap();
+        database
+            .activate_authorization_commit_participant(&participant, &issuer_projection)
+            .expect("ready participant");
+        ReadyFixture {
+            database,
+            participant,
+            view,
+            _issuer_projection: issuer_projection,
+            authorization,
+        }
+    }
+
+    #[test]
+    fn room_reauthorization_sqlite_contention_does_not_hold_global_registry() {
+        use std::sync::mpsc;
+        use std::time::{Duration, Instant};
+
+        let directory = tempfile::tempdir().expect("reauthorization contention directory");
+        let database_path = directory.path().join("snapback.sqlite3");
+        let fixture = ready_file_fixture(&database_path);
+        install_room_resync(&fixture);
+        let batch = fixture
+            .participant
+            .resolve_room_reauthorization(
+                &fixture.database,
+                fixture
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("real pending room batch"),
+                Vec::new(),
+            )
+            .expect("resolve the pending room batch");
+        let ReadyFixture {
+            database,
+            participant,
+            view: _,
+            _issuer_projection,
+            authorization: _,
+        } = fixture;
+        let participant = Arc::new(participant);
+
+        let writer = rusqlite::Connection::open(&database_path)
+            .expect("open independent SQLite writer connection");
+        writer
+            .execute_batch("BEGIN IMMEDIATE")
+            .expect("independent writer owns SQLite reservation");
+
+        let completion_participant = participant.clone();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (completed_tx, completed_rx) = mpsc::channel();
+        let completion = std::thread::spawn(move || {
+            entered_tx.send(()).expect("signal completion start");
+            let started = Instant::now();
+            let result = completion_participant
+                .begin_room_reauthorization_completion(&database, batch)
+                .map(|completion| {
+                    completion.map(|completion| {
+                        completion.complete_exact();
+                        true
+                    })
+                });
+            completed_tx
+                .send((started.elapsed(), result))
+                .expect("return contended completion result");
+        });
+        entered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("completion starts while the independent writer is held");
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(
+            completed_rx.try_recv().is_err(),
+            "completion must still be waiting for SQLite"
+        );
+
+        let pending_participant = participant.clone();
+        let (pending_tx, pending_rx) = mpsc::channel();
+        let registry_probe = std::thread::spawn(move || {
+            let started = Instant::now();
+            let count = pending_participant.pending_reauthorizations().len();
+            pending_tx
+                .send((started.elapsed(), count))
+                .expect("return concurrent registry observation");
+        });
+        let pending_result = pending_rx.recv_timeout(Duration::from_millis(250));
+
+        writer
+            .execute_batch("ROLLBACK")
+            .expect("release independent SQLite writer");
+        let (completion_elapsed, completion_result) = completed_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("completion returns without SQLite's five-second timeout");
+        completion.join().expect("completion thread joins");
+        registry_probe.join().expect("registry probe thread joins");
+
+        let (registry_elapsed, pending_count) = pending_result
+            .expect("pending-room enumeration is not blocked behind SQLite contention");
+        eprintln!(
+            "contention timings: registry={registry_elapsed:?}, completion={completion_elapsed:?}"
+        );
+        assert_eq!(pending_count, 1, "the obligation remains observable");
+        assert!(
+            registry_elapsed < Duration::from_millis(250),
+            "registry observation took {registry_elapsed:?}"
+        );
+        assert!(
+            completion_elapsed < Duration::from_secs(1),
+            "completion took {completion_elapsed:?} after a bounded writer hold"
+        );
+        assert_eq!(
+            completion_result.expect("completion remains operational"),
+            Some(true),
+            "the exact batch completes after SQLite becomes available"
+        );
     }
 }
