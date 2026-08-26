@@ -250,6 +250,45 @@ pub struct PreparedOperation<Kind> {
 | D | **[INFERRED]** Delete old in-memory authority vocabulary; install exact prepared operations and all engine/sync/server consumers; move HTTP handoff and service/room/publication fences together. | **[INFERRED]** Green workspace; earliest closure candidate. |
 | E | **[INFERRED]** Final zero-legacy gate, all-family/row dispositions, races, fork/second-handle/process tests, authorizer bypass, ambiguity, fault injection, regeneration, cold install, and independent review. | **[INFERRED]** Only here may F-1 close and publication unblock. |
 
+
+### Custody finding (2026-08-26): Landing A cannot establish file-wide authority
+
+An executing review demonstrated that a second connection to the same SQLite file can rename
+the protected credentials relation, replace it with a same-named view over a caller-owned
+table, and have the ceremony accept an attacker-chosen secret. A commissioned analysis then
+answered whether that is closable inside Landing A. **It is not, and the limit is intrinsic:**
+a per-connection SQLite authorizer enforces policy only on statements prepared through that
+connection.
+
+All three bypass cases are reachable in this repository today — a second in-process handle
+(a checked-in test opens two `LocalDatabase` handles to one file; only the second
+authority-graph claim is denied), an arbitrary same-user process (`DatabaseInstanceLock` is
+an advisory sidecar `flock`, not mandatory access control), and other workspace code (four
+crates may depend on `rusqlite`, and the lower-level open path does not itself take the
+instance lock).
+
+**Consequences for this specification:**
+
+1. **Landing A remains acceptable as stated** — private, dormant, handle-local infrastructure —
+   but its claim must say so plainly. It must never be read as evidence that same-file second
+   handles or raw processes are refused. Two current tests invite exactly that misreading: the
+   "cross-connection" test uses two *distinct in-memory databases*, and another opens a hostile
+   raw connection to the same file and successfully rewrites the resource guard.
+2. **The A→C sequence in §8 is incomplete.** Landing C claims a "durable forgery cut"; it
+   cannot deliver one on a handle-local authorizer alone. LLP 0311 resource custody and gateway
+   work must become a **prerequisite or atomic part of Landing C**.
+3. **Landing C must choose a boundary and state it**, because the choice determines what any
+   later F-1 claim can mean:
+   - *Repository / trusted-native boundary* — every supported writable connection goes through
+     one closed gateway, cooperating processes use the existing instance lock, and arbitrary
+     raw same-user file access is **explicitly out of scope**; or
+   - *Hostile raw-file-writer boundary* — authority moves outside SQLite, to OS or service
+     isolation or an externally protected cryptographic root. That is deployment and migration
+     work, not kernel work.
+
+The full analysis, with citations for each reachable case, is at
+`issues/20260826-landing-a-cannot-establish-file-wide-authority.md`.
+
 ### Required atomic groups
 
 **[INFERRED]** Writer relocation, authorizer enforcement, and deletion of every alternate protected writer move together. Giving old writers a generic permit would preserve the forgery.
