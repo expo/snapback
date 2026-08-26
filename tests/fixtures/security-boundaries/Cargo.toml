@@ -337,6 +337,10 @@ path = "src/bin/sign_scope_retirement_directly.rs"
 name = "supply-room-reauthorization-results"
 path = "src/bin/supply_room_reauthorization_results.rs"
 
+[[bin]]
+name = "forge-room-reauthorization-complete"
+path = "src/bin/forge_room_reauthorization_complete.rs"
+
 # F145 and F272 remain OPEN. Keep their dependent spellings source-visible,
 # but do not register them in the rejection-only attacks.v1.json until an
 # effect-wide implementation lands.

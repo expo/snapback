@@ -2631,7 +2631,7 @@ impl RoomReauthorizationFence {
         }
         reconcile_room_reauthorization_completions(&mut state);
         self.registry.quiescent.notify_all();
-        disposition != RoomReauthorizationDisposition::Abandoned
+        !disposition.is_abandoned()
     }
 }
 
@@ -2709,19 +2709,58 @@ pub unsafe trait RoomReauthorizationSettlementExecutor: Send + Sync {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RoomReauthorizationDisposition {
-    Complete,
-    Missing,
-    Abandoned,
+pub struct RoomReauthorizationDisposition {
+    terminal: u8,
 }
 
 impl RoomReauthorizationDisposition {
-    fn as_atomic(self) -> u8 {
-        match self {
-            Self::Complete => ROOM_REAUTHORIZATION_COMPLETE,
-            Self::Missing => ROOM_REAUTHORIZATION_MISSING,
-            Self::Abandoned => ROOM_REAUTHORIZATION_ABANDONED,
+    /// Construct the terminal fact after every exact sync settlement effect.
+    ///
+    /// # Safety
+    ///
+    /// The caller must be the participant-bound settlement owner and must
+    /// have applied every subscriber, entry, index, outbox, notification, and
+    /// pruning effect for the borrowed completion.
+    #[doc(hidden)]
+    pub unsafe fn complete_after_settlement() -> Self {
+        Self {
+            terminal: ROOM_REAUTHORIZATION_COMPLETE,
         }
+    }
+
+    /// Construct the missing-room fact after observing the exact sync state.
+    ///
+    /// # Safety
+    ///
+    /// The caller must be the participant-bound settlement owner and must
+    /// have observed that the borrowed completion's exact room is absent.
+    #[doc(hidden)]
+    pub unsafe fn missing_after_observation() -> Self {
+        Self {
+            terminal: ROOM_REAUTHORIZATION_MISSING,
+        }
+    }
+
+    /// Construct an abandoned fact after an exact-state mismatch.
+    ///
+    /// # Safety
+    ///
+    /// The caller must be the participant-bound settlement owner and must
+    /// have observed that the current subscriber/effect-fence set differs
+    /// from the borrowed completion.
+    #[doc(hidden)]
+    pub unsafe fn abandoned_after_observation() -> Self {
+        Self {
+            terminal: ROOM_REAUTHORIZATION_ABANDONED,
+        }
+    }
+
+    fn as_atomic(self) -> u8 {
+        self.terminal
+    }
+
+    fn is_abandoned(self) -> bool {
+        self.terminal == ROOM_REAUTHORIZATION_ABANDONED
     }
 }
 
@@ -3272,6 +3311,12 @@ mod tests {
         dyn FnOnce(&RoomReauthorizationCompletion) -> SnapbackResult<RoomReauthorizationDisposition>
             + Send,
     >;
+
+    fn complete_settlement_for_test() -> RoomReauthorizationDisposition {
+        RoomReauthorizationDisposition {
+            terminal: ROOM_REAUTHORIZATION_COMPLETE,
+        }
+    }
 
     #[derive(Default)]
     struct TestRoomReauthorizationSettler {
@@ -3938,9 +3983,7 @@ mod tests {
                 Vec::new(),
             )
             .unwrap();
-        source
-            .settler
-            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        source.settler.push(|_| Ok(complete_settlement_for_test()));
         assert!(
             source
                 .participant
@@ -4029,9 +4072,7 @@ mod tests {
                 Vec::new(),
             )
             .expect("target database derives a fresh exact batch");
-        target
-            .settler
-            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        target.settler.push(|_| Ok(complete_settlement_for_test()));
         assert!(
             target
                 .participant
@@ -4093,9 +4134,7 @@ mod tests {
                 Vec::new(),
             )
             .expect("retry derives a fresh batch");
-        fixture
-            .settler
-            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        fixture.settler.push(|_| Ok(complete_settlement_for_test()));
         assert!(
             fixture
                 .participant
@@ -4226,7 +4265,7 @@ mod tests {
                 .send(())
                 .expect("signal entered writer settlement");
             writer_release_rx.recv().expect("release writer settlement");
-            Ok(RoomReauthorizationDisposition::Complete)
+            Ok(complete_settlement_for_test())
         });
         let writer_completion = std::thread::spawn(move || {
             let result = completion_participant.run_room_reauthorization_completion_off_local(
@@ -4321,7 +4360,7 @@ mod tests {
             replacement_release_rx
                 .recv()
                 .expect("release replacement settlement");
-            Ok(RoomReauthorizationDisposition::Complete)
+            Ok(complete_settlement_for_test())
         });
         let replacement_completion = std::thread::spawn(move || {
             let result = completion_participant.run_room_reauthorization_completion_off_local(
@@ -4840,7 +4879,7 @@ mod tests {
             authorization: _,
         } = fixture;
         let participant = Arc::new(participant);
-        settler.push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        settler.push(|_| Ok(complete_settlement_for_test()));
 
         let writer = rusqlite::Connection::open(&database_path)
             .expect("open independent SQLite writer connection");
@@ -4946,7 +4985,7 @@ mod tests {
             authorization: _,
         } = fixture;
         let participant = Arc::new(participant);
-        settler.push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        settler.push(|_| Ok(complete_settlement_for_test()));
 
         // Stop the completion while it actually owns the registry. In the
         // repaired order SQLite is not yet acquired; under the SQLite-first
