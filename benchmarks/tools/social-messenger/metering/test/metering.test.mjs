@@ -2745,6 +2745,7 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       path: execution.node.path,
       version: process.version,
       sha256: execution.node.sha256,
+      bytes: execution.node.bytes,
     };
     await writeFile(configPath, `${JSON.stringify(sourceConfig, null, 2)}\n`);
     let clock = Date.parse("2026-08-24T12:00:00.000Z");

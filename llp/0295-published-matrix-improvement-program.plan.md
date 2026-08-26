@@ -1008,7 +1008,7 @@ instrument:
 [`benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/`](../benchmarks/runs/2026-08-25-clique-pair-published-0127-capstone/record.md).
 Manual shape (the R2 driver stack is reduced-run-only; the full-journey and
 portability work is the R3 prerequisite, filed as
-`issues/20260825-metering-driver-full-journey-portability.md`); N=1 per
+`issues/closed/20260825-metering-driver-full-journey-portability.md`); N=1 per
 cell, observations not scorecard claims. Headlines against this plan's
 registered target dimensions: Explicit M1 first-green −51% (target ≥30%);
 scale 167,157/167,157 with zero replay interventions versus the 0.1.25

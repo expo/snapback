@@ -70,12 +70,20 @@ export function recoverCodexSignalSettlements({
   records,
   boundaryValue,
   streamClosedAt = null,
+  closingSettlementSelection = "last",
+  allowTrailingUsage = false,
 }) {
   if (!Array.isArray(records) || records.length === 0) {
     throw new TypeError("Codex terminal recovery requires a non-empty native stream");
   }
   records.forEach(requiredOrdinal);
   const boundaries = boundaryMap(boundaryValue);
+  if (!["first", "last"].includes(closingSettlementSelection)) {
+    throw new TypeError("Codex closingSettlementSelection must be first or last");
+  }
+  if (typeof allowTrailingUsage !== "boolean") {
+    throw new TypeError("Codex allowTrailingUsage must be boolean");
+  }
   const orderedMilestones = Object.entries(boundaries)
     .sort((left, right) => left[1].terminalSequence - right[1].terminalSequence)
     .map(([milestone]) => milestone);
@@ -159,7 +167,9 @@ export function recoverCodexSignalSettlements({
         && recordIndex < nextSignalIndex
         && tokenCountRecord(record)
       ));
-    const settled = closing ? settlements.at(-1) : settlements[0];
+    const settled = closing && closingSettlementSelection === "last"
+      ? settlements.at(-1)
+      : settlements[0];
     if (settled === undefined && !signal.unsignaledClosedFailure) {
       throw new Error(`${signal.milestone} has no native token_count settlement after its signal`);
     }
@@ -179,13 +189,15 @@ export function recoverCodexSignalSettlements({
         ? "closed-failure-native-usage-unavailable"
         : signal.unsignaledClosedFailure
         ? "closed-failure-native-token-count"
-        : closing
+        : closing && closingSettlementSelection === "last"
         ? "final-native-token-count"
+        : closing
+        ? "closing-signal-first-token-count"
         : "signal-turn-token-count",
     });
   }
   const closingSettlement = usageSettlements.at(-1);
-  if (closingSettlement.usageAvailable) {
+  if (closingSettlement.usageAvailable && !allowTrailingUsage) {
     const trailingUsage = records.find((record) => (
       tokenCountRecord(record) && record.ordinal > closingSettlement.usageRecordOrdinal
     ));

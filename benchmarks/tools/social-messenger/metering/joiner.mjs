@@ -145,6 +145,7 @@ export function joinUsageToMilestones({
   observations = null,
   suiteStatusLinkage = null,
   usageSettlements = null,
+  milestoneWallStarts = {},
 }) {
   if (channel === null || typeof channel !== "object") {
     throw new TypeError("usage channel is required");
@@ -162,6 +163,13 @@ export function joinUsageToMilestones({
     }
   }
   const boundaryMap = normalizeBoundaryMap(boundaries);
+  if (
+    milestoneWallStarts === null
+    || Array.isArray(milestoneWallStarts)
+    || typeof milestoneWallStarts !== "object"
+  ) {
+    throw new TypeError("milestoneWallStarts must be an object");
+  }
   const ordered = Object.entries(boundaryMap)
     .map(([milestone, boundary]) => ({
       milestone,
@@ -173,6 +181,15 @@ export function joinUsageToMilestones({
       left.boundary.terminalSequence - right.boundary.terminalSequence
     ));
   if (ordered.length === 0) throw new Error("at least one attempted milestone boundary is required");
+  for (const [milestone, at] of Object.entries(milestoneWallStarts)) {
+    if (!Object.hasOwn(boundaryMap, milestone)) {
+      throw new Error(`wall origin names unattempted milestone ${milestone}`);
+    }
+    const atMs = timestampMillis(at, `${milestone} wall origin`);
+    if (atMs > Date.parse(boundaryMap[milestone].terminalAt)) {
+      throw new Error(`${milestone} wall origin follows its terminal`);
+    }
+  }
   let settlementByMilestone = null;
   if (usageSettlements !== null) {
     if (!Array.isArray(usageSettlements) || usageSettlements.length !== ordered.length) {
@@ -310,6 +327,9 @@ export function joinUsageToMilestones({
       status: item.boundary.status,
       authoring: {
         tokens,
+        ...(milestoneWallStarts[item.milestone] === undefined
+          ? {}
+          : { wallStartedAt: milestoneWallStarts[item.milestone] }),
         firstGreenAt: item.boundary.status === "green"
           ? item.boundary.firstGreenAt
           : null,

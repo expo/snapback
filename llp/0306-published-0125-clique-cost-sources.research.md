@@ -581,4 +581,4 @@ cheaper on every axis but first-green; and the `0.3.4-m8` instrument
 leak in the Familiar arm that this run's weaker instrument had passed.
 Open question 5's answer is implemented: per-milestone attribution existed
 for every capstone figure. Remaining measurement work is tracked in
-`issues/20260825-metering-driver-full-journey-portability.md`.
+`issues/closed/20260825-metering-driver-full-journey-portability.md`.

@@ -7,6 +7,7 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  readlinkSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -31,7 +32,11 @@ import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 
 export const R2_ADMISSION_VERSION = "snapback.r2-cell-admission.v2";
 export const R2_SOURCE_CLOSURE_VERSION = "snapback.r2-executing-source-closure.v1";
+export const R2_PROVISIONING_MANIFEST_VERSION = "snapback.gitless-source-provisioning.v1";
+export const R2_PROVISIONING_CONTENT_VERSION =
+  "sha256-path-type-mode-size-content+recomputed-git-tree.v1";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
+const GIT_OBJECT_ID = /^[a-f0-9]{40,64}$/u;
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const METERING_SOURCE_ROOT = "benchmarks/tools/social-messenger/metering";
 const REQUIRED_SOURCE_CLOSURE_FILES = Object.freeze([
@@ -58,6 +63,308 @@ function digest(bytes) {
 
 function bareDigest(bytes) {
   return digest(bytes).replace(/^sha256:/u, "");
+}
+
+function provisioningEntryLine(entry) {
+  return [
+    entry.path,
+    entry.type,
+    entry.executable === true ? "executable" : "non-executable",
+    entry.bytes,
+    entry.sha256,
+  ].join("\0");
+}
+
+function gitObjectId(type, bytes, objectFormat) {
+  const hash = objectFormat === "sha1" ? "sha1" : objectFormat === "sha256" ? "sha256" : null;
+  if (hash === null) {
+    throw new Error(`R2_ADMISSION_PROVISIONING_INVALID: unsupported Git object format ${objectFormat}`);
+  }
+  return createHash(hash)
+    .update(Buffer.from(`${type} ${bytes.byteLength}\0`))
+    .update(bytes)
+    .digest();
+}
+
+function gitTreeFromLeaves(leaves, objectFormat) {
+  const root = new Map();
+  for (const leaf of leaves) {
+    const parts = leaf.path.split("/");
+    let cursor = root;
+    for (const part of parts.slice(0, -1)) {
+      const existing = cursor.get(part);
+      if (existing?.leaf !== undefined) {
+        throw new Error(`R2_ADMISSION_PROVISIONING_INVALID: Git path overlaps ${leaf.path}`);
+      }
+      if (existing === undefined) cursor.set(part, { tree: new Map() });
+      cursor = cursor.get(part).tree;
+    }
+    const name = parts.at(-1);
+    if (cursor.has(name)) {
+      throw new Error(`R2_ADMISSION_PROVISIONING_INVALID: duplicate Git path ${leaf.path}`);
+    }
+    cursor.set(name, { leaf });
+  }
+  const hashTree = (tree) => {
+    const entries = [...tree.entries()].map(([name, value]) => (
+      value.leaf === undefined
+        ? { mode: "40000", name, sortName: `${name}/`, oid: hashTree(value.tree) }
+        : { ...value.leaf, name, sortName: name }
+    )).sort((left, right) => Buffer.compare(
+      Buffer.from(left.sortName),
+      Buffer.from(right.sortName),
+    ));
+    const body = Buffer.concat(entries.flatMap((entry) => [
+      Buffer.from(`${entry.mode} ${entry.name}\0`),
+      entry.oid,
+    ]));
+    return gitObjectId("tree", body, objectFormat);
+  };
+  return hashTree(root);
+}
+
+// The manifest is deliberately outside the provisioned root, avoiding a
+// self-digest cycle. Every regular-file byte, symlink target byte, logical
+// path, and executable bit participates in the content root; metadata labels
+// alone never admit a deployed tree.
+export function measureProvisionedSourceTree({
+  repositoryRoot = REPOSITORY_ROOT,
+  gitObjectFormat = "sha1",
+  gitlinks = [],
+}) {
+  const canonicalRoot = realpathSync(resolve(repositoryRoot));
+  if (!statSync(canonicalRoot).isDirectory()) {
+    throw new Error("R2_ADMISSION_PROVISIONING_INVALID: repository root must be a directory");
+  }
+  const entries = [];
+  const gitLeaves = [];
+  const visit = (directory, prefix = "") => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((left, right) => (
+      left.name.localeCompare(right.name)
+    ))) {
+      if (prefix === "" && entry.name === ".git") continue;
+      const absolute = resolve(directory, entry.name);
+      const logical = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      const status = lstatSync(absolute);
+      if (status.isDirectory()) {
+        visit(absolute, logical);
+      } else if (status.isFile()) {
+        const bytes = readFileSync(absolute);
+        gitLeaves.push({
+          path: logical,
+          mode: (status.mode & 0o111) !== 0 ? "100755" : "100644",
+          oid: gitObjectId("blob", bytes, gitObjectFormat),
+        });
+        entries.push({
+          path: logical,
+          type: "file",
+          executable: (status.mode & 0o111) !== 0,
+          bytes: bytes.byteLength,
+          sha256: digest(bytes),
+        });
+      } else if (status.isSymbolicLink()) {
+        const bytes = readlinkSync(absolute, { encoding: "buffer" });
+        gitLeaves.push({
+          path: logical,
+          mode: "120000",
+          oid: gitObjectId("blob", bytes, gitObjectFormat),
+        });
+        entries.push({
+          path: logical,
+          type: "symlink",
+          executable: false,
+          bytes: bytes.byteLength,
+          sha256: digest(bytes),
+        });
+      } else {
+        throw new Error(
+          `R2_ADMISSION_PROVISIONING_INVALID: unsupported source entry ${logical}`,
+        );
+      }
+    }
+  };
+  visit(canonicalRoot);
+  if (!Array.isArray(gitlinks)) {
+    throw new Error("R2_ADMISSION_PROVISIONING_INVALID: source.gitlinks must be an array");
+  }
+  const normalizedGitlinks = [...gitlinks].sort((left, right) => left.path.localeCompare(right.path));
+  if (JSON.stringify(gitlinks) !== JSON.stringify(normalizedGitlinks)) {
+    throw new Error("R2_ADMISSION_PROVISIONING_INVALID: source.gitlinks must be path-sorted");
+  }
+  for (const [index, gitlink] of gitlinks.entries()) {
+    const logical = gitlink?.path;
+    const expectedLength = gitObjectFormat === "sha1" ? 40 : 64;
+    if (
+      typeof logical !== "string"
+      || logical.length === 0
+      || logical.startsWith("/")
+      || logical.split("/").some((part) => part === "" || part === "." || part === "..")
+      || gitlink.oid?.length !== expectedLength
+      || !GIT_OBJECT_ID.test(gitlink.oid)
+    ) {
+      throw new Error(`R2_ADMISSION_PROVISIONING_INVALID: source.gitlinks[${index}] is invalid`);
+    }
+    gitLeaves.push({
+      path: logical,
+      mode: "160000",
+      oid: Buffer.from(gitlink.oid, "hex"),
+    });
+  }
+  entries.sort((left, right) => left.path.localeCompare(right.path));
+  const encoded = `${entries.map(provisioningEntryLine).join("\n")}\n`;
+  return {
+    algorithm: R2_PROVISIONING_CONTENT_VERSION,
+    sha256: digest(encoded),
+    bytes: entries.reduce((total, entry) => total + entry.bytes, 0),
+    entries,
+    gitTree: {
+      objectFormat: gitObjectFormat,
+      oid: gitTreeFromLeaves(gitLeaves, gitObjectFormat).toString("hex"),
+    },
+  };
+}
+
+function verifyProvisionedCommit(source) {
+  const objectFormat = source?.objectFormat;
+  const objectLength = objectFormat === "sha1" ? 40 : objectFormat === "sha256" ? 64 : 0;
+  if (
+    source?.commit?.length !== objectLength
+    || source?.tree?.length !== objectLength
+    || !GIT_OBJECT_ID.test(source.commit)
+    || !GIT_OBJECT_ID.test(source.tree)
+    || source.commitObject?.encoding !== "base64"
+    || typeof source.commitObject?.data !== "string"
+    || source.commitObject.data.length === 0
+  ) {
+    throw new Error(
+      "R2_ADMISSION_PROVISIONING_INVALID: source must carry objectFormat, commit/tree IDs, and base64 raw commit-object bytes",
+    );
+  }
+  const commitBytes = Buffer.from(source.commitObject.data, "base64");
+  if (commitBytes.toString("base64") !== source.commitObject.data) {
+    throw new Error("R2_ADMISSION_PROVISIONING_INVALID: commit object must use canonical base64");
+  }
+  const computedCommit = gitObjectId("commit", commitBytes, objectFormat).toString("hex");
+  const treeLine = commitBytes.toString("utf8").split("\n")[0];
+  if (computedCommit !== source.commit || treeLine !== `tree ${source.tree}`) {
+    throw new Error(
+      "R2_ADMISSION_PROVISIONING_MISMATCH: raw commit object does not bind the declared commit and tree",
+    );
+  }
+  const gitlinks = source.gitlinks ?? [];
+  if (!Array.isArray(gitlinks)) {
+    throw new Error("R2_ADMISSION_PROVISIONING_INVALID: source.gitlinks must be an array");
+  }
+  return { objectFormat, gitlinks };
+}
+
+function loadProvisionedSource({ provisioningManifestPath, repositoryRoot }) {
+  const absoluteManifest = resolve(requiredString(
+    provisioningManifestPath,
+    "provisioning manifest path",
+  ));
+  if (inside(repositoryRoot, absoluteManifest)) {
+    throw new Error(
+      "R2_ADMISSION_PROVISIONING_INVALID: provisioning manifest must be outside the provisioned source root",
+    );
+  }
+  const manifestBytes = readRegular(absoluteManifest, "provisioning manifest");
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestBytes.toString("utf8"));
+  } catch (error) {
+    throw new Error(`R2_ADMISSION_PROVISIONING_INVALID: manifest is not JSON: ${error.message}`);
+  }
+  if (
+    manifest?.version !== R2_PROVISIONING_MANIFEST_VERSION
+    || manifest.content?.algorithm !== R2_PROVISIONING_CONTENT_VERSION
+    || !SHA256.test(manifest.content?.sha256 ?? "")
+    || !Number.isInteger(manifest.content?.bytes)
+    || !Array.isArray(manifest.content?.entries)
+  ) {
+    throw new Error(
+      `R2_ADMISSION_PROVISIONING_INVALID: manifest must satisfy ${R2_PROVISIONING_MANIFEST_VERSION}`,
+    );
+  }
+  const { objectFormat: gitObjectFormat, gitlinks } = verifyProvisionedCommit(manifest.source);
+  const measured = measureProvisionedSourceTree({
+    repositoryRoot,
+    gitObjectFormat,
+    gitlinks,
+  });
+  if (JSON.stringify(canonical(manifest.content)) !== JSON.stringify(canonical(measured))) {
+    throw new Error(
+      "R2_ADMISSION_PROVISIONING_MISMATCH: provisioned source bytes differ from the manifest content root",
+    );
+  }
+  if (measured.gitTree.oid !== manifest.source.tree) {
+    throw new Error(
+      "R2_ADMISSION_PROVISIONING_MISMATCH: deployed bytes do not hash to the commit's Git tree",
+    );
+  }
+  const byPath = new Map(measured.entries.map((entry) => [entry.path, entry]));
+  const gitRead = (args) => {
+    if (JSON.stringify(args) === JSON.stringify(["rev-parse", "HEAD"])) {
+      return manifest.source.commit;
+    }
+    const match = args.length === 2 && args[0] === "show"
+      ? args[1].match(/^HEAD:(.+)$/u)
+      : null;
+    if (match === null) {
+      throw new Error(`R2_ADMISSION_PROVISIONING_UNSUPPORTED_READ: ${args.join(" ")}`);
+    }
+    const logical = match[1];
+    const registered = byPath.get(logical);
+    if (registered?.type !== "file") {
+      throw new Error(`R2_ADMISSION_PROVISIONING_MISSING: ${logical} is not a provisioned regular file`);
+    }
+    const path = resolve(repositoryRoot, logical);
+    if (!inside(repositoryRoot, path)) {
+      throw new Error(`R2_ADMISSION_PROVISIONING_MISSING: ${logical} escapes the provisioned root`);
+    }
+    const bytes = readRegular(path, `provisioned source ${logical}`);
+    if (digest(bytes) !== registered.sha256 || bytes.byteLength !== registered.bytes) {
+      throw new Error(`R2_ADMISSION_PROVISIONING_MISMATCH: ${logical} changed after manifest verification`);
+    }
+    return bytes;
+  };
+  return {
+    gitRead,
+    binding: {
+      version: R2_PROVISIONING_MANIFEST_VERSION,
+      manifest: {
+        path: realpathSync(absoluteManifest),
+        sha256: digest(manifestBytes),
+        bytes: manifestBytes.byteLength,
+      },
+      source: manifest.source,
+      content: {
+        algorithm: measured.algorithm,
+        sha256: measured.sha256,
+        bytes: measured.bytes,
+        entries: measured.entries.length,
+      },
+    },
+  };
+}
+
+export function resolveSourceIdentity({
+  repositoryRoot = REPOSITORY_ROOT,
+  provisioningManifestPath = null,
+  gitRead = git,
+  refusalCode = "R2_ADMISSION_PROVISIONING_REQUIRED",
+}) {
+  if (provisioningManifestPath !== null && provisioningManifestPath !== undefined) {
+    return loadProvisionedSource({ provisioningManifestPath, repositoryRoot });
+  }
+  try {
+    gitRead(["rev-parse", "HEAD"], repositoryRoot);
+    return { gitRead, binding: null };
+  } catch (error) {
+    throw new Error(
+      `${refusalCode}: live Git object reads are unavailable; provide --provisioning-manifest <external-path> containing ${R2_PROVISIONING_MANIFEST_VERSION} for the exact deployed bytes (${error.message})`,
+    );
+  }
 }
 
 export function admissionIdentity(artifact) {
@@ -651,16 +958,57 @@ function sysctlValue(key) {
   return execFileSync("sysctl", ["-n", key], { encoding: "utf8" }).trim();
 }
 
+function linuxCpuIdentity(readTextFile) {
+  let text;
+  try {
+    text = readTextFile("/proc/cpuinfo", "utf8");
+  } catch {
+    return { chip: null, physicalCpuCount: null };
+  }
+  const processors = text.split(/\n\s*\n/u).map((block) => Object.fromEntries(
+    block.split("\n").flatMap((line) => {
+      const separator = line.indexOf(":");
+      return separator < 0 ? [] : [[line.slice(0, separator).trim(), line.slice(separator + 1).trim()]];
+    }),
+  ));
+  const chip = processors
+    .map((processor) => processor["model name"] ?? processor.Processor ?? processor.Hardware)
+    .find((value) => typeof value === "string" && value.length > 0) ?? null;
+  const physicalCores = new Set(processors.flatMap((processor) => (
+    typeof processor["physical id"] === "string" && typeof processor["core id"] === "string"
+      ? [`${processor["physical id"]}:${processor["core id"]}`]
+      : []
+  )));
+  return {
+    chip,
+    physicalCpuCount: physicalCores.size > 0 ? physicalCores.size : null,
+  };
+}
+
 export function currentHostIdentity(dependencies = {}) {
-  const readSysctl = dependencies.sysctlValue ?? sysctlValue;
+  const observedPlatform = (dependencies.platform ?? platform)();
+  let platformIdentity;
+  if (observedPlatform === "darwin") {
+    const readSysctl = dependencies.sysctlValue ?? sysctlValue;
+    platformIdentity = {
+      hardwareModel: readSysctl("hw.model"),
+      chip: readSysctl("machdep.cpu.brand_string"),
+      physicalCpuCount: Number(readSysctl("hw.physicalcpu")),
+    };
+  } else if (observedPlatform === "linux") {
+    platformIdentity = {
+      hardwareModel: null,
+      ...linuxCpuIdentity(dependencies.readTextFile ?? readFileSync),
+    };
+  } else {
+    platformIdentity = { hardwareModel: null, chip: null, physicalCpuCount: null };
+  }
   return {
     hostname: (dependencies.hostname ?? hostname)(),
-    platform: (dependencies.platform ?? platform)(),
+    platform: observedPlatform,
     release: (dependencies.release ?? release)(),
     arch: (dependencies.arch ?? arch)(),
-    hardwareModel: readSysctl("hw.model"),
-    chip: readSysctl("machdep.cpu.brand_string"),
-    physicalCpuCount: Number(readSysctl("hw.physicalcpu")),
+    ...platformIdentity,
     logicalCpuCount: (dependencies.cpus ?? cpus)().length,
     memoryBytes: (dependencies.totalmem ?? totalmem)(),
   };
@@ -693,7 +1041,19 @@ function assertAllowedHost(harnessConfig, cell, observed) {
 export function allCampaignPorts(harnessConfig) {
   const ports = new Set();
   for (const cell of harnessConfig.cells ?? []) {
-    for (let port = cell.ports[0]; port <= cell.ports[1]; port += 1) ports.add(port);
+    for (const range of [cell.ports, cell.m7Ports].filter((value) => value !== undefined)) {
+      if (
+        !Array.isArray(range)
+        || range.length !== 2
+        || !range.every(Number.isInteger)
+        || range[0] < 1
+        || range[1] > 65_535
+        || range[0] > range[1]
+      ) {
+        throw new Error(`R2_ADMISSION_PORTS: cell ${cell.id} has an invalid registered port range`);
+      }
+      for (let port = range[0]; port <= range[1]; port += 1) ports.add(port);
+    }
   }
   return [...ports].sort((left, right) => left - right);
 }
@@ -805,6 +1165,7 @@ export function verifyAdmissionArtifact({
   repositoryRoot = REPOSITORY_ROOT,
   executionBinding = configuredExecutionBinding,
   resolveInstrument = resolveInstrumentArtifacts,
+  provisioningLoader = loadProvisionedSource,
 }) {
   if (
     harnessConfig.status !== "serial-per-cell-admission"
@@ -823,6 +1184,15 @@ export function verifyAdmissionArtifact({
   if (artifact.runId !== harnessConfig.runId || artifact.cellId !== cellId) {
     throw new Error("R2_ADMISSION_IDENTITY: run/cell identity mismatch");
   }
+  if (artifact.sourceProvisioning !== undefined) {
+    const provisioned = provisioningLoader({
+      provisioningManifestPath: artifact.sourceProvisioning?.manifest?.path,
+      repositoryRoot,
+    });
+    if (!sameJson(artifact.sourceProvisioning, provisioned.binding)) {
+      throw new Error("R2_ADMISSION_PROVISIONING_MISMATCH: admission provisioning binding changed");
+    }
+  }
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
   if (!cell || JSON.stringify(artifact.controllerCommand) !== JSON.stringify(cell.controllerCommand)) {
     throw new Error("R2_ADMISSION_COMMAND: artifact does not bind the exact controller command");
@@ -839,8 +1209,12 @@ export function verifyAdmissionArtifact({
   if (
     allowedMachine?.node?.path !== execution.node.path
     || allowedMachine.node.sha256 !== execution.node.sha256
+    || (
+      allowedMachine.node.bytes !== undefined
+      && allowedMachine.node.bytes !== execution.node.bytes
+    )
   ) {
-    throw new Error("R2_ADMISSION_COMMAND: admitted Node binary disagrees with the allowed host toolchain");
+    throw new Error("R2_ADMISSION_COMMAND: admitted Node binary path/digest/size disagrees with the allowed host toolchain");
   }
   assertActualExecution(execution, actualExecution);
   if (
@@ -1036,11 +1410,129 @@ function harnessEvidence(harnessKey, harness) {
   };
 }
 
+export async function inspectNonConsumingAdmissionSmoke({
+  harnessConfigPath,
+  cellId,
+  provisioningManifestPath = null,
+  dependencies = {},
+}) {
+  const configBytes = readRegular(harnessConfigPath, "harness config");
+  const harnessConfig = JSON.parse(configBytes);
+  const cell = harnessConfig.cells?.find((candidate) => candidate.id === cellId);
+  if (!cell) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
+  if (
+    harnessConfig.status !== "serial-per-cell-admission"
+    || harnessConfig.execution?.serial !== true
+    || harnessConfig.execution?.maxConcurrentCells !== 1
+  ) {
+    throw new Error("R2_ADMISSION_SERIALITY: campaign is not in strict per-cell serial admission mode");
+  }
+  const repositoryRoot = dependencies.repositoryRoot ?? REPOSITORY_ROOT;
+  const sourceIdentity = (dependencies.resolveSourceIdentity ?? resolveSourceIdentity)({
+    repositoryRoot,
+    provisioningManifestPath,
+    gitRead: dependencies.gitRead ?? git,
+  });
+  (dependencies.assertCommittedConfig ?? assertCommittedConfig)({
+    harnessConfigPath,
+    configBytes,
+    repositoryRoot,
+    gitRead: sourceIdentity.gitRead,
+  });
+  const seriality = await (dependencies.inspectSeriality ?? inspectCommittedSeriality)({
+    harnessConfig,
+    cellId,
+    repositoryRoot,
+    gitRead: sourceIdentity.gitRead,
+  });
+  const execution = (dependencies.configuredExecutionBinding ?? configuredExecutionBinding)({
+    harnessConfig,
+    cell,
+    repositoryRoot,
+  });
+  if (
+    execution.controller.sha256 !== `sha256:${harnessConfig.pins.instrument.d06MeteringOverlay.laneControllerSha256}`
+    || execution.driver.sha256 !== `sha256:${harnessConfig.pins.instrument.d06MeteringOverlay.productionDriverSha256}`
+  ) {
+    throw new Error("R2_ADMISSION_COMMAND: live controller/driver bytes disagree with the frozen overlay pins");
+  }
+  const observedHostIdentity = (dependencies.currentHostIdentity ?? currentHostIdentity)(dependencies);
+  const host = assertAllowedHost(harnessConfig, cell, observedHostIdentity);
+  const harness = (dependencies.harnessEvidence ?? harnessEvidence)(
+    cell.harness,
+    harnessConfig.harnesses[cell.harness],
+  );
+  if (!harness.version.ok || !harness.auth.ok) {
+    throw new Error("R2_ADMISSION_HARNESS: version/auth probe failed");
+  }
+  const instrumentPath = resolve(repositoryRoot, harnessConfig.pins.instrument.manifestPath);
+  let materializedInstrument;
+  try {
+    materializedInstrument = (dependencies.resolveInstrument ?? resolveInstrumentArtifacts)({
+      instrumentRoot: harnessConfig.paths.instrumentRoot,
+      instrumentPin: harnessConfig.pins.instrument.instrumentPin,
+    });
+  } catch (error) {
+    throw new Error(`R2_ADMISSION_INSTRUMENT: materialized snapshot is invalid: ${error.message}`);
+  }
+  const quiet = await (dependencies.probeLaunchQuiet ?? probeLaunchQuiet)({
+    harnessConfig,
+    seriality,
+    repositoryRoot,
+    now: dependencies.now ?? Date.now,
+    processProbe: dependencies.processProbe ?? activeCampaignProcesses,
+    portProbe: dependencies.portIsUnbound ?? portIsUnbound,
+  });
+  const [loadavg1, loadavg5, loadavg15] = (dependencies.loadavg ?? loadavg)();
+  const policy = loadPolicyForCell(harnessConfig, cell);
+  for (const [metric, value] of Object.entries({ loadavg1, loadavg5, loadavg15 })) {
+    if (typeof value !== "number" || value > policy.ceilingInclusive[metric]) {
+      throw new Error(`R2_ADMISSION_LOAD: smoke ${metric} exceeds its inclusive ceiling`);
+    }
+  }
+  const instrumentBytes = readRegular(instrumentPath, "instrument manifest");
+  return {
+    version: "snapback.r2-non-consuming-admission-smoke.v1",
+    scored: false,
+    attemptConsumed: false,
+    productionLockAcquired: false,
+    runId: harnessConfig.runId,
+    cellId,
+    sourceProvisioning: sourceIdentity.binding,
+    seriality,
+    execution: {
+      node: execution.node,
+      controller: execution.controller,
+      driver: execution.driver,
+      sourceClosure: execution.sourceClosure,
+    },
+    instrument: {
+      pin: harnessConfig.pins.instrument.instrumentPin,
+      sourceSha256: digest(instrumentBytes),
+      materializedSha256: `sha256:${materializedInstrument.manifest.sha256}`,
+    },
+    host,
+    harness,
+    ...quiet,
+    loadIsolation: {
+      policyId: policy.policyId,
+      status: "single-sample-smoke-only-not-production-admission",
+      sample: {
+        sampledAt: new Date((dependencies.now ?? Date.now)()).toISOString(),
+        loadavg1,
+        loadavg5,
+        loadavg15,
+      },
+    },
+  };
+}
+
 export async function createAdmissionArtifact({
   harnessConfigPath,
   cellId,
   reservedBy,
   admissionPath,
+  provisioningManifestPath = null,
   recoverStaleLock = false,
   dependencies = {},
 }) {
@@ -1056,16 +1548,22 @@ export async function createAdmissionArtifact({
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
   if (!cell) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
   const repositoryRoot = dependencies.repositoryRoot ?? REPOSITORY_ROOT;
+  const sourceIdentity = (dependencies.resolveSourceIdentity ?? resolveSourceIdentity)({
+    repositoryRoot,
+    provisioningManifestPath,
+    gitRead: dependencies.gitRead ?? git,
+  });
   (dependencies.assertCommittedConfig ?? assertCommittedConfig)({
     harnessConfigPath,
     configBytes,
     repositoryRoot,
-    gitRead: dependencies.gitRead ?? git,
+    gitRead: sourceIdentity.gitRead,
   });
   const seriality = await (dependencies.inspectSeriality ?? inspectCommittedSeriality)({
     harnessConfig,
     cellId,
     repositoryRoot,
+    gitRead: sourceIdentity.gitRead,
   });
   const execution = (dependencies.configuredExecutionBinding ?? configuredExecutionBinding)({
     harnessConfig,
@@ -1145,6 +1643,7 @@ export async function createAdmissionArtifact({
       issuedAt: new Date(issuedAtMs).toISOString(),
       expiresAt: new Date(issuedAtMs + 30_000).toISOString(),
       harnessConfig: { path: resolve(harnessConfigPath), sha256: digest(configBytes) },
+      ...(sourceIdentity.binding === null ? {} : { sourceProvisioning: sourceIdentity.binding }),
       controllerCommand: cell.controllerCommand,
       execution,
       registeredCell: registeredCellExpectations(harnessConfig, cell),
@@ -1183,6 +1682,7 @@ export async function createAdmissionArtifact({
       repositoryRoot,
       executionBinding: dependencies.configuredExecutionBinding ?? configuredExecutionBinding,
       resolveInstrument: dependencies.resolveInstrument ?? resolveInstrumentArtifacts,
+      provisioningLoader: dependencies.provisioningLoader ?? loadProvisionedSource,
     });
     mkdirSync(dirname(resolve(admissionPath)), { recursive: true });
     const privateCell = inspectPrivateCellPath({ harnessConfig, cellId });
@@ -1225,12 +1725,13 @@ function parseArgs(argv) {
     else if (arg === "--cell") values.cellId = argv[index];
     else if (arg === "--reserved-by") values.reservedBy = argv[index];
     else if (arg === "--out") values.admissionPath = argv[index];
+    else if (arg === "--provisioning-manifest") values.provisioningManifestPath = argv[index];
     else throw new Error(`unknown argument ${arg}`);
   }
   return values;
 }
 
-const USAGE = "node r2-cell-admission.mjs --harness-config <path> --cell <id> --reserved-by <operator> --out <admission.json> [--recover-stale-lock]";
+const USAGE = "node r2-cell-admission.mjs --harness-config <path> --cell <id> --reserved-by <operator> --out <admission.json> [--provisioning-manifest <external-path>] [--recover-stale-lock]";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const options = parseArgs(process.argv.slice(2));

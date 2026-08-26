@@ -31,6 +31,7 @@ import {
   loadPolicyForCell,
   probeLaunchQuiet,
   registeredCellExpectations,
+  resolveSourceIdentity,
 } from "./r2-cell-admission.mjs";
 import {
   acquireExclusiveHostLock,
@@ -51,6 +52,10 @@ import {
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const SHA256 = /^(?:sha256:)?[a-f0-9]{64}$/u;
+const SUPPORTED_PRODUCTION_DRIVERS = new Set([
+  "social-messenger-r2-native-cli-driver.v1",
+  "social-messenger-full-journey-native-cli-driver.v1",
+]);
 
 function git(args, repositoryRoot) {
   const value = execFileSync("git", args, {
@@ -273,7 +278,7 @@ function assertRawRetainedManifestIdentity({
   const driverStampedAt = Date.parse(manifest.driver?.stampedAt);
   if (
     manifest.laneRunId !== expected.laneRunId
-    || manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1"
+    || !SUPPORTED_PRODUCTION_DRIVERS.has(manifest.driver?.id)
     || manifest.capFamily !== expected.capFamily
     || manifest.adapter !== expected.adapter
     || base.harness?.model !== expected.model
@@ -379,6 +384,7 @@ function assertAttemptProvenance({
   configBytes,
   repositoryRoot,
   observedHostIdentity,
+  sourceProvisioning,
 }) {
   const expectedCell = registeredCellExpectations(harnessConfig, cell);
   const migration = retainedFinalizationMigration({ harnessConfig, attempt });
@@ -418,6 +424,7 @@ function assertAttemptProvenance({
     || admission.identity?.algorithm !== "sha256-canonical-json-without-identity"
     || admission.identity?.sha256 !== admissionIdentity(admission)
     || admission.runId !== harnessConfig.runId
+    || !sameJson(admission.sourceProvisioning ?? null, sourceProvisioning)
     || admission.cellId !== cell.id
     || !sameJson(admission.registeredCell, expectedCell)
     || !sameJson(admission.execution, attempt.execution)
@@ -644,7 +651,7 @@ function assertRetainedCellIdentity({
   const driverStampedAt = Date.parse(manifest.driver?.stampedAt);
   if (
     manifest.laneRunId !== expected.laneRunId
-    || manifest.driver?.id !== "social-messenger-r2-native-cli-driver.v1"
+    || !SUPPORTED_PRODUCTION_DRIVERS.has(manifest.driver?.id)
     || manifest.capFamily !== expected.capFamily
     || manifest.adapter !== expected.adapter
     || base.harness?.model !== expected.model
@@ -951,6 +958,7 @@ export async function finalizeExisting({
   harnessConfigPath,
   cellId,
   publish: shouldPublish = false,
+  provisioningManifestPath = null,
   recoverStaleLock = false,
   reservedBy = "r2-finalize-existing",
   dependencies = {},
@@ -959,11 +967,17 @@ export async function finalizeExisting({
   const absoluteConfigPath = resolve(harnessConfigPath);
   const configBytes = readFileSync(absoluteConfigPath);
   const harnessConfig = JSON.parse(configBytes.toString("utf8"));
+  const sourceIdentity = (dependencies.resolveSourceIdentity ?? resolveSourceIdentity)({
+    repositoryRoot,
+    provisioningManifestPath,
+    gitRead: dependencies.gitRead ?? git,
+    refusalCode: "R2_FINALIZE_PROVISIONING_REQUIRED",
+  });
   (dependencies.assertCommittedConfig ?? assertCommittedConfig)({
     harnessConfigPath: absoluteConfigPath,
     configBytes,
     repositoryRoot,
-    gitRead: dependencies.gitRead ?? git,
+    gitRead: sourceIdentity.gitRead,
   });
   liveSourceClosure({ harnessConfig, repositoryRoot });
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
@@ -987,6 +1001,7 @@ export async function finalizeExisting({
     configBytes,
     repositoryRoot,
     observedHostIdentity,
+    sourceProvisioning: sourceIdentity.binding,
   });
   const manifestPath = join(cellRoot, "metering-manifest.json");
   const retainedManifestBytes = readRegular(manifestPath, cellRoot, "retained metering manifest");
@@ -1002,7 +1017,7 @@ export async function finalizeExisting({
     harnessConfig,
     cellId,
     repositoryRoot,
-    gitRead: dependencies.gitRead ?? git,
+    gitRead: sourceIdentity.gitRead,
   });
   const serialityHeadAccepted = provenance.admission.seriality?.gitHead === seriality.gitHead
     || (
@@ -1134,12 +1149,13 @@ function parseArgs(argv) {
     if (arg === "--harness-config") options.harnessConfigPath = argv[index];
     else if (arg === "--cell") options.cellId = argv[index];
     else if (arg === "--reserved-by") options.reservedBy = argv[index];
+    else if (arg === "--provisioning-manifest") options.provisioningManifestPath = argv[index];
     else throw new Error(`unknown argument ${arg}`);
   }
   return options;
 }
 
-const USAGE = "node r2-finalize-existing.mjs --harness-config <path> --cell <id> [--publish] [--recover-stale-lock] [--reserved-by <operator>]";
+const USAGE = "node r2-finalize-existing.mjs --harness-config <path> --cell <id> [--publish] [--provisioning-manifest <external-path>] [--recover-stale-lock] [--reserved-by <operator>]";
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const options = parseArgs(process.argv.slice(2));

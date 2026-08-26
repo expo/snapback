@@ -125,7 +125,7 @@ fail-closed incompatibilities (macOS-only host probes; Git-object reads
 against this gitless host tree; unavailable Node-byte/kernel/memory
 bindings; admission ignoring the M7 port blocks; no non-consuming smoke)
 are documented at the top of `RUNBOOK.md` and filed as
-`issues/20260825-metering-driver-full-journey-portability.md` — that work
+`issues/closed/20260825-metering-driver-full-journey-portability.md` — that work
 is the R3 prerequisite, not this run's.
 
 **This run therefore executes in the manual shape** (the 0.1.25 baseline's

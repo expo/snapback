@@ -103,10 +103,14 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
   const milestones = {};
   for (const [milestone, projected] of attempted) {
     const baseMilestone = record.socialMessenger?.milestones?.[milestone] ?? {};
+    const {
+      wallStartedAt = previousAt,
+      ...projectedAuthoring
+    } = projected.authoring;
     const authoring = {
       ...baseMilestone.authoring,
-      ...projected.authoring,
-      wallSeconds: secondsBetween(previousAt, projected.authoring.terminalAt),
+      ...projectedAuthoring,
+      wallSeconds: secondsBetween(wallStartedAt, projected.authoring.terminalAt),
     };
     const caps = {
       wallCapSeconds: baseMilestone.caps?.wallCapSeconds ?? null,
@@ -171,5 +175,12 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
     efficiencyScorecardEligibility: patch.efficiencyScorecardEligibility,
     suiteStatusLinkage: patch.suiteStatusLinkage,
   };
+  if (record.socialMessenger.clocks?.m7Session !== undefined && milestones.M7 !== undefined) {
+    record.socialMessenger.clocks.m7Session = {
+      ...record.socialMessenger.clocks.m7Session,
+      wallSeconds: milestones.M7.authoring.wallSeconds,
+      tokens: milestones.M7.authoring.tokens,
+    };
+  }
   return record;
 }

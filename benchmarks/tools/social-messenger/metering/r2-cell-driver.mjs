@@ -4,6 +4,7 @@ import {
   access,
   appendFile,
   copyFile,
+  lstat,
   mkdir,
   readFile,
   readdir,
@@ -29,9 +30,11 @@ import {
 } from "./observations.mjs";
 import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 
-// @ref LLP 0295#r2-load-isolated-calibration-rerun — each preregistered cell
-// runs one exact native harness session behind controller-owned milestone gates.
-const DRIVER_ID = "social-messenger-r2-native-cli-driver.v1";
+const REDUCED_DRIVER_ID = "social-messenger-r2-native-cli-driver.v1";
+const FULL_JOURNEY_DRIVER_ID = "social-messenger-full-journey-native-cli-driver.v1";
+const REDUCED_MILESTONES = Object.freeze(["M1", "M2", "M3"]);
+const CONTINUOUS_MILESTONES = Object.freeze(["M1", "M2", "M3", "M4", "M5", "M6", "M8"]);
+const FULL_JOURNEY_MILESTONES = Object.freeze([...CONTINUOUS_MILESTONES, "M7"]);
 const MARKER_FILE = "events/cell-milestones.jsonl";
 const states = new Map();
 
@@ -69,6 +72,44 @@ function nullCounts() {
   return { input: null, output: null, cacheRead: null, cacheWrite: null, reasoning: null };
 }
 
+function sameArray(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+// @ref LLP 0201#d1--the-app-and-why-this-app — full scope is a continuous
+// M1-M6+M8 builder followed by a genuinely fresh, handoff-only M7 session.
+// The original M1-M3 R2 shape remains a distinct, unchanged reduced mode.
+export function resolveCellJourney(config) {
+  if (sameArray(config.milestones, REDUCED_MILESTONES)) {
+    return {
+      runScope: "reduced",
+      driverId: REDUCED_DRIVER_ID,
+      continuous: REDUCED_MILESTONES,
+      fresh: [],
+    };
+  }
+  const shape = config.harnessConfig.execution?.sessionShape;
+  if (
+    sameArray(config.milestones, FULL_JOURNEY_MILESTONES)
+    && sameArray(shape?.continuous, CONTINUOUS_MILESTONES)
+    && sameArray(shape?.fresh, ["M7"])
+    && shape.m7FreshSessionRequired === true
+    && shape.m7BackendState === "fresh-starter-only-pre-replay"
+    && Array.isArray(config.cell.m7Ports)
+    && config.cell.m7Ports.length === 2
+  ) {
+    return {
+      runScope: "full",
+      driverId: FULL_JOURNEY_DRIVER_ID,
+      continuous: CONTINUOUS_MILESTONES,
+      fresh: ["M7"],
+    };
+  }
+  throw new Error(
+    "R2_DRIVER_SESSION_SHAPE: milestones must be the retained M1-M3 reduced shape or the registered continuous M1-M6+M8 plus fresh-M7 full journey",
+  );
+}
+
 function renderPrompt(config, cellRoot) {
   const source = resolve(config.planDirectory, requiredString(config.cell.promptFile, "cell.promptFile"));
   return readFile(source, "utf8").then((prompt) => {
@@ -76,9 +117,12 @@ function renderPrompt(config, cellRoot) {
       .replaceAll("{{LANE_ID}}", config.cell.id)
       .replaceAll("{{MODEL}}", config.cell.model)
       .replaceAll("{{PORT_BASE}}", String(config.cell.ports[0]))
-      .replaceAll("{{PORT_MAX}}", String(config.cell.ports[1]));
+      .replaceAll("{{PORT_MAX}}", String(config.cell.ports[1]))
+      .replaceAll("{{M7_PORT_BASE}}", String(config.cell.m7Ports?.[0] ?? ""))
+      .replaceAll("{{M7_PORT_MAX}}", String(config.cell.m7Ports?.[1] ?? ""));
     const signal = join(config.repositoryRoot, "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs");
-    const appendix = `
+    const journey = resolveCellJourney(config);
+    const reducedAppendix = `
 
 ## Observation-controller handoff (instrument 0.3.4-m8)
 
@@ -108,8 +152,96 @@ them from the native stream, typed observations, receipts, and these terminal
 signals. Finish diary.md, essay.md, and final-report.md before sending M3;
 the M3 signal is the last authoring action before the native harness exits.
 `;
-    return `${rendered.trimEnd()}${appendix}`;
+    const fullAppendix = `
+
+## Full-journey observation-controller handoff (instrument 0.3.4-m8)
+
+The external lane controller owns the authoring clocks and is already running.
+This native session is the continuous builder only: complete M1, M2, M3, M4,
+M5, M6, then M8 in order. For each milestone, run the suite and choreography
+with their typed observation outputs and the same retained setup-identity.json,
+then signal the boundary with r2-cell-signal.mjs exactly as shown below (replace
+M1/m1 for the active milestone):
+
+  node ${JSON.stringify(signal)} --root ${JSON.stringify(cellRoot)} --milestone M1 \\
+    --status green --terminal-reason green \\
+    --suite-status suite-status.json \\
+    --suite-observations receipts/m1-suite.observations.jsonl \\
+    --choreography-receipt receipts/m1-choreography.jsonl \\
+    --choreography-observations receipts/m1-choreography.jsonl.observations.jsonl
+
+Send the M8 signal immediately when M8's suite and choreography are green; that
+signal ends M8's authoring clock. After it returns, run the separately clocked
+scale replay and write scale-replay.json using
+snapback.full-journey-scale-replay.v1. It must carry attempted=true, the replay
+cap/probe-exclusion fields, and a chronological attempts array. Attempts are
+numbered from 1; every non-final attempt has disposition=continued; each later
+attempt names the immediately preceding attempt in continuationOf; the final
+attempt is completed or aborted. Every attempt records startedAt, finishedAt,
+and settledPrefix. Then prepare the fresh starter-state backend plus a
+self-contained handoff at m7-handoff.md. That file must contain every
+instruction and context the fresh M7 agent needs; the driver hash-binds its
+bytes and does not forward this session's prompt or conversation. Exit after
+both files are complete. Do not build M7 here. For a terminal failure, use
+status aborted/terminal-reason abort, or capability-failure with terminal-reason
+wall-cap or token-cap, and retain every sidecar that exists. Never hand-author
+aggregate metering or record fields; the controller composes them from retained
+native evidence.
+`;
+    return `${rendered.trimEnd()}${journey.runScope === "reduced" ? reducedAppendix : fullAppendix}`;
   });
+}
+
+async function renderFreshM7Prompt(state) {
+  const handoffPath = join(state.root, "m7-handoff.md");
+  let status;
+  try {
+    status = await lstat(handoffPath);
+  } catch (error) {
+    throw new Error(`R2_DRIVER_M7_HANDOFF: m7-handoff.md is absent: ${error.message}`);
+  }
+  if (status.isSymbolicLink() || !status.isFile()) {
+    throw new Error("R2_DRIVER_M7_HANDOFF: m7-handoff.md must be a regular non-symlink file");
+  }
+  const handoff = await readFile(handoffPath, "utf8");
+  if (handoff.trim().length === 0) {
+    throw new Error("R2_DRIVER_M7_HANDOFF: m7-handoff.md must not be empty");
+  }
+  state.m7HandoffSource = {
+    path: "m7-handoff.md",
+    sha256: sha256Prefixed(handoff),
+  };
+  const signal = join(
+    state.config.repositoryRoot,
+    "benchmarks/tools/social-messenger/metering/r2-cell-signal.mjs",
+  );
+  return `# Fresh-session M7 handoff
+
+This is a new native harness session. The prior builder prompt and conversation
+were not forwarded. Work only from the byte-bound handoff below and the files it
+names. Use only ports ${state.config.cell.m7Ports[0]}-${state.config.cell.m7Ports[1]};
+start a fresh backend seeded from starter state, never the scale database.
+
+Handoff SHA-256: ${sha256Prefixed(handoff)}
+
+--- BEGIN BUILDER HANDOFF ---
+${handoff.trimEnd()}
+--- END BUILDER HANDOFF ---
+
+Complete only M7. Run its regression suite and standalone choreography with
+typed sidecars, write the M7 diary/essay/final report required by the handoff,
+then make this the final command before exiting:
+
+  node ${JSON.stringify(signal)} --root ${JSON.stringify(state.root)} --milestone M7 \\
+    --status green --terminal-reason green \\
+    --suite-status suite-status.json \\
+    --suite-observations receipts/m7-suite.observations.jsonl \\
+    --choreography-receipt receipts/m7-choreography.jsonl \\
+    --choreography-observations receipts/m7-choreography.jsonl.observations.jsonl
+
+For a terminal failure, signal aborted/abort or capability-failure with wall-cap
+or token-cap and retain every sidecar that exists.
+`;
 }
 
 function recordBase(
@@ -119,6 +251,7 @@ function recordBase(
   instrumentManifest,
   instrumentManifestText,
 ) {
+  const journey = resolveCellJourney(config);
   const promptBytes = Buffer.byteLength(renderedPrompt);
   const promptDigest = sha256(renderedPrompt);
   const assertion = instrumentManifest.artifacts.assertions;
@@ -193,7 +326,7 @@ function recordBase(
         deliveredBytes: promptBytes,
         preflightWarnings: [],
       },
-      runScope: "reduced",
+      runScope: journey.runScope,
       capFamily: capFamily(config.cell.harness),
       deploymentPosture: "local-dev-server",
       milestones,
@@ -212,7 +345,20 @@ function recordBase(
         version: instrumentManifest.versions.schema,
         sha256: assertion.sha256,
       },
-      clocks: { grading: { sessions: [{ wallSeconds: 0, tokens: nullCounts() }] } },
+      clocks: {
+        grading: { sessions: [{ wallSeconds: 0, tokens: nullCounts() }] },
+        ...(journey.runScope === "full" ? {
+          replay: {
+            attempted: false,
+            wallSeconds: null,
+            capSeconds: null,
+            capFractionUsed: null,
+            capExhausted: null,
+            probeWallSecondsExcluded: null,
+          },
+          m7Session: { wallSeconds: null, tokens: nullCounts() },
+        } : {}),
+      },
       grading: {
         graderReportPath: null,
         graderFamily: null,
@@ -225,18 +371,22 @@ function recordBase(
 
 function harnessInvocation(state) {
   const argv = [...(state.config.harness.argvTemplate ?? [])];
-  const promptFile = state.promptPath;
+  const promptFile = state.currentSession.promptPath;
   const promptMode = state.config.harness.promptDelivery;
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === "{renderedPrompt}") argv[index] = promptFile;
   }
   if (state.config.cell.harness === "claude-opus5") {
-    argv.push("--session-id", state.nativeSessionId, state.renderedPrompt);
+    argv.push(
+      "--session-id",
+      state.currentSession.nativeSessionId,
+      state.currentSession.renderedPrompt,
+    );
   }
   return {
     binary: requiredString(state.config.harness.binary, "harness.binary"),
     argv,
-    stdin: promptMode === "stdin" ? state.renderedPrompt : null,
+    stdin: promptMode === "stdin" ? state.currentSession.renderedPrompt : null,
   };
 }
 
@@ -318,6 +468,7 @@ function handleNativeRecord(state, record) {
     && record?.type === "thread.started"
     && typeof record.thread_id === "string"
   ) {
+    state.currentSession.nativeSessionId = record.thread_id;
     state.nativeSessionId = record.thread_id;
   }
   if (!state.controls) return;
@@ -439,10 +590,17 @@ function handleNativeRecord(state, record) {
 async function launchHarness(state) {
   const invocation = harnessInvocation(state);
   await access(invocation.binary, constants.X_OK);
-  const stdoutPath = join(state.root, "events", "harness.stdout.jsonl");
-  const stderrPath = join(state.root, "events", "harness.stderr.log");
+  const suffix = state.currentSession.sourceId === "builder"
+    && state.journey.runScope === "reduced"
+    ? ""
+    : `.${state.currentSession.sourceId}`;
+  const stdoutPath = join(state.root, "events", `harness${suffix}.stdout.jsonl`);
+  const stderrPath = join(state.root, "events", `harness${suffix}.stderr.log`);
   await writeFile(stdoutPath, "", "utf8");
   await writeFile(stderrPath, "", "utf8");
+  state.currentSession.startedAt = new Date().toISOString();
+  state.currentSession.stdoutPath = stdoutPath;
+  state.currentSession.stderrPath = stderrPath;
   const child = spawn(invocation.binary, invocation.argv, {
     cwd: state.root,
     env: {
@@ -452,6 +610,7 @@ async function launchHarness(state) {
     stdio: ["pipe", "pipe", "pipe"],
   });
   state.child = child;
+  state.currentSession.child = child;
   state.exit = new Promise((resolveExit) => {
     child.once("exit", (code, signal) => resolveExit({ code, signal }));
     child.once("error", (error) => resolveExit({
@@ -468,10 +627,16 @@ async function launchHarness(state) {
     await state.closed;
     throw new Error(`R2 native harness failed to spawn: ${failure.error ?? "missing child PID"}`);
   }
+  state.currentSession.pid = child.pid;
+  state.sessionRuns.push(state.currentSession);
   const ownershipPath = join(state.root, "process-ownership.json");
   try {
     const ownership = JSON.parse(await readFile(ownershipPath, "utf8"));
     ownership.nativeHarnessPid = child.pid;
+    ownership.nativeHarnessPids = [...new Set([
+      ...(ownership.nativeHarnessPids ?? []),
+      child.pid,
+    ])];
     ownership.nativeHarnessStartedAt = new Date().toISOString();
     ownership.updatedAt = ownership.nativeHarnessStartedAt;
     const nextPath = `${ownershipPath}.next`;
@@ -497,6 +662,44 @@ async function launchHarness(state) {
   });
   if (invocation.stdin !== null) child.stdin.end(invocation.stdin);
   else child.stdin.end();
+}
+
+async function beginFreshM7Session(state) {
+  const continuousExit = await state.exit;
+  await state.closed;
+  await state.streamWriteQueue;
+  if (continuousExit.error || continuousExit.code !== 0) {
+    throw new Error(
+      `continuous native ${state.config.cell.harness} CLI exited ${continuousExit.error ?? continuousExit.code ?? continuousExit.signal}`,
+    );
+  }
+  const renderedPrompt = await renderFreshM7Prompt(state);
+  const promptPath = join(state.root, "rendered-m7-prompt.md");
+  await writeFile(promptPath, renderedPrompt, { encoding: "utf8", flag: "wx" });
+  state.m7Handoff = {
+    source: state.m7HandoffSource,
+    renderedPrompt: await retainedDescriptor(state.root, promptPath),
+    contextPolicy: "fresh-native-session-handoff-only.v1",
+    backendState: "fresh-starter-only-pre-replay",
+  };
+  state.currentSession = {
+    kind: "fresh-m7",
+    sourceId: "fresh-m7",
+    parentSourceId: "builder",
+    role: "builder-descendant",
+    nativeSessionId: randomUUID(),
+    renderedPrompt,
+    promptPath,
+    startedAt: null,
+    stdoutPath: null,
+    stderrPath: null,
+    pid: null,
+    child: null,
+  };
+  state.nativeSessionId = state.currentSession.nativeSessionId;
+  state.child = null;
+  state.exit = null;
+  state.closed = null;
 }
 
 async function readMarkers(state) {
@@ -542,6 +745,109 @@ async function waitForMarker(state, milestone) {
         `native ${state.config.cell.harness} CLI exited before ${milestone} terminal signal (${JSON.stringify(exit.value)})`,
       );
     }
+  }
+}
+
+function validateScaleReplay(value) {
+  if (
+    value?.version !== "snapback.full-journey-scale-replay.v1"
+    || value.attempted !== true
+    || !Number.isFinite(value.capSeconds)
+    || value.capSeconds <= 0
+    || !Number.isFinite(value.probeWallSecondsExcluded)
+    || value.probeWallSecondsExcluded < 0
+    || !Array.isArray(value.attempts)
+    || value.attempts.length === 0
+  ) {
+    throw new Error("R2_DRIVER_SCALE_REPLAY: scale-replay.json has an invalid clock contract");
+  }
+  let previousFinishedAt = null;
+  let totalAttemptSeconds = 0;
+  for (const [index, attempt] of value.attempts.entries()) {
+    const startedAt = Date.parse(attempt?.startedAt);
+    const finishedAt = Date.parse(attempt?.finishedAt);
+    const final = index === value.attempts.length - 1;
+    if (
+      attempt?.attempt !== index + 1
+      || !Number.isFinite(startedAt)
+      || !Number.isFinite(finishedAt)
+      || finishedAt < startedAt
+      || (previousFinishedAt !== null && startedAt < previousFinishedAt)
+      || !Number.isInteger(attempt.settledPrefix)
+      || attempt.settledPrefix < 0
+      || (index === 0 ? attempt.continuationOf !== null : attempt.continuationOf !== index)
+      || (final
+        ? !["completed", "aborted"].includes(attempt.disposition)
+        : attempt.disposition !== "continued")
+    ) {
+      throw new Error(
+        `R2_DRIVER_SCALE_REPLAY: attempt ${index + 1} violates chronological attempt/continuation semantics`,
+      );
+    }
+    previousFinishedAt = finishedAt;
+    totalAttemptSeconds += (finishedAt - startedAt) / 1_000;
+  }
+  if (value.probeWallSecondsExcluded > totalAttemptSeconds) {
+    throw new Error("R2_DRIVER_SCALE_REPLAY: excluded probe wall exceeds attempted wall");
+  }
+  const wallSeconds = totalAttemptSeconds - value.probeWallSecondsExcluded;
+  const capFractionUsed = wallSeconds / value.capSeconds;
+  const capExhausted = wallSeconds >= value.capSeconds;
+  if (
+    value.wallSeconds !== wallSeconds
+    || value.capFractionUsed !== capFractionUsed
+    || value.capExhausted !== capExhausted
+  ) {
+    throw new Error("R2_DRIVER_SCALE_REPLAY: derived replay clock fields do not match attempt timestamps");
+  }
+  return {
+    attempted: true,
+    wallSeconds,
+    capSeconds: value.capSeconds,
+    capFractionUsed,
+    capExhausted,
+    probeWallSecondsExcluded: value.probeWallSecondsExcluded,
+  };
+}
+
+async function waitForScaleReplay(state) {
+  const path = join(state.root, "scale-replay.json");
+  while (true) {
+    try {
+      const status = await lstat(path);
+      if (status.isSymbolicLink() || !status.isFile()) {
+        throw new Error("R2_DRIVER_SCALE_REPLAY: scale-replay.json must be a regular non-symlink file");
+      }
+      const bytes = await readFile(path);
+      const value = JSON.parse(bytes.toString("utf8"));
+      state.scaleReplay = {
+        clock: validateScaleReplay(value),
+        attempts: value.attempts,
+        artifact: { path: "scale-replay.json", sha256: sha256Prefixed(bytes) },
+      };
+      return state.scaleReplay;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    const exit = await Promise.race([
+      state.exit.then((value) => ({ type: "exit", value })),
+      new Promise((resolveWait) => setTimeout(() => resolveWait({ type: "poll" }), 250)),
+    ]);
+    if (exit.type === "exit") {
+      throw new Error(
+        `R2_DRIVER_SCALE_REPLAY: continuous native session exited before scale-replay.json (${JSON.stringify(exit.value)})`,
+      );
+    }
+  }
+}
+
+async function releaseNativeSignalForExecutionOrder(state, milestone) {
+  const numericNext = `M${Number(milestone.slice(1)) + 1}`;
+  const configuredNext = state.config.milestones[
+    state.config.milestones.indexOf(milestone) + 1
+  ];
+  if (numericNext !== configuredNext && numericNext !== "M4") {
+    await writeFile(join(state.root, "gates", numericNext), `${new Date().toISOString()}\n`);
   }
 }
 
@@ -666,7 +972,7 @@ async function receiptDescriptor(state, marker) {
   };
 }
 
-async function findCodexRollout(state) {
+async function findCodexRollout(state, nativeSession) {
   const searchRoot = process.env.CODEX_HOME ?? join(homedir(), ".codex");
   const candidates = [];
   async function visit(directory, depth = 0) {
@@ -678,7 +984,7 @@ async function findCodexRollout(state) {
       if (entry.isDirectory()) await visit(path, depth + 1);
       else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
         const status = await stat(path);
-        if (status.mtimeMs >= Date.parse(state.startedAt) - 5_000) candidates.push(path);
+        if (status.mtimeMs >= Date.parse(nativeSession.startedAt) - 5_000) candidates.push(path);
       }
     }
   }
@@ -688,20 +994,23 @@ async function findCodexRollout(state) {
     const meta = text.split(/\r?\n/u).filter(Boolean).map((line) => {
       try { return JSON.parse(line); } catch { return null; }
     }).find((record) => record?.type === "session_meta" && typeof record?.payload?.id === "string");
-    if (!meta || meta.payload.id !== state.nativeSessionId) continue;
-    const target = join(state.root, "events", "codex-rollout.jsonl");
+    if (!meta || meta.payload.id !== nativeSession.nativeSessionId) continue;
+    const target = join(
+      state.root,
+      "events",
+      nativeSession.sourceId === "builder" && state.journey.runScope === "reduced"
+        ? "codex-rollout.jsonl"
+        : `codex-rollout.${nativeSession.sourceId}.jsonl`,
+    );
     await copyFile(path, target);
     return {
-      adapter: "codex",
-      sessions: [{
-        sourceId: "builder",
-        parentSourceId: null,
-        role: "builder",
-        nativeSessionId: meta.payload.id,
-        nativeAgentId: null,
-        ...(await retainedDescriptor(state.root, target)),
-      }],
-      unavailableReason: null,
+      sourceId: nativeSession.sourceId,
+      parentSourceId: nativeSession.parentSourceId,
+      role: nativeSession.role,
+      startedAt: nativeSession.startedAt,
+      nativeSessionId: meta.payload.id,
+      nativeAgentId: null,
+      ...(await retainedDescriptor(state.root, target)),
     };
   }
   return null;
@@ -709,29 +1018,38 @@ async function findCodexRollout(state) {
 
 async function meteringSession(state) {
   if (state.config.cell.harness === "grok-46") return null;
-  if (state.config.cell.harness === "codex-sol") return findCodexRollout(state);
-  const path = join(state.root, "events", "harness.stdout.jsonl");
-  const text = await readFile(path, "utf8");
-  const records = text.split(/\r?\n/u).filter(Boolean).map((line) => {
-    try { return JSON.parse(line); } catch { return null; }
-  }).filter(Boolean);
-  const carriesSession = records.some((record) => (
-    record.sessionId === state.nativeSessionId || record.session_id === state.nativeSessionId
-  ));
-  const carriesUsage = records.some((record) => record?.message?.usage);
-  if (!carriesSession || !carriesUsage) return null;
-  return {
-    adapter: "claude",
-    sessions: [{
-      sourceId: "builder",
-      parentSourceId: null,
-      role: "builder",
-      nativeSessionId: state.nativeSessionId,
+  if (state.config.cell.harness === "codex-sol") {
+    const sessions = [];
+    for (const nativeSession of state.sessionRuns) {
+      const retained = await findCodexRollout(state, nativeSession);
+      if (retained === null) return null;
+      sessions.push(retained);
+    }
+    return { adapter: "codex", sessions, unavailableReason: null };
+  }
+  const sessions = [];
+  for (const nativeSession of state.sessionRuns) {
+    const text = await readFile(nativeSession.stdoutPath, "utf8");
+    const records = text.split(/\r?\n/u).filter(Boolean).map((line) => {
+      try { return JSON.parse(line); } catch { return null; }
+    }).filter(Boolean);
+    const carriesSession = records.some((record) => (
+      record.sessionId === nativeSession.nativeSessionId
+      || record.session_id === nativeSession.nativeSessionId
+    ));
+    const carriesUsage = records.some((record) => record?.message?.usage);
+    if (!carriesSession || !carriesUsage) return null;
+    sessions.push({
+      sourceId: nativeSession.sourceId,
+      parentSourceId: nativeSession.parentSourceId,
+      role: nativeSession.role,
+      startedAt: nativeSession.startedAt,
+      nativeSessionId: nativeSession.nativeSessionId,
       nativeAgentId: null,
-      ...(await retainedDescriptor(state.root, path)),
-    }],
-    unavailableReason: null,
-  };
+      ...(await retainedDescriptor(state.root, nativeSession.stdoutPath)),
+    });
+  }
+  return { adapter: "claude", sessions, unavailableReason: null };
 }
 
 async function writeTerminalArtifacts(state, error) {
@@ -808,7 +1126,7 @@ async function writeTerminalArtifacts(state, error) {
   const adapter = session?.adapter ?? "unavailable";
   const boundaries = {
     laneRunId: state.config.laneRunId,
-    driverId: DRIVER_ID,
+    driverId: state.journey.driverId,
     milestones: {},
   };
   const receipts = [];
@@ -841,32 +1159,66 @@ async function writeTerminalArtifacts(state, error) {
   }
   let firstProductEdit = null;
   if (adapter === "codex") {
-    const builder = session.sessions.find((candidate) => candidate.role === "builder");
-    if (builder === undefined) throw new Error("Codex finalization lacks its builder session");
-    const rolloutPath = resolve(state.root, builder.path);
-    const records = parseJsonLines(await readFile(rolloutPath, "utf8"), builder.path);
-    recoverCodexSignalSettlements({
-      records,
-      boundaryValue: boundaries,
-      streamClosedAt: markers.some((marker) => marker.status !== "green")
-        ? driverFinalizedAt
-        : null,
-    });
-    const recoveredFileChanges = recoverCodexFileChanges({
-      records,
-      boundaryValue: boundaries,
-      laneRunId: state.config.laneRunId,
-      productRoot: state.root,
-      sourceId: builder.sourceId,
-      nativeSessionId: builder.nativeSessionId,
-      nativeStreamSha256: builder.sha256,
-    });
-    firstProductEdit = recoveredFileChanges.firstProductEdit;
-    if (recoveredFileChanges.events.length > 0) {
+    const fileChangeEvents = [];
+    for (const nativeSession of session.sessions) {
+      const rolloutPath = resolve(state.root, nativeSession.path);
+      const records = parseJsonLines(
+        await readFile(rolloutPath, "utf8"),
+        nativeSession.path,
+      );
+      const sessionMilestones = nativeSession.sourceId === "fresh-m7"
+        ? ["M7"]
+        : state.journey.continuous;
+      const sessionBoundaries = {
+        ...boundaries,
+        milestones: Object.fromEntries(sessionMilestones.flatMap((milestone) => (
+          boundaries.milestones[milestone] === undefined
+            ? []
+            : [[milestone, boundaries.milestones[milestone]]]
+        ))),
+      };
+      if (Object.keys(sessionBoundaries.milestones).length > 0) {
+        recoverCodexSignalSettlements({
+          records,
+          boundaryValue: sessionBoundaries,
+          streamClosedAt: Object.values(sessionBoundaries.milestones)
+            .some((boundary) => boundary.status !== "green")
+            ? driverFinalizedAt
+            : null,
+          ...(state.journey.runScope === "full" && nativeSession.sourceId === "builder"
+            ? {
+                closingSettlementSelection: "first",
+                allowTrailingUsage: true,
+              }
+            : {}),
+        });
+      }
+      const recoveredFileChanges = recoverCodexFileChanges({
+        records,
+        boundaryValue: boundaries,
+        laneRunId: state.config.laneRunId,
+        productRoot: state.root,
+        sourceId: nativeSession.sourceId,
+        nativeSessionId: nativeSession.nativeSessionId,
+        nativeStreamSha256: nativeSession.sha256,
+      });
+      fileChangeEvents.push(...recoveredFileChanges.events);
+      if (
+        recoveredFileChanges.firstProductEdit !== null
+        && (
+          firstProductEdit === null
+          || Date.parse(recoveredFileChanges.firstProductEdit.at) < Date.parse(firstProductEdit.at)
+        )
+      ) {
+        firstProductEdit = recoveredFileChanges.firstProductEdit;
+      }
+    }
+    if (fileChangeEvents.length > 0) {
+      fileChangeEvents.sort((left, right) => Date.parse(left.at) - Date.parse(right.at));
       const fileChangePath = join(state.root, "events", "codex-file-change-observations.jsonl");
       await writeFile(
         fileChangePath,
-        `${recoveredFileChanges.events.map((event) => JSON.stringify(event)).join("\n")}\n`,
+        `${fileChangeEvents.map((event) => JSON.stringify(event)).join("\n")}\n`,
         "utf8",
       );
       state.observationSources.push({
@@ -922,6 +1274,13 @@ async function writeTerminalArtifacts(state, error) {
   base.socialMessenger.coverageManifest = coverage === null
     ? { path: "coverage-manifest.json", sha256: null, validated: false }
     : { path: "coverage-manifest.json", sha256: coverage.sha256, validated: true };
+  if (state.journey.runScope === "full") {
+    const m8Green = markers.some((marker) => marker.milestone === "M8" && marker.status === "green");
+    if (m8Green && state.scaleReplay === null) {
+      throw new Error("R2_DRIVER_SCALE_REPLAY: full journey cannot finalize without scale replay custody");
+    }
+    if (state.scaleReplay !== null) base.socialMessenger.clocks.replay = state.scaleReplay.clock;
+  }
   const retainedSetups = receipts
     .map((receipt) => receipt.summary?.setup)
     .filter((setup) => setup !== undefined);
@@ -955,8 +1314,14 @@ async function writeTerminalArtifacts(state, error) {
       ? null
       : { path: "coverage-manifest.json", sha256: coverage.sha256 },
     recordBase: await retainedDescriptor(state.root, "record-base.json"),
+    ...(state.m7Handoff === null ? {} : { freshSessionHandoff: state.m7Handoff }),
+    ...(state.scaleReplay === null ? {} : { scaleReplay: {
+      ...state.scaleReplay.artifact,
+      clock: state.scaleReplay.clock,
+      attempts: state.scaleReplay.attempts,
+    } }),
     driver: {
-      id: DRIVER_ID,
+      id: state.journey.driverId,
       startedAt: state.startedAt,
       stampedAt: manifestStampedAt,
       instrumentationCommandsObserved: false,
@@ -976,6 +1341,7 @@ async function writeTerminalArtifacts(state, error) {
   }
   ownership.nativeHarness = {
     pid: ownership.nativeHarnessPid,
+    pids: ownership.nativeHarnessPids ?? [ownership.nativeHarnessPid],
     harnessKey: state.config.cell.harness,
     adapter,
     sessions: manifest.sessions.map((candidate) => ({
@@ -998,6 +1364,7 @@ async function writeTerminalArtifacts(state, error) {
 
 export async function preflight({ config, configDirectory }) {
   const root = resolve(configDirectory);
+  const journey = resolveCellJourney(config);
   const renderedPrompt = await renderPrompt(config, root);
   const promptPath = join(root, "rendered-prompt.md");
   const instrumentManifestPath = join(config.repositoryRoot, "benchmarks/instrument.manifest.json");
@@ -1028,6 +1395,7 @@ export async function preflight({ config, configDirectory }) {
     assertionPath,
     assertionBytes,
     recordBase: base,
+    journey,
   };
 }
 
@@ -1046,6 +1414,7 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     instrumentManifest,
     instrumentManifestText,
   } = plan;
+  const initialSessionId = randomUUID();
   await writeFile(promptPath, renderedPrompt, "utf8");
   await writeFile(join(root, "instrument.manifest.json"), instrumentManifestText, "utf8");
   const retainedAssertionPath = join(root, instrumentManifest.artifacts.assertions.path);
@@ -1058,10 +1427,26 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
   states.set(config.laneRunId, {
     config,
     root,
+    journey: plan.journey ?? resolveCellJourney(config),
     renderedPrompt,
     promptPath,
     startedAt: new Date().toISOString(),
-    nativeSessionId: randomUUID(),
+    nativeSessionId: initialSessionId,
+    currentSession: {
+      kind: plan.recordBase.socialMessenger.runScope === "reduced" ? "reduced" : "continuous",
+      sourceId: "builder",
+      parentSourceId: null,
+      role: "builder",
+      nativeSessionId: initialSessionId,
+      renderedPrompt,
+      promptPath,
+      startedAt: null,
+      stdoutPath: null,
+      stderrPath: null,
+      pid: null,
+      child: null,
+    },
+    sessionRuns: [],
     child: null,
     exit: null,
     closed: null,
@@ -1080,6 +1465,9 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     suiteStatusPath: null,
     observationSources: [],
     terminalMarkers: [],
+    m7HandoffSource: null,
+    m7Handoff: null,
+    scaleReplay: null,
   });
 }
 
@@ -1101,11 +1489,20 @@ export async function runMilestone({ milestone, controls, config }) {
   state.currentMilestone = milestone;
   state.controls = controls;
   await writeFile(join(state.root, "gates", milestone), `${new Date().toISOString()}\n`);
+  if (
+    milestone === "M7"
+    && state.journey.runScope === "full"
+    && state.currentSession.kind !== "fresh-m7"
+  ) {
+    await beginFreshM7Session(state);
+  }
   if (state.child === null) {
     await controls.apiRequest({
       provider: config.cell.harness,
-      operation: "launch-native-cell",
-      requestId: `launch-${config.cell.id}`,
+      operation: state.currentSession.kind === "fresh-m7"
+        ? "launch-fresh-m7-session"
+        : "launch-native-cell",
+      requestId: `launch-${config.cell.id}-${state.currentSession.sourceId}`,
       retryOf: null,
     }, () => launchHarness(state));
     await controls.semanticAction({
@@ -1118,6 +1515,7 @@ export async function runMilestone({ milestone, controls, config }) {
     });
   }
   const marker = await waitForMarker(state, milestone);
+  await releaseNativeSignalForExecutionOrder(state, milestone);
   state.suiteStatusPath = marker.suiteStatus ?? state.suiteStatusPath;
   for (const [suffix, path] of [
     ["suite", marker.suiteObservations],
@@ -1136,6 +1534,9 @@ export async function runMilestone({ milestone, controls, config }) {
   await drainObservationQueue(state, milestone);
   if (marker.status === "green" && (!marker.suiteObservations || !marker.choreographyObservations)) {
     throw new Error(`${milestone} green signal lacks suite/choreography observation sidecars`);
+  }
+  if (milestone === "M8" && state.journey.runScope === "full" && marker.status === "green") {
+    await waitForScaleReplay(state);
   }
   if (milestone === config.milestones.at(-1)) {
     const exit = await state.exit;
@@ -1170,7 +1571,9 @@ export function observationSources({ config }) {
 }
 
 export const r2CellDriverTestHooks = Object.freeze({
+  beginFreshM7Session,
   handleNativeRecord,
+  renderFreshM7Prompt,
   installState(laneRunId, state) {
     states.set(laneRunId, state);
   },

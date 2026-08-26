@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { joinUsageToMilestones } from "./joiner.mjs";
@@ -15,9 +16,11 @@ import {
 import { composeRunRecord } from "./record-composer.mjs";
 import {
   inspectCommittedSeriality,
+  inspectNonConsumingAdmissionSmoke,
   liveSourceClosure,
   loadPolicyForCell,
   probeLaunchQuiet,
+  resolveSourceIdentity,
   verifyAdmissionArtifact,
 } from "./r2-cell-admission.mjs";
 import { assertR2ExecutionEnvironment } from "./r2-execution-environment.mjs";
@@ -32,7 +35,10 @@ import {
 import {
   CURRENT_INSTRUMENT_PIN,
   LaneObservationHarness,
+  OBSERVATION_VERSION,
   ObservationWriter,
+  projectMilestoneObservability,
+  scorecardEligibility,
 } from "./observations.mjs";
 import { validateSocialMessengerRunRecord } from "../record-validator.mjs";
 
@@ -256,6 +262,7 @@ function usage() {
   return `Usage:
   node lane-controller.mjs --config <lane-controller.json> --driver <driver.mjs>
   node lane-controller.mjs --harness-config <harness-config.json> --cell <cell-id> --driver <driver.mjs> --admission <admission.json>
+  node lane-controller.mjs --smoke --harness-config <harness-config.json> --cell <cell-id> --driver <driver.mjs> [--provisioning-manifest <external-path>]
 
 The config declares laneRunId, observationPath, loadCeilings, milestones,
 manifestPath, recordPatchPath, recordBasePath, recordPath, and optional
@@ -283,6 +290,8 @@ function parseArgs(argv) {
     else if (arg === "--cell") options.cellId = value();
     else if (arg === "--driver") options.driverPath = value();
     else if (arg === "--admission") options.admissionPath = value();
+    else if (arg === "--provisioning-manifest") options.provisioningManifestPath = value();
+    else if (arg === "--smoke") options.smoke = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else throw new Error(`unknown argument: ${arg}`);
   }
@@ -504,9 +513,20 @@ export async function completeAdmittedDriverPreflight({
   const verifySourceClosure = dependencies.liveSourceClosure ?? liveSourceClosure;
   const quietProbe = dependencies.probeLaunchQuiet ?? probeLaunchQuiet;
   const importDriver = dependencies.importDriver ?? importAndPreflightR2Driver;
+  const sourceIdentity = dependencies.sourceIdentity ?? (
+    dependencies.inspectSeriality === undefined
+      ? resolveSourceIdentity({
+          repositoryRoot: config.repositoryRoot,
+          provisioningManifestPath: artifact.sourceProvisioning?.manifest?.path ?? null,
+        })
+      : null
+  );
+  const sourceOptions = sourceIdentity === null ? {} : { gitRead: sourceIdentity.gitRead };
   let campaignState = await inspectSeriality({
     harnessConfig: config.harnessConfig,
     cellId: config.cell.id,
+    repositoryRoot: config.repositoryRoot,
+    ...sourceOptions,
   });
   await quietProbe({ harnessConfig: config.harnessConfig, seriality: campaignState });
   verifyAdmission({
@@ -530,6 +550,8 @@ export async function completeAdmittedDriverPreflight({
   campaignState = await inspectSeriality({
     harnessConfig: config.harnessConfig,
     cellId: config.cell.id,
+    repositoryRoot: config.repositoryRoot,
+    ...sourceOptions,
   });
   verifyAdmission({
     artifact,
@@ -546,6 +568,109 @@ export async function completeAdmittedDriverPreflight({
   return { ...loaded, campaignState };
 }
 
+function nullCounts() {
+  return { input: null, output: null, cacheRead: null, cacheWrite: null, reasoning: null };
+}
+
+export async function runNonConsumingSmoke({
+  harnessConfigPath,
+  cellId,
+  driverPath,
+  provisioningManifestPath = null,
+  dependencies = {},
+}) {
+  const readiness = await (dependencies.inspectAdmissionSmoke ?? inspectNonConsumingAdmissionSmoke)({
+    harnessConfigPath,
+    cellId,
+    provisioningManifestPath,
+    dependencies: dependencies.admission ?? dependencies,
+  });
+  const { config } = await loadLaneControllerConfig({ harnessConfigPath, cellId });
+  const scratch = await mkdtemp(join(tmpdir(), "snapback-r2-smoke-"));
+  try {
+    const controller = new R2LaneController({
+      laneRunId: `${config.laneRunId}/non-consuming-smoke`,
+      instrumentPin: config.instrumentPin,
+      observationPath: join(scratch, "controller-observations.jsonl"),
+      loadCeilings: config.loadCeilings,
+      loadIntervalMs: config.loadIntervalMs,
+    });
+    await controller.initialize();
+    const loaded = await (dependencies.importDriver ?? importAndPreflightR2Driver)({
+      driverPath,
+      config,
+      configDirectory: scratch,
+    });
+    const base = loaded.preflight.recordBase;
+    const milestone = config.milestones[0];
+    const startedAt = (dependencies.now ?? (() => new Date()))().toISOString();
+    const patch = {
+      instrumentVersion: CURRENT_INSTRUMENT_PIN,
+      typingObservationBoundaryVersion: base.socialMessenger.typingObservationBoundaryVersion,
+      observabilityProtocol: OBSERVATION_VERSION,
+      source: null,
+      totals: nullCounts(),
+      executionOrder: [milestone],
+      milestones: {
+        [milestone]: {
+          status: "aborted",
+          authoring: {
+            tokens: nullCounts(),
+            firstGreenAt: null,
+            suitePassAt: null,
+            choreoPassAt: null,
+            terminalAt: startedAt,
+            terminalSequence: 1,
+            terminalReason: "abort",
+          },
+          ...projectMilestoneObservability({ events: [], evidence: [], milestone }),
+        },
+      },
+      firstProductEdit: base.socialMessenger.firstProductEdit,
+      efficiencyScorecardEligibility: scorecardEligibility({
+        milestones: {},
+        phaseUsageAvailable: false,
+        orientationEvidenceAvailable: false,
+      }),
+      meteringProvenance: {
+        manifestVersion: "social-messenger-metering-manifest.v1",
+        laneRunId: `${config.laneRunId}/non-consuming-smoke`,
+        driver: {
+          id: "social-messenger-non-consuming-smoke.v1",
+          startedAt,
+          stampedAt: startedAt,
+          compatibilityEvents: [],
+        },
+        unavailableReason: "non-consuming-smoke-does-not-launch-a-native-session",
+        sessions: [],
+      },
+    };
+    const composed = composeRunRecord({ base, patch, expectedMilestones: config.milestones });
+    return {
+      version: "snapback.r2-controller-non-consuming-smoke.v1",
+      status: "non-scored",
+      scored: false,
+      attemptConsumed: false,
+      productionLockAcquired: false,
+      runId: config.harnessConfig.runId,
+      cellId: config.cell.id,
+      admission: readiness,
+      controller: { initialized: true, nativeSessionLaunched: false },
+      recordComposition: {
+        composed: true,
+        publishable: false,
+        reason: "synthetic-abort-shape-for-non-consuming-smoke-only",
+        instrumentPin: composed.socialMessenger.instrumentVersion,
+        runScope: composed.socialMessenger.runScope,
+        milestones: Object.keys(composed.socialMessenger.milestones),
+        sha256: digest(Buffer.from(JSON.stringify(composed))),
+      },
+    };
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.harnessConfigPath) assertR2ExecutionEnvironment();
@@ -554,6 +679,17 @@ async function main() {
     return;
   }
   if (!options.driverPath) throw new Error(usage());
+  if (options.smoke) {
+    if (!options.harnessConfigPath || !options.cellId || options.admissionPath) {
+      throw new Error("--smoke requires --harness-config, --cell, and --driver, and forbids --admission");
+    }
+    const smoke = await runNonConsumingSmoke(options);
+    process.stdout.write(`${JSON.stringify(smoke)}\n`);
+    return;
+  }
+  if (options.provisioningManifestPath) {
+    throw new Error("--provisioning-manifest is only valid with --smoke; scored controllers use the manifest bound into admission");
+  }
   const { config, configDirectory } = await loadLaneControllerConfig(options);
   if (!Array.isArray(config.milestones) || config.milestones.length === 0) {
     throw new TypeError("lane controller config milestones must be non-empty");
@@ -581,9 +717,15 @@ async function main() {
         argv: process.argv.slice(1),
         environment: assertR2ExecutionEnvironment({ harnessConfig: config.harnessConfig }),
       };
+      const sourceIdentity = resolveSourceIdentity({
+        repositoryRoot: config.repositoryRoot,
+        provisioningManifestPath: artifact.sourceProvisioning?.manifest?.path ?? null,
+      });
       let campaignState = await inspectCommittedSeriality({
         harnessConfig: config.harnessConfig,
         cellId: config.cell.id,
+        repositoryRoot: config.repositoryRoot,
+        gitRead: sourceIdentity.gitRead,
       });
       verifyAdmissionArtifact({
         artifact,
@@ -612,6 +754,7 @@ async function main() {
         driverPath: options.driverPath,
         config,
         configDirectory,
+        dependencies: { sourceIdentity },
         onPhase: (phase) => { attemptPhase = phase; },
       }));
       attemptPhase = "attempt-capsule";
