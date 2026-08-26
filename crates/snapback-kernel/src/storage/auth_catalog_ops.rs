@@ -4545,7 +4545,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub(super) fn auth_corrupt_scoped_token_generation_for_test(
         &mut self,
         token_id: &str,
@@ -5761,7 +5761,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_install_service_replay_authority_for_test(now_ms, expires_at_ms, tokens)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn corrupt_scoped_token_generation_for_test(
         &mut self,
         token_id: &str,

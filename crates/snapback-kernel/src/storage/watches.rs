@@ -1282,7 +1282,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn seed_grant_revocation_watch_for_test(
         &mut self,
         watch_id: &str,

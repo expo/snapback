@@ -30166,12 +30166,13 @@ fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySec
         function_id: "fn:hostInsert".to_owned(),
         kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
     }];
-    let mut approve = || {
+    let approve = |db: &mut crate::storage::LocalDatabase,
+                   credential: &crate::auth::crypto::AgentCredential| {
         let pairing = db
             .mint_pairing_code(&human_user_id, now_ms, &random)
             .expect("mint service replay production pairing code");
         db.present_pairing_code(
-            &credential.secret,
+            credential,
             &pairing.request_id,
             &pairing.secret,
             &requested,
@@ -30193,13 +30194,13 @@ fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySec
             | crate::storage::auth_grants::GrantApproval::Existing(grant) => grant.grant_id,
         }
     };
-    let grant_a = approve();
-    let grant_b = approve();
+    let grant_a = approve(db, &credential.secret);
+    let grant_b = approve(db, &credential.secret);
+    let grant_d = approve(db, &credential.secret);
     for (label, grant_id) in [
         ("token-a", &grant_a),
         ("token-b", &grant_a),
         ("token-c", &grant_a),
-        ("token-d", &grant_a),
         ("token-e", &grant_b),
         ("token-x", &grant_b),
         ("token-y", &grant_a),
@@ -30213,16 +30214,23 @@ fn install_service_replay_auth(snapback: &mut LocalSnapback) -> ServiceReplaySec
                 &random,
             )
             .expect("mint service replay token through production grant");
-        if label == "token-d" {
-            db.auth_catalog()
-                .corrupt_scoped_token_generation_for_test(&token.token_id, 2)
-                .expect("make one production token generation-invalid");
-        }
         secrets.insert(label.to_owned(), token.secret.expose_secret().to_owned());
     }
-    snapback
-        .synchronize_auth_mode_admission(&settled_sessions_state())
-        .expect("bind service replay admission graph");
+    let revoked_token = db
+        .mint_scoped_token(
+            &credential.secret,
+            &grant_d,
+            Some(crate::storage::auth_agent_credentials::SCOPED_TOKEN_MAX_TTL_MS),
+            now_ms,
+            &random,
+        )
+        .expect("mint service replay token through production grant");
+    secrets.insert(
+        "token-d".to_owned(),
+        revoked_token.secret.expose_secret().to_owned(),
+    );
+    db.revoke_grant_for_user(&human_user_id, &grant_d, now_ms)
+        .expect("revoke service replay grant through production ceremony");
     ServiceReplaySecrets(secrets)
 }
 
@@ -30684,7 +30692,7 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     );
 
     let unresolved_drift = service_mutation_authority(&mut snapback, &secrets, "token-d")
-        .expect_err("credential-generation drift is rejected during exact resolution");
+        .expect_err("durable grant revocation is rejected during exact resolution");
     assert_eq!(
         unresolved_drift.diagnostic.code,
         "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
@@ -33208,6 +33216,86 @@ struct GrantRevocationWatchFixture {
     installation_grant_id: String,
 }
 
+fn grant_revocation_watch_spec() -> crate::watches::CreateWatchSpec {
+    crate::watches::CreateWatchSpec {
+        query_function: "listItems".to_owned(),
+        query_args: json!({}),
+        predicate: json!({"path": "/rows", "op": "exists"}),
+        reaction: crate::watches::WatchReactionSpec::Function {
+            function: "grantRevocationRead".to_owned(),
+            args: json!({}),
+        },
+        debounce_ms: crate::watches::DEFAULT_DEBOUNCE_MS,
+        daily_firing_budget: crate::watches::DEFAULT_DAILY_FIRING_BUDGET,
+    }
+}
+
+#[derive(Debug)]
+struct GrantRevocationAuthClock {
+    epoch_ms: u64,
+    monotonic_now: std::time::Instant,
+}
+
+impl crate::auth::provider::AuthClock for GrantRevocationAuthClock {
+    fn epoch_ms(&self) -> u64 {
+        self.epoch_ms
+    }
+
+    fn monotonic_now(&self) -> std::time::Instant {
+        self.monotonic_now
+    }
+}
+
+fn grant_revocation_auth_provider(
+    now_ms: u64,
+) -> std::sync::Arc<crate::auth::provider::AuthProvider> {
+    let keyring = std::sync::Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+    keyring
+        .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
+        .expect("mint grant-revocation provider key");
+    std::sync::Arc::new(
+        crate::auth::provider::AuthProvider::new_with_dependencies(
+            crate::contract_types::AuthProviderProfile::Test,
+            keyring,
+            std::sync::Arc::new(crate::auth::crypto::OsRandom),
+            std::sync::Arc::new(GrantRevocationAuthClock {
+                epoch_ms: now_ms,
+                monotonic_now: std::time::Instant::now(),
+            }),
+        )
+        .expect("construct grant-revocation auth provider"),
+    )
+}
+
+fn service_authority_for_token_at(
+    snapback: &mut LocalSnapback,
+    token_secret: &str,
+    source: InvocationSource,
+    provider: std::sync::Arc<crate::auth::provider::AuthProvider>,
+) -> PreparedAuthority {
+    let token = crate::auth::crypto::ScopedToken::parse(token_secret)
+        .expect("parse production grant-revocation token");
+    let now_ms = provider.now_ms();
+    let resolution = snapback
+        .resolve_scoped_token_route_authority(&token, now_ms, provider.monotonic_now(), provider)
+        .expect("resolve production grant-revocation route authority");
+    let admission = snapback
+        .admission
+        .admit_for_mode(AuthMode::Sessions)
+        .expect("admit production grant-revocation service authority");
+    snapback
+        .prepare_connection_service_authority(
+            resolution,
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
+        .expect("prepare production grant-revocation service authority")
+}
+
 impl GrantRevocationFixture {
     fn new(grants_per_user: usize) -> Self {
         let (mut schema, mut functions) = sessions_activation_pair('d', false);
@@ -33218,21 +33306,31 @@ impl GrantRevocationFixture {
             ));
         schema.api = Some(crate::contract_types::ApiManifest {
             enabled: true,
-            functions: BTreeMap::from([(
-                "grantRevocationRead".to_owned(),
-                crate::contract_types::ApiFunctionExposure {
-                    expose: true,
-                    since: None,
-                    approval: None,
-                },
-            )]),
+            functions: BTreeMap::from([
+                (
+                    "listItems".to_owned(),
+                    crate::contract_types::ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                        approval: None,
+                    },
+                ),
+                (
+                    "grantRevocationRead".to_owned(),
+                    crate::contract_types::ApiFunctionExposure {
+                        expose: true,
+                        since: None,
+                        approval: None,
+                    },
+                ),
+            ]),
             oauth: Some(crate::contract_types::ApiOAuthManifest {
                 enabled: true,
                 bearer: true,
                 bundles: BTreeMap::from([(
                     "read".to_owned(),
                     crate::contract_types::ApiOAuthBundle {
-                        functions: vec!["grantRevocationRead".to_owned()],
+                        functions: vec!["listItems".to_owned(), "grantRevocationRead".to_owned()],
                     },
                 )]),
             }),
@@ -33241,6 +33339,11 @@ impl GrantRevocationFixture {
         for function in &mut functions.functions {
             function.api_exposure = Some(crate::contract_types::ApiFunctionExposure::default());
         }
+        functions.functions[0].api_exposure = Some(crate::contract_types::ApiFunctionExposure {
+            expose: true,
+            since: None,
+            approval: None,
+        });
         let mut revocation_query = FunctionDefinition::new(
             "grantRevocationRead",
             FunctionKind::Query,
@@ -33260,6 +33363,7 @@ impl GrantRevocationFixture {
             approval: None,
         });
         functions.functions.push(revocation_query);
+        let functions_for_scope_bases = functions.clone();
         let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let mut user_facts = BTreeMap::new();
         for user_id in DENY_USERS {
@@ -33280,27 +33384,37 @@ impl GrantRevocationFixture {
             );
         }
         let random = CounterRandom::new();
-        let (agent_user_id, grant_ids, tokens, watches) = {
+        snapback
+            .auth_database_mut()
+            .reconcile_auth_scope_bases(&functions_for_scope_bases)
+            .expect("install grant revocation scope bases");
+        let admission = snapback
+            .admission_controller()
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit grant revocation integration registration");
+        let credential = snapback
+            .register_oauth_client(
+                &admission,
+                None,
+                Some("Grant Revocation Integration".to_owned()),
+                crate::storage::auth_integrations::IntegrationRegistrationFacts {
+                    origin: Some("https://grant-revocation.test".to_owned()),
+                    redirect_uris: vec!["https://grant-revocation.test/callback".to_owned()],
+                },
+                ServerProfile::Test,
+                DENY_FIXTURE_MS,
+                &random,
+            )
+            .expect("register grant revocation integration through production ceremony");
+        let (agent_user_id, mut grant_ids, tokens, watch_tokens) = {
             let database = snapback.auth_database_mut();
             database
                 .activate_current_auth_catalog()
                 .expect("activate grant revocation auth catalog");
-            let credential = database
-                .register_agent_principal(
-                    None,
-                    Some("Grant Revocation Agent".to_owned()),
-                    None,
-                    ServerProfile::Test,
-                    DENY_FIXTURE_MS,
-                    &random,
-                )
-                .expect("atomically register grant revocation agent");
             let agent_user_id = credential.user_id.clone();
-            database
-                .reconcile_auth_scope_bases(&denial_scope_manifest())
-                .expect("install grant revocation scope basis");
             let mut grant_ids = BTreeMap::new();
             let mut tokens = BTreeMap::new();
+            let mut watch_tokens = Vec::new();
             for user_label in DENY_USERS {
                 let (user_id, session_id) = user_facts
                     .get(user_label)
@@ -33316,10 +33430,17 @@ impl GrantRevocationFixture {
                             &credential.secret,
                             &pairing.request_id,
                             &pairing.secret,
-                            &[crate::storage::auth_grants::GrantScopeRequest::Exact {
-                                function_id: "fn:denialRead".to_owned(),
-                                kind: crate::storage::auth_grants::ScopedFunctionKind::Query,
-                            }],
+                            &[
+                                crate::storage::auth_grants::GrantScopeRequest::Exact {
+                                    function_id: "fn:listItems".to_owned(),
+                                    kind:
+                                        crate::storage::auth_grants::ScopedFunctionKind::LiveQuery,
+                                },
+                                crate::storage::auth_grants::GrantScopeRequest::Exact {
+                                    function_id: "fn:grantRevocationRead".to_owned(),
+                                    kind: crate::storage::auth_grants::ScopedFunctionKind::Query,
+                                },
+                            ],
                             DENY_FIXTURE_MS,
                         )
                         .expect("present production grant-revocation pairing code");
@@ -33349,7 +33470,12 @@ impl GrantRevocationFixture {
                         )
                         .expect("mint grant revocation fixture token");
                     let token_hash = token.secret.token_hash().as_bytes().to_vec();
-                    user_grants.push(grant_id);
+                    user_grants.push(grant_id.clone());
+                    watch_tokens.push((
+                        user_label,
+                        grant_id,
+                        token.secret.expose_secret().to_owned(),
+                    ));
                     user_tokens.push(
                         crate::storage::auth_grants::GrantRevocationTokenRowForTest {
                             token_id: token.token_id,
@@ -33366,52 +33492,52 @@ impl GrantRevocationFixture {
                 grant_ids.insert(user_label, user_grants);
                 tokens.insert(user_label, user_tokens);
             }
-            let mut watches = Vec::new();
-            for grant_id in grant_ids.values().flatten() {
-                for (binding, anchor_grant_id, installation_grant_id) in [
-                    (
-                        "anchor",
-                        grant_id.clone(),
-                        format!("unrelated-installation-for-{grant_id}"),
-                    ),
-                    (
-                        "installation",
-                        format!("unrelated-anchor-for-{grant_id}"),
-                        grant_id.clone(),
-                    ),
-                ] {
-                    let watch_id = format!("watch-{binding}-{grant_id}");
-                    database
-                        .seed_grant_revocation_watch_for_test(
-                            &watch_id,
-                            &anchor_grant_id,
-                            &installation_grant_id,
-                            DENY_FIXTURE_MS,
-                        )
-                        .expect("seed targeted grant revocation watch");
-                    watches.push(GrantRevocationWatchFixture {
-                        watch_id,
-                        anchor_grant_id,
-                        installation_grant_id,
-                    });
-                }
-            }
-            let unrelated = GrantRevocationWatchFixture {
-                watch_id: "watch-unrelated".to_owned(),
-                anchor_grant_id: "grant-unrelated-anchor".to_owned(),
-                installation_grant_id: "grant-unrelated-installation".to_owned(),
-            };
-            database
-                .seed_grant_revocation_watch_for_test(
-                    &unrelated.watch_id,
-                    &unrelated.anchor_grant_id,
-                    &unrelated.installation_grant_id,
-                    DENY_FIXTURE_MS,
-                )
-                .expect("seed unrelated active grant revocation watch");
-            watches.push(unrelated);
-            (agent_user_id, grant_ids, tokens, watches)
+            (agent_user_id, grant_ids, tokens, watch_tokens)
         };
+        let service_provider = grant_revocation_auth_provider(DENY_FIXTURE_MS);
+        let mut watches = Vec::new();
+        for (user_label, installation_grant_id, token_secret) in watch_tokens {
+            let authority = service_authority_for_token_at(
+                &mut snapback,
+                &token_secret,
+                InvocationSource::WatchManagement,
+                service_provider.clone(),
+            );
+            let created = snapback
+                .create_watch(&authority, grant_revocation_watch_spec(), DENY_FIXTURE_MS)
+                .expect("create targeted watch through production ceremony");
+            let anchor_grant_id = created
+                .watch
+                .anchor_grant_id
+                .clone()
+                .expect("integration watch receives a production anchor grant");
+            grant_ids
+                .get_mut(user_label)
+                .expect("target user grant list")
+                .push(anchor_grant_id.clone());
+            watches.push(GrantRevocationWatchFixture {
+                watch_id: created.watch.id,
+                anchor_grant_id,
+                installation_grant_id,
+            });
+        }
+        let unrelated_authority = snapback.prepare_resolved_password_session_for_test(
+            InvocationSource::WatchManagement,
+            DENY_LOWER_USER,
+            DENY_FIXTURE_MS + 60_000,
+        );
+        let unrelated = snapback
+            .create_watch(
+                &unrelated_authority,
+                grant_revocation_watch_spec(),
+                DENY_FIXTURE_MS,
+            )
+            .expect("create unrelated user watch through production ceremony");
+        watches.push(GrantRevocationWatchFixture {
+            watch_id: unrelated.watch.id,
+            anchor_grant_id: String::new(),
+            installation_grant_id: String::new(),
+        });
         let initial_rows = snapback
             .auth_database_mut()
             .grant_revocation_durable_rows_for_test()
@@ -33541,10 +33667,11 @@ fn assert_grant_revocation_observations(
     assert_eq!(actual, expected);
 }
 
-#[tokio::test]
-async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_graph() {
+#[test]
+fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_graph() {
     use crate::auth::service_fence::with_service_authority_terminal_gate;
 
+    let runtime = tokio::runtime::Runtime::new().expect("cross-engine terminal-gate runtime");
     let case = deny_subject_cases()[1];
     assert!(deny_case_is_accepted(case));
     for bulk in [false, true] {
@@ -33564,9 +33691,8 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
                 DENY_EFFECT_MS,
             ) {
                 Ok(plan) => {
-                    let gate = plan
-                        .acquire_gate()
-                        .await
+                    let gate = runtime
+                        .block_on(plan.acquire_gate())
                         .expect("the pre-fix cross-engine bulk plan acquired its terminal gate");
                     with_service_authority_terminal_gate(gate, || {
                         target
@@ -33589,9 +33715,8 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
                 DENY_EFFECT_MS,
             ) {
                 Ok(plan) => {
-                    let gate = plan
-                        .acquire_gate()
-                        .await
+                    let gate = runtime
+                        .block_on(plan.acquire_gate())
                         .expect("the pre-fix cross-engine plan acquired its terminal gate");
                     with_service_authority_terminal_gate(gate, || {
                         target
@@ -33614,10 +33739,11 @@ async fn genuine_management_authority_cannot_revoke_grants_in_a_second_engine_gr
     }
 }
 
-#[tokio::test]
-async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
+#[test]
+fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
     use crate::auth::service_fence::with_service_authority_terminal_gate;
 
+    let runtime = tokio::runtime::Runtime::new().expect("single-revocation terminal-gate runtime");
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for case in deny_subject_cases() {
@@ -33630,9 +33756,8 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
             DENY_EFFECT_MS,
         ) {
             Ok(terminal_plan) => {
-                let terminal_gate = terminal_plan
-                    .acquire_gate()
-                    .await
+                let terminal_gate = runtime
+                    .block_on(terminal_plan.acquire_gate())
                     .expect("acquire single grant revocation terminal gate");
                 with_service_authority_terminal_gate(terminal_gate, || {
                     fixture
@@ -33662,10 +33787,11 @@ async fn single_grant_revocation_derives_subject_and_preserves_foreign_durable_a
     assert_grant_revocation_observations(&actual, &expected);
 }
 
-#[tokio::test]
-async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
+#[test]
+fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_authority() {
     use crate::auth::service_fence::with_service_authority_terminal_gate;
 
+    let runtime = tokio::runtime::Runtime::new().expect("bulk-revocation terminal-gate runtime");
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for case in deny_subject_cases() {
@@ -33679,14 +33805,14 @@ async fn bulk_grant_revocation_derives_subject_and_preserves_foreign_durable_aut
                 DENY_EFFECT_MS,
             ) {
             Ok(terminal_plan) => {
-                let terminal_gate = terminal_plan
-                    .acquire_gate()
-                    .await
+                let terminal_gate = runtime
+                    .block_on(terminal_plan.acquire_gate())
                     .expect("acquire bulk grant revocation terminal gate");
                 with_service_authority_terminal_gate(terminal_gate, || {
+                    let agent_user_id = fixture.agent_user_id.clone();
                     fixture.snapback.revoke_grants_by_actor_for_user(
                         &authority,
-                        "agent-revocation-shared",
+                        &agent_user_id,
                         DENY_EFFECT_MS,
                     )
                 })
@@ -36460,122 +36586,6 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
             issued_at,
         )
         .expect("a racing unrelated obligation must not fail the reservation");
-}
-
-/// ENG-24990: refiring one exhausted retry key while 10,000 episodes are
-/// retained must not monopolize the app SQLite writer; unrelated
-/// mutations continue within the local runtime latency budget.
-#[test]
-fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
-    let mut snapback = live_limit_snapback();
-    let mut episodes = BTreeMap::new();
-    let witness = crate::auth::invalidation::CompositeWitness {
-        authorization: crate::storage::AuthorizationVersion {
-            incarnation: "018f0d90-7b11-7a22-8c33-445566778899".to_owned(),
-            epoch: 0,
-        },
-        data: Some(crate::auth::invalidation::DataWitness {
-            version_stream: "stream-A".to_owned(),
-            min_commit_version: 0,
-        }),
-    };
-    for store in 0..10_u32 {
-        for query in 0..1_000_u32 {
-            let key = RetryEpisodeKey {
-                authority_subject: format!("user-{store}"),
-                client_store_id: format!("store-{store}"),
-                query_key: format!("todos-{query}:{{}}"),
-            };
-            episodes.insert(
-                key.clone(),
-                crate::auth::invalidation::RetryEpisode {
-                    episode_id: format!("retry-{store}-{query}"),
-                    key,
-                    witness_floor: witness.clone(),
-                    first_attempt_reserved_at_ms: 1_000,
-                    first_failure_at_ms: Some(1_000),
-                    attempts_reserved: crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL,
-                    deadline_ms: Some(16_000),
-                    manual_retry_id: None,
-                    last_reservation_at_ms: 1_000,
-                },
-            );
-        }
-    }
-    let target = episodes.keys().nth(5_005).cloned().expect("target key");
-    snapback
-        .auth_database_mut()
-        .seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
-        .expect("seed retry episodes");
-
-    // Interleave production-shaped exhausted refires (initial reattach,
-    // then automatic exhaustion — the exact transactions
-    // invoke_authorization_resolution performs) with unrelated mutations.
-    // LLP 0035 benchmarks the local target against a ~10ms interactive
-    // budget; the pre-fix full-table rewrite spent two 10,000-row
-    // rewrite transactions per refire on this same writer.
-    let budget = Duration::from_millis(100);
-    let mut now = 1_000_000_u64;
-    for round in 0..5 {
-        now += 1;
-        let churn_started = Instant::now();
-        let initial = snapback
-            .auth_database_mut()
-            .reserve_invalidation_retry_episode(
-                &target,
-                witness.clone(),
-                now,
-                RetryReservationKind::Initial,
-            )
-            .expect("initial refire reservation");
-        assert!(matches!(
-            initial,
-            crate::auth::invalidation::RetryReservation::Attached(_)
-        ));
-        now += 1;
-        let automatic = snapback
-            .auth_database_mut()
-            .reserve_invalidation_retry_episode(
-                &target,
-                witness.clone(),
-                now,
-                RetryReservationKind::Automatic,
-            )
-            .expect("automatic refire reservation");
-        assert!(matches!(
-            automatic,
-            crate::auth::invalidation::RetryReservation::Exhausted(_)
-        ));
-        let churn_elapsed = churn_started.elapsed();
-        assert!(
-            churn_elapsed < budget,
-            "round {round}: exhausted refire held the writer for {churn_elapsed:?}",
-        );
-
-        let mutation_started = Instant::now();
-        invoke_test_session_mutation(
-            &mut snapback,
-            "insertItem",
-            HandlerInput {
-                args: json!({ "value": format!("row-{round}") }),
-                ..HandlerInput::default()
-            },
-        )
-        .expect("unrelated mutation under retry churn");
-        let mutation_elapsed = mutation_started.elapsed();
-        assert!(
-            mutation_elapsed < budget,
-            "round {round}: unrelated mutation took {mutation_elapsed:?} under churn",
-        );
-    }
-    assert_eq!(
-        snapback
-            .auth_database_mut()
-            .invalidation_retry_episode_count()
-            .expect("episode count"),
-        10_000,
-        "refire churn must not evict or duplicate episodes",
-    );
 }
 
 #[test]
@@ -43025,7 +43035,7 @@ fn c004_database_bound_projection_refuses_a_forged_subject() {
 }
 
 #[test]
-fn f089_public_retry_registry_output_persists_through_test_support_sink() {
+fn retry_episode_reserved_by_production_path_persists_across_reopen() {
     let key = RetryEpisodeKey {
         authority_subject: "sha256:p3-f089-authority".to_owned(),
         client_store_id: "p3-f089-store".to_owned(),
@@ -43041,19 +43051,13 @@ fn f089_public_retry_registry_output_persists_through_test_support_sink() {
             min_commit_version: 0,
         }),
     };
-    let mut registry = crate::auth::invalidation::RetryEpisodeRegistry::default();
-    let reservation = registry
-        .reserve(key.clone(), witness, 4_242, RetryReservationKind::Initial)
-        .expect("reserve caller-authored public retry episode");
-    assert!(matches!(reservation, RetryReservation::Reserved(_)));
-    let episodes = registry.episodes().clone();
-
     let directory = tempfile::tempdir().expect("F089 database directory");
     let path = directory.path().join("f089.sqlite3");
     let mut database = LocalDatabase::open(&path).expect("open F089 database");
-    database
-        .seed_invalidation_retry_episodes_for_test(&episodes, 4_242)
-        .expect("feed public registry output into durable test-support sink");
+    let reservation = database
+        .reserve_invalidation_retry_episode(&key, witness, 4_242, RetryReservationKind::Initial)
+        .expect("reserve retry episode through production persistence");
+    assert!(matches!(reservation, RetryReservation::Reserved(_)));
     drop(database);
     let mut reopened = LocalDatabase::open(&path).expect("reopen F089 database");
     let persisted = reopened

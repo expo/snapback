@@ -1146,7 +1146,7 @@ impl LocalDatabase {
     /// Test-only bulk fixture installer: durable episodes, counter rows, the
     /// global count, and the clock high-water in one transaction, exactly as
     /// incremental maintenance would have left them.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn seed_invalidation_retry_episodes_for_test(
         &mut self,
         episodes: &BTreeMap<RetryEpisodeKey, RetryEpisode>,
@@ -2426,7 +2426,7 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
         self.db.invalidation_retry_episodes_for_test()
     }
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn seed_invalidation_retry_episodes_for_test(
         &mut self,
         episodes: &BTreeMap<RetryEpisodeKey, RetryEpisode>,
