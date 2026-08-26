@@ -225,10 +225,7 @@ pub struct CreatePendingEffect {
 /// operation selector; the canonical store alone creates verified authority.
 pub enum PendingEffectOwnerEvidence {
     Anonymous,
-    Session {
-        bearer: crate::auth::crypto::SessionBearer,
-        authorization_stream_incarnation: String,
-    },
+    Session(crate::auth::crypto::SessionBearer),
     ServicePrincipal(crate::auth::crypto::ScopedToken),
 }
 
@@ -856,10 +853,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<PendingEffectOwner> {
         let (authority, principal_id) = match evidence {
             PendingEffectOwnerEvidence::Anonymous => (PendingEffectAuthority::Anonymous, None),
-            PendingEffectOwnerEvidence::Session {
-                bearer,
-                authorization_stream_incarnation,
-            } => {
+            PendingEffectOwnerEvidence::Session(bearer) => {
                 let lookup = self
                     .auth_catalog_read()
                     .lookup_presented_session(&bearer.token_hash())?;
@@ -875,18 +869,8 @@ impl LocalDatabase {
                         ));
                     }
                 };
-                let stream_is_canonical_v7 =
-                    uuid::Uuid::parse_str(&authorization_stream_incarnation)
-                        .ok()
-                        .is_some_and(|stream| {
-                            stream.get_version_num() == 7
-                                && stream.to_string() == authorization_stream_incarnation
-                        });
-                if !stream_is_canonical_v7 {
-                    return Err(owner_invalid(
-                        "pending-effect session evidence is no longer current",
-                    ));
-                }
+                let authorization_stream_incarnation =
+                    self.authorization_stream_incarnation()?.as_str().to_owned();
                 let user_id = session.user_id;
                 (
                     PendingEffectAuthority::Session {

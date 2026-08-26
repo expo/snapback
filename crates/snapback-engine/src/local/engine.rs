@@ -3840,6 +3840,34 @@ pub struct PreparedEffectSettlement {
     management: PreparedAuthority,
 }
 
+/// One settlement decision sealed together with the exact approved execution
+/// ticket and the management authority that produced it. The durable sink
+/// accepts only this carrier, so an adapter cannot pass an `executed` bit and
+/// outcome beside the ticket.
+///
+/// @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability — sealing the
+/// decision before the engine sink prevents a surviving sibling consumer.
+pub struct PreparedEffectOutcome {
+    settlement: crate::storage::pending_effects::PendingEffectSettlement,
+    management: PreparedAuthority,
+}
+
+impl PreparedEffectSettlement {
+    pub fn executed(self, outcome_code: Option<&str>, now_ms: u64) -> PreparedEffectOutcome {
+        PreparedEffectOutcome {
+            settlement: self.execution.executed(outcome_code, now_ms),
+            management: self.management,
+        }
+    }
+
+    pub fn refused(self, outcome_code: &str, now_ms: u64) -> PreparedEffectOutcome {
+        PreparedEffectOutcome {
+            settlement: self.execution.refused(outcome_code, now_ms),
+            management: self.management,
+        }
+    }
+}
+
 pub struct ApprovedEffectDispatch {
     record: crate::storage::pending_effects::PendingEffectRecord,
     original: PreparedAuthority,
@@ -6305,23 +6333,12 @@ impl LocalSnapback {
 
     pub fn settle_pending_effect(
         &mut self,
-        settlement: PreparedEffectSettlement,
-        executed: bool,
-        outcome_code: Option<&str>,
-        now_ms: u64,
+        outcome: PreparedEffectOutcome,
     ) -> SnapbackResult<crate::storage::pending_effects::PendingEffectRecord> {
-        let _effect = settlement
+        let _effect = outcome
             .management
             .effect_guard("pending-effect settlement transaction")?;
-        let settled = if executed {
-            settlement.execution.executed(outcome_code, now_ms)
-        } else {
-            settlement.execution.refused(
-                outcome_code.unwrap_or("SNAPBACK_EFFECT_EXECUTION_REFUSED"),
-                now_ms,
-            )
-        };
-        self.db.settle_pending_effect_admitted(settled)
+        self.db.settle_pending_effect_admitted(outcome.settlement)
     }
 
     pub fn deny_pending_effect(
@@ -7426,8 +7443,8 @@ impl LocalSnapback {
 
         let evidence = match authority.resolved() {
             ResolvedAppAuthority::Anonymous => PendingEffectOwnerEvidence::Anonymous,
-            ResolvedAppAuthority::Session(subject) => PendingEffectOwnerEvidence::Session {
-                bearer: crate::auth::crypto::SessionBearer::parse_any_version(
+            ResolvedAppAuthority::Session(_) => PendingEffectOwnerEvidence::Session(
+                crate::auth::crypto::SessionBearer::parse_any_version(
                     authority
                         .pending_effect_session_bearer()
                         .ok_or_else(|| {
@@ -7446,17 +7463,7 @@ impl LocalSnapback {
                         "session effect bearer is malformed",
                     )
                 })?,
-                authorization_stream_incarnation: authority
-                    .authorization_stream_incarnation()
-                    .ok_or_else(|| {
-                        SnapbackError::error(
-                            "SNAPBACK_EFFECT_AUTHORITY_INVALID",
-                            "effects",
-                            "session effect authority has no authorization-stream binding",
-                        )
-                    })?
-                    .to_owned(),
-            },
+            ),
             ResolvedAppAuthority::ServicePrincipal(_) => {
                 let token = authority.pending_effect_scoped_token().ok_or_else(|| {
                     SnapbackError::error(

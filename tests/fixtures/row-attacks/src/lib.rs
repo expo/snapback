@@ -1397,7 +1397,6 @@ pub struct PendingEffectConsumerAttackFixture {
     pub serving: snapback_kernel::storage::ServingDatabase,
     pub effect_id: String,
     bearer: String,
-    authorization_stream_incarnation: String,
 }
 
 impl PendingEffectConsumerAttackFixture {
@@ -1412,12 +1411,7 @@ impl PendingEffectConsumerAttackFixture {
             .map_err(|error| format!("parse pending-effect bearer: {error:?}"))?;
         self.serving
             .resolve_pending_effect_owner(
-                PendingEffectOwnerEvidence::Session {
-                    bearer,
-                    authorization_stream_incarnation: self
-                        .authorization_stream_incarnation
-                        .clone(),
-                },
+                PendingEffectOwnerEvidence::Session(bearer),
                 now_ms,
             )
             .map_err(|error| format!("resolve pending-effect owner: {error:?}"))
@@ -1428,10 +1422,6 @@ pub async fn setup_pending_effect_consumer_attack()
 -> Result<PendingEffectConsumerAttackFixture, String> {
     let base = setup_q06_base().await?;
     let path = base.directory.path().join("engine-a.sqlite3");
-    let authorization_stream_incarnation = base
-        .coordinator_a
-        .authorization_stream_incarnation()
-        .map_err(|error| format!("pending-effect owner incarnation: {error:?}"))?;
     drop(base.engine_a);
     drop(base.engine_b);
     let database =
@@ -1444,10 +1434,7 @@ pub async fn setup_pending_effect_consumer_attack()
     .map_err(|error| format!("parse pending consumer bearer: {error:?}"))?;
     let owner = serving
         .resolve_pending_effect_owner(
-            snapback_kernel::storage::pending_effects::PendingEffectOwnerEvidence::Session {
-                bearer,
-                authorization_stream_incarnation: authorization_stream_incarnation.clone(),
-            },
+            snapback_kernel::storage::pending_effects::PendingEffectOwnerEvidence::Session(bearer),
             NOW + 200,
         )
         .map_err(|error| format!("derive pending consumer owner: {error:?}"))?;
@@ -1465,7 +1452,6 @@ pub async fn setup_pending_effect_consumer_attack()
         serving,
         effect_id: created.id,
         bearer: base.victim_bearer,
-        authorization_stream_incarnation,
     })
 }
 

@@ -299,8 +299,14 @@ pub(super) async fn effect_approve(
             })
             .to_owned();
         let executed = response.status().is_success();
+        let now_ms = now_millis();
+        let settlement = if executed {
+            settlement.executed(Some(&outcome), now_ms)
+        } else {
+            settlement.refused(&outcome, now_ms)
+        };
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.settle_pending_effect(settlement, executed, Some(&outcome), now_millis())
+            snapback.settle_pending_effect(settlement)
         })
         .await?;
         response.headers_mut().insert(

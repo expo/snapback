@@ -2385,13 +2385,10 @@ mod tests {
 
     fn pending_session_owner_evidence(
         bearer: &str,
-        authorization_stream_incarnation: &str,
     ) -> crate::storage::pending_effects::PendingEffectOwnerEvidence {
-        crate::storage::pending_effects::PendingEffectOwnerEvidence::Session {
-            bearer: SessionBearer::parse_any_version(bearer)
-                .expect("pending-effect test session bearer"),
-            authorization_stream_incarnation: authorization_stream_incarnation.to_owned(),
-        }
+        crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(
+            SessionBearer::parse_any_version(bearer).expect("pending-effect test session bearer"),
+        )
     }
 
     struct Fixture {
@@ -2878,10 +2875,7 @@ mod tests {
             authorization_stream_incarnation: fixture.incarnation.clone(),
         };
         let owner = database_a
-            .resolve_pending_effect_owner(
-                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
-                100,
-            )
+            .resolve_pending_effect_owner(pending_session_owner_evidence(&fixture.bearer), 100)
             .expect("derive producer owner from database A");
         let created = database_a
             .create_pending_effect_admitted(
@@ -2980,10 +2974,7 @@ mod tests {
             ttl_ms: 1_000,
         };
         let owner = database
-            .resolve_pending_effect_owner(
-                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
-                100,
-            )
+            .resolve_pending_effect_owner(pending_session_owner_evidence(&fixture.bearer), 100)
             .expect("derive the exact session pending-effect owner");
         let created = database
             .create_pending_effect_admitted(&owner, request(exact.clone()))
@@ -3145,10 +3136,9 @@ mod tests {
         let mut accepted = Vec::new();
         let mut refused = Vec::new();
         for (name, authority) in cases {
-            let owner = match database.resolve_pending_effect_owner(
-                pending_session_owner_evidence(&fixture.bearer, &fixture.incarnation),
-                100,
-            ) {
+            let owner = match database
+                .resolve_pending_effect_owner(pending_session_owner_evidence(&fixture.bearer), 100)
+            {
                 Ok(owner) => owner,
                 Err(_) => {
                     refused.push(name);
