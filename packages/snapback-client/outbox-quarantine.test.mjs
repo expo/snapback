@@ -193,6 +193,7 @@ test('explicit successor re-entry restores pending payloads and drains each iden
 test('non-upgrade replay refusal remains drop-and-mark-failed', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await establishQuarantineTarget(store);
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   const queued = await client.mutate('createThing', { args: { bad: true } });

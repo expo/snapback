@@ -625,7 +625,11 @@ test('headless missing reads and server-only IR stay inspectable pending without
   assert.deepEqual(handle.rows, BASE_ROWS, 'missing projected fields never mean row absence');
   assert.equal(handle.optimisticPresentation.status, 'pending-without-prediction');
   assert.equal(handle.answerClass, 'pending-without-prediction');
-  assert.equal((await client.mutationStatus(incompleteId)).status, 'pending');
+  assert.equal(
+    (await store.outboxRecords()).find((record) => record.id === incompleteId)?.status,
+    'pending',
+    'the store retains pending custody while foreground dispatch owns the shared fence',
+  );
 
   const serverOnlyId = 'mutation-server-only';
   const serverOnly = client.mutate(SERVER_ONLY, {

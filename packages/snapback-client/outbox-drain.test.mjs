@@ -15,12 +15,43 @@ import {
   createMemoryRqsStoreBacking,
 } from './rqs-store-memory.mjs';
 
+const DRAIN_TARGET_PROFILE = 'outbox-drain-target';
+const DRAIN_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'snapback.internal-configured-replay-capability',
+  schemaHash: `sha256:${'d'.repeat(64)}`,
+  bundleHash: `sha256:${'e'.repeat(64)}`,
+  inputsHash: `sha256:${'f'.repeat(64)}`,
+});
+
+const installDrainTarget = (store, baseUrl) => (
+  store?.commitOfflineMutationReplayCapabilityFact?.({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: new URL(baseUrl).origin,
+    supported: true,
+    reason: null,
+    targetProfileId: DRAIN_TARGET_PROFILE,
+    artifactGeneration: DRAIN_GENERATION,
+  }) ?? Promise.resolve(false)
+);
+
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
     super(baseUrl, {
       __offlineMutationReplayCapability: true,
       ...options,
     });
+    this.__drainTargetReady = installDrainTarget(options.rqsStore, baseUrl);
+  }
+
+  async mutate(...args) {
+    await this.__drainTargetReady;
+    return super.mutate(...args);
+  }
+
+  async replayQueuedMutations(...args) {
+    await this.__drainTargetReady;
+    return super.replayQueuedMutations(...args);
   }
 }
 
@@ -49,21 +80,25 @@ const configuredReplayTarget = (baseUrl) => ({
   enqueueTarget: {
     schemaVersion: 'snapback.outbox-enqueue-target.v1',
     canonicalOrigin: new URL(baseUrl).origin,
-    targetProfileId: null,
+    targetProfileId: DRAIN_TARGET_PROFILE,
     artifactIdentity: {
       kind: 'app',
-      appId: 'snapback.internal-configured-replay-capability',
+      appId: DRAIN_GENERATION.appId,
+      generation: DRAIN_GENERATION,
     },
   },
 });
 
-const enqueue = (store, id = 'cm-drain', baseUrl, record = {}) => store.outboxEnqueue({
-  id,
-  function: 'createThing',
-  args: { id },
-  ...configuredReplayTarget(baseUrl),
-  ...record,
-});
+const enqueue = async (store, id = 'cm-drain', baseUrl, record = {}) => {
+  await installDrainTarget(store, baseUrl);
+  return store.outboxEnqueue({
+    id,
+    function: 'createThing',
+    args: { id },
+    ...configuredReplayTarget(baseUrl),
+    ...record,
+  });
+};
 
 const mutationCostRecord = (client, clientMutationId) => (
   client.mutationPhaseCostInspection().records.find(

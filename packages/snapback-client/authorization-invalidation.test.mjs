@@ -14,6 +14,24 @@ const issuerId = {
   bootNonce: 'ABCDEFGHIJKLMNOPQRSTUV',
 };
 const authorization = { incarnation: INCARNATION, epoch: 4 };
+const OUTBOX_TEST_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'atomic-authorization-fixture',
+  schemaHash: `sha256:${'d'.repeat(64)}`,
+  bundleHash: `sha256:${'e'.repeat(64)}`,
+  inputsHash: `sha256:${'f'.repeat(64)}`,
+});
+
+const installOutboxTarget = (store, origin) => (
+  store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: OUTBOX_TEST_GENERATION,
+  })
+);
 
 const response = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -605,6 +623,8 @@ for (const transport of ['poll', 'stream']) {
     const originalWebSocket = globalThis.WebSocket;
     const durableStore = createMemoryRqsResumeStore();
     durableStore.durability = () => ({ implementation: 'authorization-test', durable: true });
+    const origin = 'http://authorization-queue.test';
+    await installOutboxTarget(durableStore, origin);
     const connectionId = `queue-authorization-${transport}`;
     const outbox = [];
     const acknowledgements = [];
@@ -674,7 +694,7 @@ for (const transport of ['poll', 'stream']) {
     };
 
     try {
-      client = new SnapbackClient('http://authorization-queue.test', {
+      client = new SnapbackClient(origin, {
         bearerToken: 'session-atomic-authorization',
         authInvalidationProtocol: 1,
         authorityDescriptorProtocol: 1,
@@ -683,6 +703,7 @@ for (const transport of ['poll', 'stream']) {
         __offlineMutationReplayCapability: true,
         __outboxDrainLifecycle: false,
       });
+      client.__registerInspectionAppId(OUTBOX_TEST_GENERATION.appId);
       handle = await client.liveQuery('atomicTodos', {
         connectionId,
         persistResume: false,

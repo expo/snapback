@@ -61,14 +61,41 @@ test('SQLite entries, recency, eviction, and identity metadata survive reopen', 
 
 test('materializations, outbox settlement, ACK custody, and authority wipe share one domain', async () => {
   const store = await open(await root());
+  const enqueueTarget = Object.freeze({
+    schemaVersion: 'snapback.outbox-enqueue-target.v1',
+    canonicalOrigin: 'https://sqlite-outbox-domain.test',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactIdentity: Object.freeze({
+      kind: 'generated',
+      generation: Object.freeze({
+        schemaVersion: 'snapback.v0',
+        appId: 'sqlite-outbox-domain',
+        schemaHash: `sha256:${'a'.repeat(64)}`,
+        bundleHash: `sha256:${'b'.repeat(64)}`,
+        inputsHash: `sha256:${'c'.repeat(64)}`,
+      }),
+    }),
+  });
   await store.materializationTransaction('readwrite', (view) => {
     view.materializations.set('m', { generation: 1 });
     view.pageSets.set('p', { page: 1 });
     view.memberships.set('x', { member: true });
   });
-  await store.outboxEnqueue({ id: 'mutation-1', function: 'createThing', args: { value: 1 } });
+  await store.outboxEnqueue({
+    id: 'mutation-1',
+    function: 'createThing',
+    args: { value: 1 },
+    outboxRecordSchemaVersion: 2,
+    enqueueTarget,
+  });
   await store.outboxDurablyConsume('mutation-1', { result: { ok: true } }, 'user-1');
-  await store.outboxMarkAcknowledgementsReady(['mutation-1']);
+  await store.outboxMarkAcknowledgementsReady(
+    ['mutation-1'],
+    undefined,
+    undefined,
+    null,
+    enqueueTarget,
+  );
   assert.deepEqual(await store.outboxPendingAcknowledgements('user-1'), ['mutation-1']);
   const before = await store.readStoreMeta();
   assert.equal(await store.wipeForAuthorityTransition(), true);

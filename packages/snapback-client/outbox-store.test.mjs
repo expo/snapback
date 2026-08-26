@@ -6600,8 +6600,10 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
   );
   assert.deepEqual(delivered, [], 'target adoption is not inferred from sidecar admission');
   assert.equal(
-    candidate.outboxDiagnostics.at(-1)?.code,
-    'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    candidate.outboxDiagnostics.some(
+      (diagnostic) => diagnostic.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    ),
+    true,
   );
   assert.equal(Object.isFrozen(receipt), true);
   assert.equal(Object.isFrozen(receipt.before), true);
@@ -6744,8 +6746,10 @@ test('sidecar adoption target mismatch precedes authority-instance custody recon
       'adoption and outboxStatus leave the target-A record byte-identical and pending',
     );
     assert.equal(
-      candidate.outboxDiagnostics.at(-1)?.code,
-      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+      candidate.outboxDiagnostics.some(
+        (diagnostic) => diagnostic.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+      ),
+      true,
     );
   } finally {
     await candidate.close();
@@ -8208,6 +8212,15 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
       },
     },
     {
+      label: 'outbox-head-diagnostics',
+      invoke: async () => {
+        // Client construction schedules the private #outboxHeadFact startup
+        // reconstruction. Let that promise chain reach its target-filtered
+        // durable read while the foreign row is the only queue head.
+        await new Promise((resolve) => setImmediate(resolve));
+      },
+    },
+    {
       label: 'mutation-status',
       invoke: async ({ client, foreignId }) => {
         assert.equal((await client.mutationStatus(foreignId)).status, 'unknown');
@@ -8224,6 +8237,26 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
         await new Promise((resolve) => setImmediate(resolve));
         unsubscribe();
         assert.deepEqual(statuses, ['unknown']);
+      },
+    },
+    {
+      label: 'optimistic-projection-and-disposition',
+      invoke: async ({ client, foreignId }) => {
+        const view = await client.createOptimisticMutationView({
+          authoritativeRows: { cards: [] },
+        });
+        try {
+          assert.equal(view.getSnapshot().layers.length, 0);
+        } finally {
+          view.close();
+        }
+        const disposition = await client.__optimisticMutationDisposition(foreignId);
+        assert.equal(disposition.status, 'unknown');
+        assert.equal(disposition.record, null);
+        assert.equal(
+          client.outboxDiagnostics.at(-1)?.code,
+          'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+        );
       },
     },
     {
@@ -8313,6 +8346,30 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
       },
     },
     {
+      label: 'explicit-piggyback-acknowledgement',
+      invoke: async ({ client, foreignId, store }) => {
+        const enqueue = store.outboxEnqueue.bind(store);
+        let replaced = false;
+        store.outboxEnqueue = async (...args) => {
+          const stored = await enqueue(...args);
+          if (!replaced) {
+            replaced = true;
+            client.baseUrl = 'https://explicit-piggyback-repointed.example';
+          }
+          return stored;
+        };
+        await assert.rejects(
+          () => client.mutate('createThing', {
+            args: { title: 'current target refuses before transport' },
+            clientMutationId: 'cm-explicit-piggyback-target-b',
+            acknowledgedClientMutationIds: [foreignId],
+            queue: true,
+          }),
+          (error) => error.code === 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED',
+        );
+      },
+    },
+    {
       label: 'replay-and-terminal-consumers',
       invoke: async ({ client }) => {
         const replay = await client.replayQueuedMutations();
@@ -8335,10 +8392,37 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
         assert.equal(receipt.replayed, 0);
       },
     },
+    {
+      label: 'foreground-range-and-disposition',
+      fixtureOptions: { operationIdentityProtocol: 1 },
+      invoke: async ({ client, store }) => {
+        const enqueue = store.outboxEnqueueWithOperationIdentity.bind(store);
+        let replaced = false;
+        store.outboxEnqueueWithOperationIdentity = async (...args) => {
+          const stored = await enqueue(...args);
+          if (!replaced) {
+            replaced = true;
+            client.baseUrl = 'https://foreground-range-repointed.example';
+          }
+          return stored;
+        };
+        await assert.rejects(
+          () => client.mutate('createThing', {
+            args: { title: 'current range refuses before transport' },
+            clientMutationId: 'cm-foreground-range-target-b',
+            queue: true,
+          }),
+          (error) => error.code === 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED',
+        );
+      },
+    },
   ];
   for (const recoveryCase of cases) {
     await t.test(recoveryCase.label, async () => {
-      const fixture = await createForeignTargetSessionFixture({ label: recoveryCase.label });
+      const fixture = await createForeignTargetSessionFixture({
+        label: recoveryCase.label,
+        ...recoveryCase.fixtureOptions,
+      });
       try {
         await recoveryCase.prepare?.(fixture);
         const before = structuredClone(

@@ -11,6 +11,15 @@ import {
 import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
+const DIAGNOSTICS_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'client-diagnostics-test',
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+const DIAGNOSTICS_TARGET_PROFILE = 'local-dev-sqlite-ibex';
+
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
     super(baseUrl, {
@@ -18,8 +27,20 @@ class SnapbackClient extends InspectingSnapbackClient {
       __outboxDrainLifecycle: false,
       ...options,
     });
+    this.__registerInspectionAppId(DIAGNOSTICS_GENERATION.appId);
   }
 }
+
+const installDiagnosticsTarget = (store, origin) => (
+  store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: DIAGNOSTICS_TARGET_PROFILE,
+    artifactGeneration: DIAGNOSTICS_GENERATION,
+  })
+);
 
 const event = (overrides = {}) => ({
   schemaVersion: 'snapback.client-diagnostic.v2',
@@ -423,7 +444,9 @@ test('SnapbackClient bridges queued outbox diagnostics into its owned v2 channel
   const originalFetch = globalThis.fetch;
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'diagnostics-test', durable: true });
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  const origin = 'http://127.0.0.1:9';
+  await installDiagnosticsTarget(store, origin);
+  const client = new SnapbackClient(origin, { rqsStore: store });
   const channel = client.diagnosticsChannel();
   try {
     globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
@@ -459,8 +482,11 @@ test('SnapbackClient bridges queued outbox diagnostics into its owned v2 channel
 
 test('SnapbackClient bridges uncovered-range queued diagnostics as warnings', async () => {
   const originalFetch = globalThis.fetch;
-  const client = new SnapbackClient('https://operation-range-diagnostics.example', {
-    rqsStore: durableMemoryStore(),
+  const origin = 'https://operation-range-diagnostics.example';
+  const store = durableMemoryStore();
+  await installDiagnosticsTarget(store, origin);
+  const client = new SnapbackClient(origin, {
+    rqsStore: store,
     operationIdentityProtocol: 1,
     devDiagnosticsReporter: false,
   });
@@ -516,8 +542,10 @@ test('positive dev gating enables the default reporter and production absence st
     process.env.NODE_ENV = 'development';
     assert.equal(positiveDevelopmentEnvironment(), true);
     const devOutput = testConsole();
+    const devStore = durableMemoryStore();
+    await installDiagnosticsTarget(devStore, 'http://127.0.0.1:9');
     devClient = new SnapbackClient('http://127.0.0.1:9', {
-      rqsStore: durableMemoryStore(),
+      rqsStore: devStore,
       __devDiagnosticsReporterOptions: { console: devOutput.console },
     });
     restoreNodeEnvironment(previousNodeEnvironment);
@@ -553,8 +581,10 @@ test('positive dev gating enables the default reporter and production absence st
 
     delete process.env.NODE_ENV;
     const productionOutput = testConsole();
+    const productionStore = durableMemoryStore();
+    await installDiagnosticsTarget(productionStore, 'http://127.0.0.1:9');
     productionClient = new SnapbackClient('http://127.0.0.1:9', {
-      rqsStore: durableMemoryStore(),
+      rqsStore: productionStore,
       __devDiagnosticsReporterOptions: { console: productionOutput.console },
     });
     assert.equal(positiveDevelopmentEnvironment(), false);
@@ -582,6 +612,7 @@ test('wedged condition is per durable head and unchanged replay notifications do
   const clock = fakeClock();
   const output = testConsole();
   const store = durableMemoryStore({ now: clock.now });
+  await installDiagnosticsTarget(store, 'http://127.0.0.1:9');
   let client = null;
   try {
     process.env.NODE_ENV = 'development';
@@ -677,6 +708,7 @@ test('result-gone keeps the same head active and switches to acknowledge recover
   const clock = fakeClock(5_000);
   const output = testConsole();
   const store = durableMemoryStore({ now: clock.now });
+  await installDiagnosticsTarget(store, 'http://127.0.0.1:9');
   let client = null;
   try {
     process.env.NODE_ENV = 'development';
@@ -731,6 +763,7 @@ test('client close clears active conditions and cancels an armed wedge deadline'
   const originalFetch = globalThis.fetch;
   const clock = fakeClock(9_000);
   const store = durableMemoryStore({ now: clock.now });
+  await installDiagnosticsTarget(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', {
     rqsStore: store,
     devDiagnosticsReporter: false,

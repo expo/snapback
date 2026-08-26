@@ -28,6 +28,26 @@ const SESSION = '018f0d90-7b12-7a22-8c33-445566778899';
 const USER = '018f0d90-7b13-7a22-8c33-445566778899';
 const AUTHORITY_INSTANCE = '018f0d90-7b14-7a22-8c33-445566778899';
 const BEARER = 'sbs_logout_v3_bridge_fixture';
+const OUTBOX_ORIGIN = 'https://logout-v3.test';
+
+const outboxGeneration = (appId) => Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId,
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+
+const installOutboxTarget = (store, generation) => (
+  store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: OUTBOX_ORIGIN,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: generation,
+  })
+);
 
 const grantingLocks = {
   request: (_name, _options, callback) => Promise.resolve(callback({ mode: 'exclusive' })),
@@ -179,14 +199,22 @@ const assertResidentClearedBeforeQueueReconcile = (snapshot) => {
   assert.deepEqual(snapshot.sections, { materializations: 0, pageSets: 0, memberships: 0 });
 };
 
-async function seedPredecessorState(store) {
+async function seedPredecessorState(store, generation) {
   assert.equal(await store.allocateQueryInstanceId(), 1);
   assert.equal(await store.allocateQueryInstanceId(), 2);
   await store.writeStoreMeta(populatedMeta(await store.readStoreMeta()));
+  await installOutboxTarget(store, generation);
   assert.equal((await store.commit('logout-v3-entry', retainedEntry)).persisted, true);
   await store.outboxEnqueue({
     id: 'logout-v3-pending',
     function: 'writePredecessor',
+    outboxRecordSchemaVersion: 2,
+    enqueueTarget: {
+      schemaVersion: 'snapback.outbox-enqueue-target.v1',
+      canonicalOrigin: OUTBOX_ORIGIN,
+      targetProfileId: 'local-dev-sqlite-ibex',
+      artifactIdentity: { kind: 'app', appId: generation.appId, generation },
+    },
     authorityDescriptor: {
       descriptorVersion: 1,
       authorityInstanceId: AUTHORITY_INSTANCE,
@@ -216,6 +244,8 @@ async function exercisePublicLogout({
 }) {
   await prepareStore();
   assert.equal(store.isWriter(), true, `${label}: store writer acquired`);
+  const appId = `snapback.test/logout-v3-${label}`;
+  const generation = outboxGeneration(appId);
 
   let wipeCalls = 0;
   const injectedStore = Object.create(store);
@@ -228,20 +258,20 @@ async function exercisePublicLogout({
     return store.wipeForAuthorityTransitionWithinDispatch(...args);
   };
 
-  const appId = `snapback.test/logout-v3-${label}`;
   const coordinator = new AuthCoordinator({
     appId,
     storage: createMemoryAuthCustodyStorage(),
     broadcastChannelFactory: null,
     hintStorage: null,
   });
-  const client = new SnapbackClient('https://logout-v3.test', {
+  const client = new SnapbackClient(OUTBOX_ORIGIN, {
     authCoordinator: coordinator,
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     rqsStore: injectedStore,
     offlineQueue: false,
   });
+  client.__registerInspectionAppId(appId);
 
   const originalFetch = globalThis.fetch;
   let logoutPosted = false;
@@ -269,7 +299,7 @@ async function exercisePublicLogout({
 
   try {
     await client.authExchange({ challengeId: 'logout-v3-challenge', code: '123456' });
-    await seedPredecessorState(store);
+    await seedPredecessorState(store, generation);
     await afterSeed?.();
     const before = await store.readStoreMeta();
     assertPopulated(await residentSnapshot(store));
@@ -379,17 +409,19 @@ test('logout fails closed when the v3 wipe cannot advance queue authority', asyn
     return store.wipeForAuthorityTransitionWithinDispatch(...args);
   };
   const appId = 'snapback.test/logout-v3-availability';
+  const generation = outboxGeneration(appId);
   const coordinator = new AuthCoordinator({
     appId,
     storage: createMemoryAuthCustodyStorage(),
     broadcastChannelFactory: null,
     hintStorage: null,
   });
-  const client = new SnapbackClient('https://logout-v3.test', {
+  const client = new SnapbackClient(OUTBOX_ORIGIN, {
     authCoordinator: coordinator,
     rqsStore: injectedStore,
     offlineQueue: false,
   });
+  client.__registerInspectionAppId(appId);
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -405,7 +437,7 @@ test('logout fails closed when the v3 wipe cannot advance queue authority', asyn
   };
   try {
     await client.authExchange({ challengeId: 'logout-v3-challenge', code: '123456' });
-    await seedPredecessorState(store);
+    await seedPredecessorState(store, generation);
     failWipe = true;
     await assert.rejects(
       () => client.authLogout(),

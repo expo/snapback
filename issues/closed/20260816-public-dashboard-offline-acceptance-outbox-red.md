@@ -1186,9 +1186,10 @@ The systemic client API inventory is:
 
 | Client API / entry point | ID/filter admitted to work | Target fence | Lock ownership |
 | --- | --- | --- | --- |
-| `outboxStatus()` / `#outboxHeadFact()` | all locally retained current-target records | shared projection fence | shared authorization-dispatch lock |
+| `outboxStatus()` | all locally retained current-target records | shared projection fence | shared authorization-dispatch lock |
+| `#outboxHeadFact()` | all current-target diagnostic head candidates | read-only projection fence | callback may inherit foreground ownership; this path performs no record transition |
 | `mutationStatus(id)` / `subscribeMutation(id)` | exact locally present caller id | shared projection fence; foreign/legacy is `unknown` | shared authorization-dispatch lock per observation |
-| `createOptimisticMutationView()` / `__createOptimisticRebaseEngine()` | all current-target optimistic layers | shared projection fence | shared authorization-dispatch lock per rebase read |
+| `createOptimisticMutationView()` / `__createOptimisticRebaseEngine()` / `__optimisticMutationDisposition(id)` | all current-target optimistic layers, or one exact retained layer id | read-only projection fence | caller may already own the shared lock; this path performs no record transition |
 | `acknowledgeMutations({ clientMutationIds })` | exact local ids surviving cohort and post-custody re-read | fresh complete ACK target plus exact persisted enqueue target | held through scoped custody, ACK POST, and exact-target confirmation |
 | `acknowledgeResultGoneMutations(ids)` | exact local `result-gone` ids | shared projection fence | held through each discard |
 | `quarantinedMutations()` | redacted quarantine rows whose private target metadata matches | shared projection fence | held through observation |
@@ -1204,15 +1205,18 @@ The systemic client API inventory is:
 | `adoptQueuedMutations()` | current-target rows in before/after counts; replay owns each admitted row | shared projection fence plus expected store/generation/fresh-snapshot checks | shared lock for counts; replay lock for mutation |
 | foreground durable mutation, identity-range issuance, settlement and terminal consumers | the newly enqueued current-target record | shared operation-target fence after enqueue and again immediately before range transport | held from final capability/record validation through range assignment, then through mutation dispatch and durable disposition |
 
-The table-driven shared-store regression exercises every public recovery row
-that can be invoked without creating new intent: status, per-id status and
-subscription, stranded read/discard/re-record, quarantine read/re-entry,
-result-gone acknowledgement, settlement read/consumption, standalone ACK,
-replay/terminal consumption, and sidecar adoption. Each row uses a foreign
-target record and asserts byte-identical foreign custody plus zero transport.
-The optimistic projection, explicit mutation piggyback, foreground range,
-and the two authority-unsettled terminal handlers have focused regressions
-because those entries necessarily create or dispatch current-target work.
+The table-driven shared-store regression exercises the complete inventory:
+status and diagnostic-head reconstruction, per-id status and subscription,
+optimistic projection/disposition, stranded read/discard/re-record, quarantine
+read/re-entry, result-gone acknowledgement, settlement read/consumption,
+standalone and explicit piggyback ACK selection, replay/terminal consumption,
+sidecar adoption, and foreground range/disposition. Each row uses a foreign
+target record and asserts byte-identical foreign custody plus zero transport;
+the two current-intent rows invalidate their pinned target after enqueue so the
+final authorization cut refuses before range or mutation transport. The peer-
+negative foreground-range regression separately proves zero range requests.
+The two authority-unsettled terminal handlers additionally retain focused
+regressions.
 
 The four named regressions failed before the production fix with these
 verbatim lines:

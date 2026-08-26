@@ -88,6 +88,14 @@ const createDurableTestStore = () => {
   return store;
 };
 
+const outboxGeneration = (appId) => Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId,
+  schemaHash: `sha256:${'d'.repeat(64)}`,
+  bundleHash: `sha256:${'e'.repeat(64)}`,
+  inputsHash: `sha256:${'f'.repeat(64)}`,
+});
+
 const availability = Object.freeze({
   onlineRequestResponse: { available: true, reason: null },
   authScopedLive: {
@@ -241,6 +249,15 @@ const makeFixture = ({ store = createDurableTestStore(), storage = null } = {}) 
     successfulMutationBodies: [],
     version: 0,
   };
+  fixture.generation = outboxGeneration(fixture.appId);
+  fixture.capabilityReady = store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: fixture.baseUrl,
+    supported: true,
+    reason: null,
+    targetProfileId: 'outbox-custody-target',
+    artifactGeneration: fixture.generation,
+  });
   fixtures.set(host, fixture);
   return fixture;
 };
@@ -258,10 +275,12 @@ const makeClient = (fixture, { store = fixture.store, storage = fixture.storage 
     authorityDescriptorProtocol: 1,
     rqsStore: store,
   });
+  client.__registerInspectionAppId(fixture.appId);
   return { client, coordinator };
 };
 
 const signIn = async (fixture, client, current = actorA1()) => {
+  await fixture.capabilityReady;
   fixture.loginActor = current;
   fixture.actorsByBearer.set(current.bearer, current);
   await client.authExchange({ challengeId: 'outbox-custody-challenge', code: '123456' });
@@ -285,6 +304,7 @@ const transitionTo = async (fixture, coordinator, current, reason = 'test_succes
 };
 
 const queueOffline = async (fixture, client, name, options = {}) => {
+  await fixture.capabilityReady;
   fixture.offlineMutations = true;
   const queued = await client.mutate(name, options);
   assert.equal(queued.status, 'queued');
@@ -530,10 +550,18 @@ test('authority resume fails closed when queue custody reconciliation is refused
     }
     return underlying.outboxReconcileCustody(...args);
   };
+  injectedStore.outboxReconcileCustodyRecords = async (...args) => {
+    if (refuseReconciliation) {
+      refusedCalls += 1;
+      return false;
+    }
+    return underlying.outboxReconcileCustodyRecords(...args);
+  };
   const fixture = makeFixture({ store: injectedStore });
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
   await signIn(fixture, client);
+  await queueOffline(fixture, client, 'reconciliationRefusalFixture');
 
   refuseReconciliation = true;
   const successor = actorA2();
@@ -613,10 +641,10 @@ test('same principal on a new authority instance strands pending and failed reco
   assert.equal((await client.outboxStatus()).stranded, 2);
   const pendingDisposition = await client.mutationStatus(pending.clientMutationId);
   assert.equal(pendingDisposition.status, 'stranded');
-  assert.equal(pendingDisposition.targetMatchesCurrent, false);
+  assert.equal(pendingDisposition.targetMatchesCurrent, true);
   assert.equal(
     pendingDisposition.enqueueTarget.artifactIdentity.appId,
-    'snapback.internal-configured-replay-capability',
+    fixture.appId,
   );
   assert.equal(Object.isFrozen(pendingDisposition), true);
   fixture.offlineMutations = false;
@@ -647,7 +675,14 @@ test('principal switch deletes every predecessor disposition before successor ob
     result: { secret: 'PREDECESSOR_SETTLEMENT_RESULT' },
     authorityDescriptor: descriptor(actorA1()),
   }, IDS.userA);
-  await fixture.store.outboxMarkAcknowledgementsReady([third.clientMutationId]);
+  await fixture.store.outboxMarkAcknowledgementsReady(
+    [third.clientMutationId],
+    undefined,
+    undefined,
+    null,
+    (await fixture.store.outboxRecords())
+      .find((record) => record.id === third.clientMutationId).enqueueTarget,
+  );
   assert.equal((await fixture.store.outboxRecords()).length, 3);
   assert.deepEqual(
     await fixture.store.outboxPendingAcknowledgements(
@@ -984,7 +1019,7 @@ test('stranding a valid near-limit record cannot wedge an authority transition',
   assert(outboxRecordBytes(stranded.result) > OUTBOX_MAX_RECORD_BYTES);
 });
 
-test('unattributable queue records are privacy-deleted at fenced reconciliation', async (t) => {
+test('unattributable targetless queue records remain untouched at fenced reconciliation', async (t) => {
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
@@ -992,16 +1027,21 @@ test('unattributable queue records are privacy-deleted at fenced reconciliation'
   // Dev-era / foreign-writer bytes: no captured descriptor, principal scope,
   // or custody proof. A fenced observer can neither attribute them to the
   // current principal nor transmit them under a captured authority, so the
-  // reconciliation deletes them with the diagnostic count (LLP 0043 dated
-  // implementation note, 2026-08-06).
+  // reconciliation cannot adopt or delete them under whichever target happens
+  // to be current. Round 23 keeps those legacy bytes untouched and records the
+  // coded target-fence refusal.
   await fixture.store.outboxEnqueue({ id: 'legacy-dev-pending', function: 'writeLegacy' });
   await transitionTo(fixture, coordinator, actorA2(), 'unattributable_privacy_delete');
   const status = await client.outboxStatus();
   assert.equal(status.pending, 0);
   assert.equal(status.stranded, 0);
-  assert.deepEqual(await fixture.store.outboxRecords(), []);
+  assert.deepEqual(
+    (await fixture.store.outboxRecords()).map((record) => record.id),
+    ['legacy-dev-pending'],
+  );
   const diagnostic = client.outboxDiagnostics.find((entry) => (
-    entry.code === 'SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE'
+    entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
+    && entry.reasons?.includes('enqueue-target-missing')
   ));
-  assert.equal(diagnostic?.deleted, 1);
+  assert.equal(diagnostic?.refused, 1);
 });

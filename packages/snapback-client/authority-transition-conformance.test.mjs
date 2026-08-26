@@ -11,6 +11,25 @@ import {
 import { SnapbackClient } from './index.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
+const OUTBOX_TEST_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v0',
+  appId: 'authority-transition-conformance',
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
+
+const commitCompleteReplayCapability = (store, origin) => (
+  store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: 'local-dev-sqlite-ibex',
+    artifactGeneration: OUTBOX_TEST_GENERATION,
+  })
+);
+
 const EXPECTED_TERMINALS_BY_SURFACE = Object.freeze({
   'one-shot-anonymous': ['admit', 'refuse', 'admit', 'refuse', 'admit'],
   'one-shot-authenticated': ['refuse', 'refuse', 'admit', 'refuse', 'admit'],
@@ -339,6 +358,7 @@ test('rejected mutations retain server timing on the error and durable failed di
   const originalFetch = globalThis.fetch;
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  await commitCompleteReplayCapability(store, 'https://mutation-error-timing.test');
   const client = new SnapbackClient('https://mutation-error-timing.test', {
     rqsStore: store,
     __offlineMutationReplayCapability: true,
@@ -465,6 +485,10 @@ test('declared housekeeping queues with auth-barrier attribution and zero transp
   };
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  await commitCompleteReplayCapability(
+    store,
+    'https://authority-transition-housekeeping.test',
+  );
   const initialAuthorization = await store.outboxAuthorizationStatus();
   await store.outboxApplyAuthorizationObligation({
     protocolVersion: 1,

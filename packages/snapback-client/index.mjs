@@ -3412,6 +3412,54 @@ const outboxRecordTargetStatus = (record, target) => {
     });
 };
 
+const mutationStatusFromOutboxRecord = (record, target, { authBarrier = false } = {}) => {
+  if (record === null || record === undefined) {
+    return Object.freeze({ status: 'unknown', timing: mutationTiming() });
+  }
+  const targetStatus = outboxRecordTargetStatus(record, target);
+  const projectedTarget = targetStatus === null ? {} : targetStatus;
+  if (record.status === 'pending') {
+    return freezeDeep({
+      status: 'pending',
+      blockedReason: authBarrier ? 'auth-barrier' : null,
+      timing: mutationTiming(record),
+      ...projectedTarget,
+    });
+  }
+  if (record.status === 'settled') {
+    return freezeDeep({
+      status: 'settled',
+      settlement: structuredClone(record.settlement),
+      settledAt: record.settledAt,
+      timing: mutationTiming(record),
+      ...projectedTarget,
+    });
+  }
+  if (record.status === 'failed') {
+    return freezeDeep({
+      status: 'failed',
+      failure: structuredClone(record.failure),
+      timing: mutationTiming(record),
+      ...projectedTarget,
+    });
+  }
+  if (record.status === 'stranded') {
+    return freezeDeep({ status: 'stranded', timing: mutationTiming(record), ...projectedTarget });
+  }
+  if (record.status === 'quarantined') {
+    return freezeDeep({ status: 'quarantined', timing: mutationTiming(record), ...projectedTarget });
+  }
+  if (record.status === 'result-gone') {
+    return freezeDeep({
+      status: 'resultGone',
+      ...structuredClone(record.resultGone),
+      timing: mutationTiming(record),
+      ...projectedTarget,
+    });
+  }
+  return freezeDeep({ status: 'unknown', timing: mutationTiming(record), ...projectedTarget });
+};
+
 const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) => {
   // Local `/inspect` nests the manifest in PublicInspect; the Cloudflare
   // proof serves that same manifest directly at `/inspect` and `/capability`.
@@ -8666,7 +8714,21 @@ export class SnapbackClient {
   }
 
   async #outboxProjectionTarget(store) {
-    const capabilityFact = await this.#currentOfflineMutationReplayCapabilityFact();
+    let capabilityFact = await this.#currentOfflineMutationReplayCapabilityFact();
+    // A client with offlineQueue:false can still inherit predecessor custody
+    // through its RQS store and must reconcile that custody on an authority
+    // transition. The explicit projection store remains the shared target
+    // authority even though it is not an enqueue destination for this client.
+    if (
+      capabilityFact === null
+      && typeof store?.readOfflineMutationReplayCapabilityFact === 'function'
+    ) {
+      try {
+        capabilityFact = normalizeOfflineMutationReplayCapabilityFact(
+          await store.readOfflineMutationReplayCapabilityFact(),
+        );
+      } catch { capabilityFact = null; }
+    }
     return offlineMutationProjectionTarget({
       baseUrl: this.baseUrl,
       appId: this.__inspectionAppId,
@@ -8743,6 +8805,18 @@ export class SnapbackClient {
           clientMutationId: id,
         }));
       }
+      if (refused.length > 0) {
+        const reasons = Object.freeze([...new Set(refused.map((entry) => entry.reason))]);
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+          api,
+          refused: refused.length,
+          reasons,
+          clientMutationIds: Object.freeze(refused
+            .map((entry) => entry.clientMutationId)
+            .filter((id) => typeof id === 'string')),
+        }, { notify: false });
+      }
       const authorizationFence = outboxAuthorizationFenceFrom(
         await store.outboxAuthorizationStatus(),
       );
@@ -8759,29 +8833,17 @@ export class SnapbackClient {
     } finally {
       await releaseAuthorizationDispatch();
     }
-    if (requestedIds !== null && refused.length > 0) {
-      const reasons = Object.freeze([...new Set(refused.map((entry) => entry.reason))]);
-      this.#recordOutboxDiagnostic({
-        code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
-        api,
-        refused: refused.length,
-        reasons,
-        clientMutationIds: Object.freeze(refused
-          .map((entry) => entry.clientMutationId)
-          .filter((id) => typeof id === 'string')),
-      }, { notify: false });
-    }
     if (thrown !== null) throw thrown;
     return value;
   }
 
   #targetAwareOptimisticRecordStore(store) {
     return Object.freeze({
-      outboxRecords: async () => this.#withTargetFencedOutboxRecords(
-        store,
-        { api: 'createOptimisticMutationView' },
-        async ({ records }) => records,
-      ),
+      outboxRecords: async () => {
+        const target = await this.#outboxProjectionTarget(store);
+        const records = await store.outboxRecords();
+        return records.filter((record) => outboxRecordMatchesProjectionTarget(record, target));
+      },
     });
   }
 
@@ -8866,11 +8928,28 @@ export class SnapbackClient {
         record: structuredClone(ephemeral),
       });
     }
-    const disposition = await this.mutationStatus(clientMutationId);
+    let disposition = Object.freeze({ status: 'unknown', timing: mutationTiming() });
     let record = null;
     try {
-      record = (await this.__optimisticRecordStore.outboxRecords())
-        .find((candidate) => candidate?.id === clientMutationId) ?? null;
+      const target = await this.#outboxProjectionTarget(this.__optimisticRecordStore);
+      const candidate = (await this.__optimisticRecordStore.outboxRecords())
+        .find((entry) => entry?.id === clientMutationId) ?? null;
+      record = candidate !== null && outboxRecordMatchesProjectionTarget(candidate, target)
+        ? candidate
+        : null;
+      if (candidate !== null && record === null) {
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+          api: '__optimisticMutationDisposition',
+          refused: 1,
+          reasons: Object.freeze(['enqueue-target-mismatch']),
+          clientMutationIds: Object.freeze([clientMutationId]),
+        }, { notify: false });
+      }
+      disposition = mutationStatusFromOutboxRecord(record, target, {
+        authBarrier: this.authorityFence?.authorityTransitionStatus?.()?.transitionOwner
+          === 'auth-coordinator',
+      });
     } catch { /* disposition remains inspectable without the private record */ }
     return Object.freeze({
       ...disposition,
@@ -10884,30 +10963,54 @@ export class SnapbackClient {
       };
     }
 
-    const status = await this.outboxStatus();
     // @ref LLP 0219#producers-pilot-scoped-detectors — queue-head identity is
     // re-read from the durable store notification seam, never reconstructed
-    // from the bounded __outboxDiagnostics history.
+    // from the bounded __outboxDiagnostics history. This callback can run
+    // while its foreground producer owns the authorization-dispatch lock, so
+    // it uses the same read-only target projection as optimistic rebase rather
+    // than trying to re-enter the lock. It never transitions an outbox row.
     const records = typeof store.outboxRecords === 'function'
-      ? await this.#withTargetFencedOutboxRecords(
-          store,
-          { api: '#outboxHeadFact' },
-          async ({ records: targetRecords }) => targetRecords,
-        )
+      ? await this.#targetAwareOptimisticRecordStore(store).outboxRecords()
       : [];
     const pendingFromRecords = records
       .filter((record) => record?.status === 'pending').length;
-    const pending = status.pending === pendingFromRecords
-      ? status.pending
-      : pendingFromRecords;
+    const pending = pendingFromRecords;
     const head = records
       .filter((record) => record?.status === 'pending' || record?.status === 'result-gone')
       .sort((left, right) => left.sequence - right.sequence)[0] ?? null;
+    const registeredController = outboxDrainControllersByStore.get(store) ?? null;
+    if (registeredController !== null) this.__outboxDrainController = registeredController;
+    const controllerStatus = registeredController?.status?.() ?? null;
+    let blockedReason = controllerStatus?.blockedReason
+      ?? this.__outboxDrainStartBlockedReason
+      ?? (
+        typeof store.isWriter === 'function' && store.isWriter() !== true
+          ? 'not-writer'
+          : null
+      );
+    const authorityTransition = this.authorityTransitionStatus();
+    if (
+      blockedReason === null
+      && authorityTransition.transitionOwner === 'auth-coordinator'
+    ) blockedReason = 'auth-barrier';
+    let oldestPendingAtMs = null;
+    for (const record of records) {
+      if (
+        record?.status === 'pending'
+        && Number.isSafeInteger(record.enqueuedAt)
+        && (oldestPendingAtMs === null || record.enqueuedAt < oldestPendingAtMs)
+      ) oldestPendingAtMs = record.enqueuedAt;
+    }
     const statusFact = {
-      oldestPendingAtMs: status.oldestPendingAtMs,
-      blockedReason: status.blockedReason,
-      drainPhase: status.drainPhase,
-      nextRetryAtMs: status.nextRetryAtMs,
+      oldestPendingAtMs,
+      blockedReason,
+      drainPhase: controllerStatus?.drainPhase
+        ?? (
+          this.__outboxReplayTask !== null || this.__outboxHousekeepingReplayTask !== null
+            ? 'replaying'
+            : 'idle'
+        ),
+      nextRetryAtMs: controllerStatus?.nextRetryAtMs ?? null,
     };
     if (head === null) return { head: null, pending, ...statusFact };
 
@@ -11433,31 +11536,7 @@ export class SnapbackClient {
     const ephemeral = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
     if (ephemeral !== null) {
       const target = await this.#outboxProjectionTarget(this.__optimisticRecordStore);
-      const targetStatus = outboxRecordTargetStatus(ephemeral, target);
-      const projectedTarget = targetStatus === null ? {} : targetStatus;
-      if (ephemeral.status === 'settled') {
-        return freezeDeep({
-          status: 'settled',
-          settlement: structuredClone(ephemeral.settlement),
-          settledAt: ephemeral.settledAt,
-          timing: mutationTiming(ephemeral),
-          ...projectedTarget,
-        });
-      }
-      if (ephemeral.status === 'failed') {
-        return freezeDeep({
-          status: 'failed',
-          failure: structuredClone(ephemeral.failure),
-          timing: mutationTiming(ephemeral),
-          ...projectedTarget,
-        });
-      }
-      return freezeDeep({
-        status: 'pending',
-        blockedReason: null,
-        timing: mutationTiming(ephemeral),
-        ...projectedTarget,
-      });
+      return mutationStatusFromOutboxRecord(ephemeral, target);
     }
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
@@ -11475,54 +11554,13 @@ export class SnapbackClient {
       return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
     const { record, target } = selection;
-    if (!record) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
-    const targetStatus = outboxRecordTargetStatus(record, target);
-    const projectedTarget = targetStatus === null ? {} : targetStatus;
-    const disposition = (value) => freezeDeep(value);
-    if (record.status === 'pending') {
-      // LLP 0218 §4.1: the current store records no durable
-      // identity-horizon-passed marker, so outcome-unknown cannot be inferred
-      // from a merely pending record and blockedReason remains null.
-      const authorityStatus = this.authorityFence?.authorityTransitionStatus?.() ?? null;
-      return freezeDeep({
-        status: 'pending',
-        blockedReason: authorityStatus?.transitionOwner === 'auth-coordinator' ? 'auth-barrier' : null,
-        timing: mutationTiming(record),
-        ...projectedTarget,
-      });
-    }
-    if (record.status === 'settled') {
-      return freezeDeep({
-        status: 'settled',
-        settlement: structuredClone(record.settlement),
-        settledAt: record.settledAt,
-        timing: mutationTiming(record),
-        ...projectedTarget,
-      });
-    }
-    if (record.status === 'failed') {
-      return disposition({
-        status: 'failed',
-        failure: structuredClone(record.failure),
-        timing: mutationTiming(record),
-        ...projectedTarget,
-      });
-    }
-    if (record.status === 'stranded') {
-      return disposition({ status: 'stranded', timing: mutationTiming(record), ...projectedTarget });
-    }
-    if (record.status === 'quarantined') {
-      return disposition({ status: 'quarantined', timing: mutationTiming(record), ...projectedTarget });
-    }
-    if (record.status === 'result-gone') {
-      return disposition({
-        status: 'resultGone',
-        ...structuredClone(record.resultGone),
-        timing: mutationTiming(record),
-        ...projectedTarget,
-      });
-    }
-    return freezeDeep({ status: 'unknown', timing: mutationTiming(record), ...projectedTarget });
+    // LLP 0218 §4.1: the current store records no durable
+    // identity-horizon-passed marker, so outcome-unknown cannot be inferred
+    // from a merely pending record and blockedReason remains null.
+    const authorityStatus = this.authorityFence?.authorityTransitionStatus?.() ?? null;
+    return mutationStatusFromOutboxRecord(record, target, {
+      authBarrier: authorityStatus?.transitionOwner === 'auth-coordinator',
+    });
   }
 
   /// Observe one durable mutation disposition over the existing outbox seam.
