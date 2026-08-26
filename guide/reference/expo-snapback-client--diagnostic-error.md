@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:675929b5ac461c2db47e18cff68d784469fd6467560a
 # @expo/snapback-client/diagnostic-error
 
 Build-bound public API projection for `@expo/snapback-client/diagnostic-error`. Canonical registry identity:
-`sha256:6baf2f763652cece20bcdfacf406dbf0b68b9a232db2065bd2eeb5cec44ad4a3`.
+`sha256:b2b64b7f6658810dba5a0cc7ee65b90ad09fa430744f8ff8e55d68ad52e50f8b`.
 Runtime parity condition:
 `import` → `packages/snapback-client/diagnostic-error.mjs`.
 

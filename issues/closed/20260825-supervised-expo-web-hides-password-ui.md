@@ -84,6 +84,39 @@ AssertionError [ERR_ASSERTION]
 - backendOrigin: 'http://127.0.0.1:4287'
 ```
 
+The final runtime-posture review added a no-IndexedDB DOM/custom-client
+regression. Before the fix its binding-only expectation recorded the
+unsolicited mint directly:
+
+```text
+AssertionError [ERR_ASSERTION]: a no-IndexedDB DOM web boot through custom createApplicationClient makes zero mint POSTs
++ actual - expected
+  [
+    'binding',
++   'mint'
+  ]
+```
+
+The legacy anonymous-refresh regression likewise recorded that lifecycle
+refresh replaced the expected binding GET with a mint POST:
+
+```text
+AssertionError [ERR_ASSERTION]: anonymous legacy refresh remains binding-only and makes zero mint POSTs
++ actual - expected
+  [
+    {
+      authority: null,
+      method: 'GET'
+    },
+    {
++     authority: 'mint',
++     method: 'POST'
+-     authority: null,
+-     method: 'GET'
+    }
+  ]
+```
+
 With a qualified real server present, the uncorrected boot-eager expectation
 failed at `packages/snapback-cli/expo-dev-loop.test.mjs:950`:
 
@@ -105,3 +138,9 @@ does not claim that generated projections are current or that
 projection chain. The initial branch failed `ref-check` because its base
 omitted LLP 0310/0310.000; the byte-identical documents and current links were
 imported from `origin/main`, after which the reference check passed.
+
+Evidence scope: the retained pre-fix transcripts demonstrate the missing URL,
+boot-eager authority, sentinel misclassification, and legacy refresh minting.
+The focused sign-out/query recovery, fresh-per-request minting, and browser
+origin-admission assertions were added and passed after their fixes; they are
+post-fix regression coverage, not independently recorded pre-fix reds.

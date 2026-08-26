@@ -409,6 +409,88 @@ const protectedFunctions = structuredClone(functionManifest);
 protectedFunctions.functions.find(({ name }) => name === 'listTodos').authRequirement = 'authenticated';
 server.setFunctionManifest(protectedFunctions);
 
+// Regression: a custom application-client seam can deliberately accept the
+// native-custody sentinel so the provider's runtime-posture decision remains
+// observable in a DOM host without IndexedDB. The sentinel is not affirmative
+// native evidence: this web boot must stop after the binding-only GET.
+const sentinelWebRequests = [];
+const sentinelWebBinding = structuredClone(binding);
+sentinelWebBinding.provenance.issuedAt = new Date(Date.now() - 30 * 60_000).toISOString();
+sentinelWebBinding.provenance.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+const sentinelWebEnvironment = Object.freeze({
+  ...createSupervisedExpoEnvironment({
+    exchangeOrigin: 'http://127.0.0.1:4321',
+    appState: appStateSource(),
+    bindingCache: null,
+    async fetch(_url, options) {
+      const requestAuthority = options.method === 'POST';
+      sentinelWebRequests.push(requestAuthority ? 'mint' : 'binding');
+      return Response.json({
+        format: SUPERVISED_EXCHANGE_FORMAT,
+        correlationId: 'sentinel-dom-web-correlation',
+        binding: sentinelWebBinding,
+        authority: requestAuthority
+          ? Object.freeze({
+              status: 'ready',
+              tokenType: 'Bearer',
+              token: SUPERVISED_BEARER,
+            })
+          : Object.freeze({ status: 'unavailable' }),
+      });
+    },
+  }),
+  resolveAppClientPlatform: async () => Object.freeze({
+    kind: 'expo-native-phase-2-evidence-required',
+  }),
+  resolveNativeAuthCustodyOperatingSystem: async () => 'unknown',
+});
+const previousSentinelDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const previousSentinelNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+Object.defineProperty(globalThis, 'document', {
+  configurable: true,
+  value: Object.freeze({}),
+});
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: Object.freeze({ product: 'Gecko' }),
+});
+const sentinelWebBoot = createSnapbackExpoBoot({
+  app: protectedApp,
+  environment: sentinelWebEnvironment,
+  rqsStore: null,
+  createApplicationClient: async () => Object.freeze({
+    client: Object.freeze({
+      prepareReactBinding: async () => Object.freeze({ source: 'deployment' }),
+    }),
+    auth: Object.freeze({
+      currentPrincipal: () => Object.freeze({ status: 'anonymous' }),
+    }),
+    bootstrapState: () => Object.freeze({
+      status: 'ready',
+      custody: Object.freeze({ grade: 'unavailable' }),
+      authoritySource: 'server-anonymous',
+      advisories: Object.freeze([]),
+    }),
+    subscribeBootstrap: () => () => {},
+    async dispose() {},
+  }),
+  async adoptSupervisedAuthority() {},
+  createProvider: fakeReactProvider,
+  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+});
+const sentinelWebReady = await sentinelWebBoot.start();
+assert.equal(sentinelWebReady.status, 'ready', JSON.stringify(sentinelWebReady));
+assert.deepEqual(
+  sentinelWebRequests,
+  ['binding'],
+  'a no-IndexedDB DOM web boot through custom createApplicationClient makes zero mint POSTs',
+);
+await sentinelWebBoot.dispose();
+if (previousSentinelDocument === undefined) delete globalThis.document;
+else Object.defineProperty(globalThis, 'document', previousSentinelDocument);
+if (previousSentinelNavigator === undefined) delete globalThis.navigator;
+else Object.defineProperty(globalThis, 'navigator', previousSentinelNavigator);
+
 // Regression: runtime posture, not the selected custody platform, decides
 // whether supervised adoption is a default. Expo web without IndexedDB uses
 // explicit volatile custody (`kind: "memory"`) but must still boot anonymous
@@ -1439,4 +1521,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: DOM-less no-IndexedDB supervised-web runtime declaration/zero-mint default, anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, real supervised-web provider adoption/signOut with mounted query, native client-option forwarding, and redeem-refusal adoption pass');
+console.log('provider-auth-bootstrap.test.mjs: DOM and DOM-less no-IndexedDB supervised-web runtime detection/custom-client zero-mint defaults, anonymous real-provider refresh handoff/resubscribe, password-session refresh preservation, revoked-route reuse refusal, real supervised-web provider adoption/signOut with mounted query, native client-option forwarding, and redeem-refusal adoption pass');

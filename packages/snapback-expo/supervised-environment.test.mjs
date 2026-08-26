@@ -241,6 +241,135 @@ try {
   globalThis.fetch = previousFetch;
 }
 
+// Regression: a legacy generated app on web adopts an anonymous client from
+// the binding-only exchange. A lifecycle refresh must refresh that binding,
+// not silently mint and install a supervised ordinary session.
+const legacyRefreshRequests = [];
+const legacyRefreshBaseEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  runtimePlatform: 'web',
+  appState: {
+    currentState: 'active',
+    addEventListener() { return { remove() {} }; },
+  },
+  bindingCache: null,
+  clientOptions: { rqsStore: null },
+  async fetch(url, options) {
+    legacyRefreshRequests.push({
+      method: options.method,
+      authority: new URL(url).searchParams.get('authority'),
+    });
+    const requestAuthority = options.method === 'POST';
+    return Response.json({
+      format: SUPERVISED_EXCHANGE_FORMAT,
+      correlationId: 'legacy-anonymous-refresh-correlation',
+      binding,
+      authority: requestAuthority
+        ? {
+            status: 'ready',
+            tokenType: 'Bearer',
+            token: 'sbs_legacy_refresh_must_not_mint',
+          }
+        : { status: 'unavailable' },
+    });
+  },
+});
+const legacyRefreshEnvironment = Object.freeze({
+  ...legacyRefreshBaseEnvironment,
+  async adoptAuthority(input) {
+    const result = await legacyRefreshBaseEnvironment.adoptAuthority(input);
+    result.client.prepareReactBinding = async () => Object.freeze({ source: 'deployment' });
+    return result;
+  },
+});
+const legacyRefreshPreviousFetch = globalThis.fetch;
+globalThis.fetch = async (url) => {
+  assert.equal(new URL(url).pathname, '/auth/session');
+  return Response.json({
+    protocolVersion: 1,
+    serverStartupNonce: 'legacy-anonymous-refresh-test',
+    authorizationStreamIncarnation: '018f0d90-7b11-7a22-8c33-445566778899',
+    transitionGeneration: 0,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: 1,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: {
+        available: true,
+        minimumAuthInvalidationProtocol: 1,
+        reason: null,
+      },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'local-password', available: true },
+    transports: ['bearer'],
+    authority: {
+      kind: 'anonymous',
+      userId: null,
+      sessionId: null,
+      isAuthenticated: false,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: '018f0d90-7b11-7a22-8c33-445566778899',
+      sessionGeneration: 0,
+    },
+    deploymentIdentity: {
+      schemaVersion: 'snapback.v1',
+      authMode: 'sessions',
+      appId: app.identity.app,
+      schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+      bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+      inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+    },
+    authorizedLease: null,
+  });
+};
+try {
+  const legacyRefreshBoot = createSnapbackExpoBoot({
+    app,
+    environment: legacyRefreshEnvironment,
+    rqsStore: null,
+    createProvider: () => ({
+      start() {},
+      async pause() {},
+      async resume() {},
+      inspection() { return { hostPaused: false }; },
+      async dispose() {},
+    }),
+    bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+    now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  });
+  assert.equal((await legacyRefreshBoot.start()).status, 'ready');
+  assert.equal((await legacyRefreshBoot.refreshAuthority()).status, 'ready');
+  assert.deepEqual(legacyRefreshRequests, [
+    { method: 'GET', authority: null },
+    { method: 'GET', authority: null },
+  ], 'anonymous legacy refresh remains binding-only and makes zero mint POSTs');
+  await legacyRefreshBoot.dispose();
+} finally {
+  globalThis.fetch = legacyRefreshPreviousFetch;
+}
+
 await assert.rejects(
   () => createSupervisedExpoEnvironment({ exchangeOrigin: 'https://example.test' })
     .resolveBinding({ signal: new AbortController().signal }),
@@ -619,4 +748,4 @@ try {
   }
 }
 
-console.log('supervised-environment.test.mjs: default environment, binding-only exchange, same-origin restart correlation recovery/binding expiry, originless native on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');
+console.log('supervised-environment.test.mjs: default environment, binding-only exchange and anonymous legacy refresh, same-origin restart correlation recovery/binding expiry, originless native on-demand authority request, sanitized refusal, abort cleanup, retryable redemption, and one-shot native checkout pass');

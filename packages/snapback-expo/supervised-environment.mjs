@@ -827,12 +827,19 @@ export function createSupervisedExpoEnvironment({
           { cause: 'ordinary-session-unavailable' },
         );
       }
-      const exchange = await fetchAuthorityExchange(
-        signal,
-        bindingKey(binding),
-        exchanges.get(bindingKey(binding)) ?? null,
-      );
-      if (bindingKey(exchange.binding) !== bindingKey(binding)) {
+      const key = bindingKey(binding);
+      // @ref LLP 0300#p4--the-dev-session-becomes-explicit — a legacy web
+      // owner that adopted only an anonymous binding has not opted into a
+      // supervised session. Its lifecycle refresh remains binding-only;
+      // only an environment currently holding a supervised bearer may remint.
+      const exchange = adopted.token === null
+        ? await fetchExchange(signal)
+        : await fetchAuthorityExchange(
+            signal,
+            key,
+            exchanges.get(key) ?? null,
+          );
+      if (bindingKey(exchange.binding) !== key) {
         throw codedError(
           'SNAPBACK_APP_BINDING_EXPIRED',
           'The Expo supervisor generation changed; reload to admit its replacement binding.',
@@ -849,6 +856,17 @@ export function createSupervisedExpoEnvironment({
         );
       }
       const refreshedBinding = await admitBinding(exchange.binding, supervisedAdmission());
+      if (adopted.token === null) {
+        adopted.binding = refreshedBinding;
+        adopted.offline = false;
+        saveCachedBinding(refreshedBinding, adopted.publicFacts);
+        return Object.freeze({
+          status: 'ready',
+          publicFacts: adopted.publicFacts,
+          binding: refreshedBinding,
+          admission: supervisedAdmission(),
+        });
+      }
       const required = authorityRequired(exchange);
       if (required) {
         if (typeof adopted.client.replaceBearerToken === 'function') {

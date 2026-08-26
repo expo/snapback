@@ -1304,13 +1304,10 @@ async function resolveExpoRuntimePosture(environment, platform) {
   }
   const normalizedPlatform = normalizeAppClientPlatform(platform);
   if (['browser', 'expo-web'].includes(normalizedPlatform?.kind)) return 'web';
-  if (
-    typeof normalizedPlatform?.kind === 'string'
-    && normalizedPlatform.kind !== 'memory'
-  ) return 'native';
-  // Memory is a custody choice, not a runtime posture. It is valid on Expo
-  // web without IndexedDB and on native volatile-explicit apps, so resolve it
-  // from the host rather than classifying every explicit resolver as native.
+  if (normalizedPlatform?.kind === 'expo-native') return 'native';
+  // Custody sentinels, unknown kinds, and memory are not affirmative runtime
+  // evidence. Resolve them from the host instead of treating every explicit
+  // platform resolver result as native.
   const operatingSystem = await resolveNativeOperatingSystem(environment);
   if (operatingSystem === 'web') return 'web';
   if (operatingSystem !== 'unknown') return 'native';
