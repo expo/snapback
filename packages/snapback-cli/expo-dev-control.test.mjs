@@ -1990,6 +1990,61 @@ try {
   await settledClientControl.close();
   console.log('settled half-open client: server destroys the connection and keeps serving');
 
+  const acknowledgementGateRoot = makeRoot('ack-gate');
+  const acknowledgementWrite = deferred();
+  const acknowledgementObserved = deferred();
+  const stopMutation = deferred();
+  let releaseAcknowledgement = null;
+  const acknowledgementGateControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(
+      acknowledgementGateRoot,
+      'unit-acknowledgement-gate-owner',
+      {
+        verbs: {
+          'reload-metro': async () => ({ ok: true }),
+          'stop-children': async ({ afterResponse = null } = {}) => {
+            if (afterResponse !== null) await afterResponse;
+            stopMutation.resolve();
+            return { ok: true };
+          },
+        },
+      },
+    ),
+    {
+      writeAcknowledgement(socket, payload, callback) {
+        socket.write(payload);
+        releaseAcknowledgement = callback;
+        acknowledgementWrite.resolve();
+      },
+    },
+  );
+  const acknowledgementClient = createConnection(acknowledgementGateControl.descriptor.path);
+  acknowledgementClient.setEncoding('utf8');
+  acknowledgementClient.on('data', (chunk) => {
+    if (chunk.includes('snapback.dev-control-ack.v1')) acknowledgementObserved.resolve();
+  });
+  acknowledgementClient.once('connect', () => {
+    acknowledgementClient.write(`${JSON.stringify(stopChildrenCommand(
+      acknowledgementGateControl,
+      'ack-gated-stop',
+    ))}\n`);
+  });
+  await acknowledgementWrite.promise;
+  await acknowledgementObserved.promise;
+  assert.equal(
+    await Promise.race([
+      stopMutation.promise.then(() => true),
+      new Promise((resolveWait) => setImmediate(() => resolveWait(false))),
+    ]),
+    false,
+    'stop-children must not mutate forwarding or child custody before the socket acknowledgement flushes',
+  );
+  releaseAcknowledgement();
+  await stopMutation.promise;
+  acknowledgementClient.destroy();
+  await acknowledgementGateControl.close();
+  console.log('socket acknowledgement gate: stop-children begins only after the ack write callback');
+
   const finRoot = makeRoot('f');
   const stopQueued = deferred();
   let resetBeforeFirstAcknowledgement = true;

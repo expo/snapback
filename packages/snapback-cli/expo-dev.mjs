@@ -630,7 +630,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     ));
   const withPathLock = dependencies.withPathLock ?? withCleanupPathLock;
   const writeAcknowledgement = dependencies.writeAcknowledgement
-    ?? ((socket, payload) => socket.write(payload));
+    ?? ((socket, payload, callback) => socket.write(payload, callback));
   const dispatcher = dependencies.dispatcher ?? createDevControlDispatcher(options.verbs);
   const requestedPathChainRoot = resolve(options.pathChainRoot ?? requestedStateDirectoryPath);
   let pathChain = inspectSecureDirectoryChain(
@@ -863,8 +863,15 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         }
         const { requestId, verb } = validation;
         let operation;
+        let releaseResponse = null;
+        const afterResponse = verb === 'stop-children'
+          ? new Promise((resolveResponse) => { releaseResponse = resolveResponse; })
+          : null;
         try {
-          operation = dispatcher.enqueue(verb, { requestId });
+          operation = dispatcher.enqueue(verb, {
+            requestId,
+            ...(afterResponse === null ? {} : { afterResponse }),
+          });
         } catch (error) {
           void flushControlResult(socket, `${JSON.stringify(devControlResult({
             requestId,
@@ -910,6 +917,14 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           () => pendingReplies.delete(reply),
         );
         socket.setTimeout(0);
+        const releaseAcknowledgement = releaseResponse === null
+          ? undefined
+          : () => releaseResponse();
+        if (releaseAcknowledgement !== undefined) {
+          // A reset peer cannot receive the acknowledgement, but it also must
+          // not strand already-admitted cleanup behind an unreachable gate.
+          socket.once('close', releaseAcknowledgement);
+        }
         try {
           writeAcknowledgement(socket, `${JSON.stringify({
             schemaVersion: DEV_CONTROL_ACK_FORMAT,
@@ -919,8 +934,9 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             verb,
             ownerIncarnationId: controlSocket.ownerIncarnationId,
             lifecycleReceipt: controlSocket.lifecycleReceipt,
-          })}\n`);
+          })}\n`, releaseAcknowledgement);
         } catch {
+          releaseAcknowledgement?.();
           socket.destroy();
         }
       };
@@ -3034,6 +3050,7 @@ export async function startBootstrapExchange(
           response.once('finish', startAfterResponse);
           response.once('close', startAfterResponse);
           response.end(encodedBody);
+          if (response.destroyed || response.closed) startAfterResponse();
         }
       } catch {
         response.statusCode = 500;
@@ -3572,6 +3589,7 @@ export async function runExpoDev(options = {}) {
   const intentionallyStoppedMetroChildren = new WeakSet();
   const stoppingMetroChildren = new WeakSet();
   const metroExitErrors = new WeakMap();
+  const metroCriticalExitAfterResponse = new WeakMap();
   const abortSignal = options.signal ?? null;
   let abortListener = null;
   const appDescriptorPath = join(backendRoot, 'generated', 'app.descriptor.json');
@@ -3832,7 +3850,10 @@ export async function runExpoDev(options = {}) {
       platform: options.platform ?? 'ios',
       device: selectedDevice,
     });
-    const launchMetro = async (backendOrigin) => {
+    const launchMetro = async (
+      backendOrigin,
+      { criticalExitAfterResponse = null } = {},
+    ) => {
       if (metro !== null) return metro;
       if (metroLaunchPromise !== null) return metroLaunchPromise;
       const launch = (async () => {
@@ -3853,6 +3874,9 @@ export async function runExpoDev(options = {}) {
           cleanupLease,
           onStarted(handle) {
             metroLaunching = handle;
+            if (criticalExitAfterResponse !== null) {
+              metroCriticalExitAfterResponse.set(handle.child, criticalExitAfterResponse);
+            }
           },
           onExit(code, signal, cause) {
             if (intentionallyStoppedMetroChildren.has(startedMetro.child)) return;
@@ -3872,7 +3896,11 @@ export async function runExpoDev(options = {}) {
               metro?.child === startedMetro.child
               || metroLaunching?.child === startedMetro.child
             )) {
-              reportCriticalExit(error);
+              const afterResponse = metroCriticalExitAfterResponse.get(startedMetro.child) ?? null;
+              if (afterResponse === null) reportCriticalExit(error);
+              else void afterResponse.then(() => {
+                if (!closed) reportCriticalExit(error);
+              });
             }
           },
         });
@@ -4102,12 +4130,20 @@ export async function runExpoDev(options = {}) {
               'the supervised control dispatcher is not ready',
             );
           }
-          if (verb === 'stop-children') {
+          if (verb === 'stop-children' || verb === 'reload-metro') {
             let releaseResponse;
-            const responseFlushed = new Promise((resolveFlushed) => {
+            const afterResponse = new Promise((resolveFlushed) => {
               releaseResponse = resolveFlushed;
             });
-            const operation = controlDispatcher.enqueue(verb, { requestId, responseFlushed });
+            const operation = controlDispatcher.enqueue(verb, { requestId, afterResponse });
+            if (verb === 'reload-metro') {
+              const result = await operation;
+              return {
+                statusCode: 200,
+                body: result,
+                afterResponse: async () => { releaseResponse(); },
+              };
+            }
             return {
               statusCode: 200,
               body: {
@@ -4439,7 +4475,7 @@ export async function runExpoDev(options = {}) {
         },
       });
     };
-    const reloadMetroVerb = async ({ requestId } = {}) => {
+    const reloadMetroVerb = async ({ requestId, afterResponse = null } = {}) => {
       if (closed) {
         return Object.freeze({
           schemaVersion: EXPO_DEV_EVENT_FORMAT,
@@ -4476,7 +4512,10 @@ export async function runExpoDev(options = {}) {
           if (metro === previousMetro) metro = null;
           await options.afterMetroReloadPreviousStopped?.({ metro: previousMetro });
         }
-        const restartedMetro = await launchMetro(backendRoute.origin);
+        const restartedMetro = await launchMetro(
+          backendRoute.origin,
+          { criticalExitAfterResponse: afterResponse },
+        );
         const liveBackend = backendControlClosed
           ? Object.freeze({
               backendPid,
@@ -4570,16 +4609,20 @@ export async function runExpoDev(options = {}) {
           previousPid,
           diagnostics: [reloadError.diagnostic],
         });
-        if (!closed) reportCriticalExit(reloadError);
+        if (!closed) {
+          if (afterResponse === null) reportCriticalExit(reloadError);
+          else void afterResponse.then(() => {
+            if (!closed) reportCriticalExit(reloadError);
+          });
+        }
         return failure;
       }
     };
-    const stopChildrenVerb = async ({ requestId, responseFlushed = null } = {}) => {
+    const stopChildrenVerb = async ({ requestId, afterResponse = null } = {}) => {
       // HTTP admits this operation into the shared lane before replying, then
-      // releases the gate from response.end's flush/close callback. Socket
-      // callers already have a two-message acknowledgement/result protocol and
-      // therefore enter teardown immediately after their acknowledgement.
-      if (responseFlushed !== null) await responseFlushed;
+      // releases the gate from response.end's flush/close callback. The socket
+      // plane releases the same gate from its acknowledgement write callback.
+      if (afterResponse !== null) await afterResponse;
       await options.beforeStopChildren?.({ requestId });
       const failures = [];
       const recordFailure = (error, resource) => {

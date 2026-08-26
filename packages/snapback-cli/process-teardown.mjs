@@ -1522,7 +1522,29 @@ function inspectProcessGroupLease(pgid, leader) {
     const members = table.filter((candidate) => candidate.processGroup === pgid);
     if (members.length === 0) return 'empty';
     const currentLeader = members.find((candidate) => candidate.pid === pgid);
-    if (currentLeader === undefined) return 'changed';
+    if (currentLeader === undefined) {
+      // A group remains signalable after its leader exits. Every descendant
+      // inherits the unguessable lease marker (and run id when reaper-owned),
+      // so a leader-less group is still ours only when every remaining member
+      // proves that inherited identity. Anything weaker retains custody as
+      // ambiguous instead of either signalling a reused group or declaring a
+      // live leased descendant discharged.
+      if (typeof leader?.leaseMarker !== 'string' || leader.leaseMarker.length === 0) {
+        return 'ambiguous';
+      }
+      for (const member of members) {
+        const environment = processLeaseEnvironmentStates(
+          member.pid,
+          leader.leaseMarker,
+          leader.runId,
+        );
+        if (environment.marker !== 'match'
+            || (leader.runId !== undefined && environment.runId !== 'match')) {
+          return 'ambiguous';
+        }
+      }
+      return 'owned';
+    }
     return liveIdentity(leader, table) ? 'owned' : 'changed';
   } catch {
     return 'ambiguous';

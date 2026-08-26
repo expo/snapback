@@ -59,7 +59,7 @@ import {
   runCli,
   runDev,
 } from './index.mjs';
-import { stopProcessGroup } from './process-teardown.mjs';
+import { CLEANUP_LEASE_DIRECTORY_ENV, stopProcessGroup } from './process-teardown.mjs';
 import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
@@ -1401,6 +1401,86 @@ async function runHttpControlE1Suite() {
   }
 }
 
+async function runHttpReloadFailureDeliverySuite() {
+  const root = mkdtempSync('/tmp/sb-http-reload-failure-');
+  const target = fixture('http-reload-failure-app', { sessions: true, root });
+  let run = null;
+  try {
+    run = await startFixture(target, {
+      platform: 'web',
+      env: {
+        SNAPBACK_EXPO_TEST_METRO_LAUNCH_COUNT_FILE: join(target.stateRoot, 'metro-launch-count'),
+        SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST: '1',
+      },
+    });
+    const supervisorDescriptor = JSON.parse(readFileSync(
+      join(dirname(target.readyFile), 'expo-supervisor.json'),
+      'utf8',
+    ));
+    const operatorToken = managedAdminToken(readReadyDescriptor(target.readyFile), target.database);
+    const response = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'reload-metro',
+      'http-reload-failure-delivery',
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.body.ok, false, JSON.stringify(response.body));
+    assert.equal(response.body.state, 'metro-reload-failed');
+    assert.equal(response.body.requestId, 'http-reload-failure-delivery');
+    assert.equal(
+      response.body.diagnostics?.[0]?.code,
+      'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+    );
+    console.log('HTTP reload failure: ok:false response flushes before fatal supervisor close');
+  } finally {
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function runPackagedDualCleanupFailureSuite() {
+  const supervisorCleanupFailure = new Error('injected supervisor cleanup failure');
+  const stdin = new PassThrough();
+  stdin.isTTY = true;
+  stdin.setRawMode = () => {};
+  let leaseDirectory = null;
+  try {
+    await assert.rejects(
+      () => runCli(['dev', 'snapback', '--expo'], {
+        env: {},
+        stdin,
+        async runExpoDev(options) {
+          leaseDirectory = options.env[CLEANUP_LEASE_DIRECTORY_ENV];
+          // Make the reaper observe graceful release while forcing the owner-side
+          // `wx` publication of that release marker to fail deterministically.
+          writeFileSync(join(leaseDirectory, 'release'), 'release\n', { flag: 'wx', mode: 0o600 });
+          setImmediate(() => stdin.write('q'));
+          return {
+            ok: true,
+            verbs: {},
+            reportControlEvent() {},
+            async close() { throw supervisorCleanupFailure; },
+          };
+        },
+      }),
+      (error) => {
+        assert(error instanceof AggregateError);
+        assert.equal(error.errors[0], supervisorCleanupFailure);
+        assert.equal(error.errors[1]?.code, 'EEXIST');
+        return true;
+      },
+    );
+  } finally {
+    stdin.destroy();
+    if (leaseDirectory !== null) rmSync(leaseDirectory, { recursive: true, force: true });
+  }
+  console.log('packaged cleanup aggregation: supervisor and carrier cleanup failures both surface');
+}
+
 async function runStopChildrenFailureRetrySuite() {
   const controlRoot = mkdtempSync('/tmp/sb-stop-failure-');
   const target = fixture('stop-failure-app', { sessions: true, root: controlRoot });
@@ -2307,6 +2387,7 @@ try {
     await runNonExpoCloseRetrySuite();
   } else if (httpControlOnly) {
     await runHttpControlE1Suite();
+    await runHttpReloadFailureDeliverySuite();
     await runPackagedHttpOnlyAfterStopSuite();
   } else if (noTokenCarrierOnly) {
     await runNoTokenCarrierRefusalSuite();
@@ -2315,7 +2396,9 @@ try {
   } else if (controlOwnerSurvivalOnly) {
     await runPackagedControlOwnerSurvivalSuite();
   } else if (controlSocketOnly) {
+    await runPackagedDualCleanupFailureSuite();
     await runHttpControlE1Suite();
+    await runHttpReloadFailureDeliverySuite();
     await runStopChildrenFailureRetrySuite();
     await runDelayedMetroExitAfterStopFailureSuite();
     await runNonExpoCloseRetrySuite();
@@ -2326,6 +2409,8 @@ try {
   // The package-default suite owns the E1 no-TTY witness too; CI cannot green
   // by running only the broader lifecycle cases below.
   await runHttpControlE1Suite();
+  await runHttpReloadFailureDeliverySuite();
+  await runPackagedDualCleanupFailureSuite();
   await runStopChildrenFailureRetrySuite();
   await runDelayedMetroExitAfterStopFailureSuite();
   await runNonExpoCloseRetrySuite();

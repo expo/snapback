@@ -184,10 +184,17 @@ const timer = setInterval(() => {
 // Every lifecycle case below uses a real TCP listener and real descendant
 // process. The stubborn mode deliberately survives SIGTERM.
 executable(server, `
+import { spawn } from 'node:child_process';
 import { renameSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 const [mode, requestedPort, requestedHost, statePath] = process.argv.slice(2);
+let lingeringChild = null;
+if (mode === 'leader-exits-child-lingers') {
+  lingeringChild = spawn(process.execPath, [process.argv[1], 'stubborn', '0', requestedHost, statePath + '.child'], {
+    stdio: 'ignore',
+  });
+}
 const http = createServer((request, response) => {
   response.statusCode = 200;
   response.end('<html><body><h1>Application ready</h1></body></html>');
@@ -196,6 +203,7 @@ http.listen(Number(requestedPort), requestedHost, () => {
   const temporaryState = statePath + '.' + process.pid + '.tmp';
   writeFileSync(temporaryState, JSON.stringify({
     pid: process.pid,
+    ...(lingeringChild === null ? {} : { lingeringChildPid: lingeringChild.pid }),
     host: requestedHost,
     port: http.address().port,
   }));
@@ -203,6 +211,7 @@ http.listen(Number(requestedPort), requestedHost, () => {
 });
 const close = () => {
   if (mode === 'stubborn') return;
+  if (mode === 'leader-exits-child-lingers') process.exit(0);
   http.closeAllConnections?.();
   http.close(() => process.exit(0));
 };
@@ -306,6 +315,11 @@ if (scenario === 'timeout') {
 } else if (scenario === 'stubborn-grandchild') {
   const stubborn = await startServer({ mode: 'stubborn' });
   writeFileSync(pidFile, JSON.stringify([stubborn.child.pid]));
+  writeFileSync(started, 'started');
+  setInterval(() => {}, 1000);
+} else if (scenario === 'leader-exits-child-lingers') {
+  const leader = await startServer({ mode: 'leader-exits-child-lingers' });
+  writeFileSync(pidFile, JSON.stringify([leader.child.pid, leader.state.lingeringChildPid]));
   writeFileSync(started, 'started');
   setInterval(() => {}, 1000);
 } else if (scenario === 'leader-sigkill') {
@@ -845,6 +859,20 @@ try {
   );
   const stubbornPids = JSON.parse(readFileSync(join(carrierState(stubbornArtifacts), 'descendant-pids.json')));
   await eventually(() => stubbornPids.every((pid) => !pidAlive(pid)), 'stubborn grandchild SIGKILL');
+
+  const leaderExitArtifacts = join(root, 'leader-exit-artifacts');
+  await assert.rejects(
+    runTemplateCarrierCli(config('leader-exits-child-lingers', 10_000), [
+      'web-browser', '--browser', browser, '--artifacts', leaderExitArtifacts,
+    ], { root }),
+    /did not write structured readiness/u,
+  );
+  const leaderExitPids = JSON.parse(readFileSync(join(carrierState(leaderExitArtifacts), 'descendant-pids.json')));
+  await eventually(
+    () => leaderExitPids.every((pid) => !pidAlive(pid)),
+    'SIGTERM-exited leader with lingering leased child cleanup',
+  );
+  console.log('process-group cleanup: leader SIGTERM exit still escalates the lingering leased child');
 
   const signalArtifacts = join(root, 'signal-artifacts');
   const browserStarted = join(signalArtifacts, 'browser-started');

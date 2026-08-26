@@ -9519,7 +9519,11 @@ export async function runCli(argv, options = {}) {
       } finally {
         options.signal?.removeEventListener('abort', externalAbort);
         for (const [signal, handler] of handlers) process.off(signal, handler);
-        await closePackagedCarrierCleanupLease();
+        // settle() already folds the cached lease-close rejection into the
+        // caller-visible failure set. Re-awaiting that same rejected promise
+        // here would replace its AggregateError with the cleanup error alone.
+        if (closePromise === null) await closePackagedCarrierCleanupLease();
+        else await closePromise;
       }
     }
     // A restart replaces the managed child, so unexpected-exit detection goes
