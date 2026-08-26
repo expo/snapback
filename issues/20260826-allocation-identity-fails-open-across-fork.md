@@ -72,3 +72,40 @@ raised against at least four separate lanes, each spending review budget redisco
 3. Either way, record the outcome where reviewers will find it before raising it again.
 
 Related: `llp/0312-origin-bound-asset-carriers.rfc.md`, `llp/0303-subject-authority-correlation-policy.decision.md`.
+
+## Addendum 2026-08-26: the documented residual names the wrong case
+
+The process-bound identity primitive now carries module docs describing its platform boundary. An
+independent reading review found that description **inaccurate in both directions**, and the real
+residual is narrower but more dangerous:
+
+**What the docs claim:** raw `clone()`/`clone3` without `pthread_atfork` handlers, followed by creator
+exit and PID reuse, can make an inherited identity compare equal.
+
+**What is actually true:** PID reuse after creator exit **cannot** produce equality — the private
+lineage generation still differs. That case is closed.
+
+**What actually fails open:** `clone(CLONE_NEWPID)` from a process whose `getpid()` is already `1` —
+i.e. **container init**. The child's `getpid()` is also `1`, the registration state is still
+`REGISTERED`, and the generation is still `1`, so both the PID check and the generation check pass and
+an inherited identity compares **equal**.
+
+That is a real fail-open in exactly the environment this system is most likely to be deployed in, and
+it is invisible to a reviewer executing on macOS, where `CLONE_NEWPID` does not exist. It was found by
+reading, not by running — the mirror image of the `Once`-inherited-RUNNING hang, which was invisible to
+reading and found only by execution.
+
+**Two further review notes on the same primitive**, both minor:
+
+- While registration is in the `REGISTERING` state, a *legitimate* same-process comparison is refused.
+  It is fail-closed, one-shot, and the alternative (waiting) is the child hang the round-2 fix removed —
+  so it is not a blocker. If the bar is literally *no* intermittent refusal of a legitimate caller, the
+  fix is to allow a PID+generation compare while `REGISTERING`, or to wait only when `getpid()` matches
+  a stored registrar pid.
+- The docs offer `exec()` as the only recovery for a child forked before the hook installed. LLP 0303
+  revision (t) allows "`exec` **or** a fresh `LocalSnapback`". Either document the narrower limitation
+  next to the state machine, or restore the second recovery path.
+
+**Action:** correct the module docs to name `CLONE_NEWPID`-from-pid-1 rather than PID reuse, and decide
+whether container init is in the threat model. If it is, the generation alone is insufficient there and
+the identity needs a fact that a new PID namespace cannot replicate.
