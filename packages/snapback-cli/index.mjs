@@ -5993,12 +5993,17 @@ export async function runDev(options = {}) {
   const readyFile = resolve(options.readyFile ?? join(stateRoot, 'dev.ready.json'));
   if (options.controlSocket === true) {
     const controlStateRoot = dirname(readyFile);
-    const controlStateRootMetadata = lstatSync(controlStateRoot);
-    if (controlStateRootMetadata.isDirectory()
-        && !controlStateRootMetadata.isSymbolicLink()
-        && (typeof process.getuid !== 'function'
-          || controlStateRootMetadata.uid === process.getuid())) {
-      chmodSync(controlStateRoot, 0o700);
+    const controlStateRelation = relative(stateRoot, controlStateRoot);
+    const snapbackManagedState = controlStateRelation === ''
+      || (controlStateRelation !== '..' && !controlStateRelation.startsWith(`..${sep}`));
+    if (snapbackManagedState) {
+      const controlStateRootMetadata = lstatSync(controlStateRoot);
+      if (controlStateRootMetadata.isDirectory()
+          && !controlStateRootMetadata.isSymbolicLink()
+          && (typeof process.getuid !== 'function'
+            || controlStateRootMetadata.uid === process.getuid())) {
+        chmodSync(controlStateRoot, 0o700);
+      }
     }
   }
   const applicationReadyFile = resolve(

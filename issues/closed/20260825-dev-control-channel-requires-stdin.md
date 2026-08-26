@@ -36,13 +36,19 @@ endpoint mode `0600`, registers its exact inode with the instance cleanup
 lease, and removes it on shutdown or owner death. A same-UID dead leftover is
 reclaimed under the directory lock only after a bounded `connect()` returns
 `ECONNREFUSED`, the inode remains unchanged, and a present valid owner record
-matches its inode/incarnation. The bound record is published before the
-well-known endpoint, so an absent or unreadable/corrupt record and a present
-valid mismatch all refuse with `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`; recovery
+matches its inode/incarnation. Publication is ordered binding marker → direct
+`listen()` on the well-known endpoint → bound record with the exact inode →
+active cleanup lease, with no await between the completed bind and activation.
+An absent or unreadable/corrupt record and a present valid mismatch therefore
+refuse with `SNAPBACK_DEV_CONTROL_FOREIGN_OWNER`; recovery
 requires the operator to inspect and explicitly remove both artifacts or choose
 a different owner-only `--ready-file` directory. Probe timeout, a live listener,
-and an other-UID endpoint also refuse. The reaper's deletion rule remains the
-separate stricter exact cleanup-lease inode/incarnation match. No FIFO or client
+and an other-UID endpoint also refuse. A reserved pre-activation cleanup lease
+may remove only its matching `phase: "binding"` marker; it preserves ambiguous
+socket residue for explicit recovery. The active reaper's deletion rule is the
+separate stricter exact cleanup-lease inode/incarnation match plus a bounded
+dead-endpoint probe, and removes the matching bound owner marker with the
+socket. No FIFO or client
 `recook` verb was added. The Guide classifies the artifacts as transient
 instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
@@ -81,7 +87,11 @@ cleanup, and cleanup-lease reaping after owner death. The crash before
 marker. Further coverage includes a bounded-probe timeout, death while replacing
 stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim
 but before `.dc-reclaim` replacement, and death after direct well-known bind
-and exact-inode lease activation. Generation claims record PID/start-time owner identity; a
+and exact-inode lease activation. The pre-activation SIGKILL regression proves
+reserved cleanup preserves the well-known socket, removes only the binding
+marker, and makes a racing successor refuse until explicit recovery. The
+reserved reaper-versus-bind clone proves a live successor inode survives a
+stale reservation. Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes
 the claim chain once its live `.dc-lock` is published. The live suite

@@ -15,6 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createConnection as createNetConnection } from 'node:net';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1343,6 +1344,16 @@ async function cleanupProcessGroup(pgid, leader) {
 }
 
 function cleanupSocketOwnerState(resource) {
+  if (!socketOwnerStateMatches(resource)) return false;
+  try {
+    rmSync(resource.ownerStateIdentity.path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function socketOwnerStateMatches(resource) {
   const identity = resource.ownerStateIdentity;
   if (typeof identity?.path !== 'string'
       || typeof identity.device !== 'string'
@@ -1357,12 +1368,14 @@ function cleanupSocketOwnerState(resource) {
     const state = readJson(identity.path);
     const after = lstatSync(identity.path);
     if (before.dev !== after.dev || before.ino !== after.ino
+        || state?.schemaVersion !== DEV_CONTROL_OWNER_STATE_FORMAT
+        || state.phase !== 'bound'
+        || state.path !== resource.path
         || state?.ownerIncarnationId !== identity.ownerIncarnationId
         || state?.endpoint?.device !== resource.socketIdentity?.device
         || state?.endpoint?.inode !== resource.socketIdentity?.inode
         || state?.endpoint?.uid !== resource.socketIdentity?.uid
         || state?.endpoint?.ownerIncarnationId !== identity.ownerIncarnationId) return false;
-    rmSync(identity.path);
     return true;
   } catch {
     return false;
@@ -1401,35 +1414,29 @@ async function cleanupReservedSocketPath(resource, dependencies = {}) {
       || typeof pending.endpointPath !== 'string'
       || typeof pending.ownerIncarnationId !== 'string'
       || !Number.isSafeInteger(pending.ownerUid)) return false;
-  return (dependencies.withPathLock ?? withCleanupPathLock)(resource.path, async () => {
-    let observed = null;
-    try {
-      const metadata = lstatSync(resource.path);
-      if (metadata.isSocket()
-          && !metadata.isSymbolicLink()
-          && metadata.uid === pending.ownerUid) {
-        observed = {
-          device: String(metadata.dev),
-          inode: String(metadata.ino),
-          uid: metadata.uid,
-        };
-      }
-    } catch (error) {
-      if (error?.code !== 'ENOENT') throw error;
-    }
-    let socketRemoved = false;
-    if (observed !== null) {
-      const current = lstatSync(resource.path);
-      if (current.isSocket()
-          && !current.isSymbolicLink()
-          && String(current.dev) === observed.device
-          && String(current.ino) === observed.inode
-          && current.uid === observed.uid) {
-        rmSync(resource.path);
-        socketRemoved = true;
-      }
-    }
-    return cleanupPendingSocketOwnerState(resource) || socketRemoved;
+  return (dependencies.withPathLock ?? withCleanupPathLock)(
+    resource.path,
+    async () => cleanupPendingSocketOwnerState(resource),
+  );
+}
+
+function probeSocketEndpoint(path, timeoutMs = 500) {
+  return new Promise((resolveProbe) => {
+    const socket = createNetConnection(path);
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socket.destroy();
+      resolveProbe(result);
+    };
+    const timer = setTimeout(() => finish('ambiguous'), timeoutMs);
+    timer.unref?.();
+    socket.once('connect', () => finish('live'));
+    socket.once('error', (error) => {
+      finish(error?.code === 'ECONNREFUSED' ? 'dead' : 'ambiguous');
+    });
   });
 }
 
@@ -1484,7 +1491,13 @@ async function cleanupExactPath(resource, dependencies = {}) {
         && String(observed.dev) === identity.device
         && String(observed.ino) === identity.inode
         && observed.uid === identity.uid;
+      let socketRemoved = false;
       if (exact) {
+        if (!socketOwnerStateMatches(resource)) return false;
+        const occupancy = await (
+          dependencies.probeSocketEndpoint ?? probeSocketEndpoint
+        )(resource.path);
+        if (occupancy !== 'dead') return false;
         await dependencies.beforeSocketUnlink?.({ resource, observed });
         // The shared lock excludes every conforming bind/reaper. Re-observe
         // immediately before pathname deletion so a queued successor can
@@ -1494,13 +1507,19 @@ async function cleanupExactPath(resource, dependencies = {}) {
             && !current.isSymbolicLink()
             && String(current.dev) === identity.device
             && String(current.ino) === identity.inode
-            && current.uid === identity.uid) {
+            && current.uid === identity.uid
+            && socketOwnerStateMatches(resource)) {
           rmSync(resource.path);
+          socketRemoved = true;
         }
       }
-      const markerRemoved = cleanupSocketOwnerState(resource);
-      const pendingMarkerRemoved = cleanupPendingSocketOwnerState(resource);
-      return exact || markerRemoved || pendingMarkerRemoved;
+      const markerRemoved = !exact || socketRemoved
+        ? cleanupSocketOwnerState(resource)
+        : false;
+      const pendingMarkerRemoved = !exact || socketRemoved
+        ? cleanupPendingSocketOwnerState(resource)
+        : false;
+      return socketRemoved || markerRemoved || pendingMarkerRemoved;
     });
   }
   const resolved = resolve(resource.path);

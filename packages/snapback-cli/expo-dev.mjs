@@ -864,14 +864,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         }
       });
       endpoint = observeEndpoint(path);
-      activateCleanupSocketPath(cleanupResource, {
-        ownerIncarnationId: options.ownerIncarnationId,
-        socketIdentity: endpoint,
-      });
-      await dependencies.afterEndpointLeaseActivation?.({
-        path,
-        ownerStatePath,
-      });
+      dependencies.afterEndpointListen?.({ path, ownerStatePath, endpoint });
       chmodSync(path, 0o600);
       endpoint = observeEndpoint(path);
       if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
@@ -913,7 +906,16 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         startedAt: options.startedAt,
       });
       ownerStateEndpoint = endpoint;
+      activateCleanupSocketPath(cleanupResource, {
+        ownerIncarnationId: options.ownerIncarnationId,
+        socketIdentity: endpoint,
+        ownerStatePath,
+      });
       controlSocket = descriptor;
+      await dependencies.afterEndpointLeaseActivation?.({
+        path,
+        ownerStatePath,
+      });
       try {
         const advertisedOccupancy = await probeEndpoint(path);
         if (advertisedOccupancy !== 'live') {

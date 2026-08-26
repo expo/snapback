@@ -759,7 +759,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     assert.equal(
       unavailableEvent?.diagnostics?.[0]?.code,
       'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-      'a socket path beyond sockaddr_un capacity must emit the coded stdin-only notice',
+      'an unavailable control socket must emit the coded stdin-only notice',
     );
     assert.equal(readyEvent.controlSocket, undefined);
     assert.equal(controlSocket, undefined);
@@ -1081,6 +1081,23 @@ async function runControlSocketSuite() {
     await runCliSupervisor(ignoredStdinFixture, 'web', [
       '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
     ]);
+    const customReadyFixture = fixture('custom-ready-app', { sessions: true, root: controlRoot });
+    const customReadyParent = join(customReadyFixture.projectRoot, 'caller-ready-state');
+    mkdirSync(customReadyParent, { mode: 0o755 });
+    chmodSync(customReadyParent, 0o755);
+    const customReadyTarget = {
+      ...customReadyFixture,
+      readyFile: join(customReadyParent, 'dev.ready.json'),
+    };
+    const customReadyRange = await reserveFreeRange(8);
+    await runCliSupervisor(customReadyTarget, 'web', [
+      '--port-range', `${customReadyRange.lo}-${customReadyRange.hi}`,
+    ], { expectControlUnavailable: true });
+    assert.equal(
+      statSync(customReadyParent).mode & 0o777,
+      0o755,
+      'the packaged CLI must not chmod a caller-selected ready-file parent',
+    );
     const longStateFixture = fixture(`long-state-${'x'.repeat(100)}`, {
       sessions: true,
       root: controlRoot,

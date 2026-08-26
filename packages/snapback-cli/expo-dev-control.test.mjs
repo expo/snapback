@@ -43,6 +43,7 @@ const holders = new Set();
 
 writeFileSync(holderScript, `
 import { __test, startDevControlSocket } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'expo-dev.mjs')).href)};
+import { writeSync } from 'node:fs';
 import { openCarrierCleanupLease } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
 
 const readyFile = process.argv[2];
@@ -62,14 +63,24 @@ const options = {
     'stop-children': async () => ({ ok: true }),
   },
 };
-const control = process.env.SNAPBACK_TEST_STALL_BOUND_SOCKET === '1'
-  ? await __test.startDevControlSocketWithDependencies(options, {
+const injectedDependencies = process.env.SNAPBACK_TEST_CRASH_PREACTIVATION_SOCKET === '1'
+  ? {
+      afterEndpointListen(details) {
+        writeSync(1, JSON.stringify({ state: 'endpoint-listened-reserved', ...details }) + '\\n');
+        process.kill(process.pid, 'SIGKILL');
+      },
+    }
+  : process.env.SNAPBACK_TEST_STALL_BOUND_SOCKET === '1'
+    ? {
       async afterEndpointLeaseActivation(details) {
         process.stdout.write(JSON.stringify({ state: 'endpoint-lease-activated', ...details }) + '\\n');
         await new Promise(() => {});
       },
-    })
-  : await startDevControlSocket(options);
+    }
+    : null;
+const control = injectedDependencies === null
+  ? await startDevControlSocket(options)
+  : await __test.startDevControlSocketWithDependencies(options, injectedDependencies);
 process.stdout.write(JSON.stringify({ startedAt, descriptor: control.descriptor }) + '\\n');
 setInterval(() => {}, 60_000);
 `);
@@ -224,6 +235,38 @@ async function startBoundSocketHolder(root, ownerIncarnationId, cleanupLease) {
     }
     return false;
   }, { label: 'pending-socket bind barrier' });
+  return { child, barrier };
+}
+
+async function startPreActivationCrash(root, ownerIncarnationId, cleanupLease) {
+  const child = spawn(process.execPath, [holderScript, join(root, 'dev.ready.json'), ownerIncarnationId], {
+    env: {
+      ...process.env,
+      [CLEANUP_LEASE_DIRECTORY_ENV]: cleanupLease.directory,
+      SNAPBACK_TEST_CRASH_PREACTIVATION_SOCKET: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const barrier = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`pre-activation holder exited before its barrier: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: 'pre-activation socket bind barrier' });
+  await eventually(
+    () => child.signalCode === 'SIGKILL',
+    { label: 'pre-activation holder SIGKILL' },
+  );
+  holders.delete(child);
   return { child, barrier };
 }
 
@@ -902,9 +945,129 @@ try {
   await racingSuccessor.close();
   console.log('reaper versus bind: stale deletion waits and preserves the successor inode');
 
+  {
+    const reservedReaperRaceRoot = makeRoot('reserved-reaper-race');
+    const reservedSuccessorPublished = deferred();
+    const releaseReservedSuccessor = deferred();
+    const reservedSuccessorPromise = expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(reservedReaperRaceRoot, 'unit-reserved-reaper-successor'),
+      {
+        async afterEndpointPublish() {
+          reservedSuccessorPublished.resolve();
+          await releaseReservedSuccessor.promise;
+        },
+      },
+    );
+    await reservedSuccessorPublished.promise;
+    const reservedReaperResource = {
+      state: 'reserved',
+      pathType: 'socket',
+      path: join(reservedReaperRaceRoot, '.dc-sock'),
+      pendingOwnerState: {
+        path: join(reservedReaperRaceRoot, 'dev-control.owner.json'),
+        endpointPath: join(reservedReaperRaceRoot, '.dc-sock'),
+        ownerIncarnationId: 'unit-dead-reserved-owner',
+        ownerUid: typeof process.getuid === 'function' ? process.getuid() : 0,
+      },
+    };
+    let reservedReaperSettled = false;
+    const reservedRacingReaper = teardownTest.cleanupExactPath(reservedReaperResource)
+      .finally(() => { reservedReaperSettled = true; });
+    await new Promise((resolveWait) => setTimeout(resolveWait, 75));
+    assert.equal(
+      reservedReaperSettled,
+      false,
+      'the reserved stale reaper must wait for successor publication',
+    );
+    releaseReservedSuccessor.resolve();
+    const reservedSuccessor = await reservedSuccessorPromise;
+    const reservedReaperResult = await reservedRacingReaper;
+    const reservedSuccessorSurvived = existsSync(reservedSuccessor.descriptor.path)
+      && String(lstatSync(reservedSuccessor.descriptor.path).ino)
+        === reservedSuccessor.descriptor.endpoint.inode;
+    await reservedSuccessor.close();
+    assert.equal(
+      reservedReaperResult,
+      false,
+      'a reserved lease has no endpoint identity and must discharge without unlinking',
+    );
+    assert.equal(
+      reservedSuccessorSurvived,
+      true,
+      'the successor inode must survive a stale reserved cleanup record',
+    );
+    console.log('reserved reaper versus bind: stale reservation preserves the live successor inode');
+  }
+
+  {
+    const preActivationRoot = makeRoot('preactivation-crash');
+    const preActivationLease = await createCarrierCleanupLease();
+    try {
+      const crashed = await startPreActivationCrash(
+        preActivationRoot,
+        'unit-preactivation-owner',
+        preActivationLease,
+      );
+      assert.equal(crashed.barrier.state, 'endpoint-listened-reserved');
+      assert.equal(existsSync(crashed.barrier.path), true);
+      assert.equal(existsSync(crashed.barrier.ownerStatePath), true);
+      await eventually(
+        () => !existsSync(crashed.barrier.ownerStatePath),
+        { label: 'pre-activation binding marker cleanup' },
+      );
+      assert.equal(
+        existsSync(crashed.barrier.path),
+        true,
+        'pre-activation socket residue is ambiguous and requires explicit recovery',
+      );
+      await assertRefusal(
+        () => startDevControlSocket(testOptions(
+          preActivationRoot,
+          'unit-preactivation-racing-successor',
+        )),
+        'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      );
+      assert.equal(existsSync(crashed.barrier.path), true);
+      rmSync(crashed.barrier.path);
+      const recoveredSuccessor = await startDevControlSocket(testOptions(
+        preActivationRoot,
+        'unit-preactivation-recovered-successor',
+      ));
+      assert.equal(existsSync(recoveredSuccessor.descriptor.path), true);
+      await recoveredSuccessor.close();
+    } finally {
+      await closeCarrierCleanupLease(preActivationLease);
+    }
+    console.log('pre-activation SIGKILL: reserved cleanup removes only binding marker and explicit recovery admits successor');
+  }
+
   const liveRoot = makeRoot('l');
   const liveHolder = await startHolder(liveRoot, 'unit-live-owner');
   publishSupervisorDescriptor(liveRoot, liveHolder);
+  const liveOwnerStatePath = join(liveRoot, 'dev-control.owner.json');
+  const liveOwnerStateMetadata = lstatSync(liveOwnerStatePath);
+  const liveReaperResource = {
+    state: 'active',
+    pathType: 'socket',
+    path: liveHolder.descriptor.path,
+    socketIdentity: {
+      ...liveHolder.descriptor.endpoint,
+      ownerIncarnationId: liveHolder.descriptor.ownerIncarnationId,
+    },
+    ownerStateIdentity: {
+      path: liveOwnerStatePath,
+      device: String(liveOwnerStateMetadata.dev),
+      inode: String(liveOwnerStateMetadata.ino),
+      ownerIncarnationId: liveHolder.descriptor.ownerIncarnationId,
+    },
+  };
+  assert.equal(
+    await teardownTest.cleanupExactPath(liveReaperResource),
+    false,
+    'an exact cleanup identity still requires a dead-endpoint probe',
+  );
+  assert.equal(existsSync(liveHolder.descriptor.path), true);
+  assert.equal(existsSync(liveOwnerStatePath), true);
   await assertRefusal(
     () => startDevControlSocket(testOptions(liveRoot, 'unit-live-contender')),
     'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
@@ -1025,10 +1188,12 @@ try {
   const cleanupLease = await createCarrierCleanupLease();
   try {
     const leasedHolder = await startHolder(leasedRoot, 'unit-leased-owner', cleanupLease);
+    const leasedOwnerStatePath = join(leasedRoot, 'dev-control.owner.json');
+    assert.equal(JSON.parse(readFileSync(leasedOwnerStatePath, 'utf8')).phase, 'bound');
     await killHolder(leasedHolder);
     await eventually(
-      () => !existsSync(leasedHolder.descriptor.path),
-      { label: 'cleanup lease socket reap after owner SIGKILL' },
+      () => !existsSync(leasedHolder.descriptor.path) && !existsSync(leasedOwnerStatePath),
+      { label: 'cleanup lease socket and bound owner marker reap after owner SIGKILL' },
     );
   } finally {
     await closeCarrierCleanupLease(cleanupLease);
@@ -1046,10 +1211,14 @@ try {
     assert.equal(
       boundHolder.barrier.state,
       'endpoint-lease-activated',
-      'fault injection must stop after direct bind and exact-inode lease activation',
+      'fault injection must stop after bound owner state and exact-inode lease activation',
     );
     assert.equal(existsSync(boundHolder.barrier.path), true);
     assert.equal(existsSync(boundHolder.barrier.ownerStatePath), true);
+    assert.equal(
+      JSON.parse(readFileSync(boundHolder.barrier.ownerStatePath, 'utf8')).phase,
+      'bound',
+    );
     await killHolder(boundHolder);
     await eventually(
       () => !existsSync(boundHolder.barrier.path)
@@ -1059,7 +1228,7 @@ try {
   } finally {
     await closeCarrierCleanupLease(boundCleanupLease);
   }
-  console.log('cleanup lease: direct-bind owner death reaps exact socket inode and binding marker');
+  console.log('cleanup lease: direct-bind owner death reaps exact socket inode and bound marker');
 } finally {
   await Promise.all([...holders].map(async (child) => {
     if (child.exitCode !== null || child.signalCode !== null) return;
