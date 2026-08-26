@@ -77,3 +77,61 @@ route.
 Read-only design analysis at `492d1386b424e3cf8301900d33a09228c66d9136`; no files were
 changed to produce it. Counts above are from that analysis and should be re-measured
 before being quoted as current.
+
+## Adversarial check of this decision (2026-08-26)
+
+An independent skeptical review, told to default to refuting, checked the load-bearing
+claims. Verdict: **UNCLEAR** — the pivot is affordable and correct in direction, but the
+stated shape is under-specified and one risk was missed entirely.
+
+### The cost claim is CONFIRMED
+
+Independently recounted: production consumers of `AuthorityWritePermit` = **0**;
+functions accepting it = **1**, test-only (`probe.rs:18`, whose sole call is
+`probe.rs:172`, with the whole `probe` module `#[cfg(test)]` at `writers/mod.rs:14`);
+legacy SQL writers connected = **0**. The seven production `writers/*` modules hold only
+mutation-discriminant predicates, not SQL writers. So replacing dormant Landing A is
+genuinely cheap.
+
+### Two defects the stated shape only RELOCATES
+
+- **One authorizer on two connections — RELOCATES.** "Owns authorizer state" is not
+  sufficient; a wrapper can reproduce the shared-cell bug internally. Elimination requires
+  a **private, one-shot constructor with non-shareable state and no extraction or
+  reinstallation path**.
+- **Writer-reachable activation — RELOCATES.** Replacing `activate` with
+  `with_protected(write_set, closure)` moves the mint to the wrapper without removing the
+  power. The write set must be **derived from a closed mutation**, and activation must be
+  **invisible to writer modules**.
+- **Epoch — UNTOUCHED.** Higher-ranked scoping neither advances nor removes it. Either
+  make one wrapper allocation the unexportable connection identity, or specify rotation
+  explicitly. Do not keep a decorative epoch.
+
+`mem::forget` of the owner and the prepared-statement route are judged ELIMINATED, but
+conditionally: only if no raw connection or transaction-control SQL is exposed, and every
+statement accessor is tied to `'scope`.
+
+### The missed risk: a second authorizer DELETES the first
+
+`LocalDatabase` already owns a connection-local `WriterAuthorityV1` (`storage.rs:1726`)
+covering a closed inventory of 24 writer lanes (`write_authority.rs:59`), and installs its
+authorizer at `write_authority.rs:390`. **SQLite permits only one authorizer per
+connection; each installation overrides the previous one.** A connection-owning wrapper
+that installs its own authorizer therefore *removes an existing security boundary* rather
+than adding one.
+
+The replacement must **compose both policies into one callback and one state owner**, or
+extend the existing writer-authority owner instead of adding a parallel one. This is a
+constraint on activation (Landing C), not on Landing A while it remains inert — but a
+design that assumes it may install its own authorizer is wrong at the core.
+
+Also flagged as UNVERIFIED and still load-bearing: a production **secondary writable
+connection** reconstructs its own authority (`connections.rs:623`); the connection pool
+itself is read-only (`connections.rs:587`) so primary-writer ownership is not broken. Commit
+outcomes can be expressed through a closure — the existing API already builds
+`Committed`/`RolledBack`/`CommitUncertain` after the closure returns (`auth.rs:1985`) — but
+the replacement must preserve the service-terminal carrier retained on uncertainty
+(`auth.rs:400`) and mode-commit reconciliation (`auth_mode.rs:354`). The kernel contains
+zero `async fn`/`.await`, and no transaction-across-await or returned transaction borrow
+was found.
+
