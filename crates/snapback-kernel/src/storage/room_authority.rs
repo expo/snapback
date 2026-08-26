@@ -1368,6 +1368,13 @@ impl AuthorizationCommitParticipant {
         schema: &SchemaManifest,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        if crate::exec_guard::local_snapback_write_scope_active() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN",
+                "auth",
+                "room reauthorization completion must run outside the LocalSnapback write scope",
+            ));
+        }
         if !Arc::ptr_eq(&self.registry, &batch.root)
             || !batch.root.binding_matches(database_binding)
         {
@@ -3530,6 +3537,66 @@ mod tests {
                 .is_none(),
             "clearing the level-triggered fact makes a duplicate batch stale"
         );
+    }
+
+    #[test]
+    fn room_reauthorization_completion_refuses_local_scope_and_remains_retryable() {
+        let fixture = ready_fixture();
+        install_room_resync(&fixture);
+        let batch = fixture
+            .participant
+            .resolve_room_reauthorization(
+                &fixture.database,
+                fixture
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("pending room batch"),
+                Vec::new(),
+            )
+            .expect("database-derived room batch");
+
+        // @ref LLP 0059#prohibited-overlap — a public or doc-hidden
+        // completion owner captured by caller-supplied Local code must refuse
+        // before lifecycle, SQLite, registry, or room state is acquired.
+        let local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let error = match fixture
+            .participant
+            .begin_room_reauthorization_completion(&fixture.database, batch)
+        {
+            Err(error) => error,
+            Ok(_) => panic!("completion entered beneath LocalSnapback"),
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN"
+        );
+        drop(local_scope);
+
+        assert_eq!(
+            fixture.participant.pending_reauthorizations().len(),
+            1,
+            "refusal leaves the level-triggered obligation retryable"
+        );
+        let retry = fixture
+            .participant
+            .resolve_room_reauthorization(
+                &fixture.database,
+                fixture
+                    .participant
+                    .pending_reauthorizations()
+                    .pop()
+                    .expect("retry pending room batch"),
+                Vec::new(),
+            )
+            .expect("retry derives a fresh batch");
+        fixture
+            .participant
+            .begin_room_reauthorization_completion(&fixture.database, retry)
+            .expect("outside-Local retry remains operational")
+            .expect("exact retry reaches completion")
+            .complete_exact();
+        assert!(fixture.participant.pending_reauthorizations().is_empty());
     }
 
     #[test]
