@@ -40,6 +40,7 @@ pub mod migration;
 pub mod migration_presentation;
 pub mod operation_detail;
 pub mod operation_ledger;
+pub mod process_bound_identity;
 pub mod proof_checkpoint;
 pub mod push;
 pub mod remediation;

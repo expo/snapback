@@ -21,6 +21,7 @@ additive = [
 ]
 
 [dependencies]
+libc = "0.2"
 serde_json = "1"
 tempfile = "3"
 tokio = { version = "1.48", features = ["macros", "rt"] }
@@ -145,6 +146,8 @@ path = "src/attacks/f082.rs"
 [[bin]]
 name = "f129"
 path = "src/attacks/f129.rs"
+name = "f126-fork"
+path = "src/attacks/f126_fork.rs"
 
 [[bin]]
 name = "negative-routes"

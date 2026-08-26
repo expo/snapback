@@ -4022,6 +4022,7 @@ dependencies = [
 name = "snapback-row-attack-fixtures"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "serde_json",
  "snapback-auth",
  "snapback-engine",
