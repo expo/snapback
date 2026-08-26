@@ -63,7 +63,7 @@ Three pending-effect siblings extend the undercount:
 
 Therefore, beyond the stated five:
 
-- **RESOLVED:** raw SQL was the sixth already-executed unrowed effect; it is now row F313 and compile-closed in all three feature cells.
+- **RESOLVED:** raw SQL was the sixth already-executed unrowed effect; it is now row F313 and compile-closed in all four declared feature cells. The capability witness mounts the confined replacement in every cell and fails at its private connection field, while retired-spelling fixtures separately pin deletion of the old re-export.
 - **READ-CONFIRMED:** approval and denial are additional compiling/source-complete siblings.
 - **INFERRED:** settlement is another live sibling under revision (s).
 
@@ -73,7 +73,7 @@ Therefore, beyond the stated five:
 
 - **READ-CONFIRMED:** The blocker audit found 66 observed leaves but zero leaves with exhaustive alternate-route proof. Its then-24-attack corpus could not establish 110 negative consumer censuses.
 
-- **RESOLVED 2026-08-26:** the row corpus now requires and runs the `snapback-services/remainder-tests` cell. Historical comparison found F313 as the only cell-dependent verdict: CLOSED in production/additive and OPEN in services remainder before the fix.
+- **RESOLVED 2026-08-26:** the row corpus now requires and runs both the `snapback-services/remainder-tests` cell and its combination with additive test support. Historical comparison found F313 as the only cell-dependent row: its arbitrary-SQL attack executed in both remainder-bearing cells before the fix, while no additional row opened in the combined cell.
 
 - **READ-CONFIRMED:** [LLP 0303(s)](llp/0303-subject-authority-correlation-policy.decision.md:690) requires an executed alternate-route attempt for closure.
 

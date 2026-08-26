@@ -529,8 +529,10 @@ framing).
 **I-6 (SC + workspace-graph; CE for the compile-fail fixture).** The
 `rusqlite` crate is not a public name of any workspace package's library
 API under any feature. The historical `snapback-services/remainder-tests`
-failure is now the compile-closed F313 witness in every measured feature
-cell. `snapback-services` remaining in
+failure is now guarded two ways: retired-spelling fixtures keep the re-export
+absent, and F313's capability witness mounts the surviving fixed-schema push
+fixture in every measured feature cell and is refused at its private raw
+connection when it attempts arbitrary SQL. `snapback-services` remaining in
 `externalConfinement.allowedMembers` for `rusqlite` is about *depending
 on* the crate for the telemetry sidecar, not about re-exporting it.
 
@@ -1315,6 +1317,12 @@ The current exact expected-red inventory is maintained in
 The `services-rusqlite-reexport-default` row is a control: default features must not leak `rusqlite`
 either. TODAY it should PASS (import unresolved). If it compiles, that
 is a fourth live defect.
+
+Those two rows are retired-spelling controls, not F313's capability closure.
+The row corpus's F313 source constructs `PushAuthorizationTestFixture` before
+its marked `fixture.connection.execute_batch(...)` expression; the fixture
+mount is invariant across production, additive, remainder, and
+additive-plus-remainder cells, and closure requires `E0616` on that expression.
 
 ### 6.2 Known evasions as product or corpus tests
 

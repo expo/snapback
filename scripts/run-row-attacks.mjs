@@ -82,6 +82,12 @@ export function loadRowAttackLedger(fixtureRoot) {
         throw new GateInfrastructureError(`${ledgerPath} has invalid cell-specific expectations`);
       }
     }
+    if (attack.requiredFeatures !== undefined
+        && (!Array.isArray(attack.requiredFeatures)
+          || new Set(attack.requiredFeatures).size !== attack.requiredFeatures.length
+          || attack.requiredFeatures.some((feature) => typeof feature !== 'string'))) {
+      throw new GateInfrastructureError(`${ledgerPath} has invalid required attack features`);
+    }
     rows.add(attack.row);
   }
   if (ledger.attacks.length === 0 || ledger.featureCells.length === 0) {
@@ -246,6 +252,8 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
   const additive = ledger.featureCells.find(({ id }) => id === 'additive-test-support');
   const servicesRemainder = ledger.featureCells
     .find(({ id }) => id === 'services-remainder-tests');
+  const additiveServicesRemainder = ledger.featureCells
+    .find(({ id }) => id === 'additive-services-remainder-tests');
   if (!production || !sameValues(production.features, [])) {
     errors.push('ledger must declare the empty production feature cell');
   }
@@ -255,10 +263,29 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
   if (!servicesRemainder || !sameValues(servicesRemainder.features, ['services-remainder-tests'])) {
     errors.push('ledger must declare the snapback-services/remainder-tests feature cell');
   }
+  if (!additiveServicesRemainder
+      || !sameValues(additiveServicesRemainder.features, [
+        'additive',
+        'services-remainder-tests',
+      ])) {
+    errors.push('ledger must declare the additive-plus-services-remainder-tests feature cell');
+  }
+  if (!sameValues(pkg.features['kernel-push-fixture'] ?? [], [
+    'snapback-kernel/test-support',
+  ])) {
+    errors.push('kernel-push-fixture must enable exactly snapback-kernel/test-support');
+  }
   if (!sameValues(pkg.features['services-remainder-tests'] ?? [], [
     'snapback-services/remainder-tests',
   ])) {
     errors.push('services-remainder-tests must enable exactly snapback-services/remainder-tests');
+  }
+  for (const attack of ledger.attacks) {
+    for (const feature of attack.requiredFeatures ?? []) {
+      if (!Object.hasOwn(pkg.features, feature)) {
+        errors.push(`${attack.row} requires undeclared fixture feature ${feature}`);
+      }
+    }
   }
 
   // Existing compile-fail fixtures may opt into this row ledger by declaring
@@ -302,17 +329,21 @@ function parseCompilerMessages(output, fixtureRoot) {
   return messages;
 }
 
-function cargoArgs(fixtureRoot, bin, cell, subcommand, messageFormat = false) {
+function cargoArgs(fixtureRoot, attack, cell, subcommand, messageFormat = false) {
   const args = [
     subcommand,
     '--offline',
     '--locked',
     '--manifest-path', resolve(fixtureRoot, 'Cargo.toml'),
     '--no-default-features',
-    '--bin', bin,
+    '--bin', attack.bin,
   ];
   if (messageFormat) args.push('--message-format=json');
-  if (cell.features.length > 0) args.push('--features', cell.features.join(','));
+  const features = sorted([
+    ...cell.features,
+    ...(attack.requiredFeatures ?? []),
+  ]);
+  if (features.length > 0) args.push('--features', features.join(','));
   return args;
 }
 
@@ -347,7 +378,7 @@ function compileObservation({ fixtureRoot, targetDir, attack, cell }) {
   const result = spawnCargo(
     fixtureRoot,
     targetDir,
-    cargoArgs(fixtureRoot, attack.bin, cell, 'check', true),
+    cargoArgs(fixtureRoot, attack, cell, 'check', true),
   );
   if (result.error || result.status === null) {
     throw new GateInfrastructureError(
@@ -396,7 +427,7 @@ export function observeAttack({ fixtureRoot, targetDir, attack, cell }) {
   const result = spawnCargo(
     fixtureRoot,
     targetDir,
-    cargoArgs(fixtureRoot, attack.bin, cell, 'run'),
+    cargoArgs(fixtureRoot, attack, cell, 'run'),
   );
   if (result.error || result.status === null) {
     throw new GateInfrastructureError(
@@ -416,7 +447,7 @@ function observeNegativeRoutes({ fixtureRoot, targetDir, ledger, cell }) {
   const result = spawnCargo(
     fixtureRoot,
     targetDir,
-    cargoArgs(fixtureRoot, ledger.negativeRoutes.bin, cell, 'check', true),
+    cargoArgs(fixtureRoot, ledger.negativeRoutes, cell, 'check', true),
   );
   if (result.error || result.status === null) {
     throw new GateInfrastructureError(`cargo did not execute negative routes for ${cell.id}`);

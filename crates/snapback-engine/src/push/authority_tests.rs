@@ -4,6 +4,7 @@ use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
 use crate::contract_types::ServerProfile;
+use crate::diagnostic::SnapbackError;
 use crate::ids::{self, Kind};
 use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
 use crate::storage::{DbRead, LocalDatabase, ServingDatabase};

@@ -15,6 +15,11 @@
       "id": "services-remainder-tests",
       "features": ["services-remainder-tests"],
       "description": "Enables exactly snapback-services/remainder-tests with dependency defaults disabled."
+    },
+    {
+      "id": "additive-services-remainder-tests",
+      "features": ["additive", "services-remainder-tests"],
+      "description": "Enables the additive test-support graph together with snapback-services/remainder-tests."
     }
   ],
   "attacks": [
@@ -53,7 +58,7 @@
     {"row": "F315", "bin": "f315", "source": "src/attacks/f315.rs", "expected": "CLOSED", "expectedCode": "E0061", "note": "OPEN in both cells at a688f1a68; now CLOSED at the surviving approval consumer after genuine preparation because approval consumes the exact database-derived owner."},
     {"row": "F316", "bin": "f316", "source": "src/attacks/f316.rs", "expected": "CLOSED", "expectedCode": "E0308", "note": "OPEN in both cells at a688f1a68; now CLOSED at the surviving denial consumer after genuine creation because a caller-selected approver string cannot substitute for the exact owner."},
     {"row": "F317", "bin": "f317", "source": "src/attacks/f317.rs", "expected": "CLOSED", "expectedCode": "E0061", "note": "OPEN in both cells at a688f1a68; now CLOSED at the surviving settlement consumer after genuine approval because executed and outcome are sealed by consuming the genuine ticket into one settlement."},
-    {"row": "F313", "bin": "f313", "source": "src/attacks/f313.rs", "expected": "CLOSED", "expectedCode": "E0433", "note": "Fail-first raw-SQL effect witness: the former services/remainder-tests crate re-export is absent in every feature cell."}
+    {"row": "F313", "bin": "f313", "source": "src/attacks/f313.rs", "requiredFeatures": ["kernel-push-fixture"], "expected": "CLOSED", "expectedCode": "E0616", "note": "Capability witness: every cell mounts the surviving confined push fixture, constructs it successfully, and rustc refuses arbitrary SQL at the marked private-connection access. Retired-spelling witnesses separately pin removal of the services rusqlite re-export."}
   ],
   "negativeRoutes": {
     "bin": "negative-routes",

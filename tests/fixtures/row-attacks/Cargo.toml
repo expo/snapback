@@ -19,6 +19,7 @@ additive = [
   "snapback-sync/test-support",
   "snapback-types/test-support",
 ]
+kernel-push-fixture = ["snapback-kernel/test-support"]
 services-remainder-tests = ["snapback-services/remainder-tests"]
 
 [dependencies]

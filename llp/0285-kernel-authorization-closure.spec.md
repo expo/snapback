@@ -450,6 +450,11 @@ only the fixed `sender` role, and offers typed authorization/resolution
 methods. `snapback-services::test_support` and its `pub use rusqlite` are
 deleted. The `remainder-tests` activation remains because unrelated typed
 services seams still use it; deleting that broader feature is outside F313.
+The compile-fail row targets this surviving fixture rather than the deleted
+import: setup constructs `app_members`, then the marked arbitrary-SQL
+expression is refused because the fixture's connection is private. Its four
+cells include additive plus services remainder, and each carries the invariant
+kernel fixture mount needed to reach the marked expression.
 
 The intermediate state intentionally adds **no** separate caller-selectable
 `snapback-services/test-support` feature. All services seams needed by these

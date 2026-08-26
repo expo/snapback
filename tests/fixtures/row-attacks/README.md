@@ -35,6 +35,11 @@ disabled. This cell is distinct because Cargo feature unification can expose
 services-only producers that neither production nor the five-crate additive
 cell sees.
 
+The `additive-services-remainder-tests` cell enables both feature sets. F313
+also declares the invariant `kernel-push-fixture` mount in every cell so its
+setup can construct the surviving confined fixture before the marked raw-SQL
+expression; that mount is evidence plumbing, not part of the cell label.
+
 `src/bin/negative_routes.rs` preserves the audit's fifteen carrier-route
 probes (`Default`, `From`/`Into`, serde, and `builder()`). They are auxiliary
 evidence, not substitutes for the nine producer attacks.
