@@ -139,8 +139,41 @@ projection chain. The initial branch failed `ref-check` because its base
 omitted LLP 0310/0310.000; the byte-identical documents and current links were
 imported from `origin/main`, after which the reference check passed.
 
-Evidence scope: the retained pre-fix transcripts demonstrate the missing URL,
-boot-eager authority, sentinel misclassification, and legacy refresh minting.
-The focused sign-out/query recovery, fresh-per-request minting, and browser
-origin-admission assertions were added and passed after their fixes; they are
-post-fix regression coverage, not independently recorded pre-fix reds.
+The three focused assertions that previously had post-fix evidence only were
+also run against temporary reverse patches of their corresponding product
+hunks. Each reverse patch was limited to the named hunk and restored before the
+next run; no stash or history operation was used.
+
+With `SnapbackExpoProvider`'s explicit `adoptSupervisedSession: true` forwarding
+temporarily disabled, the real adopted-session/query fixture stopped at its own
+precondition rather than reaching a false green:
+
+```text
+AssertionError [ERR_ASSERTION]: the real provider must adopt the supervised mint and mount its protected query:
+    at settleReactUntil (file:///Users/ccheever/projects/snapback-worktrees/sbs-0825-expo-web-url/packages/snapback-expo/provider-auth-bootstrap.test.mjs:711:10)
+    at async file:///Users/ccheever/projects/snapback-worktrees/sbs-0825-expo-web-url/packages/snapback-expo/provider-auth-bootstrap.test.mjs:1165:1
+```
+
+With `requestSupervisedAuthority` temporarily restored to reuse an already-ready
+authority instead of minting per request, the second explicit adopter received
+the revoked first bearer:
+
+```text
+AssertionError [ERR_ASSERTION]: {"status":"error","diagnostic":{"schemaVersion":"snapback.client-diagnostic.v1","code":"SNAPBACK_AUTH_SESSION_EXPIRED","severity":"error","message":"SNAPBACK_AUTH_SESSION_EXPIRED: authentication session is expired or revoked","details":{"correlationId":"snapback-expo-boot-5"}},"remediations":[]}
+
+'error' !== 'ready'
+
+    at file:///Users/ccheever/projects/snapback-worktrees/sbs-0825-expo-web-url/packages/snapback-cli/expo-dev-loop.test.mjs:1507:10
+```
+
+With the bootstrap mint admission temporarily restored to classify literal
+`null`/empty browser Origin values as originless and to omit the JSON-only
+native guard, the browser-origin assertion recorded:
+
+```text
+AssertionError [ERR_ASSERTION]: literal null is a present browser Origin
+
+200 !== 403
+
+    at file:///Users/ccheever/projects/snapback-worktrees/sbs-0825-expo-web-url/packages/snapback-cli/expo-bootstrap-exchange.test.mjs:505:10
+```

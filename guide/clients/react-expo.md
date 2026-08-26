@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:5bd2781bf22b976261e63cc5b2c647ba29934d3062dffa1e37f0a419dc306aeb
+reviewed-authorities-digest: sha256:600d5d0ad0f16eec9caf9b6bcb7b585d24cc3c87f0338c577b0764abf8b7e317
 ---
 
 # React Expo Online clients
@@ -338,11 +338,11 @@ wrap an independently owned listener in the supervised `--expo` loop.
 > boundary on an older closure.
 
 This supervised boot has three application-visible pieces: the config-plugin
-entry, the generated `app`, and `SnapbackExpoProvider`. On web the supervisor
-injects `EXPO_PUBLIC_SNAPBACK_URL` as the backend data/auth origin as well as
-its control-plane rendezvous origin. The rendezvous remains the binding source
-and wins over the configured URL, so the older no-URL composition remains valid
-here
+entry, the generated `app`, and `SnapbackExpoProvider`. On web Metro receives
+two distinct environment variables: `EXPO_PUBLIC_SNAPBACK_URL` is the backend
+data/auth origin, while `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` is the
+control-plane rendezvous. The rendezvous remains the binding source and wins
+over the configured URL, so the older no-URL composition remains valid here
 ([LLP 0181 §Config plugin](repo:llp/0181-zero-configuration-expo.rfc.md#config-plugin),
 [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)).
 The working fixture's plugin entry is:

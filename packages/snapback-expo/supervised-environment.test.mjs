@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { getEventListeners } from 'node:events';
 
 import { createSnapbackExpoBoot } from './provider.mjs';
 import {
@@ -162,10 +163,22 @@ const directWebEnvironment = createSupervisedExpoEnvironment({
     });
   },
 });
-const directWebAdmission = await directWebEnvironment.resolveBinding({
+const directWebBindingController = new AbortController();
+let directWebAdmission = await directWebEnvironment.resolveBinding({
   app,
-  signal: new AbortController().signal,
+  signal: directWebBindingController.signal,
 });
+for (let refresh = 1; refresh < 25; refresh += 1) {
+  directWebAdmission = await directWebEnvironment.resolveBinding({
+    app,
+    signal: directWebBindingController.signal,
+  });
+}
+assert.equal(
+  getEventListeners(directWebBindingController.signal, 'abort').length,
+  1,
+  'repeated anonymous binding refreshes retain at most one abort listener',
+);
 const previousFetch = globalThis.fetch;
 globalThis.fetch = async (url) => {
   assert.equal(new URL(url).pathname, '/auth/session');
@@ -231,11 +244,16 @@ globalThis.fetch = async (url) => {
 try {
   const directWebAdoption = await directWebEnvironment.adoptAuthority({
     binding: directWebAdmission.binding,
-    signal: new AbortController().signal,
+    signal: directWebBindingController.signal,
   });
   assert.equal(directWebAdoption.status, 'ready');
   assert.equal(directWebAdoption.publicFacts.sessionId, null);
-  assert.equal(directWebBootstrapRequests.length, 1);
+  assert.equal(directWebBootstrapRequests.length, 25);
+  assert.equal(
+    getEventListeners(directWebBindingController.signal, 'abort').length,
+    0,
+    'consuming the retained anonymous exchange detaches its abort listener',
+  );
   await directWebAdoption.dispose();
 } finally {
   globalThis.fetch = previousFetch;

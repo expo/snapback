@@ -319,6 +319,7 @@ export function createSupervisedExpoEnvironment({
   onDiagnostic,
 } = {}) {
   const exchanges = new Map();
+  const exchangeAbortBindings = new Map();
   const offlineFallbacks = new Map();
   const supervisorCapabilities = new Map();
   // @ref LLP 0151#shared-development-browser-adapter — the credential-free
@@ -331,15 +332,31 @@ export function createSupervisedExpoEnvironment({
   let devIdentityCapabilityPromise = null;
   let devIdentityCheckoutWarningLogged = false;
 
+  const releaseExchange = (key, expectedExchange = undefined) => {
+    const retained = exchanges.get(key);
+    if (expectedExchange !== undefined && retained !== expectedExchange) return false;
+    if (retained === undefined) return false;
+    exchanges.delete(key);
+    const abortBinding = exchangeAbortBindings.get(key);
+    if (abortBinding?.exchange === retained) {
+      exchangeAbortBindings.delete(key);
+      abortBinding.signal?.removeEventListener?.('abort', abortBinding.listener);
+    }
+    return true;
+  };
+
   const retainExchange = (key, exchange, signal) => {
+    releaseExchange(key);
     exchanges.set(key, exchange);
     if (signal?.aborted === true) {
-      if (exchanges.get(key) === exchange) exchanges.delete(key);
+      releaseExchange(key, exchange);
       return;
     }
-    signal?.addEventListener?.('abort', () => {
-      if (exchanges.get(key) === exchange) exchanges.delete(key);
-    }, { once: true });
+    if (typeof signal?.addEventListener !== 'function') return;
+    const listener = () => releaseExchange(key, exchange);
+    exchangeAbortBindings.set(key, { exchange, signal, listener });
+    signal.addEventListener('abort', listener, { once: true });
+    if (signal.aborted === true) releaseExchange(key, exchange);
   };
 
   const loadCachedBinding = async (app) => {
@@ -487,7 +504,7 @@ export function createSupervisedExpoEnvironment({
       // binding. Clear both retained copies, fetch the binding-only successor
       // once, and mint only when it still names the admitted binding.
       supervisorCapabilities.delete(key);
-      exchanges.delete(key);
+      releaseExchange(key);
       const bootstrap = await fetchExchange(signal);
       if (bindingKey(bootstrap.binding) !== key) {
         throw codedError(
@@ -683,7 +700,7 @@ export function createSupervisedExpoEnvironment({
       // authority resolver is what asks the supervisor to mint on demand.
       const retained = exchanges.get(key);
       const exchange = await fetchAuthorityExchange(signal, key, retained, { refresh });
-      exchanges.delete(key);
+      releaseExchange(key);
       if (bindingKey(exchange.binding) !== key) {
         throw codedError(
           refresh ? 'SNAPBACK_APP_BINDING_EXPIRED' : 'SNAPBACK_APP_BINDING_OVERRIDE_UNCONFIRMED',
@@ -761,7 +778,7 @@ export function createSupervisedExpoEnvironment({
       const exchange = shouldAdoptSupervisedSession
         ? await fetchAuthorityExchange(signal, key, storedExchange)
         : storedExchange ?? await fetchExchange(signal);
-      exchanges.delete(key);
+      releaseExchange(key);
       const required = authorityRequired(exchange);
       if (required) return required;
       if (bindingKey(exchange.binding) !== key) {
