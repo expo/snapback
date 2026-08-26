@@ -1832,3 +1832,122 @@ errors, 0 unchecked`. `git diff --check` produces no output. Generated
 projection paths remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`; integration retains ownership of
 their regeneration.
+
+### Round-29 dual-review closure (2026-08-26)
+
+One inspection-fact rule now governs enqueue-time, cycle-start, and final
+pre-POST inspection. No-`Response` transport loss and answered 5xx/proxy
+failures are local, non-durable unavailability observations exposed by
+`outboxStatus()`; they preserve a matching positive only for direct
+`queue: 'auto'` enqueue, send no mutation POST, and put the platform drain on
+bounded transient backoff. Answered 4xx and parsed 200 manifest gaps are
+durable negatives. A negative that superseded a positive remains authoritative
+through a later unavailable probe, and the drain pauses once without the fact
+commit self-waking it. Final-cut facts and observations publish only after the
+authorization-dispatch lock is released.
+
+The fail-first regressions produced these lines before the production fix.
+Items 5 and 6 are the real-client/FakeTimers construction of item 1 and
+therefore share its fail-first output rather than claiming a separate product
+failure:
+
+```text
+[item 1 — persistent 502 hot loop]
+AssertionError [ERR_ASSERTION]: a queued wake cannot outrun the 250 ms retry timer
+8 !== 1
+
+[item 1 — initial 502 wrongly became durable]
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++   reason: 'inspection-refused'
++   supported: false
+
+[item 2 — proxy 502 lost enqueue-only evidence and reached mutation transport]
+Error [SnapbackDiagnosticError]: SNAPBACK_CLIENT_REFUSED: mutation transport must stay enqueue-only
+
+[item 3 — final 502 observation was not recorded/backed off]
+AssertionError [ERR_ASSERTION]: timed out waiting for final 502 backoff
+
+[item 3 — final manifest gap was not committed]
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+true !== false
+
+[item 4 — restart transport loss paused permanently]
+AssertionError [ERR_ASSERTION]: timed out waiting for restart connectivity backoff
+
+[items 5 and 6 — production-path test plus fake-timer ceiling]
+AssertionError [ERR_ASSERTION]: a queued wake cannot outrun the 250 ms retry timer
+8 !== 1
+```
+
+At the final JS implementation commit
+`36ac871bff52edcb2fe07a0fc433cc5139ce5a45`, the exact required combined suite
+reports:
+
+```text
+ℹ tests 264
+ℹ suites 0
+ℹ pass 264
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8585.200417
+```
+
+The full `npm test --prefix packages/snapback-client` script passes the
+affected outbox store, custody, drain, and quarantine suites 183/183, 22/22,
+28/28, and 4/4, then reaches only the inherited out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (9.783ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2509.813667
+```
+
+The strict client TypeScript fixture command exits zero when run separately.
+The export-types gate reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both required public-dashboard witnesses were run at that exact implementation
+commit with `SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report
+these verbatim summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane. No separate
+public-dashboard acceptance keeps one client alive across a backend restart:
+the only acceptance files are `offline-local-first.mjs` (which relaunches the
+client) and `headless.mjs`. The same-live-client restart is covered by the new
+real-client FakeTimers drain regression.
+
+`node scripts/check-guide.mjs` passes the guide corpus and snippet
+transclusions and reports its integration-owned projection reds:
+
+```text
+[guide-check] FAILED — 17 passed, 5 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 137 warnings
+```
+
+The diagnostics registry, symbol registry, capability/surface join,
+manifest/MCP, and flat-guide projection reds remain integration-owned.
+No generator was run; all generated projection paths remain byte-identical to
+merge base `baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+`./ref-check --verbose` reports `311 LLP docs, 6652 refs in 12507 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
