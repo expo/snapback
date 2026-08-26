@@ -301,3 +301,31 @@ The open floor is **at least 112, not 111 — INFERRED arithmetic**:
 F182 was already excluded and replaced by F297 in the denominator’s closure arithmetic. F102 is not subtracted because its reviewed branch result is not shown landed in this checkout.
 
 **INFERRED final denominator: at least 133 total / 112 open.** Running valid post-fix alternate-route attacks for F094 and C009 could lower the floor to 110; new routes or unrowed effects can only raise it.
+---
+
+## Supervision note 2026-08-26: the 47 deletions are not 47 available tasks
+
+I sized several deletion units to dispatch as parallel work, on the reasoning that LLP 0313 §10
+green-lights "final-state subtractive deletion" regardless of the §11 ruling. That reasoning is right
+but the work is not available yet, for two reasons.
+
+**They belong to atomic groups.** LLP 0313 §8 requires certain deletions to move together — writer
+relocation with authorizer enforcement and every alternate protected writer; `LocalDatabase`
+privatization with raw accessor/adoption/dereference deletion; old in-memory producer deletion with
+exact prepared operations, every consumer, and the HTTP transport. Measured sizes bear this out:
+`AdminBypass` has **68** references and `Anonymous`-as-an-authority-value **137**, across engine,
+kernel, runtime, and host-glue. Deleting either standalone would fight the landing sequence rather than
+advance it. The ledger says as much — "not necessarily 62 separate commits: several deletions should
+land atomically" — and that qualifier is load-bearing.
+
+**One deletion contradicts the design it is meant to serve.** F202 reads "delete rehearsal-window
+authority outright", but LLP 0313 §4 lists **non-production rehearsal** among the surviving derived
+`AuthorityClass` values. Either the caller-constructible rehearsal-window *wrapper* is the thing being
+deleted while the derived class survives — in which case F202's wording should say so — or §4 should
+drop rehearsal. `rehearsal` currently spans **43 files** including the CLI, migration, and schema
+export, so it is a live feature and not a test-only concept. This needs settling before anyone starts.
+
+**Consequence for scheduling:** deletion work is gated on landing-sequence position, not available as
+parallel filler between review cycles. The practical order stays A → B → C → D → E. Attempting
+deletions out of order buys nothing and risks a rebase against the landing that was supposed to carry
+them.
