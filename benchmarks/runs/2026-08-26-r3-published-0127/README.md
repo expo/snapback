@@ -74,7 +74,9 @@ the registered native usage stream and per-leg/milestone token caps; Grok
 remains explicitly null/advisory. Admission itself reads prior committed
 records/blocked reports. Two immediately preceding executed same-leg failures
 with the same retained root-cause class refuse the next cell non-consumingly
-under `R3_CONDUCTOR_REVIEW_REQUIRED`; a success resets that sequence.
+under `R3_CONDUCTOR_REVIEW_REQUIRED`; a success resets that sequence. Resume
+requires a committed `reviews/pause-<n>.ack.json` binding the two exact failure
+disposition hashes, the one next cell admitted, and an orchestrator rationale.
 
 The only sanctioned scorecard implementation is
 [`compose-scorecard.mjs`](./compose-scorecard.mjs), hash-registered under

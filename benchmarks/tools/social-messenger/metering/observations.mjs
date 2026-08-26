@@ -2,6 +2,8 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { loadavg } from "node:os";
 
+import { ALLOW_CELL_MUTATIONS } from "./mutation-guard.mjs";
+
 import {
   FinalizationDiagnosticError,
   retainRawEventContext,
@@ -813,22 +815,31 @@ export function scorecardEligibility({
 }
 
 export class ObservationWriter {
-  constructor({ path, laneRunId, now = () => new Date().toISOString() }) {
+  constructor({
+    path,
+    laneRunId,
+    now = () => new Date().toISOString(),
+    mutationGuard = ALLOW_CELL_MUTATIONS,
+  }) {
     this.path = path;
     this.laneRunId = requiredString(laneRunId, "laneRunId");
     this.now = now;
+    this.mutationGuard = mutationGuard;
     this.sequence = 0;
     this.initialized = false;
   }
 
   async initialize({ append = false } = {}) {
+    this.mutationGuard.assertMutationAllowed("observation stream initialization");
     await mkdir(dirname(this.path), { recursive: true });
+    this.mutationGuard.assertMutationAllowed("observation stream initialization");
     if (!append) await writeFile(this.path, "", "utf8");
     this.initialized = true;
   }
 
   async record(milestone, type, fields = {}) {
     if (!this.initialized) throw new Error("observation writer must be initialized");
+    this.mutationGuard.assertMutationAllowed(`observation ${milestone}/${type}`);
     this.sequence += 1;
     const event = normalizeObservationEvent({
       version: OBSERVATION_VERSION,
@@ -839,6 +850,7 @@ export class ObservationWriter {
       type,
       ...fields,
     });
+    this.mutationGuard.assertMutationAllowed(`observation ${milestone}/${type}`);
     await appendFile(this.path, `${JSON.stringify(event)}\n`, "utf8");
     return event;
   }

@@ -134,11 +134,27 @@ function scoringRegistration() {
         source: "retained-native-streams",
         aggregation: MIGRATION_ADVISORY_AGGREGATION,
       };
+      if (id === "bounded-orientation-packet") return {
+        id,
+        threshold: { operator: "<=", bytes: 16384 },
+        aggregation: `frozen:${id}`,
+      };
       if (id === "debug-artifact-attribution") return {
         id,
         excluded: true,
         rationale: "published npm wave has no debug binary",
       };
+      if (["semantic-correction-actions", "output-tokens", "m1-wall-to-first-green"].includes(id)) {
+        return {
+          id,
+          contrastBarPercent: {
+            "semantic-correction-actions": 40,
+            "output-tokens": 20,
+            "m1-wall-to-first-green": 30,
+          }[id],
+          aggregation: `frozen:${id}`,
+        };
+      }
       return { id, aggregation: `frozen:${id}` };
     }),
   };
@@ -167,6 +183,11 @@ function scorecardConfig(replicates) {
         replicate,
         milestones: ["M1"],
         claimEligibility: "scored-family-and-profile-scoped",
+        harness: "codex-sol",
+        model: "gpt-5.6-sol",
+        runScope: "full",
+        driverId: "social-messenger-full-journey-native-cli-driver.v1",
+        meteringPolicy: { capFamily: "gpt-frontier" },
       });
     }
   }
@@ -179,8 +200,10 @@ function scorecardConfig(replicates) {
 
 function scorecardRecord({ successful = true, output = 10, correction = 2, wall = 100 } = {}) {
   return {
+    correctionLoops: [],
     socialMessenger: {
       efficiencyScorecardEligibility: { eligible: true },
+      firstProductEdit: { orientationBytes: 1024 },
       milestones: {
         M1: {
           status: successful ? "green" : "capability-failure",
@@ -189,6 +212,7 @@ function scorecardRecord({ successful = true, output = 10, correction = 2, wall 
             wallSeconds: wall,
           },
           semanticActions: { byDisposition: { progress: 1, correction } },
+          restartReseed: { restarts: 0, destructiveReseeds: 0 },
         },
       },
     },
@@ -196,11 +220,29 @@ function scorecardRecord({ successful = true, output = 10, correction = 2, wall 
 }
 
 function inputsFor(config, recordFor = () => scorecardRecord()) {
-  return config.cells.map((cell) => ({
-    cellId: cell.id,
-    record: recordFor(cell),
-    artifactRoot: ROOT_PATH,
-  }));
+  return config.cells.map((cell) => {
+    const record = recordFor(cell);
+    record.harness = { model: cell.model };
+    record.socialMessenger.capFamily = cell.meteringPolicy.capFamily;
+    record.socialMessenger.runScope = cell.runScope;
+    record.socialMessenger.meteringProvenance = {
+      laneRunId: `${config.runId}/${cell.id}`,
+      driver: { id: cell.driverId },
+      observations: [],
+      sessions: [],
+    };
+    for (const milestone of Object.values(record.socialMessenger.milestones)) {
+      milestone.semanticActions.byClass ??= { "source-inspection": 0 };
+    }
+    const recordBytes = Buffer.from(JSON.stringify(record));
+    return {
+      cellId: cell.id,
+      record,
+      recordBytes,
+      artifactRoot: ROOT_PATH,
+      path: `/virtual/${cell.id}/record.json`,
+    };
+  });
 }
 
 test("scorecard composer refuses ratio rows below the three-success side floor", () => {
@@ -254,13 +296,144 @@ test("scorecard composer refuses the whole composition when one record fails val
   const input = {
     cellId: config.cells[0].id,
     record: {},
+    recordBytes: Buffer.from("{}"),
     artifactRoot: ROOT_PATH,
+    path: "/virtual/invalid-record.json",
   };
   assert.throws(() => composeScorecard({
     config,
     inputs: [input],
     repositoryRoot: ROOT_PATH,
   }), /R3_SCORECARD_INPUT_INVALID: .* failed validation/u);
+});
+
+test("scorecard composer refuses a missing success floor before computing", () => {
+  const config = scorecardConfig(3);
+  delete config.scoring.successFloor.minimumSuccessfulReplicatesPerSide;
+  assert.throws(() => composeScorecard({
+    config,
+    inputs: [],
+    repositoryRoot: ROOT_PATH,
+    validateRecord: () => [],
+  }), /R3_SCORECARD_CONFIG_INVALID: success floor/u);
+});
+
+test("scorecard composer refuses one successful record replayed under three IDs", () => {
+  const config = scorecardConfig(2);
+  const source = inputsFor(config)[0];
+  const replayed = config.cells.slice(0, 3).map((cell, index) => ({
+    ...source,
+    cellId: cell.id,
+    path: `/virtual/replay-${index}.json`,
+  }));
+  assert.throws(() => composeScorecard({
+    config,
+    inputs: replayed,
+    repositoryRoot: ROOT_PATH,
+    validateRecord: () => [],
+  }), /R3_SCORECARD_INPUT_IDENTITY: one record is supplied under both/u);
+});
+
+test("absolute-only ratio nulls both medians for the reproduced null-zero-zero denominators", () => {
+  const config = scorecardConfig(3);
+  const denominators = [null, 0, 0];
+  const result = composeScorecard({
+    config,
+    inputs: inputsFor(config, (cell) => scorecardRecord({
+      output: cell.profile === "explicit" ? denominators[cell.replicate - 1] : 1,
+    })),
+    repositoryRoot: ROOT_PATH,
+    validateRecord: () => [],
+  });
+  const row = result.ratioRows.find((candidate) => (
+    candidate.rowId === "output-tokens"
+    && candidate.contrastId === "explicit-minus-familiar:A:Clique"
+  ));
+  assert.deepEqual(row.constituents.map((item) => item.first), [null, 0, 0]);
+  assert.equal(row.status, "absolute-only");
+  assert.equal(row.medianPairedRatio, null);
+  assert.equal(row.medianPairedPercent, null);
+});
+
+test("scorecard composes every registered row class from retained fixture streams", () => {
+  const config = scorecardConfig(1);
+  const inputs = inputsFor(config, (cell) => scorecardRecord({
+    output: cell.profile === "explicit" ? 20 : 10,
+    correction: cell.profile === "explicit" ? 4 : 2,
+    wall: cell.profile === "explicit" ? 120 : 90,
+  }));
+  for (const input of inputs) {
+    const choreographyBytes = Buffer.from([
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 1, pass: false },
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 2, pass: true },
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "unaffected", attempt: 1, pass: true },
+    ].map((event) => JSON.stringify(event)).join("\n") + "\n");
+    const nativeBytes = Buffer.from(`${JSON.stringify({
+      event: "migration-advisory",
+      migrationAdvisories: [{ repairClass: "add-index", affectedTableCount: 2 }],
+    })}\n`);
+    input.record.socialMessenger.meteringProvenance.observations = [{
+      sourceId: `${input.cellId}-choreography`,
+      path: "choreography.jsonl",
+      sha256: `sha256:${createHash("sha256").update(choreographyBytes).digest("hex")}`,
+    }];
+    input.record.socialMessenger.meteringProvenance.sessions = [{
+      sourceId: `${input.cellId}-native`,
+      path: "native.jsonl",
+      sha256: `sha256:${createHash("sha256").update(nativeBytes).digest("hex")}`,
+    }];
+    input.evidenceStreams = {
+      [`${input.cellId}-choreography`]: choreographyBytes,
+      [`${input.cellId}-native`]: nativeBytes,
+    };
+    input.recordBytes = Buffer.from(JSON.stringify(input.record));
+  }
+  const result = composeScorecard({
+    config,
+    inputs,
+    repositoryRoot: ROOT_PATH,
+    validateRecord: () => [],
+  });
+  assert.equal(result.scorecardRows.length, 12);
+  assert.equal(result.structuralRows.length, 5);
+  assert.ok(result.structuralRows.every((row) => row.status === "pass"));
+  assert.equal(result.boundedOrientationRow.status, "pass");
+  assert.equal(result.choreographyRetryRow.maximum, 1);
+  assert.ok(result.choreographyRetryRow.constituents.every((item) => item.pass));
+  assert.deepEqual(result.groupedMigrationAdvisoriesRow.constituents[0].classes, [{
+    repairClass: "add-index",
+    affectedTableCount: 2,
+    occurrences: 1,
+    observedAffectedTableCounts: [2],
+    pass: true,
+  }]);
+  assert.deepEqual(result.excludedRows, [{
+    rowId: "debug-artifact-attribution",
+    status: "excluded-with-rationale",
+    rationale: "published npm wave has no debug binary",
+  }]);
+});
+
+test("paired ratio rows disclose direction consistency and exact sign test", () => {
+  const config = scorecardConfig(3);
+  const first = [10, 20, 30];
+  const second = [5, 10, 15];
+  const result = composeScorecard({
+    config,
+    inputs: inputsFor(config, (cell) => scorecardRecord({
+      output: cell.profile === "explicit" ? first[cell.replicate - 1] : second[cell.replicate - 1],
+    })),
+    repositoryRoot: ROOT_PATH,
+    validateRecord: () => [],
+  });
+  const row = result.ratioRows.find((candidate) => (
+    candidate.rowId === "output-tokens"
+    && candidate.contrastId === "explicit-minus-familiar:A:Clique"
+  ));
+  assert.deepEqual(row.directionConsistency, { consistent: true, direction: "positive", nonTied: 3 });
+  assert.deepEqual(row.pairedSignTest, {
+    positive: 3, negative: 0, ties: 0, n: 3, exactTwoSidedPValue: 0.25,
+  });
 });
 
 test("prompt diagnostic fixture itself uses a real mismatching SHA-256", () => {

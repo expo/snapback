@@ -1,7 +1,7 @@
 {
   "version": "snapback.r3-non-consuming-smoke-summary.v1",
   "status": "passed",
-  "executedAt": "2026-08-26T20:17:52.911Z",
+  "executedAt": "2026-08-26T22:34:36.395Z",
   "command": [
     "env", "-u", "NODE_PATH", "node",
     "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
@@ -11,12 +11,12 @@
     "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
   ],
   "bindings": {
-    "harnessConfigSha256": "d4ea909e53876de784bcdaa55b329445d10c686850d34821e353df741749844a",
-    "instrumentManifestSha256": "73528e447562a55fc41e32da66d27157883a68eb49aa5ee9afa483cb18796935",
-    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2",
-    "meteringSourceClosureSha256": "62dac9fc6dd6efcad4aaa3f9799d94912ee9f1807c078095c0d20f2ce5522180",
-    "laneControllerSha256": "803ab5fb586663edbb4415c52e649f98e56b3624e187141f065acc03613919cd",
-    "productionDriverSha256": "f8e381d9828a8d405963b397853a17c9b611ee2a18628c769b188c76fe4b597d"
+    "harnessConfigSha256": "4171d79fda2228d1b85f18b5e2985f56e622bdefa4b1cb1bf35f2ce85cd3cb4d",
+    "instrumentManifestSha256": "715248e53c8ecdafda12e545537590ae43b2ea376f99842f2f30dacaefb0b724",
+    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1",
+    "meteringSourceClosureSha256": "e962d99306f1b18320d021bcbc977a6f45ab3bc042cdad3fd87dd8bb0635f7bd",
+    "laneControllerSha256": "13d825bc32c8b63a5bf8481e293929772a6d33721ab564ec2b033ae761c466d2",
+    "productionDriverSha256": "24f46695feb58153978e6e5512226d9a5b2413aeff2a75be8c5f1357aef39646"
   },
   "result": {
     "version": "snapback.r2-controller-non-consuming-smoke.v1",
@@ -33,11 +33,11 @@
     "diskAdmission": {
       "diagnostic": "R3_ADMISSION_DISK_FLOOR",
       "filesystemRoot": "/Users/ccheever/bench-r3-20260826",
-      "availableBytes": "34341703680",
+      "availableBytes": "101265428480",
       "floorBytes": "21474836480",
       "passed": true
     },
-    "loadavg": {"oneMinute": 5.0029296875, "fiveMinute": 6.28759765625, "fifteenMinute": 6.94482421875},
-    "recordCompositionSha256": "885cccef52956c53b0ea1286148d87cc6514db06d5782d4733dfd230c78393e1"
+    "loadavg": {"oneMinute": 5.12158203125, "fiveMinute": 6.56201171875, "fifteenMinute": 9.8505859375},
+    "recordCompositionSha256": "92c43decef28ef6b5cae956f3942c71fb9dcf183858b3eb96cd15dfd3188782d"
   }
 }

@@ -71,6 +71,7 @@ import {
   measureSourceClosure,
   probeLaunchQuiet,
   registeredCellExpectations,
+  validateConductorReviewReceipt,
   verifyAdmissionArtifact,
 } from "../r2-cell-admission.mjs";
 import { finalizeExisting } from "../r2-finalize-existing.mjs";
@@ -83,8 +84,10 @@ import { validateFinalizedCellSlot } from "../r2-finalized-cell.mjs";
 import {
   acquireExclusiveHostLock,
   claimExclusiveHostLock,
+  poisonExclusiveHostLock,
   releaseExclusiveHostLock,
 } from "../r2-host-lock.mjs";
+import { createCellMutationGuard } from "../mutation-guard.mjs";
 import {
   assertR2ExecutionEnvironment,
   scrubR2NodeLoaderEnvironment,
@@ -185,6 +188,92 @@ test("cell wall timeout aborts custody and refuses a resumed launch transition",
   assert.equal(launched, false, "the resumed operation must never cross the launch transition");
 });
 
+test("late wall-cap settlement poisons custody and refuses every zombie mutation path", async (t) => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r3-wall-custody-")));
+  t.after(() => rm(temp, { recursive: true, force: true }));
+  await mkdir(join(temp, "private"));
+  const harnessConfig = {
+    runId: "wall-custody-fixture",
+    paths: { privateExecutionRoot: join(temp, "private") },
+    execution: { exclusiveHostLock: { path: join(temp, "private", "locks", "host.lock") } },
+  };
+  const lock = acquireExclusiveHostLock({
+    harnessConfig,
+    cellId: "cell-1",
+    purpose: "admission",
+    reservedBy: "wall-custody-test",
+  });
+  const claim = claimExclusiveHostLock({
+    lock,
+    harnessConfig,
+    cellId: "cell-1",
+    artifactSha256: `sha256:${"1".repeat(64)}`,
+    execution: { controller: "fixture" },
+  });
+  const mutationGuard = createCellMutationGuard();
+  const controller = new R2LaneController({
+    laneRunId: "wall-custody-fixture/cell-1",
+    observationPath: join(temp, "private", "observations.jsonl"),
+    loadCeilings: { loadavg1: 10, loadavg5: 10, loadavg15: 10 },
+    mutationGuard,
+  });
+  await controller.initialize();
+  r2CellDriverTestHooks.installMutationGuard(temp, mutationGuard);
+
+  let permitLateSettlement;
+  const late = new Promise((resolveLate) => { permitLateSettlement = resolveLate; });
+  let resolveLateDone;
+  const lateDone = new Promise((resolveDone) => { resolveLateDone = resolveDone; });
+  const refused = [];
+  await assert.rejects(runWithCellWallCap({
+    cellWallCapSeconds: 1,
+    abortGraceSeconds: 1,
+    mutationGuard,
+    operation: async () => {
+      await late;
+      const mutations = [
+        () => controller.restart("M1", async () => {}),
+        () => controller.reseed("M1", {}, async () => {}),
+        () => controller.writer.record("M1", "lifecycle", { operation: "restart", destructive: false }),
+        () => controller.writeRecordPatch({}),
+        () => controller.writeCompleteRecord({}),
+        () => r2CellDriverTestHooks.guardedWriteFile(join(temp, "zombie-write"), "forbidden"),
+      ];
+      for (const mutation of mutations) {
+        try { await mutation(); } catch (error) { refused.push(error.code); }
+      }
+      resolveLateDone();
+    },
+    terminate: async () => ({ acknowledged: true }),
+    poisonCustody: async (reason) => poisonExclusiveHostLock({ lock, claim, reason }),
+    setTimer: (callback) => { queueMicrotask(callback); return 1; },
+    clearTimer: () => {},
+    setGraceTimer: (callback) => { queueMicrotask(callback); return 2; },
+    clearGraceTimer: () => {},
+  }), (error) => (
+    error.code === "R3_CELL_WALL_CAP_TIMEOUT"
+    && error.operationSettledWithinGrace === false
+    && error.custodyDiagnostic === "R3_CELL_WALL_CAP_CUSTODY_POISONED"
+    && error.custodyPoisoned === true
+  ));
+  permitLateSettlement();
+  await lateDone;
+  assert.deepEqual(refused, Array(6).fill("R3_CELL_WALL_CAP_CUSTODY_POISONED"));
+  assert.equal((await stat(join(lock.path, "poison.json"))).isFile(), true);
+  await assert.rejects(stat(join(temp, "zombie-write")), { code: "ENOENT" });
+  assert.throws(() => releaseExclusiveHostLock({ lock, claim, outcome: "must-not-release" }),
+    /R3_CELL_WALL_CAP_CUSTODY_POISONED/u);
+  assert.throws(() => acquireExclusiveHostLock({
+    harnessConfig,
+    cellId: "cell-2",
+    purpose: "admission",
+    reservedBy: "must-not-recover",
+    recoverStale: true,
+    processAlive: () => false,
+    mayRecoverOwner: () => true,
+  }), /R3_CELL_WALL_CAP_CUSTODY_POISONED.*held for manual recovery/u);
+});
+
 test("disk-floor measurement uses statfs available blocks and names refusal", async () => {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r3-disk-floor-")));
   try {
@@ -213,6 +302,7 @@ test("disk-floor measurement uses statfs available blocks and names refusal", as
 
 test("R3 admission stopping rule trips on two same-leg root causes and resets on success", () => {
   const harnessConfig = {
+    runId: "review-test",
     cellOrder: ["a-1", "b-1", "a-2", "b-2", "a-3", "a-4"],
     cells: [
       { id: "a-1", leg: "A" }, { id: "b-1", leg: "B" },
@@ -225,6 +315,12 @@ test("R3 admission stopping rule trips on two same-leg root causes and resets on
       sameRootCauseField: "rootCauseClass",
       action: "pause-wave-for-orchestrator-review",
       diagnostic: "R3_CONDUCTOR_REVIEW_REQUIRED",
+      reviewReceipt: {
+        version: "snapback.r3-conductor-review-ack.v1",
+        directory: "reviews",
+        filePattern: "pause-<n>.ack.json",
+        diagnostic: "R3_CONDUCTOR_REVIEW_RECEIPT_INVALID",
+      },
     } },
   };
   const failure = (cellId, rootCauseClass) => ({
@@ -261,6 +357,43 @@ test("R3 admission stopping rule trips on two same-leg root causes and resets on
     { cellId: "a-2", outcome: "failure", rootCauseClass: "native-usage-settlement-timeout" },
     { cellId: "a-3", outcome: "success", rootCauseClass: null },
   ]);
+
+  const hashedFailure = (cellId, digit) => ({
+    ...failure(cellId, "native-usage-settlement-timeout"),
+    sha256: `sha256:${digit.repeat(64)}`,
+  });
+  const landed = [hashedFailure("a-1", "1"), hashedFailure("a-2", "2")];
+  const receipt = validateConductorReviewReceipt({
+    filename: "pause-1.ack.json",
+    harnessConfig,
+    receipt: {
+      version: "snapback.r3-conductor-review-ack.v1",
+      pause: 1,
+      runId: "review-test",
+      admitCellId: "a-3",
+      failureDispositions: landed.map(({ cellId, sha256 }) => ({ cellId, sha256 })),
+      orchestratorRationale: "The two failures were reviewed and this exact next cell may proceed.",
+    },
+  });
+  const admitted = assertConductorStoppingRule({
+    harnessConfig,
+    cellId: "a-3",
+    seriality: { landedDispositions: landed, reviewReceipts: [receipt] },
+  });
+  assert.equal(admitted.reviewed, true);
+  assert.equal(admitted.reviewReceipt, "pause-1.ack.json");
+
+  const wrongHash = structuredClone(receipt);
+  wrongHash.failureDispositions[1].sha256 = `sha256:${"3".repeat(64)}`;
+  assert.throws(() => assertConductorStoppingRule({
+    harnessConfig,
+    cellId: "a-3",
+    seriality: { landedDispositions: landed, reviewReceipts: [wrongHash] },
+  }), (error) => (
+    error.code === "R3_CONDUCTOR_REVIEW_REQUIRED"
+    && error.reviewReceiptMismatch === true
+    && error.attemptConsumed === false
+  ));
 });
 
 async function currentR2HarnessFixture() {
@@ -1803,6 +1936,121 @@ function codexWatchdogState(records) {
   return state;
 }
 
+function claudeMarkerTurn({ milestone, timestamp, usage = null, id = `claude-${milestone}` }) {
+  return {
+    type: "assistant",
+    timestamp,
+    message: {
+      id,
+      role: "assistant",
+      content: [{
+        type: "tool_use",
+        name: "Bash",
+        input: { command: `node /instrument/r2-cell-signal.mjs --milestone ${milestone} --status green` },
+      }],
+      ...(usage === null ? {} : { usage: {
+        input_tokens: usage.input,
+        output_tokens: usage.output,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      } }),
+    },
+  };
+}
+
+function claudeWatchdogState(recordPolls) {
+  let index = 0;
+  const state = {
+    config: {
+      cell: { harness: "claude-opus5" },
+      harnessConfig: { execution: { perMilestoneWallSafetyLimitSeconds: 1 } },
+    },
+    currentSession: { sourceId: "builder", nativeSessionId: "claude-builder" },
+    tokenWatchdog: null,
+    tokenWatchdogSessionSourceId: null,
+    settledUsage: { turnIds: new Set(), usageRecordOrdinal: null },
+    tokenWatchdogHistory: [],
+    usageFailure: null,
+    child: null,
+    now: () => Date.parse("2026-08-26T12:00:03.000Z"),
+    settlementSleep: async () => {},
+    readLiveClaudeRecords: async () => recordPolls[Math.min(index++, recordPolls.length - 1)],
+  };
+  r2CellDriverTestHooks.ensureSessionTokenWatchdog(state);
+  return state;
+}
+
+test("Claude marker-then-usage settles only the marker-writing assistant turn", async () => {
+  const markerOnly = claudeMarkerTurn({ milestone: "M2", timestamp: "2026-08-26T12:00:00.000Z" });
+  const withUsage = claudeMarkerTurn({
+    milestone: "M2",
+    timestamp: "2026-08-26T12:00:02.000Z",
+    usage: { input: 10, output: 5 },
+  });
+  const state = claudeWatchdogState([[markerOnly], [withUsage]]);
+  let waits = 0;
+  state.settlementSleep = async () => { waits += 1; };
+  state.tokenWatchdog.arm({
+    capFamily: "claude-frontier",
+    milestone: "M2",
+    tokenCap: 100,
+    startedAt: "2026-08-26T11:59:59.000Z",
+    maxClockSkewMs: 0,
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M2", status: "green", recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  assert.equal(waits, 1);
+  assert.equal(state.tokenWatchdogHistory[0].milestone, "M2");
+  assert.equal(state.tokenWatchdogHistory[0].reconciliation.retainedActualTokens, 15);
+});
+
+test("Claude usage-then-marker settles the already-observed marker-writing assistant turn", async () => {
+  const withUsage = claudeMarkerTurn({
+    milestone: "M3",
+    timestamp: "2026-08-26T12:00:00.000Z",
+    usage: { input: 8, output: 4 },
+  });
+  const state = claudeWatchdogState([[withUsage]]);
+  state.tokenWatchdog.arm({
+    capFamily: "claude-frontier",
+    milestone: "M3",
+    tokenCap: 100,
+    startedAt: "2026-08-26T11:59:59.000Z",
+    maxClockSkewMs: 0,
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M3", status: "green", recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  assert.equal(state.tokenWatchdogHistory[0].milestone, "M3");
+  assert.equal(state.tokenWatchdogHistory[0].reconciliation.retainedActualTokens, 12);
+});
+
+test("ordinary Claude milestone settlement timeout fails closed against the current milestone", async () => {
+  const markerOnly = claudeMarkerTurn({ milestone: "M2", timestamp: "2026-08-26T12:00:00.000Z" });
+  const state = claudeWatchdogState([[markerOnly]]);
+  let clock = Date.parse("2026-08-26T12:00:01.000Z");
+  state.now = () => clock;
+  state.settlementSleep = async () => { clock += 1_001; };
+  state.currentMilestone = "M2";
+  state.tokenWatchdog.arm({
+    capFamily: "claude-frontier",
+    milestone: "M2",
+    tokenCap: 100,
+    startedAt: "2026-08-26T11:59:59.000Z",
+    maxClockSkewMs: 0,
+  });
+  await assert.rejects(r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M2", status: "green", recordedAt: "2026-08-26T12:00:00.500Z",
+  }), (error) => (
+    error.code === "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT"
+    && error.rootCauseClass === "native-usage-settlement-timeout"
+    && error.milestone === "M2"
+    && state.currentMilestone === "M2"
+    && state.tokenWatchdog.state.milestone === "M2"
+  ));
+});
+
 test("Codex cumulative polling keeps one session watchdog across two milestones", async () => {
   const m1 = [
     codexSignalRecord(0, "M1", "2026-08-26T12:00:02.000Z"),
@@ -2638,7 +2886,8 @@ test("admission refuses a non-pristine target slot instead of permitting a rerun
       schemaVersion: "snapback.r2-cell-slot.v1",
       cellId: "cell-2",
       status: "not-started",
-    }));
+  }));
+
     const harnessConfig = {
       cellOrder: ["cell-2"],
       paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
@@ -2706,6 +2955,7 @@ test("admission accepts a validator-clean recorded disposition after its pristin
       cellId: fixture.cellId,
       kind: "validated-record",
       path: `cells/${fixture.cellId}/record.json`,
+      sha256: sha256(await readFile(join(fixture.cellRoot, "record.json"))),
       outcome: "success",
       rootCauseClass: null,
     }]);

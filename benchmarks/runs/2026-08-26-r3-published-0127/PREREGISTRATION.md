@@ -185,6 +185,9 @@ process group, and holds custody while the operation settles for the registered
 bounded grace. Failure to settle fails the whole cell closed; launch/write logic
 cannot resume after timeout. The retained disposition is
 `R3_CELL_WALL_CAP_TIMEOUT` with capability-failure / `wall-cap` classification.
+If the operation remains unsettled after grace, the controller additionally
+retains `R3_CELL_WALL_CAP_CUSTODY_POISONED`, poisons every subsequent cell
+mutation, and keeps the exclusive lock held for manual recovery.
 
 Token caps use LLP 0201's cap-family formula: twice the largest
 validator-clean green pilot fresh-input-plus-output count for the same cap
@@ -202,5 +205,9 @@ for previously executed slots in the preregistered order. If the two
 immediately preceding executed cells in the requested cell's leg both failed
 with the same retained `rootCauseClass`, admission refuses non-consumingly with
 `R3_CONDUCTOR_REVIEW_REQUIRED`. A successful same-leg cell resets the sequence.
-The conductor may resume only after orchestrator review; the rule does not
-silently skip, reorder, or consume a cell.
+The conductor may resume only after orchestrator review. The orchestrator
+commits `reviews/pause-<n>.ack.json`, naming the exact two failure-disposition
+SHA-256 identities, the one next cell admitted, and a rationale. Admission
+validates those committed bytes and consumes the receipt only for that named
+next cell; a missing or mismatched hash still refuses non-consumingly. The rule
+does not silently skip, reorder, or consume a different cell.

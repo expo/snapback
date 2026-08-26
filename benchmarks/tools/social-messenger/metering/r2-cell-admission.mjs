@@ -561,6 +561,11 @@ export async function inspectCommittedSeriality({
     gitRead,
     targetCellId: cellId,
   });
+  const reviewReceipts = inspectCommittedConductorReviewReceipts({
+    harnessConfig,
+    repositoryRoot,
+    gitRead,
+  });
   return {
     gitHead: gitRead(["rev-parse", "HEAD"], repositoryRoot),
     committedPrefix: state.landedDispositions.map((disposition) => disposition.cellId),
@@ -569,6 +574,7 @@ export async function inspectCommittedSeriality({
       harnessConfig.cellOrder.indexOf(id) > requestedIndex
     )),
     landedDispositions: state.landedDispositions,
+    reviewReceipts,
     privateCellState: "absent",
   };
 }
@@ -734,6 +740,84 @@ function finalizedRecordDisposition(record, expectedMilestones, cellId) {
   return { outcome: "failure", rootCauseClass: [...rootCauseClasses][0] };
 }
 
+export function validateConductorReviewReceipt({ receipt, filename, harnessConfig }) {
+  const policy = harnessConfig.execution?.conductorStoppingRule?.reviewReceipt;
+  const matched = typeof filename === "string"
+    ? filename.match(/^pause-([1-9][0-9]*)\.ack\.json$/u)
+    : null;
+  if (
+    policy?.version !== "snapback.r3-conductor-review-ack.v1"
+    || policy.directory !== "reviews"
+    || policy.filePattern !== "pause-<n>.ack.json"
+    || policy.diagnostic !== "R3_CONDUCTOR_REVIEW_RECEIPT_INVALID"
+  ) {
+    throw new Error("R2_ADMISSION_STOPPING_RULE: conductor review receipt policy is malformed");
+  }
+  const validFailure = (failure) => (
+    failure && typeof failure.cellId === "string" && failure.cellId.length > 0
+    && SHA256.test(failure.sha256 ?? "")
+  );
+  if (
+    matched === null
+    || receipt?.version !== policy.version
+    || receipt.pause !== Number(matched[1])
+    || receipt.runId !== harnessConfig.runId
+    || typeof receipt.admitCellId !== "string"
+    || !harnessConfig.cellOrder.includes(receipt.admitCellId)
+    || !Array.isArray(receipt.failureDispositions)
+    || receipt.failureDispositions.length !== 2
+    || !receipt.failureDispositions.every(validFailure)
+    || receipt.failureDispositions[0].cellId === receipt.failureDispositions[1].cellId
+    || typeof receipt.orchestratorRationale !== "string"
+    || receipt.orchestratorRationale.trim().length < 20
+    || Object.keys(receipt).sort().join(",")
+      !== "admitCellId,failureDispositions,orchestratorRationale,pause,runId,version"
+  ) {
+    const error = new Error(`${policy.diagnostic}: ${filename} has an invalid reviewed-receipt shape`);
+    error.code = policy.diagnostic;
+    throw error;
+  }
+  return receipt;
+}
+
+function inspectCommittedConductorReviewReceipts({ harnessConfig, repositoryRoot, gitRead }) {
+  const policy = harnessConfig.execution?.conductorStoppingRule?.reviewReceipt;
+  if (policy === undefined) return [];
+  const committedRoot = resolve(repositoryRoot, harnessConfig.paths.committedRunRoot);
+  const reviewsRoot = resolve(committedRoot, policy.directory);
+  if (!existsSync(reviewsRoot)) return [];
+  if (lstatSync(reviewsRoot).isSymbolicLink() || realpathSync(reviewsRoot) !== reviewsRoot) {
+    throw new Error(`${policy.diagnostic}: reviews directory must be canonical and symlink-free`);
+  }
+  return readdirSync(reviewsRoot)
+    .filter((name) => /^pause-[1-9][0-9]*\.ack\.json$/u.test(name))
+    .sort((left, right) => Number(left.match(/[0-9]+/u)[0]) - Number(right.match(/[0-9]+/u)[0]))
+    .map((filename) => {
+      const path = resolve(reviewsRoot, filename);
+      const bytes = readRegular(path, `conductor review receipt ${filename}`);
+      const logical = relative(repositoryRoot, path).split(sep).join("/");
+      let committed;
+      try {
+        committed = gitRead(["show", `HEAD:${logical}`], repositoryRoot);
+      } catch {
+        const error = new Error(`${policy.diagnostic}: ${filename} is not committed at HEAD`);
+        error.code = policy.diagnostic;
+        throw error;
+      }
+      const committedBytes = Buffer.isBuffer(committed) ? committed : Buffer.from(committed);
+      if (!committedBytes.equals(bytes)) {
+        const error = new Error(`${policy.diagnostic}: ${filename} differs from committed HEAD bytes`);
+        error.code = policy.diagnostic;
+        throw error;
+      }
+      return validateConductorReviewReceipt({
+        receipt: JSON.parse(bytes.toString("utf8")),
+        filename,
+        harnessConfig,
+      });
+    });
+}
+
 // @ref LLP 0295#r3-claim-eligible-wave — R3 admission, rather than conductor
 // prose, mechanically pauses after two immediately preceding same-leg failures
 // with one retained root-cause class. Refusal happens before lock acquisition
@@ -747,6 +831,7 @@ export function assertConductorStoppingRule({ harnessConfig, cellId, seriality }
     || rule.sameRootCauseField !== "rootCauseClass"
     || typeof rule.diagnostic !== "string"
     || rule.diagnostic.length === 0
+    || rule.reviewReceipt?.version !== "snapback.r3-conductor-review-ack.v1"
   ) {
     throw new Error("R2_ADMISSION_STOPPING_RULE: conductor stopping rule is malformed");
   }
@@ -775,12 +860,39 @@ export function assertConductorStoppingRule({ harnessConfig, cellId, seriality }
       && item.rootCauseClass === rootCauseClass
     ))
   ) {
+    const expectedFailures = immediatelyPreceding.map((item) => ({
+      cellId: item.cellId,
+      sha256: item.sha256,
+    }));
+    const candidateReceipts = (seriality?.reviewReceipts ?? [])
+      .filter((receipt) => receipt.admitCellId === cellId);
+    if (candidateReceipts.length > 1) {
+      throw new Error(`${rule.reviewReceipt.diagnostic}: multiple receipts authorize ${cellId}`);
+    }
+    const receipt = candidateReceipts[0];
+    if (
+      receipt !== undefined
+      && JSON.stringify(receipt.failureDispositions) === JSON.stringify(expectedFailures)
+    ) {
+      return {
+        required: true,
+        reviewed: true,
+        reviewReceipt: `pause-${receipt.pause}.ack.json`,
+        immediatelyPreceding: immediatelyPreceding.map((item) => ({
+          cellId: item.cellId,
+          outcome: item.outcome,
+          rootCauseClass: item.rootCauseClass,
+          sha256: item.sha256,
+        })),
+      };
+    }
     const error = new Error(
       `${rule.diagnostic}: ${cellId} follows two same-leg failures with rootCauseClass=${rootCauseClass}`,
     );
     error.code = rule.diagnostic;
     error.rootCauseClass = rootCauseClass;
     error.attemptConsumed = false;
+    error.reviewReceiptMismatch = receipt !== undefined;
     throw error;
   }
   return {
@@ -790,6 +902,7 @@ export function assertConductorStoppingRule({ harnessConfig, cellId, seriality }
       cellId: item.cellId,
       outcome: item.outcome,
       rootCauseClass: item.rootCauseClass,
+      ...(item.sha256 === undefined ? {} : { sha256: item.sha256 }),
     })),
   };
 }
@@ -846,6 +959,7 @@ export async function inspectCommittedDispositions({
         cellId: id,
         kind: "validated-record",
         path: `cells/${id}/record.json`,
+        sha256: digest(readRegular(recordPath, `${id} finalized record`)),
         ...finalizedRecordDisposition(finalized.record, expectedMilestones, id),
       });
     } else if (pristine) {

@@ -321,17 +321,22 @@ test("fresh M7 prompt and process state carry handoff-only context", async () =>
       exit: Promise.resolve({ code: 0, signal: null }),
       closed: Promise.resolve({ code: 0, signal: null }),
       streamWriteQueue: Promise.resolve(),
-      currentSession: { nativeSessionId: originalSessionId },
+      currentSession: { sourceId: "builder", nativeSessionId: originalSessionId },
       nativeSessionId: originalSessionId,
+      tokenWatchdog: null,
+      tokenWatchdogSessionSourceId: null,
       child: { stale: true },
       m7Handoff: null,
       m7HandoffSource: null,
     };
+    r2CellDriverTestHooks.ensureSessionTokenWatchdog(state);
+    const builderWatchdog = state.tokenWatchdog;
     await r2CellDriverTestHooks.beginFreshM7Session(state);
     assert.equal(state.currentSession.sourceId, "fresh-m7");
     assert.equal(state.currentSession.role, "builder-descendant");
     assert.equal(state.currentSession.parentSourceId, "builder");
     assert.notEqual(state.currentSession.nativeSessionId, originalSessionId);
+    assert.notStrictEqual(state.tokenWatchdog, builderWatchdog);
     assert.equal(state.child, null);
     assert.match(state.currentSession.renderedPrompt, /Sealed M7 instructions only/u);
     assert.doesNotMatch(state.currentSession.renderedPrompt, /continuous-session-id/u);

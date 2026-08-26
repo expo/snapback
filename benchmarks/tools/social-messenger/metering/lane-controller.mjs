@@ -32,8 +32,14 @@ import {
 } from "./r2-private-paths.mjs";
 import {
   claimExclusiveHostLock,
+  poisonExclusiveHostLock,
   releaseExclusiveHostLock,
 } from "./r2-host-lock.mjs";
+import {
+  ALLOW_CELL_MUTATIONS,
+  createCellMutationGuard,
+  R3_CELL_WALL_CAP_CUSTODY_POISONED,
+} from "./mutation-guard.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   LaneObservationHarness,
@@ -110,6 +116,7 @@ export class R2LaneController {
     loadIntervalMs = 60_000,
     loadSample,
     now,
+    mutationGuard = ALLOW_CELL_MUTATIONS,
   }) {
     if (instrumentPin !== CURRENT_INSTRUMENT_PIN) {
       throw new Error(
@@ -117,11 +124,13 @@ export class R2LaneController {
       );
     }
     this.laneRunId = requiredString(laneRunId, "laneRunId");
+    this.mutationGuard = mutationGuard;
     this.observationPath = resolve(requiredString(observationPath, "observationPath"));
     this.writer = new ObservationWriter({
       path: this.observationPath,
       laneRunId: this.laneRunId,
       ...(now ? { now } : {}),
+      mutationGuard,
     });
     this.observations = new LaneObservationHarness({
       writer: this.writer,
@@ -134,12 +143,14 @@ export class R2LaneController {
   }
 
   async initialize() {
+    this.mutationGuard.assertMutationAllowed("controller initialization");
     if (this.initialized) throw new Error("R2 lane controller is already initialized");
     await this.writer.initialize();
     this.initialized = true;
   }
 
   async runMilestone(milestone, operation, claimOptions = {}) {
+    this.mutationGuard.assertMutationAllowed(`controller milestone ${milestone}`);
     if (!this.initialized) throw new Error("R2 lane controller must be initialized");
     if (!MILESTONE.test(milestone)) throw new TypeError("milestone must name M1 through M8");
     requiredOperation(operation, "runMilestone");
@@ -172,12 +183,14 @@ export class R2LaneController {
   }
 
   async restart(milestone, operation) {
+    this.mutationGuard.assertMutationAllowed(`${milestone} restart`);
     requiredOperation(operation, "restart");
     await this.observations.restart(milestone);
     return operation();
   }
 
   async reseed(milestone, options, operation) {
+    this.mutationGuard.assertMutationAllowed(`${milestone} reseed`);
     requiredOperation(operation, "reseed");
     await this.observations.reseed(milestone, options);
     return operation();
@@ -188,6 +201,7 @@ export class R2LaneController {
     outPath,
     additionalObservationSources = [],
   }) {
+    this.mutationGuard.assertMutationAllowed("record patch write");
     if (!this.initialized) throw new Error("R2 lane controller must be initialized");
     if (this.activeMilestones.size > 0) {
       throw new Error("cannot write the record while a milestone sampler is active");
@@ -214,8 +228,10 @@ export class R2LaneController {
     manifest.observations = [];
     const bySourceId = new Map(sources.map((source) => [source.sourceId, source]));
     for (const source of bySourceId.values()) {
+      this.mutationGuard.assertMutationAllowed("record patch source inspection");
       manifest.observations.push(await observationDescriptor(manifestDirectory, source));
     }
+    this.mutationGuard.assertMutationAllowed("metering manifest write");
     await writeFile(absoluteManifest, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
     const meteringInput = await withFinalizationStage(
@@ -226,6 +242,7 @@ export class R2LaneController {
       "milestone-usage-join",
       () => joinUsageToMilestones(meteringInput),
     );
+    this.mutationGuard.assertMutationAllowed("record patch write");
     await writeFile(resolve(requiredString(outPath, "outPath")), `${JSON.stringify(patch, null, 2)}\n`);
     return patch;
   }
@@ -239,6 +256,7 @@ export class R2LaneController {
     extensionSchemaPath,
     composedSchemaPath,
   }) {
+    this.mutationGuard.assertMutationAllowed("complete record write");
     const absoluteBase = resolve(requiredString(recordBasePath, "recordBasePath"));
     const absoluteRecord = resolve(requiredString(recordPath, "recordPath"));
     const base = JSON.parse(await readFile(absoluteBase, "utf8"));
@@ -255,6 +273,7 @@ export class R2LaneController {
     if (errors.length > 0) {
       throw new Error(`complete record does not validate:\n  ${errors.join("\n  ")}`);
     }
+    this.mutationGuard.assertMutationAllowed("complete record write");
     await writeFile(absoluteRecord, `${JSON.stringify(record, null, 2)}\n`, "utf8");
     return record;
   }
@@ -483,6 +502,11 @@ export async function writeAttemptFailure(configDirectory, error, phase) {
         diagnostic: "R3_CELL_WALL_CAP_TIMEOUT",
         cellWallCapSeconds: error.cellWallCapSeconds,
         processTerminationAcknowledged: error.processTerminationAcknowledged === true,
+        operationSettledWithinGrace: error.operationSettledWithinGrace === true,
+        custodyDiagnostic: error.custodyDiagnostic ?? null,
+        custodyDisposition: error.custodyPoisoned === true
+          ? "held-for-manual-recovery"
+          : "settled-before-release",
       },
     } : {}),
   };
@@ -494,6 +518,7 @@ export class CellWallCapTimeoutError extends Error {
     cellWallCapSeconds,
     processTerminationAcknowledged,
     operationSettledWithinGrace,
+    custodyDiagnostic = null,
   }) {
     super(`R3_CELL_WALL_CAP_TIMEOUT: cell exceeded its ${cellWallCapSeconds}s registered wall cap`);
     this.name = "CellWallCapTimeoutError";
@@ -502,11 +527,14 @@ export class CellWallCapTimeoutError extends Error {
     this.cellWallCapSeconds = cellWallCapSeconds;
     this.processTerminationAcknowledged = processTerminationAcknowledged;
     this.operationSettledWithinGrace = operationSettledWithinGrace;
+    this.custodyDiagnostic = custodyDiagnostic;
+    this.custodyPoisoned = custodyDiagnostic === R3_CELL_WALL_CAP_CUSTODY_POISONED;
   }
 }
 
-function wallCapTransition(signal, stage) {
+function wallCapTransition(signal, mutationGuard, stage) {
   requiredString(stage, "cell wall cap stage");
+  mutationGuard.assertMutationAllowed(`stage transition ${stage}`);
   if (!signal.aborted) return stage;
   const error = new Error(
     `R3_CELL_WALL_CAP_ABORTED: refused stage transition ${stage} after the cell wall cap expired`,
@@ -527,6 +555,8 @@ export async function runWithCellWallCap({
   clearTimer = clearTimeout,
   setGraceTimer = setTimeout,
   clearGraceTimer = clearTimeout,
+  mutationGuard = createCellMutationGuard(),
+  poisonCustody = async () => {},
 }) {
   if (!Number.isInteger(cellWallCapSeconds) || cellWallCapSeconds <= 0) {
     throw new TypeError("execution.cellWallCapSeconds must be a positive integer");
@@ -536,8 +566,9 @@ export async function runWithCellWallCap({
   }
   requiredOperation(operation, "cell wall cap");
   requiredOperation(terminate, "cell wall cap termination");
+  requiredOperation(poisonCustody, "cell wall cap custody poison");
   const abortController = new AbortController();
-  const transition = (stage) => wallCapTransition(abortController.signal, stage);
+  const transition = (stage) => wallCapTransition(abortController.signal, mutationGuard, stage);
   let timer;
   const timeout = new Promise((resolveTimeout) => {
     timer = setTimer(() => {
@@ -549,7 +580,7 @@ export async function runWithCellWallCap({
     }, cellWallCapSeconds * 1_000);
   });
   const operationSettlement = Promise.resolve()
-    .then(() => operation({ signal: abortController.signal, transition }))
+    .then(() => operation({ signal: abortController.signal, transition, mutationGuard }))
     .then(
       (value) => ({ kind: "operation", status: "fulfilled", value }),
       (error) => ({ kind: "operation", status: "rejected", error }),
@@ -581,10 +612,21 @@ export async function runWithCellWallCap({
   });
   const custody = await Promise.race([operationSettlement, graceExpired]);
   clearGraceTimer(graceTimer);
+  let custodyDiagnostic = null;
+  if (custody.kind !== "operation") {
+    custodyDiagnostic = R3_CELL_WALL_CAP_CUSTODY_POISONED;
+    const poison = mutationGuard.poison({
+      cellWallCapSeconds,
+      abortGraceSeconds,
+      operationSettled: false,
+    });
+    await poisonCustody(poison);
+  }
   throw new CellWallCapTimeoutError({
     cellWallCapSeconds,
     processTerminationAcknowledged: acknowledged,
     operationSettledWithinGrace: custody.kind === "operation",
+    custodyDiagnostic,
   });
 }
 
@@ -879,12 +921,14 @@ async function main() {
     if (typeof driver.runMilestone !== "function") {
       throw new TypeError("lane controller driver must export runMilestone");
     }
+    const mutationGuard = createCellMutationGuard();
     const controller = new R2LaneController({
       laneRunId: config.laneRunId,
       instrumentPin: config.instrumentPin,
       observationPath: configPath(configDirectory, config.observationPath, "observationPath"),
       loadCeilings: config.loadCeilings,
       loadIntervalMs: config.loadIntervalMs ?? 60_000,
+      mutationGuard,
     });
     await controller.initialize();
     let cellError = null;
@@ -896,6 +940,23 @@ async function main() {
       await runWithCellWallCap({
         cellWallCapSeconds: config.harnessConfig.execution.cellWallCapSeconds,
         abortGraceSeconds: config.harnessConfig.execution.cellWallCapAbortGraceSeconds,
+        mutationGuard,
+        poisonCustody: async (poison) => {
+          if (admissionGuard === null) {
+            throw new Error(
+              `${R3_CELL_WALL_CAP_CUSTODY_POISONED}: cannot retain poison without admission custody`,
+            );
+          }
+          admissionGuard.holdForManualRecovery = {
+            diagnostic: R3_CELL_WALL_CAP_CUSTODY_POISONED,
+            disposition: "poison-write-pending",
+          };
+          admissionGuard.holdForManualRecovery = poisonExclusiveHostLock({
+            lock: admissionGuard.artifact.exclusiveHostLock,
+            claim: admissionGuard.claim,
+            reason: poison,
+          });
+        },
         terminate: async (reason) => (
           typeof driver.terminate === "function"
             ? driver.terminate({ config, configDirectory, reason })
@@ -911,6 +972,7 @@ async function main() {
               preflight: driverPreflight,
               abortSignal: signal,
               transition,
+              mutationGuard,
             });
           }
           transition("model-product-execution");
@@ -931,6 +993,7 @@ async function main() {
                 configDirectory,
                 abortSignal: signal,
                 transition,
+                mutationGuard,
               }),
               claimOptions,
             );
@@ -1022,7 +1085,7 @@ async function main() {
     }
     runError = error;
   } finally {
-    if (admissionGuard !== null) {
+    if (admissionGuard !== null && admissionGuard.holdForManualRecovery === undefined) {
       try {
         releaseExclusiveHostLock({
           lock: admissionGuard.artifact.exclusiveHostLock,

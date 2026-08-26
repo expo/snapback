@@ -17,7 +17,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
     "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
-    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1",
     "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
   },
   "pins": {
@@ -57,7 +57,7 @@
     "instrument": {
       "manifestPath": "benchmarks/instrument.manifest.json",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "73528e447562a55fc41e32da66d27157883a68eb49aa5ee9afa483cb18796935",
+      "manifestSha256": "715248e53c8ecdafda12e545537590ae43b2ea376f99842f2f30dacaefb0b724",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",
@@ -71,27 +71,27 @@
         "recordValidatorSha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c",
-        "laneControllerSha256": "803ab5fb586663edbb4415c52e649f98e56b3624e187141f065acc03613919cd",
-        "productionDriverSha256": "f8e381d9828a8d405963b397853a17c9b611ee2a18628c769b188c76fe4b597d",
+        "laneControllerSha256": "13d825bc32c8b63a5bf8481e293929772a6d33721ab564ec2b033ae761c466d2",
+        "productionDriverSha256": "24f46695feb58153978e6e5512226d9a5b2413aeff2a75be8c5f1357aef39646",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
         "manifestLoaderSha256": "09300790421db0bd55d0771633db8fe54e648e49fd7e8342a2067c44835492e6",
         "joinerSha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
-        "observationsSha256": "89032eafe7816c3664df28d0e82262ead328a655866db529481d1b0aeec1407e",
+        "observationsSha256": "33c8edb044c5793bc33ad63c2afeac93bf265e5e3866f26c12057bcaa72a613c",
         "codexNativeEvidenceSha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
         "recordComposerSha256": "db3a64611d6a8d03554e1ffd36d95e1401938db6f4c791950acd60d24274a0be",
-        "admissionToolSha256": "5c707fae07c33559d1b96315163d8d2efd7f5951c78b8afe80fb4be02e792f23",
+        "admissionToolSha256": "ac122d032692838343fd910fe0657b8aba25f66f6cb3447eefb7a9c3d1b0e54f",
         "finalizedCellValidatorSha256": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
-        "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
+        "hostLockSha256": "6d42cfa31e7c819a0ff0effe396cbf2947029ccce3533ad299372aadceab96b2",
         "finalizeExistingSha256": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8",
         "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       }
     }
   },
   "prompts": {
-    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "69b88be1b788a43c637841c01f3f56eed27cf39a6759028665b42d57fd174a22"},
-    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "71ac2d2311fae2693a139901d4324307c52d34de9ceff3a5edc61d2479585b03"},
-    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "62baa7021dda656fbee99976c0f27771f4e1859ad0c447ada5158325e0a3c4fd"},
-    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "81c22feaa2233450fe850a8e3e3da425ad6b9b5c17ddf3f142d08b8c34592b3f"}
+    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "0c14fe017d7640866ce62f447b19a3ca9014a18c3af2dfb296548a5bfed8e558"},
+    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "b9e2b2ef780613375e44c7196ea5f6ff32642749977ffa0fb685aa49925c39c7"},
+    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "ed8880e2aa2b5aa5b2f31df0c4bd1bf4459e06d519bf55c90721d40e17747977"},
+    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "886cd14bc8b51cfae24863def440c43ef272d179386f769b49014c52e40efffc"}
   },
   "machines": {
     "charlies-macbook-air": {
@@ -179,14 +179,14 @@
     "perMilestoneWallSafetyLimitSeconds": 14400,
     "cellWallCapSeconds": 14400,
     "cellWallCapAbortGraceSeconds": 15,
-    "cellWallCapDisposition": {"diagnostic": "R3_CELL_WALL_CAP_TIMEOUT", "status": "capability-failure", "terminalReason": "wall-cap", "terminateNativeProcessTree": true},
+    "cellWallCapDisposition": {"diagnostic": "R3_CELL_WALL_CAP_TIMEOUT", "status": "capability-failure", "terminalReason": "wall-cap", "terminateNativeProcessTree": true, "unsettledCustodyDiagnostic": "R3_CELL_WALL_CAP_CUSTODY_POISONED", "unsettledLockDisposition": "held-for-manual-recovery"},
     "tokenCapFormula": "For each (cap family, milestone), 2 * the largest validator-clean green pilot fresh-input-plus-output count; where any registered condition lacks that figure, LLP 0201's 2,000,000-token safety figure is used and doubled to 4,000,000. Capstone M7 has a complete 331,698-token fresh-session figure, doubled to 663,396. Grok has no approved native adapter and remains null/advisory.",
     "tokenCapsByLeg": {
       "A": {"capFamily": "gpt-frontier", "nativeUsageSource": "codex-rollout-token-count", "enforced": true, "perMilestone": {"M1": 4000000, "M2": 4000000, "M3": 4000000, "M4": 4000000, "M5": 4000000, "M6": 4000000, "M8": 4000000, "M7": 663396}},
       "B": {"capFamily": "claude-frontier", "nativeUsageSource": "claude-code-session-usage", "enforced": true, "perMilestone": {"M1": 4000000, "M2": 4000000, "M3": 4000000}},
       "C": {"capFamily": "grok-advisory", "nativeUsageSource": null, "enforced": false, "perMilestone": {"M1": null, "M2": null, "M3": null}}
     },
-    "conductorStoppingRule": {"consecutiveFailures": 2, "scope": "same-leg", "sameRootCauseField": "rootCauseClass", "action": "pause-wave-for-orchestrator-review", "diagnostic": "R3_CONDUCTOR_REVIEW_REQUIRED"},
+    "conductorStoppingRule": {"consecutiveFailures": 2, "scope": "same-leg", "sameRootCauseField": "rootCauseClass", "action": "pause-wave-for-orchestrator-review", "diagnostic": "R3_CONDUCTOR_REVIEW_REQUIRED", "reviewReceipt": {"version": "snapback.r3-conductor-review-ack.v1", "directory": "reviews", "filePattern": "pause-<n>.ack.json", "diagnostic": "R3_CONDUCTOR_REVIEW_RECEIPT_INVALID"}},
     "exclusiveHostLock": {"version": "snapback.r2-exclusive-host-lock.v1", "path": "/Users/ccheever/bench-r3-20260826/locks/2026-08-26-r3-published-0127.host.lock", "staleRecovery": "explicit-only; never authorizes a rerun"},
     "loadIsolation": {
       "policies": {
@@ -216,7 +216,7 @@
     "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
     "sourceClosure": {
       "version": "snapback.r2-executing-source-closure.v1",
-      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:62dac9fc6dd6efcad4aaa3f9799d94912ee9f1807c078095c0d20f2ce5522180"},
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:e962d99306f1b18320d021bcbc977a6f45ab3bc042cdad3fd87dd8bb0635f7bd"},
       "files": [
         {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
         {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a", "bytes": 100230},
@@ -242,7 +242,7 @@
   "scoring": {
     "successfulCompletion": {"recordStatus": "SUCCESSFUL", "validator": "validator-clean", "milestoneRule": "all registered milestones green for the leg profile"},
     "successFloor": {"minimumSuccessfulReplicatesPerSide": 3, "belowFloorDisposition": "insufficient successful replicates", "failedReplicateUse": "A fully metered failed replicate enters failure-rate reporting only and never token or correction ratios."},
-    "composer": {"path": "compose-scorecard.mjs", "sha256": "b5e89449b4a6d6888f712eee521891bdc453e7de10c9789cacc7818f33556c25", "sanctioned": true},
+    "composer": {"path": "compose-scorecard.mjs", "sha256": "daab7f6089e110e79ebad86f21ed27334ff1fbfd1de3d0f07ed447be24eb04a9", "sanctioned": true},
     "contrasts": ["Explicit-minus-Familiar within family and app", "Clique-minus-Coterie within family and profile"],
     "scorecardRows": [
       {"id": "covered-fact-source-inspections", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},

@@ -14,6 +14,7 @@ import {
   liveSourceClosure,
   registeredCellExpectations,
   registeredMilestonesForCell,
+  validateConductorReviewReceipt,
 } from "../../tools/social-messenger/metering/r2-cell-admission.mjs";
 import { resolveRegisteredJourney } from "../../tools/social-messenger/metering/journey-contract.mjs";
 import { loadLaneControllerConfig } from "../../tools/social-messenger/metering/lane-controller.mjs";
@@ -290,12 +291,28 @@ if (
   || config.execution.cellWallCapAbortGraceSeconds !== 15
   || config.execution.cellWallCapDisposition?.diagnostic !== "R3_CELL_WALL_CAP_TIMEOUT"
   || config.execution.cellWallCapDisposition?.terminateNativeProcessTree !== true
+  || config.execution.cellWallCapDisposition?.unsettledCustodyDiagnostic !== "R3_CELL_WALL_CAP_CUSTODY_POISONED"
+  || config.execution.cellWallCapDisposition?.unsettledLockDisposition !== "held-for-manual-recovery"
   || !config.execution.tokenCapFormula.includes("2 *")
   || !same(config.execution.tokenCapsByLeg?.A?.perMilestone, {M1:4000000,M2:4000000,M3:4000000,M4:4000000,M5:4000000,M6:4000000,M8:4000000,M7:663396})
   || !same(config.execution.tokenCapsByLeg?.B?.perMilestone, {M1:4000000,M2:4000000,M3:4000000})
   || !same(config.execution.tokenCapsByLeg?.C?.perMilestone, {M1:null,M2:null,M3:null})
-  || !same(config.execution.conductorStoppingRule, {consecutiveFailures:2,scope:"same-leg",sameRootCauseField:"rootCauseClass",action:"pause-wave-for-orchestrator-review",diagnostic:"R3_CONDUCTOR_REVIEW_REQUIRED"})
+  || !same(config.execution.conductorStoppingRule, {consecutiveFailures:2,scope:"same-leg",sameRootCauseField:"rootCauseClass",action:"pause-wave-for-orchestrator-review",diagnostic:"R3_CONDUCTOR_REVIEW_REQUIRED",reviewReceipt:{version:"snapback.r3-conductor-review-ack.v1",directory:"reviews",filePattern:"pause-<n>.ack.json",diagnostic:"R3_CONDUCTOR_REVIEW_RECEIPT_INVALID"}})
 ) fail("wall, token-cap, or conductor stopping registration drifted");
+
+const reviewRoot = join(root, config.execution.conductorStoppingRule.reviewReceipt.directory);
+if (existsSync(reviewRoot)) {
+  for (const filename of readdirSync(reviewRoot)) {
+    if (!filename.endsWith(".ack.json")) continue;
+    const receiptPath = join(reviewRoot, filename);
+    if (lstatSync(receiptPath).isSymbolicLink()) fail(`${filename} review receipt is a symlink`);
+    validateConductorReviewReceipt({
+      receipt: JSON.parse(readFileSync(receiptPath, "utf8")),
+      filename,
+      harnessConfig: config,
+    });
+  }
+}
 
 assertScorecardRegistration(config.scoring);
 if (config.scoring.composer.sha256 !== sha256(

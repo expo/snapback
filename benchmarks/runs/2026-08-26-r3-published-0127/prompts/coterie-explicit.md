@@ -4,7 +4,7 @@ sibling lanes, Snapback implementation source, or any prior Clique/Coterie app.
 
 Build Coterie, the Exact/Contract sibling of Clique, as an Exact web app backed
 by published Snapback 0.1.27 using the DEFAULT EXPLICIT authoring profile. The
-authoritative read-only instrument is `/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2`.
+authoritative read-only instrument is `/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1`.
 Port its presentation contract to Contract components without React/React Native
 in the client, preserving `sm-*` semantics. Use the read-only Exact checkout at
 `/Users/ccheever/projects/exact-m0c-air-20260826` pinned to

@@ -8,7 +8,11 @@ Ephemeral state, Memberships, Assets, Client integration, Exact/Contract
 integration, Guide, Benchmarks, Testing, Performance, Rust build
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-20
-**Revised:** 2026-08-25 (capstone pair run recorded against Phase 3 —
+**Revised:** 2026-08-26 (R3 packet fail-closed completion: unsettled wall-cap
+custody is poisoned and held, reviewed pause receipts bind exact failure
+hashes and one next cell, Claude settlement follows the marker-writing turn,
+and the sanctioned composer emits and tests all preregistered rows); prior
+2026-08-25 (capstone pair run recorded against Phase 3 —
 standalone 0.1.27 run under 0.3.4-m8, headlines and R3-prerequisite pointer
 in the dated R2-closure subsection); prior 2026-08-25 (W5 closure fix
 round: the production receipt now binds
@@ -1022,6 +1026,20 @@ the baseline's Familiar M3 green suspect as a false green.
 Only after R2 verifies the instrument and no material protocol correction is
 needed, run LLP 0201's preregistered N>=3 wave. Profile conclusions must be
 scoped by app/client stack if the 0.1.24 interaction persists.
+
+The frozen R3 packet is executable only through its registered fail-closed
+contracts. A cell whose operation remains unsettled after wall-cap grace
+poisons all controller/driver mutation paths and leaves the exclusive host
+lock held for manual recovery. A two-failure conductor pause resumes only for
+the next named cell after a committed review receipt binds both exact failure
+disposition hashes and an orchestrator rationale. Claude milestone accounting
+settles on native usage for the assistant turn that wrote that milestone's
+marker, irrespective of whether the usage record becomes visible before or
+after the marker. The sanctioned scorecard composer byte-validates and binds
+every input to its configured cell, applies the explicit successful-replicate
+floor, and emits all twelve registered row classes, including absolute-only
+ratio handling, direction consistency, and the paired exact sign test. None of
+these repair paths launches a campaign cell.
 
 ## Efficiency scorecard
 

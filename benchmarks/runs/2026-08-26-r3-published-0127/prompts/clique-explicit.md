@@ -4,7 +4,7 @@ sibling lanes, a Snapback source checkout, or any prior Clique/Coterie app.
 
 Build Clique as an Expo Router web app on published Snapback 0.1.27 using the
 DEFAULT EXPLICIT authoring profile. The authoritative read-only instrument is
-`/Users/ccheever/bench-r3-20260826/instrument-review-fix-round2-final-v2`; read its social-messenger brief,
+`/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1`; read its social-messenger brief,
 contract, fixtures, assertions, UI kit, and choreography. Use published packages
 and the served Guide only. Do not set `authoringProfile`; keep explicit
 `snapback/schema.mjs` and `snapback/functions.mjs` with generated exact refs.

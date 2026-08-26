@@ -17,6 +17,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { configuredPrivateLockPath } from "./r2-private-paths.mjs";
 
 export const R2_HOST_LOCK_VERSION = "snapback.r2-exclusive-host-lock.v1";
+export const R3_CELL_WALL_CAP_CUSTODY_POISONED = "R3_CELL_WALL_CAP_CUSTODY_POISONED";
 const CLAIM_VERSION = "snapback.r2-exclusive-host-lock-claim.v1";
 
 function canonical(value) {
@@ -89,6 +90,11 @@ function existingLockState(lockPath) {
     ? readRegular(claimPath, "host lock controller claim")
     : null;
   const claim = claimBytes === null ? null : JSON.parse(claimBytes.toString("utf8"));
+  const poisonPath = join(lockPath, "poison.json");
+  const poisonBytes = existsSync(poisonPath)
+    ? readRegular(poisonPath, "host lock custody poison")
+    : null;
+  const poison = poisonBytes === null ? null : JSON.parse(poisonBytes.toString("utf8"));
   return {
     lockIdentity: { dev: lockStat.dev, ino: lockStat.ino },
     ownerPath,
@@ -99,6 +105,10 @@ function existingLockState(lockPath) {
     claimBytes,
     claimSha256: claimBytes === null ? null : digest(claimBytes),
     claim,
+    poisonPath,
+    poisonBytes,
+    poisonSha256: poisonBytes === null ? null : digest(poisonBytes),
+    poison,
   };
 }
 
@@ -106,11 +116,14 @@ function sameLockSnapshot(left, right) {
   return sameJson(left.lockIdentity, right.lockIdentity)
     && left.ownerSha256 === right.ownerSha256
     && left.claimSha256 === right.claimSha256
+    && left.poisonSha256 === right.poisonSha256
     && sameJson(left.owner, right.owner)
-    && sameJson(left.claim, right.claim);
+    && sameJson(left.claim, right.claim)
+    && sameJson(left.poison, right.poison);
 }
 
-function lockIsLive({ owner, claim }, nowMs, processAlive) {
+function lockIsLive({ owner, claim, poison }, nowMs, processAlive) {
+  if (poison !== null) return true;
   if (claim !== null) return processAlive(claim.pid);
   if (processAlive(owner.pid)) return true;
   return Number.isFinite(Date.parse(owner.awaitingControllerUntil))
@@ -188,6 +201,12 @@ export function acquireExclusiveHostLock({
     } catch (error) {
       if (!existsSync(lockPath)) throw error;
       const existing = existingLockState(lockPath);
+      if (existing.poison !== null) {
+        throw new Error(
+          `${R3_CELL_WALL_CAP_CUSTODY_POISONED}: ${existing.owner.runId}/${existing.owner.cellId} `
+          + "is held for manual recovery",
+        );
+      }
       if (!recoverStale) {
         throw new Error(
           `R2_ADMISSION_LOCK_HELD: ${existing.owner.runId}/${existing.owner.cellId} already owns ${lockPath}`,
@@ -333,6 +352,11 @@ export function assertExclusiveHostLockHeld({ lock, harnessConfig, cellId, claim
 export function releaseExclusiveHostLock({ lock, claim = null, outcome, nowMs = Date.now() }) {
   if (!existsSync(lock.path)) return null;
   const existing = existingLockState(lock.path);
+  if (existing.poison !== null) {
+    throw new Error(
+      `${R3_CELL_WALL_CAP_CUSTODY_POISONED}: refusing ordinary release of poisoned custody`,
+    );
+  }
   if (existing.owner.token !== lock.token) {
     throw new Error("R2_ADMISSION_LOCK: refusing to release a lock owned by another token");
   }
@@ -354,6 +378,41 @@ export function releaseExclusiveHostLock({ lock, claim = null, outcome, nowMs = 
   const archived = archivePath(lock.path, existing.owner, nowMs, "released");
   renameSync(lock.path, archived);
   return archived;
+}
+
+// @ref LLP 0295#r3-claim-eligible-wave — poisoned timeout custody is an
+// explicit manual-recovery state, never an ordinary stale/releasable lock.
+export function poisonExclusiveHostLock({
+  lock,
+  claim,
+  reason,
+  nowMs = Date.now(),
+}) {
+  if (!existsSync(lock.path)) {
+    throw new Error(`${R3_CELL_WALL_CAP_CUSTODY_POISONED}: host lock disappeared before poison`);
+  }
+  const existing = existingLockState(lock.path);
+  if (existing.owner.token !== lock.token) {
+    throw new Error(`${R3_CELL_WALL_CAP_CUSTODY_POISONED}: refusing to poison another owner`);
+  }
+  const liveClaim = readJson(claim.path, "host lock controller claim");
+  if (!sameJson(liveClaim, claim.declaration)) {
+    throw new Error(`${R3_CELL_WALL_CAP_CUSTODY_POISONED}: controller claim changed before poison`);
+  }
+  const poison = {
+    version: "snapback.r3-exclusive-host-lock-poison.v1",
+    diagnostic: R3_CELL_WALL_CAP_CUSTODY_POISONED,
+    runId: existing.owner.runId,
+    cellId: existing.owner.cellId,
+    token: existing.owner.token,
+    operationSettled: false,
+    disposition: "held-for-manual-recovery",
+    reason,
+    poisonedAt: new Date(nowMs).toISOString(),
+  };
+  const poisonPath = join(lock.path, "poison.json");
+  writeFileSync(poisonPath, `${JSON.stringify(poison, null, 2)}\n`, { flag: "wx" });
+  return { path: poisonPath, declaration: poison };
 }
 
 export function exclusiveHostLockPath(harnessConfig) {

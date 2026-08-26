@@ -2,15 +2,15 @@ import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
   access,
-  appendFile,
-  copyFile,
+  appendFile as unsafeAppendFile,
+  copyFile as unsafeCopyFile,
   lstat,
-  mkdir,
+  mkdir as unsafeMkdir,
   readFile,
   readdir,
-  rename,
+  rename as unsafeRename,
   stat,
-  writeFile,
+  writeFile as unsafeWriteFile,
 } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir } from "node:os";
@@ -35,9 +35,49 @@ import { adaptClaudeSession } from "./adapters/claude-session.mjs";
 import { adaptCodexSessionTree } from "./adapters/codex-session.mjs";
 import { capTokenCount } from "./counts.mjs";
 import { TokenCapEnforcedError, TokenCapWatchdog } from "./watchdog.mjs";
+import { ALLOW_CELL_MUTATIONS } from "./mutation-guard.mjs";
 
 const MARKER_FILE = "events/cell-milestones.jsonl";
 const states = new Map();
+const mutationGuards = new Map();
+
+function mutationGuardFor(path) {
+  const absolute = resolve(path);
+  return [...mutationGuards.entries()]
+    .filter(([root]) => absolute === root || absolute.startsWith(`${root}${sep}`))
+    .sort(([left], [right]) => right.length - left.length)[0]?.[1]
+    ?? ALLOW_CELL_MUTATIONS;
+}
+
+function assertWrite(path, operation) {
+  mutationGuardFor(path).assertMutationAllowed(operation);
+}
+
+async function appendFile(path, ...args) {
+  assertWrite(path, `driver append ${path}`);
+  return unsafeAppendFile(path, ...args);
+}
+
+async function copyFile(source, target, ...args) {
+  assertWrite(target, `driver copy ${target}`);
+  return unsafeCopyFile(source, target, ...args);
+}
+
+async function mkdir(path, ...args) {
+  assertWrite(path, `driver directory mutation ${path}`);
+  return unsafeMkdir(path, ...args);
+}
+
+async function rename(source, target, ...args) {
+  assertWrite(source, `driver rename source ${source}`);
+  assertWrite(target, `driver rename target ${target}`);
+  return unsafeRename(source, target, ...args);
+}
+
+async function writeFile(path, ...args) {
+  assertWrite(path, `driver write ${path}`);
+  return unsafeWriteFile(path, ...args);
+}
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
@@ -659,15 +699,24 @@ async function readLiveClaudeRecords(state) {
 
 async function waitForClaudeMilestoneUsage(state, marker) {
   const deadline = settlementDeadline(state);
+  let markerTurnNativeId = null;
   while (true) {
     const records = await (state.readLiveClaudeRecords ?? readLiveClaudeRecords)(state);
     if (records !== null) {
+      const markerRecord = records.findLast((record) => {
+        const command = commandFrom(record);
+        if (typeof command !== "string") return false;
+        const matched = command.match(
+          /\br2-cell-signal(?:\.mjs)?\b[\s\S]*?--milestone(?:=|\s+)["']?(M[1-8])\b/u,
+        );
+        return matched?.[1] === marker.milestone
+          && typeof record?.message?.id === "string";
+      });
+      if (markerRecord !== undefined) markerTurnNativeId = markerRecord.message.id;
       const adapted = adaptClaudeSession(records);
       observeUsageTurns(state, adapted.turns);
       const retainedTurns = adapted.turns.filter((turn) => !state.settledUsage.turnIds.has(turn.id));
-      const settledTurn = retainedTurns.findLast((turn) => (
-        Date.parse(turn.completedAt) >= Date.parse(marker.recordedAt)
-      ));
+      const settledTurn = retainedTurns.findLast((turn) => turn.nativeId === markerTurnNativeId);
       if (settledTurn !== undefined) {
         const retainedThroughMarkerTurn = retainedTurns.filter((turn) => (
           Date.parse(turn.completedAt) <= Date.parse(settledTurn.completedAt)
@@ -684,12 +733,14 @@ async function waitForClaudeMilestoneUsage(state, marker) {
     const remainingMs = deadline.deadlineMs - deadline.now();
     if (remainingMs <= 0) {
       const error = new Error(
-        `R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT: no post-${marker.milestone} native usage before ${deadline.deadlineAt}`,
+        `R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT: no usage settlement for the ${marker.milestone} `
+        + `marker-writing Claude assistant turn before ${deadline.deadlineAt}`,
       );
       error.code = "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT";
       error.rootCauseClass = "native-usage-settlement-timeout";
       error.capSeconds = deadline.capSeconds;
       error.deadlineAt = deadline.deadlineAt;
+      error.milestone = marker.milestone;
       throw error;
     }
     await settlementPause(state, remainingMs);
@@ -708,7 +759,13 @@ async function waitForMilestoneUsage(state, marker) {
 }
 
 async function finishTokenWatchdog(state, marker) {
-  const retained = await waitForMilestoneUsage(state, marker);
+  let retained;
+  try {
+    retained = await waitForMilestoneUsage(state, marker);
+  } catch (error) {
+    error.milestone ??= marker.milestone;
+    throw error;
+  }
   if (state.usageFailure) throw state.usageFailure;
   const watchdogState = state.tokenWatchdog?.state;
   if (watchdogState?.tripped === true) {
@@ -1486,7 +1543,7 @@ async function writeTerminalArtifacts(state, error) {
     const existing = markers.find((item) => item.milestone === state.currentMilestone);
     const capReason = error?.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
       ? "token-cap"
-      : error?.code === "R3_CELL_WALL_CAP_TIMEOUT"
+      : new Set(["R3_CELL_WALL_CAP_TIMEOUT", "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT"]).has(error?.code)
         ? "wall-cap"
         : null;
     if (capReason !== null) state.failureDisposition = capReason;
@@ -1810,11 +1867,13 @@ export async function prepare({
   preflight: prepared = null,
   abortSignal = null,
   transition = null,
+  mutationGuard = ALLOW_CELL_MUTATIONS,
 }) {
   const cancellation = { abortSignal, transition };
   transitionStage(cancellation, "prepare-preflight");
   const plan = prepared ?? await preflight({ config, configDirectory });
   const root = resolve(configDirectory);
+  mutationGuards.set(root, mutationGuard);
   if (plan.version !== "social-messenger-r2-driver-preflight.v1" || plan.root !== root) {
     throw new Error("R2 production driver requires its exact pre-attempt preflight result");
   }
@@ -2059,6 +2118,12 @@ export const r2CellDriverTestHooks = Object.freeze({
   finishTokenWatchdog,
   handleNativeRecord,
   renderFreshM7Prompt,
+  installMutationGuard(root, mutationGuard) {
+    mutationGuards.set(resolve(root), mutationGuard);
+  },
+  guardedWriteFile(path, bytes) {
+    return writeFile(path, bytes);
+  },
   installState(laneRunId, state) {
     states.set(laneRunId, state);
   },
