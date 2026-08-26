@@ -201,6 +201,12 @@ async function main() {
   }
   await runAcceptance(suite, async () => {
     await ensureApi();
+    // @ref LLP 0008#decision-dk-9--client-local-store-mandate-2026-07-02 —
+    // the Node control plane is one client-store context. Keep one lifecycle
+    // so its default per-origin RQS store legitimately retains writer custody;
+    // throwaway clients would leave the first query client holding the lock.
+    const controlClient = new SnapbackClient(apiUrl);
+    cleanups.push(() => controlClient.close());
     await ensureVite();
     await suite.check('dev shell leaves native discovery to content negotiation', async () => {
       const html = await (await fetch(`${viteUrl}/`)).text();
@@ -381,7 +387,7 @@ async function main() {
       const after = await page.evalPoll(`document.querySelector('[data-testid="freshness"]').textContent`, (t) => /Updated/.test(t), 5000);
       if (!/Updated/.test(after)) throw new Error(`freshness did not update: ${before} -> ${after}`);
       // Cross-check the durable write landed on the server.
-      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      const feed = (await controlClient.query('feedState', {})).rows[0];
       if (!(feed.fetchedAt > 0)) throw new Error('feedRefreshState.fetchedAt not stamped');
       return { before, after, tickIndex: feed.tickIndex };
     });
@@ -397,7 +403,7 @@ async function main() {
         5000,
       );
       if (!/add caltrainFeed at \/_snapback\/admin\/setup/.test(problem)) throw new Error(`expected the actionable setup hint: ${problem}`);
-      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      const feed = (await controlClient.query('feedState', {})).rows[0];
       if (feed.lastSource !== 'recorded-fallback') throw new Error(`expected recorded-fallback, got ${feed.lastSource}`);
       return { problem, lastSource: feed.lastSource };
     });
@@ -413,7 +419,7 @@ async function main() {
         `getComputedStyle(document.querySelector('[data-testid="data-source-dot"]')).backgroundColor`,
       );
       if (!/156, 163, 175/.test(dot ?? '')) throw new Error(`expected the gray non-live dot: ${dot}`);
-      const feed = (await new SnapbackClient(apiUrl).query('feedState', {})).rows[0];
+      const feed = (await controlClient.query('feedState', {})).rows[0];
       if (feed.lastSource === '511-siri-stop-monitoring') throw new Error('recorded suite unexpectedly marked live');
       return { badge, dot, lastSource: feed.lastSource };
     });
@@ -445,12 +451,11 @@ async function main() {
       // route): refreshFeed -> applyFeedTick -> live fan-out. The browser
       // performs no interaction and owns no poll timer for these queries —
       // the freshness marker must show the stable sub-minute copy purely from the push.
-      const client = new SnapbackClient(apiUrl);
       // The Refresh press a few checks back consumed the ENG-23642 one-poll-
       // per-180s upstream budget; a budget-denied cron run would honestly skip
       // (no commit, no delta). Clear it so this check exercises the push lane.
-      await client.mutate('resetFeed', {});
-      const feedBefore = (await client.query('feedState', {})).rows[0] ?? {};
+      await controlClient.mutate('resetFeed', {});
+      const feedBefore = (await controlClient.query('feedState', {})).rows[0] ?? {};
       const tickBefore = feedBefore.tickIndex ?? -1;
       const tickCount = feedBefore.tickCount ?? 0;
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
@@ -461,7 +466,7 @@ async function main() {
       const record = await run.json();
       const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
       if (fresh !== 'Updated a few seconds ago') throw new Error(`cron delta did not reach the browser: freshness=${fresh}`);
-      const tickAfter = (await client.query('feedState', {})).rows[0]?.tickIndex ?? -1;
+      const tickAfter = (await controlClient.query('feedState', {})).rows[0]?.tickIndex ?? -1;
       // Recorded feed ticks are cyclic: 5 -> 0 is a valid advance.
       if (tickCount > 1 && tickAfter === tickBefore) throw new Error(`cron run did not advance the feed (${tickBefore} -> ${tickAfter})`);
       const conns = await page.eval('window.allAboard.connections()');
