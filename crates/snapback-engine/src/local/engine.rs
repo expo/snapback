@@ -5897,7 +5897,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::BegunOAuthAuthorization> {
-        let (authority_user_id, _) = self.require_agent_grant_management_session(
+        let (authority_user_id, _, _, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth consent request authorization",
         )?;
@@ -5921,7 +5921,7 @@ impl LocalSnapback {
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_integrations::DeniedOAuthAuthorization> {
-        let (consenting_user_id, _) = self.require_agent_grant_management_session(
+        let (consenting_user_id, _, _, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth consent denial authorization",
         )?;
@@ -5937,14 +5937,17 @@ impl LocalSnapback {
         step_up_proof: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let (effective_user_id, session_id) = self.require_agent_grant_management_session(
-            authority,
-            "OAuth consent approval authorization",
-        )?;
+        let (effective_user_id, session_id, session_generation, authority_instance_id) = self
+            .require_agent_grant_management_session(
+                authority,
+                "OAuth consent approval authorization",
+            )?;
         let _effect = authority.effect_guard("OAuth consent approval transaction")?;
         self.db.approve_grant_request(
             effective_user_id,
             session_id,
+            session_generation,
+            authority_instance_id,
             request_id,
             None,
             step_up_proof,
@@ -5959,7 +5962,7 @@ impl LocalSnapback {
         now_ms: u64,
         random: &dyn crate::auth::crypto::RandomSource,
     ) -> SnapbackResult<crate::storage::auth_integrations::IssuedOAuthAuthorization> {
-        let (consenting_user_id, _) = self.require_agent_grant_management_session(
+        let (consenting_user_id, _, _, _) = self.require_agent_grant_management_session(
             authority,
             "OAuth authorization-code issuance authorization",
         )?;
@@ -6743,20 +6746,6 @@ impl LocalSnapback {
         )
     }
 
-    pub fn mint_agent_invitation(
-        &mut self,
-        effect: &AdmissionEffectGuard<'_>,
-        user_id: &str,
-        profile: ServerProfile,
-        proof: &crate::auth::keyring::ProviderBoundStepUpProof,
-        now_ms: u64,
-        random: &dyn crate::auth::crypto::RandomSource,
-    ) -> SnapbackResult<crate::storage::auth_agents::IssuedAgentInvitation> {
-        let _ = effect;
-        self.db
-            .mint_agent_invitation(user_id, profile, proof, now_ms, random)
-    }
-
     pub fn mint_agent_invitation_with_authorized_effect(
         &mut self,
         authority: &PreparedAuthority,
@@ -6783,10 +6772,17 @@ impl LocalSnapback {
                 "agent-invitation minting facts do not match exact inviter authority",
             ));
         }
-        self.db
-            .mint_agent_invitation_guarded(user_id, profile, proof, now_ms, random, || {
-                authorized_effect.commit_guard("agent invitation mint transaction")
-            })
+        self.db.mint_agent_invitation_guarded(
+            user_id,
+            subject.session_id(),
+            subject.generation(),
+            subject.authority_instance_id(),
+            profile,
+            proof,
+            now_ms,
+            random,
+            || authorized_effect.commit_guard("agent invitation mint transaction"),
+        )
     }
 
     pub fn mint_pairing_code(
@@ -6833,7 +6829,7 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         user_id: &str,
     ) -> SnapbackResult<()> {
-        let (authority_user_id, _) = self.require_agent_grant_management_session(
+        let (authority_user_id, _, _, _) = self.require_agent_grant_management_session(
             authority,
             "pairing-code minting authorization",
         )?;
@@ -6863,7 +6859,7 @@ impl LocalSnapback {
         &self,
         authority: &'a PreparedAuthority,
         effect: &'static str,
-    ) -> SnapbackResult<(&'a str, &'a str)> {
+    ) -> SnapbackResult<(&'a str, &'a str, u64, &'a str)> {
         // A resolved subject remains derived only while it is used inside the
         // engine graph that admitted it; carrying the genuine carrier to a
         // second graph must not turn provenance into caller-supplied data.
@@ -6890,7 +6886,12 @@ impl LocalSnapback {
                 "agent grant management requires session authority",
             ));
         };
-        Ok((subject.user_id(), subject.session_id()))
+        Ok((
+            subject.user_id(),
+            subject.session_id(),
+            subject.generation(),
+            subject.authority_instance_id(),
+        ))
     }
 
     pub fn present_pairing_code(
@@ -6931,12 +6932,14 @@ impl LocalSnapback {
         proof: Option<&crate::auth::keyring::ProviderBoundStepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantApproval> {
-        let (user_id, session_id) =
+        let (user_id, session_id, session_generation, authority_instance_id) =
             self.require_agent_grant_management_session(authority, "grant approval")?;
         let _effect = authority.effect_guard("grant approval transaction")?;
         self.db.approve_grant_request(
             user_id,
             session_id,
+            session_generation,
+            authority_instance_id,
             request_id,
             requested_ttl_ms,
             proof,
@@ -6951,7 +6954,7 @@ impl LocalSnapback {
         request_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        let (user_id, _) =
+        let (user_id, _, _, _) =
             self.require_agent_grant_management_session(authority, "grant denial")?;
         let _effect = authority.effect_guard("grant denial transaction")?;
         self.db.deny_grant_request(user_id, request_id, now_ms)
@@ -6984,7 +6987,7 @@ impl LocalSnapback {
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let (user_id, _) =
+        let (user_id, _, _, _) =
             self.require_agent_grant_management_session(authority, "grant revocation planning")?;
         self.db
             .plan_grant_revocation_service_terminal(user_id, grant_id, now_ms)
@@ -6998,7 +7001,7 @@ impl LocalSnapback {
         grant_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::GrantRevocation> {
-        let (user_id, _) =
+        let (user_id, _, _, _) =
             self.require_agent_grant_management_session(authority, "grant revocation")?;
         let _effect = authority.effect_guard("grant revocation transaction")?;
         self.db.revoke_grant_for_user(user_id, grant_id, now_ms)
@@ -7011,7 +7014,7 @@ impl LocalSnapback {
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<ServiceAuthorityTerminalPlan> {
-        let (user_id, _) = self
+        let (user_id, _, _, _) = self
             .require_agent_grant_management_session(authority, "bulk grant revocation planning")?;
         self.db
             .plan_bulk_grant_revocation_service_terminal(user_id, actor_id, now_ms)
@@ -7025,7 +7028,7 @@ impl LocalSnapback {
         actor_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::auth_grants::BulkGrantRevocation> {
-        let (user_id, _) =
+        let (user_id, _, _, _) =
             self.require_agent_grant_management_session(authority, "bulk grant revocation")?;
         let _effect = authority.effect_guard("bulk grant revocation transaction")?;
         self.db

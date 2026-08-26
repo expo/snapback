@@ -294,6 +294,7 @@ pub struct PasswordSetPredecessor {
     pub acting_session_id: String,
     pub acting_user_id: String,
     pub acting_generation: u64,
+    pub authority_instance_id: String,
     pub acting_token_digest: crate::contract_types::TokenDigest,
     pub email_identity_id: String,
 }
@@ -1374,17 +1375,18 @@ pub(crate) fn admit_password_issuance_in(
             step_up,
             ..
         } => {
-            let acting: Option<(String, i64, Vec<u8>)> = transaction
+            let acting: Option<(String, i64, String, Vec<u8>)> = transaction
                 .query_row(
-                    "SELECT user_id,generation,token_hash FROM _auth_sessions
+                    "SELECT user_id,generation,authority_instance_id,token_hash FROM _auth_sessions
                      WHERE id=?1 AND revoked_at_ms IS NULL AND ?2<expires_at_ms",
                     params![predecessor.acting_session_id, now_ms],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
                 )
                 .optional()?;
-            if !acting.is_some_and(|(user, generation, digest)| {
+            if !acting.is_some_and(|(user, generation, authority_instance_id, digest)| {
                 user == predecessor.acting_user_id
                     && u64::try_from(generation).ok() == Some(predecessor.acting_generation)
+                    && authority_instance_id == predecessor.authority_instance_id
                     && digest.as_slice() == predecessor.acting_token_digest.as_bytes().as_slice()
             }) {
                 return Ok(PasswordIssuanceAdmission::PredecessorChanged);
@@ -1454,7 +1456,7 @@ pub(crate) fn admit_password_issuance_in(
                     user_id: &predecessor.acting_user_id,
                     session_id: Some(&predecessor.acting_session_id),
                     session_generation: Some(predecessor.acting_generation),
-                    authority_instance_id: None,
+                    authority_instance_id: Some(&predecessor.authority_instance_id),
                     operation: "passwordSet",
                     target_id: &predecessor.acting_session_id,
                 },
@@ -2644,9 +2646,9 @@ impl LocalDatabase {
             }
             // @ref LLP 0303#the-governing-principle — the authenticated
             // session derives the exact email identity used for password set.
-            let acting_row: Option<(String, String, String, i64, Vec<u8>)> = connection
+            let acting_row: Option<(String, String, String, i64, String, Vec<u8>)> = connection
                 .query_row(
-                    "SELECT s.id,s.user_id,s.identity_id,s.generation,s.token_hash
+                    "SELECT s.id,s.user_id,s.identity_id,s.generation,s.authority_instance_id,s.token_hash
                      FROM _auth_sessions s
                      JOIN _auth_users u ON u.id=s.user_id
                      WHERE s.token_hash=?1 AND s.revoked_at_ms IS NULL
@@ -2659,6 +2661,7 @@ impl LocalDatabase {
                             row.get(2)?,
                             row.get(3)?,
                             row.get(4)?,
+                            row.get(5)?,
                         ))
                     },
                 )
@@ -2668,6 +2671,7 @@ impl LocalDatabase {
                 acting_user_id,
                 email_identity_id,
                 acting_generation,
+                authority_instance_id,
                 acting_digest,
             ) = acting_row
                 .ok_or_else(|| auth_error("SNAPBACK_AUTH_SESSION_INVALID", "session is invalid"))?;
@@ -2717,6 +2721,7 @@ impl LocalDatabase {
                             "authentication state invariant failed",
                         )
                     })?,
+                    authority_instance_id,
                     acting_token_digest: crate::contract_types::TokenDigest::from_slice(
                         &acting_digest,
                     )

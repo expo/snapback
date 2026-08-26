@@ -1873,6 +1873,8 @@ mod tests {
         db.approve_grant_request(
             "user-oauth",
             "session-oauth",
+            0,
+            "test-authority",
             &accepted_ids[0],
             None,
             None,
@@ -1997,6 +1999,8 @@ mod tests {
             .approve_grant_request(
                 "user-oauth",
                 "session-oauth",
+                0,
+                "test-authority",
                 &begun.request_id,
                 None,
                 None,
@@ -2077,6 +2081,8 @@ mod tests {
         db.approve_grant_request(
             "user-oauth",
             "session-oauth",
+            0,
+            "test-authority",
             &expiring.request_id,
             None,
             None,
@@ -2184,6 +2190,8 @@ mod tests {
         db.approve_grant_request(
             "user-oauth",
             "session-oauth",
+            0,
+            "test-authority",
             &begun.request_id,
             None,
             None,
@@ -2243,6 +2251,8 @@ mod tests {
         db.approve_grant_request(
             "user-oauth",
             "session-oauth",
+            0,
+            "test-authority",
             &retire_candidate.request_id,
             None,
             None,
@@ -2286,6 +2296,8 @@ mod tests {
         db.approve_grant_request(
             "user-oauth",
             "session-oauth",
+            0,
+            "test-authority",
             &revoked_candidate.request_id,
             None,
             None,
@@ -2353,6 +2365,8 @@ mod tests {
             .approve_grant_request(
                 "user-oauth",
                 "session-oauth",
+                0,
+                "test-authority",
                 &begun.request_id,
                 None,
                 None,

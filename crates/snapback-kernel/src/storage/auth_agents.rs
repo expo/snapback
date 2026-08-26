@@ -281,17 +281,33 @@ impl LocalDatabase {
     pub fn mint_agent_invitation(
         &mut self,
         user_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         profile: ServerProfile,
         proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentInvitation> {
-        self.mint_agent_invitation_guarded(user_id, profile, proof, now_ms, random, || Ok(()))
+        self.mint_agent_invitation_guarded(
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            profile,
+            proof,
+            now_ms,
+            random,
+            || Ok(()),
+        )
     }
 
     pub fn mint_agent_invitation_guarded<G, BeforeCommit>(
         &mut self,
         user_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         profile: ServerProfile,
         proof: &ProviderBoundStepUpProof,
         now_ms: u64,
@@ -318,9 +334,9 @@ impl LocalDatabase {
                     &step_up_provider,
                     super::auth_catalog_ops::ExpectedStepUpProof {
                         user_id,
-                        session_id: None,
-                        session_generation: None,
-                        authority_instance_id: None,
+                        session_id: Some(session_id),
+                        session_generation: Some(session_generation),
+                        authority_instance_id: Some(authority_instance_id),
                         operation: "agentInvitation",
                         target_id: "creation",
                     },
@@ -1812,6 +1828,131 @@ mod tests {
     }
 
     #[test]
+    fn agent_invitation_refuses_step_up_proof_from_another_live_session() {
+        use crate::auth::crypto::{
+            CanonicalAddress, ChallengeId, OsRandom, StepUpDigest, StepUpProof, VerificationCode,
+        };
+        use crate::auth::keyring::AuthKeyringStore;
+
+        let mut db = ready_database();
+        db.auth_catalog()
+            .insert_email_session_for_test(
+                "human-a",
+                "identity-human-a",
+                "session-a",
+                "authority-a",
+                "human-a@example.com",
+                &[0xa0; 32],
+                1,
+                1,
+                1_000,
+                2_000,
+            )
+            .expect("first live session");
+        crate::storage::auth_catalog_ops::insert_test_identity_session(
+            &db.conn,
+            "session-b",
+            "human-a",
+            "identity-human-a",
+            "authority-b",
+            &[0xb0; 32],
+            2,
+            2,
+            1_000,
+            2_000,
+        )
+        .expect("second live session");
+
+        let keyring = AuthKeyringStore::in_memory();
+        keyring.load_or_mint_initial(0, &OsRandom).unwrap();
+        let provider_origin = keyring.claim_step_up_provider_origin();
+        db.bind_auth_step_up_provider(keyring.step_up_provider_binding(&provider_origin).unwrap())
+            .unwrap();
+        let address = CanonicalAddress::parse("human-a@example.com").unwrap();
+        let challenge_id = ChallengeId::generate(&OsRandom).unwrap();
+        let code = VerificationCode::parse("123456").unwrap();
+        let (key_id, submitted_digest) = keyring
+            .with_active_key(10, &OsRandom, |key_id, key| {
+                (
+                    key_id.clone(),
+                    StepUpDigest::compute(
+                        key,
+                        &challenge_id,
+                        &address,
+                        "human-a",
+                        "session-b",
+                        1,
+                        "authority-b",
+                        "agentInvitation",
+                        "creation",
+                        &code,
+                    ),
+                )
+            })
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO _auth_verification_codes(
+                   challenge_id, canonical_address, code_digest, key_id,
+                   attempts, max_attempts, requested_at_ms, expires_at_ms,
+                   consumed_at_ms, superseded_by
+                 ) VALUES(?1, ?2, ?3, ?4, 0, ?5, 10, 100, NULL, NULL)",
+                params![
+                    challenge_id.as_str(),
+                    address.as_str(),
+                    submitted_digest.as_bytes().as_slice(),
+                    key_id.as_str(),
+                    crate::auth::throttle::AUTH_MAXIMUM_ATTEMPTS as i64,
+                ],
+            )
+            .expect("session-B challenge");
+        let proof = StepUpProof::from_verified_binding(
+            challenge_id.clone(),
+            address,
+            Some(key_id),
+            submitted_digest,
+            "human-a".to_owned(),
+            "session-b".to_owned(),
+            1,
+            "authority-b".to_owned(),
+            "agentInvitation",
+            "creation".to_owned(),
+        );
+        let proof = keyring.bind_step_up_proof(&provider_origin, proof).unwrap();
+
+        let error = db
+            .mint_agent_invitation(
+                "human-a",
+                "session-a",
+                1,
+                "authority-a",
+                ServerProfile::Test,
+                &proof,
+                20,
+                &OsRandom,
+            )
+            .expect_err("session-B proof cannot authorize session-A invitation minting");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        let invitations: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _auth_agent_invitations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(invitations, 0);
+        let consumed: i64 = db
+            .conn
+            .query_row(
+                "SELECT consumed_at_ms IS NOT NULL FROM _auth_verification_codes
+                 WHERE challenge_id = ?1",
+                [challenge_id.as_str()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(consumed, 0, "cross-session proof remains unconsumed");
+    }
+
+    #[test]
     fn catalog_refuses_a_version_above_this_binary_understanding() {
         // Refuse-at-open: a fresh catalog is v4 and recognized; a marker naming a
         // higher version must fail closed rather than reopen "without agents".
@@ -1863,17 +2004,31 @@ impl super::ServingDatabase {
     pub fn mint_agent_invitation(
         &mut self,
         user_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         profile: ServerProfile,
         proof: &ProviderBoundStepUpProof,
         now_ms: u64,
         random: &dyn RandomSource,
     ) -> SnapbackResult<IssuedAgentInvitation> {
-        self.db
-            .mint_agent_invitation(user_id, profile, proof, now_ms, random)
+        self.db.mint_agent_invitation(
+            user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
+            profile,
+            proof,
+            now_ms,
+            random,
+        )
     }
     pub fn mint_agent_invitation_guarded<G, BeforeCommit>(
         &mut self,
         user_id: &str,
+        session_id: &str,
+        session_generation: u64,
+        authority_instance_id: &str,
         profile: ServerProfile,
         proof: &ProviderBoundStepUpProof,
         now_ms: u64,
@@ -1885,6 +2040,9 @@ impl super::ServingDatabase {
     {
         self.db.mint_agent_invitation_guarded(
             user_id,
+            session_id,
+            session_generation,
+            authority_instance_id,
             profile,
             proof,
             now_ms,
