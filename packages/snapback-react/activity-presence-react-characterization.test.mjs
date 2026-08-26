@@ -1,5 +1,10 @@
+// React-side characterization evidence, not a regression test for the
+// LLP 0310.000 Ruling 3 versus implemented LLP 0257 conflict ticket. It
+// characterizes the React module graph and its bare-provider deadline behavior;
+// the RFC owner still owns the facade-boundary decision.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -14,10 +19,23 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let publishCalls = 0;
 let deleteCalls = 0;
 const entrySource = readFileSync(new URL('./index.mjs', import.meta.url), 'utf8');
-const implementationSource = readFileSync(
-  new URL('./implementation.mjs', import.meta.url),
-  'utf8',
-);
+
+const localModuleSpecifiers = (source) => [
+  ...source.matchAll(/\b(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/gu),
+  ...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gu),
+].map((match) => match[1]).filter((specifier) => specifier.startsWith('.'));
+
+const implementationModules = new Map();
+function walkLocalImplementationImports(moduleUrl) {
+  const path = fileURLToPath(moduleUrl);
+  if (implementationModules.has(path)) return;
+  const source = readFileSync(moduleUrl, 'utf8');
+  implementationModules.set(path, source);
+  for (const specifier of localModuleSpecifiers(source)) {
+    walkLocalImplementationImports(new URL(specifier, moduleUrl));
+  }
+}
+walkLocalImplementationImports(new URL('./implementation.mjs', import.meta.url));
 
 assert.match(
   entrySource,
@@ -25,8 +43,8 @@ assert.match(
   'the React entry must source useSnapbackActivityPresence from implementation.mjs',
 );
 for (const [path, source] of [
-  ['index.mjs', entrySource],
-  ['implementation.mjs', implementationSource],
+  [fileURLToPath(new URL('./index.mjs', import.meta.url)), entrySource],
+  ...implementationModules,
 ]) {
   assert.doesNotMatch(
     source,
@@ -146,4 +164,4 @@ await act(async () => {
   renderer.unmount();
 });
 
-console.log('activity-presence-bare-provider.test.mjs: React entry has no platform lifecycle listener; bare-provider touch publishes and expires only at its deadline');
+console.log('activity-presence-react-characterization.test.mjs: React local module graph has no platform lifecycle listener; bare-provider touch publishes and expires only at its deadline');

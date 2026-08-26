@@ -318,10 +318,9 @@ The `_generated/` spelling is a refused alias; use only `generated/`.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  `durable-required` needs durable storage. Node `memory` refuses durable
-  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. Reuse this
-  [`expo-web` with `fake-indexeddb` helper](repo:packages/snapback-cli/templates/expo-chat/acceptance.mjs);
-  never add a second store.
+  Durable auth custody failures are platform-specific; follow the
+  [acceptance remediation](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
+  for the exact diagnostic and repair.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

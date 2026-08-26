@@ -248,7 +248,7 @@ proof of the same contracts. The headless witness proves:
   the client drains the queue in sequence order; the server's settlement
   ledger returns the original result on duplicate delivery. (A content-refused
   replay is dropped and marked failed, visible in `outboxRecords()`; a
-  [stale auth result](../auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult)
+  [stale auth result](../auth/sessions-and-principals.md#recover-from-stale-authorization-results)
   instead becomes terminal `stranded` custody. The
   store transition and the client wiring that maps a server refusal onto it
   are covered by `packages/snapback-client/outbox-store.test.mjs`; the

@@ -48,14 +48,16 @@ This guide lane does not choose between the two or amend either LLP.
 ## Round-8 guide-lane resolution
 
 The lane keeps
-[`activity-presence-bare-provider.test.mjs`](../packages/snapback-react/activity-presence-bare-provider.test.mjs)
-as the executable proof of the React-side tradeoff documented by the Guide.
-The test locks the relevant React module graph: the public entry sources the
-hook from `implementation.mjs`, and neither file imports React Native, refers
-to AppState, or attaches a platform lifecycle `change` listener. It separately
-mounts the React hook under a bare `SnapbackProvider`, proves that `touch()`
-publishes and arms the activity deadline without withdrawing, then fires that
-deadline and proves it performs the withdrawal. Retrieval case 100 is the docs
-proof that every named page teaches the background-expiry limitation. This
-proof does not decide whether the facade's shipped bare-provider fallback
-should remain supported; the owner decision above remains open.
+[`activity-presence-react-characterization.test.mjs`](../packages/snapback-react/activity-presence-react-characterization.test.mjs)
+as React-side characterization evidence, not as a regression test for this
+conflict ticket. The test locks the relevant React module graph: the public
+entry sources the hook from `implementation.mjs`, and a recursive local-import
+walk from that module proves that no reachable React-side file imports React
+Native, refers to AppState, or attaches a platform lifecycle `change` listener.
+It separately mounts the React hook under a bare `SnapbackProvider`, proves
+that `touch()` publishes and arms the activity deadline without withdrawing,
+then fires that deadline and proves it performs the withdrawal. Retrieval case
+100 is the docs proof that every named page teaches the background-expiry
+limitation and the shipped facade fallback. This characterization does not
+decide whether the facade's shipped bare-provider fallback should remain
+supported; the owner decision above remains open.

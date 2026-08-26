@@ -245,13 +245,14 @@ still-live session behind the presented bearer's token family and returns a
 deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
 
-## Recover from `SNAPBACK_AUTH_STALE_RESULT`
+## Recover from stale authorization results
 
-Search vocabulary: stale auth result.
+`SNAPBACK_AUTH_STALE_RESULT` has two operation families. Search vocabulary:
+stale auth result.
 
-This code has two operation families. Inspect the client error's `operation`
-and `details` (or a graph result's `refusalReason` and
-`graphCompleteness.proof.primaryReason`) before choosing a recovery:
+Inspect the client error's `operation` and `details` (or a graph result's
+`refusalReason` and `graphCompleteness.proof.primaryReason`) before choosing a
+recovery:
 
 - **Mutation or replay:** `operation` names a mutation/replay path, or
   `details` carries `clientMutationId`, `guidance: "discard_or_rerecord"`, or

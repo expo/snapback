@@ -77,15 +77,17 @@ Assertion helpers: `assert`, `assertEqual`, and
 stable codes, never message text. `requireBunRuntime(label)` guards suites
 that must run under bun.
 
-## Recover from `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`
+## Recover when durable auth custody is unavailable
+
+`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` means the selected client platform
+cannot satisfy durable custody.
 
 ### Node and browser-shaped acceptance
 
 Client custody is independent of the server database choice. A server may use
 `--memory`, but Node's client platform named `memory` is volatile. Node
-`memory` refuses durable custody with
-`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; it never silently downgrades a
-`durable-required` policy.
+`memory` emits this refusal for durable custody; it never silently downgrades
+a `durable-required` policy.
 
 For a headless browser-shaped proof, use `expo-web` with `fake-indexeddb`.
 The expo-chat template's existing

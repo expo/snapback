@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:61299c4ef35a172c171f744cc11021c6fe5c97b12867cf1103c7e42836c11ea8 -->
+<!-- start-packet:begin expo-chat digest=sha256:f02782cbe57b6171d51d202ee7fb69398febd858fd4a42b36e831a6e9348ad40 -->
 This is the whole first read (LLP 0259 Rung A). Work from the edit targets;
 open one more page only for a brief, `SNAPBACK_*` refusal, or failed `prove`,
 via `snapback guide <query>`.
@@ -63,10 +63,9 @@ The `_generated/` spelling is a refused alias; use only `generated/`.
   URL-first dev mints no ambient session; multi-browser proofs sign up or sign
   in separately in each context instead of adopting the supervised mint.
 - **Custody: `volatile-explicit`.** Native restart returns anonymous.
-  `durable-required` needs durable storage. Node `memory` refuses durable
-  custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`. Reuse this
-  [`expo-web` with `fake-indexeddb` helper](./acceptance.mjs);
-  never add a second store.
+  Durable auth custody failures are platform-specific; follow the
+  [acceptance remediation](/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
+  for the exact diagnostic and repair.
 - **Security caveat — client-supplied `senderId` is a demo convenience,
   never a boundary.** The seeded **TEST PERSONA** control passes the active
   persona's id as `senderId`/`userId` so demos work. In a real app, derive

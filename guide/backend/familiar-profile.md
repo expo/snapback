@@ -458,6 +458,11 @@ withdrawal. Under a bare `SnapbackProvider`, the React hook has no
 AppState-driven background withdrawal. If the app backgrounds, typing intent
 expires by the presence deadline rather than being withdrawn immediately. Do
 not invent a third hook.
+The shipped facade currently also mounts under a bare `SnapbackProvider` and,
+through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
+That composition is not the paved contract under LLP 0310.000 Ruling 3; the
+[recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
+is for the RFC owner to resolve.
 
 Search vocabulary: URL-first activity presence.
 

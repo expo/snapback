@@ -24,15 +24,22 @@ The Expo facade hook is for `SnapbackExpoProvider` only.
 
 ## Resolution (2026-08-25)
 
-LLP 0310.000 Ruling 3 remains authoritative: URL-first web under a bare
-`SnapbackProvider` imports from `@expo/snapback-react`, while the Expo facade is
-for `SnapbackExpoProvider` trees. The Familiar profile, ephemeral-state page,
-and activity-presence recipe now state the bare-provider limitation honestly:
-the React hook has no AppState-driven background withdrawal, so backgrounded
-typing intent expires at the presence deadline instead of withdrawing
-immediately.
+LLP 0310.000 Ruling 3, as landed on `origin/main`, governs this lane; the
+conflict with implemented LLP 0257 is filed in
+[`issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`](../20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
+for the RFC owner. URL-first web under a bare `SnapbackProvider` imports from
+`@expo/snapback-react`, while the Expo facade is for `SnapbackExpoProvider`
+trees. The Familiar profile, ephemeral-state page, and activity-presence recipe
+now state the bare-provider limitation honestly: the React hook has no
+AppState-driven background withdrawal, so backgrounded typing intent expires
+at the presence deadline instead of withdrawing immediately. Each page also
+records that the shipped facade still has LLP 0257's bare-provider AppState
+fallback and links the conflict ticket.
 
 Retrieval case 100 and its required-guidance phrases are the proof for this
-ticket. The unresolved conflict with LLP 0257 and the shipped Expo facade is
-filed for the RFC owner in the related open issue. The generation-fence product
+ticket. The renamed `activity-presence-react-characterization.test.mjs` is
+React-side characterization evidence, not a regression test for this ticket:
+it walks local imports from `implementation.mjs`, characterizes the React
+module graph's lack of AppState integration, and separately demonstrates
+deadline-only withdrawal under a bare provider. The generation-fence product
 change was not implemented or tested in this lane.

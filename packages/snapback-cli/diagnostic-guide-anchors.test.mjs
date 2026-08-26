@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 import { runCli } from './index.mjs';
 import { lookupGuideReference } from './reference-lookup.mjs';
+import { markdownAnchors } from '../../scripts/guide-lib.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const historicalRevision = process.env.SNAPBACK_DIAGNOSTICS_REGISTRY_GIT_REV;
@@ -22,8 +23,32 @@ let temporaryRoot = null;
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const staleAuthGuideAnchors = [
-  '/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult',
+  '/_snapback/guide/auth/sessions-and-principals.md#recover-from-stale-authorization-results',
 ];
+const renderedFlatAnchors = markdownAnchors(readFileSync(
+  join(root, 'guide/guide-flat.generated.md'),
+  'utf8',
+));
+const currentDiagnostics = JSON.parse(readFileSync(
+  join(root, 'guide/reference/diagnostics-registry.json'),
+  'utf8',
+));
+
+for (const code of [
+  'SNAPBACK_AUTH_STALE_RESULT',
+  'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
+]) {
+  const guideAnchors = currentDiagnostics.diagnostics[code]?.guideAnchors ?? [];
+  assert.ok(guideAnchors.length > 0, `${code} must publish at least one Guide anchor`);
+  for (const guideAnchor of guideAnchors) {
+    const fragment = guideAnchor.match(/#(.+)$/u)?.[1] ?? null;
+    assert.ok(fragment, `${code} Guide anchor must carry a fragment: ${guideAnchor}`);
+    assert.ok(
+      renderedFlatAnchors.has(decodeURIComponent(fragment)),
+      `${code} publishes ${guideAnchor}, but that anchor is absent from the rendered Guide flat`,
+    );
+  }
+}
 
 async function captureCli(args) {
   const output = [];

@@ -254,7 +254,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
-      'activity-presence-bare-provider.test.mjs',
+      'activity-presence-react-characterization.test.mjs',
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',

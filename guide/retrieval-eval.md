@@ -1074,7 +1074,7 @@ platform, and generated-directory assumptions from that run.
     Required guidance: "Do not reuse a client mutation identity after the session or authority instance changes",
     "Use a fresh client mutation id for a new authenticated attempt".
     Exact diagnostic target: `SNAPBACK_AUTH_STALE_RESULT` ->
-    `/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult`.
+    `/_snapback/guide/auth/sessions-and-principals.md#recover-from-stale-authorization-results`.
 
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
@@ -1085,9 +1085,9 @@ platform, and generated-directory assumptions from that run.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
      Required guidance per page:
-     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the paved contract under LLP 0310.000 Ruling 3".
      `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the paved contract under LLP 0310.000 Ruling 3", "immediate background withdrawal on web today".
-     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the paved contract under LLP 0310.000 Ruling 3".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
      "Use the `@expo/snapback-expo` facade under a bare `SnapbackProvider`; that is the paved choice",
      "The Expo facade is the supported bare-provider contract".
@@ -1101,10 +1101,10 @@ platform, and generated-directory assumptions from that run.
      Expected pages: `start/expo-chat.md`, `testing/acceptance.md`.
      Route terms: "durable-required", "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE", "Expo Native acceptance".
      Required guidance per page:
-     `start/expo-chat.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb`".
-     `testing/acceptance.md`: "Node `memory` refuses durable custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
+     `start/expo-chat.md`: "Durable auth custody failures are platform-specific", "acceptance remediation".
+     `testing/acceptance.md`: "Node `memory` emits this refusal for durable custody", "`expo-web` with `fake-indexeddb` does not repair Expo Native", "Install `@expo/snapback-expo-custody`, list it in the app's Expo `plugins`, and rebuild the native app", "The module is unavailable in Expo Go".
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
-     `/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable`.
+     `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
 
 ## Static routing check
 

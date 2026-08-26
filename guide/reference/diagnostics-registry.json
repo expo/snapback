@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:db3f24c58e37c8362c7b53d96d232bdf6b2cfbf69ffc9123d92813c880f4cb2d"
+    "sourceDigest": "sha256:36457f364785a5bede71259a8cc553d8d9ffefeeb5c6fa1fda28b4f144bf1b69"
   },
   "limits": {
     "lookupBytes": 16384
@@ -19397,11 +19397,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
+      "guideAnchor": "/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable",
       "guideAnchors": [
-        "/_snapback/guide/testing/acceptance.md#recover-from-snapbackauthcustodydurableunavailable",
-        "/_snapback/guide/start/expo-chat.md#posture",
-        "/_snapback/guide/testing/acceptance.md#node-and-browser-shaped-acceptance"
+        "/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable"
       ]
     },
     "SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION": {
@@ -29720,9 +29718,9 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult",
+      "guideAnchor": "/_snapback/guide/auth/sessions-and-principals.md#recover-from-stale-authorization-results",
       "guideAnchors": [
-        "/_snapback/guide/auth/sessions-and-principals.md#recover-from-snapbackauthstaleresult"
+        "/_snapback/guide/auth/sessions-and-principals.md#recover-from-stale-authorization-results"
       ]
     },
     "SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH": {

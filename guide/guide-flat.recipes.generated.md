@@ -3861,6 +3861,11 @@ withdrawal. Under a bare `SnapbackProvider`, the React hook has no
 AppState-driven background withdrawal. If the app backgrounds, typing intent
 expires by the presence deadline rather than being withdrawn immediately.
 There is no third activity-presence hook.
+The shipped facade currently also mounts under a bare `SnapbackProvider` and,
+through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
+That composition is not the paved contract under LLP 0310.000 Ruling 3; the
+[recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md)
+is for the RFC owner to resolve.
 
 This is the usual cause of a “typing indicator stuck” or “presence not
 expiring” report. The heartbeat-vs-bound-value decision comes before choosing
