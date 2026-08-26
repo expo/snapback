@@ -42254,6 +42254,7 @@ enum CommitCapsuleInjection {
 #[derive(Debug)]
 struct CommitCapsuleUncertain<Gate> {
     _gate: Arc<StdMutex<Option<Gate>>>,
+    intended: Option<crate::storage::commit_capsule_prototype::PrototypeIntendedRows>,
 }
 
 type CommitCapsuleTerminalUncertain = CommitCapsuleUncertain<CommitCapsuleCustodyGate>;
@@ -42281,6 +42282,7 @@ impl<Gate: Send + 'static> super::PendingCommit for FinalCutReuseProbe<Gate> {
     fn prepare_commit(&mut self) -> Self::Uncertain {
         CommitCapsuleUncertain {
             _gate: self.gate.clone(),
+            intended: None,
         }
     }
 
@@ -42312,8 +42314,15 @@ impl<Gate: Send + 'static> super::PendingCommit for CommitCapsulePending<'_, Gat
     }
 
     fn prepare_commit(&mut self) -> Self::Uncertain {
+        let intended = self
+            .pending
+            .as_ref()
+            .expect("commit capsule pending transaction")
+            .intended_rows()
+            .clone();
         CommitCapsuleUncertain {
             _gate: self.gate.clone(),
+            intended: Some(intended),
         }
     }
 
@@ -42421,10 +42430,12 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             }
             let include_consumed_proof =
                 injection != CommitCapsuleInjection::CommitErrorRowsPartial;
-            let staged = match local.stage_prototype(intent, include_consumed_proof) {
-                Ok(staged) => staged,
-                Err(error) => return super::CommitAttempt::rolled_back(error),
-            };
+            let intent_producer = final_cut.take_intent_producer();
+            let staged =
+                match local.stage_prototype(intent_producer, intent, include_consumed_proof) {
+                    Ok(staged) => staged,
+                    Err(error) => return super::CommitAttempt::rolled_back(error),
+                };
             let pending = match staged {
                 crate::storage::commit_capsule_prototype::PrototypeStage::Existing(witness) => {
                     drop(terminal_gate);
@@ -42497,14 +42508,20 @@ async fn run_commit_capsule_prototype<Gate: Send + 'static>(
             drop(observation);
             attempt
         },
-        move |local, intent, _carrier| {
+        move |local, intent, carrier| {
             if let Some(barrier) = reconcile_barrier {
                 barrier.block();
             }
             if panic_reconcile {
                 panic!("injected bounded commit capsule panic during reconciliation")
             }
-            local.reconcile_prototype(reconcile_as.as_ref().unwrap_or(intent))
+            local.reconcile_prototype(
+                reconcile_as.as_ref().unwrap_or(intent),
+                carrier
+                    .intended
+                    .as_ref()
+                    .expect("pending prototype commit carries its authority-derived intent"),
+            )
         },
         |_local, value| Ok(value),
         uncertain_retention,

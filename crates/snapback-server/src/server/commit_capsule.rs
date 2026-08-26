@@ -206,11 +206,18 @@ impl CommitCapsuleTransaction<'_> {
     pub(crate) fn stage_watch_management<'connection>(
         &'connection mut self,
         reservation: &CommitCapsuleReservation,
+        intent_producer: crate::storage::CommitCapsuleIntentProducer<
+            crate::storage::watches::WatchManagementIntent,
+        >,
         intent: &crate::storage::watches::WatchManagementIntent,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
-        self.local
-            .stage_watch_management(reservation.authority_view(), intent, now_ms)
+        self.local.stage_watch_management(
+            reservation.authority_view(),
+            intent_producer,
+            intent,
+            now_ms,
+        )
     }
 
     pub(crate) fn reconcile_watch_management(
@@ -237,17 +244,24 @@ impl CommitCapsuleTransaction<'_> {
     #[cfg(test)]
     pub(crate) fn stage_prototype<'connection>(
         &'connection mut self,
+        intent_producer: crate::storage::CommitCapsuleIntentProducer<
+            crate::storage::commit_capsule_prototype::PrototypeIntent,
+        >,
         intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
         include_consumed_proof: bool,
     ) -> SnapbackResult<crate::storage::commit_capsule_prototype::PrototypeStage<'connection>> {
-        self.local
-            .remainder_stage_commit_capsule_prototype(intent, include_consumed_proof)
+        self.local.remainder_stage_commit_capsule_prototype(
+            intent_producer,
+            intent,
+            include_consumed_proof,
+        )
     }
 
     #[cfg(test)]
     pub(crate) fn reconcile_prototype(
         &mut self,
         intent: &crate::storage::commit_capsule_prototype::PrototypeIntent,
+        intended: &crate::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> SnapbackResult<
         Option<
             crate::storage::ExactCommitRows<
@@ -257,7 +271,7 @@ impl CommitCapsuleTransaction<'_> {
         >,
     > {
         self.local
-            .remainder_reconcile_commit_capsule_prototype(intent)
+            .remainder_reconcile_commit_capsule_prototype(intent, intended)
     }
 }
 
@@ -594,6 +608,7 @@ pub(crate) struct FinalCommitCut<I: crate::storage::CommitCapsuleIntent, U> {
     disposition: Option<FinalCutDisposition>,
     panic_uncertain: Option<U>,
     uncertain_retention: CommitUncertainRetention<U>,
+    intent_producer: Option<crate::storage::CommitCapsuleIntentProducer<I>>,
     intent: crate::storage::CommitCapsuleIntentInstance<I>,
     #[cfg(test)]
     before_guard_for_test: Option<Box<dyn FnOnce() + Send>>,
@@ -604,10 +619,9 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
         operation: &'static str,
         deadline: Instant,
         commit_authority: crate::storage::CommitCapsuleAuthority,
-        intent: &I,
         uncertain_retention: CommitUncertainRetention<U>,
     ) -> Self {
-        let intent = commit_authority.derive_intent_instance(intent);
+        let (intent_producer, intent) = commit_authority.derive_intent_instance();
         Self {
             operation,
             deadline,
@@ -615,10 +629,19 @@ impl<I: crate::storage::CommitCapsuleIntent, U: Send + 'static> FinalCommitCut<I
             disposition: None,
             panic_uncertain: None,
             uncertain_retention,
+            intent_producer: Some(intent_producer),
             intent,
             #[cfg(test)]
             before_guard_for_test: None,
         }
+    }
+
+    pub(crate) fn take_intent_producer(
+        &mut self,
+    ) -> crate::storage::CommitCapsuleIntentProducer<I> {
+        self.intent_producer
+            .take()
+            .expect("a final commit cut can stage its authority-derived intent only once")
     }
 
     #[cfg(test)]
@@ -838,7 +861,6 @@ where
             spec.operation,
             spec.deadline,
             runtime.authority().clone(),
-            &intent,
             uncertain_retention,
         );
         let mut transaction = CommitCapsuleTransaction::new(&mut guard);

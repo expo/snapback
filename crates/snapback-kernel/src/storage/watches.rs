@@ -2,8 +2,9 @@
 
 use super::jobs::{BufferedJobEnqueue, JobProducer};
 use super::{
-    CommitCapsuleAuthority, CommitCapsuleIntent, CommitCapsuleIntentInstance, DatabaseBinding,
-    ExactCommitRows, LocalDatabase, SnapbackResult, commit_capsule_intent_fingerprint,
+    BoundCommitCapsuleIntent, CommitCapsuleAuthority, CommitCapsuleIntent,
+    CommitCapsuleIntentProducer, DatabaseBinding, ExactCommitRows, LocalDatabase, SnapbackResult,
+    commit_capsule_intent_fingerprint,
 };
 use crate::diagnostic::SnapbackError;
 use crate::manifest::SchemaManifest;
@@ -366,7 +367,7 @@ enum WatchManagementIntendedEffect {
 /// those sibling rows are inseparable members of this carrier.
 #[derive(Clone, Debug)]
 pub struct WatchManagementIntendedRows {
-    intent: CommitCapsuleIntentInstance<WatchManagementIntent>,
+    intent: BoundCommitCapsuleIntent<WatchManagementIntent>,
     watch: WatchRecord,
     durable_watch: WatchDurableRow,
     effect: WatchManagementIntendedEffect,
@@ -818,11 +819,13 @@ impl LocalDatabase {
     /// activation and exact evaluation enqueue are one durable operation.
     pub fn stage_watch_management<'connection>(
         &'connection mut self,
+        intent_producer: CommitCapsuleIntentProducer<WatchManagementIntent>,
         intent: &WatchManagementIntent,
         management_principal_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<WatchManagementPending<'connection>> {
         let binding = self.binding();
+        let bound_intent = intent_producer.bind(intent);
         match intent {
             WatchManagementIntent::Transition {
                 operation_identity: _,
@@ -873,7 +876,7 @@ impl LocalDatabase {
                 let durable_watch =
                     durable_watch_row_on(&tx, watch_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
-                    intent: CommitCapsuleIntentInstance::new(binding.clone(), intent),
+                    intent: bound_intent,
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Transition {
@@ -1015,7 +1018,7 @@ impl LocalDatabase {
                 let replacement_anchor =
                     anchor_grant_row_on(&tx, replacement_grant_id)?.ok_or_else(catalog_corrupt)?;
                 let intended = WatchManagementIntendedRows {
-                    intent: CommitCapsuleIntentInstance::new(binding.clone(), intent),
+                    intent: bound_intent,
                     watch: watch.clone(),
                     durable_watch,
                     effect: WatchManagementIntendedEffect::Renewal {
@@ -2944,8 +2947,17 @@ mod tests {
             target: WatchStatus::Active,
             resume_job_id: Some("watch-resume-atomic-job".to_owned()),
         };
+        let authority = CommitCapsuleAuthority {
+            binding: db.binding(),
+        };
+        let (intent_producer, _intent_instance) = authority.derive_intent_instance();
         let pending = db
-            .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
+            .stage_watch_management(
+                intent_producer,
+                &intent,
+                "integration-principal",
+                TEST_NOW_MS + 20,
+            )
             .expect("stage combined resume transaction");
         pending
             .rollback()
@@ -2989,8 +3001,14 @@ mod tests {
         let authority = CommitCapsuleAuthority {
             binding: db.binding(),
         };
+        let (intent_producer, intent_instance) = authority.derive_intent_instance();
         let pending = db
-            .stage_watch_management(&intent, "integration-principal", TEST_NOW_MS + 20)
+            .stage_watch_management(
+                intent_producer,
+                &intent,
+                "integration-principal",
+                TEST_NOW_MS + 20,
+            )
             .expect("stage exact resume successor");
         let intended = pending.intended_rows().clone();
         pending
@@ -3002,7 +3020,7 @@ mod tests {
             .expect("reconcile exact resume successor")
             .expect("status, pending link, and exact job establish success");
         let committed = witness
-            .into_value_for(&authority, &authority.derive_intent_instance(&intent))
+            .into_value_for(&authority, &intent_instance)
             .expect("database- and intended-row-matched resume witness");
         assert!(committed.evaluation_enqueued);
 
@@ -3053,12 +3071,13 @@ impl super::ServingDatabase {
     }
     pub fn stage_watch_management<'connection>(
         &'connection mut self,
+        intent_producer: CommitCapsuleIntentProducer<WatchManagementIntent>,
         intent: &WatchManagementIntent,
         management_principal_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<WatchManagementPending<'connection>> {
         self.db
-            .stage_watch_management(intent, management_principal_id, now_ms)
+            .stage_watch_management(intent_producer, intent, management_principal_id, now_ms)
     }
     pub fn reconcile_watch_management(
         &mut self,

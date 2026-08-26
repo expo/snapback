@@ -92,6 +92,8 @@ same-ID intent replay, and PreparedAuthority publication substitution remain)
 **Revised:** 2026-08-25 (af — §3 records authority-derived exact-row intent
 instances; same-ID semantic replay through reconciliation is closed while the
 other capsule residuals remain)
+**Revised:** 2026-08-25 (ag — §3 corrects F220 from caller-intent verification
+to an authority-minted, move-consumed producer/expectation correlation)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -1504,3 +1506,15 @@ so slices can follow product priorities.
   refused, while same-semantic retries after database reopen remain valid. The
   public `ExactCommitRows::map` content-replacement combinator is removed, so a
   retained correlation cannot be attached to caller-replaced contents.
+- **2026-08-25 (ag).** F220's first implementation still let a dependent hand
+  caller-selected intent to public `derive_intent_instance`; the authority only
+  wrapped and verified that subject. The corrected flow calls the authority
+  with no intent argument. It mints a private allocation and returns a
+  move-only producer/expectation pair; `FinalCommitCut` retains the expectation
+  and can hand the producer to staging exactly once. Staging consumes that
+  producer while attaching the operation's exact semantic fingerprint, and
+  reconciliation accepts only a witness carrying the paired allocation,
+  database binding, and fingerprint. `CommitCapsuleIntentInstance` is no longer
+  `Clone`. Request-derived operation identity, watch ID, target, resume-job ID,
+  renewal TTL, and replacement-grant ID describe the staged effect but do not
+  select or mint its correlation identity.

@@ -22,6 +22,9 @@ pub(crate) trait RemainderLocalSnapbackExt {
 
     fn remainder_stage_commit_capsule_prototype<'a>(
         &'a mut self,
+        intent_producer: snapback_kernel::storage::CommitCapsuleIntentProducer<
+            snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+        >,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
         include_consumed_proof: bool,
     ) -> crate::diagnostic::SnapbackResult<
@@ -31,6 +34,7 @@ pub(crate) trait RemainderLocalSnapbackExt {
     fn remainder_reconcile_commit_capsule_prototype(
         &mut self,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+        intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> crate::diagnostic::SnapbackResult<
         Option<
             snapback_kernel::storage::ExactCommitRows<
@@ -79,6 +83,9 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
 
     fn remainder_stage_commit_capsule_prototype<'a>(
         &'a mut self,
+        intent_producer: snapback_kernel::storage::CommitCapsuleIntentProducer<
+            snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+        >,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
         include_consumed_proof: bool,
     ) -> crate::diagnostic::SnapbackResult<
@@ -86,6 +93,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     > {
         snapback_engine::test_support::stage_commit_capsule_prototype(
             self,
+            intent_producer,
             intent,
             include_consumed_proof,
         )
@@ -94,6 +102,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
     fn remainder_reconcile_commit_capsule_prototype(
         &mut self,
         intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+        intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
     ) -> crate::diagnostic::SnapbackResult<
         Option<
             snapback_kernel::storage::ExactCommitRows<
@@ -102,7 +111,7 @@ impl RemainderLocalSnapbackExt for crate::local::LocalSnapback {
             >,
         >,
     > {
-        snapback_engine::test_support::reconcile_commit_capsule_prototype(self, intent)
+        snapback_engine::test_support::reconcile_commit_capsule_prototype(self, intent, intended)
     }
 
     fn remainder_commit_capsule_prototype_facts(

@@ -29335,10 +29335,13 @@ async fn commit_watch_management_capsule(
             // Durable clocks are sampled only after the reservation and FIFO
             // Local wait, immediately before the transaction is staged.
             let now_ms = now_millis();
-            let pending = match snapback.stage_watch_management(reservation, intent, now_ms) {
-                Ok(pending) => pending,
-                Err(error) => return CommitAttempt::rolled_back(error),
-            };
+            let intent_producer = final_cut.take_intent_producer();
+            let pending =
+                match snapback.stage_watch_management(reservation, intent_producer, intent, now_ms)
+                {
+                    Ok(pending) => pending,
+                    Err(error) => return CommitAttempt::rolled_back(error),
+                };
             let attempt = final_cut.commit(reservation, pending);
             finish_watch_management_attempt(snapback, attempt)
         },

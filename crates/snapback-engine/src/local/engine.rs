@@ -27367,6 +27367,9 @@ impl LocalSnapback {
     pub fn stage_watch_management<'connection>(
         &'connection mut self,
         authority: &PreparedAuthority,
+        intent_producer: crate::storage::CommitCapsuleIntentProducer<
+            crate::storage::watches::WatchManagementIntent,
+        >,
         intent: &crate::storage::watches::WatchManagementIntent,
         now_ms: u64,
     ) -> SnapbackResult<crate::storage::watches::WatchManagementPending<'connection>> {
@@ -27394,7 +27397,7 @@ impl LocalSnapback {
             }
         };
         self.db
-            .stage_watch_management(intent, &management_principal_id, now_ms)
+            .stage_watch_management(intent_producer, intent, &management_principal_id, now_ms)
     }
 
     pub fn reconcile_watch_management(

@@ -610,11 +610,15 @@ pub fn initialize_commit_capsule_prototype(snapback: &mut LocalSnapback) -> Snap
 
 pub fn stage_commit_capsule_prototype<'a>(
     snapback: &'a mut LocalSnapback,
+    intent_producer: snapback_kernel::storage::CommitCapsuleIntentProducer<
+        snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+    >,
     intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
     include_consumed_proof: bool,
 ) -> SnapbackResult<snapback_kernel::storage::commit_capsule_prototype::PrototypeStage<'a>> {
     snapback_kernel::storage::commit_capsule_prototype::stage(
         snapback.auth_database_mut(),
+        intent_producer,
         intent,
         include_consumed_proof,
     )
@@ -623,6 +627,7 @@ pub fn stage_commit_capsule_prototype<'a>(
 pub fn reconcile_commit_capsule_prototype(
     snapback: &mut LocalSnapback,
     intent: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntent,
+    intended: &snapback_kernel::storage::commit_capsule_prototype::PrototypeIntendedRows,
 ) -> SnapbackResult<
     Option<
         snapback_kernel::storage::ExactCommitRows<
@@ -634,6 +639,7 @@ pub fn reconcile_commit_capsule_prototype(
     snapback_kernel::storage::commit_capsule_prototype::exact_reconciliation(
         snapback.auth_database_mut(),
         intent,
+        intended,
     )
 }
 

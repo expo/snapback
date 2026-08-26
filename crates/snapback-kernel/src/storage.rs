@@ -881,15 +881,31 @@ impl CommitCapsuleAuthority {
         self.binding.matches(binding)
     }
 
-    /// Derive the canonical intent subject from this exact database authority.
-    /// Callers may carry the opaque result but cannot replace its producer or
-    /// fingerprint fields.
+    /// Derive one fresh commit-intent correlation from this exact database
+    /// authority. The caller supplies no semantic intent: the producer and
+    /// expectation halves share a private allocation chosen here.
     #[doc(hidden)]
     pub fn derive_intent_instance<I: CommitCapsuleIntent>(
         &self,
-        intent: &I,
-    ) -> CommitCapsuleIntentInstance<I> {
-        CommitCapsuleIntentInstance::new(self.binding.clone(), intent)
+    ) -> (
+        CommitCapsuleIntentProducer<I>,
+        CommitCapsuleIntentInstance<I>,
+    ) {
+        let state = Arc::new(CommitCapsuleIntentState {
+            intended_rows_fingerprint: OnceLock::new(),
+        });
+        (
+            CommitCapsuleIntentProducer {
+                producer: self.binding.clone(),
+                state: state.clone(),
+                marker: std::marker::PhantomData,
+            },
+            CommitCapsuleIntentInstance {
+                producer: self.binding.clone(),
+                state,
+                marker: std::marker::PhantomData,
+            },
+        )
     }
 }
 
@@ -928,34 +944,66 @@ pub(crate) fn commit_capsule_intent_fingerprint(domain: &str, components: &[&[u8
     digest.finalize().into()
 }
 
-/// Opaque authority-derived identity for one canonical commit intent on one
-/// live database producer. Equal logical retries on the same open producer
-/// compare equal; another database or another semantic intent does not.
-///
-/// Cloning preserves an idempotency correlation, not a single-use fact. Exact
-/// witnesses themselves remain move-consumed, and durable exact-row reads may
-/// intentionally reproduce the same successful reconciliation after response
-/// loss or restart.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+struct CommitCapsuleIntentState {
+    intended_rows_fingerprint: OnceLock<[u8; 32]>,
+}
+
+/// Authority-derived producer half for one canonical commit intent. Staging
+/// consumes this value, binding the authority-chosen instance to exactly one
+/// semantic intent. It is deliberately not `Clone`.
+#[doc(hidden)]
+#[derive(Debug)]
+pub struct CommitCapsuleIntentProducer<I: CommitCapsuleIntent> {
+    producer: DatabaseBinding,
+    state: Arc<CommitCapsuleIntentState>,
+    marker: std::marker::PhantomData<fn(&I)>,
+}
+
+impl<I: CommitCapsuleIntent> CommitCapsuleIntentProducer<I> {
+    fn bind(self, intent: &I) -> BoundCommitCapsuleIntent<I> {
+        let intended_rows_fingerprint = intent.intended_rows_fingerprint();
+        assert!(
+            self.state
+                .intended_rows_fingerprint
+                .set(intended_rows_fingerprint)
+                .is_ok(),
+            "a commit intent producer can bind only once"
+        );
+        BoundCommitCapsuleIntent {
+            producer: self.producer,
+            state: self.state,
+            intended_rows_fingerprint,
+            marker: std::marker::PhantomData,
+        }
+    }
+}
+
+/// Opaque authority-derived expectation for one canonical commit intent on
+/// one live database producer. The expectation is paired with a separately
+/// move-consumed producer; callers cannot choose the shared allocation or
+/// clone this half for a second consumer.
+#[derive(Debug)]
 pub struct CommitCapsuleIntentInstance<I: CommitCapsuleIntent> {
     producer: DatabaseBinding,
-    intended_rows_fingerprint: [u8; 32],
+    state: Arc<CommitCapsuleIntentState>,
     marker: std::marker::PhantomData<fn(&I)>,
 }
 
 impl<I: CommitCapsuleIntent> CommitCapsuleIntentInstance<I> {
-    pub(crate) fn new(producer: DatabaseBinding, intent: &I) -> Self {
-        Self {
-            producer,
-            intended_rows_fingerprint: intent.intended_rows_fingerprint(),
-            marker: std::marker::PhantomData,
-        }
-    }
-
-    fn matches(&self, other: &Self) -> bool {
+    fn matches(&self, other: &BoundCommitCapsuleIntent<I>) -> bool {
         self.producer.matches(&other.producer)
-            && self.intended_rows_fingerprint == other.intended_rows_fingerprint
+            && Arc::ptr_eq(&self.state, &other.state)
+            && self.state.intended_rows_fingerprint.get() == Some(&other.intended_rows_fingerprint)
     }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct BoundCommitCapsuleIntent<I: CommitCapsuleIntent> {
+    producer: DatabaseBinding,
+    state: Arc<CommitCapsuleIntentState>,
+    intended_rows_fingerprint: [u8; 32],
+    marker: std::marker::PhantomData<fn(&I)>,
 }
 
 /// Kernel-minted proof that one reconciliation query observed the successor
@@ -969,14 +1017,14 @@ impl<I: CommitCapsuleIntent> CommitCapsuleIntentInstance<I> {
 /// kernel-observed exact intended rows, not a caller assertion.
 pub struct ExactCommitRows<I: CommitCapsuleIntent, T> {
     binding: DatabaseBinding,
-    intent: CommitCapsuleIntentInstance<I>,
+    intent: BoundCommitCapsuleIntent<I>,
     value: T,
 }
 
 impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     pub(crate) fn new(
         binding: DatabaseBinding,
-        intent: CommitCapsuleIntentInstance<I>,
+        intent: BoundCommitCapsuleIntent<I>,
         value: T,
     ) -> Self {
         Self {
@@ -993,7 +1041,7 @@ impl<I: CommitCapsuleIntent, T> ExactCommitRows<I, T> {
     ) -> SnapbackResult<T> {
         if !authority.matches(&self.binding)
             || !self.intent.producer.matches(&self.binding)
-            || !self.intent.matches(intent)
+            || !intent.matches(&self.intent)
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH",
