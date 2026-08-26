@@ -78,7 +78,8 @@ attack ids until the remaining F-1 halves land:
 - `admit-system-push`
 - `admit-protected-record-erasure`
 - `admit-pending-effect-creation`
-- `admit-pending-effect-decision`
+- `admit-pending-effect-approval`
+- `admit-pending-effect-denial`
 - `admit-pending-effect-settlement`
 - `admit-pending-effect-refusal`
 - `auth-commit-reservation-factory`

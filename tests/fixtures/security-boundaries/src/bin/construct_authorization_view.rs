@@ -7,5 +7,6 @@ fn main() {
         registry_generation: 1,
         activation: panic!("compile-only private activation"),
         issuer_incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd17".into(),
+        projection_epoch: 1,
     };
 }

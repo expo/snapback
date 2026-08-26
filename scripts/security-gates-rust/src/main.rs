@@ -79,6 +79,8 @@ const SEED_TYPES: &[&str] = &[
     "RefusePendingEffectCommand",
     "PromotionContentionReservation",
     "AskSpendReservation",
+    "SecretReadOperator",
+    "SecretReadLeaseRegistry",
 ];
 
 // @ref LLP 0285#1-what-closed-means-here — these public carriers are

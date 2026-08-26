@@ -5,10 +5,15 @@
 **Systems:** Security/authorization, Build, Verification, Packaging, Rust core
 **Author:** Grok 4.6 (xAI) — independent of the LLP 0276 implementer lane; commissioned by LLP 0283 F-2
 **Date:** 2026-08-19
+**Revised:** 2026-08-26 (corrects the server-mount conclusion: the server
+storage alias is crate-private, but the public secret-read operator and registry
+remain privilege seeds. I-12 mounts `snapback-server` for their clone/mint
+witnesses and the scanner seed vocabulary now makes that non-empty surface
+explicit.)
 **Revised:** 2026-08-25 (narrows the activation and server storage imports to
-crate visibility; their retained hostile expressions produce `E0603` at the
-attempted module mount, but I-12 excludes the now scanner-empty crates from the
-registered fixture dependency/mount inventory.)
+crate visibility; their retained hostile storage expressions produce `E0603`
+at the attempted module mount. The later 2026-08-26 revision corrects the
+overbroad scanner-empty conclusion for the server's separate secret-read API.)
 **Revised:** 2026-08-21 (closes the embedded Guide generated-API exception:
 `build.rs` emits one versioned length-prefixed binary artifact, committed code
 consumes it only with `include_bytes!` and parses inert bytes into lazy public
@@ -1031,10 +1036,12 @@ re-export.
 Inventory comparison is bidirectional: mounts absent from dependency keys,
 privilege-bearing dependency keys absent from mounts, and privilege-bearing
 scanner crates absent from either side all fail. Once the activation and server
-storage aliases became crate-private, the scanner certified both crates empty;
-I-12 therefore removes them from the registered dependency/mount inventory.
-Their hostile source expressions remain beside the fixture and are spot-checked
-at `E0603`, but are not Cargo targets. `snapback-sync` therefore has
+storage aliases became crate-private, their hostile storage expressions remain
+beside the fixture and are spot-checked at `E0603`, but are not Cargo targets.
+I-12 removes `snapback-activation` because its scanner surface is empty. It
+retains `snapback-server`: `SecretReadOperator` and
+`SecretReadLeaseRegistry` are public privilege seeds with compiler witnesses,
+independent of the closed storage alias. `snapback-sync` therefore has
 an explicit compiler witness through
 `LocalEphemeralBackend::reserve_authorization_commit`; merely depending on it
 is not coverage.
