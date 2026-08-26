@@ -4057,6 +4057,81 @@ impl NoopCommitRecorder {
     }
 }
 
+#[cfg(any(test, feature = "test-support"))]
+struct GraphCorpusAuthorityFixtures {
+    primary_bearer: String,
+    alternate_primary_bearer: String,
+    other_bearer: String,
+    alternate_other_bearer: String,
+    primary_session_id: String,
+    other_session_id: String,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn commit_graph_corpus_password_plan(
+    provider: &crate::auth::provider::AuthProvider,
+    database: &mut crate::storage::LocalDatabase,
+    plan: crate::auth::provider::ProviderSessionIssuancePlan,
+) -> crate::auth::provider::CredentialIssue {
+    use crate::auth::provider::PlannedIssuanceCommit;
+    use crate::storage::auth::AuthTransactionAttempt;
+
+    let commit_plan = plan.commit_plan();
+    let attempt = provider.commit_password_issuance(database, &commit_plan);
+    let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+        session,
+        committed_revocations,
+    }) = attempt
+    else {
+        panic!("graph corpus production password ceremony must commit");
+    };
+    plan.into_issue(session, committed_revocations)
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn graph_corpus_register_password(
+    runtime: &tokio::runtime::Runtime,
+    provider: &crate::auth::provider::AuthProvider,
+    database: &mut crate::storage::LocalDatabase,
+    identifier: &str,
+    password: &str,
+    now_ms: u64,
+) -> crate::auth::provider::CredentialIssue {
+    let plan = runtime
+        .block_on(provider.plan_password_registration(
+            database,
+            identifier,
+            crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+            now_ms,
+            &format!("graph-corpus-recovery-{identifier}"),
+            &[0x47; 32],
+            crate::auth::provider::PasswordIssuanceCustody::Bearer,
+        ))
+        .expect("plan graph corpus production password registration");
+    commit_graph_corpus_password_plan(provider, database, plan)
+}
+
+#[cfg(any(test, feature = "test-support"))]
+fn graph_corpus_authenticate_password(
+    runtime: &tokio::runtime::Runtime,
+    provider: &crate::auth::provider::AuthProvider,
+    database: &mut crate::storage::LocalDatabase,
+    identifier: &str,
+    password: &str,
+    now_ms: u64,
+) -> crate::auth::provider::CredentialIssue {
+    let plan = runtime
+        .block_on(provider.plan_password_authentication(
+            database,
+            identifier,
+            crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+            now_ms,
+            crate::auth::provider::PasswordIssuanceCustody::Bearer,
+        ))
+        .expect("plan graph corpus production password authentication");
+    commit_graph_corpus_password_plan(provider, database, plan)
+}
+
 pub struct LocalSnapback {
     db: crate::storage::ServingDatabase,
     /// Process-local service-authority policy lives above the storage kernel;
@@ -4078,6 +4153,13 @@ pub struct LocalSnapback {
     graph_delta_convergence_all: bool,
     #[cfg(any(test, feature = "test-support"))]
     graph_delta_force_convergence_failure: bool,
+    /// Real password-provider sessions retained only by the frozen graph
+    /// corpus harness. The corpus resolves these bearers through the ordinary
+    /// session projection instead of manufacturing catalog subjects.
+    #[cfg(any(test, feature = "test-support"))]
+    graph_corpus_authority_fixtures: Option<GraphCorpusAuthorityFixtures>,
+    #[cfg(test)]
+    production_session_fixtures: HashMap<String, String>,
     /// Target-owned class-2/evaluator facts. The production map starts empty;
     /// its test-support installer cannot be reached from handler input.
     graph_serving_authority_contexts: Arc<RwLock<BTreeMap<String, GraphServingAuthorityContextV1>>>,
@@ -9820,50 +9902,81 @@ impl LocalSnapback {
     fn prepare_resolved_session_fixture(
         &mut self,
         source: InvocationSource,
-        user_id: &str,
-        session_id: &str,
-        authority_instance_id: &str,
-        generation: u64,
+        _fixture_user_label: &str,
+        _fixture_session_label: &str,
+        _fixture_authority_label: &str,
+        _fixture_generation: u64,
         session_not_after_ms: u64,
     ) -> PreparedAuthority {
-        static NEXT_SESSION_FIXTURE_RANDOM: AtomicU64 = AtomicU64::new(1);
-        struct FixedSessionRandom(u64);
+        use crate::auth::provider::{
+            PasswordIssuanceCustody, PlannedIssuanceCommit, ProviderGuestSessionPlan,
+        };
+        use crate::storage::auth::AuthTransactionAttempt;
 
-        impl crate::auth::crypto::RandomSource for FixedSessionRandom {
-            fn fill(&self, destination: &mut [u8]) -> Result<(), crate::auth::crypto::CryptoError> {
-                for (index, chunk) in destination.chunks_mut(8).enumerate() {
-                    let bytes = self.0.wrapping_add(index as u64).to_le_bytes();
-                    chunk.copy_from_slice(&bytes[..chunk.len()]);
-                }
-                Ok(())
-            }
-        }
-
+        static NEXT_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
         let now_ms = 1;
         let deadline = session_not_after_ms.min(crate::storage::SEQUENCE_MAX_SAFE_INTEGER);
-        let bearer = crate::auth::crypto::SessionBearer::generate(&FixedSessionRandom(
-            NEXT_SESSION_FIXTURE_RANDOM.fetch_add(1, Ordering::SeqCst),
-        ))
-        .expect("generate unit-test session bearer");
+        let retention_ms = deadline
+            .checked_sub(now_ms)
+            .filter(|retention| *retention != 0)
+            .expect("unit-test session deadline follows issuance");
         self.db
             .activate_current_auth_catalog()
             .expect("activate unit-test authority catalog");
-        let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
-        let address = format!("{session_id}@authority-provenance.example.test");
-        self.db
-            .auth_catalog()
-            .bind_email_session_bearer_for_test(
-                user_id,
-                &identity_id,
-                session_id,
-                authority_instance_id,
-                &address,
-                bearer.token_hash().as_bytes(),
-                generation,
-                now_ms,
-                deadline,
-            )
-            .expect("insert unit-test session catalog facts");
+        let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(now_ms, &crate::auth::crypto::OsRandom)
+            .expect("initialize unit-test provider keyring");
+        let provider = crate::auth::provider::AuthProvider::new(
+            crate::contract_types::AuthProviderProfile::Test,
+            keyring,
+        )
+        .expect("construct unit-test production provider");
+        let bearer = if let Some(bearer) = self
+            .production_session_fixtures
+            .get(_fixture_user_label)
+            .cloned()
+        {
+            bearer
+        } else {
+            let idempotency_key = format!(
+                "engine-session-ceremony-{}",
+                NEXT_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst)
+            );
+            let planned = provider
+                .plan_guest_session(
+                    self.db.auth_database_mut(),
+                    now_ms,
+                    retention_ms,
+                    crate::auth::throttle::RollingWindowBudgetTerms {
+                        limit: 10,
+                        window_ms: 1_000,
+                    },
+                    &idempotency_key,
+                    "engine-test-app",
+                    "engine-test-deployment",
+                    &format!("sha256:{}", "a".repeat(64)),
+                    PasswordIssuanceCustody::Bearer,
+                )
+                .expect("plan unit-test guest session through production provider");
+            let ProviderGuestSessionPlan::Planned(plan) = planned else {
+                panic!("fresh unit-test idempotency key must plan a guest session");
+            };
+            let attempt =
+                provider.commit_guest_issuance(self.db.auth_database_mut(), &plan.commit_plan());
+            let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+                session,
+                committed_revocations,
+            }) = attempt
+            else {
+                panic!("unit-test guest session must commit");
+            };
+            let issue = plan.into_issue(session, committed_revocations);
+            let bearer = issue.response().token().expose_secret().to_owned();
+            self.production_session_fixtures
+                .insert(_fixture_user_label.to_owned(), bearer.clone());
+            bearer
+        };
 
         let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
         let deployment = DeploymentIdentity {
@@ -9895,7 +10008,7 @@ impl LocalSnapback {
         )
         .expect("build unit-test authority coordinator");
         let resolved = coordinator
-            .resolve_required_bearer(bearer.expose_secret(), now_ms, Instant::now())
+            .resolve_required_bearer(&bearer, now_ms, Instant::now())
             .expect("resolve unit-test session bearer");
         let admission = self
             .admission
@@ -9930,6 +10043,55 @@ impl LocalSnapback {
             session_id,
             authority_instance_id,
             generation,
+            session_not_after_ms,
+        )
+    }
+
+    /// Build a human session through the production password-registration
+    /// transaction, then resolve its bearer through the ordinary coordinator.
+    #[cfg(test)]
+    pub(crate) fn prepare_resolved_password_session_for_test(
+        &mut self,
+        source: InvocationSource,
+        fixture_label: &str,
+        session_not_after_ms: u64,
+    ) -> PreparedAuthority {
+        static NEXT_PASSWORD_SESSION_FIXTURE: AtomicU64 = AtomicU64::new(1);
+        self.db
+            .activate_current_auth_catalog()
+            .expect("activate password-session fixture catalog");
+        if !self.production_session_fixtures.contains_key(fixture_label) {
+            let runtime = tokio::runtime::Runtime::new().expect("password-session fixture runtime");
+            let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+            keyring
+                .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
+                .expect("initialize password-session fixture keyring");
+            let provider = crate::auth::provider::AuthProvider::new(
+                crate::contract_types::AuthProviderProfile::Test,
+                keyring,
+            )
+            .expect("construct password-session production provider");
+            let sequence = NEXT_PASSWORD_SESSION_FIXTURE.fetch_add(1, Ordering::SeqCst);
+            let identifier = format!("engine-human-{sequence}@example.test");
+            let issue = graph_corpus_register_password(
+                &runtime,
+                &provider,
+                self.db.auth_database_mut(),
+                &identifier,
+                "correct horse battery staple",
+                1,
+            );
+            self.production_session_fixtures.insert(
+                fixture_label.to_owned(),
+                issue.response().token().expose_secret().to_owned(),
+            );
+        }
+        self.prepare_resolved_session_fixture(
+            source,
+            fixture_label,
+            fixture_label,
+            fixture_label,
+            1,
             session_not_after_ms,
         )
     }
@@ -10038,6 +10200,35 @@ impl LocalSnapback {
         self.db
             .activate_current_auth_catalog()
             .expect("activate unit-test service catalog");
+        if effective_user_id.is_none() {
+            let [scope] = scopes.as_slice() else {
+                panic!("autonomous service fixture requires one exact callback scope");
+            };
+            assert_eq!(
+                scope.kind,
+                crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                "autonomous service fixture uses the production callback-service ceremony",
+            );
+            let principal = self
+                .db
+                .ensure_asset_callbacks_service_principal(
+                    "unit-test-autonomous-service",
+                    scope.clone(),
+                    now_ms,
+                )
+                .expect("create autonomous service through production callback ceremony");
+            let authority = InvocationGate::prepare_admitted_asset_callbacks(
+                ServerProfile::Test,
+                self.admission
+                    .admit_for_mode(AuthMode::Sessions)
+                    .expect("admit autonomous service fixture"),
+                principal,
+            )
+            .expect("prepare production autonomous service authority");
+            return self
+                .install_authorization_stream(authority)
+                .expect("install autonomous service authorization stream");
+        }
         let random = FixedServiceRandom {
             base: NEXT_SERVICE_FIXTURE_RANDOM.fetch_add(1_024, Ordering::SeqCst),
             next: AtomicU64::new(0),
@@ -10056,33 +10247,89 @@ impl LocalSnapback {
             )
             .expect("atomically register unit-test service principal");
         let actor_user_id = credential.user_id.clone();
-        let token = {
-            let db = self.db.auth_database_mut();
-            if let Some(effective_user_id) = effective_user_id {
-                db.auth_catalog()
-                    .insert_human_user_for_test(effective_user_id, now_ms)
-                    .expect("insert unit-test effective user");
+        let effective_user_label = effective_user_id.expect("delegated service label");
+        let human_authority = self.prepare_resolved_password_session_for_test(
+            InvocationSource::AgentGrantManagement,
+            effective_user_label,
+            expires_at_ms,
+        );
+        let ResolvedAppAuthority::Session(human) = human_authority.resolved() else {
+            panic!("delegated service consent ceremony resolved a human session");
+        };
+        let effective_user_id = human.user_id().to_owned();
+
+        let mut scope_functions = self.functions.clone();
+        for scope in &scopes {
+            if scope_functions
+                .functions
+                .iter()
+                .any(|function| function.id == scope.function_id)
+            {
+                continue;
             }
-            let grant_id = format!("grant-{actor_user_id}");
-            db.auth_catalog()
-                .insert_exact_grant_for_test(
-                    &grant_id,
-                    &actor_user_id,
-                    effective_user_id,
-                    &scopes,
-                    now_ms,
-                    expires_at_ms,
-                )
-                .expect("insert unit-test exact service grant");
-            db.mint_scoped_token(
+            let name = scope
+                .function_id
+                .strip_prefix("fn:")
+                .unwrap_or(&scope.function_id);
+            let mut function = FunctionDefinition::new(
+                name,
+                scope.kind.into_function_kind(),
+                FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                    source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                    export: name.to_owned(),
+                }),
+            );
+            function.authority_creating = scope.authority_creating;
+            scope_functions.functions.push(function);
+        }
+        self.db
+            .reconcile_auth_scope_bases(&scope_functions)
+            .expect("install delegated service scope bases from function declarations");
+        let pairing = self
+            .db
+            .mint_pairing_code(&effective_user_id, now_ms, &random)
+            .expect("mint delegated service pairing code through production ceremony");
+        let requested_scopes = scopes
+            .iter()
+            .map(
+                |scope| crate::storage::auth_grants::GrantScopeRequest::Exact {
+                    function_id: scope.function_id.clone(),
+                    kind: scope.kind,
+                },
+            )
+            .collect::<Vec<_>>();
+        self.db
+            .present_pairing_code(
+                &credential.secret,
+                &pairing.request_id,
+                &pairing.secret,
+                &requested_scopes,
+                now_ms,
+            )
+            .expect("present delegated service pairing code through production ceremony");
+        let approval = self
+            .approve_grant_request(
+                &human_authority,
+                &pairing.request_id,
+                Some(expires_at_ms.saturating_sub(now_ms)),
+                None,
+                now_ms,
+            )
+            .expect("approve delegated service grant through production ceremony");
+        let grant_id = match approval {
+            crate::storage::auth_grants::GrantApproval::Created(grant)
+            | crate::storage::auth_grants::GrantApproval::Existing(grant) => grant.grant_id,
+        };
+        let token = self
+            .db
+            .mint_scoped_token(
                 &credential.secret,
                 &grant_id,
                 Some(expires_at_ms.saturating_sub(now_ms)),
                 now_ms,
                 &random,
             )
-            .expect("mint unit-test scoped token")
-        };
+            .expect("mint unit-test scoped token through production grant");
         let durable = self
             .db
             .resolve_scoped_token(&token.secret, now_ms)
@@ -13904,28 +14151,83 @@ impl LocalSnapback {
         authorization: crate::storage::AuthorizationVersion,
         data_version_stream: &str,
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
-        let principal_id = Self::graph_corpus_principal_id_for_test();
-        let identity_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Identity, 0x30);
-        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x31);
-        let authority_instance_id =
-            Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::AuthorityInstance, 0x32);
-        {
+        let fixtures = {
             let database = self.auth_database_mut();
             database.activate_current_auth_catalog()?;
-            database.auth_catalog().insert_email_session_for_test(
-                &principal_id,
-                &identity_id,
-                &session_id,
-                &authority_instance_id,
-                "graph-corpus@example.invalid",
-                &[0x47; 32],
+            let keyring = Arc::new(crate::auth::keyring::AuthKeyringStore::in_memory());
+            keyring
+                .load_or_mint_initial(1, &crate::auth::crypto::OsRandom)
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_TEST_FIXTURE_INVALID",
+                        "query",
+                        "the graph corpus provider keyring could not be initialized",
+                    )
+                })?;
+            let provider = crate::auth::provider::AuthProvider::new(
+                crate::contract_types::AuthProviderProfile::Test,
+                keyring,
+            )
+            .map_err(crate::auth::provider::ProviderError::into_snapback_error)?;
+            let runtime = tokio::runtime::Runtime::new().map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_TEST_FIXTURE_INVALID",
+                    "query",
+                    "the graph corpus provider runtime could not be initialized",
+                )
+            })?;
+            let primary = graph_corpus_register_password(
+                &runtime,
+                &provider,
+                database,
+                "graph-corpus-primary",
+                "graph-corpus-primary-password",
                 1,
-                1,
-                4_000_000_000_000,
-                4_000_000_000_000,
-            )?;
+            );
+            let alternate_primary = graph_corpus_authenticate_password(
+                &runtime,
+                &provider,
+                database,
+                "graph-corpus-primary",
+                "graph-corpus-primary-password",
+                2,
+            );
+            let other = graph_corpus_register_password(
+                &runtime,
+                &provider,
+                database,
+                "graph-corpus-other",
+                "graph-corpus-other-password",
+                3,
+            );
+            let alternate_other = graph_corpus_authenticate_password(
+                &runtime,
+                &provider,
+                database,
+                "graph-corpus-other",
+                "graph-corpus-other-password",
+                4,
+            );
             database.install_graph_corpus_streams_for_test(&authorization, data_version_stream)?;
-        }
+            GraphCorpusAuthorityFixtures {
+                primary_bearer: primary.response().token().expose_secret().to_owned(),
+                alternate_primary_bearer: alternate_primary
+                    .response()
+                    .token()
+                    .expose_secret()
+                    .to_owned(),
+                other_bearer: other.response().token().expose_secret().to_owned(),
+                alternate_other_bearer: alternate_other
+                    .response()
+                    .token()
+                    .expose_secret()
+                    .to_owned(),
+                primary_session_id: primary.response().session.id.clone(),
+                other_session_id: other.response().session.id.clone(),
+            }
+        };
+        let session_id = fixtures.primary_session_id.clone();
+        self.graph_corpus_authority_fixtures = Some(fixtures);
         let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
         let deployment = DeploymentIdentity {
             schema_version: "snapback.v1".to_owned(),
@@ -14000,32 +14302,40 @@ impl LocalSnapback {
         other_principal: bool,
         alternate_instance: bool,
     ) -> SnapbackResult<PreparedAuthority> {
-        let principal_id = if other_principal {
-            Self::graph_corpus_other_principal_id_for_test()
-        } else {
-            Self::graph_corpus_principal_id_for_test()
+        let fixtures = self
+            .graph_corpus_authority_fixtures
+            .as_ref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_TEST_FIXTURE_INVALID",
+                    "query",
+                    "the graph corpus production sessions are not configured",
+                )
+            })?;
+        let bearer = match (other_principal, alternate_instance) {
+            (false, false) => fixtures.primary_bearer.clone(),
+            (false, true) => fixtures.alternate_primary_bearer.clone(),
+            (true, false) => fixtures.other_bearer.clone(),
+            (true, true) => fixtures.alternate_other_bearer.clone(),
         };
-        let session_id = Self::graph_corpus_catalog_id_for_test(
-            crate::ids::Kind::Session,
-            if other_principal { 0x34 } else { 0x31 },
-        );
-        let authority_instance_id = Self::graph_corpus_catalog_id_for_test(
-            crate::ids::Kind::AuthorityInstance,
-            match (other_principal, alternate_instance) {
-                (false, false) => 0x32,
-                (false, true) => 0x33,
-                (true, false) => 0x35,
-                (true, true) => 0x36,
-            },
-        );
-        Ok(self.prepare_resolved_session_fixture(
+        let now_ms = 5;
+        let coordinator = crate::auth::coordinator::AuthCoordinator::from_session_database(
+            &mut self.db,
+            self.admission.clone(),
+            now_ms,
+            Instant::now(),
+        )?;
+        let resolved = coordinator.resolve_required_bearer(&bearer, now_ms, Instant::now())?;
+        let admission = self.admission.admit_for_mode(AuthMode::Sessions)?;
+        self.prepare_bearer_authority(
+            resolved,
             source,
-            &principal_id,
-            &session_id,
-            &authority_instance_id,
-            1,
-            4_000_000_000_000,
-        ))
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            now_ms,
+        )
     }
 
     #[cfg(any(test, feature = "test-support"))]
@@ -14055,7 +14365,18 @@ impl LocalSnapback {
             InvocationSource::LiveInitialQuery,
             false,
         )?;
-        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x34);
+        let session_id = self
+            .graph_corpus_authority_fixtures
+            .as_ref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_TEST_FIXTURE_INVALID",
+                    "query",
+                    "the graph corpus production sessions are not configured",
+                )
+            })?
+            .other_session_id
+            .clone();
         let invalidation = self.auth_invalidation.as_ref().ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_TEST_FIXTURE_INVALID",
@@ -22926,20 +23247,25 @@ impl LocalSnapback {
         } else {
             AuthMode::Dev
         };
-        let resolved = if active_mode == AuthMode::Sessions {
-            ResolvedAppAuthority::Anonymous
+        let admission = self.admission.admit_for_mode(active_mode)?;
+        let authority = if active_mode == AuthMode::Sessions {
+            InvocationGate::prepare_admitted_subjectless_authority(
+                InvocationSource::LiveInitialQuery,
+                active_mode,
+                ServerProfile::Test,
+                admission,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::Anonymous,
+                None,
+            )?
         } else {
-            ResolvedAppAuthority::dev_from_auth(&input.input.auth)
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LiveInitialQuery,
+                ServerProfile::Test,
+                &input.input,
+                admission,
+            )?
         };
-        let authority = InvocationGate::prepare_authority(
-            InvocationSource::LiveInitialQuery,
-            active_mode,
-            ServerProfile::Test,
-            0,
-            0,
-            &WireAuthorityFields::default(),
-            resolved,
-        )?;
         self.subscribe_live_prepared_with_invalidation_generation(
             name,
             input,
@@ -29592,6 +29918,10 @@ impl LocalSnapback {
             graph_delta_convergence_all: false,
             #[cfg(any(test, feature = "test-support"))]
             graph_delta_force_convergence_failure: false,
+            #[cfg(any(test, feature = "test-support"))]
+            graph_corpus_authority_fixtures: None,
+            #[cfg(test)]
+            production_session_fixtures: HashMap::new(),
             graph_serving_authority_contexts: Arc::new(RwLock::new(BTreeMap::new())),
             app_state_graph_identity: Arc::new(()),
             operator_authority_identity: Arc::new(()),

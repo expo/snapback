@@ -1811,7 +1811,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_password_attempt_for_test(
         &mut self,
         address: &str,
@@ -1846,7 +1846,7 @@ impl LocalDatabase {
             .optional()?)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_large_backup_fixture_for_test(&mut self) -> SnapbackResult<()> {
         self.with_auth_transaction(|tx| {
             tx.execute_batch(

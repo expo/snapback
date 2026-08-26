@@ -1298,6 +1298,7 @@ impl PushRegistryKernel<'_> {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn insert_session_for_test(
         &mut self,
         principal_id: &str,

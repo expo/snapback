@@ -146,29 +146,6 @@ impl KickFixture {
         snapback
             .synchronize_auth_mode_admission(&settled)
             .expect("bind local admission to settled sessions mode");
-        let session_created_at_ms = now_millis();
-        for (user_id, session_id, authority_instance_id, address, token_byte) in [
-            (USER_A, SESSION_A, AUTHORITY_A, "a@example.test", 0xa1),
-            (USER_B, SESSION_B, AUTHORITY_B, "b@example.test", 0xb2),
-        ] {
-            let identity_id = crate::ids::mint_time_ordered(crate::ids::Kind::Identity);
-            snapback
-                .auth_database_mut()
-                .auth_catalog()
-                .insert_email_session_for_test(
-                    user_id,
-                    &identity_id,
-                    session_id,
-                    authority_instance_id,
-                    address,
-                    &[token_byte; 32],
-                    session_created_at_ms,
-                    session_created_at_ms,
-                    9_007_199_254_740_991,
-                    9_007_199_254_740_991,
-                )
-                .expect("install the durable acceptance session");
-        }
         snapback
             .ephemeral
             .replace_collections(schema.ephemeral_collections)

@@ -9013,14 +9013,14 @@ globalThis.__snapbackHandlers = {
     /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
     #[test]
     fn table_visibility_cron_action_root_refuses_all_nested_elevated_read_forms() {
-        let authority = InvocationGate::prepare_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             InvocationSource::Cron,
             AuthMode::Dev,
             ServerProfile::Test,
-            0,
-            0,
+            managed_test_admission(),
             &WireAuthorityFields::default(),
             ResolvedAppAuthority::System,
+            None,
         )
         .expect("prepare scheduled system authority");
         let root = action_root(authority);
@@ -9054,10 +9054,11 @@ globalThis.__snapbackHandlers = {
     #[test]
     fn table_visibility_caller_backed_action_root_refuses_nested_elevation() {
         let caller = input(Some("alice"));
-        let authority = InvocationGate::prepare_dev_input(
+        let authority = InvocationGate::prepare_admitted_dev_input(
             InvocationSource::LocalAction,
             ServerProfile::Test,
             &caller,
+            managed_test_admission(),
         )
         .expect("prepare caller-backed action authority");
         let root = action_root(authority);
@@ -9097,10 +9098,11 @@ globalThis.__snapbackHandlers = {
         let caller = input(Some("alice"));
 
         let query = ibex_function("probe", FunctionKind::Query, SOURCE);
-        let query_authority = InvocationGate::prepare_dev_input(
+        let query_authority = InvocationGate::prepare_admitted_dev_input(
             InvocationSource::LocalQuery,
             ServerProfile::Test,
             &caller,
+            managed_test_admission(),
         )
         .expect("prepare direct query authority");
         let prepared_query = InvocationGate::prepare_function(query_authority, &query)
@@ -9122,10 +9124,11 @@ globalThis.__snapbackHandlers = {
         assert_eq!(query_output.output.rows.len(), 2);
 
         let mutation = ibex_function("probe", FunctionKind::Mutation, SOURCE);
-        let mutation_authority = InvocationGate::prepare_dev_input(
+        let mutation_authority = InvocationGate::prepare_admitted_dev_input(
             InvocationSource::LocalMutation,
             ServerProfile::Test,
             &caller,
+            managed_test_admission(),
         )
         .expect("prepare direct mutation authority");
         let prepared_mutation = InvocationGate::prepare_function(mutation_authority, &mutation)

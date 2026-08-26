@@ -3356,7 +3356,7 @@ impl PreparedInvocation {
 pub struct InvocationGate;
 
 impl InvocationGate {
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     fn compatibility_admission(
         active_mode: AuthMode,
         transition_generation: u64,
@@ -3365,7 +3365,7 @@ impl InvocationGate {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn prepare_authority(
         source: InvocationSource,
         active_mode: AuthMode,
@@ -3720,7 +3720,7 @@ impl InvocationGate {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn prepare_dev_input(
         source: InvocationSource,
         profile: ServerProfile,

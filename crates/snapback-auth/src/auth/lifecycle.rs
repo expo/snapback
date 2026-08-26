@@ -339,16 +339,18 @@ fn declared_restore_committed() -> SnapbackResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::crypto::{
-        AuthKeyId, CanonicalAddress, ChallengeId, CryptoError, VerificationCode,
-    };
+    use crate::auth::crypto::{CanonicalAddress, ChallengeId, CryptoError, VerificationCode};
     use crate::auth::keyring::{AUTH_KEY_ROTATION_AGE_MS, AUTH_RETIRED_KEY_MINIMUM_AGE_MS};
     use crate::auth::mailbox::CaptureMailboxEntry;
+    use crate::auth::provider::{
+        AuthProvider, PasswordIssuanceCustody, PlannedIssuanceCommit, ProviderGuestSessionPlan,
+    };
+    use crate::auth::throttle::RollingWindowBudgetTerms;
+    use crate::contract_types::AuthProviderProfile;
+    use crate::storage::auth::AuthTransactionAttempt;
+    use std::sync::Arc;
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::time::Instant;
-
-    const FIRST_RESTORE_SESSION: &str = "01890f47-0000-7000-8000-000000000011";
-    const SECOND_RESTORE_SESSION: &str = "01890f47-0000-7000-8000-000000000012";
 
     #[derive(Debug, Default)]
     struct CountingRandom(AtomicU8);
@@ -361,6 +363,70 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    fn mint_guest_session(
+        provider: &AuthProvider,
+        database: &mut LocalDatabase,
+        now_ms: u64,
+        retention_ms: u64,
+        idempotency_key: &str,
+    ) -> String {
+        let planned = provider
+            .plan_guest_session(
+                database,
+                now_ms,
+                retention_ms,
+                RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                idempotency_key,
+                "lifecycle-test-app",
+                "lifecycle-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
+            )
+            .expect("plan production guest session");
+        let ProviderGuestSessionPlan::Planned(plan) = planned else {
+            panic!("fresh idempotency key must plan a guest session");
+        };
+        let attempt = provider.commit_guest_issuance(database, &plan.commit_plan());
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = attempt
+        else {
+            panic!("production guest session must commit");
+        };
+        plan.into_issue(session, committed_revocations)
+            .response()
+            .session
+            .id
+            .clone()
+    }
+
+    fn insert_restore_fixture(
+        provider: &Arc<AuthProvider>,
+        database: &mut LocalDatabase,
+        suffix: u8,
+    ) -> (String, crate::auth::wire::RequestCodeResponse) {
+        let session_id = mint_guest_session(
+            provider,
+            database,
+            0,
+            2_000,
+            &format!("restore-production-session-{suffix:02}"),
+        );
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let address = format!("restore-{suffix}@example.com");
+        let admission = runtime
+            .block_on(provider.admit_email(&address))
+            .expect("admit restore fixture address");
+        let challenge = admission
+            .request_code(database, 0)
+            .expect("persist restore fixture challenge");
+        (session_id, challenge)
     }
 
     #[test]
@@ -424,33 +490,29 @@ mod tests {
     }
 
     #[test]
-    fn gc_retains_referenced_retired_key_until_challenge_expiry() {
+    fn gc_retains_referenced_retired_key_until_guest_expiry() {
         let mut database = LocalDatabase::memory().unwrap();
-        let keyring = AuthKeyringStore::in_memory();
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
         let random = CountingRandom::default();
         activate_catalog(&mut database, &keyring, 0, &random).unwrap();
-        let retired_id: AuthKeyId = keyring
-            .with_active_key(0, &random, |id, _| id.clone())
-            .unwrap();
         let retired_at = AUTH_KEY_ROTATION_AGE_MS;
-        assert!(keyring.rotate_if_due(retired_at, &random).unwrap());
         let first_prune = retired_at + AUTH_RETIRED_KEY_MINIMUM_AGE_MS;
+        let guest_now = retired_at - 1;
         let expires_at = first_prune + 1;
-        database
-            .auth_catalog()
-            .insert_verification_code_for_test(
-                "sbc_AAAAAAAAAAAAAAAAAAAAAA",
-                "user@example.com",
-                &[0_u8; 32],
-                retired_id.as_str(),
-                0,
-                expires_at,
-            )
-            .unwrap();
+        let provider = AuthProvider::new(AuthProviderProfile::Test, keyring.clone()).unwrap();
+        mint_guest_session(
+            &provider,
+            &mut database,
+            guest_now,
+            expires_at - guest_now,
+            "lifecycle-retained-guest-key",
+        );
+        assert!(keyring.rotate_if_due(retired_at, &random).unwrap());
 
         let mailbox = CaptureMailbox::new();
         let pass = run_gc_pass(&mut database, &keyring, &mailbox, first_prune, &random).unwrap();
         assert_eq!(pass.challenges_deleted, 0);
+        assert_eq!(pass.guests_reaped, 0);
         assert_eq!(
             pass.keyring,
             KeyringGcResult::Available {
@@ -461,7 +523,8 @@ mod tests {
         assert_eq!(pass.next_delay(), AUTH_GC_INTERVAL);
 
         let pass = run_gc_pass(&mut database, &keyring, &mailbox, expires_at, &random).unwrap();
-        assert_eq!(pass.challenges_deleted, 1);
+        assert_eq!(pass.challenges_deleted, 0);
+        assert_eq!(pass.guests_reaped, 1);
         assert_eq!(
             pass.keyring,
             KeyringGcResult::Available {
@@ -477,22 +540,24 @@ mod tests {
         let database_path = directory.path().join("app.sqlite3");
         let declaration_path = directory.path().join(RESTORE_DECLARATION_FILE);
         let mut database = LocalDatabase::open(&database_path).unwrap();
-        let keyring = AuthKeyringStore::file_for_database(&database_path);
+        let keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
         let random = CountingRandom::default();
         activate_catalog(&mut database, &keyring, 0, &random).unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
         let predecessor_incarnation = database.ensure_authorization_stream_incarnation().unwrap();
-        insert_restore_fixture(&mut database, FIRST_RESTORE_SESSION, 1);
+        let (first_restore_session, first_challenge) =
+            insert_restore_fixture(&provider, &mut database, 1);
 
         let mailbox = CaptureMailbox::new();
-        let challenge = ChallengeId::parse("sbc_AAAAAAAAAAAAAAAAAAAAAA").unwrap();
+        let challenge = ChallengeId::parse(&first_challenge.challenge_id).unwrap();
         mailbox
             .reserve(
                 CaptureMailboxEntry::new(
                     challenge.clone(),
-                    CanonicalAddress::parse("user@example.com").unwrap(),
+                    CanonicalAddress::parse("restore-1@example.com").unwrap(),
                     VerificationCode::parse("123456").unwrap(),
                     Instant::now() + Duration::from_secs(60),
-                    60_000,
+                    first_challenge.expires_at,
                 )
                 .unwrap(),
             )
@@ -535,10 +600,15 @@ mod tests {
         );
         assert!(!declaration_path.exists());
         assert!(mailbox.peek_address(&challenge).is_none());
-        assert_session(&database, FIRST_RESTORE_SESSION, 2, Some(2000));
+        assert_session(
+            &database,
+            &first_restore_session,
+            2,
+            Some(first_challenge.expires_at as i64),
+        );
         assert_eq!(challenge_count(&database), 0);
 
-        insert_restore_fixture(&mut database, SECOND_RESTORE_SESSION, 2);
+        let (second_restore_session, _) = insert_restore_fixture(&provider, &mut database, 2);
         crate::secure_file::write_new_owner_only(
             &declaration_path,
             &declaration.to_bytes().unwrap(),
@@ -557,7 +627,7 @@ mod tests {
             database.authorization_stream_incarnation().unwrap(),
             committed_incarnation
         );
-        assert_session(&database, SECOND_RESTORE_SESSION, 1, None);
+        assert_session(&database, &second_restore_session, 1, None);
         assert_eq!(challenge_count(&database), 1);
     }
 
@@ -567,7 +637,12 @@ mod tests {
         let declaration_path = directory.path().join(RESTORE_DECLARATION_FILE);
         let mut database = LocalDatabase::memory().unwrap();
         database.activate_current_auth_catalog().unwrap();
-        insert_restore_fixture(&mut database, FIRST_RESTORE_SESSION, 1);
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(0, &CountingRandom::default())
+            .unwrap();
+        let provider = Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).unwrap());
+        let (first_restore_session, _) = insert_restore_fixture(&provider, &mut database, 1);
         let declaration = RestoreDeclaration::fresh();
         let other = RestoreDeclaration::fresh();
         crate::secure_file::write_new_owner_only(
@@ -584,7 +659,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
-        assert_session(&database, FIRST_RESTORE_SESSION, 1, None);
+        assert_session(&database, &first_restore_session, 1, None);
 
         std::fs::remove_file(&declaration_path).unwrap();
         let invalid = format!(
@@ -601,22 +676,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
-        assert_session(&database, FIRST_RESTORE_SESSION, 1, None);
-    }
-
-    fn insert_restore_fixture(database: &mut LocalDatabase, session_id: &str, suffix: u8) {
-        database
-            .auth_catalog()
-            .insert_restore_fixture_for_test(
-                session_id,
-                &format!("authority-{suffix}"),
-                &[suffix; 32],
-                &format!("sbc_{suffix:022}"),
-                &format!("user{suffix}@example.com"),
-                &[suffix; 32],
-                &format!("sbak_{suffix:022}"),
-            )
-            .unwrap();
+        assert_session(&database, &first_restore_session, 1, None);
     }
 
     fn assert_session(

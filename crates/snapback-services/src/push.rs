@@ -262,9 +262,17 @@ pub struct UnregisterPushTokenRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::keyring::AuthKeyringStore;
+    use crate::auth::provider::{
+        AuthProvider, PasswordIssuanceCustody, PlannedIssuanceCommit, ProviderGuestSessionPlan,
+    };
+    use crate::auth::throttle::RollingWindowBudgetTerms;
+    use crate::contract_types::AuthProviderProfile;
     use crate::storage::LocalDatabase;
+    use crate::storage::auth::AuthTransactionAttempt;
     use serde_json::json;
     use std::collections::BTreeMap;
+    use std::sync::Arc;
 
     fn declaration(environment: &str, idle_retention_ms: u64) -> PushSeamDeclarationV1 {
         PushSeamDeclarationV1 {
@@ -336,23 +344,43 @@ mod tests {
         }
     }
 
-    fn insert_session(
+    fn mint_session(
         db: &mut LocalDatabase,
-        principal_id: &str,
-        session_id: &str,
-        generation: u64,
         expires_at_ms: u64,
-        discriminator: u8,
-    ) {
-        db.push_registry()
-            .insert_session_for_test(
-                principal_id,
-                session_id,
-                generation,
+        idempotency_key: &str,
+    ) -> crate::auth::wire::SessionResponse {
+        let keyring = Arc::new(AuthKeyringStore::in_memory());
+        keyring
+            .load_or_mint_initial(0, &crate::auth::crypto::OsRandom)
+            .expect("initialize production guest keyring");
+        let provider = AuthProvider::new(AuthProviderProfile::Test, keyring)
+            .expect("construct production auth provider");
+        let planned = provider
+            .plan_guest_session(
+                db,
+                0,
                 expires_at_ms,
-                discriminator,
+                RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                idempotency_key,
+                "push-service-test-app",
+                "push-service-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
             )
-            .expect("insert session");
+            .expect("plan production guest session");
+        let ProviderGuestSessionPlan::Planned(plan) = planned else {
+            panic!("fresh idempotency key must plan a guest session");
+        };
+        let attempt = provider.commit_guest_issuance(db, &plan.commit_plan());
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { session, .. }) =
+            attempt
+        else {
+            panic!("production guest session must commit");
+        };
+        session
     }
 
     // Keep every registration security field explicit at the call site: these
@@ -758,8 +786,8 @@ mod tests {
     #[test]
     fn registration_is_idempotent_rotates_atomically_and_enforces_single_owner() {
         let mut db = registry_database();
-        insert_session(&mut db, "user-a", "session-a", 1, 1_000_000_000, 1);
-        insert_session(&mut db, "user-b", "session-b", 1, 1_000_000_000, 2);
+        let session_a = mint_session(&mut db, 1_000_000_000, "push-registration-session-a");
+        let session_b = mint_session(&mut db, 1_000_000_000, "push-registration-session-b");
         let scope = declaration("preview", 86_400_000);
         let installation_a = ids::mint(Kind::Installation).expect("installation a");
         let installation_b = ids::mint(Kind::Installation).expect("installation b");
@@ -769,9 +797,9 @@ mod tests {
         let first = register(
             &mut db,
             &scope,
-            "user-a",
-            "session-a",
-            1,
+            &session_a.user_id,
+            &session_a.id,
+            session_a.generation,
             &installation_a,
             first_token,
             100,
@@ -780,9 +808,9 @@ mod tests {
         let repeated = register(
             &mut db,
             &scope,
-            "user-a",
-            "session-a",
-            1,
+            &session_a.user_id,
+            &session_a.id,
+            session_a.generation,
             &installation_a,
             first_token,
             101,
@@ -794,9 +822,9 @@ mod tests {
         let rotated = register(
             &mut db,
             &scope,
-            "user-a",
-            "session-a",
-            1,
+            &session_a.user_id,
+            &session_a.id,
+            session_a.generation,
             &installation_a,
             rotated_token,
             102,
@@ -808,9 +836,9 @@ mod tests {
         let transferred = register(
             &mut db,
             &scope,
-            "user-b",
-            "session-b",
-            1,
+            &session_b.user_id,
+            &session_b.id,
+            session_b.generation,
             &installation_b,
             rotated_token,
             103,
@@ -838,9 +866,9 @@ mod tests {
         let collision = register(
             &mut db,
             &other_scope,
-            "user-a",
-            "session-a",
-            1,
+            &session_a.user_id,
+            &session_a.id,
+            session_a.generation,
             &installation_a,
             rotated_token,
             104,
@@ -876,19 +904,17 @@ mod tests {
     #[test]
     fn durable_session_end_retires_exact_generation_and_stale_registration_cannot_resurrect() {
         let mut db = registry_database();
-        let logout_session = ids::mint(Kind::Session).expect("logout session");
-        let sibling_session = ids::mint(Kind::Session).expect("sibling session");
-        insert_session(&mut db, "user-a", &logout_session, 1, 1_000_000_000, 3);
-        insert_session(&mut db, "user-a", &sibling_session, 1, 1_000_000_000, 4);
+        let logout_session = mint_session(&mut db, 1_000_000_000, "push-logout-session");
+        let sibling_session = mint_session(&mut db, 1_000_000_000, "push-sibling-session");
         let scope = declaration("preview", 86_400_000);
         let logout_installation = ids::mint(Kind::Installation).expect("logout installation");
         let sibling_installation = ids::mint(Kind::Installation).expect("sibling installation");
         register(
             &mut db,
             &scope,
-            "user-a",
-            &logout_session,
-            1,
+            &logout_session.user_id,
+            &logout_session.id,
+            logout_session.generation,
             &logout_installation,
             "ExponentPushToken[logout_secret]",
             100,
@@ -897,9 +923,9 @@ mod tests {
         register(
             &mut db,
             &scope,
-            "user-a",
-            &sibling_session,
-            1,
+            &sibling_session.user_id,
+            &sibling_session.id,
+            sibling_session.generation,
             &sibling_installation,
             "ExponentPushToken[sibling_secret]",
             100,
@@ -907,7 +933,7 @@ mod tests {
         .expect("sibling registration");
 
         db.push_registry()
-            .logout_session_for_test(&logout_session)
+            .logout_session_for_test(&logout_session.id)
             .expect("logout commit");
 
         let facts: Vec<(String, Option<String>, String)> = db
@@ -919,19 +945,19 @@ mod tests {
             .map(|(session_id, reason, bytes)| (session_id, (reason, bytes)))
             .collect::<BTreeMap<_, _>>();
         assert_eq!(
-            facts[logout_session.as_str()],
+            facts[logout_session.id.as_str()],
             (Some("session-ended".into()), String::new())
         );
         assert_eq!(
-            facts[sibling_session.as_str()],
+            facts[sibling_session.id.as_str()],
             (None, "ExponentPushToken[sibling_secret]".into())
         );
         let stale = register(
             &mut db,
             &scope,
-            "user-a",
-            &logout_session,
-            1,
+            &logout_session.user_id,
+            &logout_session.id,
+            logout_session.generation,
             &logout_installation,
             "ExponentPushToken[resurrection_secret]",
             201,
@@ -942,7 +968,7 @@ mod tests {
         // The same storage hook owns an administrator/durable revocation;
         // exact predecessor generation remains the invariant, not the cause.
         db.push_registry()
-            .durable_revoke_session_for_test(&sibling_session)
+            .durable_revoke_session_for_test(&sibling_session.id)
             .expect("administrator durable-revocation commit");
         assert_eq!(
             db.push_registry()
@@ -957,15 +983,15 @@ mod tests {
     #[test]
     fn auth_clock_frontier_retires_expiry_in_its_exact_commit() {
         let mut db = registry_database();
-        insert_session(&mut db, "user-a", "expiring-session", 1, 500, 5);
+        let expiring_session = mint_session(&mut db, 500, "push-expiring-session");
         let scope = declaration("preview", 86_400_000);
         let installation = ids::mint(Kind::Installation).expect("expiry installation");
         register(
             &mut db,
             &scope,
-            "user-a",
-            "expiring-session",
-            1,
+            &expiring_session.user_id,
+            &expiring_session.id,
+            expiring_session.generation,
             &installation,
             "ExponentPushToken[expiry_secret]",
             100,
@@ -990,9 +1016,9 @@ mod tests {
         let stale = register(
             &mut db,
             &scope,
-            "user-a",
-            "expiring-session",
-            1,
+            &expiring_session.user_id,
+            &expiring_session.id,
+            expiring_session.generation,
             &installation,
             "ExponentPushToken[expiry_resurrection_secret]",
             499,
@@ -1012,16 +1038,16 @@ mod tests {
     #[test]
     fn declared_idle_retention_retires_only_outside_the_window() {
         let mut db = registry_database();
-        insert_session(&mut db, "user-a", "idle-session", 1, 1_000_000_000, 6);
+        let idle_session = mint_session(&mut db, 1_000_000_000, "push-idle-session");
         let retention = 86_400_000;
         let scope = declaration("preview", retention);
         let installation = ids::mint(Kind::Installation).expect("idle installation");
         register(
             &mut db,
             &scope,
-            "user-a",
-            "idle-session",
-            1,
+            &idle_session.user_id,
+            &idle_session.id,
+            idle_session.generation,
             &installation,
             "ExponentPushToken[idle_secret]",
             100,

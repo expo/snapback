@@ -147,21 +147,6 @@ impl AuthFixture<'_> {
             .install_operation_coverage_for_test(lanes, writers)
     }
 
-    pub fn insert_password_attempt_for_test(
-        &mut self,
-        address: &str,
-        window_start_ms: u64,
-        failed_count: u64,
-        locked_until_ms: Option<u64>,
-    ) -> SnapbackResult<()> {
-        self.database().insert_password_attempt_for_test(
-            address,
-            window_start_ms,
-            failed_count,
-            locked_until_ms,
-        )
-    }
-
     pub fn reconcile_auth_scope_bases(
         &mut self,
         manifest: &FunctionManifest,
@@ -364,26 +349,6 @@ impl AuthFixture<'_> {
     ) -> SnapbackResult<snapback_kernel::storage::auth_identity::GuestReapBatch> {
         self.database()
             .identity_reap_guests_default_tombstone(now_ms)
-    }
-
-    pub fn disable_identity_for_test(
-        &mut self,
-        provider: &str,
-        subject: &str,
-        disabled_at_ms: u64,
-    ) -> SnapbackResult<()> {
-        self.database()
-            .disable_identity_for_test(provider, subject, disabled_at_ms)
-    }
-
-    pub fn insert_email_code_identity_for_live_session_for_test(
-        &mut self,
-        bearer: &str,
-        address: &str,
-        now_ms: u64,
-    ) -> SnapbackResult<String> {
-        self.database()
-            .insert_email_code_identity_for_live_session_for_test(bearer, address, now_ms)
     }
 
     pub fn authentication_attempt_charge_counts_for_test(
@@ -1009,8 +974,8 @@ pub fn signed_asset_fixture(user: &str, bytes: &[u8]) -> SignedAssetFixture {
         "intent manifest must load: {diagnostics:?}"
     );
 
-    let authority = dev_authority(user, InvocationSource::HttpQuery);
-    let transfer = dev_authority(user, InvocationSource::AssetTransfer);
+    let authority = dev_authority(&snapback, user, InvocationSource::HttpQuery);
+    let transfer = dev_authority(&snapback, user, InvocationSource::AssetTransfer);
     let created = snapback
         .asset_attempt_create(
             &authority,
@@ -1054,8 +1019,12 @@ pub fn signed_asset_fixture(user: &str, bytes: &[u8]) -> SignedAssetFixture {
     }
 }
 
-fn dev_authority(user: &str, source: InvocationSource) -> PreparedAuthority {
-    InvocationGate::prepare_dev_input(
+fn dev_authority(
+    snapback: &LocalSnapback,
+    user: &str,
+    source: InvocationSource,
+) -> PreparedAuthority {
+    InvocationGate::prepare_admitted_dev_input(
         source,
         ServerProfile::Dev,
         &HandlerInput {
@@ -1065,6 +1034,10 @@ fn dev_authority(user: &str, source: InvocationSource) -> PreparedAuthority {
             },
             ..HandlerInput::default()
         },
+        snapback
+            .admission_controller()
+            .admit_dev()
+            .expect("dev fixture admission"),
     )
     .expect("dev authority")
 }

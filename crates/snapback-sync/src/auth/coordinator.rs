@@ -515,22 +515,10 @@ impl PreparedBearerAuthority {
         &self.authority
     }
 
-    #[cfg(feature = "test-support")]
-    pub fn authority(&self) -> &ResolvedAppAuthority {
-        &self.authority
-    }
-
-    #[cfg(not(feature = "test-support"))]
     pub(crate) fn authority(&self) -> &ResolvedAppAuthority {
         &self.authority
     }
 
-    #[cfg(feature = "test-support")]
-    pub fn into_parts(self) -> (ResolvedAppAuthority, FencedPublication) {
-        (self.authority, self.publication)
-    }
-
-    #[cfg(not(feature = "test-support"))]
     pub(crate) fn into_parts(self) -> (ResolvedAppAuthority, FencedPublication) {
         (self.authority, self.publication)
     }
@@ -2353,16 +2341,11 @@ mod tests {
     use crate::auth::invocation::{InvocationGate, InvocationSource, WireAuthorityFields};
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::provider::{
-        AuthAdmission, AuthProvider, PasswordIssuanceCustody, PlannedLogout, PlannedRefresh,
-        ProviderGuestSessionPlan,
-    };
-    use crate::auth::session_projection::{
-        AuthorizationStreamRecord, ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource,
-        ProjectionUserRow,
+        AuthAdmission, AuthProvider, CredentialIssue, PasswordIssuanceCustody,
+        PlannedIssuanceCommit, PlannedLogout, PlannedRefresh, ProviderGuestSessionPlan,
     };
     use crate::contract_types::{
-        ApiManifest, AuthProviderProfile, AuthorizationStreamIncarnation, RevocationReason,
-        ServerProfile,
+        ApiManifest, AuthProviderProfile, RevocationReason, ServerProfile,
     };
     use crate::manifest::{ArtifactGeneration, AuthMode, FunctionKind, SchemaManifest};
     use std::sync::Arc;
@@ -2412,88 +2395,43 @@ mod tests {
         fixture_with_substituted_session(false).await
     }
 
-    async fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
-        let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
-        let bearer_text = bearer.expose_secret().to_owned();
-        let token_hash = bearer.token_hash();
-        let digest = TokenDigest::from_token_hash(&token_hash);
-        let user_id = uuid_v7(2, 2);
-        let identity_id = uuid_v7(3, 3);
-        let session_id = uuid_v7(4, 4);
-        let authority_instance_id = uuid_v7(5, 5);
-        let incarnation = uuid_v7(1, 1);
-        let substituted_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
-        let substituted_user_id = uuid_v7(20, 20);
-        let substituted_identity_id = uuid_v7(21, 21);
-        let substituted_session_id = uuid_v7(22, 22);
-        let substituted_authority_instance_id = uuid_v7(23, 23);
-        let mut users = vec![ProjectionUserRow {
-            id: user_id.clone(),
-            created_at_ms: 1,
-        }];
-        let mut identities = vec![ProjectionIdentityRow {
-            id: identity_id.clone(),
-            user_id: user_id.clone(),
-            provider: "email-code".to_owned(),
-            verified_at_ms: 2,
-        }];
-        let mut sessions = vec![ProjectionSessionRow {
-            id: session_id.clone(),
-            user_id: user_id.clone(),
-            identity_id: identity_id.clone(),
-            authority_instance_id: authority_instance_id.clone(),
-            token_hash: token_hash.as_bytes().to_vec(),
-            generation: 1,
-            created_at_ms: 3,
-            last_used_at_ms: 4,
-            expires_at_ms: 1_000,
-            absolute_expires_at_ms: 9_000_000_000,
-            revoked_at_ms: None,
-            terminal_cause: None,
-            rehearsal_provenance: None,
-        }];
-        if include_substituted_session {
-            users.push(ProjectionUserRow {
-                id: substituted_user_id.clone(),
-                created_at_ms: 1,
-            });
-            identities.push(ProjectionIdentityRow {
-                id: substituted_identity_id.clone(),
-                user_id: substituted_user_id.clone(),
-                provider: "email-code".to_owned(),
-                verified_at_ms: 2,
-            });
-            sessions.push(ProjectionSessionRow {
-                id: substituted_session_id.clone(),
-                user_id: substituted_user_id.clone(),
-                identity_id: substituted_identity_id.clone(),
-                authority_instance_id: substituted_authority_instance_id.clone(),
-                token_hash: substituted_bearer.token_hash().as_bytes().to_vec(),
-                generation: 1,
-                created_at_ms: 3,
-                last_used_at_ms: 4,
-                expires_at_ms: 1_000,
-                absolute_expires_at_ms: 9_000_000_000,
-                revoked_at_ms: None,
-                terminal_cause: None,
-                rehearsal_provenance: None,
-            });
-        }
-        let source = ProjectionSource {
-            authorization_stream_value: AuthorizationStreamRecord::new(
-                AuthorizationStreamIncarnation::parse(&incarnation).unwrap(),
+    fn mint_guest_session(
+        provider: &AuthProvider,
+        database: &mut crate::storage::LocalDatabase,
+        idempotency_key: &str,
+    ) -> CredentialIssue {
+        let planned = provider
+            .plan_guest_session(
+                database,
+                3,
+                997,
+                crate::auth::throttle::RollingWindowBudgetTerms {
+                    limit: 10,
+                    window_ms: 1_000,
+                },
+                idempotency_key,
+                "coordinator-test-app",
+                "coordinator-test-deployment",
+                &format!("sha256:{}", "a".repeat(64)),
+                PasswordIssuanceCustody::Bearer,
             )
-            .encode_bytes()
-            .unwrap(),
-            restore_declaration_id: None,
-            users,
-            identities,
-            sessions,
-            superseded_tokens: Vec::new(),
+            .expect("plan guest session through the production provider");
+        let ProviderGuestSessionPlan::Planned(plan) = planned else {
+            panic!("fresh guest idempotency key must plan an issuance");
         };
+        let attempt = provider.commit_guest_issuance(database, &plan.commit_plan());
+        let AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed {
+            session,
+            committed_revocations,
+        }) = attempt
+        else {
+            panic!("production guest issuance must commit");
+        };
+        plan.into_issue(session, committed_revocations)
+    }
+
+    async fn fixture_with_substituted_session(include_substituted_session: bool) -> Fixture {
         let monotonic_start = Instant::now();
-        let projection =
-            SessionProjection::rebuild(source, &uuid_v7(6, 6), 100, monotonic_start).unwrap();
         let admission_controller =
             crate::auth::invocation::test_admission_controller(AuthMode::Sessions, 0)
                 .expect("sessions admission controller");
@@ -2502,38 +2440,6 @@ mod tests {
         planning_database
             .activate_current_auth_catalog()
             .expect("activate provider planning catalog");
-        planning_database
-            .auth_catalog()
-            .insert_email_session_for_test(
-                &user_id,
-                &identity_id,
-                &session_id,
-                &authority_instance_id,
-                "coordinator-original@example.test",
-                token_hash.as_bytes(),
-                3,
-                4,
-                1_000,
-                9_000_000_000,
-            )
-            .expect("store provider-planned original session fixture");
-        if include_substituted_session {
-            planning_database
-                .auth_catalog()
-                .insert_email_session_for_test(
-                    &substituted_user_id,
-                    &substituted_identity_id,
-                    &substituted_session_id,
-                    &substituted_authority_instance_id,
-                    "coordinator-substituted@example.test",
-                    substituted_bearer.token_hash().as_bytes(),
-                    3,
-                    4,
-                    1_000,
-                    9_000_000_000,
-                )
-                .expect("store provider-planned substituted session fixture");
-        }
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         keyring
             .load_or_mint_initial(100, &OsRandom)
@@ -2542,12 +2448,49 @@ mod tests {
             AuthProvider::new(AuthProviderProfile::Test, keyring)
                 .expect("construct provider planning authority"),
         );
+        let issued = mint_guest_session(
+            provider.as_ref(),
+            &mut planning_database,
+            "coordinator-original-session",
+        );
+        let substituted = include_substituted_session.then(|| {
+            mint_guest_session(
+                provider.as_ref(),
+                &mut planning_database,
+                "coordinator-substituted-session",
+            )
+        });
+        let session = &issued.response().session;
+        let user_id = session.user_id.clone();
+        let session_id = session.id.clone();
+        let authority_instance_id = session.authority_instance_id.clone();
+        let bearer_text = issued.response().token().expose_secret().to_owned();
+        let digest = TokenDigest::from_token_hash(&issued.response().token().token_hash());
+        let substituted_user_id = substituted
+            .as_ref()
+            .map(|issue| issue.response().session.user_id.clone())
+            .unwrap_or_default();
+        let substituted_session_id = substituted
+            .as_ref()
+            .map(|issue| issue.response().session.id.clone())
+            .unwrap_or_default();
+        let incarnation = planning_database
+            .ensure_authorization_stream_incarnation()
+            .expect("mint provider planning authorization stream")
+            .as_str()
+            .to_owned();
+        let coordinator = Arc::new(
+            AuthCoordinator::from_local_session_database(
+                &mut planning_database,
+                admission_controller.clone(),
+                100,
+                monotonic_start,
+            )
+            .expect("project the production-created sessions"),
+        );
         let provider_admission = provider.admit().await;
         Fixture {
-            coordinator: Arc::new(
-                AuthCoordinator::new_with_admission(projection, admission_controller.clone())
-                    .unwrap(),
-            ),
+            coordinator,
             admission_controller,
             incarnation,
             user_id,
@@ -2572,39 +2515,27 @@ mod tests {
         database
             .activate_current_auth_catalog()
             .expect("activate database-backed session fixture catalog");
-        let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
-        database
-            .auth_catalog()
-            .insert_email_session_for_test(
-                &fixture.user_id,
-                &uuid_v7(3, 3),
-                &fixture.session_id,
-                &fixture.authority_instance_id,
-                "effect-original@example.test",
-                bearer.token_hash().as_bytes(),
-                3,
-                4,
-                1_000,
-                9_000_000_000,
-            )
-            .expect("store database-backed original session fixture");
+        let issued = mint_guest_session(
+            fixture.provider.as_ref(),
+            database,
+            "coordinator-original-session",
+        );
+        assert_eq!(issued.response().session.user_id, fixture.user_id);
+        assert_eq!(issued.response().session.id, fixture.session_id);
         if include_substituted_session {
-            let substituted_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
-            database
-                .auth_catalog()
-                .insert_email_session_for_test(
-                    &fixture.substituted_user_id,
-                    &uuid_v7(21, 21),
-                    &fixture.substituted_session_id,
-                    &uuid_v7(23, 23),
-                    "effect-substituted@example.test",
-                    substituted_bearer.token_hash().as_bytes(),
-                    3,
-                    4,
-                    1_000,
-                    9_000_000_000,
-                )
-                .expect("store database-backed substituted session fixture");
+            let substituted = mint_guest_session(
+                fixture.provider.as_ref(),
+                database,
+                "coordinator-substituted-session",
+            );
+            assert_eq!(
+                substituted.response().session.user_id,
+                fixture.substituted_user_id
+            );
+            assert_eq!(
+                substituted.response().session.id,
+                fixture.substituted_session_id
+            );
         }
         fixture.incarnation = database
             .ensure_authorization_stream_incarnation()
@@ -2887,22 +2818,13 @@ mod tests {
         database_a
             .activate_current_auth_catalog()
             .expect("activate protected auth catalog in database A");
-        let bearer = SessionBearer::generate(&FixedRandom(7)).unwrap();
-        database_a
-            .auth_catalog()
-            .insert_email_session_for_test(
-                &fixture.user_id,
-                &uuid_v7(3, 3),
-                &fixture.session_id,
-                &fixture.authority_instance_id,
-                "effect-original@example.test",
-                bearer.token_hash().as_bytes(),
-                3,
-                4,
-                1_000,
-                9_000_000_000,
-            )
-            .expect("seed the same durable session in producer database A");
+        let producer_issue = mint_guest_session(
+            fixture.provider.as_ref(),
+            &mut database_a,
+            "coordinator-original-session",
+        );
+        assert_eq!(producer_issue.response().session.user_id, fixture.user_id);
+        assert_eq!(producer_issue.response().session.id, fixture.session_id);
         let mut manifest = SchemaManifest::default();
         manifest.api = Some(ApiManifest {
             enabled: true,

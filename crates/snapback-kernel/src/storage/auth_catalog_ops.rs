@@ -3021,7 +3021,7 @@ impl LocalDatabase {
     /// @ref LLP 0285#53-defect-3--the-caller-selectable-raw-sqlite-feature —
     /// cross-crate tests describe identity facts without receiving a database
     /// connection or caller-selected SQL authority.
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_logical_email_identity_for_test(
         &mut self,
         user_id: &str,
@@ -3045,7 +3045,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_email_code_identity_for_live_session_for_test(
         &mut self,
         bearer: &str,
@@ -4546,6 +4546,28 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
+    pub(super) fn auth_corrupt_scoped_token_generation_for_test(
+        &mut self,
+        token_id: &str,
+        credential_generation: u64,
+    ) -> SnapbackResult<()> {
+        self.with_auth_transaction(|tx| {
+            let changed = tx.execute(
+                "UPDATE _auth_grant_tokens SET credential_generation = ?1 WHERE id = ?2",
+                params![credential_generation as i64, token_id],
+            )?;
+            if changed != 1 {
+                return Err(crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_CATALOG_CORRUPT",
+                    "auth",
+                    "the scoped-token corruption fixture could not identify one durable token",
+                ));
+            }
+            Ok(())
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
     #[allow(clippy::too_many_arguments)]
     pub(super) fn auth_insert_finite_authority_grant_for_test(
         &mut self,
@@ -5391,7 +5413,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_presented_token_sender_bound_for_test(token_hash)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn insert_verification_code_for_test(
         &mut self,
@@ -5417,13 +5439,13 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_catalog_version_for_test()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn set_verification_key_id_for_test(&mut self, key_id: &str) -> SnapbackResult<()> {
         self.write_db()
             .auth_set_verification_key_id_for_test(key_id)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn insert_restore_fixture_for_test(
         &mut self,
@@ -5460,13 +5482,13 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_verification_challenge_count_for_test()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_expired_challenges_for_test(&mut self, count: usize) -> SnapbackResult<()> {
         self.write_db()
             .auth_insert_expired_challenges_for_test(count)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn insert_email_session_for_test(
         &mut self,
@@ -5495,7 +5517,7 @@ impl<'a> AuthCatalogKernel<'a> {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn bind_email_session_bearer_for_test(
         &mut self,
@@ -5522,7 +5544,7 @@ impl<'a> AuthCatalogKernel<'a> {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_email_session_and_push_token_for_test(
         &mut self,
         user_id: &str,
@@ -5541,7 +5563,7 @@ impl<'a> AuthCatalogKernel<'a> {
             )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_restore_cli_fixture_for_test(
         &mut self,
         user_id: &str,
@@ -5642,7 +5664,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_session_lifetime_facts_for_test(session_id)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn delete_terminal_cause_witness_for_test(
         &mut self,
         session_id: &str,
@@ -5656,7 +5678,7 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_session_revoked_for_test(session_id)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_session_tombstone_for_test(
         &mut self,
         token_hash: &[u8],
@@ -5695,13 +5717,13 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_live_session_count_for_test()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_human_user_for_test(&mut self, user_id: &str, now_ms: u64) -> SnapbackResult<()> {
         self.write_db()
             .auth_insert_human_user_for_test(user_id, now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_activation_live_grant_for_test(
         &mut self,
         agent_user_id: &str,
@@ -5728,7 +5750,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_tombstone_allowed_query_scope_basis_for_test()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn install_service_replay_authority_for_test(
         &mut self,
         now_ms: u64,
@@ -5740,6 +5762,16 @@ impl<'a> AuthCatalogKernel<'a> {
     }
 
     #[cfg(any(test, feature = "test-support"))]
+    pub fn corrupt_scoped_token_generation_for_test(
+        &mut self,
+        token_id: &str,
+        credential_generation: u64,
+    ) -> SnapbackResult<()> {
+        self.write_db()
+            .auth_corrupt_scoped_token_generation_for_test(token_id, credential_generation)
+    }
+
+    #[cfg(test)]
     pub fn insert_finite_authority_grant_for_test(
         &mut self,
         grant_id: &str,
@@ -5755,7 +5787,7 @@ impl<'a> AuthCatalogKernel<'a> {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub fn insert_exact_grant_for_test(
         &mut self,
@@ -5776,7 +5808,7 @@ impl<'a> AuthCatalogKernel<'a> {
         )
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn set_grant_expiry_for_test(
         &mut self,
         grant_id: &str,
@@ -5795,7 +5827,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_sender_issuance_durable_counts_for_test(challenge_id)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_sender_replay_for_test(
         &mut self,
         replay_id: &[u8],
@@ -5805,12 +5837,12 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_sender_replay_for_test(replay_id, expires_at_seconds)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn advance_sender_replay_epoch_for_test(&mut self) -> SnapbackResult<()> {
         self.write_db().auth_advance_sender_replay_epoch_for_test()
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_query_carrier_prerequisites_for_test(
         &mut self,
         now_ms: u64,
@@ -5819,7 +5851,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_query_carrier_prerequisites_for_test(now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_query_carrier_grant_for_test(
         &mut self,
         agent_user_id: &str,
@@ -5829,7 +5861,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_query_carrier_grant_for_test(agent_user_id, now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_live_carrier_prerequisites_for_test(
         &mut self,
         now_ms: u64,
@@ -5838,7 +5870,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_live_carrier_prerequisites_for_test(now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_live_carrier_grant_for_test(
         &mut self,
         agent_user_id: &str,
@@ -5848,7 +5880,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_live_carrier_grant_for_test(agent_user_id, now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn set_agent_credential_rotated_at_for_test(
         &mut self,
         user_id: &str,
@@ -5882,7 +5914,7 @@ impl<'a> AuthCatalogKernel<'a> {
         self.read_db().auth_invitation_count_for_test(user_id)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_agent_token_route_fixtures_for_test(
         &mut self,
         agent_user_id: &str,
@@ -5892,7 +5924,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_agent_token_route_fixtures_for_test(agent_user_id, now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_bulk_route_grants_for_test(
         &mut self,
         agent_user_id: &str,
@@ -5903,7 +5935,7 @@ impl<'a> AuthCatalogKernel<'a> {
             .auth_insert_bulk_route_grants_for_test(agent_user_id, owner_id, now_ms)
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_step_up_scope_bases_for_test(&mut self) -> SnapbackResult<()> {
         self.write_db().auth_insert_step_up_scope_bases_for_test()
     }

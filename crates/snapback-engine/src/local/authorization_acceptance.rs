@@ -439,32 +439,6 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
         .auth_database_mut()
         .activate_current_auth_catalog()
         .expect("install acceptance auth catalog");
-    for (index, user) in [
-        "usr_00000000000000000000000000",
-        "usr_00000000000000000000000001",
-        "usr_00000000000000000000000002",
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let (session_id, authority_instance_id) = session_ids(user);
-        snapback
-            .auth_database_mut()
-            .auth_catalog()
-            .insert_email_session_for_test(
-                user,
-                &crate::ids::mint_time_ordered(crate::ids::Kind::Identity),
-                session_id,
-                authority_instance_id,
-                &format!("{user}@acceptance.test"),
-                &[index as u8 + 1; 32],
-                1,
-                1,
-                4_000_000_000_000,
-                4_000_000_000_000,
-            )
-            .expect("insert acceptance session");
-    }
     let functions = acceptance_functions();
     assert_eq!(functions.app_id, CLIENT_REPLAY_APP_ID);
     assert_eq!(

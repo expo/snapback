@@ -3038,7 +3038,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_register(
         &mut self,
         username: &str,
@@ -3069,7 +3069,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_set(
         &mut self,
         acting: &SessionBearer,
@@ -3352,7 +3352,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn install_imported_password_hash_for_test(
         &mut self,
         username: &str,
@@ -3423,7 +3423,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn disable_identity_for_test(
         &mut self,
         provider: &str,
@@ -3446,7 +3446,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_other_identity_session_for_test(
         &mut self,
         user_id: &str,
@@ -3494,7 +3494,7 @@ impl LocalDatabase {
         Ok((identity_id, session_id, bearer))
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn insert_typed_guest_session_for_test(
         &mut self,
         expires_at_ms: u64,
@@ -3570,7 +3570,7 @@ impl LocalDatabase {
         })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_authenticate(
         &mut self,
         username: &str,
@@ -3599,7 +3599,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| { super::auth::require_identity_core_v3_on(tx)?; require_same_password_identifier_mode(tx, s.identifier_mode)?; let current:Option<(u64,String)>=tx.query_row("SELECT c.generation,p.hash_phc FROM _auth_credentials c JOIN _auth_password_credentials p ON p.credential_id=c.id WHERE c.id=?1 AND c.user_id=?2 AND c.revoked_at_ms IS NULL",params![s.credential_id,s.user_id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?; if current.as_ref()!=Some(&(s.generation,s.hash_phc.clone())) { return Err(auth_error("SNAPBACK_AUTH_CREDENTIAL_INVALID","credential is invalid")); } let(session,bearer)=insert_session(tx,&s.user_id,None,Some(&s.credential_id),"credential",now,random)?; tx.execute("UPDATE _auth_credentials SET last_used_at_ms=?2 WHERE id=?1",params![s.credential_id,now])?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"authenticated",now,Some(now+SESSION_IDLE_MS))?; insert_assurance(tx,&s.user_id,&session,Some(&s.credential_id),"recent_auth",now,Some(now+600_000))?; journal(tx,&s.user_id,"password.authenticated",now)?; Ok(IdentitySession{user_id:s.user_id,session_id:session,bearer,recovery_codes:None}) })
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_password_change(
         &mut self,
         username: &str,
@@ -3635,7 +3635,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx|{super::auth::require_identity_core_v3_on(tx)?;insert_recovery_set(tx,user,key_id,&digests,"suspected-disclosure",now)?;tx.execute("UPDATE _auth_sessions SET revoked_at_ms=?2,generation=generation+1 WHERE user_id=?1 AND revoked_at_ms IS NULL",params![user,now])?;journal(tx,user,"recovery-codes.rotated",now)?;Ok(codes)})
     }
 
-    #[cfg(any(test, feature = "test-support"))]
+    #[cfg(test)]
     pub fn identity_recovery_consume(
         &mut self,
         username: &str,

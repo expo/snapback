@@ -1873,6 +1873,10 @@ mod tests {
     use super::*;
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::lifecycle::{EmailCodeReadiness, activate_catalog};
+    use crate::auth::provider::{AuthProvider, PasswordIssuanceCustody, PlannedIssuanceCommit};
+    use crate::contract_types::AuthProviderProfile;
+    use crate::storage::auth::AuthTransactionAttempt;
+    use std::sync::Arc;
     use std::sync::atomic::{AtomicU8, Ordering};
 
     #[derive(Debug, Default)]
@@ -1892,7 +1896,7 @@ mod tests {
         _directory: tempfile::TempDir,
         database_path: PathBuf,
         database: LocalDatabase,
-        keyring: AuthKeyringStore,
+        keyring: Arc<AuthKeyringStore>,
         random: CountingRandom,
     }
 
@@ -1901,24 +1905,11 @@ mod tests {
             let directory = tempfile::tempdir().unwrap();
             let database_path = directory.path().join("source.sqlite3");
             let mut database = LocalDatabase::open(&database_path).unwrap();
-            let keyring = AuthKeyringStore::file_for_database(&database_path);
+            let keyring = Arc::new(AuthKeyringStore::file_for_database(&database_path));
             let random = CountingRandom::default();
             let activated = activate_catalog(&mut database, &keyring, 10, &random).unwrap();
             assert!(matches!(activated.email_code, EmailCodeReadiness::Ready(_)));
-            let key_id = keyring
-                .with_active_key(10, &random, |id, _| id.as_str().to_owned())
-                .unwrap();
-            database
-                .auth_catalog()
-                .insert_verification_code_for_test(
-                    "sbc_AAAAAAAAAAAAAAAAAAAAAA",
-                    "user@example.com",
-                    &[7_u8; 32],
-                    &key_id,
-                    10,
-                    1000,
-                )
-                .unwrap();
+            request_code_with_keyring(&mut database, keyring.clone(), "user@example.com", 10);
             Self {
                 _directory: directory,
                 database_path,
@@ -1931,6 +1922,85 @@ mod tests {
         fn parent(&self) -> &Path {
             self.database_path.parent().unwrap()
         }
+    }
+
+    fn request_code_with_keyring(
+        database: &mut LocalDatabase,
+        keyring: Arc<AuthKeyringStore>,
+        address: &str,
+        now_ms: u64,
+    ) {
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct production auth provider"),
+        );
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let admission = runtime
+            .block_on(provider.admit_email(address))
+            .expect("admit address through production provider");
+        admission
+            .request_code(database, now_ms)
+            .expect("persist challenge through production provider");
+    }
+
+    fn register_password(
+        database: &mut LocalDatabase,
+        keyring: Arc<AuthKeyringStore>,
+        identifier: &str,
+        password: &str,
+        now_ms: u64,
+        recovery_key_id: &str,
+        recovery_key: &[u8; 32],
+    ) -> Arc<AuthProvider> {
+        let provider = Arc::new(
+            AuthProvider::new(AuthProviderProfile::Test, keyring)
+                .expect("construct production auth provider"),
+        );
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let plan = runtime
+            .block_on(provider.plan_password_registration(
+                database,
+                identifier,
+                crate::auth::identity_core::PasswordSecret::new(password.to_owned()),
+                now_ms,
+                recovery_key_id,
+                recovery_key,
+                PasswordIssuanceCustody::Bearer,
+            ))
+            .expect("plan production password registration");
+        let attempt = provider.commit_password_issuance(database, &plan.commit_plan());
+        assert!(matches!(
+            attempt,
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
+        provider
+    }
+
+    fn record_failed_password_attempt(
+        provider: &AuthProvider,
+        database: &mut LocalDatabase,
+        identifier: &str,
+        now_ms: u64,
+    ) {
+        let runtime = tokio::runtime::Runtime::new().expect("test runtime");
+        let plan = runtime
+            .block_on(provider.plan_password_authentication(
+                database,
+                identifier,
+                crate::auth::identity_core::PasswordSecret::new(
+                    "definitely-the-wrong-password".to_owned(),
+                ),
+                now_ms,
+                PasswordIssuanceCustody::Bearer,
+            ))
+            .expect("plan production password authentication");
+        let attempt = provider.commit_password_issuance(database, &plan.commit_plan());
+        assert!(matches!(
+            attempt,
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::CredentialInvalid {
+                committed_attempt: Some(_),
+            })
+        ));
     }
 
     #[test]
@@ -2024,16 +2094,24 @@ mod tests {
         let source_path = directory.path().join("email-v4.sqlite3");
         let mut source = LocalDatabase::open(&source_path).unwrap();
         let random = CountingRandom::default();
-        let keyring = AuthKeyringStore::file_for_database(&source_path);
+        let keyring = Arc::new(AuthKeyringStore::file_for_database(&source_path));
         keyring.load_or_mint_initial(0, &random).unwrap();
         source
             .activate_current_auth_catalog_with_password_identifier_mode(
                 PasswordIdentifierMode::EmailV1,
             )
             .unwrap();
-        source
-            .insert_password_attempt_for_test("email-mode@example.com", 1, 2, None)
-            .unwrap();
+        let provider = register_password(
+            &mut source,
+            keyring.clone(),
+            "email-mode@example.com",
+            "strong-email-mode-password",
+            0,
+            "email-mode-recovery-key",
+            &[7; 32],
+        );
+        record_failed_password_attempt(&provider, &mut source, "email-mode@example.com", 1);
+        record_failed_password_attempt(&provider, &mut source, "email-mode@example.com", 2);
 
         let backup_directory = directory.path().join("email-v4-backup");
         let outcome = create_backup(&source, &keyring, &backup_directory, 7, &random).unwrap();
@@ -2829,21 +2907,17 @@ mod tests {
 
     #[test]
     fn v3_recovery_key_references_are_part_of_the_backup_unit() {
-        use crate::auth::identity_core::PasswordSecret;
-
         let mut fixture = Fixture::new();
         let missing_key_id = "sbak_AAAAAAAAAAAAAAAAAAAAAA";
-        fixture
-            .database
-            .identity_password_register(
-                "missing-recovery-key",
-                &PasswordSecret::new("strong-missing-recovery-key-1".to_owned()),
-                20,
-                &fixture.random,
-                missing_key_id,
-                &[7_u8; 32],
-            )
-            .unwrap();
+        register_password(
+            &mut fixture.database,
+            fixture.keyring.clone(),
+            "missing-recovery-key",
+            "strong-missing-recovery-key-1",
+            20,
+            missing_key_id,
+            &[7_u8; 32],
+        );
 
         assert!(
             fixture
@@ -2895,11 +2969,16 @@ mod tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
 
         let mut fixture = Fixture::new();
-        fixture
-            .database
-            .auth_catalog()
-            .set_verification_key_id_for_test("sbak_AAAAAAAAAAAAAAAAAAAAAA")
+        let missing_keyring = Arc::new(AuthKeyringStore::in_memory());
+        missing_keyring
+            .load_or_mint_initial(0, &fixture.random)
             .unwrap();
+        request_code_with_keyring(
+            &mut fixture.database,
+            missing_keyring,
+            "missing-key@example.com",
+            30,
+        );
         let error = create_backup(
             &fixture.database,
             &fixture.keyring,
@@ -2920,17 +2999,15 @@ mod tests {
         replacement_keyring
             .load_or_mint_initial(0, &replacement_random)
             .unwrap();
-        let replacement_key_id = replacement_keyring
-            .with_active_key(0, &replacement_random, |id, _| id.as_str().to_owned())
-            .unwrap();
         let replacement_bytes =
             std::fs::read(AuthKeyringStore::keyring_path(&replacement_database)).unwrap();
 
-        fixture
-            .database
-            .auth_catalog()
-            .set_verification_key_id_for_test(&replacement_key_id)
-            .unwrap();
+        request_code_with_keyring(
+            &mut fixture.database,
+            Arc::new(replacement_keyring),
+            "replacement-key@example.com",
+            30,
+        );
         let live_keyring_path = AuthKeyringStore::keyring_path(&fixture.database_path);
         AFTER_BACKUP_KEYRING_CAPTURE.with(|slot| {
             *slot.borrow_mut() = Some(Box::new(move || {

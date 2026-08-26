@@ -24,6 +24,7 @@ use crate::storage::capability_links::{
     CapabilityLinkFunctionKind, MintCapabilityLink, MintedCapabilityLink,
 };
 use serde_json::Map;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::Arc;
@@ -33,6 +34,19 @@ const USER_ID: &str = "018f0d90-7b22-7a22-8c33-445566778899";
 const SESSION_ID: &str = "018f0d90-7b23-7a22-8c33-445566778899";
 const AUTHORITY_INSTANCE_ID: &str = "018f0d90-7b24-7a22-8c33-445566778899";
 const NOW_MS: u64 = 1_000;
+
+thread_local! {
+    static PRODUCTION_SESSION_FACTS: RefCell<Option<(String, String, String)>> = const { RefCell::new(None) };
+}
+
+fn production_session_facts() -> (String, String, String) {
+    PRODUCTION_SESSION_FACTS.with(|facts| {
+        facts
+            .borrow()
+            .clone()
+            .expect("production session ceremony ran before fixture facts were requested")
+    })
+}
 
 fn sessions_deployment() -> DeploymentIdentity {
     let digest = |prefix: &str, byte: char| format!("{prefix}{}", byte.to_string().repeat(64));
@@ -73,14 +87,25 @@ fn session_authority_for_source(
     snapback: &mut LocalSnapback,
     source: InvocationSource,
 ) -> PreparedAuthority {
-    snapback.prepare_resolved_session_for_test(
+    let authority = snapback.prepare_resolved_session_for_test(
         source,
         USER_ID,
         SESSION_ID,
         AUTHORITY_INSTANCE_ID,
         1,
         u64::MAX,
-    )
+    );
+    let ResolvedAppAuthority::Session(subject) = authority.resolved() else {
+        panic!("production session fixture must resolve a session subject");
+    };
+    PRODUCTION_SESSION_FACTS.with(|facts| {
+        *facts.borrow_mut() = Some((
+            subject.user_id().to_owned(),
+            subject.session_id().to_owned(),
+            subject.authority_instance_id().to_owned(),
+        ));
+    });
+    authority
 }
 
 fn link_invocation_authority(controller: &AdmissionController) -> PreparedAuthority {
@@ -286,22 +311,19 @@ fn capability_link_fixture_with_agents_mode(
         ))
         .expect("activate capability-link sessions deployment");
     snapback
-        .auth_database_mut()
-        .auth_catalog()
-        .insert_human_user_for_test(USER_ID, NOW_MS)
-        .expect("insert live human minter");
-    snapback
         .synchronize_auth_mode_admission(&settled)
         .expect("publish capability-link sessions admission");
+    let _ = session_management_authority(&mut snapback);
     let controller = snapback.admission_controller();
     (snapback, controller)
 }
 
 fn link_request(remaining_uses: Option<u64>) -> MintCapabilityLink {
+    let (user_id, session_id, authority_instance_id) = production_session_facts();
     MintCapabilityLink {
-        minter_principal_id: USER_ID.to_owned(),
-        minter_session_id: SESSION_ID.to_owned(),
-        minter_authority_instance_id: AUTHORITY_INSTANCE_ID.to_owned(),
+        minter_principal_id: user_id,
+        minter_session_id: session_id,
+        minter_authority_instance_id: authority_instance_id,
         function_id: "fn:admissionFence".to_owned(),
         function_name: "admissionFence".to_owned(),
         function_kind: CapabilityLinkFunctionKind::Mutation,
@@ -405,8 +427,9 @@ fn ask_spend_fixture() -> (
         .expect("publish ask spend sessions admission");
     let controller = snapback.admission_controller();
     let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpAsk);
+    let (user_id, _, _) = production_session_facts();
     let subject = crate::storage::ask_spend::AskSpendSubject {
-        principal_key: format!("user:{USER_ID}"),
+        principal_key: format!("user:{user_id}"),
         integration_key: None,
     };
     (snapback, controller, authority, subject, budgets)
@@ -621,11 +644,7 @@ fn watch_creation_fixture() -> (LocalSnapback, AdmissionController) {
             .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
         "watch functions must load: {diagnostics:?}"
     );
-    snapback
-        .auth_database_mut()
-        .push_registry()
-        .insert_session_for_test(USER_ID, SESSION_ID, 1, 4_000_000_000_000, 73)
-        .expect("insert active watch owner");
+    let _ = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
     let controller = snapback.admission_controller();
     (snapback, controller)
 }
@@ -1676,14 +1695,11 @@ fn push_batch_fixture() -> (LocalSnapback, AdmissionController, String) {
         .push_registry()
         .activate_push_registry_for_test(declaration.clone())
         .expect("activate push registry");
-    let principal_id = ids::mint(Kind::User).expect("push target principal");
-    let session_id = ids::mint(Kind::Session).expect("push target session");
+    let _ = session_authority_for_source(&mut snapback, InvocationSource::WatchManagement);
+    let (principal_id, session_id, _) = production_session_facts();
     let installation_id = ids::mint(Kind::Installation).expect("push target installation");
     {
         let mut registry = snapback.auth_database_mut().push_registry();
-        registry
-            .insert_session_for_test(&principal_id, &session_id, 1, 4_000_000_000_000, 41)
-            .expect("insert push target session");
         registry
             .register(
                 &declaration,
@@ -1696,7 +1712,7 @@ fn push_batch_fixture() -> (LocalSnapback, AdmissionController, String) {
             )
             .expect("register push target token");
     }
-    let controller = synchronize_sessions(&snapback);
+    let controller = snapback.admission_controller();
     let authority = system_authority(&controller);
     let request = PushSendRequestV1 {
         to: PushAudienceReferenceV1 {
