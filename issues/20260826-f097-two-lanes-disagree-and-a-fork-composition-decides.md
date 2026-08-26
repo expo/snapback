@@ -90,3 +90,51 @@ chasing them.
 **Consequence for LLP 0313:** this is evidence for §10's recommendation. Two lanes independently
 demonstrating live forgery routes — one of them a route LLP 0291 already enumerated — is the
 pattern that document predicts, and it is not something more row lanes can fix.
+
+## Resolved — 2026-08-26: F097 is OPEN, and so is F127
+
+An independent review of `f127` (HEAD `6eb0a14fd`), run in a checkout that could build, settled the
+disagreement in `rowfam`'s favour:
+
+> **DO NOT LAND.** The 14/14 current refusals and 14/14 historical compilations are genuine, and the
+> legitimate publication test passes. However, **F097/F127 are not closed: alternate public
+> split-and-publish compositions compile, and the new stream wrapper lacks producer-instance
+> identity.** F128 also genuinely remains, correctly blocking F215.
+
+Three things follow.
+
+**The witnesses were never the problem.** 14 of 14 compiled historically and 14 of 14 refuse now.
+`f127`'s evidence was real; it simply did not cover the surviving route. This is LLP 0303 revision (s)
+once more: a compile-fail witness proves a *spelling* is gone.
+
+**`f127` was right to decline what it declined.** Its refusal to claim F210/F212/F213 and F215 was
+correct, and the review independently confirmed F128 still blocks F215.
+
+**The missing property is named.** The new stream wrapper "lacks producer-instance identity" — the
+LLP 0303 requirement that a carrier be tied to the *instance* that produced it, not merely to a type.
+That is the same defect the whole programme is chasing, reappearing inside a fix for it.
+
+## The pattern this completes
+
+Counting every row claim that has been independently reviewed in this programme, essentially all of
+them have been rejected for a **surviving alternate composition** rather than for bad evidence:
+
+| Lane | Claimed | Outcome |
+|---|---|---|
+| `askfull` | 7 rows | All rejected — public enum variant rebuildable field-by-field |
+| `q03r4` | 3 rows | F102 closed; F100/F101 rejected — caller-shadowable SQL clock |
+| `q04` | rows + routes | Rejected — caller manifest laundered into the canonical registry |
+| `commitrow` r1 | F220 | Rejected — public mint from caller-selected intent |
+| `commitrow` r2 | F220 | **Closed** after rebuild as genuine derivation |
+| `f127` | F097, F127 | Rejected — alternate split-and-publish compositions compile |
+| `rowfam` | F097 | Self-reported open — fork composition succeeded |
+| `addradm` | F063, F070 | Self-reported open — fork inheritance, rebuilt catalog plan |
+
+One row survived review, and only after being rebuilt from verify-shaped into derive-shaped. Every
+other rejection was a *different* route to the same effect — which is exactly what LLP 0291 recorded
+when four consecutive review rounds each found a different forgery, and exactly why
+`llp/0313-authority-creation-chokepoint.spec.md` §10 recommends converting the row inventory from a
+staffing queue into an acceptance ledger.
+
+**This is measured evidence, not inference:** the row programme's rejection mode is not lane quality
+and not witness quality. It is the absence of a chokepoint.
