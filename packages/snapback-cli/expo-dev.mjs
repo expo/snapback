@@ -495,6 +495,7 @@ function createDevControlDispatcher(verbs) {
   };
   return Object.freeze({
     enqueue,
+    get stopping() { return stopping; },
     stopAccepting() { stopping = true; },
     idle() { return controlChain; },
   });
@@ -911,7 +912,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         socketIdentity: endpoint,
         ownerStatePath,
       });
-      controlSocket = descriptor;
       await dependencies.afterEndpointLeaseActivation?.({
         path,
         ownerStatePath,
@@ -983,6 +983,10 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     );
   });
   if (startupUnavailable !== null) return unavailable(startupUnavailable.details);
+  // The pathname lock, direct-connect probe, and final endpoint identity check
+  // all finish before commands can bind to this lifecycle descriptor. Clients
+  // that connect while publication is in flight are refused by handleCommand.
+  controlSocket = descriptor;
   return Object.freeze({
     descriptor,
     get closed() { return closed; },
@@ -3400,10 +3404,10 @@ export async function runExpoDev(options = {}) {
   };
   const assertStartupActive = () => {
     if (startupCriticalExit !== null) throw startupCriticalExit;
-    if (closed) {
+    if (closed || controlDispatcher?.stopping === true) {
       throw diagnosticError(
         'SNAPBACK_EXPO_DEV_STARTUP_CANCELLED',
-        'the Expo supervisor closed before publishing readiness',
+        'the Expo supervisor began stopping before publishing readiness',
       );
     }
   };
@@ -4336,8 +4340,12 @@ export async function runExpoDev(options = {}) {
             diagnostics: [diagnostic],
           });
         },
-      }, { dispatcher: controlDispatcher });
+      }, {
+        dispatcher: controlDispatcher,
+        afterEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
+      });
     }
+    assertStartupActive();
     const finalReadiness = {
       ok: true,
       state: finalState,

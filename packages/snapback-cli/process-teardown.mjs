@@ -174,10 +174,11 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-function writeExclusiveOwnerRecord(path, value) {
+function writeExclusiveOwnerRecord(path, value, { afterOpen } = {}) {
   let descriptor = null;
   try {
     descriptor = openSync(path, 'wx', 0o600);
+    afterOpen?.({ path });
     writeFileSync(descriptor, `${JSON.stringify(value)}\n`);
     closeSync(descriptor);
     descriptor = null;
@@ -186,10 +187,12 @@ function writeExclusiveOwnerRecord(path, value) {
   }
 }
 
-function linkExclusiveOwnerRecord(path, value) {
+function linkExclusiveOwnerRecord(path, value, { afterTemporaryOpen } = {}) {
   const temporary = join(dirname(path), `.dc-c-${value.token}`);
   try {
-    writeExclusiveOwnerRecord(temporary, value);
+    writeExclusiveOwnerRecord(temporary, value, {
+      afterOpen: () => afterTemporaryOpen?.({ path, temporary }),
+    });
     linkSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
@@ -271,6 +274,27 @@ function sameCleanupPathLockMarker(left, right) {
     && left.inode === right.inode
     && left.modifiedAtMs === right.modifiedAtMs
     && left.bytes === right.bytes;
+}
+
+function ownedCleanupPathLockMarker(path, owner, expected = null) {
+  const marker = observeCleanupPathLockMarker(path);
+  const expectedBytes = `${JSON.stringify(owner)}\n`;
+  if (marker !== null
+      && validCleanupPathLockOwner(marker.owner)
+      && marker.owner.token === owner.token
+      && marker.bytes === expectedBytes
+      && (expected === null || sameCleanupPathLockMarker(marker, expected))) {
+    return marker;
+  }
+  throw Object.assign(
+    new Error(`cleanup path lock ownership changed before protected action ${path}`),
+    { code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE' },
+  );
+}
+
+function publishExclusiveCleanupPathLockMarker(path, owner, options) {
+  linkExclusiveOwnerRecord(path, owner, options);
+  return ownedCleanupPathLockMarker(path, owner);
 }
 
 function cleanupPathLockMarkerGeneration(marker) {
@@ -363,6 +387,7 @@ function releaseCleanupPathLock(lockFile, owner) {
 }
 
 async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOUT_MS, {
+  afterLockRecordOpened,
   afterReclaimMarkerAcquired,
   afterStaleReclaimClaimAcquired,
   afterStaleReclaimMarkerObserved,
@@ -380,8 +405,10 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     try {
-      writeExclusiveOwnerRecord(lockFile, owner);
-      return Object.freeze({ lockFile, owner });
+      const marker = publishExclusiveCleanupPathLockMarker(lockFile, owner, {
+        afterTemporaryOpen: afterLockRecordOpened,
+      });
+      return Object.freeze({ lockFile, owner, marker });
     } catch (error) {
       if (error?.code !== 'EEXIST') throw error;
     }
@@ -413,7 +440,7 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
     const reclaimOwner = cleanupPathLockOwner();
     try {
       try {
-        writeExclusiveOwnerRecord(reclaimFile, reclaimOwner);
+        publishExclusiveCleanupPathLockMarker(reclaimFile, reclaimOwner);
         ownsReclaim = true;
       } catch (error) {
         if (error?.code !== 'EEXIST') throw error;
@@ -461,10 +488,8 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
             && !liveCleanupPathLockOwner(current.owner)) {
           rmSync(reclaimFile);
           try {
-            linkExclusiveOwnerRecord(reclaimFile, reclaimOwner);
-            const adopted = readJson(reclaimFile);
-            adoptedReclaim = validCleanupPathLockOwner(adopted)
-              && adopted.token === reclaimOwner.token;
+            publishExclusiveCleanupPathLockMarker(reclaimFile, reclaimOwner);
+            adoptedReclaim = true;
           } catch (error) {
             if (error?.code !== 'EEXIST') throw error;
           }
@@ -485,17 +510,17 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
             || liveCleanupPathLockOwner(current.owner)) continue;
         rmSync(lockFile);
         try {
-          // Publish only into an absent pathname. A normal O_EXCL acquirer or
+          // Publish only into an absent pathname. A normal atomic acquirer or
           // another elected reclaimer may win the unlink-to-link window; this
           // contender then observes EEXIST and never replaces that live owner.
-          linkExclusiveOwnerRecord(lockFile, owner);
+          const marker = publishExclusiveCleanupPathLockMarker(lockFile, owner);
+          releaseCleanupPathClaims(reclaimClaimFiles);
+          reclaimClaimFiles = [];
+          return Object.freeze({ lockFile, owner, marker });
         } catch (error) {
           if (error?.code === 'EEXIST') continue;
           throw error;
         }
-        releaseCleanupPathClaims(reclaimClaimFiles);
-        reclaimClaimFiles = [];
-        return Object.freeze({ lockFile, owner });
       } finally {
         if (ownsReclaim) releaseCleanupPathLock(reclaimFile, reclaimOwner);
       }
@@ -512,18 +537,24 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 // reclaim, bind, and reaper deletion are one serialized ownership transition.
 export async function withCleanupPathLock(path, action, {
   timeoutMs,
+  afterLockRecordOpened,
   afterReclaimMarkerAcquired,
   afterStaleReclaimClaimAcquired,
   afterStaleReclaimMarkerObserved,
   markerStaleMs,
 } = {}) {
   const lock = await acquireCleanupPathLock(path, timeoutMs, {
+    afterLockRecordOpened,
     afterReclaimMarkerAcquired,
     afterStaleReclaimClaimAcquired,
     afterStaleReclaimMarkerObserved,
     markerStaleMs,
   });
   try {
+    // link(2) elected this exact inode and complete owner record. Re-read both
+    // immediately before the callback so a displaced publisher cannot enter
+    // the protected action merely because it once created a candidate file.
+    ownedCleanupPathLockMarker(lock.lockFile, lock.owner, lock.marker);
     return await action();
   } finally {
     releaseCleanupPathLock(lock.lockFile, lock.owner);

@@ -391,6 +391,16 @@ function processGroupAlive(pid) {
   }
 }
 
+function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ESRCH') return false;
+    throw error;
+  }
+}
+
 function snapshotEnvFiles(directory) {
   const files = {};
   const visit = (current, prefix = '') => {
@@ -519,6 +529,7 @@ async function startFixture(target, options = {}) {
     bindingRefreshWindowMs: options.bindingRefreshWindowMs,
     afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
     controlSocket: options.controlSocket,
+    afterControlEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
     afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
     devOptions: options.devOptions,
     clientPort: options.clientPort,
@@ -1029,6 +1040,51 @@ async function runControlSocketSuite() {
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
   try {
+    const earlyControlFixture = fixture('early-control-app', { sessions: true, root: controlRoot });
+    let earlyControlResult = null;
+    const earlyControlRun = await startFixture(earlyControlFixture, {
+      platform: 'web',
+      controlSocket: true,
+      async afterControlEndpointLeaseActivation({ path, ownerStatePath }) {
+        const owner = JSON.parse(readFileSync(ownerStatePath, 'utf8'));
+        const descriptor = {
+          path,
+          ownerPid: owner.ownerPid,
+          ownerUid: owner.ownerUid,
+          ownerIncarnationId: owner.ownerIncarnationId,
+          lifecycleReceipt: owner.lifecycleReceipt,
+        };
+        earlyControlResult = await sendControlCommand(
+          descriptor,
+          controlCommand(descriptor, 'stop-children', 'early-stop'),
+        );
+        assert.equal(
+          earlyControlResult.length,
+          1,
+          'stop-children during endpoint publication must be refused without acknowledgement',
+        );
+        assert.equal(
+          earlyControlResult[0].diagnostics?.[0]?.code,
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+        );
+      },
+    });
+    const earlyReady = earlyControlRun.events.find((event) => event.state === 'ready');
+    assert(earlyReady, 'the supervisor must reach ready after refusing an early control command');
+    assert.equal(processAlive(earlyReady.backend.pid), true, 'the backend must remain live at ready');
+    assert.equal(
+      processGroupAlive(earlyReady.metro.pid),
+      true,
+      'Metro must remain live at ready after the early command refusal',
+    );
+    assert.equal(
+      existsSync(join(dirname(earlyControlFixture.readyFile), 'expo-supervisor.json')),
+      true,
+    );
+    await earlyControlRun.supervisor.close();
+    supervisors.splice(supervisors.indexOf(earlyControlRun.supervisor), 1);
+    console.log('endpoint publication: early stop-children is refused and live children reach ready');
+
     const lateExitFixture = fixture('late-exit-app', { sessions: true, root: controlRoot });
     mkdirSync(lateExitFixture.stateRoot, { recursive: true });
     chmodSync(lateExitFixture.stateRoot, 0o755);

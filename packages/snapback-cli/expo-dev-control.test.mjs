@@ -98,10 +98,16 @@ const stall = () => new Promise(() => { setInterval(() => {}, 60_000); });
 try {
   await withCleanupPathLock(endpointPath, async () => {
     const lockOwner = JSON.parse(readFileSync(join(dirname(endpointPath), '.dc-lock'), 'utf8'));
-    process.stdout.write(JSON.stringify({ state: mode === 'stale-contender' ? 'protected-action' : 'lock-acquired', contenderId, lockOwner }) + '\\n');
+    process.stdout.write(JSON.stringify({ state: mode === 'stale-contender' || mode.startsWith('publication-') ? 'protected-action' : 'lock-acquired', contenderId, lockOwner }) + '\\n');
     await stall();
   }, {
-    timeoutMs: mode === 'stale-contender' ? 5_000 : 10_000,
+    timeoutMs: mode.startsWith('publication-') ? 1_500 : mode === 'stale-contender' ? 5_000 : 10_000,
+    ...(mode === 'publication-paused' ? {
+      afterLockRecordOpened() {
+        process.stdout.write(JSON.stringify({ state: 'lock-record-opened', contenderId }) + '\\n');
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 750);
+      },
+    } : {}),
     ...(mode === 'die-while-reclaiming' ? {
       async afterReclaimMarkerAcquired() {
         process.stdout.write(JSON.stringify({ state: 'reclaim-marker-acquired' }) + '\\n');
@@ -283,21 +289,29 @@ async function startPathLockActor(endpointPath, mode) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   holders.add(child);
+  const messages = [];
   let stdout = '';
   let stderr = '';
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
-  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk;
+    for (;;) {
+      const newline = stdout.indexOf('\n');
+      if (newline === -1) break;
+      messages.push(JSON.parse(stdout.slice(0, newline)));
+      stdout = stdout.slice(newline + 1);
+    }
+  });
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   const ready = await eventually(() => {
-    const newline = stdout.indexOf('\n');
-    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (messages.length > 0) return messages[0];
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(`path-lock actor exited before its barrier: ${stderr || stdout}`);
     }
     return false;
   }, { label: `${mode} path-lock barrier` });
-  return { child, ready };
+  return { child, ready, messages };
 }
 
 async function startForeignSocketHolder(endpointPath) {
@@ -813,6 +827,39 @@ try {
   assert.equal(existsSync(contenderWinner.value.descriptor.path), true);
   await contenderWinner.value.close();
   console.log('two reclaimers: shared lock serializes recheck, unlink, and successor bind');
+
+  const publicationRaceRoot = makeRoot('lock-publication-race');
+  const publicationRaceEndpoint = join(publicationRaceRoot, '.dc-sock');
+  const pausedPublisher = await startPathLockActor(
+    publicationRaceEndpoint,
+    'publication-paused',
+  );
+  assert.equal(pausedPublisher.ready.state, 'lock-record-opened');
+  const observedWellKnownBytes = existsSync(join(publicationRaceRoot, '.dc-lock'))
+    ? readFileSync(join(publicationRaceRoot, '.dc-lock'), 'utf8')
+    : null;
+  const publicationContender = await startPathLockActor(
+    publicationRaceEndpoint,
+    'publication-contender',
+  );
+  const publicationOutcomes = await eventually(() => {
+    const outcomes = [pausedPublisher, publicationContender]
+      .flatMap((actor) => actor.messages)
+      .filter((message) => message.state === 'protected-action' || message.state === 'refused');
+    return outcomes.length === 2 ? outcomes : false;
+  }, { timeoutMs: 5_000, label: 'paused lock publication contender outcomes' });
+  assert.equal(
+    publicationOutcomes.filter((message) => message.state === 'protected-action').length,
+    1,
+    'a publisher paused before lock publication and its contender must run only one protected action',
+  );
+  assert.notEqual(
+    observedWellKnownBytes,
+    '',
+    'the well-known lock pathname must never expose an empty owner marker',
+  );
+  await Promise.all([pausedPublisher, publicationContender].map(killHolder));
+  console.log('lock publication pause: complete atomic marker admits only one protected action');
 
   const lockRecoveryRoot = makeRoot('locks');
   const lockRecoveryEndpoint = join(lockRecoveryRoot, '.dc-sock');

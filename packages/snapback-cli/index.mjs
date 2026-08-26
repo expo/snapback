@@ -7100,7 +7100,8 @@ export async function runDev(options = {}) {
 // The two dev-loop control channels over stdin. A TTY gets single-key verbs
 // (s=status, r=reload, R=restart backend, f=dev-fresh, q=quit); anything else is the
 // machine-readable channel: newline-delimited JSON commands
-// (`{"schemaVersion":"snapback.dev-command.v1","verb":"status"|"reload"|"restart"|"dev-fresh"}`,
+// (`{"schemaVersion":"snapback.dev-command.v1",` plus
+// `"verb":"status"|"reload"|"restart"|"dev-fresh"|"reload-metro"}`,
 // optional `requestId` echoed on the response event). Responses and events
 // ride the one `snapback.dev.v1` JSON-line stream on stdout; unknown or
 // malformed commands produce a structured `command-error` event, never a
