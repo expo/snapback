@@ -1304,3 +1304,109 @@ diff for `guide/capabilities.md` and
 `issues/20260727-backend-bakeoff-improvement-program.md` is empty relative to
 merge base `baacaa20983f029f3e9cd23f60385ba00085e947`; integration retains ownership
 of generated projection regeneration.
+
+### Round-24 dual-review closure (2026-08-25)
+
+The authority-transition privacy cut no longer depends on recovery-target
+completeness. While the shared authorization-dispatch lock is held, it selects
+schema-v2 records by their persisted canonical origin in the participating
+store and applies predecessor/successor custody reconciliation even when the
+current capability fact is missing, negative, or generation-less. Recovery
+APIs retain their complete-current-target fence.
+
+Optimistic refresh borrowing now carries an internally minted owner lease that
+binds the client, authority instance, and exact async owner. A different client
+sharing the store cannot borrow that scope and joins its authority transition
+before reading. Settlement evidence already admitted by the exact owner is
+cached for later canonical-delivery retirement, so a sibling foreground owner
+does not require a second private-record read.
+
+Positive replay evidence and schema-v2 enqueue now require a non-empty target
+profile; a malformed advertising manifest refuses with the coded
+`target-profile-required` reason. Replay treats a record removed before its
+fenced re-read as a local no-op. Adoption receipts keep target-scoped
+`before`/`after` counts but derive `remaining` and `outcome.retained` from the
+payload-free total unresolved count, including a cross-target record that
+paused the candidate.
+
+The regressions failed before the production fix with these verbatim test and
+assertion lines:
+
+```text
+✖ principal switch privacy deletion survives an incomplete current target fact
+AssertionError [ERR_ASSERTION]: the successor authority observes no predecessor payload after an answered refusal
+✖ an unrelated shared-store client cannot borrow predecessor dispatch custody
+✖ offline replay advertisement without a target profile is a coded queue refusal
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+✖ replay treats a record removed before target selection as a stopped local no-op
+actual { replayed: 0, remaining: 1, stopped: true }
+expected { replayed: 0, remaining: 1, stopped: false }
+✖ checked sidecar adoption cannot bypass persisted target without target adoption
+0 !== 1
+✖ checked sidecar adoption names a retained legacy targetless pause
+✖ sidecar adoption target mismatch precedes authority-instance custody reconciliation
+0 !== 1
+```
+
+At the final JS implementation commit
+`f8762f8467c49580fc8dd62be8294948cf262ff3`, the required combined suite
+reports:
+
+```text
+ℹ tests 209
+ℹ suites 0
+ℹ pass 209
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1853.682792
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion after the affected suites pass 180/180,
+20/20, 22/22, and 4/4:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (13.989208ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2564.564792
+```
+
+The strict client TypeScript fixture command, run separately because the full
+script stops at that inherited RQS red, exits zero.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`node scripts/check-guide.mjs` passes snippet transclusions, including the
+updated adoption receipt snippet, and reports this verbatim final summary:
+
+```text
+[guide-check] FAILED — 17 passed, 5 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 97 warnings
+```
+
+The remaining diagnostics-registry, symbol-registry, capability/surface join,
+manifest/MCP, and flat-guide projection/corpus reds are integration-owned; the
+generated projection files remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+`./ref-check --verbose` reports `311 LLP docs, 6648 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
