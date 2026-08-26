@@ -2422,6 +2422,70 @@ mod tests {
     }
 
     #[test]
+    fn scope_registration_refuses_a_foreign_issuer_allocation() {
+        let fixture_a = live_issuer_fixture(0x73, 1);
+        let mut registry_a = ObligationRegistry::new(fixture_a.issuer).unwrap();
+        let issuer_a = registry_a.installed_issuer().clone();
+        let fixture_b = live_issuer_fixture(0x74, 1);
+        let issuer_id_b = fixture_b.expected_issuer_id.clone();
+        let mut registry_b = ObligationRegistry::new(fixture_b.issuer).unwrap();
+        let issuer_b = registry_b.installed_issuer().clone();
+        let namespace = QueryNamespace {
+            client_store_id: "cross-allocation-store".to_owned(),
+            query_key: "cross-allocation:{}".to_owned(),
+            query_instance_id: 1,
+        };
+
+        // Execute the alternate producer composition: a genuine reservation
+        // from issuer A is paired with a same-shaped scope for issuer B and
+        // offered to B's registry.
+        let foreign_reservation = issuer_a.reserve_scope_sequence().unwrap();
+        let crossed_scope = ScopeId::Subscription {
+            issuer_id: issuer_id_b.clone(),
+            namespace: namespace.clone(),
+            scope_sequence: foreign_reservation.scope_sequence(),
+            connection_generation: 1,
+            subscription_id: "crossed-allocation".to_owned(),
+        };
+        let crossed = registry_b
+            .register_live_scope(foreign_reservation, crossed_scope, "crossed-owner")
+            .expect_err("another issuer's real allocation must not enter B's frontier");
+        assert_eq!(
+            crossed.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_SCOPE_RESERVATION_INVALID"
+        );
+        assert!(registry_b.issued_scope_high_water.is_empty());
+
+        // Refusal cannot deny either legitimate graph. B can publish a
+        // retirement from its own allocation, and A can allocate again.
+        let reservation_b = issuer_b.reserve_scope_sequence().unwrap();
+        let sequence_b = reservation_b.scope_sequence();
+        let scope_b = ScopeId::Subscription {
+            issuer_id: issuer_id_b,
+            namespace,
+            scope_sequence: sequence_b,
+            connection_generation: 1,
+            subscription_id: "legitimate-b".to_owned(),
+        };
+        registry_b
+            .register_live_scope(reservation_b, scope_b.clone(), "legitimate-b-owner")
+            .unwrap();
+        let prepared_b = registry_b
+            .prepare_scope_retirement_authenticated(&scope_b)
+            .unwrap();
+        let published_b = registry_b
+            .commit_scope_retirement_authenticated(prepared_b)
+            .unwrap()
+            .expect("B's committed retirement remains publishable");
+        assert_eq!(published_b.retire_through_scope_sequence, sequence_b);
+        assert!(issuer_a.reserve_scope_sequence().is_ok());
+
+        // Keep A live through the end of the test so its independent durable
+        // issuer reservation is not mistaken for a disposable setup value.
+        assert!(registry_a.reserve_cause_sequence().is_ok());
+    }
+
+    #[test]
     fn inherited_process_identity_cannot_release_a_retirement_proof() {
         let fixture = live_issuer_fixture(0x72, 1);
         let issuer_id = fixture.expected_issuer_id.clone();
@@ -2486,6 +2550,69 @@ mod tests {
                 .values()
                 .all(|value| *value < 3)
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn actual_fork_cannot_release_an_inherited_retirement_proof() {
+        let fixture = live_issuer_fixture(0x75, 1);
+        let issuer_id = fixture.expected_issuer_id.clone();
+        let mut registry = ObligationRegistry::new(fixture.issuer).unwrap();
+        let issuer = registry.installed_issuer().clone();
+        let namespace = QueryNamespace {
+            client_store_id: "actual-fork-store".to_owned(),
+            query_key: "actual-fork:{}".to_owned(),
+            query_instance_id: 1,
+        };
+        let reservation = issuer.reserve_scope_sequence().unwrap();
+        let live_scope = ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            scope_sequence: reservation.scope_sequence(),
+            connection_generation: 1,
+            subscription_id: "live-before-actual-fork".to_owned(),
+        };
+        registry
+            .register_live_scope(reservation, live_scope.clone(), "actual-fork-owner")
+            .unwrap();
+        let prepared = registry
+            .prepare_scope_retirement_authenticated(&live_scope)
+            .unwrap();
+
+        // This is an actual kernel fork, not the PID simulation seam above.
+        // The child inherits both Arc allocation identities unchanged; only
+        // comparing the private creator PID with its current PID closes it.
+        let child_pid = unsafe { libc::fork() };
+        assert_ne!(child_pid, -1, "fork failed");
+        if child_pid == 0 {
+            let allocation_refused = issuer.reserve_scope_sequence().is_err_and(|error| {
+                error.diagnostic.code == "SNAPBACK_AUTH_INVALIDATION_ISSUER_FORKED"
+            });
+            let publication_refused = registry
+                .commit_scope_retirement_authenticated(prepared)
+                .is_err_and(|error| {
+                    error.diagnostic.code == "SNAPBACK_AUTH_INVALIDATION_ISSUER_FORKED"
+                });
+            unsafe { libc::_exit(i32::from(!(allocation_refused && publication_refused))) }
+        }
+
+        let mut status = 0;
+        let waited = unsafe { libc::waitpid(child_pid, &mut status, 0) };
+        assert_eq!(waited, child_pid, "waitpid did not reap the fork witness");
+        assert!(libc::WIFEXITED(status), "fork witness exited abnormally");
+        assert_eq!(
+            libc::WEXITSTATUS(status),
+            0,
+            "forked child reached an inherited issuer effect"
+        );
+
+        // The same inherited preparation remains legitimate in its creator
+        // process; child refusal must not permanently deny the parent.
+        let published = registry
+            .commit_scope_retirement_authenticated(prepared)
+            .unwrap()
+            .expect("creator process must still release its committed proof");
+        assert_eq!(published.retire_through_scope_sequence, 1);
     }
 
     #[test]
