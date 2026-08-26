@@ -5,13 +5,14 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-25 (round-25 generation/privacy correction: string-named
-replay sends the complete served generation persisted at enqueue so mutation-
-time validation closes an inspect-to-POST deployment race. The principal-
-privacy transition cut is the sole store-domain, origin-scoped exception to
-the v2 target-selection gate: it includes targetless/pre-v2 rows for the
-predecessor/successor strand/delete matrix but grants no replay, ACK,
-observation, recovery, or adoption authority.)
+**Revised:** 2026-08-26 (round-26 generation/privacy correction: string-named
+replay sends the complete served generation persisted at enqueue and rechecks
+the served generation immediately before POST. Sessions servers additionally
+enforce that assertion at mutation time; v0-dev does not. A principal switch
+may privacy-delete targetless/pre-v2 rows only when a default, non-injected
+store has recorded matching single-origin provenance. Shared, injected, or
+unproven stores instead preserve the bytes in predecessor-principal quarantine,
+which no successor may project, replay, ACK, recover, or adopt.)
 **Revised:** 2026-08-25 (round-23 systemic recovery fence: one shared client
 selection boundary admits only locally present v2 records matching the complete
 current enqueue target while the authorization-dispatch lock is held. Public
@@ -539,6 +540,16 @@ target-bound intent, but neither ordinary replay nor the current
 sidecar-adoption checks infer that authority; target adoption is out of scope
 for this amendment.
 
+For the final comparison, replay re-inspects the served target immediately
+before the mutation POST and compares it with the persisted generation. A
+difference pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` before the
+dispatch stamp or POST. This narrows, but cannot atomically close, the
+inspection-to-POST deployment window. Sessions-mode servers enforce the
+carried `expectedGeneration` against the manifest pair selected for the
+invocation. v0-dev servers currently tolerate that additive field and do not
+perform mutation-time enforcement; server parity is tracked in
+`issues/20260825-v0-dev-mutation-generation-enforcement.md`.
+
 All mutation/replay POSTs, other effect-producing requests, capability
 inspection, and any request carrying a bearer, lease, session, admin token, or
 other secret-classified credential use manual redirect handling. A
@@ -588,15 +599,20 @@ sidecar-adopted queue can never strand a record before its persisted target
 fence runs. Missing, targetless/legacy, and foreign caller ids return a coded
 no-op rather than granting record observation or mutation authority.
 
-The named **principal-privacy exception** is narrower and destructive: an
-authority transition operates on the current origin's durable store domain,
-so its origin cut includes targetless/pre-v2 rows that cannot satisfy the v2
-recovery target fence. It may only apply the already-proven predecessor/
-successor strand-or-delete matrix before successor observation. It grants no
-replay, mutation POST, operation-range issuance, ACK consumption, recovery
-projection, or target adoption; all of those retain the complete v2 current-
-target gate above. A foreign schema-v2 record whose persisted canonical origin
-does not match the transition origin remains outside this privacy cut.
+The named **principal-privacy exception** is narrower than replay authority.
+An authority transition includes targetless/pre-v2 rows that cannot satisfy
+the v2 recovery target fence only when store provenance makes their origin
+disposition safe. A default, non-injected store durably records canonical
+origin provenance; only a matching provenance record that remains single-
+origin permits the destructive predecessor/successor deletion matrix. An
+injected store, a provenance record that observed multiple origins, or absent/
+unproven provenance must retain legacy bytes in a durable quarantine stamped
+to the predecessor principal. Successor principals cannot project, replay,
+ACK, recover, or adopt that quarantine; the explicit adoption protocol owns
+its eventual user-authorized disposition. The transition emits a coded
+deletion or quarantine diagnostic accordingly. A foreign schema-v2 record
+whose persisted canonical origin does not match the transition origin remains
+outside this privacy cut.
 
 The additive enqueue-target identity also recognizes an opaque
 `ledgerIncarnation` whenever inspection provides it. The client persists the

@@ -37,6 +37,8 @@ export const OUTBOX_MAX_RECORDS = 1024;
 export const OUTBOX_MAX_RECORD_BYTES = 262_144; // 256 KiB serialized
 export const OUTBOX_MAX_PENDING_ACKS = 4096;
 export const OUTBOX_QUARANTINE_TOMBSTONE_FORMAT = 'snapback.outbox-quarantine-tombstone.v1';
+const OUTBOX_ORIGIN_PROVENANCE_FORMAT = 'snapback.outbox-origin-provenance.v1';
+const OUTBOX_PRINCIPAL_QUARANTINE_FORMAT = 'snapback.outbox-principal-quarantine.v1';
 // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — replay
 // authority includes the immutable enqueue target; predecessor records remain
 // readable but cannot replay without a separately approved adoption protocol.
@@ -136,6 +138,41 @@ const samePrincipalScope = (left, right) => (
   && left?.authorizationStreamIncarnation === right?.authorizationStreamIncarnation
   && (left?.userId ?? null) === (right?.userId ?? null)
 );
+const normalizeOutboxOriginProvenance = (value) => {
+  if (
+    !plainRecord(value)
+    || value.schemaVersion !== OUTBOX_ORIGIN_PROVENANCE_FORMAT
+    || !['single-origin', 'shared-or-unknown'].includes(value.status)
+  ) return null;
+  if (value.status === 'single-origin') {
+    if (typeof value.canonicalOrigin !== 'string' || value.canonicalOrigin.length === 0) {
+      return null;
+    }
+    return {
+      schemaVersion: OUTBOX_ORIGIN_PROVENANCE_FORMAT,
+      status: 'single-origin',
+      canonicalOrigin: value.canonicalOrigin,
+    };
+  }
+  if (value.canonicalOrigin !== null) return null;
+  return {
+    schemaVersion: OUTBOX_ORIGIN_PROVENANCE_FORMAT,
+    status: 'shared-or-unknown',
+    canonicalOrigin: null,
+  };
+};
+const normalizePrincipalQuarantine = (value) => {
+  if (
+    !plainRecord(value)
+    || value.schemaVersion !== OUTBOX_PRINCIPAL_QUARANTINE_FORMAT
+  ) return null;
+  const predecessorPrincipalScope = normalizePrincipalScope(value.predecessorPrincipalScope);
+  if (predecessorPrincipalScope === null) return null;
+  return {
+    schemaVersion: OUTBOX_PRINCIPAL_QUARANTINE_FORMAT,
+    predecessorPrincipalScope,
+  };
+};
 const isFencedRecord = (record) => (
   plainRecord(record?.authorityDescriptor)
   && normalizePrincipalScope(record?.principalScope) !== null
@@ -613,7 +650,9 @@ const quarantineTombstone = (record) => ({
   quarantineDisposition: record.quarantine?.disposition ?? 'compatibility-unclassified',
   causeClientMutationId: record.quarantine?.causeClientMutationId ?? record.id,
   provenance: {
-    source: 'server-replay-refusal',
+    source: normalizePrincipalQuarantine(record.principalQuarantine) === null
+      ? 'server-replay-refusal'
+      : 'principal-privacy-quarantine',
     payload: 'redacted',
   },
   effectProvenance: effectProvenance(record.effectProvenance),
@@ -656,6 +695,7 @@ export const emptyOutboxState = () => ({
   records: {},
   acks: [],
   operationIdentityRanges: {},
+  originProvenance: null,
   // @ref LLP 0053#dispositions-with-producers-and-meanings —
   //   mutation replay roots share the outbox's atomic persistence domain.
   authorizationQueue: {
@@ -757,6 +797,11 @@ export function validateOutboxState(value) {
         : authorizationQueue.generation,
     }]),
   );
+  const originProvenance = value.originProvenance === undefined
+    ? null
+    : normalizeOutboxOriginProvenance(value.originProvenance);
+  if (value.originProvenance !== undefined && value.originProvenance !== null
+    && originProvenance === null) return null;
   return {
     ...value,
     // Persisted predecessor shapes may already carry a live delete root but
@@ -776,6 +821,7 @@ export function validateOutboxState(value) {
       && !Array.isArray(value.operationIdentityRanges)
       ? value.operationIdentityRanges
       : {},
+    originProvenance,
     authorizationQueue: normalizedAuthorizationQueue,
   };
 }
@@ -1105,6 +1151,60 @@ const allocateIdentity = (state, key, now) => {
 /// { state, result } without mutating the input, so arms can commit the
 /// whole section atomically (file rename / IndexedDB transaction).
 export const outboxOps = {
+  /// Record whether this durable outbox has remained bound to one server
+  /// origin. A missing predecessor marker is not proof when targetless bytes
+  /// already exist, and once a second origin is observed the shared verdict is
+  /// sticky. Only default (non-injected) client resolution calls this method.
+  /// @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+  /// principal privacy must preserve legacy intent when origin is unproven.
+  recordOriginProvenance(state, canonicalOrigin) {
+    if (
+      typeof canonicalOrigin !== 'string'
+      || canonicalOrigin.length === 0
+      || canonicalOrigin.length > 2_048
+    ) {
+      throw invalidOutboxRecord('outbox origin provenance requires a bounded canonical origin');
+    }
+    const current = normalizeOutboxOriginProvenance(state.originProvenance);
+    if (current?.status === 'shared-or-unknown') return { state, result: current };
+    if (
+      current?.status === 'single-origin'
+      && current.canonicalOrigin === canonicalOrigin
+    ) return { state, result: current };
+    let next;
+    if (current?.status === 'single-origin') {
+      next = {
+        schemaVersion: OUTBOX_ORIGIN_PROVENANCE_FORMAT,
+        status: 'shared-or-unknown',
+        canonicalOrigin: null,
+      };
+    } else {
+      const records = Object.values(state.records);
+      const existingOrigins = records.map((record) => (
+        record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
+        && normalizeOutboxEnqueueTarget(record.enqueueTarget) !== null
+          ? record.enqueueTarget.canonicalOrigin
+          : null
+      ));
+      const provablySameOrigin = records.length === 0
+        || existingOrigins.every((origin) => origin === canonicalOrigin);
+      next = provablySameOrigin
+        ? {
+            schemaVersion: OUTBOX_ORIGIN_PROVENANCE_FORMAT,
+            status: 'single-origin',
+            canonicalOrigin,
+          }
+        : {
+            schemaVersion: OUTBOX_ORIGIN_PROVENANCE_FORMAT,
+            status: 'shared-or-unknown',
+            canonicalOrigin: null,
+          };
+    }
+    return { state: { ...state, originProvenance: next }, result: next };
+  },
+  originProvenance(state) {
+    return { state, result: normalizeOutboxOriginProvenance(state.originProvenance) };
+  },
   // @ref LLP 0053#client-fences — root apply precedes blank/ACK, and replay
   //   stays suspended until an exact proof or authenticated retirement wins.
   applyAuthorizationObligation(
@@ -1695,12 +1795,28 @@ export const outboxOps = {
     now,
     expectedAuthorityGeneration = null,
     eligibleRecordIds = null,
+    legacyPolicy = null,
   ) {
     const currentScope = normalizePrincipalScope(principalScope);
     const currentCustody = normalizeCustody(custody);
     const currentInstance = authorityInstanceId(authorityDescriptor);
     if (currentScope === null || currentCustody === null || currentInstance === null) {
       throw invalidOutboxRecord('queue custody reconciliation requires a settled authority');
+    }
+    const legacyDisposition = legacyPolicy?.disposition ?? 'delete';
+    const legacyPredecessorPrincipalScope = normalizePrincipalScope(
+      legacyPolicy?.predecessorPrincipalScope,
+    );
+    if (
+      legacyDisposition !== 'delete'
+      && (
+        legacyDisposition !== 'quarantine'
+        || legacyPredecessorPrincipalScope === null
+      )
+    ) {
+      throw invalidOutboxRecord(
+        'legacy queue custody policy must delete or quarantine to a predecessor principal',
+      );
     }
     let eligible = null;
     if (eligibleRecordIds !== null) {
@@ -1727,9 +1843,11 @@ export const outboxOps = {
     );
     const deletedIds = [];
     const strandedIds = [];
+    const quarantinedIds = [];
     for (const record of Object.values(state.records).sort(outboxOrder)) {
       if (eligible !== null && !eligible.has(record.id)) continue;
       if (!isFencedRecord(record)) {
+        if (normalizePrincipalQuarantine(record.principalQuarantine) !== null) continue;
         if (
           record.status === 'pending'
           && record.dispatchLane === 'housekeeping'
@@ -1761,6 +1879,34 @@ export const outboxOps = {
           && record.authorizationAuthorityGeneration
             === authorizationQueue.authorityGeneration;
         if (currentDeleteTombstone) continue;
+        if (legacyDisposition === 'quarantine') {
+          working = {
+            ...working,
+            records: {
+              ...working.records,
+              [record.id]: {
+                ...working.records[record.id],
+                status: 'quarantined',
+                failure: null,
+                replayable: false,
+                discardOnly: false,
+                rerecordable: false,
+                quarantine: {
+                  quarantinedAt: now,
+                  refusalCode: 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED',
+                  disposition: 'pre-v2-principal-quarantine',
+                  causeClientMutationId: record.id,
+                },
+                principalQuarantine: {
+                  schemaVersion: OUTBOX_PRINCIPAL_QUARANTINE_FORMAT,
+                  predecessorPrincipalScope: legacyPredecessorPrincipalScope,
+                },
+              },
+            },
+          };
+          quarantinedIds.push(record.id);
+          continue;
+        }
         // An unattributable record carries no captured principal or custody
         // proof, so a fenced observer can neither attribute it to the current
         // principal nor ever transmit it under a captured authority ("intent
@@ -1896,6 +2042,12 @@ export const outboxOps = {
         deletedIds,
         stranded: strandedIds.length,
         strandedIds,
+        ...(quarantinedIds.length === 0
+          ? {}
+          : {
+              quarantined: quarantinedIds.length,
+              quarantinedIds,
+            }),
       },
     };
   },
@@ -2001,6 +2153,7 @@ export const outboxOps = {
     const ids = [];
     for (const existing of Object.values(records).sort(outboxOrder)) {
       if (existing.status !== 'quarantined') continue;
+      if (normalizePrincipalQuarantine(existing.principalQuarantine) !== null) continue;
       if (selectedIds !== null && !selectedIds.has(existing.id)) continue;
       const {
         quarantine: _quarantine,

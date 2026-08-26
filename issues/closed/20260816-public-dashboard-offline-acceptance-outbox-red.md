@@ -1413,20 +1413,27 @@ errors, 0 unchecked`. `git diff --check` produces no output.
 
 ### Round-25 dual-review closure (2026-08-25)
 
-String-named schema-v2 replay now derives a replay-only
+String-named schema-v2 replay derives a replay-only
 `wireExpectedGeneration` from the complete served generation persisted in its
 enqueue target and sends it as the mutation carrier's `expectedGeneration`.
-The server's existing mutation-time generation check therefore closes the
-deployment race after `/inspect` but before POST. A server generation mismatch
-pauses the record pending rather than recording a content failure, so generation
-B executes zero effects from generation A's queued intent.
+The client also re-inspects and compares the served generation immediately
+before POST. Sessions servers enforce the carried assertion at mutation time;
+v0-dev does not. The public-dashboard offline-local-first 9/9 acceptance does
+not cover this inspection-to-POST deployment race. The remaining server work
+is tracked in `issues/20260825-v0-dev-mutation-generation-enforcement.md`.
 
-The principal-privacy origin cut now includes targetless/pre-v2 ids from the
-current origin-scoped store domain. Those records enter the existing
-predecessor/successor strand/delete matrix before successor observation;
-replay, observation, ACK, recovery, and adoption retain the complete schema-v2
-target fence. Authorization-dispatch borrowing now verifies that the supplied
-owner lease was minted into the private `WeakSet`.
+The principal-privacy origin cut may delete targetless/pre-v2 ids only when a
+default, non-injected store has recorded matching single-origin provenance.
+Shared, injected, and unproven stores instead preserve the bytes in durable
+predecessor-principal quarantine, invisible and inoperable to successor
+principals until the explicit adoption protocol defines a disposition.
+Authorization-dispatch borrowing now verifies that the supplied owner lease
+was minted into the private `WeakSet`.
+
+The reset bound remains unchanged: client-side `ledgerIncarnation` plumbing or
+equality does not close `app.reset`. Reset quarantine is not fixed until the
+served inspection fact contains `ledgerIncarnation` and the real reset/zero-
+POST regression passes.
 
 The regressions failed before the production fixes with these verbatim test and
 assertion lines:

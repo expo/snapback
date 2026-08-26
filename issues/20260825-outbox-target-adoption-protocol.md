@@ -27,6 +27,11 @@ silently lose or permanently strand that intent merely because the predecessor
 could not have written v2 identity. The protocol needs an explicit migration
 case with evidence strong enough to bind each legacy record to a target, or a
 recovery workflow that preserves the bytes until a user-authorized disposition.
+When store origin provenance is shared, injected, or unproven, a principal
+switch therefore retains those bytes in durable predecessor-principal
+quarantine. That marker is not authority for any successor principal to
+project, replay, ACK, recover, or adopt the record; it exists solely to keep
+the original bytes available to this protocol.
 
 ## Needed decision
 
@@ -54,6 +59,9 @@ authority, record-scoped custody, and the rewrite explicitly across crashes.
 - Upgrade-while-offline migration covers pre-v2 targetless records without
   dropping intent or leaving it permanently unreachable; crash/relaunch and
   rollback preserve the original bytes until the migration commits.
+- The protocol defines the authority and durable transition for releasing a
+  predecessor-principal quarantine, without making its contents observable or
+  actionable to an arbitrary successor principal.
 - `adoptQueuedMutations()` either performs that checked transition or exposes
   a stable refusal that points to the chosen recovery path.
 - Conformance covers origin, target-profile, generated-generation, app-id,

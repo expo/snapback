@@ -3057,6 +3057,22 @@ const clientAuthorityFromHandshake = (session) => {
   throw staleAuthorityError();
 };
 
+const principalScopeFromClientAuthority = (authority) => {
+  if (
+    authority === null
+    || typeof authority !== 'object'
+    || !['anonymous', 'session'].includes(authority.kind)
+    || typeof authority.authMode !== 'string'
+    || typeof authority.authorizationStreamIncarnation !== 'string'
+    || (authority.kind === 'session' && typeof authority.userId !== 'string')
+  ) return null;
+  return Object.freeze({
+    authMode: authority.authMode,
+    authorizationStreamIncarnation: authority.authorizationStreamIncarnation,
+    userId: authority.kind === 'session' ? authority.userId : null,
+  });
+};
+
 const credentialAuthority = (response, activeMode = 'sessions', incarnation = null) => ({
   kind: 'session',
   authMode: activeMode,
@@ -4071,6 +4087,18 @@ export class SnapbackClient {
       });
       this.__ownsRqsStore = false;
     }
+    // Legacy rows carry no target origin. Only a default-resolved store that
+    // durably recorded one canonical origin may privacy-delete those bytes;
+    // injected stores and cross-origin default reuse remain unproven. Start
+    // this record before application work can enqueue into a fresh store.
+    this.__outboxOriginProvenancePromise = (
+      this.rqsStoreInfo.source === 'default'
+      && typeof this.rqsStore?.outboxRecordOriginProvenance === 'function'
+    )
+      ? Promise.resolve().then(() => this.rqsStore.outboxRecordOriginProvenance(
+          canonicalServerOrigin(this.baseUrl),
+        )).catch(() => null)
+      : Promise.resolve(null);
     this.__rqsStoreClosePromise = null;
     this.__inlinePreloadBootPayload = __preloadBootPayload === undefined
       ? readInlineBootPayloadForRegistration()
@@ -4178,6 +4206,7 @@ export class SnapbackClient {
         return [
           ...durableRecords.map((record) => ({
             ...record,
+            __optimisticRecordDurability: 'durable',
             __optimisticSequenceEpoch:
               record.optimisticProcessEpoch === optimisticProcessOrder.epoch
               && Number.isSafeInteger(record.optimisticInvocationSequence)
@@ -4189,6 +4218,7 @@ export class SnapbackClient {
             .filter((record) => !durableIds.has(record.id))
             .map((record) => ({
               ...record,
+              __optimisticRecordDurability: 'process-local',
               __optimisticSequenceEpoch: 'current',
               __optimisticInvocationSequence: record.optimisticInvocationSequence,
             })),
@@ -4506,6 +4536,7 @@ export class SnapbackClient {
             context.capture,
             context.stagePublication,
             transitionAuthorityGeneration,
+            principalScopeFromClientAuthority(context.previousAuthority ?? null),
           );
         } finally {
           this.__outboxTransitionAuthorityGenerations.delete(transitionKey);
@@ -6217,7 +6248,12 @@ export class SnapbackClient {
     }
   }
 
-  async #resumeAuthTransport(capture, stagePublication, transitionAuthorityGeneration = null) {
+  async #resumeAuthTransport(
+    capture,
+    stagePublication,
+    transitionAuthorityGeneration = null,
+    predecessorPrincipalScope = null,
+  ) {
     const credential = this.authCoordinator.credentialFor(capture);
     let fetched;
     try {
@@ -6280,6 +6316,7 @@ export class SnapbackClient {
         validateCurrent: false,
         expectedAuthorityGeneration: transitionAuthorityGeneration,
         authTransitionOriginCut: true,
+        authTransitionPredecessorPrincipalScope: predecessorPrincipalScope,
         authorizationDispatchOwnerLease,
       });
       if (!reconciled) {
@@ -7933,6 +7970,29 @@ export class SnapbackClient {
     });
   }
 
+  // Replay already owns the authorization-dispatch gate at the final POST
+  // slot. Re-entering the ordinary inspection recorder there would deadlock
+  // on its exclusive fact commit, so this narrow observation reads the same
+  // served manifest without mutating shared capability custody.
+  async #inspectOfflineMutationReplayTargetWithoutCommit(transportTarget) {
+    const inspection = await this.#req(
+      'GET',
+      '/inspect',
+      undefined,
+      this.#authOfferHeaders(false),
+      {
+        rejectRedirects: true,
+        transportBaseUrl: transportTarget.baseUrl,
+      },
+    );
+    return normalizeOfflineMutationReplayCapabilityFact(
+      offlineMutationReplayCapabilityFactFromInspection(
+        inspection,
+        transportTarget.origin,
+      ),
+    );
+  }
+
   async inspect() {
     return (await this.#inspectWithOfflineMutationReplayCapabilitySequence()).inspection;
   }
@@ -8973,8 +9033,27 @@ export class SnapbackClient {
     return value;
   }
 
-  async #authTransitionOutboxRecordIds(store) {
+  async #authTransitionOutboxSelection(store, predecessorPrincipalScope) {
+    // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+    // legacy principal privacy is destructive only under durable single-origin
+    // provenance; otherwise predecessor quarantine preserves adoption bytes.
     const origin = canonicalServerOrigin(this.baseUrl);
+    await this.__outboxOriginProvenancePromise;
+    const originProvenance = this.rqsStoreInfo.source === 'default'
+      && typeof store.outboxOriginProvenance === 'function'
+      ? await store.outboxOriginProvenance().catch(() => null)
+      : null;
+    // Initial authority establishment has no predecessor privacy domain. It
+    // must not mutate unattributable legacy rows at all; only a real
+    // predecessor transition chooses delete versus quarantine.
+    const hasPredecessorPrincipal = predecessorPrincipalScope !== null;
+    const legacyDisposition = !hasPredecessorPrincipal
+      || (
+        originProvenance?.status === 'single-origin'
+        && canonicalServerOrigin(originProvenance.canonicalOrigin) === origin
+      )
+      ? 'delete'
+      : 'quarantine';
     const projectedRecords = await store.outboxRecords();
     const quarantineTargets = typeof store.outboxQuarantinedRecordTargets === 'function'
       ? await store.outboxQuarantinedRecordTargets()
@@ -8982,27 +9061,38 @@ export class SnapbackClient {
     const quarantineTargetsById = new Map(
       quarantineTargets.map((record) => [record.id, record]),
     );
-    return projectedRecords
+    const recordIds = projectedRecords
       .map((record) => (
         record?.status === 'quarantined' && quarantineTargetsById.has(record.id)
           ? { ...record, ...quarantineTargetsById.get(record.id) }
           : record
       ))
       .filter((record) => (
-        record?.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
-        || record.enqueueTarget === null
-        || typeof record.enqueueTarget !== 'object'
-        || canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) === origin
+        record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
+        && record.enqueueTarget !== null
+        && typeof record.enqueueTarget === 'object'
+          ? canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) === origin
+          : hasPredecessorPrincipal
       ))
       .map((record) => record.id);
+    return Object.freeze({
+      recordIds: Object.freeze(recordIds),
+      legacyPolicy: Object.freeze({
+        disposition: legacyDisposition,
+        predecessorPrincipalScope,
+      }),
+    });
   }
 
-  #targetAwareOptimisticRecordStore(store) {
+  #targetAwareOptimisticRecordStore(store, { includeProcessLocal = false } = {}) {
     return Object.freeze({
       outboxRecords: async () => {
         const target = await this.#outboxProjectionTarget(store);
         const records = await store.outboxRecords();
-        return records.filter((record) => outboxRecordMatchesProjectionTarget(record, target));
+        return records.filter((record) => (
+          (includeProcessLocal && record?.__optimisticRecordDurability === 'process-local')
+          || outboxRecordMatchesProjectionTarget(record, target)
+        ));
       },
     });
   }
@@ -9053,7 +9143,10 @@ export class SnapbackClient {
     if (typeof table !== 'string' || table.length === 0) return null;
     return this.__storeRuntimeInvoke(
       'createOptimisticMutationView',
-      this.#targetAwareOptimisticRecordStore(this.__optimisticRecordStore),
+      this.#targetAwareOptimisticRecordStore(
+        this.__optimisticRecordStore,
+        { includeProcessLocal: true },
+      ),
       {
         authoritativeRows,
         connected,
@@ -9137,6 +9230,11 @@ export class SnapbackClient {
     const enqueuedAt = Date.now();
     const stored = Object.freeze({
       ...structuredClone(record),
+      // Durable rows need a positive replay-target fact before projection.
+      // This row exists only for the currently executing operation and cannot
+      // replay after process loss, so target capability is irrelevant to its
+      // local optimistic presentation.
+      __optimisticRecordDurability: 'process-local',
       sequence,
       status: 'pending',
       enqueuedAt,
@@ -11394,6 +11492,8 @@ export class SnapbackClient {
       authorizationDispatchOwned = false,
       recordIds = null,
       authTransitionOriginCut = false,
+      authTransitionPredecessorPrincipalScope = null,
+      legacyPolicy = null,
       authorizationDispatchOwnerLease = null,
     } = {},
   ) {
@@ -11405,19 +11505,24 @@ export class SnapbackClient {
           authorizationDispatchOwnerLease,
         );
         try {
-          // PRINCIPAL-PRIVACY is a store-domain cut, not a recovery API.
-          // Same-origin v2 identity plus targetless/pre-v2 rows in this
-          // origin-scoped store enter the already-proven predecessor/successor
-          // matrix; an incomplete capability fact cannot leave predecessor
-          // payload for successor observation. Replay/ACK/adoption keep the
+          // PRINCIPAL-PRIVACY is a store-domain cut, not a recovery API. V2
+          // rows carry their own origin; targetless/pre-v2 rows are deletable
+          // only when a default store durably proves one matching origin.
+          // Shared/injected/unknown stores retain a predecessor-principal
+          // quarantine for adoption instead. Replay/ACK/adoption keep the
           // complete current-target gate.
-          const transitionRecordIds = await this.#authTransitionOutboxRecordIds(store);
+          const transitionSelection = await this.#authTransitionOutboxSelection(
+            store,
+            authTransitionPredecessorPrincipalScope,
+          );
           return await this.#applyQueueCustodyReconciliation(store, authority, {
             validateCurrent,
             expectedAuthorityGeneration,
             authorizationDispatchOwned: true,
-            recordIds: transitionRecordIds,
+            recordIds: transitionSelection.recordIds,
             authTransitionOriginCut: true,
+            authTransitionPredecessorPrincipalScope,
+            legacyPolicy: transitionSelection.legacyPolicy,
             authorizationDispatchOwnerLease,
           });
         } finally {
@@ -11439,6 +11544,8 @@ export class SnapbackClient {
             authorizationDispatchOwned: true,
             recordIds: targetRecordIds,
             authTransitionOriginCut,
+            authTransitionPredecessorPrincipalScope,
+            legacyPolicy,
             authorizationDispatchOwnerLease,
           },
         ),
@@ -11450,6 +11557,8 @@ export class SnapbackClient {
         deletedIds: [],
         stranded: 0,
         strandedIds: [],
+        quarantined: 0,
+        quarantinedIds: [],
       };
     }
     let beforeRecords = [];
@@ -11470,6 +11579,7 @@ export class SnapbackClient {
         authority.authorityDescriptor,
         authority.custody,
         expectedAuthorityGeneration,
+        legacyPolicy,
       ));
     let result;
     result = await commit();
@@ -11517,7 +11627,14 @@ export class SnapbackClient {
         clientMutationIds: result.strandedIds,
       });
     }
-    if (result.deleted > 0 || result.stranded > 0) {
+    if (result.quarantined > 0) {
+      this.#recordOutboxDiagnostic({
+        code: 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED',
+        reason: 'origin_provenance_unproven',
+        quarantined: result.quarantined,
+      });
+    }
+    if (result.deleted > 0 || result.stranded > 0 || result.quarantined > 0) {
       await this.#refreshOptimisticMutationViews(
         'authority-custody-reconciled',
         authorizationDispatchOwnerLease,
@@ -13993,6 +14110,51 @@ export class SnapbackClient {
                 throw error;
               }
               assertReplayRecordTargetCurrent(preparedForDispatch.record);
+              // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+              // v0-dev does not enforce the carried generation, so replay
+              // narrows its residual race with a served-target read at POST.
+              // Narrow the inspect-to-POST replacement window independently
+              // of server auth mode. Sessions servers enforce the persisted
+              // generation carried on the wire; v0-dev does not, so replay
+              // must re-observe the served target immediately before POST and
+              // pause locally if it no longer equals the pinned record.
+              // The constructor boolean is an internal store-mechanics test
+              // seam with no served `/inspect` target. Production clients
+              // always leave it null and perform the real final observation.
+              const immediateCapability = this.__offlineMutationReplayCapability === null
+                ? await this.#inspectOfflineMutationReplayTargetWithoutCommit(
+                    replayOperationTarget,
+                  )
+                : null;
+              const immediateTarget = immediateCapability === null
+                ? replayOperationTarget
+                : completeOfflineMutationOperationTarget(
+                    replayOperationTarget,
+                    immediateCapability,
+                  );
+              if (immediateTarget === null) {
+                throw diagnosticError(
+                  'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+                  'the served replay target changed after replay admission and before mutation POST',
+                  {
+                    reason: 'pre-post-target-mismatch',
+                    clientMutationId: record.id,
+                    persistedTarget: record.enqueueTarget ?? null,
+                    servedTarget: {
+                      canonicalOrigin: immediateCapability?.origin ?? replayOperationTarget.origin,
+                      targetProfileId: immediateCapability?.targetProfileId ?? null,
+                      artifactGeneration: immediateCapability?.artifactGeneration ?? null,
+                      ledgerIncarnation: immediateCapability?.ledgerIncarnation ?? null,
+                    },
+                  },
+                );
+              }
+              const immediateTargetError = offlineMutationReplayTargetBindingError(
+                preparedForDispatch.record,
+                immediateTarget,
+                knownReplayAppId,
+              );
+              if (immediateTargetError !== null) throw immediateTargetError;
               const submission = await store.outboxPrepareSubmission(
                 record.id,
                 { markDispatched: true },

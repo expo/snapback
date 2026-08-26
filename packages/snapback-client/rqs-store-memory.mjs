@@ -474,6 +474,18 @@ export function createMemoryRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox ----
 
+    async outboxOriginProvenance() {
+      requireOpen();
+      return structuredClone(outboxOps.originProvenance(state.outbox).result);
+    },
+
+    async outboxRecordOriginProvenance(canonicalOrigin) {
+      requireOpen();
+      const applied = outboxOps.recordOriginProvenance(state.outbox, canonicalOrigin);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxEnqueue(record, expectedAuthorizationFence = null) {
       if (!requireWriter()) throw outboxNotWriterError();
       const applied = outboxOps.enqueue(
@@ -713,6 +725,7 @@ export function createMemoryRqsResumeStore({
       authorityDescriptor,
       custody,
       expectedAuthorityGeneration = null,
+      legacyPolicy = null,
     ) {
       requireOpen();
       const applied = outboxOps.reconcileCustody(
@@ -723,6 +736,7 @@ export function createMemoryRqsResumeStore({
         now(),
         expectedAuthorityGeneration,
         recordIds,
+        legacyPolicy,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);

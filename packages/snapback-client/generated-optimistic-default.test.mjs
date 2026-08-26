@@ -496,10 +496,11 @@ const installProjectionTarget = async (store, origin = GENERATED_ORIGIN) => {
 
 const openHost = async (store, rows = BASE_ROWS, query = QUERY, {
   clientOptions = {},
+  installReplayProjectionTarget = true,
   snapshot = null,
   onAuthorizationBoundary = null,
 } = {}) => {
-  await installProjectionTarget(store);
+  if (installReplayProjectionTarget) await installProjectionTarget(store);
   const client = new SnapbackClient(GENERATED_ORIGIN, {
     rqsStore: store,
     offlineQueue: true,
@@ -540,14 +541,17 @@ const openHost = async (store, rows = BASE_ROWS, query = QUERY, {
   return { client, handle, updates, get subscriptionSequence() { return subscriptionSequence; } };
 };
 
-test('headless ordinary generated create, edit, archive, delete, and reorder paint without reducers', async (t) => {
+test('headless process-local generated mutations paint without durable replay facts', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const directory = await mkdtemp(join(tmpdir(), 'snapback-generated-default-paint-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const store = openStore(directory);
   await store.whenLockSettled();
-  const { client, handle } = await openHost(store);
+  const { client, handle } = await openHost(store, BASE_ROWS, QUERY, {
+    clientOptions: { offlineQueue: false },
+    installReplayProjectionTarget: false,
+  });
 
   let releaseResponses;
   const responses = new Promise((resolve) => { releaseResponses = resolve; });

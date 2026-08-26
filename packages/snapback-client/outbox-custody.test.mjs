@@ -13,7 +13,11 @@ import {
   outboxOps,
   outboxRecordBytes,
 } from './outbox-shared.mjs';
-import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import { brandDefaultRqsStoreResolution } from './rqs-store-default.mjs';
+import {
+  createMemoryRqsResumeStore,
+  createMemoryRqsStoreBacking,
+} from './rqs-store-memory.mjs';
 
 class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
@@ -262,7 +266,11 @@ const makeFixture = ({ store = createDurableTestStore(), storage = null } = {}) 
   return fixture;
 };
 
-const makeClient = (fixture, { store = fixture.store, storage = fixture.storage } = {}) => {
+const makeClient = (fixture, {
+  store = fixture.store,
+  storage = fixture.storage,
+  defaultStore = false,
+} = {}) => {
   const coordinator = new AuthCoordinator({
     appId: fixture.appId,
     storage,
@@ -273,7 +281,17 @@ const makeClient = (fixture, { store = fixture.store, storage = fixture.storage 
     authCoordinator: coordinator,
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
-    rqsStore: store,
+    rqsStore: defaultStore
+      ? brandDefaultRqsStoreResolution({
+          store,
+          info: Object.freeze({
+            source: 'default',
+            implementation: 'memory-test-double',
+            durable: true,
+            reason: null,
+          }),
+        })
+      : store,
   });
   client.__registerInspectionAppId(fixture.appId);
   return { client, coordinator };
@@ -1150,23 +1168,108 @@ test('stranding a valid near-limit record cannot wedge an authority transition',
   assert(outboxRecordBytes(stranded.result) > OUTBOX_MAX_RECORD_BYTES);
 });
 
-test('principal switch privacy cut deletes targetless pre-v2 queued args', async (t) => {
-  const fixture = makeFixture();
+test('shared injected store quarantines foreign-origin targetless bytes on principal switch', async (t) => {
+  const backing = createMemoryRqsStoreBacking();
+  const store = createMemoryRqsResumeStore({ backing });
+  store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  const fixture = makeFixture({ store });
+  const originA = 'https://legacy-origin-a.example';
+  const originAClient = new SnapbackClient(originA, {
+    rqsStore: brandDefaultRqsStoreResolution({
+      store: fixture.store,
+      info: Object.freeze({
+        source: 'default',
+        implementation: 'memory-test-double',
+        durable: true,
+        reason: null,
+      }),
+    }),
+  });
+  await Promise.resolve();
+  assert.deepEqual(await fixture.store.outboxOriginProvenance(), {
+    schemaVersion: 'snapback.outbox-origin-provenance.v1',
+    status: 'single-origin',
+    canonicalOrigin: originA,
+  });
+  await originAClient.close();
+
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
   await signIn(fixture, client);
-  // Upgrade-while-offline predecessor bytes have neither a schema-v2 target
-  // nor a target fact. The store domain still proves their origin, and an
-  // A -> B transition is a privacy deletion cut rather than replay authority.
   await fixture.store.outboxEnqueue({
     id: 'legacy-dev-pending',
     function: 'writeLegacy',
     args: { secret: 'USER_A_PRE_V2_PRIVATE_ARGS' },
   });
+  // This injected store may be shared by sidecar clients for multiple server
+  // origins. Origin B cannot attribute targetless predecessor bytes written
+  // while origin A was offline, so its user switch must retain them privately
+  // for the explicit adoption protocol instead of deleting them.
   await transitionTo(fixture, coordinator, actorB(), 'unattributable_privacy_delete');
   const status = await client.outboxStatus();
   assert.equal(status.pending, 0);
   assert.equal(status.stranded, 0);
+  assert.equal(status.quarantined, 0, 'origin B cannot project origin A quarantine');
+  const [retained] = await fixture.store.outboxRecords();
+  assert.equal(retained.args, undefined, 'public store projection redacts quarantined bytes');
+  const retainedPrivate = backing.outbox.records['legacy-dev-pending'];
+  assert.deepEqual(retainedPrivate.args, { secret: 'USER_A_PRE_V2_PRIVATE_ARGS' });
+  assert.deepEqual(retainedPrivate.principalQuarantine, {
+    schemaVersion: 'snapback.outbox-principal-quarantine.v1',
+    predecessorPrincipalScope: {
+      authMode: 'sessions',
+      authorizationStreamIncarnation: actorA1().authorizationStreamIncarnation,
+      userId: actorA1().userId,
+    },
+  });
+  assert.deepEqual(
+    [retained].map((record) => ({
+      id: record.id,
+      status: record.status,
+      refusalCode: record.refusalCode,
+    })),
+    [{
+      id: 'legacy-dev-pending',
+      status: 'quarantined',
+      refusalCode: 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED',
+    }],
+  );
+  assert.equal(
+    await client.mutationStatus('legacy-dev-pending').then((entry) => entry.status),
+    'unknown',
+    'origin B cannot observe the quarantined predecessor disposition',
+  );
+  assert.deepEqual(
+    await client.acknowledgeMutations({ clientMutationIds: ['legacy-dev-pending'] }),
+    { acknowledged: 0 },
+    'origin B cannot ACK the quarantined predecessor disposition',
+  );
+  const quarantine = client.outboxDiagnostics.find((entry) => (
+    entry.code === 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED'
+  ));
+  assert.equal(quarantine?.quarantined, 1);
+  assert.equal(
+    client.outboxDiagnostics.some((entry) => (
+      entry.code === 'SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE'
+    )),
+    false,
+    'an unproven shared origin never licenses destructive privacy cleanup',
+  );
+});
+
+test('recorded single-origin default store deletes targetless bytes on principal switch', async (t) => {
+  const fixture = makeFixture();
+  const { client, coordinator } = makeClient(fixture, { defaultStore: true });
+  t.after(() => client.closeAuth());
+  await signIn(fixture, client);
+  await fixture.store.outboxEnqueue({
+    id: 'legacy-single-origin-pending',
+    function: 'writeLegacy',
+    args: { secret: 'SINGLE_ORIGIN_PRE_V2_PRIVATE_ARGS' },
+  });
+
+  await transitionTo(fixture, coordinator, actorB(), 'single_origin_privacy_delete');
+
   assert.deepEqual(await fixture.store.outboxRecords(), []);
   const deletion = client.outboxDiagnostics.find((entry) => (
     entry.code === 'SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE'
@@ -1174,10 +1277,8 @@ test('principal switch privacy cut deletes targetless pre-v2 queued args', async
   assert.equal(deletion?.deleted, 1);
   assert.equal(
     client.outboxDiagnostics.some((entry) => (
-      entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
-      && entry.clientMutationIds?.includes('legacy-dev-pending')
+      entry.code === 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED'
     )),
     false,
-    'the transition privacy cut is not a replay/recovery target-fence refusal',
   );
 });

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:418aa099a982baee8d3688b82bd4ee52e00778afe52f
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:6ace62f6b7a489456d0bdc35dcd0c4c721dd1dbc0e7764cd45e120d916c5ef6e`.
+`sha256:941c9cc6653c39b21214766b5c8cd03b5a43f4c4c8e266eb7bd4dd6807141744`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -10627,6 +10627,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED'
   | 'SNAPBACK_OUTBOX_FULL'
   | 'SNAPBACK_OUTBOX_IDENTITY_MISMATCH'
+  | 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED'
   | 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE'
   | 'SNAPBACK_OUTBOX_NOT_WRITER'
   | 'SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED'

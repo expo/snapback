@@ -817,6 +817,14 @@ export async function createSqliteRqsResumeStore({
       return { reset: false, reason: 'not_corrupt' };
     },
 
+    outboxOriginProvenance() {
+      return serialized(async () => clone(outboxOps.originProvenance(await readOutbox()).result));
+    },
+    outboxRecordOriginProvenance(canonicalOrigin) {
+      return mutateOutbox('outbox-record-origin-provenance', (state) => (
+        outboxOps.recordOriginProvenance(state, canonicalOrigin)
+      ));
+    },
     outboxEnqueue(record, expectedAuthorizationFence = null) {
       return mutateOutbox('outbox-enqueue', (state) => (
         outboxOps.enqueue(state, record, now(), expectedAuthorizationFence)
@@ -970,6 +978,7 @@ export async function createSqliteRqsResumeStore({
       descriptor,
       custody,
       expectedAuthorityGeneration = null,
+      legacyPolicy = null,
     ) {
       return mutateOutbox('outbox-reconcile-custody-records', (state) => (
         outboxOps.reconcileCustody(
@@ -980,6 +989,7 @@ export async function createSqliteRqsResumeStore({
           now(),
           expectedAuthorityGeneration,
           recordIds,
+          legacyPolicy,
         )
       ));
     },

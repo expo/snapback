@@ -1156,6 +1156,22 @@ export function createFileRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox (LLP 0129 Phase 0, JS/node arm) ----
 
+    async outboxOriginProvenance() {
+      requireOpen();
+      return serialized(() => outboxRead(
+        (outbox) => outboxOps.originProvenance(outbox).result,
+        () => null,
+      ));
+    },
+
+    async outboxRecordOriginProvenance(canonicalOrigin) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.recordOriginProvenance(outbox, canonicalOrigin),
+        { throwWhenNotWriter: true, deferToWriter: true },
+      )).result);
+    },
+
     async outboxEnqueue(record, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => {
@@ -1402,6 +1418,7 @@ export function createFileRqsResumeStore({
       authorityDescriptor,
       custody,
       expectedAuthorityGeneration = null,
+      legacyPolicy = null,
     ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -1413,6 +1430,7 @@ export function createFileRqsResumeStore({
           now(),
           expectedAuthorityGeneration,
           recordIds,
+          legacyPolicy,
         ),
         { deferToWriter: true },
       )).result);

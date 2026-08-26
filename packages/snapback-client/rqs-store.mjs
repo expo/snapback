@@ -1257,6 +1257,20 @@ export function createIndexedDbRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox (LLP 0129 Phase 0, web arm) ----
 
+    async outboxOriginProvenance() {
+      return outboxRead(
+        (state) => outboxOps.originProvenance(state).result,
+        () => null,
+      );
+    },
+
+    async outboxRecordOriginProvenance(canonicalOrigin) {
+      return outboxWrite(
+        (state) => outboxOps.recordOriginProvenance(state, canonicalOrigin),
+        { throwWhenNotWriter: true, authorizationWriter: true },
+      );
+    },
+
     async outboxEnqueue(record, expectedAuthorizationFence = null) {
       return outboxWrite(
         (state) => outboxOps.enqueue(state, record, now(), expectedAuthorizationFence),
@@ -1473,6 +1487,7 @@ export function createIndexedDbRqsResumeStore({
       authorityDescriptor,
       custody,
       expectedAuthorityGeneration = null,
+      legacyPolicy = null,
     ) {
       return outboxWrite(
         (state) => outboxOps.reconcileCustody(
@@ -1483,6 +1498,7 @@ export function createIndexedDbRqsResumeStore({
           now(),
           expectedAuthorityGeneration,
           recordIds,
+          legacyPolicy,
         ),
         { throwWhenNotWriter: true, authorizationWriter: true },
       );

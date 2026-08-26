@@ -4670,7 +4670,7 @@ test('foreground capability commit cannot cross the final positive read before m
   }
 });
 
-test('replay capability commit cannot cross the final positive read before mutation fetch', async (t) => {
+test('replay final served-target reinspection wins before a delayed peer fact commit', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://replay-capability-commit-dispatch-order.example';
@@ -4732,14 +4732,18 @@ test('replay capability commit cannot cross the final positive read before mutat
   try {
     const replay = await client.replayQueuedMutations();
     await replacingInspection;
-    assert.equal(mutationPosts, 1, 'the positive final read admits exactly one replay attempt');
+    assert.equal(mutationPosts, 0, 'the final served negative refuses before mutation transport');
     assert.equal(
       supportedAtMutationPost,
-      true,
-      'the peer negative cannot commit between the final positive read and replay fetch',
+      null,
+      'no replay POST observes either the predecessor or successor fact',
     );
     assert.equal(replay.replayed, 0);
     assert.equal(replay.stopped, true);
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    );
     assert.equal((await readCapabilityFact()).supported, false);
     assert.deepEqual(
       (await store.outboxPending()).map((record) => record.id),
@@ -4751,7 +4755,7 @@ test('replay capability commit cannot cross the final positive read before mutat
       (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
       'the next replay cycle pauses before transport under the durable negative fact',
     );
-    assert.equal(mutationPosts, 1, 'the paused next cycle sends no second mutation POST');
+    assert.equal(mutationPosts, 0, 'the paused next cycle sends no mutation POST');
   } finally {
     await replacingClient.close();
     await client.close();
@@ -5359,8 +5363,6 @@ test('string-named replay carries its persisted generation across an inspect-to-
   let servedGeneration = generationOne;
   let successorEffects = 0;
   let wireExpectedGeneration = null;
-  const sameGeneration = (left, right) => Object.keys(generationOne)
-    .every((key) => left?.[key] === right?.[key]);
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
@@ -5375,25 +5377,8 @@ test('string-named replay carries its persisted generation across an inspect-to-
     if (enqueueOffline) throw new TypeError('generation one stopped after admission');
     const body = JSON.parse(init.body);
     wireExpectedGeneration = body.expectedGeneration ?? null;
-    // The server's compatibility path admits an absent identity. Once the
-    // replay carries its persisted witness, the active-generation comparison
-    // becomes the atomic mutation-time refusal.
-    if (
-      wireExpectedGeneration !== null
-      && !sameGeneration(wireExpectedGeneration, servedGeneration)
-    ) {
-      return Response.json({
-        diagnostic: {
-          code: 'SNAPBACK_ARTIFACT_IDENTITY_MISMATCH',
-          message: 'the asserted generated artifact generation is not active',
-          details: {
-            subcause: 'generation',
-            expectedGeneration: wireExpectedGeneration,
-            activeGeneration: servedGeneration,
-          },
-        },
-      }, { status: 409 });
-    }
+    // v0-dev does not enforce expectedGeneration. The client must catch the
+    // inspect-to-POST replacement itself instead of relying on a mocked 409.
     successorEffects += 1;
     return Response.json({ result: { wrongGeneration: true }, version: 2 });
   };
@@ -5422,10 +5407,10 @@ test('string-named replay carries its persisted generation across an inspect-to-
     assert.equal(replay.stopped, true, 'the generation race pauses replay');
     assert.equal(replay.remaining, 1, 'the refused record remains recoverable');
     assert.equal(successorEffects, 0, 'generation two executes zero predecessor effects');
-    assert.deepEqual(
-      wireExpectedGeneration,
-      generationOne,
-      'string-named replay sends the generation persisted at enqueue',
+    assert.equal(wireExpectedGeneration, null, 'the client refuses before the replay POST');
+    assert.equal(
+      replayClient.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
     );
     assert.deepEqual(
       (await store.outboxPending()).map((record) => record.id),

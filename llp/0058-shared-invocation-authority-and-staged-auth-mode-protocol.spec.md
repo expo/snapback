@@ -18,11 +18,14 @@ generated mutation references (string-named mutations carry no generation),
 while every answered manifest or HTTP refusal replaces it. Cached evidence is
 enqueue-only and never licenses a foreground mutation attempt.)
 **Revised:** 2026-08-25 (round-25 string-reference replay clarification: a
+**Revised:** 2026-08-26 (round-26 string-reference replay clarification: a
 string-named call has no call-site-generated artifact witness, but schema-v2
-enqueue persists the complete served generation and replay sends that exact
-witness as `expectedGeneration`; the server compares it atomically at mutation
-time. Principal-transition privacy deletion separately includes origin-scoped
-legacy rows without granting replay or ACK authority.)
+enqueue persists the complete served generation. Replay re-inspects immediately
+before POST and sends that witness as `expectedGeneration`; Sessions servers
+compare it atomically at mutation time, while v0-dev currently does not.
+Principal-transition privacy deletion includes legacy rows only for a proven
+single-origin default store; shared, injected, and unproven stores preserve
+them in predecessor-principal quarantine without replay or ACK authority.)
 **Revised:** 2026-08-25 (durable target identity: outbox record v2 persists
 canonical origin, target profile, and generated generation or string-reference
 app identity. Replay compares that identity before custody or transport;
@@ -481,11 +484,15 @@ canonical origin and, for a generated mutation reference, its exact app
 artifact generation. A string-named mutation has no **call-site-generated**
 generation witness; admission instead binds its established served-app
 identity, and schema-v2 enqueue persists the complete served generation from
-that fact. Replay carries that persisted generation as `expectedGeneration`,
-so the server's mutation-time comparison remains the atomic defense if the
-deployment changes after inspection but before POST. That exception never
-admits replay or transport and therefore enqueues without a foreground mutation
-POST. The durable store writer assigns the request order before inspection
+that fact. Replay re-inspects the served generation immediately before POST
+and pauses `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` on a difference, then
+carries the persisted generation as `expectedGeneration`. Sessions servers
+compare that assertion atomically with the manifest pair selected for the
+invocation. v0-dev currently tolerates the field without enforcing it, so its
+remaining post-inspection race is tracked in
+`issues/20260825-v0-dev-mutation-generation-enforcement.md`. That exception
+never admits replay or transport and therefore enqueues without a foreground
+mutation POST. The durable store writer assigns the request order before inspection
 transport and compare-and-commits answered facts by observed fact revision or
 newer shared request sequence. Clients re-read the committed fact and
 generation before enqueue, before mutation/replay transport, and before turning
