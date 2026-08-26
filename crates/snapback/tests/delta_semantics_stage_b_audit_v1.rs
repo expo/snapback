@@ -33,7 +33,7 @@ use snapback_kernel::storage::{ChangeOp as ShippedChangeOp, ChangedRow};
 #[path = "support/graph_stage_b.rs"]
 mod graph_stage_b;
 
-const AUDITED_COMMIT: &str = "317526a562ccebeb98cf4c95f2c877ef5441af91";
+const AUDITED_COMMIT: &str = "b2ecdc3beca6f8434f3fcfc12261cf369d0828bc";
 const GRAPH_DISPOSITIONS: &str = "tests/conformance/graph/delta-dispositions.v1.json";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -485,8 +485,15 @@ fn execute_membership_reference(
 
 #[derive(Debug)]
 enum GraphReferenceState {
-    Window { node_id: String, state: WindowState },
-    Lookup { node_id: String, state: LookupState },
+    Window {
+        node_id: String,
+        admissions: Vec<(String, Admission)>,
+        state: WindowState,
+    },
+    Lookup {
+        node_id: String,
+        state: LookupState,
+    },
     Composite(Vec<GraphReferenceState>),
 }
 
@@ -727,6 +734,11 @@ fn graph_reference_root(
     let projection_fields = projection_fields_by_node(&replay.plan)
         .remove(node_id)
         .unwrap_or_default();
+    let admissions = delta_out
+        .entries
+        .iter()
+        .map(|entry| (entry.row_key.clone(), entry.admit))
+        .collect::<Vec<_>>();
     match evaluate_window(
         &WindowConfig {
             window_id: node_id.to_owned(),
@@ -782,6 +794,7 @@ fn graph_reference_root(
                 patches,
                 next_state: GraphReferenceState::Window {
                     node_id: node_id.to_owned(),
+                    admissions,
                     state: next_state,
                 },
             }
@@ -1010,9 +1023,14 @@ fn assert_graph_reference_state_matches_shipped(
     replay: &graph_stage_b::GraphReplay,
     state: &GraphReferenceState,
     comparison_gaps: &mut BTreeSet<String>,
+    independent_e3_admissions: &mut BTreeMap<String, Admission>,
 ) {
     match state {
-        GraphReferenceState::Window { node_id, state } => {
+        GraphReferenceState::Window {
+            node_id,
+            admissions,
+            state,
+        } => {
             assert!(
                 replay.disposition["matchedNodeIds"]
                     .as_array()
@@ -1020,6 +1038,27 @@ fn assert_graph_reference_state_matches_shipped(
                     .iter()
                     .any(|matched| matched == node_id),
                 "{}: E3 state belongs to an executed matched node",
+                replay.case["id"],
+            );
+            let [(row_key, admission)] = admissions.as_slice() else {
+                panic!(
+                    "{}: each executed E3 replay must derive exactly one E0 admission tag",
+                    replay.case["id"],
+                )
+            };
+            assert_eq!(
+                Some(row_key.as_str()),
+                replay.change.as_ref().map(|change| change.id.as_str()),
+                "{}: independently admitted row is the replayed change",
+                replay.case["id"],
+            );
+            let case = replay.case["id"]
+                .as_str()
+                .expect("executed graph case id")
+                .to_owned();
+            assert!(
+                independent_e3_admissions.insert(case, *admission).is_none(),
+                "{}: E3 admission tag is asserted exactly once",
                 replay.case["id"],
             );
             let shipped_rows = retained_node_rows(&replay.after, node_id)
@@ -1155,7 +1194,12 @@ fn assert_graph_reference_state_matches_shipped(
                 .iter()
                 .find(|node| node.node_id() == node_id.as_str())
                 .expect("matched E4 node");
-            let GraphNodeV1::EqualityToOne { table, .. } = node else {
+            let GraphNodeV1::EqualityToOne {
+                parent_node_id,
+                table,
+                ..
+            } = node
+            else {
                 panic!("{node_id}: lookup state compared against non-E4 node")
             };
             let captures = replay.after["capturedDependencies"]
@@ -1190,39 +1234,133 @@ fn assert_graph_reference_state_matches_shipped(
                     replay.case["id"],
                 );
             }
-            let shipped_rows = retained_node_rows(&replay.after, node_id)
-                .expect("successor retained E4 rows are observable");
-            for (child_id, reference_row) in &state.children {
-                let shipped_row = shipped_rows
+
+            let child_index = replay.after["retainedState"]["children"]
+                .as_array()
+                .expect("successor retained scope-keyed child index");
+            let shipped_scopes = child_index
+                .iter()
+                .filter(|entry| {
+                    entry["parentNodeId"] == parent_node_id.as_str()
+                        && entry["nodeId"] == node_id.as_str()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                state.scopes.len(),
+                shipped_scopes.len(),
+                "{}: E4 scope-index cardinality",
+                replay.case["id"],
+            );
+            let reference_scope_ids = state.scopes.keys().cloned().collect::<BTreeSet<_>>();
+            let shipped_scope_ids = shipped_scopes
+                .iter()
+                .map(|entry| {
+                    entry["scope"]
+                        .as_str()
+                        .expect("retained E4 child scope")
+                        .to_owned()
+                })
+                .collect::<BTreeSet<_>>();
+            assert_eq!(
+                reference_scope_ids, shipped_scope_ids,
+                "{}: E4 scope-index identities",
+                replay.case["id"],
+            );
+
+            let parent_rows = retained_node_rows(&replay.after, parent_node_id)
+                .expect("successor retained E4 parent rows are observable");
+            let mut expected_instances = Vec::new();
+            for (scope, reference) in &state.scopes {
+                let parents = parent_rows
                     .iter()
-                    .find(|instance| instance["key"]["id"] == child_id.as_str())
-                    .unwrap_or_else(|| panic!("{child_id}: shipped retained E4 successor child"));
+                    .filter(|instance| instance["key"]["id"] == scope.as_str())
+                    .collect::<Vec<_>>();
                 assert_eq!(
-                    reference_row,
-                    &row(shipped_row["row"].clone()),
-                    "{}: E4 retained child state",
+                    parents.len(),
+                    1,
+                    "{}: E4 scope {scope} has one retained parent instance",
                     replay.case["id"],
                 );
-            }
-            for (scope, reference) in &state.scopes {
-                let retained_row_version = reference.child_key.as_ref().and_then(|child_id| {
-                    shipped_rows
-                        .iter()
-                        .find(|instance| instance["key"]["id"] == child_id.as_str())
-                        .and_then(|instance| instance["row"]["_version"].as_u64())
-                });
+                let expected_root_key = parents[0]["rootKey"].clone();
+                let shipped_scope = shipped_scopes
+                    .iter()
+                    .find(|entry| entry["scope"] == scope.as_str())
+                    .expect("retained E4 scope entry");
+                let shipped_children = shipped_scope["rows"]
+                    .as_array()
+                    .expect("retained E4 scope rows");
+                assert_eq!(
+                    shipped_children.len(),
+                    usize::from(reference.child_key.is_some()),
+                    "{}: E4 per-scope child cardinality for {scope}",
+                    replay.case["id"],
+                );
+                let retained_row_version = reference
+                    .child_key
+                    .as_ref()
+                    .map(|child_id| {
+                        let shipped_child = &shipped_children[0];
+                        let reference_row = state
+                            .children
+                            .get(child_id)
+                            .unwrap_or_else(|| panic!("{child_id}: reference E4 retained child"));
+                        let expected_instance = json!({
+                            "key": {"table": table, "id": child_id},
+                            "rootKey": expected_root_key,
+                            "row": reference_row,
+                        });
+                        assert_eq!(
+                            shipped_child, &expected_instance,
+                            "{}: E4 scoped child identity, root key, and row for {scope}",
+                            replay.case["id"],
+                        );
+                        expected_instances.push(expected_instance);
+                        shipped_child["row"]["_version"].as_u64()
+                    })
+                    .flatten();
                 assert_eq!(
                     reference.row_version, retained_row_version,
                     "{}: E4 retained row-version equality for scope {scope}",
                     replay.case["id"],
                 );
             }
-            let _ = table;
+
+            let shipped_rows = retained_node_rows(&replay.after, node_id)
+                .expect("successor retained E4 rows are observable");
+            assert_eq!(
+                expected_instances.len(),
+                shipped_rows.len(),
+                "{}: E4 flattened child-instance cardinality",
+                replay.case["id"],
+            );
+            let mut unmatched = shipped_rows.to_vec();
+            for expected in expected_instances {
+                let index = unmatched
+                    .iter()
+                    .position(|actual| actual == &expected)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{}: flattened E4 state lacks exact scoped child {expected}",
+                            replay.case["id"],
+                        )
+                    });
+                unmatched.remove(index);
+            }
+            assert!(
+                unmatched.is_empty(),
+                "{}: flattened E4 state has no extra child instances",
+                replay.case["id"],
+            );
         }
         GraphReferenceState::Composite(states) => {
             assert!(states.len() > 1, "composite reference owns multiple forms");
             for state in states {
-                assert_graph_reference_state_matches_shipped(replay, state, comparison_gaps);
+                assert_graph_reference_state_matches_shipped(
+                    replay,
+                    state,
+                    comparison_gaps,
+                    independent_e3_admissions,
+                );
             }
         }
     }
@@ -2182,6 +2320,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     assert_eq!(replays.len(), dispositions.len());
     let mut graph_harness_gaps = Vec::new();
     let mut state_comparison_gaps = BTreeSet::new();
+    let mut independent_e3_admissions = BTreeMap::new();
     let mut projection_leak_observed = false;
     for replay in &replays {
         let id = replay.case["id"].as_str().expect("executed graph case id");
@@ -2214,6 +2353,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
                     replay,
                     &next_state,
                     &mut state_comparison_gaps,
+                    &mut independent_e3_admissions,
                 );
                 if shipped_lane == "replace" {
                     assert_eq!(replay.frame["kind"], "live_replace");
@@ -2305,6 +2445,24 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             .collect::<BTreeSet<_>>(),
         frozen_by_id.keys().copied().collect::<BTreeSet<_>>(),
     );
+    assert_eq!(
+        independent_e3_admissions,
+        BTreeMap::from([
+            ("issue-detail-root-update".to_owned(), Admission::StayIn),
+            ("issue-list-in-window-reorder".to_owned(), Admission::StayIn),
+            ("issue-list-membership-add".to_owned(), Admission::StayIn),
+            ("issue-summary-order-key-move".to_owned(), Admission::StayIn),
+            (
+                "issue-summary-root-scalar-update".to_owned(),
+                Admission::StayIn
+            ),
+            (
+                "issue-summary-two-field-coalesced-patch".to_owned(),
+                Admission::StayIn,
+            ),
+        ]),
+        "every executed E3 row asserts its independently derived E0 admission tag",
+    );
 
     // The eligible root-scalar replay reaches the complete outer graph lane.
     // Existing observations expose every asserted axis below without reading
@@ -2385,6 +2543,9 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     graph_harness_gaps.push(
         "authorized DK-3 add/update versus remove delivery was not established in this fixture; no class-(c) row is claimed for that axis".to_owned(),
     );
+    graph_harness_gaps.push(
+        "incomplete-window E3 continuation comparison is implemented but no adapted E3 replay reaches an incomplete successor window".to_owned(),
+    );
     graph_harness_gaps.extend(state_comparison_gaps);
     for case in [
         "issue-detail-root-update:",
@@ -2411,7 +2572,7 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     );
     assert_eq!(
         graph_harness_gaps.len(),
-        11,
+        12,
         "closed Stage B harness-gap register"
     );
     for case in [

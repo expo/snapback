@@ -4222,9 +4222,22 @@ mod tests {
 
 #[cfg(any(test, feature = "test-support"))]
 impl RetainedEvaluationState {
+    /// Observe the exact server-retained evaluator carrier without exposing a
+    /// mutation path. Stage-B delta conformance uses this owned JSON value to
+    /// compare the shipped next state with the reference forms.
     pub(crate) fn observation_for_test(&self) -> Value {
         json!({
             "byNode": self.0.by_node.iter().map(|(node_id, rows)| json!({
+                "nodeId": node_id,
+                "rows": rows.iter().map(|instance| json!({
+                    "key": instance.key,
+                    "rootKey": instance.root_key,
+                    "row": instance.row,
+                })).collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+            "children": self.0.children.iter().map(|((parent_node_id, scope, node_id), rows)| json!({
+                "parentNodeId": parent_node_id,
+                "scope": scope,
                 "nodeId": node_id,
                 "rows": rows.iter().map(|instance| json!({
                     "key": instance.key,
@@ -4248,6 +4261,9 @@ impl RetainedEvaluationState {
 
 #[cfg(any(test, feature = "test-support"))]
 impl GraphEvaluationOutputV1 {
+    /// Observe retained evaluator state through the Stage-B read-only seam.
+    /// The returned value is detached from serving custody and cannot mutate
+    /// the established subscription's evidence.
     pub(crate) fn retained_state_observation_for_test(&self) -> Option<Value> {
         self.retained_state
             .as_ref()
