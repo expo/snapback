@@ -3946,6 +3946,7 @@ impl LocalEphemeralBackend {
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
+        require_room_reauthorization_outside_local()?;
         // @ref LLP 0290#71-lock-ordering — exact completion is a bounded
         // SQLite/process-state overlap with a closed reverse-edge surface.
         // Lock order: lifecycle -> SQLite IMMEDIATE -> registry -> rooms ->
@@ -3971,9 +3972,7 @@ impl LocalEphemeralBackend {
         database: &RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<bool> {
-        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
-            "room reauthorization completion",
-        );
+        require_room_reauthorization_outside_local()?;
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
         let completion = match self
             .shared
@@ -7539,6 +7538,17 @@ impl LocalEphemeralBackend {
                 .saturating_add(retained_expiry_index_entry_bytes(room_id));
         }
     }
+}
+
+fn require_room_reauthorization_outside_local() -> SnapbackResult<()> {
+    if crate::exec_guard::local_snapback_write_scope_active() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN",
+            "auth",
+            "room reauthorization completion must run outside the LocalSnapback write scope",
+        ));
+    }
+    Ok(())
 }
 
 fn collection_requires_room_permission(collection: &EphemeralCollection) -> bool {

@@ -401,13 +401,23 @@ pub fn debug_assert_auth_lock_outside_local_snapback(rank: u8) {
 #[track_caller]
 pub fn debug_assert_local_snapback_write_scope_inactive(what: &str) {
     #[cfg(debug_assertions)]
-    if LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0 {
+    if local_snapback_write_scope_active() {
         panic!(
             "{what} entered while LocalSnapback write scope was active; split ephemeral teardown from Local topology cleanup (LLP 0059)"
         );
     }
     #[cfg(not(debug_assertions))]
     let _ = what;
+}
+
+/// Whether this thread currently owns a managed or direct Local write scope.
+/// Security-sensitive off-Local consumers use this always-on predicate to
+/// refuse a reverse lock edge in release builds as well as debug builds.
+///
+/// @ref LLP 0059#prohibited-overlap — exact room reauthorization must refuse
+/// every caller composition that tries to regain SQLite beneath Local.
+pub fn local_snapback_write_scope_active() -> bool {
+    LOCAL_APP_WRITE_DEPTH.with(Cell::get) != 0
 }
 
 /// Debug assertion: the caller is about to run blocking work (an engine eval or
