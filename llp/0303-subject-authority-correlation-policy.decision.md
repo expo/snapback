@@ -939,7 +939,9 @@ entirely. Reproducible mutations are worth having; an environment variable that 
 authorization is not the way to have them.
 
 
-**A specific instance worth naming: terminal progress authored by the counterparty.** The
+#### (u) Who authors the terminal transition
+
+The
 room-completion lane surfaced this form directly. Where one operation waits for another to
 reach a terminal state, **the waiting party's counterparty must not be the author of that
 terminal fact** — otherwise it can simply withhold it, and the wait becomes indefinite denial.
