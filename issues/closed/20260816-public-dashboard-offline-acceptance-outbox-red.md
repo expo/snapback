@@ -1510,3 +1510,117 @@ generated projection files remain byte-identical to merge base
 
 `./ref-check --verbose` reports `311 LLP docs, 6648 refs in 12505 files, 0
 errors, 0 unchecked`. `git diff --check` produces no output.
+
+### Round-26 dual-review closure (2026-08-26)
+
+Legacy targetless/pre-v2 intent now crosses a principal switch according to
+durable store-origin provenance. A matching single-origin default store keeps
+the privacy deletion rule and its coded count. Shared, injected, unproven, or
+multi-origin stores instead retain the original private bytes in a durable
+predecessor-principal quarantine; successor clients cannot project, replay,
+ACK, recover, or adopt that marker. The adoption ticket now explicitly owns
+its future authorized disposition.
+
+Replay retains the complete persisted generation as wire
+`expectedGeneration` and re-inspects the served generation immediately before
+the POST. A difference pauses `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` before
+the dispatch stamp and transport. Sessions servers also enforce the carried
+generation against the invocation's manifest pair; v0-dev does not. The open
+server-owned ticket
+`issues/20260825-v0-dev-mutation-generation-enforcement.md` names
+`crates/snapback-engine/src/local/engine.rs` function
+`validate_expected_generation_against_manifests` and the required parity. The
+public-dashboard 9/9 witness below does not cover this race.
+
+Target-aware optimistic projection continues to fence every durable record.
+The generated current-operation ledger is explicitly process-local and paints
+without a replay-capability fact, including `offlineQueue: false`, fresh
+clients, and profiles such as Cloudflare that cannot admit durable replay.
+
+The reset bound remains open: client-side `ledgerIncarnation` equality does not
+close `app.reset`. Reset quarantine is not fixed until public inspection serves
+that field and the real reset/zero-POST regression passes.
+
+The three fail-first regressions produced these verbatim lines before the
+production fixes:
+
+```text
+✖ shared injected store quarantines foreign-origin targetless bytes on principal switch
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ []
+- [
+-   {
+-     id: 'legacy-dev-pending',
+-     refusalCode: 'SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED',
+-     status: 'quarantined'
+-   }
+- ]
+✖ string-named replay carries its persisted generation across an inspect-to-POST deployment race
+AssertionError [ERR_ASSERTION]: generation-one intent has no effect on generation two
+1 !== 0
+✖ headless process-local generated mutations paint without durable replay facts
+AssertionError [ERR_ASSERTION]: generated create paint did not become true
+```
+
+At the final JS implementation commit
+`3cd15e6f3cb9b47bcee5d982c87d6f788673ae96`, the required combined suite
+reports:
+
+```text
+ℹ tests 233
+ℹ suites 0
+ℹ pass 233
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7717.463709
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion after the affected suites pass 181/181,
+21/21, 22/22, and 4/4:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (30.588209ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3055.071583
+```
+
+The strict client TypeScript fixture command, run separately because the full
+script stops at that inherited RQS red, exits zero.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`node scripts/check-guide.mjs` passes snippet transclusions and reports this
+verbatim final summary:
+
+```text
+[guide-check] FAILED — 17 passed, 5 failed, 0 skipped, 0 preconditions; 157 pages, 1871 snippets, 174 routes + 51 host-ops joined, 97 warnings
+```
+
+The remaining diagnostics-registry, symbol-registry, capability/surface join,
+manifest/MCP, and flat-guide projection/corpus reds are integration-owned; the
+generated projection files remain byte-identical to merge base
+`baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+`./ref-check --verbose` reports `311 LLP docs, 6651 refs in 12506 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output.
