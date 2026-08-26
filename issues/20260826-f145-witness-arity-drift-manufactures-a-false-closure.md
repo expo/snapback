@@ -62,3 +62,43 @@ that consumer into a false closure**, and there are 30 rows in the corpus.
   compile refusal without executed alternate-route evidence; this is a third instance of the same class.
 - `issues/20260826-f097-two-lanes-disagree-and-a-fork-composition-decides.md` — the F170 false closure.
 - LLP 0303 revision (s).
+
+## Second instance, same hour, unrelated lane
+
+An independent review of the LLP 0313 landing A work found the identical defect class in **seven**
+hostile probes at once:
+
+> Seven hostile probes fail because they call **invented methods that never existed**, rather than
+> proving the claimed clone/serde/conversion/exposure protections. They therefore lack meaningful
+> fail-first evidence.
+
+A probe asserting that `evidence.clone()` is refused, where `Clone` was never implemented and no
+`clone` method was ever in scope, demonstrates only that an identifier can be misspelled. The harness
+sees a compile failure and scores a protection that was never exercised.
+
+## The generalisation
+
+**A witness that fails for a mechanical reason is indistinguishable, to this harness, from a witness
+that fails for a structural one.** The mechanical failures observed so far:
+
+| Mechanism | Example | Scored as |
+|---|---|---|
+| Stale arity after a consumer gains a parameter | F145, `E0061` | CLOSED |
+| Reference to a method that never existed | landing A, seven probes | protection proven |
+| Refusal at a `use` line rather than the attack | rawsql F313 | CLOSED |
+| Failure during setup before reaching the marked attack | recorded in every lane brief | CLOSED |
+| Removed *spelling* rather than removed capability | LLP 0303 revision (s) | CLOSED |
+
+All five produce a green result from a test that proved nothing, and all five are invisible unless
+someone checks **which line failed and with which code**.
+
+## Minimum viable defence
+
+Require every row and probe to record an `expectedCode`, and make the harness **fail the row when the
+observed code differs from the recorded one**. `E0061` where `E0599` was expected is a harness error,
+not a closure. That single check catches arity drift, invented identifiers, and import-line refusals —
+three of the five — at the cost of one field per row.
+
+Structural failures (setup-stage aborts, removed spellings) still need the alternate-route execution
+that LLP 0303 revision (s) already demands. But codes are cheap and currently optional, and making them
+mandatory is the highest-value change available to the instrument.
