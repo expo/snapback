@@ -3269,15 +3269,26 @@ struct FrameBeforeFirstEnqueueTestHook {
 /// subscriber auth, remove subscribers/entries, enqueue frames, update the
 /// reverse index, or prune the room.
 #[cfg(any(test, feature = "test-support"))]
-struct RoomReauthorizationBeforeMutationTestHook {
-    reached: std::sync::mpsc::SyncSender<()>,
+struct RoomReauthorizationMutationTestHook {
+    reached: std::sync::mpsc::Sender<()>,
     release: std::sync::mpsc::Receiver<()>,
 }
 
 #[cfg(any(test, feature = "test-support"))]
-struct RoomReauthorizationAfterMutationTestHook {
-    reached: std::sync::mpsc::SyncSender<()>,
-    release: std::sync::mpsc::Receiver<()>,
+const ROOM_REAUTHORIZATION_TEST_HOOK_PAUSE_LIMIT: std::time::Duration =
+    std::time::Duration::from_secs(1);
+
+#[cfg(any(test, feature = "test-support"))]
+fn pause_room_reauthorization_mutation_for_test(hook: RoomReauthorizationMutationTestHook) {
+    // @ref LLP 0303#u-who-authors-the-terminal-transition — an enabled test
+    // seam may observe or briefly pause settlement, but its counterparty
+    // cannot author nontermination. Notification is non-blocking and expiry
+    // continues the real derived settlement. A late release loses because the
+    // receiver is dropped on return.
+    let _ = hook.reached.send(());
+    let _ = hook
+        .release
+        .recv_timeout(ROOM_REAUTHORIZATION_TEST_HOOK_PAUSE_LIMIT);
 }
 
 enum RoomAuthority {
@@ -3490,10 +3501,9 @@ struct EphemeralShared {
     frame_before_first_enqueue_hook: StdMutex<Option<FrameBeforeFirstEnqueueTestHook>>,
     #[cfg(any(test, feature = "test-support"))]
     room_reauthorization_before_mutation_hook:
-        StdMutex<Option<RoomReauthorizationBeforeMutationTestHook>>,
+        StdMutex<Option<RoomReauthorizationMutationTestHook>>,
     #[cfg(any(test, feature = "test-support"))]
-    room_reauthorization_after_mutation_hook:
-        StdMutex<Option<RoomReauthorizationAfterMutationTestHook>>,
+    room_reauthorization_after_mutation_hook: StdMutex<Option<RoomReauthorizationMutationTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     collection_generation: AtomicU64,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
@@ -3872,11 +3882,11 @@ impl LocalEphemeralBackend {
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_room_reauthorization_before_mutation_hook_for_test(
         &self,
-        reached: std::sync::mpsc::SyncSender<()>,
+        reached: std::sync::mpsc::Sender<()>,
         release: std::sync::mpsc::Receiver<()>,
     ) {
         let previous = lock(&self.shared.room_reauthorization_before_mutation_hook)
-            .replace(RoomReauthorizationBeforeMutationTestHook { reached, release });
+            .replace(RoomReauthorizationMutationTestHook { reached, release });
         assert!(
             previous.is_none(),
             "room-reauthorization-before-mutation hook is one-shot"
@@ -3886,11 +3896,11 @@ impl LocalEphemeralBackend {
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_room_reauthorization_after_mutation_hook_for_test(
         &self,
-        reached: std::sync::mpsc::SyncSender<()>,
+        reached: std::sync::mpsc::Sender<()>,
         release: std::sync::mpsc::Receiver<()>,
     ) {
         let previous = lock(&self.shared.room_reauthorization_after_mutation_hook)
-            .replace(RoomReauthorizationAfterMutationTestHook { reached, release });
+            .replace(RoomReauthorizationMutationTestHook { reached, release });
         assert!(
             previous.is_none(),
             "room-reauthorization-after-mutation hook is one-shot"
@@ -4315,12 +4325,7 @@ impl LocalEphemeralBackend {
     fn pause_room_reauthorization_before_mutation_for_test(&self) {
         let hook = lock(&self.shared.room_reauthorization_before_mutation_hook).take();
         if let Some(hook) = hook {
-            hook.reached
-                .send(())
-                .expect("room reauthorization mutation observer remains alive");
-            hook.release
-                .recv()
-                .expect("room reauthorization mutation observer releases settlement");
+            pause_room_reauthorization_mutation_for_test(hook);
         }
     }
 
@@ -4328,12 +4333,7 @@ impl LocalEphemeralBackend {
     fn pause_room_reauthorization_after_mutation_for_test(&self) {
         let hook = lock(&self.shared.room_reauthorization_after_mutation_hook).take();
         if let Some(hook) = hook {
-            hook.reached
-                .send(())
-                .expect("room reauthorization post-mutation observer remains alive");
-            hook.release
-                .recv()
-                .expect("room reauthorization post-mutation observer releases settlement");
+            pause_room_reauthorization_mutation_for_test(hook);
         }
     }
 

@@ -13,7 +13,8 @@ path = "src/lib.rs"
 default = ["sync-owner"]
 sync-owner = []
 # The standard shipped binary does not enable this internal verification
-# surface; published builds must not enable it.
+# surface; published builds must not enable it. Safety and liveness still do
+# not rely on its absence because Cargo features are additive.
 test-support = [
     "snapback-auth/test-support",
     "snapback-kernel/test-support",

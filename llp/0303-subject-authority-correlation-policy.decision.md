@@ -938,6 +938,16 @@ could run. Constrain them to `cfg(test)`, or keep them out of the production bui
 entirely. Reproducible mutations are worth having; an environment variable that disarms
 authorization is not the way to have them.
 
+
+**A specific instance worth naming: terminal progress authored by the counterparty.** The
+room-completion lane surfaced this form directly. Where one operation waits for another to
+reach a terminal state, **the waiting party's counterparty must not be the author of that
+terminal fact** — otherwise it can simply withhold it, and the wait becomes indefinite denial.
+Feature-enabled code holding a settlement in `SETTLING` forever is the same defect as a caller
+returning `Complete` without settling: in both cases progress depends on a fact the other side
+authors. Where a pause is reachable by a caller at all, it must be **bounded, with an explicit
+outcome on expiry** — and that outcome stated, not left implicit.
+
 **Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
 own correctness are fine. The rule binds where the value's continued existence is what
 authorizes an effect, or what another thread is waiting on.
