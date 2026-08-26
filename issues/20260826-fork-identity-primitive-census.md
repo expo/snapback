@@ -16,21 +16,25 @@ additive `test-support`, and unit-only `cfg(test)` code. The F126 runtime witnes
 both the empty production feature cell and the additive union of auth, engine, kernel, sync, and
 types `test-support`.
 
-After the storage-only conversions in this lane, `rg -n 'Arc::ptr_eq' crates --glob '*.rs'` returns
-48 sites:
+After the storage-only conversions in this lane,
+`rg -n 'Arc::ptr_eq' crates --glob '*.rs' --glob '!**/process_bound_identity.rs'` returns 48
+remaining sites. The same command without the exclusion returns 49 because it also counts the
+checked primitive's internal pointer comparison:
 
 - **FO-auth**: the comparison guards authorization or exact capability/effect custody and accepts
   an inherited parent allocation in a forked child. It must migrate to the checked primitive.
 - **Fork-blind/bookkeeping**: the raw predicate has the same pointer result after fork, but its
   consumer is process-local cleanup or bookkeeping rather than an authorization decision.
 - **Test-only**: no product decision; the comparison cleans up a test probe or asserts topology.
-- **Safe primitive**: the inline pointer comparison is dominated intrinsically by checking both
-  operands against the recomputed current-process identity.
+- **Intrinsically checked**: the inline pointer comparison is short-circuit dominated by a checked
+  `DatabaseBinding`, or is inside the primitive after both operands have been checked against the
+  recomputed current-process identity.
 
-The result is 30 **FO-auth**, four production **fork-blind/bookkeeping**, thirteen **test-only**, and
-one **safe primitive** site. A deeper independent fence may refuse some child operations, but that
-does not change the local verdict: the listed raw exact-owner predicate itself accepts inherited
-allocations.
+The 48 remaining sites are 30 **FO-auth**, four production **fork-blind/bookkeeping**, thirteen
+**test-only**, and one **intrinsically checked** storage site. The primitive contributes the 49th
+inline occurrence, which is also intrinsically checked. A deeper independent fence may refuse some
+child operations, but that does not change the local verdict: the listed raw exact-owner predicate
+itself accepts inherited allocations.
 
 ## Remaining production authorization and custody sites
 
@@ -67,9 +71,12 @@ allocations.
 | `snapback-sync/src/stream_attempt.rs:162` | `StreamRunnerHost` mints a runner and holder sharing `InvocationCommitGate` | `RunnerHolder::is_exact_runner` permits runner-bound stream transitions | **FO-auth** |
 | `snapback-sync/src/stream_attempt.rs:163` | the same producer shares the runner's `finished` flag | the same transition predicate validates the second exact-runner component | **FO-auth** |
 
-`room_authority.rs:188` also uses `std::ptr::eq(Arc::as_ptr(...), self)` for participant activation.
-It is outside the requested inline-`Arc::ptr_eq` count but has the same fork-blind identity property
-and should migrate with the six room-authority rows above.
+`room_authority.rs` also has two `std::ptr::eq(Arc::as_ptr(...), self)` participant-activation
+comparisons (currently near lines 109 and 191). They are outside the requested inline-`Arc::ptr_eq`
+count but have the same fork-blind identity property and should migrate with the six room-authority
+rows above. The activation path from `storage.rs` is already dominated by the checked database
+validation added in this lane; this census does not claim the two raw predicates are intrinsically
+fork-safe.
 
 ## Remaining production bookkeeping sites
 
@@ -98,11 +105,12 @@ and should migrate with the six room-authority rows above.
 | `snapback-sync/src/stream_attempt.rs:2110` | the same producer | assertion checks shared finished flag | **Test-only** topology assertion |
 | `snapback-sync/src/stream_attempt.rs:2111` | the host is built from the test's abandonment flag | assertion checks the flag reached the commit gate | **Test-only** topology assertion |
 
-## Intrinsically checked site
+## Intrinsically checked sites
 
 | Site | Producer | Consumer/effect | Verdict |
 | --- | --- | --- | --- |
-| `snapback-kernel/src/process_bound_identity.rs:58` | `ProcessBoundIdentity::new` stores an allocation and private creator-process identity | its sole `PartialEq` path first compares both creators to a freshly recomputed current-process identity, then checks allocation identity | **Safe primitive**; child refusal dominates `Arc::ptr_eq` |
+| `snapback-kernel/src/storage.rs:996` | commit-capsule authority creates a `DatabaseBinding` and paired intent state | `CommitCapsuleIntentInstance::matches` short-circuits through checked producer equality before comparing the paired intent allocation | **Intrinsically checked**; current-process `DatabaseBinding` refusal dominates `Arc::ptr_eq` |
+| `snapback-kernel/src/process_bound_identity.rs:109` | `ProcessBoundIdentity::new` stores an allocation and private creator-process identity | its sole `PartialEq` path first compares both creators to a freshly recomputed current-process identity, then checks allocation identity | **Safe primitive**; child refusal dominates `Arc::ptr_eq` |
 
 ## Sites resolved in the kernel lane
 

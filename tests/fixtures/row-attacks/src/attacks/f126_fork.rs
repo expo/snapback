@@ -69,6 +69,9 @@ fn main() -> Result<(), String> {
     if !libc::WIFEXITED(status) {
         return Err(format!("child failed before reporting the attack: status={status}"));
     }
+    if inherited != database.binding() {
+        return Err("parent refused its own binding after the child forked".to_owned());
+    }
 
     let result = match libc::WEXITSTATUS(status) {
         ATTACK_ACCEPTED => Ok(
