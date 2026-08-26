@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "b8e871f39cc94baa7c1475ceae6c983c7d38a5d56f9b96bd4ba48672ffef539a"
+      "sha256": "dd9da08872716e1ccae48373156a7224633979af6973117417ca198f114a2afd"
     },
     "toolsLibRoot": {
       "kind": "directory",
