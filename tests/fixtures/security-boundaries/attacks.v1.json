@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
   "rowCoverage": {
-    "unmappedAttackCount": 75,
-    "unmappedAttackIdsSha256": "43c2cf852dd5c4938a96ce3eae5ac075c4201579e7a5e97914ccf6c66b8de619",
+    "unmappedAttackCount": 76,
+    "unmappedAttackIdsSha256": "2cc20103b6c0826ba16bac45b0e46d4c6fc23fa4ed16251a15f496ed99735c88",
     "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
   },
   "attacks": [
