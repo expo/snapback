@@ -871,3 +871,89 @@ green at this HEAD. `packages/snapback-client/index.d.mts` gained
 `whenOfflineMutationReplayCapabilitySettled()` earlier in this lane, and the
 symbol registry, reference pages, Guide manifest, and flat projections remain
 at merge-base bytes for the landing script to regenerate at integration.
+
+### Round-20 dual-review closure (2026-08-25)
+
+String-named mutations now persist the complete served artifact generation
+alongside their application compatibility key. Replay and optimistic/settled
+projection compare that generation, so redeploying the same app id with new
+schema, bundle, or inputs bytes pauses the predecessor record with
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`, leaves it pending, and sends no
+mutation POST under the successor generation.
+
+Legacy targetless records are no longer ACK-eligible. Standalone and
+piggyback selection fail closed until the explicit adoption protocol in
+`issues/20260825-outbox-target-adoption-protocol.md` exists, matching replay's
+existing `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING` posture. Standalone ACK also
+drops caller-supplied ids absent from local recovery state instead of sending
+them to whichever origin is current. The foreground settlement fallback fence
+is now mutate-scoped, so a null preparation fence cannot become a block-scope
+`ReferenceError` after a committed server effect. The unrelated
+`backend.structured-stored-fields` GAP review-date change and ticket appendix
+were removed from this lane; both files match their merge-base bytes.
+
+The three watched regressions failed before the production fix with these
+verbatim lines:
+
+```text
+✖ same-origin same-app generation replacement refuses string-named persisted intent before POST (20.784ms)
+✖ legacy targetless standalone ACK never crosses origin after client repoint (3.247208ms)
+✖ standalone ACK drops caller ids with no local recovery record (0.880291ms)
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+```
+
+The first case observed `replayed: 1` instead of zero. Each ACK case observed
+`{ acknowledged: 1 }` instead of `{ acknowledged: 0 }`.
+
+At the final JS implementation commit
+`6be424e15fb00fd20114411f082d1a4980f084c6`, the focused outbox suite reports:
+
+```text
+ℹ tests 147
+ℹ suites 0
+ℹ pass 147
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2012.328875
+```
+
+The full `npm test --prefix packages/snapback-client` script again stops on
+the already-recorded, out-of-scope RQS assertion:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (10.1905ms)
+ℹ tests 30
+ℹ pass 29
+ℹ fail 1
+```
+
+The strict TypeScript fixture command was run separately after that stop and
+exits zero. Commands sequenced after the RQS failure in the package script are
+not claimed from that invocation.
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and prove the JS lane rather than a
+same-commit server binary.
+
+`./ref-check --verbose` reports `311 LLP docs, 6647 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output, and
+`git diff $(git merge-base HEAD origin/main) -- guide/capabilities.md
+issues/20260727-backend-bakeoff-improvement-program.md` is empty.
+
+No generated projection check is claimed green at this HEAD. Integration owns
+the requested projection regeneration.
