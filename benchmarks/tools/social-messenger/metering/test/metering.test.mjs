@@ -38,6 +38,7 @@ import {
   readReceiptBoundaryFiles,
 } from "../boundaries.mjs";
 import { joinUsageToMilestones } from "../joiner.mjs";
+import { composeRunRecord } from "../record-composer.mjs";
 import { recoverCodexSignalSettlements } from "../codex-native-evidence.mjs";
 import {
   FINALIZATION_RAW_EXCERPT_LIMIT,
@@ -116,11 +117,151 @@ const execFileAsync = promisify(execFile);
 const FIXTURES = new URL("./fixtures/", import.meta.url);
 const ROOT = new URL("../../../../../", import.meta.url);
 const ROOT_PATH = fileURLToPath(ROOT);
+const RETAINED_R2_CONFIG = new URL(
+  "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
+  ROOT,
+);
 const meterPath = fileURLToPath(new URL("../meter.mjs", import.meta.url));
 const extensionSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/social-messenger/run-record-extension.schema.json", ROOT),
   "utf8",
 ));
+
+async function currentR2HarnessFixture() {
+  const config = JSON.parse(await readFile(RETAINED_R2_CONFIG, "utf8"));
+  const manifestBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
+  const manifest = JSON.parse(manifestBytes);
+  config.execution.sourceClosure = measureSourceClosure({ repositoryRoot: ROOT_PATH });
+  Object.assign(config.pins.instrument, {
+    instrumentPin: manifest.instrumentPin,
+    manifestSha256: sha256(manifestBytes).replace(/^sha256:/u, ""),
+    schemaVersion: manifest.versions.schema,
+    uiVersion: manifest.versions.ui,
+    choreographyVersion: manifest.versions.choreography,
+  });
+  Object.assign(config.pins.instrument.d06MeteringOverlay, {
+    laneControllerSha256: sha256(await readFile(new URL(
+      "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+      ROOT,
+    ))).replace(/^sha256:/u, ""),
+    productionDriverSha256: sha256(await readFile(new URL(
+      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+      ROOT,
+    ))).replace(/^sha256:/u, ""),
+  });
+  return config;
+}
+
+async function migrateCurrentR2CellFixture(root) {
+  const instrumentBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
+  const instrument = JSON.parse(instrumentBytes);
+  await writeFile(join(root, "instrument.manifest.json"), instrumentBytes);
+  const choreographyPackage = JSON.parse(await readFile(new URL(
+    "benchmarks/tools/social-messenger/choreography/package.json",
+    ROOT,
+  ), "utf8"));
+
+  const basePath = join(root, "record-base.json");
+  const base = JSON.parse(await readFile(basePath, "utf8"));
+
+  const setup = {
+    schemaVersion: "social-messenger.setup-identity.v1",
+    instrumentPin: instrument.instrumentPin,
+    backend: { kind: "snapback", version: base.harness.environment.snapback },
+    runtime: {
+      qualifiedBinary: { claimed: false, reason: "retained fixture does not carry a qualified binary" },
+      wrapper: { claimed: false, reason: "retained fixture does not carry a runtime wrapper" },
+    },
+    packageClosure: {
+      mode: "workspace",
+      prepack: "not-applicable",
+      artifacts: [{
+        name: "social-messenger-migrated-retained-cell",
+        version: instrument.versions.choreography,
+        sha256: null,
+      }],
+    },
+    toolchain: {
+      node: { path: process.execPath, version: process.version },
+      bun: "not-invoked-by-retained-fixture",
+      npm: "not-invoked-by-retained-fixture",
+      playwright: choreographyPackage.dependencies.playwright,
+      browser: "chromium",
+    },
+    host: { id: "migrated-retained-cell", platform: process.platform, arch: process.arch },
+  };
+  const setupPath = join(root, "setup-identity.json");
+  const setupBytes = Buffer.from(`${JSON.stringify(setup, null, 2)}\n`);
+  await writeFile(setupPath, setupBytes);
+  const setupIdentity = { path: setupPath, sha256: sha256(setupBytes) };
+
+  base.harness.environment.instrument = instrument.instrumentPin;
+  base.socialMessenger.instrumentVersion = instrument.instrumentPin;
+  base.socialMessenger.orientation.instrument.pin = instrument.instrumentPin;
+  base.socialMessenger.orientation.instrument.manifest.sha256 = sha256(instrumentBytes)
+    .replace(/^sha256:/u, "");
+  Object.assign(base.socialMessenger.orientation.instrument.versions, instrument.versions);
+  base.socialMessenger.typingObservationBoundaryVersion =
+    CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
+  base.socialMessenger.setup = setup;
+  await writeFile(basePath, `${JSON.stringify(base, null, 2)}\n`);
+
+  const coveragePath = join(root, "coverage-manifest.json");
+  const coverage = JSON.parse(await readFile(coveragePath, "utf8"));
+  coverage.instrument = instrument.instrumentPin;
+  await writeFile(coveragePath, `${JSON.stringify(coverage, null, 2)}\n`);
+
+  const manifestPath = join(root, "metering-manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  for (const receipt of manifest.receipts) {
+    const receiptPath = join(root, receipt.path);
+    const records = parseJsonLines(await readFile(receiptPath, "utf8"));
+    for (const record of records) {
+      record.version = instrument.versions.choreography;
+      delete record.typingObservationBoundaryVersion;
+      if (record.details) delete record.details.typingObservationBoundaryVersion;
+      if (record.assertion === "typing-indicator-within-2s-expires-within-5s") {
+        record.typingObservationBoundaryVersion = CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
+        record.details.typingObservationBoundaryVersion = CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
+      } else if (record.segment === "m3" && record.type === "segment-summary") {
+        record.typingObservationBoundaryVersion = CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
+      }
+      if (record.type === "segment-summary") {
+        record.setupIdentity = setupIdentity;
+        record.setup = setup;
+      }
+    }
+    const bytes = Buffer.from(`${records.map((record) => JSON.stringify(record)).join("\n")}\n`);
+    await writeFile(receiptPath, bytes);
+    receipt.sha256 = sha256(bytes);
+  }
+  manifest.recordBase = { path: "record-base.json", sha256: sha256(await readFile(basePath)) };
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
+async function migrateCurrentFinalizedCellFixture(root) {
+  await migrateCurrentR2CellFixture(root);
+  const manifestPath = join(root, "metering-manifest.json");
+  const metering = joinUsageToMilestones(await loadMeteringManifest(manifestPath));
+  const recordBase = JSON.parse(await readFile(join(root, "record-base.json"), "utf8"));
+  const record = composeRunRecord({
+    base: recordBase,
+    patch: metering,
+    expectedMilestones: ["M1", "M2", "M3"],
+  });
+  const meteringBytes = Buffer.from(`${JSON.stringify(metering, null, 2)}\n`);
+  const recordBytes = Buffer.from(`${JSON.stringify(record, null, 2)}\n`);
+  await Promise.all([
+    writeFile(join(root, "metering.json"), meteringBytes),
+    writeFile(join(root, "record.json"), recordBytes),
+  ]);
+  const slotPath = join(root, "cell.json");
+  const slot = JSON.parse(await readFile(slotPath, "utf8"));
+  slot.record.sha256 = sha256(recordBytes);
+  slot.metering.sha256 = sha256(meteringBytes);
+  slot.originalInstrument.sha256 = sha256(await readFile(join(root, "instrument.manifest.json")));
+  await writeFile(slotPath, `${JSON.stringify(slot, null, 2)}\n`);
+}
 
 test("finalization diagnostics retain stage, ordinal, event type, cause, and bounded raw payload", async () => {
   const rawPayload = JSON.stringify({
@@ -1663,13 +1804,19 @@ function composedErrors(record, artifactRoot = null) {
   });
 }
 
-test("current R2 unavailable provenance rejects deletion and fabricated measurements", async () => {
+test("retained 0.3.3 R2 provenance remains valid under its own implicit-v1 pin", async () => {
   const root = fileURLToPath(new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
   ));
   const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
+  assert.equal(record.socialMessenger.instrumentVersion, "social-messenger@0.3.3-m8");
+  assert.equal(record.socialMessenger.typingObservationBoundaryVersion, undefined);
+  delete record.socialMessenger.setup;
   assert.deepEqual(composedErrors(record, root), []);
+  const mistyped = structuredClone(record);
+  mistyped.socialMessenger.typingObservationBoundaryVersion = "v2";
+  assert.notDeepEqual(composedErrors(mistyped, root), []);
   assert.deepEqual(record.socialMessenger.firstProductEdit.selectedSkills, []);
 
   for (const mutate of [
@@ -1697,7 +1844,7 @@ test("current R2 unavailable provenance rejects deletion and fabricated measurem
   );
 });
 
-test("current R2 complete replay rejects coordinated quantitative fabrication", async () => {
+test("retained 0.3.3 R2 complete evidence rejects coordinated quantitative fabrication", async () => {
   const root = fileURLToPath(new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
@@ -1709,49 +1856,141 @@ test("current R2 complete replay rejects coordinated quantitative fabrication", 
     ["token phases", (value) => { value.tokens.phases.authoring += 1; }],
     ["orientation prefix", (value) => { value.socialMessenger.firstProductEdit.orientationTokens.output += 1; }],
     ["charging", (value) => { value.socialMessenger.milestones.M2.charging.chargedTokens += 1; }],
-    ["caps", (value) => { value.socialMessenger.milestones.M2.caps.wallCapSeconds += 1; }],
     ["eligibility", (value) => { value.socialMessenger.efficiencyScorecardEligibility.eligible = true; }],
-    ["joined provenance", (value) => { value.socialMessenger.meteringProvenance.driver.startedAt = "2026-08-24T09:05:54.827Z"; }],
   ];
   for (const [label, mutate] of mutations) {
     const candidate = structuredClone(record);
     mutate(candidate);
     assert.match(
       composedErrors(candidate, root).join("\n"),
-      /complete hash-bound native metering replay|native boundary replay/u,
+      /complete hash-bound native metering replay|native boundary replay|expected constant null|eligibility must equal/u,
       label,
     );
   }
 });
 
+test("migrated current R2 complete replay rejects coordinated quantitative fabrication", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-current-complete-replay-")));
+  const root = join(temp, "cell");
+  try {
+    await cp(fileURLToPath(new URL(
+      "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
+      ROOT,
+    )), root, { recursive: true });
+    await migrateCurrentFinalizedCellFixture(root);
+    const base = JSON.parse(await readFile(join(root, "record-base.json"), "utf8"));
+    assert.equal(
+      base.socialMessenger.typingObservationBoundaryVersion,
+      CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
+      "the migrated base retains the boundary stamped by the production driver",
+    );
+    assert.equal(base.socialMessenger.setup.instrumentPin, "social-messenger@0.3.4-m8");
+
+    const manifest = JSON.parse(await readFile(join(root, "metering-manifest.json"), "utf8"));
+    const boundaryCarriers = [];
+    const detailBoundaryCarriers = [];
+    for (const receipt of manifest.receipts) {
+      const records = parseJsonLines(await readFile(join(root, receipt.path), "utf8"));
+      for (const receiptRecord of records) {
+        if (receiptRecord.typingObservationBoundaryVersion !== undefined) {
+          boundaryCarriers.push(`${receiptRecord.segment}:${receiptRecord.assertion}`);
+        }
+        if (receiptRecord.details?.typingObservationBoundaryVersion !== undefined) {
+          detailBoundaryCarriers.push(`${receiptRecord.segment}:${receiptRecord.assertion}`);
+        }
+        if (receiptRecord.type === "segment-summary") {
+          assert.deepEqual(receiptRecord.setup, base.socialMessenger.setup);
+          assert.equal(receiptRecord.setupIdentity.path, join(root, "setup-identity.json"));
+          assert.equal(
+            receiptRecord.setupIdentity.sha256,
+            sha256(await readFile(join(root, "setup-identity.json"))),
+          );
+        } else {
+          assert.equal(receiptRecord.setupIdentity, undefined);
+          assert.equal(receiptRecord.setup, undefined);
+        }
+      }
+    }
+    assert.deepEqual(boundaryCarriers, [
+      "m3:typing-indicator-within-2s-expires-within-5s",
+      "m3:__segment__",
+    ]);
+    assert.deepEqual(detailBoundaryCarriers, [
+      "m3:typing-indicator-within-2s-expires-within-5s",
+    ]);
+
+    const record = JSON.parse(await readFile(join(root, "record.json"), "utf8"));
+    assert.deepEqual(composedErrors(record, root), []);
+    const mutations = [
+      ["milestone tokens", (value) => { value.socialMessenger.milestones.M1.authoring.tokens.input += 1; }],
+      ["total tokens", (value) => { value.tokens.input += 1; }],
+      ["token phases", (value) => { value.tokens.phases.authoring += 1; }],
+      ["orientation prefix", (value) => { value.socialMessenger.firstProductEdit.orientationTokens.output += 1; }],
+      ["charging", (value) => { value.socialMessenger.milestones.M2.charging.chargedTokens += 1; }],
+      ["caps", (value) => { value.socialMessenger.milestones.M2.caps.wallCapSeconds += 1; }],
+      ["eligibility", (value) => { value.socialMessenger.efficiencyScorecardEligibility.eligible = true; }],
+      ["joined provenance", (value) => {
+        value.socialMessenger.meteringProvenance.driver.startedAt =
+          "2026-08-24T09:05:54.827Z";
+      }],
+    ];
+    for (const [label, mutate] of mutations) {
+      const candidate = structuredClone(record);
+      mutate(candidate);
+      assert.match(
+        composedErrors(candidate, root).join("\n"),
+        /complete hash-bound native metering replay|native boundary replay/u,
+        label,
+      );
+    }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("direct campaign controller command refuses before any prepare or native launch without admission", async () => {
   const repositoryRoot = fileURLToPath(ROOT);
-  await assert.rejects(
-    execFileAsync(process.execPath, [
-      "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
-      "--harness-config",
-      "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
-      "--cell",
-      "sol-clique-familiar",
-      "--driver",
-      "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
-    ], { cwd: repositoryRoot }),
-    (error) => {
-      assert.match(error.stderr, /R2_ADMISSION_REQUIRED/u);
-      return true;
-    },
-  );
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-direct-controller-")));
+  const configPath = join(temp, "harness-config.json");
+  try {
+    const config = await currentR2HarnessFixture();
+    config.paths.privateExecutionRoot = join(temp, "private");
+    config.execution.exclusiveHostLock.path = join(temp, "private", "locks", "host.lock");
+    await mkdir(config.paths.privateExecutionRoot);
+    await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+    await assert.rejects(
+      execFileAsync(process.execPath, [
+        "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
+        "--harness-config", configPath,
+        "--cell", "sol-clique-familiar",
+        "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs",
+      ], { cwd: repositoryRoot }),
+      (error) => {
+        assert.match(error.stderr, /R2_ADMISSION_REQUIRED/u);
+        return true;
+      },
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
 });
 
 test("production driver import and preflight failures precede the attempt/private-cell boundary", async () => {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-pre-attempt-import-")));
   const configDirectory = join(temp, "never-created-cell");
   try {
+    const configPath = join(temp, "harness-config.json");
+    const config = await currentR2HarnessFixture();
+    config.paths.privateExecutionRoot = join(temp, "private");
+    config.execution.exclusiveHostLock.path = join(temp, "private", "locks", "host.lock");
+    config.cells.find((cell) => cell.id === "sol-clique-explicit").promptFile = fileURLToPath(new URL(
+      "benchmarks/runs/2026-08-23-r2-published-0125/prompts/clique-explicit.md",
+      ROOT,
+    ));
+    await mkdir(config.paths.privateExecutionRoot);
+    await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
     const loaded = await loadLaneControllerConfig({
-      harnessConfigPath: fileURLToPath(new URL(
-        "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
-        ROOT,
-      )),
+      harnessConfigPath: configPath,
       cellId: "sol-clique-explicit",
     });
     const production = await importAndPreflightR2Driver({
@@ -1974,10 +2213,7 @@ test("R2 controller rejects inherited Node loaders before state and accepts the 
   const configPath = join(temp, "harness-config.json");
   const preloadPath = join(temp, "preload.mjs");
   const markerPath = join(temp, "preload-ran.txt");
-  const config = JSON.parse(await readFile(new URL(
-    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
-    ROOT,
-  ), "utf8"));
+  const config = await currentR2HarnessFixture();
   config.paths.privateExecutionRoot = privateRoot;
   config.execution.exclusiveHostLock.path = join(privateRoot, "locks", "host.lock");
   await mkdir(privateRoot);
@@ -2079,6 +2315,7 @@ async function makeFinalizedPrefixFixture() {
     cellId: "next-cell",
     status: "not-started",
   }, null, 2)}\n`);
+  await migrateCurrentFinalizedCellFixture(cellRoot);
   const harnessConfig = {
     cellOrder: [cellId, "next-cell"],
     paths: { committedRunRoot: "run", privateExecutionRoot: join(temp, "private") },
@@ -2475,10 +2712,7 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       sourceRoot: fileURLToPath(new URL("benchmarks/", ROOT)),
       outPath: materializedRoot,
     });
-    const sourceConfig = JSON.parse(await readFile(
-      new URL("benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json", ROOT),
-      "utf8",
-    ));
+    const sourceConfig = await currentR2HarnessFixture();
     const cell = sourceConfig.cells[1];
     const configPath = join(temp, "harness-config.json");
     const admissionPath = join(temp, "admission.json");
@@ -2526,6 +2760,20 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
     const injected = {
       inspectSeriality: () => seriality,
       assertCommittedConfig: () => {},
+      currentHostIdentity: () => {
+        const host = sourceConfig.machines[cell.allowedHostId];
+        return {
+          hostname: host.hostname,
+          platform: host.platform,
+          release: host.release,
+          arch: host.arch,
+          hardwareModel: host.hardwareModel,
+          chip: host.chip,
+          physicalCpuCount: host.physicalCpuCount,
+          logicalCpuCount: host.logicalCpuCount,
+          memoryBytes: host.memoryBytes,
+        };
+      },
       processProbe: () => {
         quietProbes += 1;
         assert.equal(samplesObserved, 3, "process probing must occur after all three load samples");
@@ -2771,10 +3019,7 @@ async function makeFinalizeExistingFixture({
   const targetCell = join(publicationRunRoot, "cells", cellId);
   const configPath = join(registeredRunRoot, "harness-config.json");
   const admissionPath = join(registeredRunRoot, "admissions", `${cellId}.json`);
-  const sourceConfig = JSON.parse(await readFile(new URL(
-    "benchmarks/runs/2026-08-23-r2-published-0125/harness-config.json",
-    ROOT,
-  ), "utf8"));
+  const sourceConfig = await currentR2HarnessFixture();
   const sourceCell = structuredClone(sourceConfig.cells.find((cell) => cell.id === cellId));
   delete sourceCell.disposition;
   const dispositionCell = dispositionPrefix
@@ -3014,6 +3259,7 @@ async function makeFinalizeExistingFixture({
       ROOT,
     )), join(privateCell, "coverage-manifest.json")),
   ]);
+  await migrateCurrentR2CellFixture(privateCell);
   const retainedManifest = JSON.parse(await readFile(join(privateCell, "metering-manifest.json"), "utf8"));
   retainedManifest.recordBase = {
     path: "record-base.json",

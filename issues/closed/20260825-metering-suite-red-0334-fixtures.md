@@ -1,6 +1,6 @@
 # Metering suite red after 0.3.4-m8: stale 0.3.3 fixtures + source-closure mismatches
 
-**Status:** Open
+**Status:** Resolved
 **Opened:** 2026-08-25
 **Systems:** Benchmarks, Metering
 **Related:** `97a5fba1c` (instrument 0.3.4-m8 landing),
@@ -29,3 +29,24 @@ Migrate or dual-pin the metering test fixtures for `0.3.4-m8` (retained
 rules — the tests should assert both directions), reconcile the
 source-closure expectations, and re-run the full suite green outside a
 sandbox. Fix-forward; does not gate the manual-shape capstone run.
+
+## Resolution (2026-08-25)
+
+Fixtures migrated to `0.3.4-m8` with both-direction retention assertions:
+retained `0.3.3-m8` fixtures validate as implicit-v1 records (`setup`
+optional, v2 refused) and current-pin fixtures require
+`typingObservationBoundaryVersion: v2` with validator refusal on mismatch.
+The current-pin migration now preserves the driver-stamped record-base v2
+boundary, limits receipt boundary stamps to the M3 typing assertion and M3
+summary, and carries the setup identity emitted by current choreography in
+every summary. Its complete native-replay fabrication coverage includes the
+wall-cap and joined driver-start mutations as well as tokens, phases,
+orientation, charging, and eligibility.
+The `meteringRoot` source-closure digest was reconciled (independently
+recomputed by the orchestrator with the canonical directory-digest
+algorithm) for the original 85-test migration. That suite was 85/85 outside
+the sandbox; the review fix adds the restored current-pin replay case, whose
+focused execution passes, and requires the orchestrator to re-reconcile the
+digest before the new 86-test full-suite result can be recorded. The remaining
+in-lane non-digest failures are proven sandbox `ps`-probe denials, not product
+state.
