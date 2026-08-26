@@ -469,29 +469,190 @@ assert.equal(capabilityMismatchState.diagnostic.code, 'SNAPBACK_APP_BINDING_CAPA
 assert.deepEqual(capabilityMismatchState.diagnostic.details.missingCapabilities, [missingConversationCapability]);
 assert.equal(capabilityMismatchAuthorityAdoptions, 0);
 
-let mismatchAuthorityAdoptions = 0;
 const mismatch = structuredClone(binding);
-mismatch.descriptorIdentity = 'sha256:foreign-descriptor';
-const mismatchBoot = createSnapbackExpoBoot({
+mismatch.descriptorIdentity = 'sha256:stale-descriptor';
+let retryBindingResolutions = 0;
+let retryAuthorityAdoptions = 0;
+const retryStates = [];
+const retryBoot = createSnapbackExpoBoot({
   app,
   now: () => Date.parse('2026-08-05T20:30:00.000Z'),
   environment: {
+    ...environment,
     format: 'snapback.expo-environment.v1',
     appState: appStateHarness(),
-    resolveBinding: async () => ({
-      binding: mismatch,
-      admission: { delivery: { channel: 'local-supervised-ipc' } },
-    }),
+    async resolveBinding() {
+      retryBindingResolutions += 1;
+      return {
+        binding: retryBindingResolutions === 1 ? mismatch : binding,
+        admission: { delivery: { channel: 'local-supervised-ipc' } },
+      };
+    },
+    async adoptAuthority(input) {
+      retryAuthorityAdoptions += 1;
+      return environment.adoptAuthority(input);
+    },
+  },
+  createProvider: () => Object.freeze({
+    async pause() {},
+    async resume() {},
+    async dispose() {},
+  }),
+});
+const offRetryBoot = retryBoot.subscribe(() => retryStates.push(retryBoot.getSnapshot()));
+const retryReady = await retryBoot.start();
+assert.equal(retryReady.status, 'ready');
+assert.equal(retryBindingResolutions, 2, 'supervised boot re-exchanges after a stale binding');
+assert.equal(retryAuthorityAdoptions, 1, 'only the fully admitted retry can reach authority work');
+const retryingState = retryStates.find((candidate) => candidate.retry !== undefined);
+assert.equal(retryingState.status, 'starting');
+assert.equal(retryingState.stage, 'binding');
+assert.equal(retryingState.retry.attempt, 1);
+assert.equal(retryingState.retry.maxAttempts > retryingState.retry.attempt, true);
+assert.equal(retryingState.retry.delayMs > 0, true);
+assert.equal(
+  retryingState.retry.diagnostic.code,
+  'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH',
+);
+offRetryBoot();
+await retryBoot.dispose();
+
+// A retry is another complete admission, not permission to skip the remaining
+// predicate after identities converge.
+let fullPredicateResolutions = 0;
+let fullPredicateAuthorityAdoptions = 0;
+const missingCapabilitiesAfterMismatch = structuredClone(binding);
+missingCapabilitiesAfterMismatch.capabilities.offered = [];
+const fullPredicateBoot = createSnapbackExpoBoot({
+  app,
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  environment: {
+    ...environment,
+    appState: appStateHarness(),
+    async resolveBinding() {
+      fullPredicateResolutions += 1;
+      return {
+        binding: fullPredicateResolutions === 1 ? mismatch : missingCapabilitiesAfterMismatch,
+        admission: { delivery: { channel: 'local-supervised-ipc' } },
+      };
+    },
     async adoptAuthority() {
-      mismatchAuthorityAdoptions += 1;
+      fullPredicateAuthorityAdoptions += 1;
       return null;
     },
   },
 });
-const mismatchState = await mismatchBoot.start();
-assert.equal(mismatchState.status, 'error');
-assert.equal(mismatchState.diagnostic.code, 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH');
-assert.equal(mismatchAuthorityAdoptions, 0, 'identity mismatch refuses before authority/store work');
+const fullPredicateState = await fullPredicateBoot.start();
+assert.equal(fullPredicateState.status, 'unsupported');
+assert.equal(
+  fullPredicateState.diagnostic.code,
+  'SNAPBACK_APP_BINDING_CAPABILITY_MISMATCH',
+);
+assert.equal(fullPredicateResolutions, 2);
+assert.equal(fullPredicateAuthorityAdoptions, 0);
+await fullPredicateBoot.dispose();
+
+const mismatchForTerminalSource = (source) => {
+  const candidate = structuredClone(mismatch);
+  candidate.source = source;
+  if (source === 'declared-dev') {
+    candidate.target.routing = 'declared-dev';
+    candidate.provenance = { deploymentIdentity: {} };
+    candidate.integrity = { channel: 'generated-declared-dev' };
+  } else if (source === 'hosted-development') {
+    candidate.target.origin = 'https://provider-hosted.example.test';
+    candidate.target.routing = 'https';
+    candidate.provenance = { hostedTargetReceipt: 'sha256:provider-hosted-receipt' };
+    candidate.integrity = { channel: 'hosted-target-admission' };
+  } else if (source === 'release') {
+    candidate.target.origin = 'https://provider-release.example.test';
+    candidate.target.routing = 'https';
+    candidate.provenance = {
+      environment: 'production',
+      releaseChannel: 'stable',
+      buildReceipt: 'sha256:provider-release-receipt',
+    };
+    candidate.integrity = { channel: 'embedded-at-build' };
+  }
+  return candidate;
+};
+
+for (const source of ['declared-dev', 'hosted-development', 'release']) {
+  let resolutions = 0;
+  const terminalBoot = createSnapbackExpoBoot({
+    app,
+    now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+    environment: {
+      ...environment,
+      appState: appStateHarness(),
+      async resolveBinding() {
+        resolutions += 1;
+        return { binding: mismatchForTerminalSource(source), admission: {} };
+      },
+      async adoptAuthority() {
+        assert.fail(`${source} mismatch must refuse before authority work`);
+      },
+    },
+  });
+  const terminalState = await terminalBoot.start();
+  assert.equal(terminalState.status, 'error', source);
+  assert.equal(terminalState.diagnostic.code, 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH');
+  assert.equal(resolutions, 1, `${source} boot mismatch must not retry`);
+  await terminalBoot.dispose();
+}
+
+let foreignBindingResolutions = 0;
+let foreignAuthorityAdoptions = 0;
+const foreignBinding = structuredClone(binding);
+foreignBinding.descriptorIdentity = 'sha256:foreign-descriptor';
+foreignBinding.target.app = 'foreign-app';
+foreignBinding.target.schema = 'sha256:foreign-schema';
+foreignBinding.target.functions = 'sha256:foreign-functions';
+foreignBinding.target.origin = 'http://127.0.0.1:4318';
+const foreignStates = [];
+const foreignBoot = createSnapbackExpoBoot({
+  app,
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  environment: {
+    ...environment,
+    appState: appStateHarness(),
+    async resolveBinding() {
+      foreignBindingResolutions += 1;
+      return {
+        binding: foreignBinding,
+        admission: { delivery: { channel: 'local-supervised-ipc' } },
+      };
+    },
+    async adoptAuthority() {
+      foreignAuthorityAdoptions += 1;
+      return null;
+    },
+  },
+});
+foreignBoot.subscribe(() => foreignStates.push(foreignBoot.getSnapshot()));
+const foreignState = await foreignBoot.start();
+assert.equal(foreignState.status, 'error');
+assert.equal(
+  foreignState.diagnostic.code,
+  'SNAPBACK_APP_BINDING_BOOT_ADMISSION_RETRY_EXHAUSTED',
+);
+assert.equal(foreignState.diagnostic.details.phase, 'boot-admission');
+assert.equal(foreignState.diagnostic.details.source, 'supervised-dev');
+assert.equal(foreignState.diagnostic.details.status, 'exhausted');
+assert.equal(foreignState.diagnostic.details.causeCode, 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH');
+const foreignRetryStates = foreignStates.filter((candidate) => candidate.retry !== undefined);
+assert.equal(
+  foreignRetryStates.at(-1).retry.maxAttempts,
+  foreignBindingResolutions,
+  'the final retry state reports the enforced attempt bound',
+);
+assert.equal(
+  foreignRetryStates.length,
+  foreignBindingResolutions - 1,
+  'every bounded foreign candidate is refused by full admission before exhaustion',
+);
+assert.equal(foreignAuthorityAdoptions, 0, 'a foreign backend never reaches authority/store work');
+await foreignBoot.dispose();
 
 const authorityBoot = createSnapbackExpoBoot({
   app,
@@ -557,4 +718,4 @@ completeAdoption({
 await interruptedStart;
 assert.equal(interruptedAuthorityDisposals, 1, 'dispose racing authority adoption releases it');
 
-console.log('provider.test.mjs: legacy runtime and DOM-host web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
+console.log('provider.test.mjs: legacy runtime and DOM-host web anonymous default/no-mint posture, descriptor delegation, exact boot states, scoped supervised boot-admission retry/exhaustion, terminal non-supervised refusal, authority refusal, and lifecycle pass');

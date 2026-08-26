@@ -30,14 +30,18 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { IDBFactory } from 'fake-indexeddb';
 
 import {
+  SnapbackExpoProvider,
   createSnapbackExpoBoot,
   createSupervisedExpoEnvironment,
+  useSnapbackExpoBootState,
 } from '../snapback-expo/index.mjs';
 import {
   observeSnapbackPresence,
   observeSnapbackQueries,
   observeSnapbackSurface,
   invokeSnapbackMutation,
+  useSnapbackMutation,
+  useSnapbackQuery,
 } from '@expo/snapback-react';
 
 import {
@@ -4043,6 +4047,310 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
   assert.equal(existsSync(join(settled.expoRoot, 'public')), false);
   await eventually(() => !existsSync(settled.readyFile), { label: 'settled ready-file cleanup' });
+
+  // @ref LLP 0310.000#ruling-1--same-owner-successor-is-not-a-foreign-app
+  // — keep one provider arm mounted while schema and functions successors
+  // replace its generated app. Each successor injects one stale predecessor
+  // exchange so the arm must recover through boot-only I2 rather than a fresh
+  // TestRenderer root or a supervisor/browser push plane.
+  const liveSuccessor = fixture('live-successor-arm', { sessions: false });
+  const liveSuccessorRun = await startFixture(liveSuccessor, { platform: 'web' });
+  const liveSupervisor = liveSuccessorRun.supervisor;
+  const liveEvents = liveSuccessorRun.events;
+  const [
+    { default: React },
+    { default: TestRenderer, act },
+  ] = await Promise.all([
+    import('react'),
+    import('react-test-renderer'),
+  ]);
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const settleReactUntil = async (
+    check,
+    { timeoutMs = 30_000, label = 'React condition' } = {},
+  ) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (check()) return;
+      await act(async () => {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+      });
+    }
+    assert.fail(`timed out waiting for ${typeof label === 'function' ? label() : label}`);
+  };
+  const liveProjection = {
+    boot: null,
+    mutate: null,
+    query: null,
+  };
+  const liveFallbackStates = [];
+  const liveDiagnostics = [];
+  let stalePredecessorBinding = null;
+  let stalePredecessorAdmissions = 0;
+  const liveBaseEnvironment = createSupervisedExpoEnvironment({
+    exchangeOrigin: liveSupervisor.exchangeOrigin,
+    appState: appStateHarness(),
+    runtimePlatform: 'web',
+    clientOptions: {
+      rqsStore: null,
+      offlineQueue: false,
+      clientStoreId: 'expo-track-a-live-successor',
+    },
+    onDiagnostic(diagnostic) { liveDiagnostics.push(diagnostic); },
+  });
+  const liveEnvironment = Object.freeze({
+    ...liveBaseEnvironment,
+    async resolveBinding(input) {
+      if (
+        stalePredecessorBinding !== null
+        && input.app.identity.descriptor !== stalePredecessorBinding.descriptorIdentity
+      ) {
+        const stale = stalePredecessorBinding;
+        stalePredecessorBinding = null;
+        stalePredecessorAdmissions += 1;
+        return Object.freeze({
+          binding: stale,
+          admission: Object.freeze({
+            productionCondition: false,
+            delivery: Object.freeze({ channel: 'local-supervised-ipc' }),
+          }),
+        });
+      }
+      return liveBaseEnvironment.resolveBinding(input);
+    },
+  });
+  function LiveSuccessorProjection({ mutation, rows }) {
+    liveProjection.boot = useSnapbackExpoBootState();
+    liveProjection.mutate = useSnapbackMutation(mutation);
+    liveProjection.query = useSnapbackQuery(rows, {});
+    return null;
+  }
+  const liveTree = (app, api) => React.createElement(
+    SnapbackExpoProvider,
+    {
+      app,
+      environment: liveEnvironment,
+      rqsStore: null,
+      outboxDrain: 'manual',
+      fallback(state) {
+        liveProjection.boot = state;
+        liveProjection.mutate = null;
+        liveProjection.query = null;
+        liveFallbackStates.push(state);
+        return null;
+      },
+    },
+    React.createElement(LiveSuccessorProjection, {
+      mutation: api.publishLiveRowAfterReload ?? api.publishLiveRow,
+      rows: api.liveRows,
+    }),
+  );
+  const readLiveGenerated = async (label) => {
+    const app = JSON.parse(readFileSync(
+      join(liveSuccessor.backendRoot, 'generated', 'app.descriptor.json'),
+      'utf8',
+    ));
+    const generatedModule = await import(
+      `${pathToFileURL(join(liveSuccessor.backendRoot, 'generated', 'api.mjs')).href}`
+        + `?${label}=${Date.now()}`
+    );
+    return { app, api: generatedModule.default };
+  };
+  const initialLiveGenerated = await readLiveGenerated('initial');
+  let liveRenderer;
+  await act(async () => {
+    liveRenderer = TestRenderer.create(liveTree(
+      initialLiveGenerated.app,
+      initialLiveGenerated.api,
+    ));
+  });
+  await settleReactUntil(
+    () => liveProjection.boot?.status === 'ready'
+      && liveProjection.query?.status === 'ready'
+      && typeof liveProjection.mutate === 'function',
+    {
+      label: () => `predecessor live-arm readiness: ${JSON.stringify({
+        boot: liveProjection.boot,
+        diagnostics: liveDiagnostics.slice(-5),
+        fallbacks: liveFallbackStates.slice(-5),
+      })}`,
+    },
+  );
+  const liveBackendPid = JSON.parse(readFileSync(liveSuccessor.readyFile, 'utf8')).pid;
+  const liveMetroPid = liveSupervisor.inspection().metro.pid;
+  const initialLiveBundle = await fetch(`${liveSupervisor.metroOrigin}/bundle`);
+  let liveMetroChangeCount = Number(
+    initialLiveBundle.headers.get('x-metro-files-changed-count'),
+  );
+  assert.match(await initialLiveBundle.text(), new RegExp(
+    initialLiveGenerated.app.identity.descriptor,
+    'u',
+  ));
+
+  const waitForLiveRotation = async ({ eventStart, label, pathPattern }) => {
+    const rotated = await eventually(
+      () => {
+        const successorEvents = liveEvents.slice(eventStart);
+        const event = successorEvents.find((candidate) => candidate.state === 'binding-rotated');
+        if (event) return event;
+        const failed = successorEvents.find((candidate) => (
+          candidate.state === 'backend-event'
+          && ['generation-failed', 'generated-but-not-loaded'].includes(candidate.backend?.state)
+        ));
+        if (failed) throw new Error(JSON.stringify(failed));
+        return false;
+      },
+      { timeoutMs: 60_000, label: `${label} binding rotation` },
+    );
+    assert.match(rotated.changed, pathPattern);
+    const bootstrap = await (
+      await fetch(`${liveSupervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
+    ).json();
+    assert.equal(bootstrap.binding.descriptorIdentity, rotated.descriptorIdentity);
+    const bundle = await eventually(
+      async () => {
+        const response = await fetch(`${liveSupervisor.metroOrigin}/bundle`);
+        const source = await response.text();
+        if (!source.includes(rotated.descriptorIdentity)) return false;
+        return { response, source };
+      },
+      { timeoutMs: 30_000, label: `${label} successor Metro bundle` },
+    );
+    liveMetroChangeCount += 1;
+    assert.equal(
+      Number(bundle.response.headers.get('x-metro-files-changed-count')),
+      liveMetroChangeCount,
+    );
+    assert.equal(JSON.parse(readFileSync(liveSuccessor.readyFile, 'utf8')).pid, liveBackendPid);
+    assert.equal(liveSupervisor.inspection().metro.pid, liveMetroPid);
+    return rotated;
+  };
+
+  const updateMountedLiveArm = async ({ generated, label, predecessorBinding }) => {
+    const fallbackStart = liveFallbackStates.length;
+    const staleAdmissionsBefore = stalePredecessorAdmissions;
+    stalePredecessorBinding = structuredClone(predecessorBinding);
+    await act(async () => {
+      liveRenderer.update(liveTree(generated.app, generated.api));
+    });
+    await settleReactUntil(
+      () => liveProjection.boot?.status === 'ready'
+        && liveProjection.boot.binding.descriptorIdentity === generated.app.identity.descriptor
+        && liveProjection.query?.status === 'ready'
+        && typeof liveProjection.mutate === 'function',
+      {
+        label: () => `${label} live-arm recovery: ${JSON.stringify({
+          boot: liveProjection.boot,
+          diagnostics: liveDiagnostics.slice(-5),
+          fallbacks: liveFallbackStates.slice(fallbackStart),
+        })}`,
+      },
+    );
+    const successorFallbacks = liveFallbackStates.slice(fallbackStart);
+    assert.equal(stalePredecessorAdmissions, staleAdmissionsBefore + 1);
+    assert(
+      successorFallbacks.some((state) => (
+        state.status === 'starting'
+        && state.stage === 'binding'
+        && state.retry?.diagnostic.code === 'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH'
+      )),
+      `${label} must cross I2's supervised boot-admission retry state`,
+    );
+    assert.equal(
+      successorFallbacks.some((state) => (
+        state.status === 'error'
+        && [
+          'SNAPBACK_APP_BINDING_IDENTITY_MISMATCH',
+          'SNAPBACK_APP_BINDING_BOOT_ADMISSION_RETRY_EXHAUSTED',
+        ].includes(state.diagnostic?.code)
+      )),
+      false,
+      `${label} must not kill the mounted provider arm`,
+    );
+    const body = `expo-track-a-${label}-${process.pid}`;
+    await act(async () => { await liveProjection.mutate({ body }); });
+    await settleReactUntil(
+      () => liveProjection.query?.status === 'ready'
+        && liveProjection.query.data.some((row) => row.body === body),
+      { label: `${label} successor mutation observation` },
+    );
+  };
+
+  const liveSchemaPath = join(liveSuccessor.backendRoot, 'schema.mjs');
+  const liveSchemaPredecessor = readFileSync(liveSchemaPath, 'utf8');
+  const liveSchemaPredecessorBinding = structuredClone(liveSupervisor.binding);
+  const liveSchemaEventStart = liveEvents.length;
+  const liveSchemaSuccessor = liveSchemaPredecessor.replace(
+    '    rejectionRows: valueTable(),',
+    '    rejectionRows: valueTable(),\n    successorRows: valueTable(),',
+  );
+  assert.notEqual(liveSchemaSuccessor, liveSchemaPredecessor);
+  writeFileSync(liveSchemaPath, liveSchemaSuccessor);
+  const liveSchemaRotation = await waitForLiveRotation({
+    eventStart: liveSchemaEventStart,
+    label: 'schema edit',
+    pathPattern: /schema\.mjs$/u,
+  });
+  assert.equal(
+    liveProjection.boot.binding.descriptorIdentity,
+    liveSchemaRotation.previousDescriptorIdentity,
+    'the already-running arm remains on its predecessor until the successor bundle updates it',
+  );
+  const liveSchemaGenerated = await readLiveGenerated('schema');
+  await updateMountedLiveArm({
+    generated: liveSchemaGenerated,
+    label: 'schema-successor',
+    predecessorBinding: liveSchemaPredecessorBinding,
+  });
+
+  const liveFunctionsPath = join(liveSuccessor.backendRoot, 'functions.mjs');
+  const liveFunctionsPredecessor = readFileSync(liveFunctionsPath, 'utf8');
+  const liveFunctionsPredecessorBinding = structuredClone(liveSupervisor.binding);
+  const liveFunctionsEventStart = liveEvents.length;
+  const liveFunctionsSuccessor = liveFunctionsPredecessor
+    .replace(
+      'export const publishLiveRow = defineJsMutation({',
+      'export const publishLiveRowAfterReload = defineJsMutation({',
+    )
+    .replace(
+      'mutations: { publish: bind(publishLiveRow,',
+      'mutations: { publish: bind(publishLiveRowAfterReload,',
+    );
+  assert.notEqual(liveFunctionsSuccessor, liveFunctionsPredecessor);
+  writeFileSync(liveFunctionsPath, liveFunctionsSuccessor);
+  const liveFunctionsRotation = await waitForLiveRotation({
+    eventStart: liveFunctionsEventStart,
+    label: 'functions edit',
+    pathPattern: /functions\.mjs$/u,
+  });
+  assert.equal(
+    liveProjection.boot.binding.descriptorIdentity,
+    liveFunctionsRotation.previousDescriptorIdentity,
+    'the same mounted arm remains live while the functions successor reaches Metro',
+  );
+  const liveFunctionsGenerated = await readLiveGenerated('functions');
+  await updateMountedLiveArm({
+    generated: liveFunctionsGenerated,
+    label: 'functions-successor',
+    predecessorBinding: liveFunctionsPredecessorBinding,
+  });
+  await act(async () => {
+    liveRenderer.unmount();
+    await new Promise((resolveUnmount) => setImmediate(resolveUnmount));
+  });
+  const liveOrigins = {
+    backend: liveSupervisor.binding.target.origin,
+    metro: liveSupervisor.metroOrigin,
+    bootstrap: liveSupervisor.exchangeOrigin,
+  };
+  await liveSupervisor.close();
+  supervisors.splice(supervisors.indexOf(liveSupervisor), 1);
+  await Promise.all(Object.entries(liveOrigins).map(([label, origin]) => (
+    assertOriginClosed(origin, `live successor ${label}`)
+  )));
+  await eventually(() => !existsSync(liveSuccessor.readyFile), {
+    label: 'live successor ready-file cleanup',
+  });
 
   // Native supervision is still sessions-first at the provider boundary, but
   // it no longer creates and discards an eager S1. The omitted-prop native
