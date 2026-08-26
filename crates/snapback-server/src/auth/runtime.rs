@@ -1297,7 +1297,7 @@ mod tests {
         let issue = mint_email_session(&mut snapback, &provider, "gc@example.com", 1_000).await;
         let bearer_text = issue.response().token().expose_secret().to_owned();
         let session_id = issue.response().session.id.clone();
-        let expires_at_ms = issue.response().session.expires_at;
+        let absolute_expires_at_ms = issue.response().session.absolute_expires_at;
         snapback
             .remainder_auth_fixture()
             .ensure_authorization_stream_incarnation()
@@ -1317,7 +1317,7 @@ mod tests {
             .expect("predecessor session begins live");
 
         let state = Arc::new(Mutex::new(snapback));
-        clock.set(expires_at_ms + 1);
+        clock.set(absolute_expires_at_ms + 1);
         let terminalized = Arc::new(StdMutex::new(Vec::new()));
         let terminalized_for_sink = Arc::clone(&terminalized);
         let sink = AuthExpiryTerminalSink::new(move |expired| {
@@ -1334,7 +1334,7 @@ mod tests {
                 .remainder_auth_fixture()
                 .auth_session_clock_floor()
                 .unwrap(),
-            expires_at_ms + 1,
+            absolute_expires_at_ms + 1,
             "forward wall-clock expiry persists its terminal frontier before deletion",
         );
         let terminalized = terminalized.lock().unwrap();
