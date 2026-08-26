@@ -5,7 +5,12 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-25 (§2.4 declaration-boundary clarification; previously
+**Revised:** 2026-08-26 (§6e draft-pending-review narrowed to this server
+owner's V/watermark facts and exact participating-subscription
+Data-to-Refresh → pressure hand-off → Refresh-publication ordering; group,
+lifecycle, wire evolution, carrier, and episode registry delegated to LLPs
+0114/0095/0094/0219/0267; design only). 2026-08-25 (§2.4
+declaration-boundary clarification; previously
 2026-08-09, when §6d recorded Phase 4 landing and the §5
 four-phase program is COMPLETE — quarantine entry/exit observable on
 the inspect surface, the §2.6 recovery rule test-pinned with
@@ -24,7 +29,9 @@ coalescing decision and authorization-invalidation amendment this Spec
 binds to), LLP 0183 (D4 charter this Spec extends), LLP 0012/0043
 (ordering and sessions contracts), LLP 0058 (auth-mode deployment state),
 LLP 0020 (live matcher), LLP 0070 (runAfter), LLP 0093 (client protocol),
-LLP 0135 (optimistic overlay / withheld changesets),
+LLP 0094 (wire negotiation and pressure-interest registration),
+LLP 0114 (query groups), LLP 0135 (optimistic overlay / withheld changesets),
+LLP 0219 (client diagnostic carrier), LLP 0267 (overload episode registry),
 `issues/closed/20260808-oq4-coalescing-measurement-spike.md` (measured
 basis), `issues/20260808-live-query-reevaluation-cost-at-scale.md`
 (workstream anchor), `issues/20260808-d2-d4-owner-specs-commission.md`
@@ -39,6 +46,10 @@ lifecycle end to end, and the server-side evaluation scheduler is the
 server half of that lifecycle. The client-side controller remains LLP 0183
 scope; this document specifies only the server: when evaluations run, what
 the write path promises, what delivery may elide, and how streams recover.
+Cross-owner amendments may name client facts that consume these server
+outputs, but they do not transfer React/group lifecycle, client state, wire
+shape, or diagnostic storage into this Spec. Section 6e is therefore limited
+to V/watermark production and the Data-to-Refresh hand-off order.
 
 ## 1. Measured basis (what this Spec must fix)
 
@@ -771,6 +782,158 @@ default-on, A/B'd, fix-forward per LLP 0189. Open remainders, by owner:
   high commit rates), and the OQ-4 owner-document review remain open
   spec questions; v0.4's post-round-3 repairs remain unreviewed.
 
+## 6e. Draft amendment (2026-08-26) — own-write atomic composition gate
+
+**DRAFT-PENDING-REVIEW — design only.** This amendment has not been accepted
+and changes no served protocol or client behavior. It is the proposed closure
+mechanism for Wanted #4 in
+`issues/20260820-familiar-live-subscription-contention.md`, after the
+2026-08-25 review retracted the commit-relative five-second client timer. An
+implementation round may begin only after this amendment survives review.
+
+This amendment is intentionally limited to this server Spec's charter. It owns
+only (a) the committed revision V and per-subscription watermarks already
+defined in §2.1 and (b) the ordering cut around §2.5's existing
+Data-to-Refresh conversion. LLP 0114 owns query-group semantics, LLP 0095 owns
+client/subscription lifecycle, LLP 0219 owns the negotiated carrier and client
+event, and LLP 0267 owns the overload-episode registry and inspection join.
+Nothing below enlarges this Spec into a React, client-state, wire-shape, or
+diagnostic-storage owner.
+
+### Decision and deliberately narrow claim
+
+Choose the ticket's option **(c): deliberately gate a defined atomic
+composition surface**. The proposed LLP 0114 surface consumes two facts from
+this Spec and no others:
+
+1. a committed settled mutation supplies the exact storage revision V from
+   §2.1's server-issued disposition; no client counter or inspection snapshot
+   may synthesize it; and
+2. every subscription can prove coverage through V by accepted content or the
+   §2.1 `current_as_of(V)` watermark, including matcher skip and value-equal
+   paths.
+
+This Spec continues to promise only independently versioned, latest-value
+subscriptions. The opt-in cross-subscription publication claim and all
+pre-transport acquisition, bounded hold, generation, staging, refusal, and
+external-store behavior are the dated LLP 0114 amendment. Ordinary callers
+remain unchanged under §2.3.
+
+### Server conversion and hand-off ordering
+
+The sole pressure producer is the same semantic event §2.5 already owns:
+`select_pending_live_subscription` converts an over-age pending Data entry to
+the priority Refresh obligation and records
+`SNAPBACK_LIVE_OVERLOAD_DEGRADE`. At that exact off-commit scheduler seam, the
+server performs the LLP 0267 episode transition and requests the LLP 0219
+durable pressure hand-off.
+
+Grant negotiation alone does not enter the new path. Before allocating an
+episode, the conversion must find the exact LLP 0094 pressure-interest pair on
+that subscription registry row. If it is absent or stale, conversion follows
+the pre-amendment §2.5 path byte-for-byte: no LLP 0267 episode transition, no
+pressure enqueue, and no pressure-caused client/public notification.
+
+For an exactly negotiated connection and exactly interested subscription,
+ordering is normative:
+
+```text
+Data-to-Refresh conversion
+  < LLP 0267 episode allocate/extend
+  < LLP 0219 pressure durable-enqueue success
+  < converted Refresh LiveEvaluationControl::begin_publication()
+```
+
+The Refresh cannot enter publication when the pressure enqueue fails; it takes
+§2.5's typed `resync_required`/teardown capacity escape. The hand-off never
+runs in the commit turn, so settlement remains decoupled under §2.1. LLP 0219
+owns the durable `LiveEnvelope` shape, per-subscription FIFO, negotiation,
+both-lane carriage, and enqueue-failure projection. LLP 0267 owns episode
+allocation, reuse, coverage, transfer, and clearing.
+
+After the real conversion has created the episode, every strict
+`coverageThrough` raise is a new logical pressure enqueue before the Refresh it
+covers, including a coalesced/latest-value supersession that adds a newer owed
+revision without another conversion. The durable queue may replace an
+undelivered older projection in place under the same episode key only if it
+preserves the older FIFO position and records the higher coverage as the
+successful enqueue; coalescing with no coverage raise performs no pressure
+enqueue.
+
+### Healthy convergence cannot trigger the warning
+
+The producer is the §2.5 semantic conversion, not client elapsed time,
+revision skew, `server-pending`, or an inspection snapshot. Ordinary queued,
+coalescing, evaluating, in-flight transport, and commitless restoration states
+therefore remain silent.
+
+Section 2.5 permits delivery start at `max_hold + one in-flight turn` and
+end-to-end convergence at that bound plus one `max_eval_turn` and transport
+while demand is within capacity. A subscription may therefore still be
+uncovered when a client clock first reaches five seconds; that fact alone
+produces nothing. The within-capacity Data path does not record an overload
+conversion or invoke either owner hand-off. A client clock reaching five
+seconds cannot enter the producer.
+
+### Ordering claim exported to the client owners
+
+This Spec does **not** claim that pressure precedes every child delivery. That
+claim is false when an earlier sibling internally delivers before a later
+subscription reaches conversion. The server exports only the conversion-to-
+enqueue-to-Refresh order above. LLP 0219/0114 compose it into the narrower
+**diagnostic-before-post-gate-group-notify** invariant; subscription-internal
+advances and ordinary independent consumers may precede the diagnostic.
+
+Group replacement, bounded-hold expiry, staging, security preemption, and the
+typed blank boundary are LLP 0114/0095 lifecycle rules, not this scheduler
+Spec's publication rules.
+
+T-RECONNECT's HTTP snapshot ordering is likewise outside this queue: LLP 0094
+requires any transferred current/transferable episode to ride the subscribe
+response and be applied before its successor snapshot. An episode allocated
+after that establishment cut returns to the durable order above.
+
+### Required acceptance
+
+This owner requires the integrated acceptance trace to prove that the actual
+`select_pending_live_subscription` Data-to-Refresh branch produced the episode
+hand-off, the pressure durable enqueue succeeded before the converted Refresh
+crossed `begin_publication()`, and enqueue failure suppressed that Refresh and
+took typed resync/teardown. It must also prove a strict coalesced coverage raise
+performs the logical enqueue/position-preserving replacement and an equal
+coverage coalesce does not. The silent controls must exercise both bounded Data
+work and overload conversion on a negotiated-but-uninterested subscription and
+show no episode hand-off. LLP 0094/0095/0114/0219 add the live, poll,
+duplicate/reconnect, group-generation, bounded-hold, and client-notification
+assertions.
+
+### Compatibility and rejected shapes
+
+Legacy/non-opted subscriptions keep §2.3's ordinary independent service and do
+not take the pressure hand-off. An exact grant without an exact current
+subscription-interest witness is non-opted for this purpose. The negotiation, query-state addition,
+group refusal, `PublicInspect`, hosted, and telemetry postures are owned by the
+companion amendments; this Spec makes no new claim for them.
+
+The following stay rejected:
+
+- any fixed or adaptive client timer — it can fire after partial publication
+  and inside §2.5's healthy interval;
+- warning on revision skew or W5 `server-pending` — both are normal for
+  independent subscriptions;
+- polling `app.inspect` or recorder rings — the pull is not causally aligned
+  with publication and can return snapshot-skew;
+- a per-subscription overload event without the group gate — an earlier
+  sibling may already have published;
+- default gating of every independent query — it would silently replace the
+  shipped latest-value contract; and
+- scheduler parallelism/capacity changes — they may improve latency but do not
+  define the diagnostic ordering contract.
+
+Implementation, if these amendments are accepted, must co-land the LLP 0095,
+0114, 0219, and 0267 owner contracts. No such implementation is present or
+authorized by this draft.
+
 ## 7. Non-goals
 
 Incremental view maintenance, delta-fed replicas, matcher vocabulary
@@ -778,6 +941,14 @@ widening, cross-principal shared evaluation, multi-process realtime, and
 any change to the one-authority-per-app storage contract (LLP 0007/0128).
 
 ## Revision history
+
+- **v0.6 (2026-08-26, DRAFT-PENDING-REVIEW; revised after deep review).**
+  Exports only §2.1's V/watermark facts and the real Data-to-Refresh → episode
+  hand-off → pressure enqueue → Refresh-publication server order, with a
+  silent within-capacity control and real-producer acceptance. Group,
+  lifecycle, carrier, and registry semantics moved to LLPs
+  0114/0095/0219/0267. Design only; no served contract or implementation
+  changes until accepted.
 
 - **v0.1 (2026-08-08).** Initial draft from the OQ4 spike results and
   post-spike diagnostic.

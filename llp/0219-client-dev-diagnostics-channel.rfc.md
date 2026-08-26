@@ -2,9 +2,13 @@
 
 **Type:** RFC
 **Status:** Accepted
-**Systems:** JS headless client, React/Expo adapters, Client diagnostics, Guide
+**Systems:** JS headless client, React/Expo adapters, Client diagnostics, Wire Protocol, Live Queries, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-10
+**Revised:** 2026-08-26 (draft-pending-review `live_delivery_pressure.v1`
+negotiation, per-subscription interest, durable both-lane/reconnect-response
+carrier, FIFO/enqueue-failure rule, and synchronous diagnostic insertion;
+design only).
 **Revised:** 2026-08-24 (the React provider adds the payload-safe
 `SNAPBACK_REACT_PRESENCE_VALUE_CHURN` producer at the actual presence-publish
 boundary: only consecutive changed values advance it; initial publishes,
@@ -67,7 +71,10 @@ Accepted from the same pilot batch — its queued/wedged diagnostic events flow
 through this channel, and its §4.1/§4.4 own the `outboxStatus()` extension
 and the queued-event trigger/payload this channel consumes),
 LLP 0114 (first-class React and query groups — the subscription surface the
-churn detector observes), LLP 0193 (errors-as-docs: every warning here must meet
+churn detector observes), LLP 0094 (closed DTO evolution and exact pressure
+offers), LLP 0095 (both-lane client lifecycle), LLP 0200
+(server overload conversion/order), LLP 0267 (overload episode registry and
+inspection join), LLP 0193 (errors-as-docs: every warning here must meet
 its code + fix/guide-anchor floor), LLP 0156 (minimal error tracking — its E3
 client-crash ingest is the explicit *non*-scope boundary of this RFC),
 LLP 0012 §Diagnostic Schema and §React and Expo Requirements (the adapter
@@ -402,6 +409,176 @@ into minutes.
   Guide/reference/flat projections were regenerated; guide check,
   ref-check, and package-test inventory are green. Existing code already
   carried the decision-bearing LLP 0219 refs, so P4 added no mechanical refs.
+
+## Draft live-delivery-pressure carrier amendment — 2026-08-26
+
+**DRAFT-PENDING-REVIEW — design only.** This amendment owns the proposed
+server-to-client carrier and its channel insertion for contention Wanted #4.
+It does not own overload detection (LLP 0200), episode registry semantics (LLP
+0267), client lifecycle (LLP 0095), or group publication (LLP 0114), and changes
+no served wire until accepted.
+
+### Exact negotiation and subscription targeting
+
+The exact capability token is `"live_delivery_pressure.v1"`. A fresh
+`POST /connection/open` request offers it in
+`liveDeliveryPressureProtocol`; an accepting response echoes the same field and
+adds `liveDeliveryPressureMaxAtomicHoldMs`, a positive finite integer. The
+binding is immutable for the connection grant lineage. Re-open may confirm but
+not add/remove it; a fresh grant negotiates again.
+
+A v1 client rejects the capability when the echo is absent/different or the
+hold is absent, non-integer, non-positive, or greater than 120,000 ms. A server
+may offer it only when that finite hold is not shorter than its configured
+within-capacity LLP 0200 service/convergence envelope. Ordinary clients and
+subscriptions remain eligible without the offer; LLP 0114 atomic own-write
+mutation dispatch alone requires the exact accepted pair.
+
+LLP 0094 owns the closed-DTO staging and legacy matrix. In particular, the
+client sends the open field only after target capability preflight; an absent
+offer creates an ordinary unnegotiated lineage; and mounting an atomic group
+after that open refuses with `SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE` and
+guidance to create a fresh preflighted provider/connection. Re-open never
+upgrades the lineage and the client does not silently retry an atomic group
+through the ordinary offerless fallback.
+
+Negotiation is only grant-wide permission. Emission additionally requires the
+subscription's exact LLP 0094 `liveDeliveryPressureInterest` subscribe offer
+and output echo, including positive never-reused subscription and interest
+generations. An absent/mismatched echo is not participation. The server stores
+no interest and emits no pressure for an ordinary subscription even when its
+connection is negotiated; this carrier cannot perturb that subscription's
+pre-amendment trace.
+
+### Durable carrier, not socket control
+
+The carrier is the following closed `LiveEnvelope` member:
+
+```json
+{
+  "kind": "live_delivery_pressure",
+  "subscription_id": "sub_...",
+  "subscription_generation": 7,
+  "pressure_interest_generation": 3,
+  "episode_scope": "opaque-server-scope",
+  "overload_episode_seq": 42,
+  "wave_seq": 913,
+  "coverage_through": 1088,
+  "cause": "max-hold-overload"
+}
+```
+
+It is deliberately not a `LiveSocketServerFrame`: the diagnostic must survive
+the poll lane. Lane L emits the member bare in the socket's durable union. Lane
+P serializes the byte-identical member as the payload of the ordinary
+`RealtimeEnvelope::Durable` item. LLP 0095 owns unwrap, drain-handoff/
+redelivery dispositions,
+generation fencing, duplicate/stale behavior, and reconnect transitions.
+If accepted, LLP 0094's schema/fixture registry must mechanically admit the
+new open fields and closed envelope member; semantic ownership remains here.
+
+`episode_scope` is an opaque, non-secret scope for one connection grant
+lineage. `overload_episode_seq` is positive and strictly increasing only
+inside that scope; a fresh lineage uses a fresh scope and may restart the
+number at 1. `wave_seq` is the first LLP 0267 wave that converted the episode,
+and `cause` has the single v1 value shown. Reprojection/retry reuses the exact
+episode key and immutable wave/cause; a monotone extension may only raise
+`coverage_through`.
+
+### Producer, FIFO, and enqueue failure
+
+There is one producer: LLP 0200's off-commit
+`select_pending_live_subscription` branch after it actually converts pending
+Data work to Refresh. It proceeds only when both the connection binding and
+the subscription row's current interest pair are exact, asks LLP 0267 to
+allocate/extend the current episode, then durably enqueues this projection. A
+negotiated-but-uninterested subscription takes the ordinary LLP 0200
+conversion path without an episode or carrier. No client clock, revision skew,
+`server-pending`, ordinary queue/evaluation/transit, or inspection read may
+emit it.
+
+The server preserves FIFO per subscription generation across pressure,
+content, watermark, and resync `LiveEnvelope` members. The episode projection
+must be durably admitted before its converted Refresh crosses
+`LiveEvaluationControl::begin_publication()`. Coalescing/supersession may
+replace that Refresh but cannot overtake or discard the current episode. There
+is no cross-subscription FIFO claim.
+
+After the real conversion has created the episode, every strict
+`coverage_through` raise is a new logical pressure enqueue, including a
+coalesced/latest-value supersession that adds a newer owed revision without
+another conversion. If an older projection for that episode is still queued,
+it may be replaced at the same FIFO position with the greater coverage and
+that replacement is the enqueue success; a coalesce that does not raise
+coverage performs no pressure enqueue.
+
+Serialization or queue admission failure is fail-closed: the corresponding
+Refresh does not enter transport, and LLP 0200 takes its existing typed
+`resync_required`/teardown capacity escape. The carrier is never reconstructed
+after Refresh publication and never runs in the commit/settlement turn.
+
+### Reconnect response ordering
+
+Durable FIFO does not order T-RECONNECT's HTTP establishment snapshot. LLP
+0094 therefore adds the exact same closed DTO as optional
+`LiveSubscribeOutput.liveDeliveryPressure`. At the same atomic cut that moves
+a current/transferable LLP 0267 episode to the successor, the server captures
+that projection under the successor subscription/interest generations. The
+client installs it and inserts the diagnostic before it applies the response's
+snapshot and before it admits any establishment-produced watermark or replay
+envelope. A later durable copy is an idempotent
+or monotone confirmation. An episode allocated after the response cut follows
+the ordinary FIFO rule above. The successor snapshot can therefore never cover
+V and release the group before a pre-existing transferred pressure episode is
+observed.
+
+### Channel event
+
+After LLP 0095 accepts a new/extended episode into canonical subscription
+state, it synchronously emits the existing warning code
+`SNAPBACK_LIVE_OVERLOAD_DEGRADE` into this RFC's v2 channel **before** invoking
+interest-scoped group bookkeeping or external-store listeners. Ordinary
+query/optionless projections receive neither this pressure notification nor
+the sidecar state. The bounded/redacted details
+are the pseudonymized subscription identity, subscription generation,
+pseudonymized episode scope, episode sequence, first wave sequence, coverage
+revision, cause, and the two repairs: keep the explicit LLP 0114 gate when
+staged publication is acceptable, or replace the independent set with one
+bounded relational/aggregate query. No args, rows, row ids, principals,
+credentials, literal origins, or raw caller identifiers enter the event.
+
+Coalescing key is
+`(subscriptionIdentityPseudonym, pressureInterestGeneration,
+episodeScopePseudonym,
+overloadEpisodeSeq)`. Exact duplicate/redelivery increments occurrence
+accounting without a second state transition; a monotone coverage extension
+updates the active condition under the same key. LLP 0095 protocol-defect
+diagnostics for conflicting reuse are separate and cannot replace this
+accepted pressure event.
+
+A projection at or below LLP 0095's retired episode/coverage high-water is
+consumed as stale before channel insertion: it neither resurrects overload nor
+increments this event's occurrence count. A strict same-episode coverage raise
+may reactivate it and updates the one active condition.
+
+The resulting cross-owner invariant is diagnostic-before the next LLP 0114
+post-gate group notification, not diagnostic-before every child advance.
+Ordinary consumers of the canonical child may already have advanced. A typed
+authority/lifecycle blank may preempt because it publishes no staged data.
+
+### Acceptance additions
+
+Acceptance must use the real LLP 0200 producer and prove the exact shape and
+FIFO on Lane L and Lane P; exact per-subscription interest targeting and
+ordinary-subscription silence; poll response-handoff ownership plus
+cancelled-drain duplicate; same-lineage reconnect/supersession response
+pressure before snapshot with episode-key reuse;
+fresh-lineage sequence-scope reset; monotone extension and conflicting reuse;
+retired-high-water suppression; strict-raise enqueue versus no-raise coalesce;
+enqueue failure preventing Refresh publication; synchronous channel insertion
+before post-gate group notification; structural redaction and coalescing; and
+the within-capacity control's complete silence. A happy-path live Refresh alone
+is insufficient.
 
 ## Open questions
 

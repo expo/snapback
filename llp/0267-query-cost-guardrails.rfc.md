@@ -5,7 +5,11 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-25 (v0.20 — fix-round proof tightening: each real-pull
+**Revised:** 2026-08-26 (v0.22 draft-pending-review — interest-targeted bounded
+current overload episode registry with scoped sequence/reuse/transfer and
+exact negotiated-hold tombstone expiry, atomic reconnect-response projection,
+and `server-overloaded` added only to the §7.4 inspect-time join; design only).
+2026-08-25 (v0.20 — fix-round proof tightening: each real-pull
 subscription joins the exact `lastDeliveredWaveSeq`, same-version subscriptions
 have distinct waves, delayed connectivity produces positive queue wait, the
 join-source host envelope is value-free before overflow, and signed hosted
@@ -1022,7 +1026,9 @@ hard refusal is the 64-per-connection transport ceiling, with its own
 pre-refusal warning (LLP 0278/0095). None of that is re-decided.
 
 W5 adds the **client-owned cost fields** on that row — each one an event the
-client itself observes, so no server→client cost carrier is implied:
+client itself observes, so the accepted W5 inspection design implies no
+server→client cost carrier. The distinct draft pressure carrier in §7.8 is an
+explicit semantic-overload projection and does not copy the wave/cost record:
 `lastDeliveryAtMs` and `authoritativeRevision` (ruled, LLP 0059 ruling 6),
 `deliveryLagMs` (defined in §7.2: first covering delivery, client clock,
 scalar = most recent covered commit), and the `suppressedEqualSnapshots`
@@ -1033,9 +1039,10 @@ joins them from the server snapshot by subscription id → registry row →
 
 The D0.5 answerability requirement becomes checkable as a closed rule over
 that join. `pendingDeliveryReason` is **not a stored field on either side**
-— the client cannot know owed-ness or server execution state, and the
-server cannot know client hold states, without the carrier this amendment
-disclaims. It is a **derived result of the inspect-time join**: the
+— the draft §7.8 carrier tells an exactly negotiated client only that one
+semantic overload episode exists; it does not expose general owed-ness or
+server execution state, and the server still cannot know client hold states.
+It is a **derived result of the inspect-time join**: the
 CLI/tooling that reads both gated snapshots computes it, normatively, and
 the derivation is **exhaustive** — every admitted (client state, registry
 state) pair yields exactly one of four outcomes:
@@ -1057,8 +1064,8 @@ rule and no later rule is consulted once an earlier one matches.
 
 **Step 0 — client lifecycle classification.** Two client classes are
 decided before any reason member or residual, whatever the registry row
-holds (an active-stage row included — member 6 is never consulted for
-these clients):
+holds (an active-stage or overload-episode row included — server members
+6–7 are never consulted for these clients):
 
 - **Ordinary initial `PENDING`** (no `supersedes`): **neutral,
   unconditionally — row present or absent.** A `PENDING` subscription
@@ -1102,7 +1109,12 @@ server owes):
    the registry row present **or** absent — row-present +
    `PENDING`-with-`supersedes` + `owed = null` (replacement established
    server-side, client not yet caught up) is still `transport-recovery`;
-6. `server-pending` — requires a registry row with an **active stage**
+6. `server-overloaded` — **draft 2026-08-26; inactive until §7.8 is
+   accepted**; requires a registry row with a `state: "current"` §7.8
+   `LiveOverloadEpisodeV1`; detail carries only its bounded episode identity,
+   cause, first wave, and `coverageThrough`. This is derived by the gated join,
+   never copied onto either inspection row or application query state;
+7. `server-pending` — requires a registry row with an **active stage**
    (`evaluation != "idle"` or `pendingWork != "none"`; §7.3's
    owed-obligation rule): the composite names the stage (`evaluating`
    with `currentWaveSeq`, `queued`, `coalescing`, or the race composite,
@@ -1127,7 +1139,7 @@ is total:
   in flight); detail names it `in-transit`.
 - **Row present, version-owed, `evaluation: "idle"` and
   `pendingWork: "none"`**: **defect** — the §7.3 table makes owed work
-  with no recorded stage unrepresentable (reachable because member 6
+  with no recorded stage unrepresentable (reachable because member 7
   requires an active stage).
 - **Row absent, client claiming an established subscription** —
   `LIVE(v)` under **any** connection shape LLP 0095 admits for
@@ -1319,6 +1331,88 @@ opt-in remains instance-local/gated, `PublicInspect` remains unchanged, and v1
 still has no export, upload, collection, or streaming protocol for cost
 records. Incomplete physical observations remain incomplete; the integrated
 receipt never reinterprets their physical zeros as measured zero work.
+
+### 7.8 Draft overload-episode registry amendment — 2026-08-26
+
+**DRAFT-PENDING-REVIEW — design only.** This amendment owns the exact bounded
+current episode consumed by LLP 0219's proposed carrier. It does not move
+`pendingDeliveryReason` out of §7.4's gated join, and it changes no recorder,
+public inspect, or telemetry surface until accepted.
+
+Each subscription-registry row gains at most one current value:
+
+```ts
+type LiveOverloadEpisodeV1 = Readonly<{
+  state: "current" | "transferable"
+  pressureInterestGeneration: number
+  episodeScope: string
+  overloadEpisodeSeq: number
+  cause: "max-hold-overload"
+  firstWaveSeq: number
+  coverageThrough: number
+  expiresAtMs: number
+}>
+```
+
+The value can exist only beside an exact current LLP 0094 subscription
+pressure-interest witness; `pressureInterestGeneration` must equal that row.
+Grant-wide negotiation without this per-subscription witness allocates no
+episode and changes no row. `episodeScope` is an opaque scope for one connection grant lineage. The
+lineage's allocator starts at 1 and assigns a strictly increasing
+`overloadEpisodeSeq`; a fresh lineage gets a fresh scope and may restart the
+number. The join/consumer compares the complete pair, never the number alone.
+`firstWaveSeq` and `cause` are immutable. `coverageThrough` may only increase.
+At first allocation the server records `createdAtMs` and fixes
+`expiresAtMs = createdAtMs + liveDeliveryPressureMaxAtomicHoldMs`, using the
+exact hold negotiated for the grant. The expiry may be neither shortened nor
+extended by conversion, covering delivery, supersession, reprojection, or
+reconnect. Because allocation follows group-gate acquisition, the tombstone
+therefore survives at least through the possible deadline of the group that
+preceded first allocation.
+
+The total transition table extends §7.3:
+
+| Event | Current overload episode |
+| --- | --- |
+| `select_pending_live_subscription` actually converts Data to Refresh after inherited age crosses `max_hold` | If the row lacks the exact current pressure-interest witness, do nothing here. Otherwise allocate the next scoped sequence when absent or reactivate/reuse the retained key. Set `state: "current"`, bind the interest generation, raise `coverageThrough` to the greatest owed revision, and preserve first wave/cause/expiry. Merely queued/evaluating/in-transit work does nothing. |
+| Latest-value Refresh supersession or another real conversion before retirement/expiry | Reactivate/reuse the exact episode key and interest generation. A strict coverage raise requires a new logical LLP 0219 enqueue (or position-preserving replacement of its queued older projection); a no-raise coalesce performs no enqueue. Never allocate a warning per frame. |
+| LLP 0219 pressure projection/enqueue | Read the current episode and exact current interest. Retry/reprojection reuses it. Enqueue failure preserves it until the ensuing typed teardown/transfer disposition. |
+| Covering delivery at V | If this row still holds the same current episode and `V >= coverageThrough`, change it to `state: "transferable"`; a newer charge/extension survives as current. The exact negotiated-hold expiry prevents a socket hand-off followed by loss from erasing the reconnect warning before the first-allocation group's possible local deadline. |
+| Same-lineage successful `supersedes` that retains the exact interest generation | At the same atomic establishment cut, move—never copy—the exact current/transferable episode to the successor row, retain scope/sequence/first wave/coverage/expiry, and include its closed projection in LLP 0094 `LiveSubscribeOutput.liveDeliveryPressure` under the successor subscription generation. A later durable projection is duplicate/extension only. |
+| Owned 1→0 interest supersession, or a 0→1 successor with a new interest generation | Retire the predecessor episode/tombstone at the establishment cut. A new interest generation cannot inherit or reactivate it. |
+| T-LOSS before successor establishment | Move the episode into a transferable predecessor tombstone in the same fixed registry slot. Successful owned supersession consumes it; expiry removes it. |
+| Explicit final unsubscribe, terminal authority/deletion, grant-lineage loss, second-timeout teardown without an owned successor, or expiry | Retire the row/tombstone and episode. A fresh lineage cannot inherit it. |
+
+The registry remains bounded by the existing 64 subscription slots per
+connection: an episode/tombstone occupies its predecessor's slot, successful
+supersession moves that slot to the successor, and no event creates a second
+entry for one slot. An unexpired transferable tombstone therefore cannot be
+silently evicted to admit unrelated demand; ordinary capacity refusal applies.
+This is exact current state, not a sampled event ring, and it is absent from
+`PublicInspect` and exports.
+
+Section 7.4 remains the sole owner of `pendingDeliveryReason`. Its ordered join
+now selects `server-overloaded` after client-owned lifecycle holds and before
+ordinary `server-pending` only when this episode is `state: "current"`; a
+transferable tombstone is neutral registry custody, and a stale/non-current
+interest generation is treated as no episode. No client row,
+server row, LLP 0095 application query state, or LLP 0114 group state stores a
+field named `pendingDeliveryReason`; the opted pressure-aware canonical fact is
+LLP 0095's differently named `delivery.overload` sidecar installed from the
+ordered carrier. Ordinary query state does not project that sidecar.
+
+Acceptance extends the exact registry/join fixture with allocation at the real
+LLP 0200 conversion; same-sequence extension/reactivation and post-expiry
+next-sequence allocation; negotiated-but-uninterested no-allocation;
+strict-raise enqueue versus no-raise coalesce; covering-delivery transition
+racing a newer owed revision; pressure-enqueue failure; same-lineage successor
+move plus response projection before snapshot; T-LOSS tombstone expiry exactly
+at creation plus the negotiated hold; loss before pressure receipt followed by
+reconnect before the first-allocation group's possible deadline still
+projecting that tombstone; interest-generation retirement/noninheritance;
+unchanged expiry across repeated successors; fresh-lineage reset; fixed-slot
+capacity; and `server-overloaded` precedence without storing
+`pendingDeliveryReason` on either snapshot.
 
 ## Open questions
 

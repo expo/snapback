@@ -54,6 +54,96 @@ tuning without investigation.
    If it is a runtime/client defect, keep six independent queries green under a
    deterministic regression.
 
+### Wanted #4 design revision (2026-08-26, round 4; implementation not started)
+
+Lane C retains the fix-round bar's option (c): an explicit own-write atomic
+query-group gate entered before mutation transport, with pressure produced
+only by the real LLP 0200 Data-to-Refresh conversion and inserted into the LLP
+0219 channel before the opted group exposes staged data. Healthy
+within-capacity Data work stays silent and every non-opted caller retains
+independent latest-value publication. Round 3 makes targeting explicitly
+per-subscription, orders reconnect pressure in the subscribe response ahead of
+its snapshot, and makes a typed blank a recoverable publication state rather
+than a permanent acquisition lock. Round 4 leaves those resolved mechanisms
+unchanged and closes only tombstone lifetime/deadline enforcement and the
+retired-floor immutable-witness/bounded-eviction seams.
+
+The revised worktree memo is root `DESIGN.md`. The repository-stable design is
+now intentionally cross-owned by draft-pending-review dated amendments:
+
+- [LLP 0094](../llp/0094-wire-envelope-contract.spec.md#draft-live-delivery-pressure-wire-amendment--2026-08-26) owns closed-DTO capability preflight,
+  the exact per-subscription interest offer/echo, ordinary legacy fallback,
+  and the reconnect subscribe-response pressure member;
+- [LLP 0200 §6e](../llp/0200-live-evaluation-scheduling-and-settlement.spec.md#6e-draft-amendment-2026-08-26--own-write-atomic-composition-gate) owns only
+  committed revision/watermark facts and the Data-to-Refresh → pressure
+  hand-off → Refresh-publication server order for exactly interested
+  subscriptions;
+- [LLP 0114](../llp/0114-first-class-react-and-query-groups.spec.md#draft-own-write-atomic-group-amendment--2026-08-26) owns the group generations,
+  authoritative-only snapshot algebra, pre-overlay all-or-nothing mutation
+  intercept, finite hold, auto-allocated idle blank successor, and bookkeeping
+  listener;
+- [LLP 0095](../llp/0095-client-lifecycle-and-conformance.spec.md#draft-live-delivery-pressure-lifecycle-amendment--2026-08-26) owns subscription state/generation fencing and live/poll/reconnect/duplicate
+  behavior, including drain-handoff dispositions and the bounded retired-
+  episode/coverage high-water;
+- [LLP 0219](../llp/0219-client-dev-diagnostics-channel.rfc.md#draft-live-delivery-pressure-carrier-amendment--2026-08-26) owns the exact
+  `live_delivery_pressure.v1` semantics, interest-targeted durable
+  `LiveEnvelope`, strict-coverage-raise enqueue/FIFO rule, and channel insertion;
+- [LLP 0267 §7.8](../llp/0267-query-cost-guardrails.rfc.md#78-draft-overload-episode-registry-amendment--2026-08-26) owns the bounded current
+  episode registry and exact creation-plus-negotiated-hold tombstone expiry,
+  while §7.4 keeps `pendingDeliveryReason` an inspect-time join-only value.
+
+Grant negotiation merely permits participation. A subscription is targeted
+only after its subscribe interest is exactly echoed; negotiated ordinary
+subscriptions allocate no episode and emit no pressure. Mounting an atomic
+group on an unnegotiated lineage refuses with guidance to create a fresh
+preflighted provider/connection because re-open cannot upgrade it; the ordinary
+lineage and its traces remain undisturbed.
+
+The finite composition deadline is fixed at pre-transport acquisition and is
+never reset by settlement, resync, reconnect, supersession, or another episode
+conversion. At the cut the provider fences and removes the predecessor,
+releases the lease, and publishes one typed blank owned by an automatically
+allocated idle successor. A later own write may acquire that blank successor
+and recover rows after its committed V is fully covered; remount is only
+no-write data recovery. A multi-group busy refusal reports the latest current
+blocking deadline, not the earliest, as its bounded non-reserving retry point.
+Every snapshot/coverage callback enforces `monotonicNow >= deadlineAtMs` before
+testing release, so reconnect content that arrives after the local cut blanks
+and fences the predecessor instead of publishing rows.
+
+The corrected ordering claim is diagnostic-before the next post-gate group
+notification; canonical child stores and ordinary consumers may advance
+earlier. T-RECONNECT carries a transferred episode in `LiveSubscribeOutput`
+and applies it before the response snapshot, while the client retains a bounded
+retired episode/coverage high-water so a late durable reprojection cannot
+resurrect a cleared episode. A T-LOSS tombstone now expires exactly at episode
+creation plus the negotiated hold, which keeps it transferable through the
+first-allocation group's deadline. The high-water retains `firstWaveSeq`
+and `cause`, so only an exact immutable-witness strict coverage raise may
+reactivate; it remains one fixed-size record per extant canonical store and is
+discarded with final store eviction, bounding churn under LLP 0114's store cap.
+Matching optimistic mutations refuse before
+overlay or transport; opted group rows are authoritative only. Required
+acceptance includes interest targeting/legacy silence, real producer on both
+lanes, drain dispositions, strict-raise enqueue, response-before-snapshot
+reconnect, exact-expiry loss/reconnect, at-deadline snapshot blanking,
+immutable-witness retired dedup/reactivation, bounded store eviction,
+group-sharing/multi-group acquisition, automatic blank-successor recovery, and
+the silent within-capacity control.
+
+Round-4 self-review does not claim convergence. A group acquired after an
+episode's original creation can receive a legitimate strict-coverage
+reactivation of that same fixed-expiry key; its later local deadline then
+outlives `createdAtMs + liveDeliveryPressureMaxAtomicHoldMs`. Loss and reconnect
+inside that interval can again omit the tombstone and release covering rows
+without the diagnostic. Choosing expiry renewal, a fresh episode, or a gate-
+acquisition fence would change settled machinery and is reserved for the author
+LLP review sitting after this round.
+
+This revision changes design documents only. Wanted #4 remains open, none of
+the amendments is accepted, and no product implementation is present or
+authorized in this round.
+
 Related: `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`
 owns the authoring recipe for the same suspension code, but not this
 multi-subscription investigation.

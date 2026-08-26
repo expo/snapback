@@ -5,7 +5,11 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-22 (author acceptance of the LLP 0267 §7 provider/asset
+**Revised:** 2026-08-26 (draft-pending-review own-write atomic group:
+per-subscription interest, closed rows/blank algebra, authoritative-only
+freeze, all-or-nothing pre-overlay/pre-transport acquisition, finite hold,
+automatic idle blank successors, honest multi-group retry point, and
+deadline-enforcing bookkeeping listener; design only). 2026-08-22 (author acceptance of the LLP 0267 §7 provider/asset
 multiplicity obligations owned here; warning-only and local-gated).
 2026-08-21 (`useSnapbackAssetUrl` ledger amendment: nullable
 absence resolves in the neutral client to one inert `empty` store; the React
@@ -81,7 +85,7 @@ initial-data path, group/store bounds and SSR snapshots are pinned, and
 authority replacement/disposal are explicit). 2026-07-27 (initial focused
 specification for the backend-bakeoff React, presence, and aggregate-query
 program)
-**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0108, LLP 0157
+**Related:** LLP 0000, LLP 0012, LLP 0013, LLP 0034, LLP 0043, LLP 0053, LLP 0059, LLP 0064, LLP 0074, LLP 0090, LLP 0092, LLP 0094, LLP 0095, LLP 0108, LLP 0157, LLP 0200, LLP 0219, LLP 0267, LLP 0278
 
 ## Summary
 
@@ -941,8 +945,10 @@ useSnapbackConnection(): ConnectionState
 `{ref, args}` where `args` may independently be `skip`. Entry names are
 nonempty portable identifiers. The group result has the same keys, each
 holding the ordinary `QueryState<Result>`, plus aggregate
-`status: "loading" | "ready" | "error"` and one connection snapshot. It makes
-no atomic multi-query, shared commit, bundle, or preload claim. Each non-skipped
+`status: "loading" | "ready" | "error"` and one connection snapshot. The
+optionless overload makes no atomic multi-query, shared commit, bundle, or
+preload claim; the dated 2026-08-26 draft amendment below is the proposed
+explicit opt-in exception and changes nothing until accepted. Each non-skipped
 entry is an ordinary live subscription multiplexed through the provider's
 single connection; all 64 must fit the shipped per-connection subscription
 limit or the complete group refuses before attaching any entry.
@@ -1700,3 +1706,254 @@ headless client's LLP 0219 diagnostics channel. React owns neither a parallel
 history nor direct console delivery. The static package split does not create
 a second owner: both the root and `@expo/snapback-react/core` export the same
 provider-bound diagnostics projection from the shared implementation.
+
+## Draft own-write atomic group amendment — 2026-08-26
+
+**DRAFT-PENDING-REVIEW — design only.** This amendment owns the group and
+provider semantics proposed for Wanted #4 in
+`issues/20260820-familiar-live-subscription-contention.md`. It is inactive;
+the shipped optionless group continues to make no atomic claim.
+
+### API, pressure interest, and compatibility
+
+The proposed overload is
+`useSnapbackQueries(entries, { atomicOwnWrites: [mutationRefs...] })`, with an
+equivalent framework-neutral group observer. It provides own-write atomic
+publication only; unrelated writes remain independently versioned and a
+relational/aggregate query remains the general cross-set atomic answer.
+
+Grant negotiation is insufficient. Before a group generation becomes active,
+the provider reference-counts its interest in every canonical child and waits
+for each subscription's exact LLP 0094
+`liveDeliveryPressureInterest` subscribe-output echo. The first local 0→1
+interest transition establishes a pressure-participating successor; the last
+1→0 transition establishes a successor without interest. A missing/mismatched
+echo leaves the group at a typed unavailable blank and matching mutations
+refuse before transport.
+
+Mounting the first atomic group after an unnegotiated connection open also
+publishes `SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE`. It does not re-open,
+rotate, or silently upgrade the existing grant: re-open cannot change the
+binding. The diagnostic guides the caller to create a fresh provider/
+connection whose initial open can preflight and offer the protocol. Existing
+ordinary subscriptions continue unchanged.
+
+The pressure interest is an internal sidecar on the shared canonical store.
+Only opted group observers in the echoed interest generation see it or receive
+its notification. Ordinary `useQuery`, `useQueryState`, headless handles, and
+optionless groups retain their existing public shape and notification bytes,
+including when they share the same authoritative child store.
+
+### Closed group snapshot algebra and state placement
+
+Gate ownership and public data availability are orthogonal. `blank` is never a
+lease or acquisition state:
+
+```ts
+atomicDelivery: Readonly<{
+  gate: "idle" | "held"
+  publication: "rows" | "blank"
+  groupIdentity: string
+  groupGeneration: number
+  requiredRevision: number | null
+  ownerLabels: readonly string[]
+  deadlineAtMs: number | null
+  failureCode:
+    | "SNAPBACK_ATOMIC_QUERY_GROUP_HOLD_EXPIRED"
+    | "SNAPBACK_ATOMIC_QUERY_GROUP_LIFECYCLE_FENCED"
+    | "SNAPBACK_ATOMIC_QUERY_GROUP_OUTCOME_UNKNOWN"
+    | "SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE"
+    | null
+}>
+```
+
+The opted return type is a closed discriminated union. The
+`publication: "rows"` arm retains the existing group `status`, non-null
+`data`, non-null `queries`, `errors`, and freshness algebra. The
+`publication: "blank"` arm is exactly `status: "blank"`, `data: null`,
+`queries: null`, `errors: {}`, and `freshness: "unknown"`, plus its typed
+failure. Existing `connection` and `store` members are common to both arms.
+It exposes no retained or staged row. Either publication arm may have
+`gate: "held"`: acquiring an idle blank successor keeps it blank until a
+committed V is fully covered.
+
+Field invariants are closed: `gate: "idle"` requires
+`requiredRevision: null`, empty `ownerLabels`, and `deadlineAtMs: null`;
+`gate: "held"` requires a finite deadline and its value-free owner label, with
+`requiredRevision: null` before settlement and exact V after committed
+settlement. `publication: "rows"` requires `failureCode: null`; a mounting
+blank may use `failureCode: null`, while every terminal/recovery blank uses one
+listed code. Successful V coverage changes publication to rows and clears the
+failure.
+
+`requiredRevision`, value-free owner labels, deadline, and frozen/staged
+snapshots belong to one group generation, never the canonical child store or
+LLP 0267 inspection row. The opted group projects only each child's immutable
+authoritative base. It never consumes or publishes optimistic overlays. Thus a
+shared child may publish normally to an ordinary caller while group A waits at
+V and group B waits at W; each generation consumes the same authoritative
+advances against its own revision.
+
+While held, one generation retains exactly its frozen authoritative public
+snapshot when it has one, each gate-entry child's latest immutable
+authoritative snapshot, and bounded gate metadata. A latest child update
+overwrites the previous staged value; no delivery log is retained.
+
+Each generation registers a synchronous, exception-isolated bookkeeping
+listener below the ordinary consumer-notification seam. Accepted content and
+`current_as_of` invoke it after the canonical authoritative base applies the
+revision, including value-equal delivery for which LLP 0278 suppresses an
+ordinary notification. The listener updates the one latest staged snapshot and
+tests coverage; it does not delay ordinary consumers. Before staging or testing
+coverage, it reads the monotonic clock. If `monotonicNow >= deadlineAtMs` for a
+held observing generation, it performs the finite-hold expiry transaction and
+returns without releasing predecessor rows, even when this callback is a
+reconnect snapshot that already covers V.
+
+### Provider mutation intercept, optimism, and all-or-nothing acquisition
+
+The intercept is the provider's settled-only foreground mutation dispatcher,
+after synchronous reference/args/authority/capability validation and before
+both optimistic overlay installation and the first transport call. Every React
+hook and framework-neutral provider mutation facade uses it.
+
+Optimism is forbidden for a mutation reference matched by any active
+`atomicOwnWrites` group. A call carrying an optimistic reducer refuses
+synchronously with `SNAPBACK_ATOMIC_QUERY_GROUP_OPTIMISTIC_UNSUPPORTED` before
+an overlay, mutation attempt, or transport exists. Unmatched mutations and
+ordinary child consumers retain the pre-amendment optimistic lifecycle.
+
+For mutation reference M, the provider snapshots all active group generations
+whose `atomicOwnWrites` names M, sorts their generated identities, first
+expires any past-deadline holder, and acquires the complete set in one
+provider-local transaction. A generation with `gate: "held"` blocks; an idle
+rows or blank generation is acquirable. If any match is held or lacks every
+exact subscription-interest witness, none changes and M refuses before
+transport with `SNAPBACK_ATOMIC_QUERY_GROUP_BUSY` or
+`SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE`. Partial multi-group acquisition
+is forbidden.
+
+Refusal precedence is deterministic: validate every match's exact pressure
+binding first and return `SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE` if any
+is unavailable (with no `retryAfterMs`); only an all-available set is checked
+for held leases and may return `SNAPBACK_ATOMIC_QUERY_GROUP_BUSY` with the
+retry point below.
+
+There is no `closing` state. Replacement or disposal atomically removes the
+predecessor from the active acquisition registry and fences it before any
+asynchronous listener/subscription cleanup begins.
+
+Successful acquisition sets every match to `gate: "held"` and freezes its
+rows arm, if present, before transport. A committed settlement sets
+`requiredRevision` to the exact server-issued `committedRevision` V (LLP 0200
+§2.1); no local counter, optimistic revision, child row, or inspection fact may
+derive V. A commit-free refusal or synchronous local failure releases every
+acquisition. A rows generation publishes its latest staged authoritative
+snapshot once; a blank generation remains blank because no V proved recovery.
+Outcome-unknown takes the blank-successor transition below and never guesses
+whether the write committed.
+
+### Finite hold, automatic blank successor, and refused-write progress
+
+At acquisition the generation fixes
+`deadlineAtMs = monotonicNow + liveDeliveryPressureMaxAtomicHoldMs`, using the
+finite value echoed by LLP 0219 negotiation. Mutation settlement, resync,
+reconnect, supersession, and overload-episode extension never reset it. Timer
+delivery, every later acquisition, and every snapshot/coverage bookkeeping
+callback enforce the monotonic deadline.
+
+At expiry one provider-local transaction fences the predecessor, discards its
+frozen/latest staging, releases its lease, removes it from the active registry,
+and allocates `groupGeneration + 1` with `gate: "idle"` and
+`publication: "blank"`. The external store publishes exactly that one
+successor snapshot with `SNAPBACK_ATOMIC_QUERY_GROUP_HOLD_EXPIRED`. Late
+coverage cannot resurrect the predecessor.
+
+The successor immediately adopts the group's then-declared membership and
+installs fresh generation-fenced bookkeeping listeners, but it publishes no
+rows merely because those children already hold data. It may retain only each
+child's latest authoritative internal snapshot. A later own-write acquisition
+fixes gate-entry membership/V as usual; an explicit resubscribe/remount supplies
+the separate no-write data-recovery barrier.
+
+A later matching own write may immediately acquire this idle blank successor.
+If it commits at V, complete authoritative coverage through V publishes a rows
+snapshot and recovers the group. Remount/resubscribe remains an optional way to
+recover data without a later write; it is never the mechanism that releases
+the write lock.
+
+The no-write recovery spelling is concrete: React unmounts and later mounts
+the opted `useSnapbackQueries` group; the framework-neutral equivalent calls
+the observer's existing `dispose()` and constructs a new observer with the same
+declaration. That lifecycle creates another idle generation, fresh-establishes
+every child, and publishes rows only after the ordinary initial all-child
+readiness algebra is satisfied. V1 adds no hidden `retry()` API. This recovery
+may observe independently versioned remote writes, exactly like initial mount;
+it does not broaden the own-write atomic claim.
+
+The same automatic-successor rule applies after outcome-unknown and every
+non-terminal lifecycle blank while the logical group remains mounted and its
+fresh exact pressure binding is available. Skip/ref/args/key or authority
+replacement creates the already-required fresh blank generation. Provider or
+explicit group disposal has no successor because the group is no longer
+active; grant replacement creates one only after fresh negotiation and child
+interest echoes succeed.
+
+One generation admits one foreground gate and holds no wait queue. A busy
+refusal returns the current blocking group identities and
+`retryAfterMs = ceil(max(blockingDeadlineAtMs) - monotonicNow)`. The maximum,
+not the earliest deadline, is the bounded point by which all **currently
+observed** blockers will have been cut; acquisition enforces overdue cuts
+synchronously. It remains no reservation or fairness promise, because a new
+racer may acquire first. Repeated independent contenders can still starve one
+another; callers needing FIFO progress must serialize or move the operation
+server-side.
+
+Gate-entry membership is immutable. An entry already `skip`ped owes no V. A
+child-only LLP 0095 resync/reconnect changes the subscription generation while
+preserving this group generation, required V, and original deadline. The
+predecessor may not drop or skip a slow child to manufacture convergence.
+Security/lifecycle blanking preempts data composition.
+
+### Release and ordering
+
+After settlement at V, the held generation releases once every gate-entry
+active child's bookkeeping revision is `>= V`, using content or LLP 0200
+`current_as_of(V)`. It publishes one rows snapshot from the latest
+authoritative children and never exposes a mix below and at/above V. A held
+blank generation makes this same transition directly from blank to rows. This
+release additionally requires `monotonicNow < deadlineAtMs`; equality or a
+later instant runs the expiry/blank transition first and permanently fences
+the predecessor from releasing rows.
+
+The overload invariant is **diagnostic-before-post-gate-group-notify**. A child
+and its ordinary consumers may advance before a later sibling converts to
+Refresh; the group remains frozen or blank. Once LLP 0095 accepts pressure,
+LLP 0219 inserts `SNAPBACK_LIVE_OVERLOAD_DEGRADE` before the matching interest
+generation's next external-store notification exposing post-gate data.
+
+On same-lineage T-RECONNECT, LLP 0094 carries any transferred pressure episode
+inside `LiveSubscribeOutput`; LLP 0095 applies it and inserts the diagnostic
+before applying the successor snapshot. The snapshot may then cover V and
+release the group only while its original local deadline remains unexpired; an
+already-due deadline blanks/fences the predecessor before the coverage test.
+It can therefore never overtake the warning or revive an expired hold.
+Gate-entry/status and
+typed security/lifecycle blank notifications expose no staged data and remain
+outside this order.
+
+### Acceptance additions
+
+Framework-neutral and React evidence must prove: exact interest enrollment and
+unnegotiated/mismatched refusal guidance; negotiated ordinary subscriptions and
+all non-opted public projections remain byte-for-byte unchanged; shared child
+ordinary publication while two groups wait at distinct revisions;
+transactional multi-group acquisition; optimistic refusal before overlay and
+transport; authoritative-only bounded latest staging; settlement-only V;
+equal-value bookkeeping; skip/generation replacement; response pressure before
+reconnect snapshot; unchanged deadline across successors; reconnect snapshot
+coverage at/after that deadline expiring before row release; expiry/lifecycle
+blank allocating an idle successor that a later own write acquires and recovers
+at its V; maximum-blocker `retryAfterMs`; and diagnostic-before-post-gate
+notification. The Familiar real-path and silent controls are required by the
+coordinated LLP 0094/0095/0200/0219/0267 amendments.

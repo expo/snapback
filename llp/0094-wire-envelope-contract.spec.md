@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-10 (sessions live-update delivery amendment: one content
+**Revised:** 2026-08-26 (draft-pending-review pressure wire evolution:
+closed open/subscribe offers, exact interest echo, reconnect response ordering,
+closed envelope addition, and legacy fallback; design only).
+2026-08-10 (sessions live-update delivery amendment: one content
 frame per commit version per subscription; auth-scoped row changes use the
 obligation-backed `authorization_invalidation` envelope — see §0C.8);
 2026-08-10 (LLP 0146 OQ6 remediation-carrier amendment: `diagnostic.details.remediationSet`, nested versioning, closed outer envelopes unchanged — see the dated section); 2026-08-08 (ErrorResponse v1 amendment: every HTTP error envelope
@@ -100,7 +103,9 @@ immutable establishment metadata; both live output schemas regenerated;
 see `issues/closed/20260717-app-cli-attribution-seams.md`)
 **Related:** LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051,
 LLP 0053, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
-LLP 0092, LLP 0093, LLP 0108, LLP 0110, LLP 0113
+LLP 0092, LLP 0093, LLP 0108, LLP 0110, LLP 0113, LLP 0114, LLP 0200,
+LLP 0219, LLP 0267,
+`issues/20260820-familiar-live-subscription-contention.md`
 
 ## Summary
 
@@ -1388,6 +1393,129 @@ amendment requires the §0C.5 matrix row, connection-record subscribe check,
 regenerated closed input schema, hosted decoder, and LLP 0093 offered/legacy/
 unknown fixtures when implementation lands. None is claimed present by this
 docs-only fold.
+
+## Draft live-delivery-pressure wire amendment — 2026-08-26
+
+**DRAFT-PENDING-REVIEW — design only.** LLP 0219 owns the pressure carrier's
+semantics; this amendment owns how the closed/open DTO families evolve without
+silently enabling it for legacy or ordinary subscriptions.
+
+### Closed connection offer and legacy fallback
+
+`OpenConnectionRequest` is closed. A generated client may therefore add
+`liveDeliveryPressureProtocol: "live_delivery_pressure.v1"` only after target
+capability preflight advertises `live_delivery_pressure_v1`. The exact offer
+matrix is:
+
+| Fresh-open offer | Result |
+| --- | --- |
+| exact v1 token | bind the grant lineage and echo the exact token plus positive finite integer `liveDeliveryPressureMaxAtomicHoldMs` |
+| unknown/present token | synchronously refuse `SNAPBACK_LIVE_DELIVERY_PRESSURE_PROTOCOL_UNSUPPORTED`; never reinterpret it as v1 |
+| absent | create an unnegotiated/legacy lineage that remains eligible for every ordinary subscription and ineligible for pressure |
+
+The binding is immutable. An exactly bound re-open may omit or confirm the
+offer and still echoes its existing binding; a mismatched/unknown offer
+refuses without disturbing the lineage. An unnegotiated re-open stays
+unnegotiated even if it presents the v1 token and emits no echo: confirmation
+cannot upgrade a live lineage. Atomic-group code refuses with
+`SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE` and guides the caller to create a
+fresh preflighted connection; it never auto-retries through an offerless open.
+Ordinary code may explicitly use the absent-offer fallback and receives the
+pre-amendment behavior.
+
+This is the §0B.5/LLP 0136 pattern: servers admit and enforce the closed field
+before generated clients offer it, target capability preflight prevents an old
+closed decoder from seeing it, exact success is witnessed in the response,
+and absence is a named legacy mode rather than silent feature-off.
+
+The wire refusal rows are exact: an unknown fresh/re-open token returns HTTP
+400 `SNAPBACK_LIVE_DELIVERY_PRESSURE_PROTOCOL_UNSUPPORTED`; an interest offer
+on a grant without the exact bound token returns HTTP 400
+`SNAPBACK_LIVE_DELIVERY_PRESSURE_CLIENT_UNSUPPORTED`. Both use the ordinary
+versioned `ErrorResponse`. `SNAPBACK_LIVE_DELIVERY_PRESSURE_UNAVAILABLE` is a
+client-local group/mutation refusal for absent preflight/echo and never a
+guessed HTTP status. Acceptance of this amendment adds the two wire codes to
+§0E and the generated diagnostic registry in the same implementation landing.
+
+### Per-subscription pressure-interest offer
+
+Grant binding is only permission to enroll. `LiveSubscribeRequest` gains two
+optional members, sent together only on an exactly bound grant:
+
+```json
+{
+  "subscriptionGeneration": 7,
+  "liveDeliveryPressureInterest": {
+    "protocol": "live_delivery_pressure.v1",
+    "interestGeneration": 3
+  }
+}
+```
+
+The nested `LiveDeliveryPressureInterestV1` DTO is closed; both integers are
+positive and the client never reuses either generation in its connection/store
+scope. The server accepts it only when the grant binding is exact and stores
+the complete pair on that subscription registry row. The open
+`LiveSubscribeOutput` then carries the exact closed echo:
+
+```json
+{
+  "liveDeliveryPressureInterest": {
+    "protocol": "live_delivery_pressure.v1",
+    "subscriptionGeneration": 7,
+    "interestGeneration": 3
+  }
+}
+```
+
+A missing or unequal echo is not enrollment. The proposed group stays at its
+typed unavailable blank and matching mutation dispatch refuses before
+transport. An absent request interest is the ordinary fallback: the server
+stores no interest, emits no echo, allocates no LLP 0267 episode for the
+subscription, and can never send it a pressure carrier. Because the subscribe
+request family is closed in the served wrapper, clients send these members
+only after the connection echo proves the receiving server admitted this
+amendment; older clients omit them and ignore the additive output members.
+
+Provider interest reference-count transitions use ordinary fresh subscribe
+with `supersedes`: 0→1 carries a new interest generation; 1→0 establishes the
+successor without the interest members. The exact `superseded`/
+`supersessionRefusal` witness remains mandatory. A transport-only interest
+rebind is held behind the canonical store; it produces no ordinary lifecycle
+notification, and its response snapshot follows the existing version guard
+and complete-public-snapshot dedup.
+
+### Closed pressure DTO in both carriers
+
+The closed `LiveEnvelope` union gains the offer-gated LLP 0219
+`live_delivery_pressure` member. Its closed DTO contains
+`subscription_id`, `subscription_generation`,
+`pressure_interest_generation`, `episode_scope`,
+`overload_episode_seq`, `wave_seq`, `coverage_through`, and `cause`, in
+addition to `kind`. A server may emit it only when the connection binding and
+the subscription row's current interest pair are exact. This satisfies §0C.2:
+an ordinary/legacy subscription never receives the new closed-union member,
+and every client eligible to receive it proved support twice.
+
+For same-lineage T-RECONNECT/successful supersession, the open
+`LiveSubscribeOutput` may also carry the exact same closed DTO as optional
+`liveDeliveryPressure`. At the atomic subscription-establishment cut the
+server moves the current/transferable LLP 0267 episode to the successor and,
+when one exists, includes this member with the successor generations. The
+client applies it and inserts the LLP 0219 diagnostic before applying the
+response's `snapshot` and before admitting any establishment-produced
+`current_as_of` or replay envelope. A later queued
+projection is an idempotent/monotone duplicate; an episode created after the
+response cut uses ordinary durable FIFO before its Refresh. This explicit
+response order closes the cross-carrier gap: an HTTP establishment snapshot
+cannot release the group before a pre-existing pressure episode is observed.
+
+Schema/codegen acceptance must add the two closed nested DTOs, the open-output
+members, and the offer-gated closed `LiveEnvelope` branch; local and hosted
+open/subscribe decoders must share the matrix. Fixtures cover exact/unknown/
+absent fresh open, every re-open row, exact/missing/mismatched interest echo,
+ordinary subscribe byte identity, 0→1/1→0 supersession, and response-pressure-
+before-snapshot application.
 
 ## LLP 0109 versioned-seed wire reconciliation — 2026-08-03
 

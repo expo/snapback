@@ -5,7 +5,12 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Tests
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-22 (author acceptance of the LLP 0267 §7 client
+**Revised:** 2026-08-26 (draft-pending-review pressure lifecycle: exact
+subscription-interest targeting, canonical sidecar state, both-lane drain
+dispositions, immutable-witness retired-high-water fencing with store-lifetime
+boundedness, clearing, and pressure/deadline-before-reconnect-snapshot release;
+design only).
+2026-08-22 (author acceptance of the LLP 0267 §7 client
 inspection join owned here; local-only v1, hosted telemetry remains a
 nonclaim). 2026-08-22 (LLP 0295 W4 implementation: manager-owned shared
 transport proof, owner-labeled connection/subscription inspection,
@@ -33,7 +38,7 @@ and exact duplicate re-ACK fixtures); 2026-07-26 (Swift adversarial review:
 terminal no-resurrection, pending high-water, exact scope/expectation binding,
 resolution floor/shape validation, and mandatory supersession witness)
 **Related:** LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0077, LLP 0090, LLP 0091, LLP 0092, LLP 0093, LLP 0108,
-LLP 0114, LLP 0278, LLP 0279, LLP 0280, LLP 0295,
+LLP 0114, LLP 0200, LLP 0219, LLP 0267, LLP 0278, LLP 0279, LLP 0280, LLP 0295,
 `issues/closed/20260821-provider-connection-subscription-budget-decision.md`,
 `issues/20260820-familiar-live-subscription-contention.md`,
 `issues/20260820-guide-gap-provider-connection-lifecycle-budget.md`
@@ -796,3 +801,205 @@ snapshot version, auth readiness/barrier state, and outbox suspension reason.
 The provider adds the 16 warning and preserves the engine's 64 hard ceiling as
 specified by LLP 0278. Complete-visible-snapshot dedup and synchronous delivery
 callback refusal are implemented at the provider publication boundary.
+
+## Draft live-delivery-pressure lifecycle amendment — 2026-08-26
+
+**DRAFT-PENDING-REVIEW — design only.** This amendment defines conformant
+client handling for LLP 0219's proposed negotiated pressure carrier and LLP
+0114's group consumer. It changes no current client or fixture until accepted.
+
+### Canonical subscription state and generation fence
+
+The provider maintains a reference-counted set of LLP 0114 atomic-group
+interests per canonical query store. Its first 0→1 transition allocates a
+positive, never-reused `pressureInterestGeneration` and establishes an LLP
+0094 successor subscribe carrying that interest. Each participating
+T-SUB/T-RECONNECT establishment also allocates a positive, never-reused
+`subscriptionGeneration`. The group does not become active until the exact
+subscribe output echoes both generations and protocol. A missing/mismatched
+echo leaves it at the typed unavailable blank. The last 1→0 transition retires
+the local interest generation before establishing a successor without the
+offer.
+
+The accepted pressure-envelope fence is the complete dispatching connection
+generation, subscription id/generation, and pressure-interest generation. An
+older/foreign tuple is consumed without state application. A negotiated grant
+without an exact current per-subscription interest is not a pressure target.
+
+Pressure is a subscription-owned canonical **interest sidecar**:
+
+```ts
+delivery: Readonly<{
+  state: "current" | "overloaded"
+  overload: null | Readonly<{
+    episodeScope: string
+    overloadEpisodeSeq: number
+    pressureInterestGeneration: number
+    firstWaveSeq: number
+    cause: "max-hold-overload"
+    coverageThrough: number
+    diagnosticCode: "SNAPBACK_LIVE_OVERLOAD_DEGRADE"
+  }>
+}>
+```
+
+It contains no `gated`, `requiredRevision`, group identity, owner-label list,
+frozen snapshot, or `pendingDeliveryReason`. It is exposed and notified only
+to group observers registered in the matching interest generation; ordinary
+`useQuery`, `useQueryState`, headless, and optionless-group projections remain
+byte-for-byte on their existing public state/notification path even when they
+share the authoritative child store. LLP 0114 owns group-relative state; LLP
+0267 §7.4 keeps `pendingDeliveryReason` derived only by gated inspection.
+
+Each store also retains one bounded non-public retired high-water for the
+current grant lineage:
+
+```ts
+retiredPressureHighWater: null | Readonly<{
+  pressureInterestGeneration: number
+  episodeScope: string
+  overloadEpisodeSeq: number
+  firstWaveSeq: number
+  cause: "max-hold-overload"
+  coverageThrough: number
+}>
+```
+
+The connection-generation fence makes older grant scopes ineligible, so one
+fixed-size record per extant store is sufficient. It is not discarded on
+episode expiry or visible overload clear. "Retained for the grant lineage" is
+scoped to the canonical store's lifetime: after final unsubscribe and LLP
+0114's queued-microtask linger, canonical-store eviction discards the floor
+with the store; a recreated store establishes a fresh complete subscription/
+interest fence that cannot equal the disposed store's fence, and
+the provider's 1,024-store cap bounds floors despite identity churn.
+
+### T-PRESSURE — both lanes, duplicates, and clearing
+
+`live_delivery_pressure` is a durable `LiveEnvelope` kind. Lane L receives it
+bare in the socket's durable union; Lane P receives the byte-identical envelope
+inside `RealtimeEnvelope::Durable` and retains T-DRAIN's response-handoff
+ownership and cancel/redelivery rules. There is no client ACK verb. Both lanes
+unwrap into this one transition:
+
+1. validate the exact LLP 0219 protocol binding, current interest echo, and
+   complete connection/subscription/interest generation fence;
+2. consult the retired high-water, then accept a new episode or monotonically
+   raise the matching episode's `coverageThrough`;
+3. install the canonical overload state;
+4. synchronously insert LLP 0219's client diagnostic; then
+5. invoke only the matching interest generation's group bookkeeping/external
+   observers.
+
+The episode key is `(episodeScope, overloadEpisodeSeq)`. Sequence comparison is
+valid only inside one opaque scope. An exact duplicate is idempotent except for
+LLP 0219 occurrence accounting; the same key with greater coverage is a
+monotone update. Lower coverage, a lower sequence in the current scope, or an
+older subscription generation is stale and ignored. Reuse of a key with a
+changed cause or first `waveSeq` relative to either the current episode or the
+same-key retired high-water is a protocol defect: surface a bounded protocol
+diagnostic, preserve the current/floor state, and consume the conflicting
+transition without applying it.
+
+The retired high-water is consulted only when its interest generation and
+scope equal the accepted envelope; a newly enrolled interest replaces the old
+generation's floor. Within that pair it is a lexicographic episode/coverage
+floor. For the same key, immutable-witness comparison precedes coverage
+classification, so a mismatch is diagnosed even when coverage is lower or
+equal. A lower episode sequence, or the same sequence with
+`coverageThrough <= retired.coverageThrough`, is stale and consumed before
+channel insertion. The same episode may reactivate only with both a strict
+coverage raise and exact equality of the retained `firstWaveSeq` and `cause`;
+a greater episode sequence is new. Any future carrier amendment that adds an
+immutable episode/cause discriminator must add it to this fixed-size witness or
+replace the witness with a versioned digest over every immutable episode field.
+This permits legitimate transferable-tombstone reactivation while preventing
+a late equal/older or conflicting reprojection from resurrecting a cleared
+overload or warning.
+
+Accepted content or `current_as_of(V)` runs the ordinary version guard first,
+then compare-and-clears the exact current episode only when
+`V >= coverageThrough`; the same atomic transition advances the retired
+high-water with that episode and coverage. A stale/equal content envelope that
+the existing guard drops cannot clear it. Elapsed time never creates or clears
+overload. A terminal subscription/interest retirement first merges any current
+episode into the high-water, then clears visible overload; an owned T-LOSS
+successor instead carries both the current episode and high-water as described
+below. Grant retirement clears both.
+
+Lane P dispositions are drain-compatible. Once the HTTP response handoff has
+transferred ownership, decoded applicable items apply; exact duplicates,
+retired/stale tuples, and foreign generations are consumed without apply;
+conflicting reuse is diagnosed then consumed; and processing continues through
+the batch. A malformed durable item takes T-DB-P: continue the transferred
+batch, then force connection-wide resync. Cancellation before the ownership
+cut applies none of the batch and permits server redelivery. Lane L uses the
+same apply/consume/diagnose decisions without claiming batch ownership.
+
+The action vocabulary gains `apply_live_delivery_pressure`,
+`extend_live_delivery_pressure`, `clear_live_delivery_pressure`, and
+`surface_live_delivery_pressure_diagnostic`; exact duplicates forbid a second
+state apply. It also gains `consume_pressure_without_apply`,
+`diagnose_pressure_then_consume`, and
+`force_resync_after_transferred_batch`; none is an ACK action.
+
+### Reconnect, supersession, and reset
+
+On same-grant-lineage T-RECONNECT or successful `supersedes`, a participating
+canonical store increments `subscriptionGeneration` while retaining the
+current interest generation. An already accepted episode and its retired
+high-water transfer locally. At the server's atomic establishment cut, any
+current/transferable LLP 0267 episode moves to the successor and is included as
+LLP 0094's optional `LiveSubscribeOutput.liveDeliveryPressure`.
+
+Response application has a hard internal order: validate the supersession and
+interest witnesses; apply the in-response pressure transition and insert its
+diagnostic; only then apply the establishment snapshot, `current_as_of`, or
+replay content and notify coverage listeners. Here `current_as_of`/replay means
+the establishment-produced durable envelope admitted after the HTTP response,
+not a field reordered inside the response. The content may immediately
+compare-and-clear the just-applied episode, but before any coverage listener
+can release rows LLP 0114 must enforce the group's monotonic deadline: if
+`monotonicNow >= deadlineAtMs`, it performs the expiry/blank transition and
+fences the predecessor instead. Thus content cannot release the group first or
+release it after its local hold has expired. A later durable reprojection with
+the same key is an idempotent/monotone
+confirmation under the successor fence and the retired high-water suppresses
+a late equal/older copy. An episode allocated after the response cut arrives
+under the normal durable FIFO before its Refresh.
+
+T-LOSS by itself does not reset an LLP 0114 group deadline. `resync_required`
+and repeated successor establishment likewise do not extend that deadline.
+Grant loss, a fresh connection generation, or a new `episodeScope` cannot
+inherit an unproved predecessor episode or its high-water; the canonical
+predecessor retires and
+an actively gated LLP 0114 group takes its typed lifecycle blank rather than
+guessing across the reset.
+
+Unknown pressure kinds remain skippable only on connections that never
+negotiated the offer, where a conformant server cannot emit them. On an exactly
+negotiated connection, a well-formed pressure envelope for a subscription with
+no exact current interest is diagnosed and consumed without public state. A
+malformed known pressure envelope is a known-kind protocol failure and follows
+the existing diagnostic/fail-closed disposition, not the unknown-kind
+tolerance branch.
+
+### Conformance additions
+
+The fixture corpus must add byte-equivalent Lane-L bare and Lane-P wrapped
+positive pressure fixtures; exact interest echo and negotiated-but-uninterested
+silence; poll response-handoff/cancelled-drain redelivery dispositions; higher-
+coverage same-episode update; exact duplicate, retired-high-water, stale/lower,
+conflicting-key, foreign-generation, and malformed-known-kind negatives;
+covering content and `current_as_of` clear; same-lineage reconnect response
+pressure before snapshot; socket loss before pressure receipt followed by
+reconnect before the first-allocation group's original deadline with the
+diagnostic preserved;
+snapshot coverage at/after the deadline blanking before release; same-key
+strict-raise reactivation with an equal immutable witness versus diagnosed
+changed-wave/cause reuse; bounded floor disposal on canonical-store eviction;
+and fresh-grant reset. Integrated acceptance must
+drive the real LLP 0200 producer
+on both lanes, prove diagnostic insertion before the next post-gate group
+notification while allowing earlier internal child advances, and prove the
+silent within-capacity control emits no pressure transition.
