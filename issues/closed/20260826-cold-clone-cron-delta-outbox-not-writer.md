@@ -1,6 +1,6 @@
 # Cold clone: cron-authored delta cannot reach the browser (SNAPBACK_OUTBOX_NOT_WRITER)
 
-**Status:** open
+**Status:** resolved
 **Date:** 2026-08-26
 **Systems:** sync, outbox, bindings, cron, All Aboard contract surface
 **Related:** LLP 0283 F-3 (verification that had never run), `scripts/cold-clone-check.sh`
@@ -105,3 +105,56 @@ Earlier revisions did not expose the leak because a plain string mutation with
 `queue: "auto"` was not always outbox-eligible. The newer enqueue-by-default behavior is
 intentional. The repair must therefore give the acceptance process one explicit client
 lifecycle (and release it at teardown), not bypass or relax the writer invariant.
+
+## Resolution
+
+Fixed by `5ca80841e`. The acceptance process now constructs one Node control client after
+the fresh API origin is known, reuses it for all durable server cross-checks and the
+`resetFeed` precondition, and closes it during teardown. That one store context acquires
+writer custody through the ordinary default-store path. No pump was added, and neither the
+outbox eligibility rules nor the single-writer invariant changed.
+
+Focused browser verification:
+
+```text
+CHROME_BIN=/home/ccheever/lanes/outbox/scripts/.chrome-headless-no-sandbox.tmp \
+SNAPBACK_REQUIRE_EXACT=1 \
+ALL_ABOARD_VITE_PORT=5271 \
+LD_LIBRARY_PATH=/home/ccheever/lanes/outbox/vendor/ibex/linux/lib \
+node demos/all-aboard/tests/acceptance/browser.mjs
+
+✓ paved path: all live queries bind with push; connections report live
+✓ cron-authored delta reaches the browser through the bindings (no pump)
+✓ second window boot does not clear the first (D4 inspect-first)
+PASS all-aboard browser (Phase 1) — 34/34
+```
+
+The cron check's machine-readable result was:
+
+```json
+{"cronOutcome":"Succeeded","tickBefore":0,"tickAfter":1,"connections":{"liveTrainStatus":"live","liveDepartures":"live","feedState":"live"}}
+```
+
+Mutation test: the fix was temporarily defanged by constructing a new competing client for
+only the `resetFeed` call while the control writer remained open. With
+`SNAPBACK_SERVER_BINARY=/home/ccheever/lanes/outbox/target/debug/snapback` selecting the
+already-qualified binary for the intentionally dirty checkout, the same acceptance returned:
+
+```text
+✗ cron-authored delta reaches the browser through the bindings (no pump)
+    SNAPBACK_OUTBOX_NOT_WRITER: this context does not hold single-writer ownership of the client store; the mutation was not queued
+FAIL all-aboard browser (Phase 1) — 33/34
+```
+
+The mutation was then removed and the committed file restored byte-for-byte.
+
+Full verification:
+
+```text
+CHROME_BIN=/home/ccheever/lanes/outbox/scripts/.chrome-headless-no-sandbox.tmp \
+scripts/cold-clone-check.sh
+
+[cold-clone] step 1 OK: production build passed from registry packages
+[cold-clone] step 2 OK: 34/34 checks passed
+[cold-clone] COLD-CLONE CHECK PASS — registry install + production build + 34/34 acceptance checks (bun.lock is the pin)
+```
