@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a29e0a7fd41eb80b8ac3931b7d23a6a69699b25599ae0bb58fddfe95f8010536"
+    "sourceDigest": "sha256:9d89f6285ad7b9ba4d46251bc13b6838c6da6eebcba88e1dcd0fa14659061027"
   },
   "limits": {
     "lookupBytes": 16384
@@ -29760,7 +29760,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/shared-development-broker.mjs",
-          "line": 245,
+          "line": 282,
           "column": 16
         },
         {

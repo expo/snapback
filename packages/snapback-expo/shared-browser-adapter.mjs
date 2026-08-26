@@ -157,6 +157,23 @@ export async function resolveExpoSharedBrowserModules(load = loadOptionalExpoSha
       load('expo-web-browser'),
       load('expo-linking'),
     ]);
+    // On web the completion lands in the popup, which loads this same app
+    // bundle at the return target. `maybeCompleteAuthSession` is what tells the
+    // opener the callback arrived and closes that popup; without it the
+    // redirect succeeds and the attempt still hangs. Calling it here keeps the
+    // one-method promise intact — an app does not have to know this incantation
+    // to use `auth.signIn`. It is a no-op off web and when there is nothing to
+    // complete.
+    const maybeComplete = webBrowser?.maybeCompleteAuthSession
+      ?? webBrowser?.default?.maybeCompleteAuthSession;
+    if (typeof maybeComplete === 'function' && typeof globalThis.location?.href === 'string') {
+      try {
+        maybeComplete();
+      } catch {
+        // A runtime that cannot complete a session here still gets the Adapter;
+        // the attempt reports its own refusal rather than failing to boot.
+      }
+    }
     const openAuthSession = webBrowser?.openAuthSessionAsync ?? webBrowser?.default?.openAuthSessionAsync;
     const createUrl = linking?.createURL ?? linking?.default?.createURL;
     if (typeof openAuthSession !== 'function' || typeof createUrl !== 'function') return null;

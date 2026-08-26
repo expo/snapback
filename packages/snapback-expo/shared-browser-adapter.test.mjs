@@ -211,3 +211,45 @@ test('absent Expo modules resolve to null rather than failing the boot', async (
   assert.equal(resolved.openAuthSession(), 'opened');
   assert.equal(resolved.createUrl(), 'created');
 });
+
+// On web the callback lands in the popup, which loads the same app bundle at
+// the return target; `maybeCompleteAuthSession` is what hands that URL back to
+// the opener and closes the popup. Without it the redirect succeeds and the
+// attempt hangs, so resolving the modules performs it — and an app never has to
+// know the incantation to use `auth.signIn`.
+test('resolving the web modules completes a pending callback, and only on web', async () => {
+  const calls = [];
+  const modules = {
+    'expo-web-browser': {
+      openAuthSessionAsync: async () => ({ type: 'success', url: RETURN_TO }),
+      maybeCompleteAuthSession: () => { calls.push('completed'); },
+    },
+    'expo-linking': { createURL: () => RETURN_TO },
+  };
+  const load = async (specifier) => modules[specifier];
+
+  // Node has no `location`, which is how a headless runtime is told apart from
+  // a document that could carry a callback.
+  assert.equal(globalThis.location, undefined);
+  assert.notEqual(await resolveExpoSharedBrowserModules(load), null);
+  assert.deepEqual(calls, []);
+
+  globalThis.location = { href: 'http://127.0.0.1:8081/auth/shared?code=sac_1&state=sas_1' };
+  try {
+    assert.notEqual(await resolveExpoSharedBrowserModules(load), null);
+    assert.deepEqual(calls, ['completed']);
+
+    // A module that throws while completing still yields a usable Adapter.
+    const throwing = {
+      ...modules,
+      'expo-web-browser': {
+        ...modules['expo-web-browser'],
+        maybeCompleteAuthSession: () => { throw new Error('no session to complete'); },
+      },
+    };
+    const resolved = await resolveExpoSharedBrowserModules(async (s) => throwing[s]);
+    assert.equal(typeof resolved.openAuthSession, 'function');
+  } finally {
+    delete globalThis.location;
+  }
+});

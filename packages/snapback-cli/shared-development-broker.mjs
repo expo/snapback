@@ -143,8 +143,10 @@ function authorizationPage(provider) {
 function renderAuthorizationPage(transactionId, provider) {
   const { label, completePath } = authorizationPage(provider);
   const target = `${completePath}?transaction=${encodeURIComponent(transactionId)}`;
-  // No inline script and no third-party origin: `form-action 'self'` and a
-  // `default-src 'none'` policy mean this page can only post back here.
+  // No inline script and no third-party origin. `default-src 'none'` plus a
+  // `form-action` limited to this origin and the supervisor's own allowlisted
+  // return targets means this page can only post back here, and the completion
+  // it triggers can only land on a target the supervisor already derived.
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">`
     + `<meta name="viewport" content="width=device-width,initial-scale=1">`
     + `<title>Snapback development sign-in</title>`
@@ -229,16 +231,51 @@ export function createSharedDevelopmentBroker({
     },
   });
 
-  function sendJson(response, status, body) {
+  // The exact origins a supervised browser client can call these JSON routes
+  // from: the http(s) half of the return-target allowlist the supervisor
+  // already derived from its own client port. On Expo Go the app is a React
+  // Native runtime and sends no `Origin` at all; on Expo web it is a page on
+  // the Metro front origin, which is a different origin from this broker, so
+  // without an exact-origin projection the browser blocks its own request
+  // before the route ever runs.
+  //
+  // @ref LLP 0151#shared-development-browser-adapter — external user agent on
+  // native, server callback on web. Nothing here widens the allowlist: an
+  // origin the supervisor did not derive gets no headers and stays blocked.
+  const browserOrigins = new Set((returnTargets ?? []).flatMap((target) => {
+    try {
+      const { protocol, origin } = new URL(target);
+      return protocol === 'http:' || protocol === 'https:' ? [origin] : [];
+    } catch {
+      return [];
+    }
+  }));
+
+  function admittedBrowserOrigin(request) {
+    const origin = request?.headers?.origin;
+    return typeof origin === 'string' && browserOrigins.has(origin) ? origin : null;
+  }
+
+  function corsHeaders(origin) {
+    return origin === null ? {} : {
+      'access-control-allow-origin': origin,
+      vary: 'Origin',
+      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-headers': 'content-type',
+    };
+  }
+
+  function sendJson(response, status, body, origin = null) {
     response.writeHead(status, {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
       'referrer-policy': 'no-referrer',
+      ...corsHeaders(origin),
     });
     response.end(JSON.stringify(body));
   }
 
-  function sendRefusal(response, error) {
+  function sendRefusal(response, error, origin = null) {
     sendJson(response, 400, {
       ok: false,
       diagnostic: error?.diagnostic ?? {
@@ -246,7 +283,7 @@ export function createSharedDevelopmentBroker({
         message: error?.message ?? 'shared development auth refused',
         details: { reason: 'unknown' },
       },
-    });
+    }, origin);
   }
 
   /**
@@ -256,12 +293,23 @@ export function createSharedDevelopmentBroker({
   async function handle(request, response, url) {
     const { pathname } = url;
     if (!pathname.startsWith('/v1/shared/')) return false;
-    // Browser-originated cross-origin calls are refused outright: the JSON
-    // routes are app-facing, and the HTML route is same-origin by construction.
+    // Cross-origin browser calls reach the JSON routes only from an origin the
+    // supervisor itself derived; the HTML route is same-origin by construction.
     if (pathname === SHARED_DEVELOPMENT_AUTH_ROUTES.start
       || pathname === SHARED_DEVELOPMENT_AUTH_ROUTES.redeem) {
+      const origin = admittedBrowserOrigin(request);
+      // A JSON body makes the browser preflight before it will send the call.
+      if (request.method === 'OPTIONS' && origin !== null) {
+        response.writeHead(204, {
+          ...corsHeaders(origin),
+          'access-control-max-age': '600',
+          'cache-control': 'no-store',
+        });
+        response.end();
+        return true;
+      }
       if (request.method !== 'POST') {
-        sendRefusal(response, refuse('method-not-allowed', `${pathname} requires POST`));
+        sendRefusal(response, refuse('method-not-allowed', `${pathname} requires POST`), origin);
         return true;
       }
       try {
@@ -269,9 +317,9 @@ export function createSharedDevelopmentBroker({
         const result = pathname === SHARED_DEVELOPMENT_AUTH_ROUTES.start
           ? transactions.start(body)
           : await transactions.redeem(body);
-        sendJson(response, 200, result);
+        sendJson(response, 200, result, origin);
       } catch (error) {
-        sendRefusal(response, error);
+        sendRefusal(response, error, origin);
       }
       return true;
     }
@@ -283,8 +331,11 @@ export function createSharedDevelopmentBroker({
           'content-type': 'text/html; charset=utf-8',
           'cache-control': 'no-store',
           'referrer-policy': 'no-referrer',
-          'content-security-policy':
-            "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+          // `form-action` governs where a submission may *end up*, redirects
+          // included, so the completion's 303 to the app's own origin needs
+          // that origin named here. Anything the supervisor did not derive is
+          // still refused, by this policy and by the route itself.
+          'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; form-action ${["'self'", ...browserOrigins].join(' ')}; base-uri 'none'; frame-ancestors 'none'`,
         });
         response.end(renderAuthorizationPage(transactionId, provider));
       } catch (error) {
