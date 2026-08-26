@@ -252,11 +252,17 @@ stale auth result.
 
 Inspect the client error's `operation` and `details` (or a graph result's
 `refusalReason` and `graphCompleteness.proof.primaryReason`) before choosing a
-recovery:
+recovery. The client stamps `operation` as `mutation`, `query`, or `request`;
+it does not stamp a mutation/replay path name or `liveQuery.subscribe`. A
+server diagnostic that exposes only `subsystem: "auth"` is not classified by
+that subsystem alone: use `details.clientMutationId`,
+`details.guidance: "discard_or_rerecord"`, or the graph `refusalReason` to
+choose the branch:
 
-- **Mutation or replay:** `operation` names a mutation/replay path, or
-  `details` carries `clientMutationId`, `guidance: "discard_or_rerecord"`, or
-  an authority-descriptor `reason`. The emitters cover an absent, unknown, or
+- **Mutation or replay:** `operation` is `mutation`, or an otherwise
+  unclassified `request` has `details` carrying `clientMutationId`,
+  `guidance: "discard_or_rerecord"`, or an authority-descriptor `reason`. The
+  emitters cover an absent, unknown, or
   mismatched queued authority descriptor; divergent authority facts on an
   active operation or expired-operation tombstone; a retained settlement's
   auth-fingerprint or authority-instance mismatch; and a `ctx` answer ledger
@@ -265,8 +271,8 @@ recovery:
   instance, even when the domain operation is otherwise idempotent. Do not
   reuse a client mutation identity after the session or authority instance
   changes.
-- **Graph query or live query:** `operation` is `query` or
-  `liveQuery.subscribe`, or the graph result carries
+- **Graph query or live query:** `operation` is `query`, or the graph result
+  carries
   `refusalReason: "SNAPBACK_AUTH_STALE_RESULT"`. Graph evaluation emits this
   materialized refusal when a partition-scoped (class-two) graph reaches
   evaluation without every proof-declared permission-backing, membership, or

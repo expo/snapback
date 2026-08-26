@@ -2313,8 +2313,9 @@ snapback/
 
 ### Generated directory spelling
 
-The `_generated/` spelling is a refused alias. Use the single
-`snapback/generated/` graph; do not create an alternate directory or symlink.
+The `_generated/` spelling is a refused alias, not a compatibility alias. Use
+the single `snapback/generated/` graph; do not create an alternate directory
+or symlink.
 
 Nested modules are helpers, not function namespaces. A top-level
 function/intent module may export only familiar function or asset-intent
