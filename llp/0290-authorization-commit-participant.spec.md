@@ -6,6 +6,16 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-11 terminal-authority and exact-settlement
+repair: completion callers provide neither executable code nor a disposition.
+The database-bound participant invokes its once-installed private sync owner,
+whose unsafe cross-crate implementation contract permits `COMPLETE` only after
+the real subscriber, entry, index, outbox, notifier, and pruning effects have
+run. After durable reread the exact fence transitions `ACTIVE -> SETTLING`
+before the first irreversible sync mutation; affected writers and participant
+replacement wait for that finite settlement. Real-state regression witnesses
+cover the writer race and denial/removal effects, and F244 now compiles the
+exact rejected no-op `Complete` callback attack.)
 **Revised:** 2026-08-26 (round-10 completion-liveness repair: the kernel keeps
 the completion fence inside one closed callback operation and lends only a
 borrowed, read-only decision view. Authorization writers premark before
@@ -163,12 +173,11 @@ This specification resolves that risk:
 - Outbox draining becomes a sync-owned free function or inherent method on the sync-owned backend. It holds a finite kernel admission guard, calls sync-private queue selection, revalidates selected envelopes, and constructs the sync-owned lease wrapper with its load-bearing field order intact.
 - LLP 0059’s lock order, premark-before-write, retained-work draining, exact rollback, and fail-closed ambiguity rules remain unchanged.
 
-The sole public callable added by the round-10 repair is the closed room
-completion callback. It runs after registry and SQLite release, receives only
-a borrowed read-only decision view, returns one closed disposition when it
-returns, and cannot
-obtain or retain the kernel-owned fence. No reservation, commit, participant,
-or settlement carrier contains or manufactures a callback.
+Round 11 removes the round-10 public room-completion callback. Completion
+callers now supply only the database and database-derived batch. After
+registry and SQLite release, the participant invokes its once-installed sync
+owner with a borrowed read-only decision view; that owner cannot obtain or
+retain the kernel fence and derives the disposition from real settlement.
 
 ## Provenance
 
@@ -1742,34 +1751,36 @@ impl AuthorizationCommitParticipant {
         room: &RoomId,
     ) -> Result<RoomRetirementAdmission<'_>, EphemeralError>;
 
-    pub fn run_room_reauthorization_completion_off_local<T>(
+    pub fn run_room_reauthorization_completion_off_local(
         &self,
         database: &RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>>;
+    ) -> SnapbackResult<bool>;
 }
 ```
 
 Each guard has private fields and a finite, operation-specific method set. The
-room-completion method is one closed exception to the no-callback surface: it
-owns the fence for the entire call and lends only
+room-completion method owns the fence for the entire call and accepts no
+callback or disposition. After registry and SQLite release it invokes the
+settlement owner installed once during bound sync construction, lending only
 `&RoomReauthorizationCompletion`, a read-only database-derived decision view.
 The view owns no guard, transaction, marker, or terminal method and cannot
-escape the call. The callback runs after registry and SQLite release and
-returns only `COMPLETE`, `MISSING`, or `ABANDONED` plus its ordinary result.
-Kernel applies that disposition only if the exact marker remains active.
+escape. The private sync owner derives `COMPLETE`, `MISSING`, or `ABANDONED`
+from the exact room/subscriber state and completed effects. Because kernel and
+sync are separate crates, that internal bridge is a `#[doc(hidden)]` unsafe
+trait: implementing its contract requires explicit unsafe code, so an
+ordinary safe-Rust caller cannot replace it with a no-op assertion. No
+completion call site chooses executable code or a terminal fact.
 
 Required lock orders:
 
 - room creation: registry admission, then sync room map;
 - retirement: registry admission, then sync room map;
 - reauthorization completion: sync lifecycle read guard, registry claim and
-  release, dedicated SQLite `IMMEDIATE` validation and release, then sync room
-  map inside the borrowed callback, then exact registry settlement; no owned
-  completion or fence is returned;
+  release, dedicated SQLite `IMMEDIATE` validation and release, exact
+  `ACTIVE -> SETTLING` claim, then the installed sync owner takes rooms → room
+  → outboxes, then exact registry settlement; no owned completion or fence is
+  returned and affected writers wait while the exact marker is `SETTLING`;
 - resync snapshot: copy under registry guard, release it, then lock rooms/outboxes;
 - generation-exhaustion retirement: registry admission before room mutation.
 
@@ -1782,7 +1793,7 @@ sites exist today, and each has a named replacement:
 | Current production site | What it does now | Required replacement after the move |
 | --- | --- | --- |
 | `pending_room_reauthorizations`, `crates/snapback-sync/src/ephemeral.rs:4729-4770` | Copies settled, no-pending-ticket resync obligations, then joins them to sync-owned subscribers under the rooms map. | `participant.pending_reauthorizations()` returns only the copied kernel obligations; sync retains the subscriber join. Registry is released before rooms, preserving the current order. |
-| `complete_room_reauthorization_off_local` | Under lifecycle, claims the exact writer fence under registry and releases it, revalidates durable session/membership under a dedicated SQLite `IMMEDIATE` transaction and releases it, then applies subscriber resolutions under rooms → room → outboxes. | `run_room_reauthorization_completion_off_local(database, batch, finish)` is a closed operation. Kernel retains the fence and lends `finish` only a borrowed read-only decision view after SQLite release; sync retains subscriber mutation and denial cleanup. Kernel then settles the exact still-active marker. Nothing owned is returned to retain, and a preempted late callback cannot clear the obligation. |
+| `complete_room_reauthorization_off_local` | Under lifecycle, claims the exact writer fence under registry and releases it, revalidates durable session/membership under a dedicated SQLite `IMMEDIATE` transaction and releases it, then applies subscriber resolutions under rooms → room → outboxes. | `run_room_reauthorization_completion_off_local(database, batch)` is a closed operation. Kernel retains the fence, claims its exact `SETTLING` state, and invokes only the participant-bound sync owner after SQLite release. Sync retains subscriber mutation and denial cleanup and derives the disposition from that work. Kernel then settles the exact marker; affected writers wait rather than preempting irreversible effects. |
 | `enqueue_room_authority_resyncs`, `ephemeral.rs:7312-7368` | Copies ready obligations under registry, releases it, then materializes sync-owned resync frames under rooms/outboxes and wakes delivery. | `participant.pending_reauthorizations()` supplies the copy. Frame construction, effect fences, queue push accounting, and notifier wake remain exactly here in sync. |
 | `retire_generation_exhausted_room`, `ephemeral.rs:7551-7631` | Takes registry → rooms → room/outbox, monotonically retires the authority control, purges the room, and emits `EpochChanged`. | `begin_room_retirement_admission(room)` retains the registry guard and exposes only `retire_generation_exhausted()`. Sync retains routing removal, expiry-index cleanup, outbox purge/resync, reverse-index reconciliation, and wake. |
 | protected branch of `with_room_create`, `ephemeral.rs:7639-7665` | Holds registry while checking the exact non-retired generation, then takes the rooms map so a stale permit cannot recreate a retired room. | `begin_room_creation_admission(room, generation)` retains a non-`Send` exact guard through sync room-map lookup/insert. It has no mutation or raw-state accessor. |
@@ -1848,7 +1859,8 @@ Exact room-reauthorization completion instead has this non-overlapping order:
 ```text
 ephemeral lifecycle -> authority registry claim -> release authority registry
 -> SQLite IMMEDIATE validation -> release SQLite
--> closed borrowed completion callback: rooms map -> room -> subscriber outbox
+-> exact ACTIVE-to-SETTLING claim
+-> participant-bound sync settlement: rooms map -> room -> subscriber outbox
 -> exact authority-registry settlement
 ```
 
@@ -1862,11 +1874,15 @@ read guard, claims an active completion fence under the registry, and releases
 the registry before it waits for `IMMEDIATE`. The fence is an atomic state
 marker, not a mutex guard. SQLite remains held only through the durable session
 and membership rereads and is released inside the closed kernel call. Kernel
-retains the marker and lends sync only a borrowed, read-only view of the
-derived subscriber decisions. Sync performs the exact subscriber/effect-fence
-mutation under rooms and outboxes without SQLite or registry. After that
-callback returns and its guards are gone, kernel reacquires the registry and
-applies the returned disposition only if the exact marker remains active.
+retains the marker and, after the durable reread, validates the exact fence a
+second time while atomically transitioning it from `ACTIVE` to `SETTLING`.
+Only then does the participant-bound sync owner receive a borrowed, read-only
+view of the derived subscriber decisions. Sync performs the exact
+subscriber/effect-fence mutation under rooms and outboxes without SQLite or
+registry and derives its disposition from the observed state and completed
+effects. After that fixed operation returns and its guards are gone, kernel
+reacquires the registry and applies the disposition only if the exact marker
+remains `SETTLING`.
 Error, panic, and unwind atomically publish `ABANDONED`; ordinary registry
 acquisition reconciles that disposition.
 Notifier wake and later routing cleanup likewise occur without SQLite or
@@ -1877,19 +1893,17 @@ while waiting for its own `IMMEDIATE`; that is the separate bind path above.
 LLP 0059 §"Prohibited overlap" states the same inventory at the global
 lock-policy boundary.
 
-The writer marker supplies coupling without becoming a liveness dependency.
-Every relevant authorization writer premarks its affected-room ticket under
-the registry, then invalidates and removes any older in-flight completion
-before it can reach SQLite. It never waits for callback return or `Drop`.
-Conversely, completion cannot claim after a writer premark. If preemption lands
-after completion's durable reread, the already-installed writer ticket blocks
-all publication and final-send sinks; late in-memory work cannot escape, exact
-completion settlement loses, and the obligation stays pending. Participant
-replacement first retires the registry and then invalidates its completions,
-so a late callback is equally fail-closed. Caller code receives no owned fence
-or terminal capability.
+The settlement marker supplies exact coupling. Before a writer premarks an
+affected room, it waits while that room's completion is `SETTLING`; participant
+replacement follows the same rule before retirement. A completion still in
+`ACTIVE` can be preempted before it claims settlement, but once the exact
+`ACTIVE -> SETTLING` transition succeeds the real sync mutations run to their
+terminal disposition without writer preemption. Thus no irreversible denial,
+entry, index, outbox, notifier, or pruning effect can be performed by a fence
+that is later rejected. Caller code receives no owned fence or terminal
+capability and supplies no callback or disposition.
 
-#### Callback and trait-dispatch census
+#### Callback and settlement-dispatch census
 
 The round-6 audit did not infer callback safety from callee bodies. Its method
 was:
@@ -1913,18 +1927,21 @@ The result is:
   completion owner. All converge on the common closed kernel implementation;
   it performs the always-on Local-scope refusal before registry or SQLite
   access, claims and releases the registry before acquiring SQLite, and
-  releases SQLite before invoking the sole callback. That callback receives a
-  borrowed read-only decision view and cannot access or retain the fence;
-  exact settlement happens after callback return. Sync also refuses before
-  lifecycle acquisition. The resolved batch, decision view, private fence,
-  and take-once owners have private fields and no `Clone`, serialization, or
-  from-parts reconstruction surface. A runtime
+  releases SQLite before claiming `SETTLING` and invoking only the
+  participant-bound sync owner. No public consumer accepts a callback or
+  disposition. The owner receives a borrowed read-only decision view, derives
+  its disposition from the real room settlement, and cannot access or retain
+  the fence; exact registry settlement happens after the owner returns. Sync
+  also refuses before lifecycle acquisition. The resolved batch, decision
+  view, private fence, and take-once owners have private fields and no `Clone`,
+  serialization, or from-parts reconstruction surface. A runtime
   witness captures the public consumer, invokes it from a Local scope, proves
   typed refusal, then proves the exact legitimate retry succeeds outside Local.
-- `storage/room_authority.rs` contains no caller-supplied or trait-object
-  closure invocation under participant projection, registry state, or SQLite.
-  Its one public completion closure is invoked only after all three are
-  released and receives no authority-bearing value.
+- `storage/room_authority.rs` contains no caller-supplied closure invocation
+  under participant projection, registry state, SQLite, or sync settlement.
+  The one settlement trait object is installed once before participant bind;
+  its unsafe implementation contract cannot be implemented or substituted by
+  ordinary safe Rust and it is invoked only after registry and SQLite release.
 - Outbox state contains no callable parameter. `OutboxDrainLease::try_commit`
   and `try_offer_projection_bound` accept only a concrete bounded Tokio
   `mpsc::Sender` and call `try_send`. Queue frame classification accepts the
@@ -1945,10 +1962,10 @@ The result is:
   closed sync call graph, but dependent callers no longer receive a public
   arbitrary callback surface. Public final handoff composes only concrete
   leased-commit or projection-offer methods, both ending in `mpsc::try_send`.
-- The only trait declaration in `ephemeral.rs` found by this census is the
-  statically dispatched `AccessPolicyExt`; it accepts no closure and is not
-  invoked beneath any of the inventoried locks. Neither file contains a
-  `dyn Fn*` callback site.
+- `ephemeral.rs` contains the private unsafe implementation of the kernel
+  settlement bridge plus the statically dispatched `AccessPolicyExt`. Neither
+  accepts a caller closure, and neither file contains a completion `dyn Fn*`
+  callback site.
 
 The as-built reverse-edge inventory at this amendment is:
 
@@ -1959,9 +1976,9 @@ The as-built reverse-edge inventory at this amendment is:
   registry state; none opens or waits for SQLite. Room completion claims an
   atomic fence while briefly under the registry and releases that guard before
   its caller reaches SQLite. Normal terminal settlement reacquires only the
-  registry after the sync callback has returned; error/panic `Drop` performs
-  only an atomic abandonment and notification. Writers and retirement can
-  invalidate and remove the marker without waiting.
+  registry after the sync owner has returned; error/panic `Drop` performs only
+  an atomic abandonment and notification. Writers and retirement may abandon
+  `ACTIVE`, but wait for `SETTLING` to reach a terminal disposition.
 - The database-reading siblings do not invert that edge.
   `resolve_room_reauthorization` consumes owned pending/subscriber snapshots
   and reads SQLite without a participant or registry guard. Participant
@@ -1973,7 +1990,7 @@ The as-built reverse-edge inventory at this amendment is:
   Ordinary room acts, pending enumeration, resync synthesis, outbox admission
   and drain, expiry/disconnect cleanup, room creation/retirement, diagnostics,
   and notifier paths have no database handle and do not acquire SQLite; the
-  callback census above covers the indirection callee inspection misses.
+  dispatch census above covers the indirection callee inspection misses.
   Database construction/activation and pending-resolution paths retain no
   room or outbox guard; exact completion returns from its closed SQLite
   validation before entering the finite rooms/room/outbox chain above.
@@ -2233,10 +2250,9 @@ Collapse the internal dual-path enums to their native concrete forms. Make `Prep
 
 Require:
 
-- no callback in any reservation, participant, commit, settlement, or
-  authority-construction carrier; the sole closed room-completion callback
-  receives only its borrowed read-only decision view after registry and SQLite
-  release;
+- no callback in any reservation, participant, commit, completion call, or
+  authority-construction carrier; only the once-installed trusted sync owner
+  receives the borrowed decision view after registry and SQLite release;
 - no callback type alias reachable from a kernel public API;
 - no feature-selectable settlement or participant factory;
 - no public prepared carrier;
@@ -2276,7 +2292,7 @@ No F-1 closure claim is allowed until steps 10–12 delete the legacy path.
 | `DurableAuthorizationPermit` | **POWERLESS** | Bound to one registry’s durable-publication count. |
 | `RoomCreationAdmission` | **POWERLESS** | Exact room/generation validation retained through sync room creation; no mutation or raw state access. |
 | `RoomRetirementAdmission` | **POWERLESS** | Only monotone retirement of its exact room is exposed. |
-| `RoomReauthorizationCompletion` | **POWERLESS** | Borrowed read-only view of database-derived decisions inside the closed completion callback. It owns no marker, guard, transaction, or terminal method and is never returned. |
+| `RoomReauthorizationCompletion` | **POWERLESS** | Borrowed read-only view of database-derived decisions inside participant-bound settlement. It owns no marker, guard, transaction, or terminal method and is never returned to a completion caller. |
 | `AuthorizationCommitCarrierFactory` | **DELETED** | No callback factory remains. |
 | Public test settlement/factory seams | **DELETED** | Tests use kernel-private unit seams or real composition. |
 
@@ -2374,16 +2390,19 @@ Additional tests must establish:
 - permit Drop wakes prepare waiters;
 - no synchronous guard crosses `.await`;
 - reauthorization retains lifecycle, claims/releases registry before its closed
-  SQLite validation, releases SQLite before lending a borrowed decision view
-  to rooms → room → outboxes, settles exact registry state only after callback
-  return, and runs outside managed Local;
+  SQLite validation, releases SQLite and claims the exact `SETTLING` state
+  before the participant-bound owner applies rooms → room → outboxes, settles
+  exact registry state only after real effects complete, and runs outside
+  managed Local;
 - safe `mem::forget` of an internally valid active completion fence cannot
   delay an authorization writer or participant replacement: the writer
   premarks before invalidation and replacement retires before invalidation;
-- a public closed callback retained across those same operations cannot delay
-  either operation and loses exact settlement when released for test cleanup;
-- a callback retained past writer premark returns as preempted, cannot publish
-  `COMPLETE`, and leaves the old level-triggered obligation pending;
+- an affected authorization writer and participant replacement wait while real
+  settlement is paused after its first irreversible effect, then proceed only
+  after the derived terminal disposition is recorded;
+- the real settlement witness denies a subscriber, removes its owner entries,
+  queues the denial/removal/snapshot effects, updates indexes, and leaves a new
+  level-triggered obligation when the serialized writer commits;
 - the exact registry→SQLite reverse schedule completes under the alarm, while
   the mutation that reacquires SQLite before the registry claim times out; the
   clean witness uses actual registry and SQLite acquisition barriers, not a
@@ -2402,10 +2421,12 @@ Compile-fail fixtures must reject:
 - any deleted callback factory method;
 - any `Default` participant, reservation, prepared carrier, or cancellation token;
 - any public API that returns an owned completion fence or terminal capability;
-- any completion callback that receives such a capability or runs while the
-  authority-registry mutex or SQLite transaction is live. The sole public
-  completion callback receives only a borrowed, read-only decision view after
-  both resources have been released.
+- any completion callback or argument that supplies executable settlement code
+  or a terminal disposition. F244's marked attack is the exact no-op callback
+  returning `Complete`; it must fail at the extra callback argument. The
+  participant-bound owner receives only a borrowed, read-only decision view
+  after registry and SQLite release, and ordinary safe Rust cannot implement
+  its unsafe internal contract.
 
 ## 11. Honest limitations and open proof obligations
 
@@ -2468,7 +2489,9 @@ The following remain open until implementation compiles and affected tests pass:
 If the cross-crate `MutexGuard` shape fails, the permitted fallback is an opaque, non-`Send` admission session with the same finite classify, recheck, and permit methods. The following are not acceptable fallbacks:
 
 - a callback;
-- a public trait implemented by sync;
+- a safe public trait implemented by sync (the as-built cross-crate bridge
+  requires an explicit unsafe implementation and is not caller-selectable at
+  completion);
 - a caller-supplied disposition accepted as proof;
 - a raw registry accessor;
 - a public settlement acknowledgement;

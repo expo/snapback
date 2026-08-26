@@ -1661,10 +1661,12 @@ impl AuthorizationCommitParticipant {
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
         // @ref LLP 0290#71-lock-ordering — claim under the registry and
-        // release that guard before SQLite. The fence is lock-free, and a
-        // writer may invalidate it after premarking instead of waiting for its
-        // owner; every error path drops the SQLite transaction before it
-        // abandons the fence because the transaction is declared second.
+        // release that guard before SQLite. After the durable reread, the
+        // exact ACTIVE -> SETTLING transition occurs before sync mutation;
+        // affected writers and participant replacement wait for that finite
+        // settlement instead of preempting irreversible work. Every earlier
+        // error path drops the SQLite transaction before abandoning the fence
+        // because the transaction is declared second.
         let fence = match self.begin_room_reauthorization_fence(&room, generation) {
             Ok(fence) => fence,
             Err(_) => return Ok(false),
@@ -2662,9 +2664,9 @@ impl Drop for RoomReauthorizationFence {
     }
 }
 
-/// The read-only database-derived decisions lent to one scoped completion
-/// callback. No fence, mutex guard, SQLite transaction, or terminal method is
-/// carried by this value, and no owned instance is returned to caller code.
+/// The read-only database-derived decisions lent to the participant-bound
+/// settlement owner. No fence, mutex guard, SQLite transaction, or terminal
+/// method is carried by this value, and completion callers cannot retain it.
 pub struct RoomReauthorizationCompletion {
     room: RoomId,
     generation: u64,
