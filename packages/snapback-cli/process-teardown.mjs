@@ -1601,7 +1601,14 @@ function processGroupLeaseGuard(pgid, leader, {
 async function stopGuardedProcessGroup(pgid, leader, graceMs, killWaitMs, dependencies) {
   const guard = processGroupLeaseGuard(pgid, leader, dependencies);
   const gracefulSignal = guard.signalGroup('SIGTERM');
-  if (gracefulSignal.status !== 'signalled') return gracefulSignal;
+  if (gracefulSignal.status !== 'signalled') {
+    // A cooperative exit can change the leader's OS command between the
+    // caller's last observation and this first signal guard. Custody remains
+    // permanently discharged, so never signal that numeric group; still use
+    // the existing grace window to prove it empty before releasing the lease.
+    if (gracefulSignal.status === 'discharged') return guard.waitForOutcome(graceMs);
+    return gracefulSignal;
+  }
   const gracefulOutcome = await guard.waitForOutcome(graceMs);
   if (gracefulOutcome.status !== 'owned') return gracefulOutcome;
   const killSignal = guard.signalGroup('SIGKILL');

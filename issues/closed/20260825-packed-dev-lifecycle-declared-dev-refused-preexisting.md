@@ -1,7 +1,7 @@
 # packed-dev-lifecycle: `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED` is red on pristine main
 
 **Type:** Issue
-**Status:** Open
+**Status:** Resolved
 **Systems:** cli, codegen, acceptance
 **Author:** Claude (sbs-orchestrate supervisor)
 **Date:** 2026-08-25
@@ -68,12 +68,56 @@ reaches ready, while attempting URL selection with the same foreign stamp still
 refuses with `SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED`. No ambient/global
 lookup, name match, or opportunistic installation was added.
 
-The original declared-dev red is gone: the packed headless M1→M2 arm is green
-and the unchanged full suite passes that lifecycle before reaching the later
-scaffold `npm run prove`. The full suite is nevertheless still red there with
+The original declared-dev red was gone at this stage: the packed headless M1→M2
+arm was green and the unchanged full suite passed that lifecycle before
+reaching the later scaffold `npm run prove`. The full suite was still red there with
 `SNAPBACK_APP_BINDING_UNAVAILABLE`: the starter acceptance reads
 `process.env.SNAPBACK_URL`, while its managed lifecycle adapter does not supply
-that value to the acceptance process. That distinct pre-existing
-template/acceptance lifecycle mismatch is outside this scoped repair. Per the
-dispatch rule, this issue remains open and unmoved until the exact full suite is
-green. Full evidence and verbatim counts are in repository-root `REPORT.md`.
+that value to the acceptance process. That distinct pre-existing template and
+acceptance lifecycle mismatch kept this issue open until the subsequent repairs
+below made the exact full suite green.
+
+## Resolution — 2026-08-26
+
+The full masking chain is resolved in three separate changes:
+
+1. `c4206da52` narrows declared-dev exact-object custody to the source actually
+   selected by preflight. An explicit admitted binding no longer consumes an
+   inert declared-dev stamp from a second packed module closure, while URL
+   selection through that foreign stamp still refuses.
+2. `221724231` hands the managed ready origin to the starter acceptance
+   journey as `ready.serverUrl`. The template no longer assumes an ambient
+   `SNAPBACK_URL` that its lifecycle owner never promised to export.
+3. This landing repairs the Expo process-group proof after a cooperative exit
+   begins before the first stop signal. Expo removes its supervisor descriptor
+   before stopping Metro; the packed fixture observes that removal and exits.
+   macOS then presents the same PID/start-time/PGID with command `(node)` or
+   `<defunct>`, which permanently discharges signaling authority. The guarded
+   stop previously returned at once and therefore never observed the group
+   become empty. It now uses the existing grace window for observation only in
+   that pre-signal discharged state. It never signals the discharged numeric
+   group and still releases the durable cleanup lease only after the accepted
+   `stopped` proof.
+
+The exact packed lifecycle suite passed twice after all three repairs, each
+run reporting `tests 1`, `pass 1`, `fail 0`:
+
+```text
+$ TMPDIR=/private/tmp/snapback-bun-tmp BUN_TMPDIR=/private/tmp/snapback-bun-tmp \
+  BUN_INSTALL_CACHE_DIR=/private/tmp/snapback-bun-cache \
+  SNAPBACK_RUNTIME_BINARY=<bootstrap-qualified binary> \
+  node --test packages/snapback-cli/packed-dev-lifecycle.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+```
+
+Two reproduction notes for anyone re-deriving this red:
+
+- In a worktree without a bootstrap-qualified native runtime the suite aborts
+  early with `packed lifecycle proof requires the bootstrap-qualified native
+  runtime`. That is a precondition failure, **not** this ticket's defect; point
+  `SNAPBACK_RUNTIME_BINARY` at a qualified binary before concluding anything.
+- An `EMFILE: too many open files` in the Vite arm is a sandbox file-descriptor
+  limit, not a product defect. It does not reproduce outside the sandbox with
+  `ulimit -n 65536`.

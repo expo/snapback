@@ -568,6 +568,33 @@ try {
     leaseMarker: 'old-run-marker',
   };
   if (!unsafeStateOnly) {
+    const alreadyExitingSignals = [];
+    let alreadyExitingInspection = 0;
+    const alreadyExitingOutcome = await teardownTest.stopGuardedProcessGroup(
+      4141,
+      { ...simulatedLeader, pid: 4141 },
+      250,
+      250,
+      {
+        inspect() {
+          alreadyExitingInspection += 1;
+          return alreadyExitingInspection === 1 ? 'changed' : 'empty';
+        },
+        sendSignal(_pgid, name) { alreadyExitingSignals.push(name); },
+        wait: async () => {},
+      },
+    );
+    assert.deepEqual(
+      alreadyExitingOutcome,
+      { status: 'stopped' },
+      'a pre-signal cooperative exit must prove the discharged group empty',
+    );
+    assert.deepEqual(
+      alreadyExitingSignals,
+      [],
+      'a pre-signal identity discharge must never signal the numeric group',
+    );
+
     const simulatedSignals = [];
     let simulatedGroup = 'owned';
     await teardownTest.stopGuardedProcessGroup(4242, simulatedLeader, 250, 250, {
