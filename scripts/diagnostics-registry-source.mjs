@@ -1,3 +1,11 @@
+import {
+  basename as pathBasename,
+  dirname as pathDirname,
+  extname as pathExtname,
+  join as pathJoin,
+  normalize as pathNormalize,
+} from 'node:path/posix';
+
 // @ref LLP 0193#program — source-site classification keeps environment names,
 // protocol vocabulary, reservations, and real emissions distinct in D1's
 // complete inventory instead of relying on a raw SNAPBACK_* token sweep.
@@ -24,6 +32,59 @@ export const DIAGNOSTICS_PRODUCTION_ROOTS = Object.freeze([
   'targets/',
   'clients/swift/',
 ]);
+
+function rustExternalModuleDeclarations(source, inheritedTestOnly) {
+  const literals = stringLiteralBounds(source, { ordinaryMultiline: true });
+  const declarations = [];
+  const pattern = /^((?:(?:[ \t]*#\s*\[[^\]\r\n]+\](?:[ \t]+|\r?\n|$))|(?:[ \t]*\/\/[^\r\n]*(?:\r?\n|$)))*)[ \t]*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;/gmu;
+  for (const declaration of source.matchAll(pattern)) {
+    const marker = declaration.index + declaration[0].lastIndexOf('mod');
+    if (!codeOffset(marker, literals)) continue;
+    const attributes = declaration[1].replace(/^[ \t]*\/\/[^\r\n]*/gmu, '');
+    const cfgTest = /#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]/u.test(attributes);
+    const cfgNotTest = /#\s*\[\s*cfg\s*\(\s*not\s*\(\s*test\s*\)\s*\)\s*\]/u.test(attributes);
+    if ((!inheritedTestOnly && !cfgTest) || (inheritedTestOnly && cfgNotTest)) continue;
+    const explicitPath = attributes.match(/#\s*\[\s*path\s*=\s*"([^"]+)"\s*\]/u)?.[1];
+    declarations.push({ explicitPath, name: declaration[2] });
+  }
+  return declarations;
+}
+
+function rustDefaultModuleBase(path) {
+  const filename = pathBasename(path);
+  return /^(?:lib|main|mod|build)\.rs$/u.test(filename)
+    ? pathDirname(path)
+    : pathJoin(pathDirname(path), filename.slice(0, -pathExtname(filename).length));
+}
+
+// Follow cfg(test)-gated external module declarations instead of guessing
+// test ownership from filenames. Once a test-only file is reached, its own
+// ordinary external modules inherit that test-only compilation context.
+export function rustExternalTestModulePaths(entryPaths, { pathExists, readSource }) {
+  const discovered = new Set();
+  const queued = new Set(entryPaths.map((path) => `production\0${path}`));
+  const queue = entryPaths.map((path) => ({ path, testOnly: false }));
+  for (let index = 0; index < queue.length; index += 1) {
+    const { path, testOnly } = queue[index];
+    for (const declaration of rustExternalModuleDeclarations(readSource(path), testOnly)) {
+      const candidates = declaration.explicitPath === undefined
+        ? [
+          pathJoin(rustDefaultModuleBase(path), `${declaration.name}.rs`),
+          pathJoin(rustDefaultModuleBase(path), declaration.name, 'mod.rs'),
+        ]
+        : [pathNormalize(pathJoin(pathDirname(path), declaration.explicitPath))];
+      const resolved = candidates.find(pathExists);
+      if (resolved === undefined) continue;
+      discovered.add(resolved);
+      const testQueueKey = `test\0${resolved}`;
+      if (!queued.has(testQueueKey)) {
+        queued.add(testQueueKey);
+        queue.push({ path: resolved, testOnly: true });
+      }
+    }
+  }
+  return [...discovered].sort();
+}
 const REFERENCE_ONLY_MARKER = 'diagnostics-registry: reference-only';
 const RESERVED_MARKER = 'diagnostics-registry: reserved';
 const RECEIVED_MARKER = 'diagnostics-registry: received';
@@ -1237,6 +1298,8 @@ function shellEnvironmentSiteKind(source, offset, code, literals) {
 function environmentAnalysis(source, options) {
   const matches = [...source.matchAll(DIAGNOSTIC_CODE_PATTERN)];
   const literals = stringLiteralBounds(source, options);
+  const bracePairs = lexicalDelimiterPairs(source, literals)
+    .filter(({ open }) => source[open] === '{');
   const nameTableOffsets = environmentNameTableOffsets(source, literals, matches);
   const siteKinds = new Map();
   for (const offset of rustIndirectEnvironmentOffsets(source)) {
@@ -1281,7 +1344,18 @@ function environmentAnalysis(source, options) {
   const names = new Set(matches
     .filter((match) => siteKinds.has(match.index))
     .map((match) => match[0]));
-  return { literals, matches, names, siteKinds, receivedOffsets: new Set() };
+  const declarations = new Map(matches.flatMap((match) => {
+    const declaration = wholeStringCodeDeclaration(source, match, literals, bracePairs);
+    return declaration === null ? [] : [[match.index, declaration]];
+  }));
+  return {
+    declarations,
+    literals,
+    matches,
+    names,
+    siteKinds,
+    receivedOffsets: new Set(),
+  };
 }
 
 export function environmentVariableSites(source, {
@@ -1384,6 +1458,73 @@ function syntheticEmissionSites(source, comments) {
       kind: 'emission',
       synthetic: true,
     });
+  }
+  return sites;
+}
+
+function wholeStringCodeDeclaration(source, match, literals, bracePairs) {
+  if (diagnosticLiteralShape(match, literals) !== 'whole') return null;
+  const beforeStart = Math.max(0, match.index - 2048);
+  const before = source.slice(beforeStart, match.index);
+  const patterns = [
+    /\b(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:[^=;{}]{0,1024}=\s*(?:r#*)?["']$/su,
+    /\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*["'`]$/su,
+    /\b(?:(?:public|private|internal|fileprivate|open)\s+)?(?:static\s+)?(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=;{}]{0,1024})?=\s*"$/su,
+    /\b(?:const\s+)?val\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=;{}]{0,1024})?=\s*"$/su,
+  ];
+  for (const pattern of patterns) {
+    const declaration = before.match(pattern);
+    if (declaration === null) continue;
+    const identifier = declaration[1];
+    const enclosingBrace = /^[A-Z][A-Z0-9_]*$/u.test(identifier)
+      ? undefined
+      : bracePairs.filter(({ open, close }) => open < match.index && match.index < close)
+        .sort((left, right) => right.open - left.open)[0];
+    return {
+      code: match[0],
+      identifier,
+      identifierOffset: beforeStart + declaration.index + declaration[0].indexOf(identifier),
+      scopeEnd: enclosingBrace?.close ?? source.length,
+      scopeStart: enclosingBrace === undefined ? 0 : enclosingBrace.open + 1,
+    };
+  }
+  return null;
+}
+
+function identifierFlowEmissionSites(source, analysis, environmentNames) {
+  const sites = [];
+  const seen = new Set();
+  for (const declaration of analysis.declarations.values()) {
+    if (environmentNames.has(declaration.code)) continue;
+    const identifier = escapeRegExp(declaration.identifier);
+    const uses = new RegExp(
+      `(?<![A-Za-z0-9_])(?:(?:[A-Za-z_][A-Za-z0-9_]*::)*)${identifier}(?![A-Za-z0-9_])`,
+      'gu',
+    );
+    const scopedSource = source.slice(declaration.scopeStart, declaration.scopeEnd);
+    for (const use of scopedSource.matchAll(uses)) {
+      const useOffset = declaration.scopeStart + use.index;
+      const identifierOffset = useOffset + use[0].lastIndexOf(declaration.identifier);
+      if (identifierOffset === declaration.identifierOffset) continue;
+      if (!codeOffset(identifierOffset, analysis.literals)) continue;
+      const before = source.slice(Math.max(declaration.scopeStart, useOffset - 512), useOffset);
+      const after = source.slice(useOffset + use[0].length, useOffset + use[0].length + 32);
+      const firstCallArgument = /\b[A-Za-z_][A-Za-z0-9_]*(?:(?:::|\.)[A-Za-z_][A-Za-z0-9_]*)*\s*\(\s*(?:&\s*)?$/su.test(before);
+      const diagnosticProperty = /\b(?:code|diagnosticCode|diagnostic_code|errorCode|error_code|refusalCode|refusal_code|capabilityCode)\s*(?::|=(?!=|>))\s*$/su.test(before);
+      const diagnosticShorthand = /(?:^|[{,])\s*$/su.test(before)
+        && /^\s*[,}]/u.test(after)
+        && /^(?:code|.*Code|.*_CODE)$/u.test(declaration.identifier);
+      if (!firstCallArgument && !diagnosticProperty && !diagnosticShorthand) {
+        continue;
+      }
+      const siteKey = `${declaration.code}\0${useOffset}`;
+      if (seen.has(siteKey)) continue;
+      seen.add(siteKey);
+      sites.push({
+        match: syntheticMatch(declaration.code, useOffset, source),
+        kind: 'emission',
+      });
+    }
   }
   return sites;
 }
@@ -1686,6 +1827,7 @@ function diagnosticSiteKind(source, match, analysis, environmentNames, { shell =
     || analysis.siteKinds.has(offset)
   ) return null;
   if (analysis.receivedOffsets.has(offset)) return 'received';
+  if (analysis.declarations.has(offset)) return 'declaration';
   if (shell) {
     const operator = shellDiagnosticOperator(source, offset);
     return operator === 'deploy-fail' || (operator === 'print' && !environmentNames.has(match[0]))
@@ -1740,6 +1882,7 @@ export function diagnosticSourceSites(source, {
     const kind = diagnosticSiteKind(classifiedSource, match, analysis, classifiedNames, { shell });
     return kind === null ? [] : [{ match, kind }];
   });
+  sites.push(...identifierFlowEmissionSites(classifiedSource, analysis, classifiedNames));
   sites.push(...syntheticEmissionSites(classifiedSource, analysis.literals.comments));
   return sites.sort((left, right) => (
     left.match.index - right.match.index || left.match[0].localeCompare(right.match[0])

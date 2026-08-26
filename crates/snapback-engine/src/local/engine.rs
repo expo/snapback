@@ -22140,6 +22140,7 @@ impl LocalSnapback {
         let pairs =
             crate::rqs::decode_witness(witness, self.rqs_replay_policy.max_witness_entries)?;
         let mut accumulator = crate::rqs::witness_state(&pairs);
+        // diagnostics-registry: emission SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH
         if accumulator.root() != body.content_digest {
             return Err(refusal::WITNESS_ROOT_MISMATCH);
         }
@@ -22153,11 +22154,13 @@ impl LocalSnapback {
                 .saturating_mul(u64::from(self.rqs_replay_policy.replay_affected_percent))
                 / 100,
         ) as usize;
+        // diagnostics-registry: emission SNAPBACK_RESUME_JOURNAL_FLOOR
         let affected = self
             .db
             .versions_read()
             .changed_row_ids_for_table_since(&plan.table, body.version, threshold)
             .map_err(|_| refusal::JOURNAL_FLOOR)?;
+        // diagnostics-registry: emission SNAPBACK_RESUME_POLICY_REPLACED
         if affected.len() > threshold {
             return Err(refusal::POLICY_REPLACED);
         }
@@ -22170,6 +22173,7 @@ impl LocalSnapback {
             .filter_map(|row| crate::rqs_contract::row_wire_id(row).map(|id| (id, row)))
             .collect();
         let mut ops = Vec::new();
+        // diagnostics-registry: emission SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED
         for id in &affected {
             let old_hash = witnessed.get(id.as_str()).copied();
             let new_hash = state.digest.row_hash_for(id);

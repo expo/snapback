@@ -106,8 +106,10 @@ pub mod refusal {
     /// reproduce the fresh head digest (an untouched row changed anyway) —
     /// both refuse to rung 3, never a partial replay.
     pub const WITNESS_REPLAY_DIVERGED: &str = "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED";
+    // diagnostics-registry: reserved SNAPBACK_RESUME_BUDGET_EXCEEDED
     #[allow(dead_code)]
     pub const BUDGET_EXCEEDED: &str = "SNAPBACK_RESUME_BUDGET_EXCEEDED";
+    // diagnostics-registry: reserved SNAPBACK_RESUME_RATE_LIMITED
     #[allow(dead_code)]
     pub const RATE_LIMITED: &str = "SNAPBACK_RESUME_RATE_LIMITED";
     pub const POLICY_REPLACED: &str = "SNAPBACK_RESUME_POLICY_REPLACED";

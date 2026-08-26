@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import test from 'node:test';
 
@@ -8,6 +8,7 @@ import {
   diagnosticCodeMatches,
   diagnosticSourceSites,
   environmentVariableSites,
+  rustExternalTestModulePaths,
 } from './diagnostics-registry-source.mjs';
 
 const root = resolve(import.meta.dirname, '..');
@@ -513,6 +514,48 @@ test('Rust production classification excludes inline test-gated regions', () => 
   );
 });
 
+test('Rust production discovery excludes external cfg(test) modules transitively', () => {
+  const fixture = 'tests/fixtures/diagnostics-registry/external-test-modules.rs';
+  const fixtureRoot = resolve(import.meta.dirname, '..');
+
+  assert.deepEqual(
+    rustExternalTestModulePaths([fixture], {
+      pathExists: (path) => existsSync(resolve(fixtureRoot, path)),
+      readSource: (path) => readFileSync(resolve(fixtureRoot, path), 'utf8'),
+    }),
+    [
+      'tests/fixtures/diagnostics-registry/external-test-modules/path_tests.rs',
+      'tests/fixtures/diagnostics-registry/external-test-modules/tests/mod.rs',
+      'tests/fixtures/diagnostics-registry/external-test-modules/tests/nested.rs',
+    ],
+  );
+});
+
+test('whole-string constants declare codes and flow to real diagnostic call sites', () => {
+  const fixture = [
+    'const CODE: &str = "SNAPBACK_FIXTURE_CONST_FLOW";',
+    'const UNRESOLVED: &str = "SNAPBACK_FIXTURE_CONST_UNRESOLVED";',
+    'fn refusal() -> SnapbackError {',
+    '    SnapbackError::error(CODE, "fixture", "failed")',
+    '}',
+    'fn reference() -> &\'static str { UNRESOLVED }',
+  ].join('\n');
+
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({
+        code: match[0],
+        line: fixture.slice(0, match.index).split('\n').length,
+        kind,
+      })),
+    [
+      { code: 'SNAPBACK_FIXTURE_CONST_FLOW', line: 1, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_CONST_UNRESOLVED', line: 2, kind: 'declaration' },
+      { code: 'SNAPBACK_FIXTURE_CONST_FLOW', line: 4, kind: 'emission' },
+    ],
+  );
+});
+
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
   const firstCode = 'SNAPBACK_FIXTURE_LONG_MATCH_ARM_FIRST';
   const longRustOrPatternFixture = [
@@ -592,12 +635,12 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     [
       'SNAPBACK_PROFILE_FORBIDS',
       'crates/snapback-cli/src/cli.rs',
-      [4464],
+      [4467],
     ],
     [
       'SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID',
       'crates/snapback-cli/src/cli.rs',
-      [6619, 6623, 6629, 6638],
+      [6622, 6626, 6632, 6641],
     ],
   ]) {
     assert.deepEqual(
@@ -615,6 +658,43 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   ]) {
     assert.equal(registry.environment[name], undefined, `${name} is test-only`);
   }
+
+  for (const file of [
+    'crates/snapback-engine/src/local/admission_fence_tests.rs',
+    'crates/snapback-engine/src/local/auth_room_kick_acceptance.rs',
+  ]) {
+    assert.equal(
+      Object.values(registry.diagnostics).some((record) => (
+        record.sites.some((site) => site.file === file)
+      )),
+      false,
+      `${file} is an external cfg(test) module`,
+    );
+  }
+
+  assert.deepEqual(
+    registry.diagnostics.SNAPBACK_APP_READINESS_DECLARATION_INVALID.sites,
+    [
+      {
+        file: 'crates/snapback-activation/src/operational_readiness.rs',
+        line: 27,
+        column: 55,
+        kind: 'declaration',
+      },
+      {
+        file: 'crates/snapback-activation/src/operational_readiness.rs',
+        line: 617,
+        column: 26,
+      },
+    ],
+  );
+  assert.equal(
+    Object.values(registry.diagnostics).every((record) => (
+      record.sites.some((site) => site.kind !== 'declaration')
+    )),
+    true,
+    'declarations alone never retain a public diagnostic code',
+  );
 
   const artifactHeaderCodes = [
     'SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND',

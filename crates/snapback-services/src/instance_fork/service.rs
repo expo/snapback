@@ -1139,6 +1139,7 @@ fn writer_coverage_invalid(message: impl Into<String>) -> SnapbackError {
 }
 
 fn writer_coverage_gap(message: impl Into<String>) -> SnapbackError {
+    // diagnostics-registry: emission SNAPBACK_FORK_WRITER_COVERAGE_GAP
     fork_error(WRITER_COVERAGE_GAP_CODE, message)
 }
 

@@ -51,6 +51,7 @@ import {
   diagnosticSourceSites,
   environmentVariableSites,
   indirectEnvironmentReadContracts,
+  rustExternalTestModulePaths,
   rustProductionSource,
 } from './diagnostics-registry-source.mjs';
 import { authoritiesDigest } from './guide-lib.mjs';
@@ -112,20 +113,8 @@ const classificationContractPaths = [
   'scripts/runtime-package-authority.mjs',
 ];
 
-function acceptRustProductionPath(path) {
-  // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
-  // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-  if (/^crates\/snapback\/src\/(?:local|server|storage)\/tests\.rs$/u.test(path)) return false;
-  // The carved owners keep explicit cfg(test) modules in their source trees.
-  return ![
-    'crates/snapback-kernel/src/storage/tests.rs',
-    'crates/snapback-server/src/server/tests.rs',
-    'crates/snapback-cli/src/cli/tests.rs',
-  ].includes(path);
-}
-
 const rustProductionRoots = DIAGNOSTICS_RUST_PRODUCTION_ROOTS.map((path) => (
-  { path: path.replace(/\/$/u, ''), accept: acceptRustProductionPath }
+  path.replace(/\/$/u, '')
 ));
 
 function assertEveryCarvedRustRootIsInventoried(paths) {
@@ -136,7 +125,7 @@ function assertEveryCarvedRustRootIsInventoried(paths) {
     ))
     .map((name) => `crates/${name}/src`)
     .sort();
-  const configuredRoots = new Set(rustProductionRoots.map(({ path }) => path));
+  const configuredRoots = new Set(rustProductionRoots);
   for (const carvedRoot of carvedRoots) {
     if (!configuredRoots.has(carvedRoot)) {
       throw new Error(
@@ -151,9 +140,14 @@ function assertEveryCarvedRustRootIsInventoried(paths) {
   }
 }
 
-const rustProductionPaths = rustProductionRoots.flatMap(({ path: crateRoot, accept }) => (
-  walk(join(root, crateRoot), (path) => path.endsWith('.rs') && accept(path))
+const rustCandidatePaths = rustProductionRoots.flatMap((crateRoot) => (
+  walk(join(root, crateRoot), (path) => path.endsWith('.rs'))
 ));
+const rustExternalTestPaths = new Set(rustExternalTestModulePaths(rustCandidatePaths, {
+  pathExists: (path) => existsSync(join(root, path)),
+  readSource: (path) => readFileSync(join(root, path), 'utf8'),
+}));
+const rustProductionPaths = rustCandidatePaths.filter((path) => !rustExternalTestPaths.has(path));
 assertEveryCarvedRustRootIsInventoried(rustProductionPaths);
 
 function manifestTargets(value) {
@@ -263,6 +257,11 @@ const targetProductionPaths = walk(join(root, 'targets'), (path) => (
   // of the production Snapback registry.
   && !/^targets\/[^/]+\/app\//u.test(path)
 ));
+const operatorProductionPaths = [
+  // This operator emits a package-declared code through an imported binding;
+  // its named marker is the cross-file identifier-flow boundary.
+  'scripts/runtime-link-smoke.mjs',
+];
 
 const productionPaths = [
   // @ref LLP 0276#phases — diagnostics move with their owning contract
@@ -273,6 +272,7 @@ const productionPaths = [
   ...packageProductionPaths,
   // Target-local operator carriers ship outside package manifests.
   ...targetProductionPaths,
+  ...operatorProductionPaths,
   ...walk(join(root, 'clients/swift'), (path) => path.endsWith('.swift') && path.includes('/Sources/')),
 ].sort().filter((path, index, paths) => path !== paths[index - 1]);
 
@@ -653,7 +653,9 @@ function renderTypes(codes, environmentNames) {
 
 const { byCode, byEnvironmentVariable } = collectSites();
 const statuses = parseHttpStatuses();
-const codes = [...byCode.keys()].sort();
+const codes = [...byCode].filter(([, sites]) => (
+  sites.some((site) => site.kind !== 'declaration')
+)).map(([code]) => code).sort();
 const anchors = guideAnchors(new Set(codes));
 const diagnostics = {};
 for (const code of codes) {

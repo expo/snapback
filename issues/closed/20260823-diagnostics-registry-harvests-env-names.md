@@ -102,12 +102,56 @@ diagnostic/environment lookup pagination now slices the merged site stream
 without reinserting either owner's first site: concatenated slices cover each
 site exactly once, and an out-of-range slice is empty.
 
+Round 21 replaces filename guesses with a transitive Rust external-module
+walk. It resolves both `#[cfg(test)] mod tests;` through Rust's `x.rs` /
+`x/mod.rs` rules and `#[cfg(test)] #[path = "..."] mod x;`, then inherits the
+test-only context through ordinary child modules. Twenty-two external test
+files are discovered. Four formerly published test-only emitting sites leave
+the registry: `SNAPBACK_AUTH_MODE_PENDING` and
+`SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT` in
+`local/admission_fence_tests.rs`, plus two
+`SNAPBACK_AUTH_PROJECTION_UNAVAILABLE` sites in
+`local/auth_room_kick_acceptance.rs`. No code leaves the union because each
+code has production emitters elsewhere.
+
+Whole-string constants now publish `kind: "declaration"` at the literal and
+identifier-flow publishes the call/property/shorthand coordinate that actually
+emits it. The final registry has 167 declaration sites across 140 codes; 137
+pre-existing codes move off a declaration coordinate to at least one real use
+site, including `SNAPBACK_APP_READINESS_DECLARATION_INVALID` from
+`operational_readiness.rs:27` to its `SnapbackError::error(...)` call at line
+617. Sixty-three of those codes had no other emitting coordinate in the
+round-20 registry.
+
+Nine cross-file, Rust-format-interpolation, or otherwise non-local flows need
+explicit synthetic emission markers at their real uses:
+
+- `SNAPBACK_FORK_WRITER_COVERAGE_GAP`
+- `SNAPBACK_IBEX_CARGO_NOT_FOUND`
+- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID`
+- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED`
+- `SNAPBACK_PACKAGED_STORE_QUALIFICATION_SUITE_UNQUALIFIED`
+- `SNAPBACK_RESUME_JOURNAL_FLOOR`
+- `SNAPBACK_RESUME_POLICY_REPLACED`
+- `SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED`
+- `SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH`
+
+The explicitly dead-code stable spellings `SNAPBACK_RESUME_BUDGET_EXCEEDED`
+and `SNAPBACK_RESUME_RATE_LIMITED` are retained honestly as reservations, not
+fabricated emissions. Scanning the real `runtime-link-smoke.mjs` operator use
+also adds its seven previously omitted diagnostics:
+`SNAPBACK_IBEX_CARGO_BUILD_FAILED`, `SNAPBACK_IBEX_RUNTIME_LINK_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`, `SNAPBACK_IBEX_RUNTIME_LINK_OK`,
+`SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_LINK_TARGET_NOT_OWNED`, and
+`SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`.
+
 Round 18 also bounds Rust `matches!(...)` reference detection to the macro's
 matched closing parenthesis. Five real emitters that follow completed macros
 are restored: `SNAPBACK_ADMIN_LAN_TARGET_INVALID` at
 `admin_link.rs:765`, `SNAPBACK_ADMIN_TAILSCALE_TARGET_UNSUPPORTED` at
-`admin_link.rs:1008`, `SNAPBACK_PROFILE_FORBIDS` at `cli.rs:4464`,
-`SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID` at `cli.rs:6638`, and the additional
+`admin_link.rs:1008`, `SNAPBACK_PROFILE_FORBIDS` at `cli.rs:4467`,
+`SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID` at `cli.rs:6641`, and the additional
 `SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID` site at `admin.rs:696`.
 Exact per-file line lists for the four reviewed codes guard the generated
 registry projection.
@@ -252,19 +296,19 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3533,
-    "sourceFiles": 642,
-    "emittingSites": 9207,
+    "codes": 3540,
+    "sourceFiles": 626,
+    "emittingSites": 9551,
     "receivedSites": 339,
-    "reservedSites": 9,
+    "reservedSites": 11,
     "httpClassified": 1704,
-    "guideAnchored": 426,
-    "environmentVariables": 185,
+    "guideAnchored": 431,
+    "environmentVariables": 186,
     "environmentSites": 368
   },
   "environmentKinds": {
-    "read": 258,
-    "mention": 42,
+    "read": 259,
+    "mention": 41,
     "declaration": 14,
     "remove": 9,
     "write": 24,

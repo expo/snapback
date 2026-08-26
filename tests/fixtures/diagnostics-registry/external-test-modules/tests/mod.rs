@@ -1,0 +1,3 @@
+mod nested;
+
+pub const TEST_ONLY_CODE: &str = "SNAPBACK_FIXTURE_EXTERNAL_MOD_TEST_ONLY";
