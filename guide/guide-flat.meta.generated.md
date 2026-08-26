@@ -2234,16 +2234,17 @@ platform, generated-directory, and binding-identity assumptions from that run.
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
      The run fails if it omits the paved React import, claims the Expo facade
-     expects `SnapbackExpoLifecycleContext`, presents the facade as the paved
-     bare-provider contract, or hides the shipped facade behavior and its
-     ticketed immediate-withdrawal tradeoff.
+     requires `SnapbackExpoLifecycleContext` or a `SnapbackExpoProvider` tree,
+     presents the facade as the paved bare-provider contract, or hides the
+     gated-versus-ungated background-withdrawal difference between the two.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
      Required guidance per page:
-     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
-     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
-     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "It does **not** require a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "It does **not** require a `SnapbackExpoProvider` tree", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "It does **not** require a `SnapbackExpoProvider` tree", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "backgrounded typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
+     "Use the `@expo/snapback-expo` facade only in a `SnapbackExpoProvider` tree",
      "Use the `@expo/snapback-expo` facade under a bare `SnapbackProvider`; that is the paved choice",
      "The Expo facade is the supported bare-provider contract".
 
