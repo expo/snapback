@@ -9,7 +9,6 @@ import {
 } from './supervised-environment.mjs';
 
 const NOW = Date.parse('2026-08-07T12:00:00.000Z');
-const TOKEN = 'sbs_supervised_offline_warm_token';
 const APP_ID = 'supervised-offline-fallback';
 const ORIGIN = 'http://127.0.0.1:4317';
 const EXCHANGE_ORIGIN = 'http://127.0.0.1:4321';
@@ -125,6 +124,20 @@ const handshake = Object.freeze({
   }),
   authorizedLease: null,
 });
+const anonymousHandshake = Object.freeze({
+  ...handshake,
+  authority: Object.freeze({
+    kind: 'anonymous',
+    userId: null,
+    sessionId: null,
+    isAuthenticated: false,
+  }),
+  authorityDescriptor: Object.freeze({
+    descriptorVersion: 1,
+    authorityInstanceId: INCARNATION,
+    sessionGeneration: 0,
+  }),
+});
 
 function appStateHarness() {
   return Object.freeze({
@@ -169,17 +182,13 @@ function exchangeResponse() {
     format: SUPERVISED_EXCHANGE_FORMAT,
     correlationId: 'supervised-offline-correlation',
     binding,
-    authority: Object.freeze({
-      status: 'ready',
-      tokenType: 'Bearer',
-      token: TOKEN,
-    }),
+    authority: Object.freeze({ status: 'unavailable' }),
   });
 }
 
 const onlineFetch = async (url) => {
   const path = new URL(url).pathname;
-  if (path === '/auth/session') return Response.json(handshake);
+  if (path === '/auth/session') return Response.json(anonymousHandshake);
   if (path === '/inspect') {
     return Response.json({
       targetProfileId: capabilityManifest.targetProfileId,
@@ -223,7 +232,7 @@ try {
     bindLifecycle: lifecycleHarness,
   });
   const state = await warmBoot.start();
-  assert.equal(state.status, 'ready');
+  assert.equal(state.status, 'ready', JSON.stringify(state));
   assert.equal(state.preparation.source, 'deployment');
   assert.equal(warmCapture.prepared.source, 'deployment');
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -232,18 +241,19 @@ try {
   assert.deepEqual(saved.binding, binding);
   assert.equal(saved.publicFacts.kind, 'session');
   assert.equal(saved.publicFacts.authMode, 'sessions');
-  assert.equal(JSON.stringify(saved).includes(TOKEN), false);
+  assert.equal(saved.publicFacts.sessionId, null, 'binding-only adoption caches anonymous facts');
+  assert.equal(saved.publicFacts.userId, null, 'binding-only adoption caches no user authority');
+  assert.deepEqual(
+    Object.keys(saved).sort(),
+    ['binding', 'formatVersion', 'publicFacts', 'savedAt'],
+    'the fallback cache contains only binding metadata and public authority facts',
+  );
+  assert.equal(JSON.stringify(saved).includes('bearer'), false);
   assert.notEqual(
     await sharedStore.loadReactBindingReceipt(),
     null,
     'warm preparation persists the React binding receipt in the shared store',
   );
-  const refreshed = await warmBoot.refreshAuthority();
-  assert.equal(refreshed.status, 'ready');
-  assert.equal(refreshed.preparation.source, 'deployment');
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(bindingCache.saves.length, 2, 'successful authority refresh updates the cache');
-  assert.equal(JSON.stringify(bindingCache.current()).includes(TOKEN), false);
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -274,13 +284,13 @@ try {
     bindLifecycle: lifecycleHarness,
   });
   const state = await coldBoot.start();
-  assert.equal(state.status, 'ready');
+  assert.equal(state.status, 'ready', JSON.stringify(state));
   assert.equal(state.preparation.source, 'persisted-receipt');
   assert.equal(coldCapture.prepared.source, 'persisted-receipt');
   assert.deepEqual(state.authority, bindingCache.current().publicFacts);
   assert.equal(exchangeCounts.attempts, attemptsBefore + 1);
   assert.equal(exchangeCounts.successes, successesBefore, 'the cold exchange never succeeded');
-  assert.equal(bindingCache.saves.length, 2, 'offline adoption learns no new cache record');
+  assert.equal(bindingCache.saves.length, 1, 'offline adoption learns no new cache record');
 } finally {
   globalThis.fetch = originalFetch;
 }

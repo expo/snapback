@@ -491,28 +491,43 @@ try {
   );
   assert.equal(originlessAuthorityPost.status, 200);
   assert.deepEqual(await originlessAuthorityPost.json(), payload);
-  for (const [label, origin] of [
-    ['empty', ''],
-    ['literal null', 'null'],
-  ]) {
-    const forwardedOriginlessAuthorityPost = await fetch(
+  const nullOriginAuthorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: {
+        Origin: 'null',
+        'content-type': 'application/json',
+      },
+      body: authorityBody,
+    },
+  );
+  assert.equal(nullOriginAuthorityPost.status, 403, 'literal null is a present browser Origin');
+  const emptyOriginAuthorityPost = await fetch(
+    `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: {
+        Origin: '',
+        'content-type': 'application/json',
+      },
+      body: authorityBody,
+    },
+  );
+  assert.equal(emptyOriginAuthorityPost.status, 403, 'an empty Origin header is still present');
+  const simpleOriginlessAuthorityPost = await fetch(
       `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
       {
         method: 'POST',
-        headers: {
-          Origin: origin,
-          'content-type': 'application/json',
-        },
+        headers: { 'content-type': 'text/plain' },
         body: authorityBody,
       },
-    );
-    assert.equal(
-      forwardedOriginlessAuthorityPost.status,
-      200,
-      `${label} Origin is originless for a correlation-gated native mint`,
-    );
-    assert.deepEqual(await forwardedOriginlessAuthorityPost.json(), payload);
-  }
+  );
+  assert.equal(
+    simpleOriginlessAuthorityPost.status,
+    415,
+    'a browser-simple content type cannot reach an originless mint',
+  );
   const originlessWrongCorrelationPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
     {
@@ -536,10 +551,10 @@ try {
   assert.equal(wrongOriginAuthorityPost.status, 403);
   assert.deepEqual(
     payloadRequests.slice(requestsBeforeOriginRefusals).map(({ requestAuthority }) => requestAuthority),
-    [false, true, false, true, false, true, false],
+    [false, true, false],
     'originless admission validates correlation before minting; refusals never invoke the mint',
   );
-  assert.equal(authorityMintRequests, 3);
+  assert.equal(authorityMintRequests, 1);
 
   const wrongCapabilityAuthorityPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
@@ -550,7 +565,7 @@ try {
     },
   );
   assert.equal(wrongCapabilityAuthorityPost.status, 403);
-  assert.equal(authorityMintRequests, 3, 'capability refusal happens before another mint');
+  assert.equal(authorityMintRequests, 1, 'capability refusal happens before another mint');
 
   const authorityPost = await fetch(
     `${exchange.origin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
@@ -562,7 +577,7 @@ try {
   );
   assert.equal(authorityPost.status, 200);
   assert.deepEqual(await authorityPost.json(), payload);
-  assert.equal(authorityMintRequests, 4);
+  assert.equal(authorityMintRequests, 2);
 
   const requestsBeforeInvalidQuery = payloadRequests.length;
   const invalidAuthorityGet = await fetch(
@@ -667,7 +682,7 @@ try {
     code: 'SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND',
   });
 
-console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, browser-origin plus missing/null/empty Origin correlation admission, explicit authority requests, preflight, payload refusal, and route handling pass');
+console.log('expo-bootstrap-exchange.test.mjs: scoped loopback CORS, missing-Origin JSON native admission, null/empty/simple browser refusal, explicit authority requests, preflight, payload refusal, and route handling pass');
 } finally {
   await exchange.close();
 }

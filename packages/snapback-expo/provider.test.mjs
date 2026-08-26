@@ -206,10 +206,9 @@ await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
 
-// Memory selects volatile custody, not a runtime posture. When neither the
-// environment nor the host can disambiguate web from native, stay on the
-// safer anonymous/no-mint web default; native declares itself explicitly or
-// resolves through React Native's Platform.OS.
+// Memory selects volatile custody, not a runtime posture. A DOM host remains
+// web even when a compatibility shim advertises navigator.product as
+// ReactNative; native declares itself explicitly or resolves through Platform.OS.
 let ambiguousMemoryAdoptions = 0;
 const ambiguousMemoryBoot = createSnapbackExpoBoot({
   app,
@@ -243,15 +242,32 @@ const ambiguousMemoryBoot = createSnapbackExpoBoot({
     async dispose() {},
   }),
 });
-const ambiguousMemoryReady = await ambiguousMemoryBoot.start();
-assert.equal(ambiguousMemoryReady.status, 'ready');
-assert.equal(ambiguousMemoryReady.authority.sessionId, null);
-assert.equal(
-  ambiguousMemoryAdoptions,
-  0,
-  'an ambiguous memory platform defaults to anonymous/no-mint web posture',
-);
-await ambiguousMemoryBoot.dispose();
+const previousAmbiguousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const previousAmbiguousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+Object.defineProperty(globalThis, 'document', {
+  configurable: true,
+  value: Object.freeze({}),
+});
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: Object.freeze({ product: 'ReactNative' }),
+});
+try {
+  const ambiguousMemoryReady = await ambiguousMemoryBoot.start();
+  assert.equal(ambiguousMemoryReady.status, 'ready');
+  assert.equal(ambiguousMemoryReady.authority.sessionId, null);
+  assert.equal(
+    ambiguousMemoryAdoptions,
+    0,
+    'a DOM memory host advertising ReactNative stays anonymous with zero mints',
+  );
+  await ambiguousMemoryBoot.dispose();
+} finally {
+  if (previousAmbiguousDocument === undefined) delete globalThis.document;
+  else Object.defineProperty(globalThis, 'document', previousAmbiguousDocument);
+  if (previousAmbiguousNavigator === undefined) delete globalThis.navigator;
+  else Object.defineProperty(globalThis, 'navigator', previousAmbiguousNavigator);
+}
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const strictBinding = Object.freeze({
@@ -539,4 +555,4 @@ completeAdoption({
 await interruptedStart;
 assert.equal(interruptedAuthorityDisposals, 1, 'dispose racing authority adoption releases it');
 
-console.log('provider.test.mjs: legacy and ambiguous-memory web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');
+console.log('provider.test.mjs: legacy and DOM-memory web anonymous default/no-mint posture, descriptor delegation, exact boot states, authority refusal, lifecycle, and pre-store mismatch pass');

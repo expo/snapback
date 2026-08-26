@@ -1636,9 +1636,7 @@ export async function startBootstrapExchange(
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
     const authorityOriginAdmitted = admittedOrigin !== null
       && currentAuthorityOrigins().has(admittedOrigin);
-    const authorityOriginless = request.headers.origin === undefined
-      || request.headers.origin === ''
-      || request.headers.origin === 'null';
+    const authorityOriginAbsent = request.headers.origin === undefined;
     response.setHeader('cache-control', 'no-store, max-age=0');
     response.setHeader('pragma', 'no-cache');
     response.setHeader('referrer-policy', 'no-referrer');
@@ -1714,15 +1712,21 @@ export async function startBootstrapExchange(
       && authorityRequest === SUPERVISED_AUTHORITY_REQUEST
       && validAuthorityRequest
     ) {
-      // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — browser fetch
-      // always supplies Origin, so this originless exception does not weaken
-      // browser CSRF posture. React Native/Expo fetch is unverified for forwarding
-      // a caller-set Origin and may normalize an unset value to empty or "null";
-      // admit only those originless forms when the same
-      // unguessable, timing-safe per-boot correlation capability matches before
-      // invoking the mint. Any other present but wrong Origin remains a refusal.
-      if (!authorityOriginAdmitted && !authorityOriginless) {
+      // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — the native
+      // exception requires a truly missing Origin plus application/json, which
+      // makes browser fetch preflight; the existing OPTIONS arm refuses an
+      // opaque or unadmitted browser origin. The unguessable, timing-safe
+      // per-boot correlation capability remains required before minting.
+      if (!authorityOriginAdmitted && !authorityOriginAbsent) {
         response.statusCode = 403;
+        response.end(JSON.stringify({
+          ok: false,
+          code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',
+        }));
+        return;
+      }
+      if (request.headers['content-type'] !== 'application/json') {
+        response.statusCode = 415;
         response.end(JSON.stringify({
           ok: false,
           code: 'SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE',

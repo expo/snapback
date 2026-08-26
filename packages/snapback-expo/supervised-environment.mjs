@@ -805,7 +805,10 @@ export function createSupervisedExpoEnvironment({
         publicFacts: facts,
         offline: false,
       };
-      if (shouldAdoptSupervisedSession) saveCachedBinding(exchange.binding, facts);
+      // Both anonymous-first web and explicitly adopted native/session boots
+      // persist only the admitted binding plus sanitized public authority
+      // facts. The cache never receives the exchange bearer.
+      saveCachedBinding(exchange.binding, facts);
       return Object.freeze({
         status: 'ready',
         client,
