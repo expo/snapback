@@ -3263,6 +3263,23 @@ struct FrameBeforeFirstEnqueueTestHook {
     release: std::sync::mpsc::Receiver<()>,
 }
 
+/// One-shot witness at the last side-effect-free point in real room
+/// reauthorization settlement. The kernel must already own the exact
+/// completion fence when this fires; everything after it may rewrite
+/// subscriber auth, remove subscribers/entries, enqueue frames, update the
+/// reverse index, or prune the room.
+#[cfg(any(test, feature = "test-support"))]
+struct RoomReauthorizationBeforeMutationTestHook {
+    reached: std::sync::mpsc::SyncSender<()>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+
+#[cfg(any(test, feature = "test-support"))]
+struct RoomReauthorizationAfterMutationTestHook {
+    reached: std::sync::mpsc::SyncSender<()>,
+    release: std::sync::mpsc::Receiver<()>,
+}
+
 enum RoomAuthority {
     Bound(AuthorizationCommitParticipant),
     Unbound(NonAuthorizingRoomAuthority),
@@ -3471,6 +3488,12 @@ struct EphemeralShared {
     /// first-outbox-push seam used by the protected-room commit-order test.
     #[cfg(any(test, feature = "test-support"))]
     frame_before_first_enqueue_hook: StdMutex<Option<FrameBeforeFirstEnqueueTestHook>>,
+    #[cfg(any(test, feature = "test-support"))]
+    room_reauthorization_before_mutation_hook:
+        StdMutex<Option<RoomReauthorizationBeforeMutationTestHook>>,
+    #[cfg(any(test, feature = "test-support"))]
+    room_reauthorization_after_mutation_hook:
+        StdMutex<Option<RoomReauthorizationAfterMutationTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     collection_generation: AtomicU64,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
@@ -3638,6 +3661,10 @@ impl LocalEphemeralBackend {
                 definition_swap_hook: StdMutex::new(None),
                 #[cfg(any(test, feature = "test-support"))]
                 frame_before_first_enqueue_hook: StdMutex::new(None),
+                #[cfg(any(test, feature = "test-support"))]
+                room_reauthorization_before_mutation_hook: StdMutex::new(None),
+                #[cfg(any(test, feature = "test-support"))]
+                room_reauthorization_after_mutation_hook: StdMutex::new(None),
                 collections: RwLock::new(BTreeMap::new()),
                 collection_generation: AtomicU64::new(1),
                 rooms: StdMutex::new(BTreeMap::new()),
@@ -3742,6 +3769,17 @@ impl LocalEphemeralBackend {
         participant.inject_issuer_projection_failure();
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_authorization_writer_settlement_wait_witness_for_test(
+        &self,
+        waiting: std::sync::mpsc::Sender<()>,
+    ) {
+        let RoomAuthority::Bound(participant) = &self.shared.room_authority else {
+            panic!("authorization writer witness requires a bound participant");
+        };
+        participant.install_authorization_writer_settlement_wait_witness_for_test(waiting);
+    }
+
     pub fn install_authorization_issuer(
         &self,
         issuer: crate::auth::invalidation::InstalledInvalidationIssuer,
@@ -3825,6 +3863,34 @@ impl LocalEphemeralBackend {
         let previous = lock(&self.shared.frame_before_first_enqueue_hook)
             .replace(FrameBeforeFirstEnqueueTestHook { reached, release });
         assert!(previous.is_none(), "frame-before-enqueue hook is one-shot");
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_room_reauthorization_before_mutation_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<()>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        let previous = lock(&self.shared.room_reauthorization_before_mutation_hook)
+            .replace(RoomReauthorizationBeforeMutationTestHook { reached, release });
+        assert!(
+            previous.is_none(),
+            "room-reauthorization-before-mutation hook is one-shot"
+        );
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_room_reauthorization_after_mutation_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<()>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        let previous = lock(&self.shared.room_reauthorization_after_mutation_hook)
+            .replace(RoomReauthorizationAfterMutationTestHook { reached, release });
+        assert!(
+            previous.is_none(),
+            "room-reauthorization-after-mutation hook is one-shot"
+        );
     }
 
     fn begin_room_authority_act(
@@ -4075,6 +4141,9 @@ impl LocalEphemeralBackend {
             ));
         }
 
+        #[cfg(any(test, feature = "test-support"))]
+        self.pause_room_reauthorization_before_mutation_for_test();
+
         let mut denied_outboxes = Vec::new();
         let mut denied_connections = Vec::new();
         for resolution in resolutions {
@@ -4226,7 +4295,35 @@ impl LocalEphemeralBackend {
             .delivery
             .wake_many(&wakees.into_iter().collect::<Vec<_>>());
         self.prune_room_if_empty(&room_id);
+        #[cfg(any(test, feature = "test-support"))]
+        self.pause_room_reauthorization_after_mutation_for_test();
         Ok(RoomReauthorizationDisposition::Complete)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn pause_room_reauthorization_before_mutation_for_test(&self) {
+        let hook = lock(&self.shared.room_reauthorization_before_mutation_hook).take();
+        if let Some(hook) = hook {
+            hook.reached
+                .send(())
+                .expect("room reauthorization mutation observer remains alive");
+            hook.release
+                .recv()
+                .expect("room reauthorization mutation observer releases settlement");
+        }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn pause_room_reauthorization_after_mutation_for_test(&self) {
+        let hook = lock(&self.shared.room_reauthorization_after_mutation_hook).take();
+        if let Some(hook) = hook {
+            hook.reached
+                .send(())
+                .expect("room reauthorization post-mutation observer remains alive");
+            hook.release
+                .recv()
+                .expect("room reauthorization post-mutation observer releases settlement");
+        }
     }
 
     fn record_queue_push(&self, result: QueuePush) {
@@ -6542,6 +6639,20 @@ impl LocalEphemeralBackend {
         lock(&self.shared.connection_rooms).contains_key(connection_id)
             || lock(&self.shared.outboxes).contains_key(connection_id)
             || lock(&self.shared.rate_buckets).contains_key(connection_id)
+    }
+
+    /// Non-destructive queue witness for settlement tests that intentionally
+    /// inspect frames while final publication remains fenced.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn queued_resync_messages_for_test(&self, connection_id: &str) -> Vec<EphemeralMessage> {
+        let Some(outbox) = lock(&self.shared.outboxes).get(connection_id).cloned() else {
+            return Vec::new();
+        };
+        lock(&outbox)
+            .resync
+            .iter()
+            .map(|queued| queued.message.as_ref().clone())
+            .collect()
     }
 
     #[cfg(any(test, feature = "test-support"))]

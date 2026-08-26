@@ -2793,6 +2793,35 @@ impl EphemeralApi {
         self.store.inject_authorization_issuer_projection_failure();
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_room_reauthorization_before_mutation_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<()>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        self.store
+            .install_room_reauthorization_before_mutation_hook_for_test(reached, release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_room_reauthorization_after_mutation_hook_for_test(
+        &self,
+        reached: std::sync::mpsc::SyncSender<()>,
+        release: std::sync::mpsc::Receiver<()>,
+    ) {
+        self.store
+            .install_room_reauthorization_after_mutation_hook_for_test(reached, release);
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_authorization_writer_settlement_wait_witness_for_test(
+        &self,
+        waiting: std::sync::mpsc::Sender<()>,
+    ) {
+        self.store
+            .install_authorization_writer_settlement_wait_witness_for_test(waiting);
+    }
+
     pub fn reserve_authorization_commit(
         &self,
         preflight: crate::storage::AuthorizationCommitPreflight,
@@ -3319,6 +3348,14 @@ impl EphemeralApi {
     pub fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
         self.activity.contains(connection_id)
             || self.store.has_connection_residue_for_test(connection_id)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn queued_resync_messages_for_test(
+        &self,
+        connection_id: &str,
+    ) -> Vec<crate::ephemeral::EphemeralMessage> {
+        self.store.queued_resync_messages_for_test(connection_id)
     }
 
     pub fn pending_room_reauthorizations(

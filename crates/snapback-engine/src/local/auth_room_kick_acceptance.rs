@@ -584,6 +584,164 @@ impl KickFixture {
 }
 
 #[test]
+fn exact_completion_fence_precedes_real_room_settlement_mutations() {
+    let fixture = KickFixture::new();
+    let _ = drain_through_test_sink(&fixture.ephemeral, CONNECTION_A);
+    let _ = drain_through_test_sink(&fixture.ephemeral, CONNECTION_B);
+    let initial = fixture.ephemeral.diagnostics();
+    assert_eq!(initial.subscriber_count, 2);
+    assert_eq!(initial.entry_count, 2);
+
+    let (batch, mut completion) = {
+        let mut snapback = fixture
+            .snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let kick = snapback
+            .invoke_mutation_with_authority(
+                "kickMember",
+                HandlerInput {
+                    args: json!({ "id": MEMBER_A }),
+                    ..HandlerInput::default()
+                },
+                fixture.mutation_authority_b.clone(),
+            )
+            .expect("the real authorization writer deletes A's membership");
+        assert_eq!(kick.changed_count, 1);
+        let pending = snapback.ephemeral.pending_room_reauthorizations();
+        assert_eq!(pending.len(), 1);
+        let batch = snapback
+            .resolve_pending_ephemeral_room_permissions(pending.into_iter().next().unwrap())
+            .expect("real durable permission checks deny A and retain B");
+        let completion = snapback
+            .take_room_reauthorization_completion_api()
+            .expect("take the off-Local exact completion owner");
+        (batch, completion)
+    };
+
+    let (before_tx, before_rx) = mpsc::sync_channel(0);
+    let (before_release_tx, before_release_rx) = mpsc::sync_channel(0);
+    fixture
+        .ephemeral
+        .install_room_reauthorization_before_mutation_hook_for_test(before_tx, before_release_rx);
+    let (after_tx, after_rx) = mpsc::sync_channel(0);
+    let (after_release_tx, after_release_rx) = mpsc::sync_channel(0);
+    fixture
+        .ephemeral
+        .install_room_reauthorization_after_mutation_hook_for_test(after_tx, after_release_rx);
+    let (writer_waiting_tx, writer_waiting_rx) = mpsc::channel();
+    fixture
+        .ephemeral
+        .install_authorization_writer_settlement_wait_witness_for_test(writer_waiting_tx);
+
+    let (completion_done_tx, completion_done_rx) = mpsc::channel();
+    let completion_thread = std::thread::spawn(move || {
+        completion_done_tx
+            .send(completion.complete(batch))
+            .expect("return real completion result");
+    });
+    before_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("real settlement reaches its final side-effect-free point");
+    let writer_snapback = fixture.snapback.clone();
+    let (writer_done_tx, writer_done_rx) = mpsc::channel();
+    let writer = std::thread::spawn(move || {
+        let result = writer_snapback
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "gameMembers".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("member-c-during-settlement")),
+                        ("gameId".to_owned(), json!(BOARD_ID)),
+                        ("userId".to_owned(), json!(USER_C)),
+                    ])],
+                )]),
+            });
+        writer_done_tx
+            .send(result)
+            .expect("return the racing authorization writer result");
+    });
+    writer_waiting_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("the writer reaches the exact-settlement serialization point");
+    assert!(
+        writer_done_rx.try_recv().is_err(),
+        "the authorization writer cannot preempt an exact claimed fence"
+    );
+
+    before_release_tx
+        .send(())
+        .expect("release the real settlement mutations");
+    after_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("real settlement completes mutations before returning its disposition");
+    assert!(
+        writer_done_rx.try_recv().is_err(),
+        "the writer remains serialized until the mutation witness becomes terminal"
+    );
+    let settled = fixture.ephemeral.diagnostics();
+    assert_eq!(settled.subscriber_count, 1, "A's subscriber auth is denied");
+    assert_eq!(settled.entry_count, 1, "A's owner entry is removed");
+
+    let denied_a = fixture
+        .ephemeral
+        .queued_resync_messages_for_test(CONNECTION_A);
+    assert!(denied_a.iter().any(|frame| matches!(
+        frame,
+        EphemeralMessage::Error { error, .. }
+            if error.code == EphemeralErrorCode::PermissionDenied
+    )));
+    let survivor_b = fixture
+        .ephemeral
+        .queued_resync_messages_for_test(CONNECTION_B);
+    assert!(survivor_b.iter().any(|frame| matches!(
+        frame,
+        EphemeralMessage::Remove {
+            reason: RemoveReason::AuthRevoked,
+            ..
+        }
+    )));
+    assert!(survivor_b.iter().any(|frame| matches!(
+        frame,
+        EphemeralMessage::Snapshot { entries, .. }
+            if entries.len() == 1 && entries[0].value == OPPONENT_PRESENCE
+    )));
+
+    after_release_tx
+        .send(())
+        .expect("allow the participant to derive the terminal disposition");
+    assert!(
+        completion_done_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("real completion returns")
+            .expect("real completion remains operational"),
+        "the exact fence becomes complete only after witnessed settlement"
+    );
+    writer_done_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("the serialized writer resumes")
+        .expect("the serialized authorization writer commits");
+    writer.join().expect("authorization writer joins");
+    completion_thread.join().expect("real completion joins");
+
+    assert_eq!(
+        fixture.ephemeral.pending_room_reauthorizations().len(),
+        1,
+        "the later writer creates a fresh obligation instead of preempting the settled one"
+    );
+    let pending_error = match fixture
+        .ephemeral
+        .begin_server_authorized_room_act("gamePresence", &room_scope())
+    {
+        Err(error) => error,
+        Ok(_) => panic!("the later authorization writer must suspend protected admission"),
+    };
+    assert_eq!(pending_error.code, EphemeralErrorCode::AuthorityPending);
+}
+
+#[test]
 fn stale_room_reauthorization_batch_cannot_outlive_session_validity() {
     let fixture = KickFixture::new_with_session_a_expiry(SESSION_A_FINITE_EXPIRY_MS);
     let mut snapback = fixture

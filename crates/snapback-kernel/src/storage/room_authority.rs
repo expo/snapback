@@ -717,6 +717,11 @@ pub(super) struct RoomAuthorityRegistry {
     #[cfg(test)]
     completion_registry_acquired_witness:
         Mutex<Option<(Arc<std::sync::Barrier>, Arc<std::sync::Barrier>)>>,
+    #[cfg(test)]
+    completion_before_settlement_claim_witness:
+        Mutex<Option<(Arc<std::sync::Barrier>, Arc<std::sync::Barrier>)>>,
+    #[cfg(any(test, feature = "test-support"))]
+    authorization_writer_settlement_wait_witness: Mutex<Option<std::sync::mpsc::Sender<()>>>,
 }
 
 impl RoomAuthorityRegistry {
@@ -748,6 +753,10 @@ impl RoomAuthorityRegistry {
             quiescent: Condvar::new(),
             #[cfg(test)]
             completion_registry_acquired_witness: Mutex::new(None),
+            #[cfg(test)]
+            completion_before_settlement_claim_witness: Mutex::new(None),
+            #[cfg(any(test, feature = "test-support"))]
+            authorization_writer_settlement_wait_witness: Mutex::new(None),
         })
     }
 
@@ -755,6 +764,33 @@ impl RoomAuthorityRegistry {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         reconcile_room_reauthorization_completions(&mut state);
         state
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn install_authorization_writer_settlement_wait_witness(
+        &self,
+        waiting: std::sync::mpsc::Sender<()>,
+    ) {
+        let previous = self
+            .authorization_writer_settlement_wait_witness
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .replace(waiting);
+        assert!(previous.is_none(), "writer-settlement witness is one-shot");
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn witness_authorization_writer_waiting_for_settlement(&self) {
+        let waiting = self
+            .authorization_writer_settlement_wait_witness
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        if let Some(waiting) = waiting {
+            waiting
+                .send(())
+                .expect("writer-settlement observer remains alive");
+        }
     }
 
     #[cfg(test)]
@@ -778,6 +814,31 @@ impl RoomAuthorityRegistry {
             .take();
         if let Some((acquired, proceed)) = witness {
             acquired.wait();
+            proceed.wait();
+        }
+    }
+
+    #[cfg(test)]
+    fn install_completion_before_settlement_claim_witness(
+        &self,
+        reached: Arc<std::sync::Barrier>,
+        proceed: Arc<std::sync::Barrier>,
+    ) {
+        *self
+            .completion_before_settlement_claim_witness
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some((reached, proceed));
+    }
+
+    #[cfg(test)]
+    fn witness_completion_before_settlement_claim(&self) {
+        let witness = self
+            .completion_before_settlement_claim_witness
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        if let Some((reached, proceed)) = witness {
+            reached.wait();
             proceed.wait();
         }
     }
@@ -972,6 +1033,15 @@ impl AuthorizationCommitParticipant {
                 "room reauthorization settlement was already installed for this participant",
             )
         })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_authorization_writer_settlement_wait_witness_for_test(
+        &self,
+        waiting: std::sync::mpsc::Sender<()>,
+    ) {
+        self.registry
+            .install_authorization_writer_settlement_wait_witness(waiting);
     }
 
     pub(super) fn binding(&self) -> &DatabaseBinding {
@@ -1239,6 +1309,9 @@ impl AuthorizationCommitParticipant {
                     })
             })
         }) {
+            #[cfg(any(test, feature = "test-support"))]
+            self.registry
+                .witness_authorization_writer_waiting_for_settlement();
             if self.registry.is_retired() {
                 return Err(interlock_retired());
             }
@@ -1615,6 +1688,8 @@ impl AuthorizationCommitParticipant {
             }
         }
         drop(durable_fence);
+        #[cfg(test)]
+        self.registry.witness_completion_before_settlement_claim();
         if !fence.begin_settlement() {
             return Ok(false);
         }
@@ -3184,9 +3259,55 @@ mod tests {
     };
     use crate::storage::{LocalDatabase, ServingDatabase};
 
+    type TestRoomSettlement = Box<
+        dyn FnOnce(&RoomReauthorizationCompletion) -> SnapbackResult<RoomReauthorizationDisposition>
+            + Send,
+    >;
+
+    #[derive(Default)]
+    struct TestRoomReauthorizationSettler {
+        queued: Mutex<std::collections::VecDeque<TestRoomSettlement>>,
+    }
+
+    impl TestRoomReauthorizationSettler {
+        fn push(
+            &self,
+            settle: impl FnOnce(
+                &RoomReauthorizationCompletion,
+            ) -> SnapbackResult<RoomReauthorizationDisposition>
+            + Send
+            + 'static,
+        ) {
+            self.queued
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push_back(Box::new(settle));
+        }
+    }
+
+    impl RoomReauthorizationSettlementExecutor for TestRoomReauthorizationSettler {
+        fn settle(
+            &self,
+            completion: &RoomReauthorizationCompletion,
+        ) -> SnapbackResult<RoomReauthorizationDisposition> {
+            let settle = self
+                .queued
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .pop_front()
+                .ok_or_else(|| {
+                    projection_unavailable(
+                        "kernel completion test did not install a settlement operation",
+                    )
+                })?;
+            settle(completion)
+        }
+    }
+
     struct ReadyFixture {
         database: ServingDatabase,
         participant: AuthorizationCommitParticipant,
+        settler: Arc<TestRoomReauthorizationSettler>,
         view: AuthorizationExpectationView,
         _issuer_projection: AuthorizationIssuerProjection,
         authorization: AuthorizationVersion,
@@ -3202,6 +3323,10 @@ mod tests {
         let participant = database
             .take_authorization_commit_participant()
             .expect("sole participant");
+        let settler = Arc::new(TestRoomReauthorizationSettler::default());
+        participant
+            .install_room_reauthorization_settler(settler.clone())
+            .expect("install the kernel-test settlement owner");
         database
             .bind_authorization_commit_participant(&participant)
             .expect("exact construction bind");
@@ -3216,6 +3341,7 @@ mod tests {
         ReadyFixture {
             database,
             participant,
+            settler,
             view,
             _issuer_projection: issuer_projection,
             authorization,
@@ -3775,14 +3901,10 @@ mod tests {
             )
             .unwrap();
         assert!(
-            target
+            !target
                 .participant
-                .run_room_reauthorization_completion(&target.database, wrong_root_batch, |_| Ok((
-                    RoomReauthorizationDisposition::Complete,
-                    ()
-                )),)
-                .unwrap()
-                .is_none(),
+                .run_room_reauthorization_completion(&target.database, wrong_root_batch)
+                .unwrap(),
             "a live generation on another registry is not interchangeable"
         );
         assert_eq!(source.participant.pending_reauthorizations().len(), 1);
@@ -3804,22 +3926,21 @@ mod tests {
             )
             .unwrap();
         source
-            .participant
-            .run_room_reauthorization_completion(&source.database, exact_batch, |_| {
-                Ok((RoomReauthorizationDisposition::Complete, ()))
-            })
-            .unwrap()
-            .expect("the exact root and generation admit completion");
-        assert!(source.participant.pending_reauthorizations().is_empty());
+            .settler
+            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
         assert!(
             source
                 .participant
-                .run_room_reauthorization_completion(&source.database, stale_duplicate, |_| Ok((
-                    RoomReauthorizationDisposition::Complete,
-                    ()
-                )),)
-                .unwrap()
-                .is_none(),
+                .run_room_reauthorization_completion(&source.database, exact_batch)
+                .unwrap(),
+            "the exact root and generation admit completion"
+        );
+        assert!(source.participant.pending_reauthorizations().is_empty());
+        assert!(
+            !source
+                .participant
+                .run_room_reauthorization_completion(&source.database, stale_duplicate)
+                .unwrap(),
             "clearing the level-triggered fact makes a duplicate batch stale"
         );
     }
@@ -3852,6 +3973,7 @@ mod tests {
         let ReadyFixture {
             database: source_database,
             participant: source_participant,
+            settler: _,
             view: source_view,
             _issuer_projection: source_projection,
             authorization: _,
@@ -3874,13 +3996,10 @@ mod tests {
             "SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH"
         );
         assert!(
-            target
+            !target
                 .participant
-                .run_room_reauthorization_completion(&target.database, source_batch, |_| {
-                    Ok((RoomReauthorizationDisposition::Complete, ()))
-                })
-                .expect("foreign batch is a retryable mismatch")
-                .is_none(),
+                .run_room_reauthorization_completion(&target.database, source_batch)
+                .expect("foreign batch is a retryable mismatch"),
             "a batch from the predecessor graph completed through a reopened handle"
         );
 
@@ -3898,12 +4017,15 @@ mod tests {
             )
             .expect("target database derives a fresh exact batch");
         target
-            .participant
-            .run_room_reauthorization_completion(&target.database, target_batch, |_| {
-                Ok((RoomReauthorizationDisposition::Complete, ()))
-            })
-            .expect("reopened graph remains operational")
-            .expect("fresh exact target batch reaches completion");
+            .settler
+            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        assert!(
+            target
+                .participant
+                .run_room_reauthorization_completion(&target.database, target_batch)
+                .expect("reopened graph remains operational"),
+            "fresh exact target batch reaches completion"
+        );
         assert!(target.participant.pending_reauthorizations().is_empty());
     }
 
@@ -3928,11 +4050,10 @@ mod tests {
         // completion owner captured by caller-supplied Local code must refuse
         // before lifecycle, SQLite, registry, or room state is acquired.
         let local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
-        let error = match fixture.participant.run_room_reauthorization_completion(
-            &fixture.database,
-            batch,
-            |_| Ok((RoomReauthorizationDisposition::Complete, ())),
-        ) {
+        let error = match fixture
+            .participant
+            .run_room_reauthorization_completion(&fixture.database, batch)
+        {
             Err(error) => error,
             Ok(_) => panic!("completion entered beneath LocalSnapback"),
         };
@@ -3960,12 +4081,15 @@ mod tests {
             )
             .expect("retry derives a fresh batch");
         fixture
-            .participant
-            .run_room_reauthorization_completion(&fixture.database, retry, |_| {
-                Ok((RoomReauthorizationDisposition::Complete, ()))
-            })
-            .expect("outside-Local retry remains operational")
-            .expect("exact retry reaches completion");
+            .settler
+            .push(|_| Ok(RoomReauthorizationDisposition::Complete));
+        assert!(
+            fixture
+                .participant
+                .run_room_reauthorization_completion(&fixture.database, retry)
+                .expect("outside-Local retry remains operational"),
+            "exact retry reaches completion"
+        );
         assert!(fixture.participant.pending_reauthorizations().is_empty());
     }
 
@@ -3987,6 +4111,7 @@ mod tests {
         let ReadyFixture {
             mut database,
             participant,
+            settler: _,
             view,
             _issuer_projection,
             authorization: _,
@@ -4046,7 +4171,7 @@ mod tests {
     }
 
     #[test]
-    fn retained_closed_completion_callback_cannot_wedge_writer_or_participant_replacement() {
+    fn participant_bound_settlement_serializes_writer_and_participant_replacement() {
         use std::sync::mpsc;
         use std::time::Duration;
 
@@ -4073,6 +4198,7 @@ mod tests {
         let ReadyFixture {
             database: _,
             participant: writer_participant,
+            settler: writer_settler,
             view: writer_view,
             _issuer_projection: writer_issuer_projection,
             authorization: _,
@@ -4082,19 +4208,17 @@ mod tests {
         let (writer_entered_tx, writer_entered_rx) = mpsc::channel();
         let (writer_release_tx, writer_release_rx) = mpsc::channel();
         let (writer_completion_tx, writer_completion_rx) = mpsc::channel();
+        writer_settler.push(move |_| {
+            writer_entered_tx
+                .send(())
+                .expect("signal entered writer settlement");
+            writer_release_rx.recv().expect("release writer settlement");
+            Ok(RoomReauthorizationDisposition::Complete)
+        });
         let writer_completion = std::thread::spawn(move || {
             let result = completion_participant.run_room_reauthorization_completion_off_local(
                 &writer_completion_database,
                 writer_batch,
-                |_| {
-                    writer_entered_tx
-                        .send(())
-                        .expect("signal retained writer callback");
-                    writer_release_rx
-                        .recv()
-                        .expect("release retained writer callback");
-                    Ok((RoomReauthorizationDisposition::Complete, true))
-                },
             );
             writer_completion_tx
                 .send(result)
@@ -4102,29 +4226,40 @@ mod tests {
         });
         writer_entered_rx
             .recv_timeout(Duration::from_secs(1))
-            .expect("writer completion reaches retained callback");
-        let reservation = writer_participant
-            .prepare_authorization_commit(
+            .expect("writer completion reaches its participant-bound settlement");
+        let pending_writer = writer_participant.clone();
+        let (reservation_tx, reservation_rx) = mpsc::channel();
+        let reservation_thread = std::thread::spawn(move || {
+            let result = pending_writer.prepare_authorization_commit(
                 AuthorizationCommitPreflight::AllProtectedRooms,
                 Arc::new(AuthorizationReservationCancellation::new()),
-            )
-            .expect("writer progresses while the closed callback is retained");
+            );
+            reservation_tx
+                .send(result)
+                .expect("return settlement-serialized writer result");
+        });
         assert!(
-            writer_completion_rx.try_recv().is_err(),
-            "the callback remains retained after writer progress"
+            reservation_rx
+                .recv_timeout(Duration::from_millis(50))
+                .is_err(),
+            "the writer cannot premark after exact settlement validation but before its effects"
         );
-        reservation.cancel();
         writer_release_tx
             .send(())
-            .expect("release retained writer callback after the assertion");
-        assert_eq!(
+            .expect("release participant-bound writer settlement");
+        assert!(
             writer_completion_rx
                 .recv_timeout(Duration::from_secs(1))
-                .expect("retained writer callback returns for cleanup")
-                .expect("retained writer completion remains operational"),
-            None,
-            "the writer-preempted callback cannot settle its stale fence"
+                .expect("writer settlement returns for cleanup")
+                .expect("writer settlement remains operational"),
+            "exact settlement completes before the writer premark"
         );
+        reservation_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("writer resumes after settlement")
+            .expect("writer remains operational")
+            .cancel();
+        reservation_thread.join().expect("writer thread joins");
         writer_completion
             .join()
             .expect("retained writer callback joins");
@@ -4156,6 +4291,7 @@ mod tests {
         let ReadyFixture {
             mut database,
             participant: replacement_participant,
+            settler: replacement_settler,
             view: replacement_view,
             _issuer_projection: replacement_issuer_projection,
             authorization: _,
@@ -4165,19 +4301,19 @@ mod tests {
         let (replacement_entered_tx, replacement_entered_rx) = mpsc::channel();
         let (replacement_release_tx, replacement_release_rx) = mpsc::channel();
         let (replacement_completion_tx, replacement_completion_rx) = mpsc::channel();
+        replacement_settler.push(move |_| {
+            replacement_entered_tx
+                .send(())
+                .expect("signal entered replacement settlement");
+            replacement_release_rx
+                .recv()
+                .expect("release replacement settlement");
+            Ok(RoomReauthorizationDisposition::Complete)
+        });
         let replacement_completion = std::thread::spawn(move || {
             let result = completion_participant.run_room_reauthorization_completion_off_local(
                 &replacement_completion_database,
                 replacement_batch,
-                |_| {
-                    replacement_entered_tx
-                        .send(())
-                        .expect("signal retained replacement callback");
-                    replacement_release_rx
-                        .recv()
-                        .expect("release retained replacement callback");
-                    Ok((RoomReauthorizationDisposition::Complete, true))
-                },
             );
             replacement_completion_tx
                 .send(result)
@@ -4185,7 +4321,7 @@ mod tests {
         });
         replacement_entered_rx
             .recv_timeout(Duration::from_secs(1))
-            .expect("replacement completion reaches retained callback");
+            .expect("replacement completion reaches participant-bound settlement");
         let (replacement_tx, replacement_rx) = mpsc::channel();
         let replacement = std::thread::spawn(move || {
             let result = database
@@ -4195,26 +4331,27 @@ mod tests {
                 .send(result)
                 .expect("return retained-callback replacement result");
         });
-        replacement_rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("replacement progresses while the closed callback is retained")
-            .expect("replacement remains operational");
-        replacement.join().expect("participant replacement joins");
         assert!(
-            replacement_completion_rx.try_recv().is_err(),
-            "the callback remains retained after replacement progress"
+            replacement_rx
+                .recv_timeout(Duration::from_millis(50))
+                .is_err(),
+            "replacement cannot retire the exact participant midway through settlement"
         );
         replacement_release_tx
             .send(())
-            .expect("release retained replacement callback after the assertion");
-        assert_eq!(
+            .expect("release participant-bound replacement settlement");
+        assert!(
             replacement_completion_rx
                 .recv_timeout(Duration::from_secs(1))
-                .expect("retained replacement callback returns for cleanup")
-                .expect("retained replacement completion remains operational"),
-            None,
-            "the replacement-preempted callback cannot settle its retired fence"
+                .expect("replacement settlement returns for cleanup")
+                .expect("replacement settlement remains operational"),
+            "settlement finishes before participant replacement"
         );
+        replacement_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("replacement resumes after settlement")
+            .expect("replacement remains operational");
+        replacement.join().expect("participant replacement joins");
         replacement_completion
             .join()
             .expect("retained replacement callback joins");
@@ -4224,7 +4361,7 @@ mod tests {
     }
 
     #[test]
-    fn room_reauthorization_closed_completion_settles_exactly_once() {
+    fn room_reauthorization_without_a_settlement_operation_keeps_the_obligation() {
         let fixture = ready_fixture();
         install_room_resync(&fixture);
         let batch = fixture
@@ -4239,18 +4376,24 @@ mod tests {
                 Vec::new(),
             )
             .expect("resolve the pending room batch");
-        let completed = fixture
+        let error = fixture
             .participant
-            .run_room_reauthorization_completion(&fixture.database, batch, |_| {
-                Ok((RoomReauthorizationDisposition::Complete, true))
-            })
-            .expect("completion validation remains operational");
-        assert_eq!(completed, Some(true));
-        assert!(fixture.participant.pending_reauthorizations().is_empty());
+            .run_room_reauthorization_completion(&fixture.database, batch)
+            .expect_err("no caller claim can substitute for a settlement operation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        );
+        assert_eq!(
+            fixture.participant.pending_reauthorizations().len(),
+            1,
+            "missing settlement retains the level-triggered obligation"
+        );
     }
 
     #[test]
-    fn writer_premark_preempts_late_room_completion_without_clearing_obligation() {
+    fn writer_premark_preempts_before_settlement_claim_without_running_effects() {
+        use std::sync::Barrier;
         use std::sync::mpsc;
         use std::time::Duration;
 
@@ -4271,51 +4414,46 @@ mod tests {
         let ReadyFixture {
             database,
             participant,
+            settler,
             view,
             _issuer_projection,
             authorization: _,
         } = fixture;
         let participant = Arc::new(participant);
+        settler.push(|_| panic!("a preempted completion must not reach settlement effects"));
+        let before_claim = Arc::new(Barrier::new(2));
+        let release_claim = Arc::new(Barrier::new(2));
+        participant
+            .registry
+            .install_completion_before_settlement_claim_witness(
+                before_claim.clone(),
+                release_claim.clone(),
+            );
         let completion_participant = participant.clone();
-        let (entered_tx, entered_rx) = mpsc::channel();
-        let (release_tx, release_rx) = mpsc::channel();
         let (completed_tx, completed_rx) = mpsc::channel();
         let completion = std::thread::spawn(move || {
-            let result = completion_participant.run_room_reauthorization_completion(
-                &database,
-                batch,
-                |_| {
-                    entered_tx.send(()).expect("signal borrowed callback entry");
-                    release_rx
-                        .recv()
-                        .expect("release the preempted borrowed callback");
-                    Ok((RoomReauthorizationDisposition::Complete, true))
-                },
-            );
+            let result =
+                completion_participant.run_room_reauthorization_completion(&database, batch);
             completed_tx
                 .send(result)
                 .expect("return preempted completion result");
         });
-        entered_rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("completion reaches its closed borrowed callback");
+        before_claim.wait();
 
         let reservation = participant
             .prepare_authorization_commit(
                 AuthorizationCommitPreflight::AllProtectedRooms,
                 Arc::new(AuthorizationReservationCancellation::new()),
             )
-            .expect("writer premark makes progress while callback is retained");
-        release_tx
-            .send(())
-            .expect("release the preempted completion callback");
+            .expect("writer premark wins before the completion claims settlement");
+        release_claim.wait();
         assert_eq!(
             completed_rx
                 .recv_timeout(Duration::from_secs(1))
-                .expect("late callback returns")
-                .expect("late callback remains operational"),
-            None,
-            "an invalidated late callback cannot publish COMPLETE"
+                .expect("preempted completion returns")
+                .expect("preempted completion remains operational"),
+            false,
+            "an invalidated completion cannot enter settlement"
         );
         reservation.cancel();
         completion.join().expect("late completion joins");
@@ -4630,6 +4768,10 @@ mod tests {
         let participant = database
             .take_authorization_commit_participant()
             .expect("sole participant");
+        let settler = Arc::new(TestRoomReauthorizationSettler::default());
+        participant
+            .install_room_reauthorization_settler(settler.clone())
+            .expect("install the kernel-test settlement owner");
         database
             .bind_authorization_commit_participant(&participant)
             .expect("exact construction bind");
@@ -4644,6 +4786,7 @@ mod tests {
         ReadyFixture {
             database,
             participant,
+            settler,
             view,
             _issuer_projection: issuer_projection,
             authorization,
@@ -4678,11 +4821,13 @@ mod tests {
         let ReadyFixture {
             database: _,
             participant,
+            settler,
             view: _,
             _issuer_projection,
             authorization: _,
         } = fixture;
         let participant = Arc::new(participant);
+        settler.push(|_| Ok(RoomReauthorizationDisposition::Complete));
 
         let writer = rusqlite::Connection::open(&database_path)
             .expect("open independent SQLite writer connection");
@@ -4696,11 +4841,8 @@ mod tests {
         let completion = std::thread::spawn(move || {
             entered_tx.send(()).expect("signal completion start");
             let started = Instant::now();
-            let result = completion_participant.run_room_reauthorization_completion_off_local(
-                &completion_database,
-                batch,
-                |_| Ok((RoomReauthorizationDisposition::Complete, true)),
-            );
+            let result = completion_participant
+                .run_room_reauthorization_completion_off_local(&completion_database, batch);
             completed_tx
                 .send((started.elapsed(), result))
                 .expect("return contended completion result");
@@ -4750,7 +4892,7 @@ mod tests {
         );
         assert_eq!(
             completion_result.expect("completion remains operational"),
-            Some(true),
+            true,
             "the exact batch completes after SQLite becomes available"
         );
     }
@@ -4785,11 +4927,13 @@ mod tests {
         let ReadyFixture {
             database: _,
             participant,
+            settler,
             view: _,
             _issuer_projection,
             authorization: _,
         } = fixture;
         let participant = Arc::new(participant);
+        settler.push(|_| Ok(RoomReauthorizationDisposition::Complete));
 
         // Stop the completion while it actually owns the registry. In the
         // repaired order SQLite is not yet acquired; under the SQLite-first
@@ -4806,11 +4950,8 @@ mod tests {
         let completion_participant = participant.clone();
         let (completed_tx, completed_rx) = mpsc::channel();
         let completion = std::thread::spawn(move || {
-            let result = completion_participant.run_room_reauthorization_completion_off_local(
-                &completion_database,
-                batch,
-                |_| Ok((RoomReauthorizationDisposition::Complete, true)),
-            );
+            let result = completion_participant
+                .run_room_reauthorization_completion_off_local(&completion_database, batch);
             completed_tx
                 .send(result)
                 .expect("return reverse-schedule completion result");
@@ -4846,7 +4987,7 @@ mod tests {
         completion.join().expect("completion thread joins");
         assert_eq!(
             result.expect("completion remains operational"),
-            Some(true),
+            true,
             "the exact batch completes after the acyclic reverse schedule"
         );
     }
