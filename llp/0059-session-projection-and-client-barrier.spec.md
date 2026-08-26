@@ -5,11 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-26 (exact room-reauthorization completion lock-order
-amendment: the no-overlap rule remains absolute for `LocalSnapback` and every
-reverse process-state-to-SQLite edge, while the sole bounded SQLite-first
-completion order closes the otherwise unavoidable two-store validation gap;
-cross-referenced with LLP 0290 §7.1.)
+**Revised:** 2026-08-26 (round-6 lock-order correction: exact room
+reauthorization completion moved to a take-once SQLite owner outside managed
+`LocalSnapback`; arbitrary outbox/notifier handoff and classification callbacks
+were closed; and the SQLite/process-state inventory now records both exact
+completion and the pre-existing authorization transaction-bind overlap instead
+of falsely describing completion as the sole overlap. Cross-referenced with
+LLP 0290 §7.1.)
 **Revised:** 2026-08-21 (LLP 0295 D0.2 dated amendment: total client
 authority-transition state and settlement matrix across
 anonymous/authenticating/authenticated/revoking/reconnecting for one-shot
@@ -105,7 +107,8 @@ deletes the durable predecessor, reset-after-resolve leaves only a stale
 predecessor publication, and diagnostic handshake admission does not waive an
 installed stream fence). 2026-07-17 (Contract client lifecycle generation closure: resume, socket-loss, and swappable-ephemeral identities share one checked allocator; exhaustion synchronously blanks and terminally detaches the affected publication surface, settles pending barrier work, and never requires a disposal generation). 2026-07-17 (managed-Local/ephemeral separation and room-commit
 interlock closure: authorization writes reserve and quiesce their exact room
-selector before Local and SQLite, bind only lock-free transaction witnesses,
+selector before Local and SQLite, bind only the bounded SQLite-first
+participant-projection/registry checks enumerated in §Locking and linearization,
 revalidate durable/app/definition/issuer generations, and settle committed or
 known-rollback effects only after Local; neutral writes touch no room registry,
 ambiguous commits remain closed, cancellation exact-unmarks, direct embedders
@@ -754,17 +757,20 @@ is not use.
 
 ### Prohibited overlap
 
-The following rules are unconditional except for the single SQLite/process-
-state overlap defined below and in LLP 0290 §7.1. That exception never applies
-to `LocalSnapback`:
+The following rules are unconditional except for the closed SQLite-first and
+Local overlaps enumerated below and in LLP 0290 §7.1:
 
 - Never hold the projection topology mutex, stream fence, session fence,
-  finite-service fence, connection-registry mutex, participant
-  activation/projection state, authority registry, rooms map, room mutex,
-  subscriber outbox, or notifier mutex while holding `LocalSnapback`.
-- Outside exact room-reauthorization completion, never hold those process
-  states while holding the provider/catalog mutex, a SQLite writer, or a
-  SQLite transaction.
+  finite-service fence, connection-registry mutex, rooms map, room mutex, or
+  notifier mutex while holding `LocalSnapback`. The two pre-existing narrow
+  exceptions are the already-prepared post-commit outbox enqueue below and
+  authorization transaction bind's participant-projection/registry
+  validation. Exact room-reauthorization completion is not an exception: its
+  database owner is transferred out of `LocalSnapback` before serving starts.
+- Outside the two SQLite-first paths enumerated below, never hold participant
+  activation/projection state, authority registry, rooms map, room mutex, or
+  subscriber outbox while holding the provider/catalog mutex, a SQLite writer,
+  or a SQLite transaction.
 - Never acquire or wait for SQLite while holding participant
   activation/projection state, the authority registry, the rooms map, a room,
   or a subscriber outbox. This reverse-edge prohibition has no exception.
@@ -789,8 +795,8 @@ to `LocalSnapback`:
 - Reset, collection-definition publication, authorization-issuer publication,
   room-authority settlement, notifier wake, and ephemeral diagnostics likewise
   never acquire their process locks while a managed or direct `LocalSnapback`
-  write scope is active. Except for exact room-reauthorization completion,
-  they also never acquire those locks while SQLite is held. A committed Local
+  write scope is active. Exact room-reauthorization completion runs on its
+  separate take-once owner after Local has been released. A committed Local
   phase transfers immutable callbacks and any exact admission owner to its
   blocking owner, releases Local and the scope, and only then executes those
   callbacks. The logical managed writer remains closed until the callback
@@ -801,28 +807,51 @@ to `LocalSnapback`:
   A projection panic skips settlement and leaves the exact protected sinks
   closed.
 
-The **only** permitted SQLite/process-state overlap is exact room-
-reauthorization completion, and its complete order is:
+The permitted SQLite/process-state overlaps are a closed set of two:
+
+1. Authorization transaction bind, including auth-catalog activation and
+   every ordinary authorization-changing commit:
+
+   ```text
+   managed/direct LocalSnapback write scope -> SQLite IMMEDIATE
+   -> participant projection mutex -> authority registry mutex
+   ```
+
+   Reservation and quiescence happen before Local and SQLite. Bind rechecks
+   the live issuer projection and registry incarnation while the transaction
+   is open. This is therefore not lock-free and is a real, pre-existing Local
+   overlap. It takes no rooms, room, outbox, or notifier state.
+
+2. Exact room-reauthorization completion:
 
 ```text
 ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
 -> room -> subscriber outbox
 ```
 
-SQLite is acquired before the authority registry and remains held through the
-durable session and membership rereads, the exact subscriber/effect-fence
+The completion SQLite connection is claimed once from `ServingDatabase` during
+app-state construction and owned beside, not inside, the managed
+`LocalSnapback` graph. Completion takes the lifecycle read guard, then may wait
+for `IMMEDIATE`; it holds no registry, rooms, room, outbox, notifier, or global
+Local guard during that wait. After SQLite is acquired it remains held through
+the durable session and membership rereads, the exact subscriber/effect-fence
 mutation and subscriber-outbox effects, and the exact obligation clear. The
 notifier wake and later routing cleanup occur after all of those guards and
-SQLite are released. LLP 0290 §7.1 owns the participant-specific statement
-and reverse-edge inventory.
+SQLite are released. A persistent SQLite writer can therefore delay the
+completion owner and lifecycle-exclusive maintenance, but cannot pin every
+managed Local operation. An ordinary authorization write can still pin Local
+while its own `IMMEDIATE` acquisition waits; that is the transaction-bind path,
+not completion. LLP 0290 §7.1 owns the participant-specific statement and
+reverse-edge inventory.
 
 The exception closes a necessary two-store gap. If SQLite were released after
 the durable reread but before the in-memory effect, a session or membership
 writer could commit in between and make the answer installed by completion
 stale. The current architecture has neither a shared sequencer nor durable
-coupling honored by every relevant writer. The bounded SQLite-first order
-therefore supplies the exact effect fence; the unconditional reverse-edge rule
-is what keeps that overlap acyclic.
+coupling honored by every relevant writer. The bounded SQLite-first completion
+order therefore supplies the exact effect fence. Both permitted paths acquire
+SQLite before process state, and the unconditional reverse-edge rule is what
+keeps them acyclic.
 
 ### Authorization-write handoff
 
@@ -1513,10 +1542,12 @@ successor overlay through a fresh `subscribeEphemeral`; an ordinary room-scoped
 resync does not set this connection-continuity latch and may still accept its
 same-overlay fresh snapshot.
 
-Protected-room reauthorization is split into four non-overlapping phases:
+Protected-room reauthorization is split into four non-overlapping ownership
+phases:
 snapshot `(connectionId, EffectFenceV1)` under room authority, resolve the
 current grant/session without `LocalSnapback`, query durable permission while
-holding only `LocalSnapback`, then exact-complete under room authority. A fence
+holding only `LocalSnapback`, then exact-complete on the dedicated database and
+ephemeral owner after releasing `LocalSnapback`. A fence
 mismatch or subscriber-set change leaves the level-triggered obligation
 pending; a result resolved for a predecessor is never installed on a same-id
 replacement. This split also enforces the prohibited-overlap rule above:

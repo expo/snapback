@@ -19,7 +19,9 @@ use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
 pub use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
+use crate::local::{
+    EphemeralApi, InspectState, LocalSnapback, ReadLane, RoomReauthorizationCompletionApi,
+};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 pub(crate) use crate::operational_readiness::DevAdmissionPostureV1 as DevAdmissionPosture;
 #[cfg(test)]
@@ -2863,6 +2865,9 @@ pub struct AppState {
     pub snapback: SharedSnapback,
     pub read: ReadLane,
     pub ephemeral: EphemeralApi,
+    /// Dedicated blocking owner for exact room-reauthorization completion.
+    /// It has no path back to the managed Local guard.
+    pub(crate) room_reauthorization_completion: Arc<StdMutex<RoomReauthorizationCompletionApi>>,
     /// Cloneable loss-tolerant producer for request and detached-runtime
     /// seams. It never lends the app database lock to telemetry.
     pub telemetry: crate::telemetry::Telemetry,
@@ -3101,6 +3106,7 @@ impl AppState {
             network_profiles,
             operator_authority,
             auth_coordinator,
+            room_reauthorization_completion,
         ) = {
             let mut instance = snapback.try_lock().map_err(|_| {
                 SnapbackError::error(
@@ -3141,6 +3147,8 @@ impl AppState {
             );
             let coordinator = instance.build_stream_auth_coordinator()?;
             instance.bind_auth_coordinator(coordinator.as_ref())?;
+            let room_reauthorization_completion =
+                instance.take_room_reauthorization_completion_api()?;
             (
                 commit_capsule_runtime,
                 telemetry,
@@ -3149,6 +3157,7 @@ impl AppState {
                 profiles,
                 operator,
                 coordinator,
+                room_reauthorization_completion,
             )
         };
         let auth_admission = commit_capsule_runtime.admission().clone();
@@ -3163,6 +3172,9 @@ impl AppState {
                 snapback,
                 read,
                 ephemeral,
+                room_reauthorization_completion: Arc::new(StdMutex::new(
+                    room_reauthorization_completion,
+                )),
                 telemetry,
                 server: Arc::new(server),
                 console_reachability: ConsoleReachabilityRegistry::default(),

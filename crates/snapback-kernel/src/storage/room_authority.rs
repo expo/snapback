@@ -166,6 +166,9 @@ impl AuthorizationParticipantActivation {
         self.require_projection_identity(registry).map(drop)
     }
 
+    /// Revalidate the live issuer carrier. Transaction bind deliberately calls
+    /// this after `IMMEDIATE`, so its projection -> registry order is one of
+    /// LLP 0290 §7.1's two explicit SQLite-first overlaps.
     fn require_projection_identity(
         &self,
         registry: &Arc<RoomAuthorityRegistry>,
@@ -1330,8 +1333,43 @@ impl AuthorizationCommitParticipant {
         database: &'database super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
     ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        self.begin_room_reauthorization_completion_on(
+            &database.binding(),
+            &database.db.conn,
+            database.db.schema(),
+            batch,
+        )
+    }
+
+    /// Begin the same exact completion cut on the take-once database lane
+    /// owned outside managed `LocalSnapback`.
+    pub fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
+        &'registry self,
+        database: &'database super::RoomReauthorizationDatabase,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        let schema = database
+            .schema
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        self.begin_room_reauthorization_completion_on(
+            &database.binding,
+            &database.conn,
+            &schema,
+            batch,
+        )
+    }
+
+    fn begin_room_reauthorization_completion_on<'registry, 'database>(
+        &'registry self,
+        database_binding: &DatabaseBinding,
+        connection: &'database Connection,
+        schema: &SchemaManifest,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
         if !Arc::ptr_eq(&self.registry, &batch.root)
-            || !batch.root.binding_matches(&database.binding())
+            || !batch.root.binding_matches(database_binding)
         {
             return Ok(None);
         }
@@ -1364,8 +1402,7 @@ impl AuthorizationCommitParticipant {
                     })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
-        let durable_fence =
-            Transaction::new_unchecked(&database.db.conn, TransactionBehavior::Immediate)?;
+        let durable_fence = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
         let admission = match self.begin_room_reauthorization_admission(&room, generation) {
             Ok(admission) => admission,
             Err(_) => return Ok(None),
@@ -1373,7 +1410,7 @@ impl AuthorizationCommitParticipant {
         for resolution in &resolutions {
             let current = resolve_room_reauthorization_subject_on(
                 &durable_fence,
-                database.db.schema(),
+                schema,
                 projection,
                 &scope_fields,
                 &collection,
@@ -1505,6 +1542,15 @@ impl NonAuthorizingRoomAuthority {
     ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
         self.participant
             .begin_room_reauthorization_completion(database, batch)
+    }
+
+    pub fn begin_room_reauthorization_completion_off_local<'registry, 'database>(
+        &'registry self,
+        database: &'database super::RoomReauthorizationDatabase,
+        batch: ResolvedRoomReauthorizationBatch,
+    ) -> SnapbackResult<Option<RoomReauthorizationCompletion<'registry, 'database>>> {
+        self.participant
+            .begin_room_reauthorization_completion_off_local(database, batch)
     }
 }
 
@@ -3808,13 +3854,13 @@ mod tests {
     }
 
     #[test]
-    fn room_reauthorization_sqlite_contention_does_not_hold_global_registry() {
+    fn room_reauthorization_sqlite_contention_uses_off_local_database_lane() {
         use std::sync::mpsc;
         use std::time::{Duration, Instant};
 
         let directory = tempfile::tempdir().expect("reauthorization contention directory");
         let database_path = directory.path().join("snapback.sqlite3");
-        let fixture = ready_file_fixture(&database_path);
+        let mut fixture = ready_file_fixture(&database_path);
         install_room_resync(&fixture);
         let batch = fixture
             .participant
@@ -3828,8 +3874,12 @@ mod tests {
                 Vec::new(),
             )
             .expect("resolve the pending room batch");
+        let completion_database = fixture
+            .database
+            .take_room_reauthorization_database()
+            .expect("claim the off-Local completion database");
         let ReadyFixture {
-            database,
+            database: _,
             participant,
             view: _,
             _issuer_projection,
@@ -3850,7 +3900,7 @@ mod tests {
             entered_tx.send(()).expect("signal completion start");
             let started = Instant::now();
             let result = completion_participant
-                .begin_room_reauthorization_completion(&database, batch)
+                .begin_room_reauthorization_completion_off_local(&completion_database, batch)
                 .map(|completion| {
                     completion.map(|completion| {
                         completion.complete_exact();
