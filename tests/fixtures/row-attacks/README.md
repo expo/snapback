@@ -29,6 +29,12 @@ attack can compile. Here, “no features” therefore means no optional or
 The additive cell enables `test-support` across auth, engine, kernel, sync, and
 types to expose feature-unified dependent routes.
 
+The `services-remainder-tests` cell enables exactly
+`snapback-services/remainder-tests`, with every fixture dependency's defaults
+disabled. This cell is distinct because Cargo feature unification can expose
+services-only producers that neither production nor the five-crate additive
+cell sees.
+
 `src/bin/negative_routes.rs` preserves the audit's fifteen carrier-route
 probes (`Default`, `From`/`Into`, serde, and `builder()`). They are auxiliary
 evidence, not substitutes for the nine producer attacks.

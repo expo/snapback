@@ -1789,9 +1789,9 @@ dependencies = [
 
 [[package]]
 name = "inotify-sys"
-version = "0.1.8"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c033f80b2c113cdf91ab7a33faa9cbc014726dcad99880c8609af2a370edf37d"
+checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
 dependencies = [
  "libc",
 ]
@@ -4027,6 +4027,7 @@ dependencies = [
  "snapback-auth",
  "snapback-engine",
  "snapback-kernel",
+ "snapback-services",
  "snapback-sync",
  "snapback-types",
  "tempfile",

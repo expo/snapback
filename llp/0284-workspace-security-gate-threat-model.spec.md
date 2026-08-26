@@ -13,6 +13,10 @@ bridge probe and a zero-new-finding product comparison.)
 bounded generic-projection rule and a local private-trait/supertrait contract
 fixpoint; all three probes failed first and the product finding set did not
 grow.)
+**Revised:** 2026-08-26 (classifies `AssetWidthPlanTicketV1` as the
+`snapback-services` privilege seed that survives removal of the raw-SQL
+re-export, and adds its default/remainder compiler witness. This keeps I-12's
+services mount honest rather than waiving a real F272 producer.)
 **Revised:** 2026-08-26 (corrects the server-mount conclusion: the server
 storage alias is crate-private, but the public secret-read operator and registry
 remain privilege seeds. I-12 mounts `snapback-server` for their clone/mint
@@ -423,6 +427,7 @@ the following seed types are not publicly obtainable:
 - `snapback_kernel::storage::pending_effects::{Create,Decide,Settle,Refuse}PendingEffectCommand`
 - `snapback_kernel::fork_promotion_bench::PromotionContentionReservation`
 - `snapback_kernel::storage::ask_spend::AskSpendReservation`
+- `snapback_services::assets::AssetWidthPlanTicketV1`
 
 "Publicly obtainable" is the least fixpoint of:
 
@@ -901,6 +906,7 @@ text is not.
 | I-1 obtainability | `pub fn claim_kernel_commit_authority(&mut self) -> Option<KernelCommitAuthority>` |
 | Factory pattern (I-3) | `pub fn reservation(&self, bind: impl FnOnce(...) -> ..., ...)` |
 | Clone/Default/Deserialize on I-1 types (I-8) | `#[derive(Clone)] pub struct KernelCommitAuthority` |
+| Services width-plan seed (I-1/I-12) | `AssetWidthPrepareTicketV1::new(...).prepare()` returns an opaque `AssetWidthPlanTicketV1` from caller-selected asset, store, app, and quota facts |
 | Wholesale module re-export (I-9) | `pub use snapback_kernel::storage;` in auth/activation/engine/server |
 | Feature-gated versions of all of the above (I-7) | `remainder-tests`, `test-support`, `benchmark-support`, `telemetry-phase1-proof` |
 | `#[macro_export]` (I-14), public `impl Trait` returns (I-15) | as stated |
@@ -922,6 +928,9 @@ at least:
 - `#[derive(Clone)]` on `KernelCommitAuthority` and the other I-8 types
 - `crates/snapback-auth/src/lib.rs:9` (and activation/engine/server) `pub use` of `storage`
 - `crates/snapback-services/src/lib.rs:40` `pub use rusqlite` under `--features remainder-tests`
+- `crates/snapback-services/src/assets.rs` publicly produces
+  `AssetWidthPlanTicketV1` under default and `remainder-tests`; that F272 seed
+  keeps the services fixture mount non-empty after the raw re-export closes
 - `crates/snapback-kernel/src/push.rs` `test_support::authorize_send_in` taking `Transaction` under `--features test-support`
 - `MembershipWriter` plus the registered privileged-plan, sanctioned-commit,
   bypass, and provenance signatures that name it directly
@@ -1068,7 +1077,10 @@ retains `snapback-server`: `SecretReadOperator` and
 independent of the closed storage alias. `snapback-sync` therefore has
 an explicit compiler witness through
 `LocalEphemeralBackend::reserve_authorization_commit`; merely depending on it
-is not coverage.
+is not coverage. `snapback-services` is likewise retained independently of its
+raw-SQL defect: `AssetWidthPlanTicketV1` is a real privilege seed with a
+compiler witness through its caller-fact producer, so removing `pub use
+rusqlite` cannot turn the services mount into a scanner-empty waiver.
 
 **Allowlist.** None at the fixture level. A fixture that should compile
 is not a product-attack fixture; it belongs in §6.4 harness tests.
@@ -1292,6 +1304,7 @@ The current exact expected-red inventory is maintained in
 | `services-rusqlite-reexport-default` | same import **without** enabling `remainder-tests` | `snapback-services` | default | should already fail to resolve | stay failing at the `use` | the `use` |
 | `forge-membership-writer-admin` | construct `MembershipWriter::Admin`, call `plan_privileged_membership_insert`, then `commit_membership_plan` | `snapback-kernel` | default | compiles | error at construction or the first unforgeable-carrier boundary | the variant construction; the remainder of the bin proves plan and commit also type-check today |
 | `reserve-authorization-via-sync` | obtain `AuthorizationCommitReservation` through `LocalEphemeralBackend::reserve_authorization_commit` | `snapback-sync` | default | compiles | error at the reservation call | the call; provides I-12's compiler mount for the privilege-bearing sync dependency |
+| `produce-asset-width-plan` | call `AssetWidthPrepareTicketV1::new(...).prepare()` with caller-selected asset/store/app/quota facts | `snapback-services` | default and `remainder-tests` | compiles | error at the producer or an origin-bound replacement | the producer composition; provides I-12's compiler mount for the services F272 seed |
 
 The `services-rusqlite-reexport-default` row is a control: default features must not leak `rusqlite`
 either. TODAY it should PASS (import unresolved). If it compiles, that

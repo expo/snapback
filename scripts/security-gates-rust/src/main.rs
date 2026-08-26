@@ -79,6 +79,7 @@ const SEED_TYPES: &[&str] = &[
     "RefusePendingEffectCommand",
     "PromotionContentionReservation",
     "AskSpendReservation",
+    "AssetWidthPlanTicketV1",
     "SecretReadOperator",
     "SecretReadLeaseRegistry",
 ];

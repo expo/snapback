@@ -3,13 +3,16 @@ import test from 'node:test';
 
 import {
   classifyExpectation,
+  expectedInCell,
   loadRowAttackLedger,
   parseRuntimeObservation,
+  securityUnmappedDigest,
+  validateSecurityRowCoverage,
 } from '../scripts/run-row-attacks.mjs';
 
 const fixtureRoot = new URL('./fixtures/row-attacks/', import.meta.url).pathname;
 
-test('row-attack ledger carries the 35 measured rows and both feature cells', () => {
+test('row-attack ledger carries every measured row and all feature cells', () => {
   const ledger = loadRowAttackLedger(fixtureRoot);
   assert.deepEqual(
     ledger.attacks.map(({ row }) => row),
@@ -17,13 +20,13 @@ test('row-attack ledger carries the 35 measured rows and both feature cells', ()
       'F157', 'F170', 'F171', 'F172', 'F173', 'F175', 'F188', 'F190', 'F191',
       'C005', 'C009', 'F094', 'F143', 'F182', 'F112', 'F113', 'C006', 'F115',
       'F149', 'F150', 'F279', 'F280', 'C012', 'F053', 'F145', 'F272', 'F220',
-      'F082', 'F129', 'F126',
-      'F318', 'F314', 'F315', 'F316', 'F317',
+      'F082', 'F129', 'F126', 'F318', 'F314', 'F315', 'F316', 'F317', 'F313',
     ],
   );
   assert.deepEqual(ledger.featureCells.map(({ id }) => id), [
     'production',
     'additive-test-support',
+    'services-remainder-tests',
   ]);
   assert.deepEqual(
     Object.fromEntries(ledger.attacks.map(({ row, expected }) => [row, expected])),
@@ -63,12 +66,37 @@ test('row-attack ledger carries the 35 measured rows and both feature cells', ()
       F315: 'CLOSED',
       F316: 'CLOSED',
       F317: 'CLOSED',
+      F313: 'CLOSED',
     },
   );
   assert.ok(
     ledger.attacks
       .filter(({ row }) => ['C005', 'C009', 'F094', 'F143'].includes(row))
       .every(({ expectedCode }) => /^E\d{4}$/u.test(expectedCode)),
+  );
+  const rawSql = ledger.attacks.find(({ row }) => row === 'F313');
+  assert.equal(expectedInCell(rawSql, 'production'), 'CLOSED');
+  assert.equal(expectedInCell(rawSql, 'services-remainder-tests'), 'OPEN');
+});
+
+test('security attacks must map a row or match the pinned unmapped-debt digest', () => {
+  const unmapped = ['legacy-structural-control'];
+  const security = {
+    attacks: [
+      { id: 'mapped', row: 'F313' },
+      { id: unmapped[0] },
+    ],
+    rowCoverage: {
+      unmappedAttackCount: 1,
+      unmappedAttackIdsSha256: securityUnmappedDigest(unmapped),
+      unmappedReason: 'Legacy security controls await explicit row classification.',
+    },
+  };
+  assert.deepEqual(validateSecurityRowCoverage(security, new Set(['F313'])), []);
+  security.attacks.push({ id: 'silently-omitted' });
+  assert.match(
+    validateSecurityRowCoverage(security, new Set(['F313'])).join('\n'),
+    /unmapped row debt drifted/u,
   );
 });
 

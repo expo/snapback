@@ -136,6 +136,10 @@ name = "services-rusqlite-reexport-default"
 path = "src/bin/services_rusqlite_reexport_default.rs"
 
 [[bin]]
+name = "produce-asset-width-plan"
+path = "src/bin/produce_asset_width_plan.rs"
+
+[[bin]]
 name = "forge-erasure-authority"
 path = "src/bin/forge_erasure_authority.rs"
 

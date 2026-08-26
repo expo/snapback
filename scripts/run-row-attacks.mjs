@@ -6,6 +6,7 @@
 // — compile-time CLOSED counts only when rustc's primary span hits @attack.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,6 +73,15 @@ export function loadRowAttackLedger(fixtureRoot) {
         `${ledgerPath}: row ${attack.row} is OPEN and must not record an expectedCode`,
       );
     }
+    if (attack.expectedByCell !== undefined) {
+      if (typeof attack.expectedByCell !== 'object' || attack.expectedByCell === null
+          || Array.isArray(attack.expectedByCell)
+          || Object.entries(attack.expectedByCell).some(([cell, expected]) => (
+            !cellIds.has(cell) || !['OPEN', 'CLOSED'].includes(expected)
+          ))) {
+        throw new GateInfrastructureError(`${ledgerPath} has invalid cell-specific expectations`);
+      }
+    }
     rows.add(attack.row);
   }
   if (ledger.attacks.length === 0 || ledger.featureCells.length === 0) {
@@ -107,6 +117,65 @@ function sorted(values) {
 
 function sameValues(left, right) {
   return JSON.stringify(sorted(left)) === JSON.stringify(sorted(right));
+}
+
+export function expectedInCell(attack, cell) {
+  return attack.expectedByCell?.[cell] ?? attack.expected;
+}
+
+export function securityUnmappedDigest(ids) {
+  return createHash('sha256').update(sorted(ids).join('\n')).digest('hex');
+}
+
+// The security-boundary ledger used to make row mapping optional, so every
+// attack silently opted out and the cross-ledger join proved nothing. Mapped
+// attacks now name their rows, while the exact remaining debt is count- and
+// digest-pinned. Adding an attack without mapping it therefore changes this
+// inventory and fails until the omission is made explicit.
+export function validateSecurityRowCoverage(security, corpusRows) {
+  const errors = [];
+  const attacks = Array.isArray(security.attacks) ? security.attacks : [];
+  const coverage = security.rowCoverage;
+  if (typeof coverage !== 'object' || coverage === null
+      || !Number.isInteger(coverage.unmappedAttackCount)
+      || coverage.unmappedAttackCount < 0
+      || typeof coverage.unmappedAttackIdsSha256 !== 'string'
+      || !/^[0-9a-f]{64}$/u.test(coverage.unmappedAttackIdsSha256)
+      || typeof coverage.unmappedReason !== 'string'
+      || coverage.unmappedReason.length < 20) {
+    return ['security-boundary ledger must pin its explicitly unmapped row-coverage debt'];
+  }
+  const unmappedIds = [];
+  for (const attack of attacks) {
+    const direct = typeof attack.row === 'string' ? [attack.row] : [];
+    const plural = Array.isArray(attack.rows) ? attack.rows : [];
+    if (direct.length > 0 && attack.rows !== undefined) {
+      errors.push(`security-boundary attack ${attack.id} declares both row and rows`);
+      continue;
+    }
+    const mapped = [...direct, ...plural];
+    if (mapped.length === 0) {
+      unmappedIds.push(attack.id);
+      continue;
+    }
+    if (new Set(mapped).size !== mapped.length
+        || mapped.some((row) => typeof row !== 'string' || !/^[CF]\d{3}$/u.test(row))) {
+      errors.push(`security-boundary attack ${attack.id} has invalid row mappings`);
+      continue;
+    }
+    for (const row of mapped) {
+      if (!corpusRows.has(row)) {
+        errors.push(`security-boundary row ${row} is absent from row attacks`);
+      }
+    }
+  }
+  if (unmappedIds.length !== coverage.unmappedAttackCount
+      || securityUnmappedDigest(unmappedIds) !== coverage.unmappedAttackIdsSha256) {
+    errors.push(
+      `security-boundary unmapped row debt drifted: observed ${unmappedIds.length} attack(s)`,
+    );
+  }
+  return errors;
 }
 
 export function validateRowAttackInventory(root, fixtureRoot, ledger) {
@@ -175,11 +244,21 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
   }
   const production = ledger.featureCells.find(({ id }) => id === 'production');
   const additive = ledger.featureCells.find(({ id }) => id === 'additive-test-support');
+  const servicesRemainder = ledger.featureCells
+    .find(({ id }) => id === 'services-remainder-tests');
   if (!production || !sameValues(production.features, [])) {
     errors.push('ledger must declare the empty production feature cell');
   }
   if (!additive || !sameValues(additive.features, ['additive'])) {
     errors.push('ledger must declare the additive-test-support feature cell');
+  }
+  if (!servicesRemainder || !sameValues(servicesRemainder.features, ['services-remainder-tests'])) {
+    errors.push('ledger must declare the snapback-services/remainder-tests feature cell');
+  }
+  if (!sameValues(pkg.features['services-remainder-tests'] ?? [], [
+    'snapback-services/remainder-tests',
+  ])) {
+    errors.push('services-remainder-tests must enable exactly snapback-services/remainder-tests');
   }
 
   // Existing compile-fail fixtures may opt into this row ledger by declaring
@@ -188,14 +267,8 @@ export function validateRowAttackInventory(root, fixtureRoot, ledger) {
   const securityPath = resolve(root, 'tests/fixtures/security-boundaries/attacks.v1.json');
   if (existsSync(securityPath)) {
     const security = readJson(securityPath, 'security-boundary ledger');
-    const securityRows = new Set((security.attacks ?? []).flatMap((attack) => [
-      ...(typeof attack.row === 'string' ? [attack.row] : []),
-      ...(Array.isArray(attack.rows) ? attack.rows : []),
-    ]));
     const corpusRows = new Set(ledger.attacks.map(({ row }) => row));
-    for (const row of securityRows) {
-      if (!corpusRows.has(row)) errors.push(`security-boundary row ${row} is absent from row attacks`);
-    }
+    errors.push(...validateSecurityRowCoverage(security, corpusRows));
   }
   return errors;
 }
@@ -426,11 +499,13 @@ export function runCorpus(root = DEFAULT_ROOT) {
   for (const attack of ledger.attacks) {
     for (const cell of ledger.featureCells) {
       const observation = observeAttack({ fixtureRoot, targetDir, attack, cell });
+      const expected = expectedInCell(attack, cell.id);
       observations.push({
         ...attack,
         cell: cell.id,
+        expected,
         ...observation,
-        status: classifyExpectation(attack.expected, observation.observed),
+        status: classifyExpectation(expected, observation.observed),
       });
     }
   }

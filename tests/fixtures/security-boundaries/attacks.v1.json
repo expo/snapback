@@ -1,5 +1,10 @@
 {
   "schemaVersion": "snapback.security-boundary-attacks.v1",
+  "rowCoverage": {
+    "unmappedAttackCount": 75,
+    "unmappedAttackIdsSha256": "43c2cf852dd5c4938a96ce3eae5ac075c4201579e7a5e97914ccf6c66b8de619",
+    "unmappedReason": "Pinned legacy debt from issues/20260826-authorization-denominator-and-seam-map.md; any new omission or mapping changes this digest and fails row-corpus inventory."
+  },
   "attacks": [
     { "id": "claim-kernel-commit-authority", "bin": "claim-kernel-commit-authority", "source": "src/bin/claim_kernel_commit_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "seedTypes": ["KernelCommitAuthority"] },
     { "id": "claim-via-auth-reexport", "bin": "claim-via-auth-reexport", "source": "src/bin/claim_via_auth_reexport.rs", "mount": "snapback-auth", "featureSets": [[]], "seedTypes": ["KernelCommitAuthority"] },
@@ -27,8 +32,9 @@
     { "id": "supply-service-terminal-subject", "bin": "supply-service-terminal-subject", "source": "src/bin/supply_service_terminal_subject.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["ServiceAuthorityTerminalReceipt"] },
     { "id": "forge-service-authority-witness", "bin": "forge-service-authority-witness", "source": "src/bin/forge_service_authority_witness.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0451", "seedTypes": ["ServiceAuthorityWitness"] },
     { "id": "register-service-authority-witness", "bin": "register-service-authority-witness", "source": "src/bin/register_service_authority_witness.rs", "mount": "snapback-sync", "featureSets": [[]], "expectedCode": "E0624", "seedTypes": ["ServiceAuthorityWitness"] },
-    { "id": "services-rusqlite-reexport", "bin": "services-rusqlite-reexport", "source": "src/bin/services_rusqlite_reexport.rs", "mount": "snapback-services", "featureSets": [["snapback-services/remainder-tests"]] },
-    { "id": "services-rusqlite-reexport-default", "bin": "services-rusqlite-reexport-default", "source": "src/bin/services_rusqlite_reexport_default.rs", "mount": "snapback-services", "featureSets": [[]], "expectedCode": "E0433" },
+    { "id": "services-rusqlite-reexport", "bin": "services-rusqlite-reexport", "source": "src/bin/services_rusqlite_reexport.rs", "mount": "snapback-services", "featureSets": [["snapback-services/remainder-tests"]], "row": "F313" },
+    { "id": "services-rusqlite-reexport-default", "bin": "services-rusqlite-reexport-default", "source": "src/bin/services_rusqlite_reexport_default.rs", "mount": "snapback-services", "featureSets": [[]], "expectedCode": "E0433", "row": "F313" },
+    { "id": "produce-asset-width-plan", "bin": "produce-asset-width-plan", "source": "src/bin/produce_asset_width_plan.rs", "mount": "snapback-services", "featureSets": [[], ["snapback-services/remainder-tests"]], "seedTypes": ["AssetWidthPlanTicketV1"], "row": "F272" },
     { "id": "forge-erasure-authority", "bin": "forge-erasure-authority", "source": "src/bin/forge_erasure_authority.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0624" },
     { "id": "forge-push-system", "bin": "forge-push-system", "source": "src/bin/forge_push_system.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0599" },
     { "id": "fake-authorization-interlock", "bin": "fake-authorization-interlock", "source": "src/bin/fake_authorization_interlock.rs", "mount": "snapback-kernel", "featureSets": [[]], "expectedCode": "E0405" },

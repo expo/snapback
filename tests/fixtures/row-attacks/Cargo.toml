@@ -19,6 +19,7 @@ additive = [
   "snapback-sync/test-support",
   "snapback-types/test-support",
 ]
+services-remainder-tests = ["snapback-services/remainder-tests"]
 
 [dependencies]
 libc = "0.2"
@@ -28,6 +29,7 @@ tokio = { version = "1.48", features = ["macros", "rt"] }
 snapback-auth = { path = "../../../crates/snapback-auth", default-features = false }
 snapback-engine = { path = "../../../crates/snapback-engine", default-features = false, features = ["engine-owner"] }
 snapback-kernel = { path = "../../../crates/snapback-kernel", default-features = false }
+snapback-services = { path = "../../../crates/snapback-services", default-features = false }
 snapback-sync = { path = "../../../crates/snapback-sync", default-features = false }
 snapback-types = { path = "../../../crates/snapback-types", default-features = false }
 
@@ -170,6 +172,10 @@ path = "src/attacks/f316.rs"
 [[bin]]
 name = "f317"
 path = "src/attacks/f317.rs"
+
+[[bin]]
+name = "f313"
+path = "src/attacks/f313.rs"
 
 [[bin]]
 name = "negative-routes"
