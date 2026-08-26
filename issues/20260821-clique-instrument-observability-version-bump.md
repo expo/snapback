@@ -264,3 +264,54 @@ green/aborted/blocked outcome classes exercised naturally. Remaining for
 closure: the dedicated clean control lane with forced non-setup outcome
 classes and a timing-sensitive retry, and the LLP 0281 W9
 two-browser/native-host proofs.
+
+## Control-lane and W9 harness delivery (2026-08-26)
+
+The control-lane, browser, and native portions of the proof harness are now
+implemented (the selector-tree equality checker is NOT — see the four
+unproven W9 obligations below), and nothing here claims that the external
+proofs have run:
+
+- `choreography/control-lane.mjs` serves a known-good, stateful fixture and
+  drives the real `0.3.4-m8` choreography through continuous M2+M3 and a
+  separate fresh M7. M2 covers structural image/video composition and
+  two-context delivery. M3 covers required bidirectional DM delivery, the
+  rendered-avatar branch, typing boundary v2, sent/delivered/read receipts,
+  group aggregate receipts, and add/promote/remove/re-add/leave with the
+  direct-message progress-bounded removed-member cutoff. M7 retains
+  changeable/idempotent one-vote-per-user state, waits for Alice's switch, and
+  reconciles Bob's distinct offline vote.
+- The fixture intentionally hides the first M3 typing indication beyond the
+  fixed two-second ceiling; the retained typing receipt must show attempt 1
+  failed and a later attempt passed. The control receipt asserts the v2 stamp,
+  attempt and terminal timestamps, and raw-receipt SHA-256 rather than treating
+  a console observation as evidence.
+- Four receipt-bound cases cover the requested control vocabulary: `green`
+  (`outcomeClass:null`), application `failure`, platform
+  `capability-failure`, and instrument `aborted`. The three non-green cases
+  are fixture/suite knobs; every case is checked against the emitted assertion
+  or segment-summary outcome class and its first/terminal boundary stamps.
+- `choreography/w9-host-preflight.mjs` records the locally provable Coterie
+  provider/vocabulary/native-entry/platform/build checks.
+  `choreography/w9-native-host.mjs` records one real rendered Exact target and
+  semantic Global → Following interactions through the host agent relay for
+  either `ios` or `mac`. `choreography/RUNBOOK.md` pins the Chromium, Firefox,
+  iOS, and macOS commands and their expected receipts.
+
+Local syntax verification, the embedded-fixture syntax check, the 8/8 startup
+suite, and `ref-check` are green. This sandbox's Chromium process closed during
+launch before receipt creation, so it is only a setup refusal and is not
+counted as control or W9 evidence. Lane setup reaches the expected frozen
+`choreographyRoot` digest refusal and cannot turn green until the orchestrator
+performs the separately owned canonical manifest reconciliation. The
+orchestrator still must execute and retain the Chromium, Firefox, iOS, and
+macOS receipts plus native launcher logs.
+
+**Four W9 obligations remain UNPROVEN even after those executions** (see
+`choreography/RUNBOOK.md`): (1) a real Coterie two-context live-browser
+receipt; (2) an iOS bundle + semantic-interaction receipt; (3) a compatible
+macOS host + semantic-interaction receipt; and (4) normalized Coterie/Clique
+`sm-*` selector-tree equality — its checker is **not implemented** and cannot
+be inferred from the static-vocabulary preflight, so it is not provable by
+running the current harness at all. The ticket remains **Open** until (1)–(3)
+execute and pass AND (4)'s checker is built and run.

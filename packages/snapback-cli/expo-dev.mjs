@@ -3594,6 +3594,9 @@ export async function runExpoDev(options = {}) {
   let controlSocketHandle = null;
   let controlSocketUnavailable = null;
   let controlDispatcher = null;
+  // @ref LLP 0310.000#track-a--let-the-client-retry-and-bound-the-window — a
+  // successor that rotates before the control dispatcher exists parks here.
+  let pendingSuccessorReloadDescriptorIdentity = null;
   const intentionallyStoppedMetroChildren = new WeakSet();
   const stoppingMetroChildren = new WeakSet();
   const metroExitErrors = new WeakMap();
@@ -4320,7 +4323,19 @@ export async function runExpoDev(options = {}) {
     // reloadMetroVerb itself, so this path only has to keep the rejection
     // handled.
     const queueSuccessorMetroReload = (successorDescriptorIdentity) => {
-      if (closed || controlDispatcher === null) return;
+      if (closed) return;
+      // `controlDispatcher` is assigned later in startup than this closure is
+      // defined. A browser arm held open across a supervisor restart can already
+      // be talking to the new owner's bootstrap listener before that point, so a
+      // successor rotating in this window would leave a *successfully admitted*
+      // arm on the predecessor identity with nothing left to trigger a
+      // re-exchange — the exact failure Track A exists to remove. Retain the
+      // latest one and flush it when the dispatcher exists. Latest wins: an
+      // older successor's reload is subsumed by the newer one.
+      if (controlDispatcher === null) {
+        pendingSuccessorReloadDescriptorIdentity = successorDescriptorIdentity;
+        return;
+      }
       let operation;
       try {
         operation = controlDispatcher.enqueue('reload-metro', {
@@ -4980,6 +4995,14 @@ export async function runExpoDev(options = {}) {
       'reload-metro': reloadMetroVerb,
       'stop-children': stopChildrenVerb,
     });
+    // Flush a successor reload that rotated before the dispatcher existed. Only
+    // the latest matters — an earlier successor's reload is subsumed by it — and
+    // it must be cleared before the enqueue so a failure cannot resurrect it.
+    if (pendingSuccessorReloadDescriptorIdentity !== null) {
+      const pendingDescriptorIdentity = pendingSuccessorReloadDescriptorIdentity;
+      pendingSuccessorReloadDescriptorIdentity = null;
+      queueSuccessorMetroReload(pendingDescriptorIdentity);
+    }
     const serializedLifecycleVerbs = Object.freeze(Object.fromEntries(
       ['reload', 'restart', 'dev-fresh', 'reload-metro', 'stop-children'].map((verb) => [
         verb,

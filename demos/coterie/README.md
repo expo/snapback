@@ -637,8 +637,10 @@ login/signup rollback; logout transport failure and post-revocation response
 loss; a forced duplicate-handle interleaving plus incomplete-profile recovery;
 avatar byte sniffing, truncated bodies, attach refusal, and digest reuse; slow
 profile-stream failure; later-milestone refusals; and stream disconnect/recovery cells
-with polling disabled. A paved two-browser-context Coterie harness does not
-exist yet, so that stronger LLP 0266 D10 evidence remains outside this lane.
+with polling disabled. The separate W9 runbook now provides a real-product
+two-browser-context command, but LLP 0266 D10 remains outside this headless
+lane and unproven until its retained browser, native-host, and Clique-tree
+comparison receipts exist.
 
 Run the completed memory lane with:
 

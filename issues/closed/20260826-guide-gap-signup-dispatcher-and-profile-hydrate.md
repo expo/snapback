@@ -1,6 +1,6 @@
 # Signup and profile save race the authenticated dispatcher
 
-**Filed:** 2026-08-26 · **guide-gap**
+**Filed:** 2026-08-26 · **guide-gap** · **Resolved:** 2026-08-26 (landed `c80a35f0c`, not published)
 **Source:** Clique grok-4.6 xhigh published 0.1.27, lanes
 `grok-clique-explicit` and `grok-clique-familiar`
 **Systems:** Guide, Auth, React/Expo
@@ -50,3 +50,17 @@ On the expo-chat start packet and the passwords / React auth page:
 
 Do not add a new Snapback API in this ticket. A later product helper is
 out of scope here.
+
+## Resolution — 2026-08-26
+
+Landed `c80a35f0c`. `guide/auth/passwords.md` gained
+*"Wait for the authenticated dispatcher before profile work"*, and the expo-chat
+start packet now says, in the packet itself rather than a page an agent has to
+know to escalate to: do not call an authenticated mutation in the same tick as
+`signUpWithPassword` / `signInWithPassword`, do not mount a profile editor that
+can save until `getMine` has a row, and keep `HANDLE_TAKEN` refuse UI outside a
+tree that unmounts on auth change. Retrieval case 101 routes those terms.
+
+That covers all three loops this ticket collected, including the Familiar half
+(LLP 0310 P15) that an earlier revision had filed as an agent error. No new
+Snapback API was added, as the ticket required.
