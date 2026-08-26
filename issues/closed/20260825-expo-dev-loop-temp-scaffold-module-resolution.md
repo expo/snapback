@@ -1,6 +1,6 @@
 # `expo-dev-loop.test.mjs` dies on `@expo/snapback-client` resolution from a temp scaffold
 
-- Status: Open
+- Status: Closed 2026-08-26
 - Date: 2026-08-25
 - Systems: `packages/snapback-cli` (`expo-dev-loop.test.mjs`)
 - Governing: LLP 0189 (fix-forward), LLP 0232 (inherited reds are not a
@@ -46,3 +46,29 @@ Apply the same remedy the closed ticket used for its sibling suites: have the
 assertions inspect the structured generated descriptors instead of importing a
 generated module from a no-install scaffold, or give the temp scaffold a
 resolvable dependency root.
+
+## Resolution — 2026-08-26
+
+`fixture()` no longer symlinks the repo's `node_modules` into the scratch
+project. It builds a real dependency root
+(`materializeFixtureDependencyRoot`): every installed top-level entry is
+symlinked through, and `@expo/` is a real directory overlaying **every**
+`@expo/*` workspace package read out of `packages/*/package.json`. That is the
+"give the temp scaffold a resolvable dependency root" branch of the direction
+above; the assertions keep importing the generated modules, which is what makes
+them worth running.
+
+The root cause was that bun links the workspace packages under
+`packages/*/node_modules`, not at the repo root — `ls node_modules/@expo` holds
+`snapback-acceptance` alone — so a symlink to the root could never resolve
+`@expo/snapback-client` from a temp realpath.
+
+Verified directly: a scratch project built by the same helper imports
+`@expo/snapback-client` and `@expo/snapback-react` from
+`<project>/snapback/generated/*.mjs` successfully (19 scoped entries, 14
+top-level entries).
+
+Note that the file still cannot report green on a loaded machine for an
+unrelated reason — see
+`issues/20260826-expo-dev-loop-carrier-startup-timeout-load-sensitive.md`, which
+fails earlier in the file than this scaffold ever ran.

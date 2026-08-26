@@ -461,6 +461,39 @@ function snapshotEnvFiles(directory) {
   return files;
 }
 
+const workspaceScopedPackages = (() => {
+  const scoped = new Map();
+  for (const entry of readdirSync(join(repoRoot, 'packages'), { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const manifest = join(repoRoot, 'packages', entry.name, 'package.json');
+    if (!existsSync(manifest)) continue;
+    const name = JSON.parse(readFileSync(manifest, 'utf8')).name;
+    if (typeof name !== 'string' || !name.startsWith('@expo/')) continue;
+    scoped.set(name.slice('@expo/'.length), join(repoRoot, 'packages', entry.name));
+  }
+  return scoped;
+})();
+
+function materializeFixtureDependencyRoot(target) {
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(join(repoRoot, 'node_modules'), { withFileTypes: true })) {
+    if (entry.name === '@expo') continue;
+    symlinkSync(join(repoRoot, 'node_modules', entry.name), join(target, entry.name), 'dir');
+  }
+  const scope = join(target, '@expo');
+  mkdirSync(scope, { recursive: true });
+  const installedScope = join(repoRoot, 'node_modules', '@expo');
+  if (existsSync(installedScope)) {
+    for (const entry of readdirSync(installedScope, { withFileTypes: true })) {
+      if (workspaceScopedPackages.has(entry.name)) continue;
+      symlinkSync(join(installedScope, entry.name), join(scope, entry.name), 'dir');
+    }
+  }
+  for (const [name, source] of workspaceScopedPackages) {
+    symlinkSync(source, join(scope, name), 'dir');
+  }
+}
+
 function fixture(name, { sessions, root = scratchRoot, expoAtProjectRoot = false }) {
   const projectRoot = join(root, name);
   const backendRoot = join(projectRoot, 'snapback');
@@ -469,7 +502,15 @@ function fixture(name, { sessions, root = scratchRoot, expoAtProjectRoot = false
   // The copied fixture's generated modules import workspace packages such as
   // @expo/snapback-client. Once they live under this scratch project, Node can
   // resolve those bare imports only through a project-local node_modules.
-  symlinkSync(join(repoRoot, 'node_modules'), join(projectRoot, 'node_modules'), 'dir');
+  //
+  // A bare symlink to the repo's node_modules is not enough: bun links the
+  // workspace packages under packages/*/node_modules, not at the root, so
+  // `@expo/snapback-client` does not resolve from a temp realpath and the whole
+  // file dies before any assertion reports
+  // (issues/20260825-expo-dev-loop-temp-scaffold-module-resolution.md). Build a
+  // real dependency root instead: mirror the repo's installed top level, then
+  // overlay every @expo workspace package the generated graph can import.
+  materializeFixtureDependencyRoot(join(projectRoot, 'node_modules'));
   cpSync(sourceFixture, backendRoot, { recursive: true });
   const governance = governanceInputs.map((name) => [
     name,

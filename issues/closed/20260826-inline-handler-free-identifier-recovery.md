@@ -1,6 +1,6 @@
 # `SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER` refuses the idiomatic spelling without naming the admitted one
 
-**Filed:** 2026-08-26
+**Filed:** 2026-08-26 · **Resolved:** 2026-08-26
 **Source:** Clique grok-4.6 xhigh published 0.1.27, lane `grok-clique-explicit`
 **Systems:** Code generation, Diagnostics, Guide, Agent experience
 **Owner:** LLP 0108 (grammar) / guide
@@ -38,3 +38,26 @@ spelling owes the reader the admitted one at the point of refusal.
 3. Check whether the same free-identifier class has other idiomatic triggers
    (imported helpers, module-level maps) and whether they all produce a
    recovery-bearing diagnostic.
+
+## Resolution — 2026-08-26
+
+1. **Done.** `freeIdentifierHints` (`packages/snapback-codegen/inline-handlers.mjs`)
+   now names the admitted rewrite in every arm: a top-level value gets
+   "turn `<name>` into a same-file function declaration … or pass the value
+   through args or ctx"; an import gets "inline the value at the use site, pass
+   it through args or ctx, or move the logic into a top-level function
+   declaration in this file". The refusal no longer stops at *why*.
+2. **Done.** `guide/backend/handler-runtime.md#can-i-import-a-helper` says the
+   hoisted regex/map/constant is exactly what this refuses and to reach for the
+   function declaration first. The expo-chat start packet's refusal trap now
+   carries the concrete instance, so an agent is warned before the first handler
+   is written. That addition was paid for inside LLP 0259's 16 KiB steering
+   ceiling by compressing the trap it extends; the aggregate sits at 16384/16384,
+   so any further packet addition must trade for its bytes.
+3. **Checked.** The two emitting sites are the handler expression and the custom
+   authorization evaluator; both route through `freeIdentifierHints`, so both
+   idiomatic triggers (module-level values and imported helpers) now produce a
+   recovery-bearing diagnostic. `SNAPBACK_INLINE_HELPER_INADMISSIBLE` remains the
+   separate code for an otherwise invalid same-file helper.
+
+The grammar is unchanged; LLP 0108 still owns it.

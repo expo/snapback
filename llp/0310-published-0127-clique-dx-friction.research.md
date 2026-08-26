@@ -546,26 +546,26 @@ in 0.1.27.
 
 | ID | Lane | Cluster | Item | Attribution | Disposition | Status |
 |---|---|---|---|---|---|---|
-| P1 | explicit | identity | `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` after a same-owner successor: the successor graph publication and the backend activation both precede the remint, so a live arm can meet a predecessor binding, be **refused** (nothing is admitted), and never re-exchange | snapback-defect | RFC Track A (I1 ordering + I2 boot-admission retry); `issues/20260825-successor-expo-receipt-stale.md` | planned, not started |
-| P2 | explicit | lifecycle | supervised control route carries only destructive `dev-fresh`; no `reload-metro`; route undocumented; stdin `/dev/null` closes the stdin channel | snapback-defect | RFC Track E; `issues/20260825-dev-control-channel-requires-stdin.md` | planned, not started |
-| P3 | both | generate | `SNAPBACK_EXPO_METRO_EXITED` on codegen `.tmp-*` ENOENT | snapback-defect | RFC Track C; `issues/20260825-metro-exit-on-codegen-tmp.md` | planned, not started |
+| P1 | explicit | identity | `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` after a same-owner successor: the successor graph publication and the backend activation both precede the remint, so a live arm can meet a predecessor binding, be **refused** (nothing is admitted), and never re-exchange | snapback-defect | RFC Track A (I2 boot-admission retry + I1 window narrowing); `issues/20260825-successor-expo-receipt-stale.md` | **implemented 2026-08-26 (not published)** — A2 client retry, A1 supervisor-driven Metro replacement after the remint, A3 live-arm coverage |
+| P2 | explicit | lifecycle | supervised control route carries only destructive `dev-fresh`; no `reload-metro`; route undocumented; stdin `/dev/null` closes the stdin channel | snapback-defect | RFC Track E; `issues/closed/20260825-dev-control-channel-requires-stdin.md` | **done (Track E landed on `main`, not published)** — `reload-metro` and `stop-children` on the HTTP route and an owner-bound control socket sharing one verb implementation; `guide/operating/agent-controls.md` documents `controlPath` and every verb |
+| P3 | both | generate | `SNAPBACK_EXPO_METRO_EXITED` on codegen `.tmp-*` ENOENT | snapback-defect | RFC Track C; `issues/closed/20260825-metro-exit-on-codegen-tmp.md` | **implemented 2026-08-26 (not published)** |
 | P4 | familiar | provider | supervisor mint is boot-eager and adopted by default; hides password UI; signOut → `SNAPBACK_AUTH_SESSION_EXPIRED` | snapback-defect | RFC Track B; `issues/closed/20260825-supervised-expo-web-hides-password-ui.md` | **done (landed `15797fe10`, not published)** — bootstrap returns authority `unavailable`, adoption is an explicit capability-bearing POST, and `EXPO_PUBLIC_SNAPBACK_URL` is injected; familiar-page docs still owed |
-| P5 | familiar | presence | the lane read `@expo/snapback-expo`'s presence types and concluded the facade **requires** an Expo lifecycle context a URL-first provider cannot give, so it switched packages. The runtime falls back and probably works (P20) — but the type and doc surface made the wrong reading the natural one, and that is the defect whichever way P20 lands | snapback-defect (discoverability, upgraded from docs-only under the pit-of-success standard) | RFC Track D; facade/lifecycle conflict `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`; needs a type/doc surface that makes the working composition obvious | planned, not started |
-| P6 | familiar | presence | `touch()` generation-fenced; per-keystroke publish cancels | snapback-defect | RFC Track D; `issues/closed/20260826-activity-presence-one-generation-per-episode.md` | implemented 2026-08-26 |
-| P7 | explicit | grammar | inline handler cannot capture a top-level `const` (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`). Hoisting a shared regex to a module const is the ordinary JS move; the grammar refuses it and the lane had to discover that a function declaration is the admitted shape | snapback-defect (recovery, not grammar) — **re-dispositioned in r6**: the refusal may be by design, but a design that refuses the idiomatic spelling owes the reader the admitted one | RFC keeps the grammar with LLP 0108; `issues/20260826-inline-handler-free-identifier-recovery.md` — the diagnostic must name the working shape inline, and the explicit start packet must warn before the first handler is written | planned, not started |
+| P5 | familiar | presence | the lane read `@expo/snapback-expo`'s presence types and concluded the facade **requires** an Expo lifecycle context a URL-first provider cannot give, so it switched packages. The runtime falls back and probably works (P20) — but the type and doc surface made the wrong reading the natural one, and that is the defect whichever way P20 lands | snapback-defect (discoverability, upgraded from docs-only under the pit-of-success standard) | RFC Track D; `issues/closed/20260825-ruling-3-vs-llp-0257-background-withdrawal.md` closed as "no conflict"; guide corrected | **done 2026-08-26** — P20 answered `works`; the three teaching pages now describe both hooks and their gated/ungated difference |
+| P6 | familiar | presence | `touch()` generation-fenced; per-keystroke publish cancels | snapback-defect | RFC Track D; `issues/closed/20260826-activity-presence-one-generation-per-episode.md` | **implemented 2026-08-26 (not published)** |
+| P7 | explicit | grammar | inline handler cannot capture a top-level `const` (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`). Hoisting a shared regex to a module const is the ordinary JS move; the grammar refuses it and the lane had to discover that a function declaration is the admitted shape | snapback-defect (recovery, not grammar) — **re-dispositioned in r6**: the refusal may be by design, but a design that refuses the idiomatic spelling owes the reader the admitted one | RFC keeps the grammar with LLP 0108; `issues/closed/20260826-inline-handler-free-identifier-recovery.md` | **implemented 2026-08-26 (not published)** — the diagnostic names the admitted rewrite; `guide/backend/handler-runtime.md` and the expo-chat start packet warn first |
 | P8 | explicit | grammar | durable custody unavailable on Node `memory` | snapback-defect | `issues/closed/20260825-guide-gap-memory-platform-durable-custody.md` | done (docs on main) |
 | P9 | explicit | assets | `defineCommand` max one asset | known | existing `issues/20260815-finish-media-happy-path.md` / LLP 0239 | planned, not started (out of 0310.000 bar) |
 | P10 | both | guide | `_generated/` still in packets; 0.1.27 refuses it | snapback-defect | `issues/closed/20260825-guide-gap-generated-directory-spelling.md` | done (docs on main; re-verified r3) |
 | P11 | familiar | guide | `SNAPBACK_AUTH_STALE_RESULT` lookup hits assets page | snapback-defect | `issues/closed/20260825-guide-gap-stale-result-lookup.md` | done (docs on main) |
-| P12 | explicit | guide | successor-mismatch diagnosis missing; the mismatch page does not cross-reference the remint the adjacent section documents | snapback-defect | `issues/20260826-guide-gap-same-owner-successor-mismatch.md` (independent of Track A) | planned, not started |
+| P12 | explicit | guide | successor-mismatch diagnosis missing; the mismatch page does not cross-reference the remint the adjacent section documents | snapback-defect | `issues/20260826-guide-gap-same-owner-successor-mismatch.md` (independent of Track A) | done (landed `7bbb3b0bd`, not published) |
 | P13 | familiar | env | inherited `CI=true` disables Metro watch | environment / known | already closed 0307 T1; supervised Metro also strips `CI` | done |
 | P14 | both | ceremony | `reads`/`writes`/`refusals`, two authoring profiles | product | out of this RFC's repair bar | out of bar |
-| P15 | familiar | auth | profile editor saved empty handle before `getMine` | snapback-defect (was agent-error) | folded into P17 | planned, not started (same ticket as P17) |
+| P15 | familiar | auth | profile editor saved empty handle before `getMine` | snapback-defect (was agent-error) | folded into P17 | done (landed `c80a35f0c`, not published; same ticket as P17) |
 | P16 | both | instrument | no `sm-nav-chats`; typing clock includes `pressSequentially` | instrument | genuinely outside Snapback's control — the instrument owns its own test IDs and its frozen clock, and no Snapback change would have prevented this | out of bar |
-| P17 | both | auth | signup/profile save races the authenticated dispatcher; remount drops `HANDLE_TAKEN` | snapback-defect (undocumented seam) | `issues/20260826-guide-gap-signup-dispatcher-and-profile-hydrate.md` | planned, not started |
+| P17 | both | auth | signup/profile save races the authenticated dispatcher; remount drops `HANDLE_TAKEN` | snapback-defect (undocumented seam) | `issues/closed/20260826-guide-gap-signup-dispatcher-and-profile-hydrate.md` | done (landed `c80a35f0c`, not published) |
 | P18 | familiar | auth | the lane set conversations/members/messages `public-read` to make its queries reachable, and said in its own diary this was “not a production ACL.” A capable agent knowingly shipping a posture it calls wrong is a signal that the reachable-and-correct shape was too hard to reach | snapback-defect (authoring surface) — **re-dispositioned in r6** from “out of bar” under the pit-of-success standard | not this program's repair bar, but `issues/20260826-membership-scoped-query-reachability.md` now asks the design question rather than dismissing the row: what is the paved way to make a membership-scoped query reachable without widening the read posture? | planned, not started |
 | P19 | explicit | identity | **reproduce** a schema successor under supervised `--expo --expo-platform web` with the `--json` stream retained, and record whether `binding-rotated` fired and what the next exchange carried | investigation | corroborates P1 (not a prerequisite — r4); settles which side of the predicate was stale; `issues/20260826-probe-successor-binding-rotation-json-stream.md` | planned, not started |
-| P20 | familiar | presence | **re-test** `@expo/snapback-expo` `useSnapbackActivityPresence` under a bare URL-first `SnapbackProvider` on web; the “requires the Expo lifecycle context” premise is unverified and contradicted by the shipped fallback | investigation | prerequisite for Ruling 3's package boundary and for the LLP 0257 conflict; `issues/20260826-probe-expo-presence-facade-bare-provider.md` | planned, not started |
+| P20 | familiar | presence | **re-test** `@expo/snapback-expo` `useSnapbackActivityPresence` under a bare URL-first `SnapbackProvider` on web; the “requires the Expo lifecycle context” premise is unverified and contradicted by the shipped fallback | investigation | settled Ruling 3's package boundary (there is none) and the LLP 0257 conflict; `tests/probes/expo-presence-bare-provider-20260826/`; `issues/closed/20260826-probe-expo-presence-facade-bare-provider.md` | **done 2026-08-26 — `works`** |
 
 No row this program should fix is **not-yet-planned**, but two rows —
 P19 and P20 — are investigations rather than repairs. **P20 gates** Ruling 3's
@@ -578,53 +578,57 @@ ticketed).
 
 ## Work to do
 
-Implementation map. Straightforward items are the tickets. Do not wait
-on 0310.000 acceptance to land a ticket-only row. Do not drive-by Track
-A/B/D without the RFC rulings.
+Implementation map, reconciled with `main` on 2026-08-26. Everything in the
+first three sections is now landed; what remains is listed under
+[Still open](#still-open). None of it is published — the Clique run measured
+published 0.1.27, and every repair below post-dates that pin.
 
-### First (investigations — one gates design, one does not)
+### Investigations — both run
 
-| Do | Item |
+| Do | Item | Result |
+|---|---|---|
+| Probe | **P20** — bare-provider facade presence on web | **`works`**. `tests/probes/expo-presence-bare-provider-20260826/`. No `SNAPBACK_EXPO_ACTIVITY_LIFECYCLE_UNAVAILABLE`, gated admission opened, one publish, with no lifecycle context in the tree. Ruling 3 rules **no package boundary**; LLP 0257 stands unamended; the conflict ticket closed as "no conflict"; the three teaching pages corrected. Kept as a standing regression test |
+| Probe | **P19** — schema successor under supervised `--expo`, `--json` retained | `tests/probes/successor-binding-rotation-20260826/`. Samples **both** sides of the `admitAppBindingV1` predicate through the transition, so it settles the one thing the retained lane evidence could not: which side was stale. Not a gate — the ordering defect was already established from source |
+
+### Landed — product
+
+| Item | Track | Where |
+|---|---|---|
+| Generate must not kill Metro: codegen stages the candidate graph, its materialization copy, and its rollback backups outside the project root | C (P3) | `packages/snapback-codegen/{index,review-surface}.mjs`; `issues/closed/20260825-metro-exit-on-codegen-tmp.md` |
+| `reload-metro` and `stop-children` on `POST /_snapback/expo/v1/control`, plus an owner-bound control socket sharing one verb implementation | E (P2) | landed on `main` ahead of this reconciliation; `issues/closed/20260825-dev-control-channel-requires-stdin.md` |
+| A supervised-dev mismatch is retryable at boot admission instead of terminal (I2), with the attempt bound derived from the activation request budget rather than a round number | A (P1) | `packages/snapback-expo/provider.mjs` |
+| After the remint publishes the successor binding, the supervisor drives a Metro child replacement through the shared control lane, so the live arm re-imports and re-exchanges promptly (I1) | A (P1) | `packages/snapback-cli/expo-dev.mjs`. **Narrows** the window; LLP 0310.000's open obligation W2 (the residual activation window) stands |
+| One `touch()` generation per typing episode, with a session-epoch fence so idle expiry discards queued work | D (P6) | `packages/snapback-react/implementation.mjs`; `issues/closed/20260826-activity-presence-one-generation-per-episode.md` |
+| Mint on demand, explicit adoption, sign-out to the password UI | B (P4) | `15797fe10`; `issues/closed/20260825-supervised-expo-web-hides-password-ui.md` |
+| The free-identifier refusal names the admitted rewrite | — (P7) | `packages/snapback-codegen/inline-handlers.mjs`; `issues/closed/20260826-inline-handler-free-identifier-recovery.md` |
+
+### Landed — guide
+
+| Item | LLP 0310 item |
 |---|---|
-| Probe | **P19** — schema successor under supervised `--expo`, `--json` retained. Corroborates the located mechanism and settles which side of the predicate was stale. **Not a gate**: r3 blocked Track A on this; round 3 located the fault from source and the block was removed. `issues/20260826-probe-successor-binding-rotation-json-stream.md` |
-| Probe | **P20** — bare-provider facade presence on web. Answers whether Ruling 3's package boundary and the 2026-08-25 guide text describe the product. `issues/20260826-probe-expo-presence-facade-bare-provider.md` |
+| Same-owner successor on the binding-identity-mismatch diagnose page | P12 (`7bbb3b0bd`) |
+| Signup → wait for the authenticated dispatcher / seeded profile | P17, including P15 (`c80a35f0c`) |
+| `controlPath` and every control verb, on both planes | P2 (`guide/operating/agent-controls.md`) |
+| Supervised mint behavior and the binding origin on the familiar page | P4 |
+| Both presence hooks and their gated/ungated difference, in place of a package boundary | P5 / P20 |
+| The inline-handler capture rule, on the handler-runtime page and in the expo-chat start packet | P7 |
+| `_generated/` spelling; `SNAPBACK_AUTH_STALE_RESULT` lookup; `memory` durable custody | P10, P11, P8 |
 
-Neither probe needs new product code. **P20 gates** the package-boundary half
-of Track D. **P19 gates nothing** — the ordering defect is established from
-source, so Track A proceeds; P19 corroborates which interleaving the run hit
-and settles which side of the mismatch predicate was stale. Both are cheap.
+### Still open
 
-### Ticket-only (straightforward)
+| Item | Why it is still open |
+|---|---|
+| Publication | Nothing above is in published 0.1.27. The repairs reach agents only on the next publication (LLP 0041 posture: publish rapidly and often) |
+| LLP 0310.000 W2 — the residual activation window | I1 narrows it; the RFC records closing it as an open obligation, and it needs the arm-side seam A2's acceptance row names |
+| B1 against the landed Track B code | The RFC's row was written against its own text, not the implementation that shipped at `15797fe10` |
+| The LLP 0258 D5 precedence obligation | Track B's explicit-adoption row shipped without a recorded D5 amendment. Whether it needs one is a question for LLP 0258's owner about shipped code |
+| **P18** — membership-scoped query reachability | Needs a design owner. `issues/20260826-membership-scoped-query-reachability.md`. The declarative path exists and is documented (`.visibility({ kind: 'membership', … })` on `guide/auth/protecting-data.md` and `guide/backend/familiar-profile.md`), so the live question is narrower than "does it exist": why did an agent that went looking not reach it |
+| **P9** — `defineCommand` max one asset | Other program: LLP 0239 / `issues/20260815-finish-media-happy-path.md` |
 
-| Do | Item | Ticket |
-|---|---|---|
-| Product | Generate must not kill Metro | `issues/20260825-metro-exit-on-codegen-tmp.md` (P3 / Track C). Interim docs: one sentence that this can happen; owner restart is fallback. |
-| Product | Non-destructive verb on the existing control route | `issues/20260825-dev-control-channel-requires-stdin.md` (P2 / Track E). Add `reload-metro` (and `stop-children`) to `POST /_snapback/expo/v1/control`; document `controlPath`. |
-| Guide | Same-owner successor on the diagnose page, cross-linked to the remint the adjacent section already documents | `issues/20260826-guide-gap-same-owner-successor-mismatch.md` (P12) |
-| Guide | The supervised control route and its verbs | on the P2 ticket |
-| Guide | Signup → wait for authenticated dispatcher / seeded profile | `issues/20260826-guide-gap-signup-dispatcher-and-profile-hydrate.md` (P17, includes P15) |
+### Out of bar
 
-C and E do not need more RFC text. E is a verb addition to a shipped,
-tested route, not a new control plane.
-
-### Needs LLP 0310.000 (not drive-by)
-
-| Do | Item | Ticket / track |
-|---|---|---|
-| Product | Make a supervised-dev mismatch retryable at boot admission instead of terminal (I2, the primary repair), and drive a client reload right after the remint so the window is bounded rather than incidental (I1, which needs Track E's `reload-metro`). LLP 0310.000 r6 **withdrew** the earlier publish-before-activate reordering as both unrunnable and harmful; do not implement it. The residual activation window is LLP 0310.000's open obligation W2 | P1 Track A · `issues/20260825-successor-expo-receipt-stale.md` |
-| ~~Product~~ **Landed** | Mint on demand, explicit adoption, sign-out to the password UI — all shipped at `15797fe10` while this document was in review. What remains is the familiar-page documentation and running B1 against the landed code | P4 Track B · `issues/closed/20260825-supervised-expo-web-hides-password-ui.md` |
-| Product | One `touch()` generation per typing episode | P6 Track D · `issues/closed/20260826-activity-presence-one-generation-per-episode.md` |
-| Product | Facade vs Ruling 3 under bare `SnapbackProvider` | P5 · `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md` · gated on P20 |
-
-### Already done on main (not in published 0.1.27)
-
-P8, P10, P11, P13, the P5 import docs (pending P20), P17's guide fix
-(`c80a35f0c`), and **P4/Track B** (`15797fe10`). None of these are in published
-0.1.27; the Clique run measured the published pin.
-
-### Other programs / out of bar
-
-P9 → LLP 0239. P7, P14, P16, P18 stay out of this program.
+P14 (ceremony) and P16 (instrument) stay out, on the reasons recorded in the
+inventory rather than on a label.
 
 ## Confidence and non-claims
 
