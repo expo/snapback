@@ -40,3 +40,17 @@ node scripts/check-kernel-raw-sql-api.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Expected-red cross-reference (2026-08-26)
+
+This gate is **deliberately RED until LLP 0283 F-1 closes** — see
+`issues/20260819-security-gates-expected-red-until-f1.md`. Reproduced on
+`origin/main` at `45f52cfc8`: `SNAPBACK_PRIVILEGE_SURFACE: 100 violation(s)`,
+down from the 102 recorded in that ticket after the f244 lock-ordering landing.
+The findings are the four open F-1 escalation families, not a new regression.
+
+This is the fifth ticket filed for this gate (four already in `issues/closed/`).
+Each battery run whose residual set shifts produces a new normalized signature,
+so the D-1 automation files a fresh ticket and auto-closes the prior one. That
+churn will continue every scheduled run until F-1 lands; it is not new
+information. Do not fix-forward against this ticket — the work is F-1 itself.
