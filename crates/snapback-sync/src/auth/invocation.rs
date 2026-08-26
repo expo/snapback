@@ -4116,6 +4116,10 @@ fn function_kind_matches(constraint: FunctionKindConstraint, kind: &FunctionKind
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::mode::{
+        AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
+        DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
+    };
     use crate::manifest::{FunctionRuntime, HandlerPlan, QueryPlan};
     use serde_json::json;
 
