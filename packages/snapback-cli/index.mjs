@@ -7196,7 +7196,7 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
   return () => lines.close();
 }
 
-function inspectDevControlInput(stdin) {
+async function inspectDevControlInput(stdin) {
   if (stdin?.isTTY === true) return Object.freeze({ available: true, kind: 'tty' });
   if (stdin === null || stdin === undefined) {
     return Object.freeze({ available: false, kind: 'missing', reason: 'stdin is unavailable' });
@@ -7204,8 +7204,8 @@ function inspectDevControlInput(stdin) {
   if (stdin.destroyed === true || stdin.readableEnded === true || stdin.readable === false) {
     return Object.freeze({ available: false, kind: 'closed', reason: 'stdin is closed' });
   }
+  let metadata = null;
   if (Number.isInteger(stdin.fd)) {
-    let metadata;
     try {
       metadata = fstatSync(stdin.fd);
     } catch (error) {
@@ -7224,6 +7224,22 @@ function inspectDevControlInput(stdin) {
           reason: 'stdin is /dev/null',
         });
       }
+    }
+  }
+  if ((metadata?.isFIFO() || metadata?.isSocket()) && typeof stdin.read === 'function') {
+    // A pipe can initially advertise readable=true/readableEnded=false even
+    // after its writer has already closed. Start the zero-byte read that
+    // latches kernel EOF, then let the stream publish that state before this
+    // channel is accepted as the socket fallback. Buffered commands remain
+    // untouched because read(0) consumes no bytes.
+    stdin.read(0);
+    await new Promise((resolveProbe) => setImmediate(resolveProbe));
+    if (stdin.destroyed === true || stdin.readableEnded === true || stdin.readable === false) {
+      return Object.freeze({
+        available: false,
+        kind: 'closed-pipe',
+        reason: 'stdin pipe reached EOF before control-channel startup',
+      });
     }
   }
   return Object.freeze({ available: true, kind: 'readable-command-channel' });
@@ -9291,7 +9307,7 @@ export async function runCli(argv, options = {}) {
             [CLEANUP_LEASE_DIRECTORY_ENV]: carrierCleanupLease.directory,
           }),
         };
-        const stdinControl = inspectDevControlInput(options.stdin ?? process.stdin);
+        const stdinControl = await inspectDevControlInput(options.stdin ?? process.stdin);
         result = await runExpoDev({
           ...options,
           env: expoEnvironment,

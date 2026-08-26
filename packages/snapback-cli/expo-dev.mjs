@@ -870,7 +870,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         // acknowledgement/result, never the already-admitted owner verb.
         const reply = operation.then(
           (result) => {
-            // @ref LLP 0310.000#track-e--owner-bound-control-socket — every
+            // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — every
             // acknowledged owner verb and packaged stdin reload share one
             // serialized dispatch lane.
             return `${JSON.stringify(devControlResult({
@@ -1045,7 +1045,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         server.once('error', onError);
         server.once('listening', onListening);
         try {
-          // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind an
+          // @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — bind an
           // unadvertised inode first; link(2) below is the atomic no-replace
           // publication primitive for the owner-bound endpoint.
           (dependencies.listenServer ?? ((boundServer, endpointPath) => (

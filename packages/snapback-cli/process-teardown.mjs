@@ -42,7 +42,7 @@ function pathWithin(root, path) {
   return relation === '' || (relation !== '..' && !relation.startsWith(`..${sep}`));
 }
 
-// @ref LLP 0310.000#track-e--owner-bound-control-socket — the socket's
+// @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — the socket's
 // cross-UID pathname gate covers the complete lexical and canonical ancestry
 // through `/`, not only the caller's proposed project/state trust anchor.
 export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
@@ -970,7 +970,7 @@ async function acquireCleanupPathLock(path, timeoutMs = CLEANUP_PATH_LOCK_TIMEOU
 // Socket bind/reclaim and detached-reaper deletion share this exact lock. The
 // callback may wait (for listen or a test barrier); a killed holder is recovered
 // through the lock's PID/start-time-bound exclusive stale-marker takeover above.
-// @ref LLP 0310.000#track-e--owner-bound-control-socket — the owner endpoint's
+// @ref LLP 0310.000#track-e--add-the-missing-verb-to-the-control-route-that-already-exists — the owner endpoint's
 // reclaim, bind, and reaper deletion are one serialized ownership transition.
 export async function withCleanupPathLock(path, action, {
   timeoutMs,

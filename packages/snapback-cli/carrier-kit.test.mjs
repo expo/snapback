@@ -113,6 +113,50 @@ function config(scenario, startupTimeoutMs = 10_000) {
   });
 }
 
+const pathContractConfig = defineTemplateCarrierConfig({
+  schemaVersion: 'snapback.template-carriers.v1',
+  verifyCommand: ['snapback', 'verify'],
+  verifyReceipt: '.snapback/verify-receipt.json',
+  carriers: {
+    'web-browser': {
+      command: ['expo', 'start', '{artifacts}/proof.json', '{supervisorState}/child-state.json'],
+      structuredReadiness: {
+        kind: 'expo-supervisor',
+        file: '{supervisorState}/expo-supervisor.json',
+      },
+    },
+  },
+});
+assert.deepEqual(pathContractConfig.carriers['web-browser'].command, [
+  'expo',
+  'start',
+  '{artifacts}/proof.json',
+  '{supervisorState}/child-state.json',
+]);
+assert.equal(
+  pathContractConfig.carriers['web-browser'].structuredReadiness.file,
+  '{supervisorState}/expo-supervisor.json',
+  'runtime must accept the same supervisor-state readiness path as the public declaration',
+);
+assert.throws(
+  () => defineTemplateCarrierConfig({
+    schemaVersion: 'snapback.template-carriers.v1',
+    verifyCommand: ['snapback', 'verify'],
+    verifyReceipt: '.snapback/verify-receipt.json',
+    carriers: {
+      'web-browser': {
+        command: ['expo', 'start', '{artifacts}/proof.json'],
+        structuredReadiness: {
+          kind: 'expo-supervisor',
+          file: '{artifacts}/expo-supervisor.json',
+        },
+      },
+    },
+  }),
+  /must be a path below \{supervisorState\}/u,
+  'runtime must reject the same public-artifacts readiness path as the public declaration',
+);
+
 executable(verifier, `
 import { mkdirSync, writeFileSync } from 'node:fs';
 mkdirSync('.snapback', { recursive: true });
@@ -879,7 +923,7 @@ await runTemplateCarrierCli(config, ['web-browser', '--browser', ${JSON.stringif
   await eventually(() => !existsSync(carrierDeathProfile), 'carrier-death browser profile lease');
   assert.equal(existsSync(join(carrierState(carrierDeathArtifacts), 'expo-supervisor.json')), false);
 
-  console.log('carrier-kit.test.mjs: identity discharge, run-bound descriptor and pending child leases, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
+  console.log('carrier-kit.test.mjs: supervisor-state declaration/runtime path parity, identity discharge, run-bound descriptor and pending child leases, live ownership, attestation, takeover, stubborn/SIGKILL reclamation, and double-signal cleanup pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

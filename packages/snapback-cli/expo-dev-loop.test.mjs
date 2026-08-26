@@ -719,6 +719,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertConcurrentStdinSocketReload = false,
   expectControlUnavailable = false,
   expectControlChannelRefusal = null,
+  closeStdinImmediately = false,
   failMetroReload = false,
   stubbornMetroDuringReload = false,
 } = {}) {
@@ -760,7 +761,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     },
     stdio: [
       assertStdinReload || assertStdinRestartBeforeSocketReload || assertConcurrentStdinSocketReload
-        || expectControlUnavailable
+        || expectControlUnavailable || closeStdinImmediately
         ? 'pipe'
         : 'ignore',
       'pipe',
@@ -768,6 +769,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     ],
   });
   cliChildren.push(child);
+  if (closeStdinImmediately) child.stdin.end();
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', (chunk) => { stderr += chunk; });
@@ -842,6 +844,20 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   const supervisorDescriptorPath = join(dirname(target.readyFile), 'expo-supervisor.json');
   const supervisorDescriptor = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8'));
   const controlSocket = supervisorDescriptor.controlSocket;
+  const assertReloadThroughStdin = async () => {
+    child.stdin.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'reload',
+      requestId: 'stdin-reload-1',
+    })}\n`);
+    const stdinReloadEvent = await eventually(
+      () => events.find((event) => (
+        event.backend?.verb === 'reload' && event.backend?.requestId === 'stdin-reload-1'
+      )),
+      { label: 'JSON stdin reload result' },
+    );
+    assert.equal(stdinReloadEvent.backend.ok, true, JSON.stringify(stdinReloadEvent.backend));
+  };
   if (expectControlUnavailable) {
     const unavailableEvent = events.find((event) => event.state === 'control-socket-unavailable');
     assert.equal(
@@ -851,6 +867,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     );
     assert.equal(readyEvent.controlSocket, undefined);
     assert.equal(controlSocket, undefined);
+    if (assertStdinReload) await assertReloadThroughStdin();
     const exitPromise = new Promise((resolveExit) => {
       child.once('exit', (code, signal) => resolveExit({ code, signal }));
     });
@@ -880,19 +897,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   if (typeof process.getuid === 'function') assert.equal(endpointStat.uid, process.getuid());
 
   if (assertStdinReload) {
-    child.stdin.write(`${JSON.stringify({
-      schemaVersion: 'snapback.dev-command.v1',
-      verb: 'reload',
-      requestId: 'stdin-reload-1',
-    })}\n`);
-    const stdinReloadEvent = await eventually(
-      () => events.find((event) => (
-        event.backend?.verb === 'reload' && event.backend?.requestId === 'stdin-reload-1'
-      )),
-      { label: 'JSON stdin reload result' },
-    );
-    const stdinReload = stdinReloadEvent.backend;
-    assert.equal(stdinReload.ok, true, JSON.stringify(stdinReload));
+    await assertReloadThroughStdin();
   }
 
   if (assertStdinRestartBeforeSocketReload) {
@@ -1544,10 +1549,20 @@ async function runControlSocketSuite() {
       ...customReadyFixture,
       readyFile: join(customReadyParent, 'dev.ready.json'),
     };
+    const closedPipeRange = await reserveFreeRange(8);
+    await runCliSupervisor(customReadyTarget, 'web', [
+      '--port-range', `${closedPipeRange.lo}-${closedPipeRange.hi}`,
+    ], {
+      closeStdinImmediately: true,
+      expectControlChannelRefusal: {
+        component: customReadyParent,
+        reason: 'state-directory-custody-failed',
+      },
+    });
     const customReadyRange = await reserveFreeRange(8);
     await runCliSupervisor(customReadyTarget, 'web', [
       '--port-range', `${customReadyRange.lo}-${customReadyRange.hi}`,
-    ], { expectControlUnavailable: true });
+    ], { expectControlUnavailable: true, assertStdinReload: true });
     assert.equal(
       statSync(customReadyParent).mode & 0o777,
       0o755,
@@ -1614,7 +1629,7 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: --json /dev/null default control posture, long-project external ready path, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: closed-pipe refusal, open-pipe stdin reload fallback, --json /dev/null default control posture, long-project external ready path, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }

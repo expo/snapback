@@ -18,7 +18,7 @@ export type TemplateWebBrowserCarrier = Readonly<{
       origin?: never;
       structuredReadiness: Readonly<{
         kind: 'expo-supervisor';
-        file: `{artifacts}/${string}`;
+        file: `{supervisorState}/${string}`;
       }>;
     }
 )>;

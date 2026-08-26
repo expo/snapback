@@ -219,8 +219,42 @@ if (failures.length === 0) {
     const imports = sweep.map(
       ({ specifier }, index) => `import * as ns${index} from '${specifier}';\nvoid ns${index};`,
     );
+    const semanticFixtures = `
+import { defineTemplateCarrierConfig } from '@expo/snapback-cli/carrier-kit';
+
+defineTemplateCarrierConfig({
+  schemaVersion: 'snapback.template-carriers.v1',
+  verifyCommand: ['snapback', 'verify'],
+  verifyReceipt: '.snapback/verify-receipt.json',
+  carriers: {
+    'web-browser': {
+      command: ['expo', 'start', '{artifacts}/proof.json', '{supervisorState}/child-state.json'],
+      structuredReadiness: {
+        kind: 'expo-supervisor',
+        file: '{supervisorState}/expo-supervisor.json',
+      },
+    },
+  },
+});
+
+defineTemplateCarrierConfig({
+  schemaVersion: 'snapback.template-carriers.v1',
+  verifyCommand: ['snapback', 'verify'],
+  verifyReceipt: '.snapback/verify-receipt.json',
+  carriers: {
+    'web-browser': {
+      command: ['expo', 'start'],
+      structuredReadiness: {
+        kind: 'expo-supervisor',
+        // @ts-expect-error Readiness descriptors belong to private supervisor state, not public artifacts.
+        file: '{artifacts}/expo-supervisor.json',
+      },
+    },
+  },
+});
+`;
     const fixturePath = path.join(fixtureDir, 'imports.mts');
-    writeFileSync(fixturePath, `// Generated consumer fixture: every published subpath, resolved as an\n// installed consumer resolves it.\n${imports.join('\n')}\nexport {};\n`);
+    writeFileSync(fixturePath, `// Generated consumer fixture: every published subpath, resolved as an\n// installed consumer resolves it.\n${imports.join('\n')}\n${semanticFixtures}\nexport {};\n`);
     const authoredFixturePaths = authoredConsumerFixtures.map(({ packageName, file }, index) => {
       const fixturePath = path.join(fixtureDir, `authored-${index}.mts`);
       writeFileSync(
