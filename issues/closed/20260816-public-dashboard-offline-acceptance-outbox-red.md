@@ -1242,3 +1242,64 @@ issuance acquires the shared authorization-dispatch lock, revalidates shared
 capability currency and the record target at the exact pre-request cut, and
 keeps ownership through durable range assignment. The older range/root tests
 now assert this serialized order rather than waiting cyclically on the lock.
+
+At the final JS implementation commit
+`1a1792b1f7b29c22c6c2045cc463cca2d259650e`, the focused outbox suite reports:
+
+```text
+ℹ tests 178
+ℹ suites 0
+ℹ pass 178
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1791.971
+```
+
+The full `npm test --prefix packages/snapback-client` script reaches only its
+inherited, out-of-scope RQS assertion after the affected suites pass:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (8.579333ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2514.003458
+```
+
+The strict client TypeScript fixture command, run separately because the full
+script stops at that inherited RQS red, exits zero. The export-types gate
+compiles all 121 fixtures and retains only its inherited codegen declaration
+red:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+Both required public-dashboard witnesses were run at that exact JS commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report these verbatim
+summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise the JS lane.
+
+`./ref-check --verbose` reports `311 LLP docs, 6648 refs in 12505 files, 0
+errors, 0 unchecked`. `git diff --check` produces no output. The final scoped
+diff for `guide/capabilities.md` and
+`issues/20260727-backend-bakeoff-improvement-program.md` is empty relative to
+merge base `baacaa20983f029f3e9cd23f60385ba00085e947`; integration retains ownership
+of generated projection regeneration.
