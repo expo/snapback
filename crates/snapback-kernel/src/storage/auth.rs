@@ -1990,9 +1990,15 @@ impl LocalDatabase {
     }
 
     /// Registration-policy sibling of [`Self::attempt_auth_transaction`].
-    /// The manifest snapshot is borrowed only after the SQLite transaction
-    /// has begun, so policy selection and every registration read/write share
-    /// one literal transaction scope.
+    /// The active manifest is reloaded from durable storage only after the
+    /// SQLite transaction has begun, so policy selection and every
+    /// registration read/write share one literal transaction scope. A schema
+    /// cached by this handle is not authority after another handle publishes a
+    /// successor.
+    ///
+    /// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it
+    /// — registration revalidates resource-owned policy at use, not only when
+    /// the database handle opens.
     pub(super) fn attempt_auth_transaction_with_schema<T>(
         &mut self,
         operation: impl FnOnce(&Transaction<'_>, &crate::manifest::SchemaManifest) -> SnapbackResult<T>,
@@ -2011,7 +2017,11 @@ impl LocalDatabase {
             !tx.is_autocommit(),
             "registration policy must be sampled inside an active SQLite transaction"
         );
-        let output = match operation(&tx, &self.schema) {
+        let active_schema = match super::active_schema_manifest_from_connection(&tx) {
+            Ok(schema) => schema.unwrap_or_default(),
+            Err(error) => return rollback_auth_transaction(tx, error),
+        };
+        let output = match operation(&tx, &active_schema) {
             Ok(output) => output,
             Err(error) => return rollback_auth_transaction(tx, error),
         };
