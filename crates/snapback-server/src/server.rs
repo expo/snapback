@@ -22,7 +22,7 @@ use crate::auth::invocation::AuthorizedEffectScopeProbeForTest;
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
-    WireAuthorityFields, descriptor_for_resolved_authority,
+    WireAuthorityFields,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -13590,15 +13590,9 @@ async fn prepare_registered_route_authority(
         }
     }
     .map_err(ApiError::from)?;
-    let authority = if source == InvocationSource::BootstrapHandshake
-        && active_mode == crate::manifest::AuthMode::Dev
-    {
-        installed_auth_coordinator(runtime)?
-            .bind_bootstrap_publication(authority)
-            .map_err(ApiError::from)?
-    } else {
-        authority
-    };
+    let authority = installed_auth_coordinator(runtime)?
+        .bind_authorization_stream(authority)
+        .map_err(ApiError::from)?;
     let rehearsal_authority = installed_auth_coordinator(runtime)?
         .rehearsal_authority_binding()
         .map_err(ApiError::from)?;
@@ -18079,8 +18073,13 @@ async fn auth_session(
         .authorization_stream_incarnation()
         .ok_or_else(|| stale_prepared_authority(&authority, now_millis()))?
         .to_owned();
-    let authority_descriptor =
-        descriptor_for_resolved_authority(&resolved_authority, &authorization_stream_incarnation)?;
+    let descriptor_authority = authority.clone();
+    let authority_descriptor = with_snapback(&runtime.snapback, move |snapback| {
+        snapback
+            .prepare_authority_descriptor(descriptor_authority)
+            .map(|cohort| cohort.authority_descriptor().clone())
+    })
+    .await?;
     let authority_kind = match &resolved_authority {
         ResolvedAppAuthority::ServicePrincipal(_) => AuthSessionAuthorityKind::ServicePrincipal,
         ResolvedAppAuthority::Session(_) => AuthSessionAuthorityKind::HumanSession,
@@ -26140,14 +26139,17 @@ async fn host_ops_handler_inner_unboxed(
                 &state,
                 runtime.live_fanout_coalescer.clone(),
                 move |snapback| {
+                    let recorded_authority = snapback.bind_recorded_mutation_authority(
+                        stage_authority.clone(),
+                        None,
+                        None,
+                    )?;
                     snapback.stage_recorded_authorization_mutation(
                         &stage_function,
                         stage_input.clone(),
-                        None,
-                        None,
+                        recorded_authority,
                         &[],
                         "local",
-                        stage_authority.clone(),
                     )
                 },
                 move |snapback, staged| {
@@ -30666,17 +30668,20 @@ async fn invoke_mutation(
             &state,
             runtime.live_fanout_coalescer.clone(),
             move |snapback| {
+                let recorded_authority = snapback.bind_recorded_mutation_authority(
+                    stage_authority.clone(),
+                    stage_client_mutation_id.clone(),
+                    stage_authority_descriptor.clone(),
+                )?;
                 let response_authority_descriptor =
-                    snapback.descriptor_for_prepared_authority(&stage_authority)?;
+                    recorded_authority.authority_descriptor().clone();
                 let (preflight, staged) = snapback
                     .stage_recorded_authorization_mutation_with_wire_version(
                         &stage_name,
                         stage_input.clone(),
-                        stage_client_mutation_id.clone(),
-                        stage_authority_descriptor.clone(),
+                        recorded_authority,
                         &stage_acknowledgements,
                         "http",
-                        stage_authority.clone(),
                         stage_expected_generation.as_ref(),
                         stage_operation_issuance.clone(),
                         stage_settlement.clone(),

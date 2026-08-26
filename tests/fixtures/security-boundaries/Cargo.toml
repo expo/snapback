@@ -321,6 +321,26 @@ path = "src/bin/reuse_live_invalidation_issuer.rs"
 name = "sign-scope-retirement-directly"
 path = "src/bin/sign_scope_retirement_directly.rs"
 
+[[bin]]
+name = "cross-engine-recorded-mutation-authority"
+path = "src/bin/cross_engine_recorded_mutation_authority.rs"
+
+[[bin]]
+name = "independent-authority-stream-descriptor"
+path = "src/bin/independent_authority_stream_descriptor.rs"
+
+[[bin]]
+name = "resolved-only-authority-descriptor"
+path = "src/bin/resolved_only_authority_descriptor.rs"
+
+[[bin]]
+name = "generation-recorded-mutation-authority"
+path = "src/bin/generation_recorded_mutation_authority.rs"
+
+[[bin]]
+name = "wire-descriptor-trust"
+path = "src/bin/wire_descriptor_trust.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

@@ -487,8 +487,10 @@ fn client_mutation_acknowledgement_fixture() -> (
     let controller = synchronize_sessions(&snapback);
     let authority = session_authority_for_source(&mut snapback, InvocationSource::HttpMutation);
     let descriptor = snapback
-        .descriptor_for_prepared_authority(&authority)
-        .expect("prepare client-mutation authority descriptor");
+        .prepare_authority_descriptor(authority.clone())
+        .expect("prepare client-mutation authority descriptor")
+        .authority_descriptor()
+        .clone();
     let mutation_id = "cm_admission_fence_ack".to_owned();
     snapback
         .invoke_mutation_recording_with_authority_descriptor(

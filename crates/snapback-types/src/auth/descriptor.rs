@@ -3,9 +3,8 @@
 //! The descriptor is deliberately opaque and is never credential material.
 //! Credential resolution has already produced a prepared authority before
 //! anything compares a queued request with the current authority; the
-//! authority-consuming constructors live with the invocation gate
-//! (`auth::invocation::descriptor_for_authority`), while this leaf keeps the
-//! pure derivation and validation shapes.
+//! the engine-bound authority cohort owns trusted derivation, while this leaf
+//! keeps wire comparison and pure validation shapes.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION, AuthorityDescriptor};

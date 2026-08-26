@@ -4,7 +4,10 @@ use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
 };
-use crate::auth::descriptor::require_current_descriptor;
+use crate::auth::descriptor::{
+    AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, require_current_descriptor,
+    service_authority_instance_id, validate_descriptor_values,
+};
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InstalledInvalidationIssuer, InvalidationDisposition, LiveInvalidationIssuer,
@@ -16,7 +19,7 @@ use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
     CallerAuthorityTerminalCause, FunctionAttribution, HandlerAuthProjection, InvocationGate,
     InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
-    RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    RetainedLiveAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -1823,6 +1826,7 @@ pub struct StagedRecordedMutationCommit {
     receipt_mutation_id: String,
     input: HandlerInput,
     settlement: MutationSettlement,
+    recorded_authority: PreparedRecordedMutationAuthority,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
     media_command: Option<crate::manifest::ResolvedMediaCommandV1>,
@@ -3471,6 +3475,97 @@ pub struct EngineAppStateBindings {
 #[derive(Clone)]
 pub struct EngineAppStateGraphIdentity {
     identity: Arc<()>,
+}
+
+/// Descriptor derived from a live prepared authority after its admission,
+/// service axes, and installed stream have all been checked by one engine.
+/// The wire DTO remains public; this trusted form has no public constructor.
+pub struct DerivedAuthorityDescriptor {
+    wire: AuthorityDescriptor,
+}
+
+/// Proof that an optional queued wire echo was compared with the descriptor
+/// derived by this engine. The compared DTO remains diagnostic data only.
+pub struct VerifiedAuthorityDescriptorEcho {
+    wire: AuthorityDescriptor,
+}
+
+/// One engine-bound authority/descriptor cohort. All trust-bearing fields are
+/// private so an authority and a descriptor cannot be assembled independently.
+pub struct PreparedAuthorityDescriptor {
+    graph_identity: EngineAppStateGraphIdentity,
+    authority: PreparedAuthority,
+    descriptor: DerivedAuthorityDescriptor,
+}
+
+impl PreparedAuthorityDescriptor {
+    pub fn authority_descriptor(&self) -> &AuthorityDescriptor {
+        &self.descriptor.wire
+    }
+}
+
+/// Opaque authority for one recorded mutation. Correlation inputs cross
+/// lookup, acknowledgement, staging, and commit in this single carrier.
+pub struct PreparedRecordedMutationAuthority {
+    cohort: PreparedAuthorityDescriptor,
+    client_mutation_id: Option<String>,
+    verified_echo: Option<VerifiedAuthorityDescriptorEcho>,
+}
+
+impl PreparedRecordedMutationAuthority {
+    pub fn authority_descriptor(&self) -> &AuthorityDescriptor {
+        self.cohort.authority_descriptor()
+    }
+}
+
+fn derive_authority_descriptor(
+    authority: &PreparedAuthority,
+    authorization_stream_incarnation: &str,
+) -> SnapbackResult<DerivedAuthorityDescriptor> {
+    canonical_uuid_v7(authorization_stream_incarnation).map_err(|()| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
+            "auth",
+            "authorization-stream incarnation is not a canonical UUIDv7",
+        )
+    })?;
+    let (authority_instance_id, session_generation) = match authority.resolved() {
+        ResolvedAppAuthority::Session(subject) => (
+            subject.authority_instance_id().to_owned(),
+            subject.generation(),
+        ),
+        ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
+            (subject.authority_instance_id().to_owned(), 0)
+        }
+        ResolvedAppAuthority::ServicePrincipal(subject) => (
+            // Token identity is deliberately excluded. A newly resolved token
+            // for the same durable actor, credential generation, and grant is
+            // the same authority cohort.
+            service_authority_instance_id(
+                subject.actor_user_id(),
+                subject.credential_id(),
+                subject.credential_generation(),
+                subject.grant_id(),
+            ),
+            0,
+        ),
+        ResolvedAppAuthority::Anonymous
+        | ResolvedAppAuthority::DevImpersonation { .. }
+        | ResolvedAppAuthority::AdminBypass { .. }
+        | ResolvedAppAuthority::System => (authorization_stream_incarnation.to_owned(), 0),
+    };
+    validate_descriptor_values(
+        AUTHORITY_DESCRIPTOR_VERSION,
+        &authority_instance_id,
+        session_generation,
+    )?;
+    Ok(DerivedAuthorityDescriptor {
+        wire: AuthorityDescriptor {
+            descriptor_version: AUTHORITY_DESCRIPTOR_VERSION,
+            authority_instance_id,
+            session_generation,
+        },
+    })
 }
 
 /// Exact composition-owned authority for operator commands. The private
@@ -9305,6 +9400,19 @@ impl LocalSnapback {
         ))
     }
 
+    /// Install this engine's stream at a legitimate authority producer. The
+    /// descriptor root deliberately refuses omissions and foreign streams.
+    ///
+    /// @ref LLP 0303#q-enumerate-the-effects-siblings-not-the-entry-points —
+    ///   every recorded-mutation producer binds the authority input it emits.
+    fn install_authorization_stream(
+        &self,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let incarnation = self.db.authorization_stream_incarnation()?;
+        authority.bind_authorization_stream(&self.admission, incarnation.as_str().to_owned())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn prepare_resolved_authority(
         &mut self,
@@ -9327,7 +9435,7 @@ impl LocalSnapback {
                 "session authority requires its projection-owned bearer carrier",
             ));
         }
-        InvocationGate::prepare_admitted_subjectless_authority(
+        let authority = InvocationGate::prepare_admitted_subjectless_authority(
             source,
             active_mode,
             profile,
@@ -9335,7 +9443,8 @@ impl LocalSnapback {
             wire,
             resolved,
             None,
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9509,7 +9618,7 @@ impl LocalSnapback {
         now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
         self.require_owned_authority_admission(&admission)?;
-        prepared.prepare(
+        let authority = prepared.prepare(
             &mut self.db,
             source,
             active_mode,
@@ -9517,7 +9626,8 @@ impl LocalSnapback {
             admission,
             wire,
             now_ms,
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9532,7 +9642,8 @@ impl LocalSnapback {
         _now_ms: u64,
         stream_publication: crate::auth::session_projection::FencedPublication,
     ) -> SnapbackResult<PreparedAuthority> {
-        resolution.prepare(
+        self.require_owned_authority_admission(&admission)?;
+        let authority = resolution.prepare(
             &self.db.binding(),
             source,
             active_mode,
@@ -9540,7 +9651,8 @@ impl LocalSnapback {
             admission,
             wire,
             Some(stream_publication),
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -9554,7 +9666,8 @@ impl LocalSnapback {
         wire: &WireAuthorityFields,
         _now_ms: u64,
     ) -> SnapbackResult<PreparedAuthority> {
-        resolution.prepare(
+        self.require_owned_authority_admission(&admission)?;
+        let authority = resolution.prepare(
             &self.db.binding(),
             source,
             active_mode,
@@ -9562,7 +9675,8 @@ impl LocalSnapback {
             admission,
             wire,
             None,
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     /// Unit-test session fixture that still traverses protected catalog,
@@ -9879,12 +9993,13 @@ impl LocalSnapback {
         profile: ServerProfile,
         input: &HandlerInput,
     ) -> SnapbackResult<PreparedAuthority> {
-        InvocationGate::prepare_admitted_dev_input(
+        let authority = InvocationGate::prepare_admitted_dev_input(
             source,
             profile,
             input,
             self.admission.admit_dev()?,
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     /// Mint/resolve the per-app bearer-free callback service and prepare its
@@ -9934,11 +10049,12 @@ impl LocalSnapback {
         let principal =
             self.db
                 .ensure_asset_callbacks_service_principal(&app_id, scope, now_millis())?;
-        InvocationGate::prepare_admitted_asset_callbacks(
+        let authority = InvocationGate::prepare_admitted_asset_callbacks(
             ServerProfile::Dev,
             self.admission.admit_for_mode(AuthMode::Sessions)?,
             principal,
-        )
+        )?;
+        self.install_authorization_stream(authority)
     }
 
     /// Close app-data/cron/live/nested admission and wait for the finite
@@ -12619,6 +12735,7 @@ impl LocalSnapback {
             resolved,
             None,
         )?;
+        let authority = branch.install_authorization_stream(authority)?;
         if definition.kind == FunctionKind::Mutation {
             let context = crate::fork_promotion::BranchMutationCommitV1 {
                 branch_id: branch_id.clone(),
@@ -12628,6 +12745,8 @@ impl LocalSnapback {
             let committed = crate::fork_promotion::with_branch_effect_execution_context(
                 effect_context.clone(),
                 || {
+                    let recorded_authority =
+                        branch.bind_recorded_mutation_authority(authority, None, None)?;
                     branch.invoke_mutation_commit_with_id_authority_and_branch(
                         function,
                         HandlerInput {
@@ -12635,9 +12754,7 @@ impl LocalSnapback {
                             ..HandlerInput::default()
                         },
                         None,
-                        None,
-                        None,
-                        authority,
+                        recorded_authority,
                         Some(&context),
                         Self::ensure_permission_epoch_capacity,
                     )
@@ -12782,11 +12899,19 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         ids: &[String],
     ) -> SnapbackResult<u64> {
-        authority.validate_admission("client mutation acknowledgement")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
+        self.acknowledge_client_mutations_with_cohort(&cohort, ids)
+    }
+
+    fn acknowledge_client_mutations_with_cohort(
+        &mut self,
+        cohort: &PreparedAuthorityDescriptor,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        self.require_prepared_authority_descriptor_current(cohort)?;
+        let authority = &cohort.authority;
         let auth = authority.canonical_auth_input();
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        let descriptor = cohort.authority_descriptor();
         #[cfg(test)]
         run_before_admission_effect_guard_hook(AdmissionEffectSite::ClientMutationAcknowledgement);
         // @ref LLP 0058#gate-algorithm — acknowledgement retention changes
@@ -12836,7 +12961,22 @@ impl LocalSnapback {
         ids: &[String],
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<u64> {
-        authority.validate_admission("client mutation acknowledgement")?;
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
+        self.acknowledge_client_mutations_with_cohort_and_authorized_effect(
+            &cohort,
+            ids,
+            authorized_effect,
+        )
+    }
+
+    fn acknowledge_client_mutations_with_cohort_and_authorized_effect(
+        &mut self,
+        cohort: &PreparedAuthorityDescriptor,
+        ids: &[String],
+        authorized_effect: AuthorizedEffectReservation,
+    ) -> SnapbackResult<u64> {
+        self.require_prepared_authority_descriptor_current(cohort)?;
+        let authority = &cohort.authority;
         if !matches!(authority.resolved(), ResolvedAppAuthority::Session(_)) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_REQUIRED",
@@ -12845,8 +12985,7 @@ impl LocalSnapback {
             ));
         }
         let auth = authority.canonical_auth_input();
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        let descriptor = cohort.authority_descriptor();
         let current = self
             .db
             .settlement()
@@ -12882,14 +13021,137 @@ impl LocalSnapback {
         })
     }
 
-    pub fn descriptor_for_prepared_authority(
+    fn require_prepared_authority_descriptor_current(
         &mut self,
-        authority: &PreparedAuthority,
-    ) -> SnapbackResult<AuthorityDescriptor> {
-        authority.validate_admission("authority descriptor publication")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        descriptor_for_authority(authority, incarnation.as_str())
+        cohort: &PreparedAuthorityDescriptor,
+    ) -> SnapbackResult<()> {
+        if !Arc::ptr_eq(
+            &cohort.graph_identity.identity,
+            &self.app_state_graph_identity,
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "prepared authority descriptor belongs to another engine graph",
+            ));
+        }
+        self.require_owned_authority_admission(cohort.authority.admission_lease())?;
+        cohort
+            .authority
+            .validate_admission("prepared authority descriptor")?;
+        self.persist_and_validate_prepared_service_authority(&cohort.authority)?;
+        let durable = self.db.authorization_stream_incarnation()?;
+        match cohort.authority.authorization_stream_incarnation() {
+            Some(installed) if installed == durable.as_str() => Ok(()),
+            Some(_) => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authority belongs to another authorization stream",
+            )),
+            None => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authority has no installed authorization stream",
+            )),
+        }
+    }
+
+    fn require_recorded_mutation_authority_current(
+        &mut self,
+        recorded: &PreparedRecordedMutationAuthority,
+    ) -> SnapbackResult<()> {
+        self.require_prepared_authority_descriptor_current(&recorded.cohort)?;
+        debug_assert!(
+            recorded.client_mutation_id.is_none()
+                || recorded.cohort.authority.active_mode() != AuthMode::Sessions
+                || recorded.verified_echo.is_some(),
+            "the sole recorded-authority producer verifies every queued session echo"
+        );
+        // Presence is the proof; the DTO was compared exactly once by
+        // `require_current_descriptor` before this opaque carrier existed.
+        let _verified_wire = recorded.verified_echo.as_ref().map(|echo| &echo.wire);
+        Ok(())
+    }
+
+    /// Derive the trusted descriptor only after all authority attachments are
+    /// complete and the exact consuming engine graph has accepted them.
+    ///
+    /// @ref LLP 0303#the-governing-principle — the trusted cohort has one engine
+    ///   producer and no independently supplied descriptor constructor.
+    pub fn prepare_authority_descriptor(
+        &mut self,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<PreparedAuthorityDescriptor> {
+        self.require_owned_authority_admission(authority.admission_lease())?;
+        authority.validate_admission("authority descriptor preparation")?;
+        self.persist_and_validate_prepared_service_authority(&authority)?;
+        let durable = self.db.authorization_stream_incarnation()?;
+        let installed = authority
+            .authorization_stream_incarnation()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "prepared authority has no installed authorization stream",
+                )
+            })?;
+        if installed != durable.as_str() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authority belongs to another authorization stream",
+            ));
+        }
+        let descriptor = derive_authority_descriptor(&authority, installed)?;
+        Ok(PreparedAuthorityDescriptor {
+            graph_identity: EngineAppStateGraphIdentity {
+                identity: self.app_state_graph_identity.clone(),
+            },
+            authority,
+            descriptor,
+        })
+    }
+
+    /// Bind queued correlation inputs to the engine-derived authority root.
+    /// Unqueued compatibility work deliberately discards any raw descriptor.
+    pub fn bind_recorded_mutation_authority(
+        &mut self,
+        authority: PreparedAuthority,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+    ) -> SnapbackResult<PreparedRecordedMutationAuthority> {
+        let cohort = self.prepare_authority_descriptor(authority)?;
+        self.bind_prepared_recorded_mutation_authority(
+            cohort,
+            client_mutation_id,
+            authority_descriptor,
+        )
+    }
+
+    fn bind_prepared_recorded_mutation_authority(
+        &mut self,
+        cohort: PreparedAuthorityDescriptor,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+    ) -> SnapbackResult<PreparedRecordedMutationAuthority> {
+        self.require_prepared_authority_descriptor_current(&cohort)?;
+        let compare_echo = client_mutation_id.is_some()
+            && (cohort.authority.active_mode() == AuthMode::Sessions
+                || authority_descriptor.is_some());
+        let verified_echo = if compare_echo {
+            require_current_descriptor(
+                authority_descriptor.as_ref(),
+                cohort.authority_descriptor(),
+            )?;
+            authority_descriptor.map(|wire| VerifiedAuthorityDescriptorEcho { wire })
+        } else {
+            None
+        };
+        Ok(PreparedRecordedMutationAuthority {
+            cohort,
+            client_mutation_id,
+            verified_echo,
+        })
     }
 
     pub fn issue_client_operation_identity_range(
@@ -12899,12 +13161,10 @@ impl LocalSnapback {
         authority_descriptor: Option<&AuthorityDescriptor>,
         previous: Option<&crate::commit_envelope::ClientIdentityRangeV1>,
     ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
-        authority.validate_admission("operation identity range issuance")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
+        let expected = cohort.authority_descriptor();
         if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-            require_current_descriptor(authority_descriptor, &expected)?;
+            require_current_descriptor(authority_descriptor, expected)?;
         }
         if !crate::manifest::replay_opaque_id_is_valid(client_audience_id) {
             return Err(SnapbackError::error(
@@ -12933,12 +13193,10 @@ impl LocalSnapback {
         client_audience_id: &str,
         identity: &crate::commit_envelope::OperationIdentityV1,
     ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
-        authority.validate_admission("operation explanation")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
+        let expected = cohort.authority_descriptor();
         if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-            require_current_descriptor(authority_descriptor, &expected)?;
+            require_current_descriptor(authority_descriptor, expected)?;
         }
         let audience =
             operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
@@ -12969,7 +13227,7 @@ impl LocalSnapback {
         let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
             audience,
             principal_fingerprint: auth_fingerprint(&authority.canonical_auth_input()),
-            authority_instance_id: expected.authority_instance_id,
+            authority_instance_id: expected.authority_instance_id.clone(),
             current_artifact_digest,
             // The projector still checks every retained constituent. This
             // bit means only that live admission/grant policy was re-run; it
@@ -13017,14 +13275,11 @@ impl LocalSnapback {
         authority_descriptor: Option<&AuthorityDescriptor>,
         ids: &[String],
     ) -> SnapbackResult<u64> {
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
         if let Some(supplied) = authority_descriptor {
-            authority.validate_admission("client mutation acknowledgement")?;
-            self.persist_and_validate_prepared_service_authority(authority)?;
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(authority, incarnation.as_str())?;
-            require_current_descriptor(Some(supplied), &expected)?;
+            require_current_descriptor(Some(supplied), cohort.authority_descriptor())?;
         }
-        self.acknowledge_client_mutations_with_authority(authority, ids)
+        self.acknowledge_client_mutations_with_cohort(&cohort, ids)
     }
 
     pub fn acknowledge_client_mutations_with_authority_descriptor_and_authorized_effect(
@@ -13034,13 +13289,15 @@ impl LocalSnapback {
         ids: &[String],
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<u64> {
+        let cohort = self.prepare_authority_descriptor(authority.clone())?;
         if let Some(supplied) = authority_descriptor {
-            authority.validate_admission("client mutation acknowledgement")?;
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(authority, incarnation.as_str())?;
-            require_current_descriptor(Some(supplied), &expected)?;
+            require_current_descriptor(Some(supplied), cohort.authority_descriptor())?;
         }
-        self.acknowledge_client_mutations_with_authorized_effect(authority, ids, authorized_effect)
+        self.acknowledge_client_mutations_with_cohort_and_authorized_effect(
+            &cohort,
+            ids,
+            authorized_effect,
+        )
     }
 
     /// Administrative recovery for settlements whose original client can no
@@ -18159,23 +18416,20 @@ impl LocalSnapback {
                     "asset-cb:{}:{event}:{}",
                     row.asset_id, row.lifecycle_generation
                 );
-                let authority_descriptor = if authority.active_mode() == AuthMode::Sessions {
-                    let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-                    Some(crate::auth::invocation::descriptor_for_authority(
-                        &authority,
-                        incarnation.as_str(),
-                    )?)
-                } else {
-                    None
-                };
+                let cohort = self.prepare_authority_descriptor(authority)?;
+                let authority_descriptor = (cohort.authority.active_mode() == AuthMode::Sessions)
+                    .then(|| cohort.authority_descriptor().clone());
+                let recorded_authority = self.bind_prepared_recorded_mutation_authority(
+                    cohort,
+                    Some(idempotency_key),
+                    authority_descriptor,
+                )?;
                 let (_preflight, staged) = self.stage_recorded_authorization_mutation(
                     &handler,
                     input,
-                    Some(idempotency_key),
-                    authority_descriptor,
+                    recorded_authority,
                     &[],
                     "asset-runner",
-                    authority,
                 )?;
                 // The commit envelope carries the handler's own outcome
                 // inside: a throwing callback is a work failure (retried
@@ -18557,6 +18811,7 @@ impl LocalSnapback {
                 admission,
             )
         })?;
+        let authority = self.install_authorization_stream(authority)?;
         // The ordinary benchmark fixture predates identity streams; create
         // its server-owned stream before asking the public range issuer to
         // bind a range to it.
@@ -18593,6 +18848,7 @@ impl LocalSnapback {
                 admission,
             )
         })?;
+        let authority = self.install_authorization_stream(authority)?;
         let issuance = crate::commit_envelope::OperationIssuanceV1::ClientRange {
             epoch_id: range.epoch_id.clone(),
             counter,
@@ -18604,15 +18860,15 @@ impl LocalSnapback {
         // epoch. Include that epoch in the durable replay key so concurrent
         // acceptance writers can each start at counter zero without aliasing.
         let client_mutation_id = format!("agent-safe-bench-{}-{counter}", range.epoch_id);
+        let recorded_authority =
+            self.bind_recorded_mutation_authority(authority, Some(client_mutation_id), None)?;
         let (_preflight, staged) = self
             .stage_recorded_authorization_mutation_with_generation_and_settlement(
                 name,
                 input,
-                Some(client_mutation_id),
-                None,
+                recorded_authority,
                 &[],
                 "agent-safe-paired-recorder",
-                authority,
                 None,
                 Some(issuance),
                 MutationSettlement::default(),
@@ -18762,23 +19018,46 @@ impl LocalSnapback {
         transport: &str,
         source: InvocationSource,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        let authority = self.admission.admit_dev().and_then(|admission| {
-            InvocationGate::prepare_admitted_dev_input(
-                source,
-                ServerProfile::Dev,
-                &input,
-                admission,
-            )
-        });
+        let authority = self
+            .admission
+            .admit_dev()
+            .and_then(|admission| {
+                InvocationGate::prepare_admitted_dev_input(
+                    source,
+                    ServerProfile::Dev,
+                    &input,
+                    admission,
+                )
+            })
+            .and_then(|authority| self.install_authorization_stream(authority));
         match authority {
-            Ok(authority) => self.invoke_mutation_recording_with_authority_descriptor(
-                name,
-                input,
-                client_mutation_id,
-                authority_descriptor,
-                transport,
+            Ok(authority) => match self.bind_recorded_mutation_authority(
                 authority,
-            ),
+                client_mutation_id.clone(),
+                authority_descriptor,
+            ) {
+                Ok(recorded_authority) => self.invoke_mutation_recording_with_recorded_authority(
+                    name,
+                    input,
+                    recorded_authority,
+                    transport,
+                ),
+                Err(error) => {
+                    let correlation = capped_correlation(input.correlation.clone());
+                    let receipt_mutation_id = client_mutation_id.unwrap_or_else(|| {
+                        crate::ids::mint_time_ordered(crate::ids::Kind::Mutation)
+                    });
+                    self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        &MutationSettlement::default(),
+                        Err(error),
+                        false,
+                    )
+                }
+            },
             Err(error) => {
                 let correlation = capped_correlation(input.correlation.clone());
                 let receipt_mutation_id = client_mutation_id
@@ -18804,14 +19083,33 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        self.invoke_mutation_recording_with_authority_descriptor(
-            name,
-            input,
-            client_mutation_id,
-            None,
-            transport,
-            authority,
-        )
+        let admission = authority.admission_lease().clone();
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
+        match self
+            .install_authorization_stream(authority)
+            .and_then(|authority| {
+                self.bind_recorded_mutation_authority(authority, client_mutation_id, None)
+            }) {
+            Ok(recorded_authority) => self.invoke_mutation_recording_with_recorded_authority(
+                name,
+                input,
+                recorded_authority,
+                transport,
+            ),
+            Err(error) => self.record_mutation_commit_after_publication_guard(
+                MutationReceiptPublication::new(
+                    name,
+                    transport,
+                    correlation,
+                    receipt_mutation_id,
+                    &admission,
+                ),
+                Err(error),
+            ),
+        }
     }
 
     /// Detailed sibling used by the D1 host-operation envelope. The receipt
@@ -18830,14 +19128,37 @@ impl LocalSnapback {
         Receipt,
         MutationDependencyCapture,
     ) {
-        self.invoke_mutation_recording_with_authority_descriptor_and_dependencies(
-            name,
-            input,
-            client_mutation_id,
-            None,
-            transport,
-            authority,
-        )
+        let admission = authority.admission_lease().clone();
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
+        match self
+            .install_authorization_stream(authority)
+            .and_then(|authority| {
+                self.bind_recorded_mutation_authority(authority, client_mutation_id, None)
+            }) {
+            Ok(recorded_authority) => self
+                .invoke_mutation_recording_with_authority_descriptor_and_dependencies(
+                    name,
+                    input,
+                    recorded_authority,
+                    transport,
+                ),
+            Err(error) => {
+                let (outcome, receipt) = self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        &admission,
+                    ),
+                    Err(error),
+                );
+                (outcome, receipt, MutationDependencyCapture::incomplete())
+            }
+        }
     }
 
     /// HTTP/Contract queued replay entry point. A live credential has already
@@ -18847,6 +19168,24 @@ impl LocalSnapback {
     ///
     /// @ref LLP 0039#replay-parity-and-the-authority-instance-id — first and
     /// duplicate deliveries share one pre-effect descriptor check.
+    fn invoke_mutation_recording_with_recorded_authority(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        recorded_authority: PreparedRecordedMutationAuthority,
+        transport: &str,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        let (outcome, receipt, _capture) = self
+            .invoke_mutation_recording_with_authority_descriptor_and_dependencies(
+                name,
+                input,
+                recorded_authority,
+                transport,
+            );
+        (outcome, receipt)
+    }
+
+    #[cfg(test)]
     pub(crate) fn invoke_mutation_recording_with_authority_descriptor(
         &mut self,
         name: &str,
@@ -18856,16 +19195,33 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
-        let (outcome, receipt, _capture) = self
-            .invoke_mutation_recording_with_authority_descriptor_and_dependencies(
+        let admission = authority.admission_lease().clone();
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
+        match self.bind_recorded_mutation_authority(
+            authority,
+            client_mutation_id,
+            authority_descriptor,
+        ) {
+            Ok(recorded_authority) => self.invoke_mutation_recording_with_recorded_authority(
                 name,
                 input,
-                client_mutation_id,
-                authority_descriptor,
+                recorded_authority,
                 transport,
-                authority,
-            );
-        (outcome, receipt)
+            ),
+            Err(error) => self.record_mutation_commit_after_publication_guard(
+                MutationReceiptPublication::new(
+                    name,
+                    transport,
+                    correlation,
+                    receipt_mutation_id,
+                    &admission,
+                ),
+                Err(error),
+            ),
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -18873,10 +19229,8 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         transport: &str,
-        authority: PreparedAuthority,
     ) -> (
         SnapbackResult<MutationOutput>,
         Receipt,
@@ -18890,26 +19244,24 @@ impl LocalSnapback {
                 .invoke_mutation_recording_with_authority_descriptor_in_scope_and_dependencies(
                     name,
                     input,
-                    client_mutation_id,
-                    authority_descriptor,
+                    recorded_authority,
                     transport,
-                    authority,
                 );
         }
 
+        let authority = &recorded_authority.cohort.authority;
         let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
-        let receipt_mutation_id = client_mutation_id
+        let receipt_mutation_id = recorded_authority
+            .client_mutation_id
             .clone()
             .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let staged = self.stage_recorded_authorization_mutation(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             &[],
             transport,
-            authority,
         );
         let (preflight, staged) = match staged {
             Ok(staged) => staged,
@@ -18965,27 +19317,25 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         transport: &str,
-        authority: PreparedAuthority,
     ) -> (
         SnapbackResult<MutationOutput>,
         Receipt,
         MutationDependencyCapture,
     ) {
+        let authority = &recorded_authority.cohort.authority;
         let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
-        let receipt_mutation_id = client_mutation_id
+        let receipt_mutation_id = recorded_authority
+            .client_mutation_id
             .clone()
             .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let result = self.invoke_mutation_commit_with_id_and_authority(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
             Some(receipt_mutation_id.as_str()),
-            authority,
+            recorded_authority,
         );
         let capture = result
             .as_ref()
@@ -19026,30 +19376,22 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
-        let function = self.function(name)?.clone();
-        let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
-        if client_mutation_id.is_some() {
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-            if prepared.authority().active_mode() == AuthMode::Sessions
-                || authority_descriptor.is_some()
-            {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
-            }
-        }
+        let recorded_authority = self.bind_recorded_mutation_authority(
+            authority.clone(),
+            client_mutation_id.clone(),
+            authority_descriptor.clone(),
+        )?;
         if !acknowledged_client_mutation_ids.is_empty() {
-            self.acknowledge_client_mutations_with_authority(
-                prepared.authority(),
+            self.acknowledge_client_mutations_with_cohort(
+                &recorded_authority.cohort,
                 acknowledged_client_mutation_ids,
             )?;
         }
-        Ok(self.invoke_mutation_recording_with_authority_descriptor(
+        Ok(self.invoke_mutation_recording_with_recorded_authority(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             transport,
-            authority,
         ))
     }
 
@@ -19065,11 +19407,9 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         acknowledged_client_mutation_ids: &[String],
         transport: &str,
-        authority: PreparedAuthority,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
@@ -19077,11 +19417,9 @@ impl LocalSnapback {
         self.stage_recorded_authorization_mutation_with_generation(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             acknowledged_client_mutation_ids,
             transport,
-            authority,
             None,
         )
     }
@@ -19091,11 +19429,9 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         acknowledged_client_mutation_ids: &[String],
         transport: &str,
-        authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
@@ -19104,11 +19440,9 @@ impl LocalSnapback {
         self.stage_recorded_authorization_mutation_with_generation_and_settlement(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             acknowledged_client_mutation_ids,
             transport,
-            authority,
             expected_generation,
             None,
             MutationSettlement::default(),
@@ -19120,11 +19454,9 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         acknowledged_client_mutation_ids: &[String],
         transport: &str,
-        authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
@@ -19135,11 +19467,9 @@ impl LocalSnapback {
         self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             acknowledged_client_mutation_ids,
             transport,
-            authority,
             expected_generation,
             operation_issuance,
             settlement,
@@ -19160,11 +19490,9 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         acknowledged_client_mutation_ids: &[String],
         transport: &str,
-        authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
@@ -19177,11 +19505,9 @@ impl LocalSnapback {
         self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
+            recorded_authority,
             acknowledged_client_mutation_ids,
             transport,
-            authority,
             expected_generation,
             operation_issuance,
             settlement,
@@ -19198,11 +19524,9 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
+        recorded_authority: PreparedRecordedMutationAuthority,
         acknowledged_client_mutation_ids: &[String],
         transport: &str,
-        authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
@@ -19217,6 +19541,12 @@ impl LocalSnapback {
         ),
         AuthorizedEffectReservationError,
     > {
+        self.require_recorded_mutation_authority_current(&recorded_authority)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let authority = recorded_authority.cohort.authority.clone();
+        let client_mutation_id = recorded_authority.client_mutation_id.clone();
+        let expected_authority_descriptor =
+            recorded_authority.cohort.authority_descriptor().clone();
         let negotiated_wire_version = match crate::wire_version::classify_open_offer(
             wire_version,
             crate::wire_version::SUPPORTED_WIRE_VERSIONS,
@@ -19320,23 +19650,13 @@ impl LocalSnapback {
                     self.persist_and_validate_prepared_service_authority_classified(&authority)?
                 }
             }
-            let incarnation = self
-                .db
-                .ensure_authorization_stream_incarnation()
-                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-            let expected = descriptor_for_authority(&authority, incarnation.as_str())
-                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-            if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)
-                    .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
-            }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
             let identity = bind_request(ClientMutationIdentity::for_authority_with_settlement(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
-                expected.authority_instance_id,
+                expected_authority_descriptor.authority_instance_id.clone(),
                 &settlement,
             ));
             if let Some(output) = self
@@ -19346,8 +19666,8 @@ impl LocalSnapback {
                 .map_err(AuthorizedEffectReservationError::NonTerminal)?
             {
                 if !acknowledged_client_mutation_ids.is_empty() {
-                    self.acknowledge_client_mutations_with_authority(
-                        &authority,
+                    self.acknowledge_client_mutations_with_cohort(
+                        &recorded_authority.cohort,
                         acknowledged_client_mutation_ids,
                     )
                     .map_err(AuthorizedEffectReservationError::NonTerminal)?;
@@ -19432,23 +19752,9 @@ impl LocalSnapback {
         }
         preflight_host_plan_authority_writes(&prepared, &function, self.db.schema())
             .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
-        if client_mutation_id.is_some() {
-            let incarnation = self
-                .db
-                .ensure_authorization_stream_incarnation()
-                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())
-                .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-            if prepared.authority().active_mode() == AuthMode::Sessions
-                || authority_descriptor.is_some()
-            {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)
-                    .map_err(|error| AuthorizedEffectReservationError::NonTerminal(error.into()))?;
-            }
-        }
         if !acknowledged_client_mutation_ids.is_empty() {
-            self.acknowledge_client_mutations_with_authority(
-                prepared.authority(),
+            self.acknowledge_client_mutations_with_cohort(
+                &recorded_authority.cohort,
                 acknowledged_client_mutation_ids,
             )
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
@@ -19463,16 +19769,13 @@ impl LocalSnapback {
         let error_receipt_mutation_id = receipt_mutation_id.clone();
         let staged = (|| -> SnapbackResult<_> {
             let mut input = prepared.canonicalize_input(input);
-            let identity = if let Some(id) = client_mutation_id {
-                let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-                let expected =
-                    descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            let identity = if let Some(id) = client_mutation_id.clone() {
                 Some(bind_request(
                     ClientMutationIdentity::for_authority_with_settlement(
                         id,
                         name.to_owned(),
                         &input,
-                        expected.authority_instance_id,
+                        expected_authority_descriptor.authority_instance_id.clone(),
                         &settlement,
                     ),
                 ))
@@ -19699,6 +20002,7 @@ impl LocalSnapback {
                                 receipt_mutation_id,
                                 input,
                                 settlement: settlement.clone(),
+                                recorded_authority,
                                 prepared,
                                 identity,
                                 media_command,
@@ -19884,6 +20188,7 @@ impl LocalSnapback {
             receipt_mutation_id,
             input,
             settlement,
+            recorded_authority,
             prepared,
             identity,
             media_command,
@@ -19892,6 +20197,7 @@ impl LocalSnapback {
             execution,
             observation,
         } = *staged;
+        self.require_recorded_mutation_authority_current(&recorded_authority)?;
         let effect_posture = effect_posture.bind(&prepared);
         let trace_identity = crate::spike_trace::MutationTraceIdentity::capture(
             &input,
@@ -20250,21 +20556,17 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
         // The caller's pre-minted receipt mutation id, when a receipt will be
         // emitted for this commit — job rows stamp it as their producer so
         // the two association halves name the same identity (0127 decision 7).
         receipt_mutation_id: Option<&str>,
-        authority: PreparedAuthority,
+        recorded_authority: PreparedRecordedMutationAuthority,
     ) -> SnapbackResult<MutationCommit> {
         self.invoke_mutation_commit_with_id_authority_and_branch(
             name,
             input,
-            client_mutation_id,
-            authority_descriptor,
             receipt_mutation_id,
-            authority,
+            recorded_authority,
             None,
             Self::ensure_permission_epoch_capacity,
         )
@@ -20275,31 +20577,28 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        client_mutation_id: Option<String>,
-        authority_descriptor: Option<AuthorityDescriptor>,
         receipt_mutation_id: Option<&str>,
-        authority: PreparedAuthority,
+        recorded_authority: PreparedRecordedMutationAuthority,
         branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         permission_epoch_preflight: fn(&LocalSnapback, &BTreeSet<String>) -> SnapbackResult<()>,
     ) -> SnapbackResult<MutationCommit> {
+        self.require_recorded_mutation_authority_current(&recorded_authority)?;
+        let authority = recorded_authority.cohort.authority.clone();
+        let client_mutation_id = recorded_authority.client_mutation_id.clone();
+        let expected_authority_descriptor = recorded_authority.authority_descriptor().clone();
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // Recovery of an already-committed identity is non-executing and does
         // not depend on the old function remaining in the active bundle.
         if let Some(id) = client_mutation_id.as_ref() {
             authority.validate_admission("client mutation settlement recovery")?;
             self.persist_and_validate_prepared_service_authority(&authority)?;
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(&authority, incarnation.as_str())?;
-            if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
-            }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
             let identity = ClientMutationIdentity::for_authority(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
-                expected.authority_instance_id,
+                expected_authority_descriptor.authority_instance_id.clone(),
             );
             if let Some(output) = self
                 .db
@@ -20331,18 +20630,11 @@ impl LocalSnapback {
         let admission = prepared.admission_lease().clone();
         let mut input = prepared.canonicalize_input(input);
         let identity = if let Some(id) = client_mutation_id {
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-            if prepared.authority().active_mode() == AuthMode::Sessions
-                || authority_descriptor.is_some()
-            {
-                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
-            }
             Some(ClientMutationIdentity::for_authority(
                 id,
                 name.to_owned(),
                 &input,
-                expected.authority_instance_id,
+                expected_authority_descriptor.authority_instance_id,
             ))
         } else {
             None
@@ -24746,14 +25038,11 @@ impl LocalSnapback {
     /// @ref LLP 0017#function-runner-and-code-runner — generated-function runner
     /// over the normal invocation path; not an arbitrary-JavaScript eval.
     pub fn run_function(&mut self, name: &str, input: HandlerInput) -> FunctionRunResult {
-        let authority = match self.admission.admit_dev().and_then(|admission| {
-            InvocationGate::prepare_admitted_dev_input(
-                InvocationSource::DirectAdminRunner,
-                ServerProfile::Dev,
-                &input,
-                admission,
-            )
-        }) {
+        let authority = match self.prepare_legacy_dev_authority(
+            InvocationSource::DirectAdminRunner,
+            ServerProfile::Dev,
+            &input,
+        ) {
             Ok(authority) => authority,
             Err(error) => return function_run_admission_failure(name, error),
         };
@@ -24900,14 +25189,17 @@ impl LocalSnapback {
                     },
                 }
             }
-            FunctionKind::Mutation => match self.invoke_mutation_commit_with_id_and_authority(
-                name,
-                input,
-                None,
-                None,
-                None,
-                prepared.authority().clone(),
-            ) {
+            FunctionKind::Mutation => match self
+                .install_authorization_stream(prepared.authority().clone())
+                .and_then(|authority| self.bind_recorded_mutation_authority(authority, None, None))
+                .and_then(|recorded_authority| {
+                    self.invoke_mutation_commit_with_id_and_authority(
+                        name,
+                        input,
+                        None,
+                        recorded_authority,
+                    )
+                }) {
                 Ok(commit) => FunctionRunResult {
                     elapsed_ms: elapsed_ms(started),
                     version: Some(commit.output.version),
@@ -30429,14 +30721,10 @@ impl LocalSnapback {
         let (upstream_identity, commit_ordinal) = parent
             .next_child()
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-        authority.validate_admission_classified("host child operation identity")?;
-        self.persist_and_validate_prepared_service_authority_classified(authority)?;
-        let incarnation = self
-            .db
-            .ensure_authorization_stream_incarnation()
+        let cohort = self
+            .prepare_authority_descriptor(authority.clone())
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
-        let descriptor = descriptor_for_authority(authority, incarnation.as_str())
-            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let descriptor = cohort.authority_descriptor();
         let issuance = self
             .db
             .settlement()
@@ -30475,7 +30763,7 @@ impl LocalSnapback {
                 operation_id,
                 function,
                 &canonical_input,
-                descriptor.authority_instance_id,
+                descriptor.authority_instance_id.clone(),
             )
             .with_artifact_generation(&generation)
             .with_operation_issuance(issuance),
@@ -30589,6 +30877,9 @@ impl LocalSnapback {
             .invocation
             .inherit_authority_for(InvocationSource::NestedMutation)
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let authority = self
+            .install_authorization_stream(authority)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         let child_input = HandlerInput {
             args: Value::Object(mutation_args),
             auth: action.input.auth.clone(),
@@ -30603,14 +30894,26 @@ impl LocalSnapback {
             &authority,
         )?;
         let child_authority = authority.clone();
+        let client_mutation_id = host_identity.as_ref().map(|identity| identity.id.clone());
+        let cohort = self
+            .prepare_authority_descriptor(authority)
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
+        let authority_descriptor = (client_mutation_id.is_some()
+            && cohort.authority.active_mode() == AuthMode::Sessions)
+            .then(|| cohort.authority_descriptor().clone());
+        let recorded_authority = self
+            .bind_prepared_recorded_mutation_authority(
+                cohort,
+                client_mutation_id,
+                authority_descriptor,
+            )
+            .map_err(AuthorizedEffectReservationError::NonTerminal)?;
         self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
             name,
             child_input,
-            host_identity.as_ref().map(|identity| identity.id.clone()),
-            None,
+            recorded_authority,
             &[],
             "local",
-            authority,
             None,
             host_identity.and_then(|identity| identity.operation_issuance),
             MutationSettlement::default(),

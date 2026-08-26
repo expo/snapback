@@ -10925,14 +10925,21 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
         ..HandlerInput::default()
     };
     let retained_authority = prepared("settlement-owner");
+    let retained_admission = state.auth_admission_controller();
     let authority_instance_id = super::with_snapback(&state.snapback, move |snapback| {
         let incarnation = snapback
             .remainder_auth_fixture()
             .ensure_authorization_stream_incarnation()
             .expect("authorization stream incarnation");
-        crate::auth::invocation::descriptor_for_authority(&retained_authority, incarnation.as_str())
+        let retained_authority = retained_authority
+            .bind_authorization_stream(&retained_admission, incarnation.as_str().to_owned())
+            .expect("bind authorization stream");
+        snapback
+            .prepare_authority_descriptor(retained_authority)
             .expect("prepared authority descriptor")
+            .authority_descriptor()
             .authority_instance_id
+            .clone()
     })
     .await;
     let identity = ClientMutationIdentity::for_authority(

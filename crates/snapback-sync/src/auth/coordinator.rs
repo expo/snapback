@@ -1988,13 +1988,16 @@ impl AuthCoordinator {
     /// Bind the bootstrap response to this coordinator's current stream.
     /// The raw incarnation setter remains crate-private so a higher adapter
     /// cannot assert an arbitrary authorization-stream identity.
-    pub fn bind_bootstrap_publication(
+    pub fn bind_authorization_stream(
         &self,
         authority: PreparedAuthority,
     ) -> SnapbackResult<PreparedAuthority> {
-        let incarnation = self.authorization_stream_incarnation()?;
-        let authority = authority.with_authorization_stream_incarnation(incarnation);
-        Ok(authority)
+        let topology = self.lock_topology()?;
+        if topology.global_rebuild_required {
+            return Err(projection_unavailable());
+        }
+        let incarnation = topology.projection.incarnation().as_str().to_owned();
+        authority.bind_authorization_stream(&topology.admission, incarnation)
     }
 
     /// Mint the process-live half of rehearsal authority only from an

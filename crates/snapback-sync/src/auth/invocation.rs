@@ -8,10 +8,7 @@
 // @ref LLP 0058#shared-invocation-authority — one closed gate separates wire authority, resolved authority, and the immutable handler projection.
 
 use crate::auth::admission::{AdmissionController, AdmissionEffectGuard, AdmissionLease};
-use crate::auth::descriptor::{
-    AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, service_authority_instance_id,
-    validate_descriptor_values,
-};
+use crate::auth::descriptor::canonical_uuid_v7;
 use crate::auth::identity_core::AuthClaimsProjection;
 use crate::auth::service_authority_contract::ServiceAuthorityDisposition;
 use crate::auth::service_fence::ServiceAuthorityDeadlineTerminal;
@@ -27,8 +24,7 @@ use crate::auth::session_projection::{
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,
-    HandlerInput,
+    AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
 use crate::storage::auth_asset_callbacks::{
@@ -572,64 +568,6 @@ pub(crate) fn test_service_authority(
             .expect("test admission controller")
             .lease_origin(),
     )
-}
-
-/// Opaque result of one protected scoped-token/catalog verification. The raw
-/// app authority can be inspected but not extracted; preparation consumes
-/// this carrier inside the crate that owns the closed invocation gate.
-#[derive(Clone, Debug)]
-pub struct ResolvedServiceSubject {
-    resolved: ResolvedAppAuthority,
-}
-
-impl ResolvedServiceSubject {
-    #[doc(hidden)]
-    pub fn from_scoped_token(
-        token: ResolvedScopedToken,
-        admission_origin: crate::auth::admission::AdmissionLeaseOrigin,
-    ) -> SnapbackResult<Self> {
-        let binding = token.database_binding().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "the scoped-token subject was not resolved by a serving database",
-            )
-        })?;
-        if !admission_origin.matches_database_binding(binding) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "the scoped-token subject and admission lease belong to different engine authority graphs",
-            ));
-        }
-        Ok(Self {
-            resolved: ResolvedAppAuthority::from_scoped_token(token, admission_origin),
-        })
-    }
-
-    pub fn resolved(&self) -> &ResolvedAppAuthority {
-        &self.resolved
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn prepare(
-        self,
-        source: InvocationSource,
-        active_mode: AuthMode,
-        profile: ServerProfile,
-        admission: AdmissionLease,
-        wire: &WireAuthorityFields,
-    ) -> SnapbackResult<PreparedAuthority> {
-        InvocationGate::prepare_admitted_authority(
-            source,
-            active_mode,
-            profile,
-            admission,
-            wire,
-            self.resolved,
-            None,
-        )
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2432,9 +2370,44 @@ impl PreparedAuthority {
         }
     }
 
-    pub(crate) fn with_authorization_stream_incarnation(mut self, incarnation: String) -> Self {
+    /// Install the authorization stream selected by the controller that
+    /// admitted this authority. A consumer cannot use its own stream to
+    /// repair a foreign authority: controller ownership is checked before a
+    /// missing value is installed, and an existing value must match exactly.
+    ///
+    /// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event —
+    ///   the stream attachment stays inside the authority's admission graph.
+    pub fn bind_authorization_stream(
+        mut self,
+        admission: &AdmissionController,
+        incarnation: String,
+    ) -> SnapbackResult<Self> {
+        if !admission.owns_lease(&self.admission) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "authorization stream belongs to another admission graph",
+            ));
+        }
+        canonical_uuid_v7(&incarnation).map_err(|()| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
+                "auth",
+                "authorization-stream incarnation is not a canonical UUIDv7",
+            )
+        })?;
+        if let Some(installed) = self.authorization_stream_incarnation.as_deref() {
+            if installed != incarnation {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                    "auth",
+                    "authority already belongs to another authorization stream",
+                ));
+            }
+            return Ok(self);
+        }
         self.authorization_stream_incarnation = Some(incarnation);
-        self
+        Ok(self)
     }
 
     /// Consume a fully computed finite effect at the exact stream/session
@@ -3875,72 +3848,6 @@ fn function_kind_matches(constraint: FunctionKindConstraint, kind: &FunctionKind
     }
 }
 
-/// Build the one descriptor the server is willing to accept for a prepared
-/// invocation. Sessions use the durable per-session opaque id; dev and
-/// anonymous authority use the durable authorization-stream incarnation so an
-/// ordinary restart does not strand queued work.
-///
-/// Lives with the invocation gate because it consumes resolved authority; the
-/// pure descriptor derivation and validation stay on the
-/// `auth::descriptor` leaf.
-///
-/// @ref LLP 0039#replay-parity-and-the-authority-instance-id — session ids are
-///   stable across refresh; dev authority is keyed to the durable incarnation.
-pub fn descriptor_for_authority(
-    authority: &PreparedAuthority,
-    authorization_stream_incarnation: &str,
-) -> SnapbackResult<AuthorityDescriptor> {
-    descriptor_for_resolved_authority(authority.resolved(), authorization_stream_incarnation)
-}
-
-/// Construct the same descriptor for discovery paths that have already
-/// resolved a credential but intentionally do not hold an admission lease
-/// (notably the diagnostic handshake while ordinary admission is closed).
-pub fn descriptor_for_resolved_authority(
-    authority: &ResolvedAppAuthority,
-    authorization_stream_incarnation: &str,
-) -> SnapbackResult<AuthorityDescriptor> {
-    canonical_uuid_v7(authorization_stream_incarnation).map_err(|()| {
-        SnapbackError::error(
-            "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
-            "auth",
-            "authorization-stream incarnation is not a canonical UUIDv7",
-        )
-    })?;
-    let (authority_instance_id, session_generation) = match authority {
-        ResolvedAppAuthority::Session(subject) => (
-            subject.authority_instance_id().to_owned(),
-            subject.generation(),
-        ),
-        ResolvedAppAuthority::RevalidatedPrincipal(subject) => {
-            (subject.authority_instance_id().to_owned(), 0)
-        }
-        ResolvedAppAuthority::ServicePrincipal(subject) => (
-            service_authority_instance_id(
-                subject.actor_user_id(),
-                subject.credential_id(),
-                subject.credential_generation(),
-                subject.grant_id(),
-            ),
-            0,
-        ),
-        ResolvedAppAuthority::Anonymous
-        | ResolvedAppAuthority::DevImpersonation { .. }
-        | ResolvedAppAuthority::AdminBypass { .. }
-        | ResolvedAppAuthority::System => (authorization_stream_incarnation.to_owned(), 0),
-    };
-    validate_descriptor_values(
-        AUTHORITY_DESCRIPTOR_VERSION,
-        &authority_instance_id,
-        session_generation,
-    )?;
-    Ok(AuthorityDescriptor {
-        descriptor_version: AUTHORITY_DESCRIPTOR_VERSION,
-        authority_instance_id,
-        session_generation,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5185,109 +5092,5 @@ mod tests {
         assert_eq!(rerun.resolved(), &resolved);
         drop(rerun);
         assert_eq!(controller.snapshot().in_flight, 0);
-    }
-
-    mod descriptor_construction {
-        use super::super::{
-            InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
-            WireAuthorityFields, descriptor_for_authority, descriptor_for_resolved_authority,
-            test_service_authority, test_session_authority,
-        };
-        use crate::contract_types::ServerProfile;
-        use crate::manifest::AuthMode;
-
-        const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
-        const SESSION_AUTHORITY: &str = "018f0d90-7b24-7a22-8c33-445566778899";
-
-        fn prepared(resolved: ResolvedAppAuthority, mode: AuthMode) -> PreparedAuthority {
-            InvocationGate::prepare_authority(
-                InvocationSource::HttpMutation,
-                mode,
-                ServerProfile::Dev,
-                1,
-                1,
-                &WireAuthorityFields::default(),
-                resolved,
-            )
-            .unwrap()
-        }
-
-        fn service(token_id: &str, generation: u64, grant_id: &str) -> ResolvedAppAuthority {
-            test_service_authority(
-                "agent-a",
-                "credential-a",
-                generation,
-                grant_id,
-                token_id,
-                Some("user-a".to_owned()),
-                Vec::new(),
-                10_000,
-                None,
-            )
-        }
-
-        #[test]
-        fn session_descriptor_uses_opaque_session_instance_and_generation() {
-            let authority = prepared(
-                test_session_authority(
-                    "018f0d90-7b23-7a22-8c33-445566778899",
-                    "018f0d90-7b22-7a22-8c33-445566778899",
-                    "email-code",
-                    7,
-                    SESSION_AUTHORITY,
-                    10_000,
-                    None,
-                    None,
-                ),
-                AuthMode::Sessions,
-            );
-            let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();
-            assert_eq!(descriptor.descriptor_version, 1);
-            assert_eq!(descriptor.authority_instance_id, SESSION_AUTHORITY);
-            assert_eq!(descriptor.session_generation, 7);
-        }
-
-        #[test]
-        fn dev_descriptor_is_incarnation_stable_and_closed() {
-            let authority = prepared(
-                ResolvedAppAuthority::DevImpersonation {
-                    user_id: "dev-user".to_owned(),
-                    roles: Vec::new(),
-                    local_dev_only: true,
-                },
-                AuthMode::Dev,
-            );
-            let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();
-            assert_eq!(descriptor.authority_instance_id, INCARNATION);
-            assert_eq!(descriptor.session_generation, 0);
-        }
-
-        #[test]
-        fn service_descriptor_survives_token_churn_but_not_durable_axis_changes() {
-            let first =
-                descriptor_for_resolved_authority(&service("token-a", 3, "grant-a"), INCARNATION)
-                    .unwrap();
-            let replacement_token =
-                descriptor_for_resolved_authority(&service("token-b", 3, "grant-a"), INCARNATION)
-                    .unwrap();
-            let rotated =
-                descriptor_for_resolved_authority(&service("token-c", 4, "grant-a"), INCARNATION)
-                    .unwrap();
-            let replaced_grant =
-                descriptor_for_resolved_authority(&service("token-d", 3, "grant-b"), INCARNATION)
-                    .unwrap();
-
-            assert_eq!(first, replacement_token);
-            assert_ne!(first.authority_instance_id, rotated.authority_instance_id);
-            assert_ne!(
-                first.authority_instance_id,
-                replaced_grant.authority_instance_id
-            );
-            assert!(crate::ids::looks_like(
-                crate::ids::Kind::AuthorityInstance,
-                &first.authority_instance_id
-            ));
-            assert_eq!(first.session_generation, 0);
-        }
     }
 }

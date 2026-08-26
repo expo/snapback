@@ -15885,19 +15885,19 @@ fn successor_only_publication_gates_blind_mutation_artifact_generation() {
             args: json!({ "id": id, "name": name }),
             ..HandlerInput::default()
         };
-        let authority = InvocationGate::prepare_dev_input(
+        let authority = snapback.prepare_legacy_dev_authority(
             InvocationSource::LocalMutation,
             ServerProfile::Test,
             &input,
         )?;
+        let recorded_authority =
+            snapback.bind_recorded_mutation_authority(authority, None, None)?;
         snapback.stage_recorded_authorization_mutation_with_wire_version(
             "renameAuthor",
             input,
-            None,
-            None,
+            recorded_authority,
             &[],
             "test",
-            authority,
             expected_generation,
             None,
             MutationSettlement::default(),
@@ -24159,21 +24159,19 @@ globalThis.__snapbackHandlers = {
     );
 
     let input = HandlerInput::default();
-    let authority = InvocationGate::prepare_dev_input(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &input,
-    )
-    .expect("prepare detached version-copy authority");
+    let authority = snapback
+        .prepare_legacy_dev_authority(InvocationSource::LocalMutation, ServerProfile::Test, &input)
+        .expect("prepare detached version-copy authority");
+    let recorded_authority = snapback
+        .bind_recorded_mutation_authority(authority, None, None)
+        .expect("bind detached version-copy authority");
     let (preflight, staged) = snapback
         .stage_recorded_authorization_mutation(
             "copyInsertedVersion",
             input,
-            None,
-            None,
+            recorded_authority,
             &[],
             "test",
-            authority,
         )
         .expect("stage version-copy mutation at the initial head");
 
@@ -28044,14 +28042,18 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
     fn stage_and_commit(snapback: &mut LocalSnapback, name: &str, input: HandlerInput) {
         let correlation =
             telemetry_correlation(&input.correlation).expect("staged observation correlation");
-        let authority = InvocationGate::prepare_dev_input(
-            InvocationSource::LocalMutation,
-            ServerProfile::Test,
-            &input,
-        )
-        .expect("prepare staged mutation authority");
+        let authority = snapback
+            .prepare_legacy_dev_authority(
+                InvocationSource::LocalMutation,
+                ServerProfile::Test,
+                &input,
+            )
+            .expect("prepare staged mutation authority");
+        let recorded_authority = snapback
+            .bind_recorded_mutation_authority(authority, None, None)
+            .expect("bind staged mutation authority");
         let (preflight, staged) = snapback
-            .stage_recorded_authorization_mutation(name, input, None, None, &[], "test", authority)
+            .stage_recorded_authorization_mutation(name, input, recorded_authority, &[], "test")
             .expect("stage served mutation");
         snapback
             .telemetry
@@ -28125,21 +28127,23 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
     stage_and_commit(&mut snapback, "ibexInsert", with_correlation("ibex-staged"));
 
     let refused_input = with_correlation("host-refused");
-    let refused_authority = InvocationGate::prepare_dev_input(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &refused_input,
-    )
-    .expect("prepare refused staged mutation authority");
+    let refused_authority = snapback
+        .prepare_legacy_dev_authority(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &refused_input,
+        )
+        .expect("prepare refused staged mutation authority");
+    let refused_authority = snapback
+        .bind_recorded_mutation_authority(refused_authority, None, None)
+        .expect("bind refused staged mutation authority");
     let (refused_preflight, mut refused_staged) = snapback
         .stage_recorded_authorization_mutation(
             "hostInsert",
             refused_input,
-            None,
-            None,
+            refused_authority,
             &[],
             "test",
-            refused_authority,
         )
         .expect("stage mutation before authoritative refusal");
     match &mut refused_staged {
@@ -28867,20 +28871,23 @@ fn invoke_synthetic_settlement(
     client_mutation_id: &str,
     settlement: MutationSettlement,
 ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
-    let authority = InvocationGate::prepare_dev_input(
+    let authority = snapback.prepare_legacy_dev_authority(
         InvocationSource::LocalMutation,
         ServerProfile::Test,
         &input,
+    )?;
+    let recorded_authority = snapback.bind_recorded_mutation_authority(
+        authority,
+        Some(client_mutation_id.to_owned()),
+        None,
     )?;
     let (preflight, staged) = snapback
         .stage_recorded_authorization_mutation_with_generation_and_settlement(
             name,
             input,
-            Some(client_mutation_id.to_owned()),
-            None,
+            recorded_authority,
             &[],
             "test",
-            authority,
             None,
             None,
             settlement,
@@ -28969,21 +28976,23 @@ fn dropped_staged_function_carriers_record_reserved_cancellation() {
         correlation: Some(json!("cancelled-staged-mutation")),
         ..input()
     };
-    let mutation_authority = InvocationGate::prepare_dev_input(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &mutation_input,
-    )
-    .expect("prepare staged cancellation authority");
+    let mutation_authority = snapback
+        .prepare_legacy_dev_authority(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &mutation_input,
+        )
+        .expect("prepare staged cancellation authority");
+    let mutation_authority = snapback
+        .bind_recorded_mutation_authority(mutation_authority, None, None)
+        .expect("bind staged cancellation authority");
     let (preflight, staged) = snapback
         .stage_recorded_authorization_mutation(
             "hostInsert",
             mutation_input,
-            None,
-            None,
+            mutation_authority,
             &[],
             "test",
-            mutation_authority,
         )
         .expect("stage cancellable mutation");
     assert!(matches!(staged, StagedRecordedMutation::Ready(_)));
@@ -29476,21 +29485,27 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
     let mut snapback = lane_settlement_snapback();
     let settlement = synthetic_lane_l_settlement(13, [LOCAL_ROW, LOCAL_TOKEN]);
     let captured = captured_lane_input(13, [LOCAL_ROW, LOCAL_TOKEN]);
-    let authority = InvocationGate::prepare_dev_input(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &captured,
-    )
-    .unwrap();
+    let authority = snapback
+        .prepare_legacy_dev_authority(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &captured,
+        )
+        .unwrap();
+    let authority = snapback
+        .bind_recorded_mutation_authority(
+            authority,
+            Some("cm_llp0133_reservation_retry".to_owned()),
+            None,
+        )
+        .unwrap();
     let (preflight, mut staged) = snapback
         .stage_recorded_authorization_mutation_with_generation_and_settlement(
             "writeClockAndId",
             captured.clone(),
-            Some("cm_llp0133_reservation_retry".to_owned()),
-            None,
+            authority,
             &[],
             "test",
-            authority,
             None,
             None,
             settlement.clone(),
@@ -29916,8 +29931,10 @@ fn permission_epoch_guarded_snapback() -> LocalSnapback {
     snapback
 }
 
-fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
-    let mut snapback = LocalSnapback::memory().expect("descriptor authority fixture");
+fn session_authority(
+    snapback: &mut LocalSnapback,
+    authority_instance_id: &str,
+) -> PreparedAuthority {
     snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpMutation,
         "018f0d90-7b21-7a22-8c33-445566778899",
@@ -29926,6 +29943,86 @@ fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
         1,
         10_000,
     )
+}
+
+#[test]
+fn prepared_authority_descriptor_refuses_foreign_engine_graph() {
+    let input = HandlerInput::default();
+    let mut producer = LocalSnapback::memory().expect("authority producer engine");
+    let authority = producer
+        .prepare_legacy_dev_authority(InvocationSource::LocalMutation, ServerProfile::Test, &input)
+        .expect("prepare producer authority");
+    let mut consumer = LocalSnapback::memory().expect("authority consumer engine");
+
+    let error = match consumer.prepare_authority_descriptor(authority) {
+        Err(error) => error,
+        Ok(_) => panic!("a foreign engine cannot adopt a prepared authority"),
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+}
+
+#[test]
+fn prepared_authority_descriptor_requires_preinstalled_exact_stream() {
+    let mut snapback = LocalSnapback::memory().expect("authority descriptor engine");
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
+        InvocationSource::LocalMutation,
+        AuthMode::Dev,
+        ServerProfile::Test,
+        snapback.admission.admit_dev().expect("admit dev authority"),
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Anonymous,
+        None,
+    )
+    .expect("prepare authority without stream");
+
+    let error = match snapback.prepare_authority_descriptor(authority) {
+        Err(error) => error,
+        Ok(_) => panic!("the descriptor producer must not repair a missing stream"),
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+
+    let authority = InvocationGate::prepare_admitted_subjectless_authority(
+        InvocationSource::LocalMutation,
+        AuthMode::Dev,
+        ServerProfile::Test,
+        snapback.admission.admit_dev().expect("admit dev authority"),
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::Anonymous,
+        None,
+    )
+    .expect("prepare authority before foreign stream");
+    let authority = authority
+        .bind_authorization_stream(
+            &snapback.admission,
+            "018f0d90-7b26-7a22-8c33-445566778899".to_owned(),
+        )
+        .expect("install foreign stream");
+    let error = match snapback.prepare_authority_descriptor(authority) {
+        Err(error) => error,
+        Ok(_) => panic!("the descriptor producer must require the engine's exact stream"),
+    };
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+    );
+}
+
+#[test]
+fn unqueued_recording_discards_untrusted_wire_descriptor() {
+    let input = HandlerInput::default();
+    let mut snapback = LocalSnapback::memory().expect("unqueued descriptor engine");
+    let authority = snapback
+        .prepare_legacy_dev_authority(InvocationSource::LocalMutation, ServerProfile::Test, &input)
+        .expect("prepare unqueued authority");
+    let foreign_wire = descriptor("018f0d90-7b25-7a22-8c33-445566778899");
+
+    let recorded = snapback
+        .bind_recorded_mutation_authority(authority, None, Some(foreign_wire.clone()))
+        .expect("unqueued compatibility discards the raw descriptor");
+    assert_ne!(recorded.authority_descriptor(), &foreign_wire);
 }
 
 fn descriptor(authority_instance_id: &str) -> AuthorityDescriptor {
@@ -30139,13 +30236,14 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
     let mut snapback = guarded_snapback();
 
     for supplied in [None, Some(descriptor(SECOND))] {
+        let authority = session_authority(&mut snapback, FIRST);
         let (result, _) = snapback.invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
             input(),
             Some("cm_first_delivery".to_owned()),
             supplied,
             "http",
-            session_authority(FIRST),
+            authority,
         );
         assert_eq!(
             result.expect_err("stale first delivery").diagnostic.code,
@@ -30163,6 +30261,7 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
         );
     }
 
+    let authority = session_authority(&mut snapback, FIRST);
     snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30170,12 +30269,13 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             Some("cm_first_delivery".to_owned()),
             Some(descriptor(FIRST)),
             "http",
-            session_authority(FIRST),
+            authority,
         )
         .0
         .expect("matching first delivery");
     assert_eq!(snapback.durable_version().unwrap(), 1);
 
+    let authority = session_authority(&mut snapback, FIRST);
     let stale_with_ack = snapback
         .invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
             "hostInsert",
@@ -30184,10 +30284,11 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             Some(descriptor(SECOND)),
             &["cm_first_delivery".to_owned()],
             "http",
-            session_authority(FIRST),
+            authority,
         )
         .expect_err("descriptor mismatch must precede piggyback ACK and receipt");
     assert_eq!(stale_with_ack.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+    let authority = session_authority(&mut snapback, FIRST);
     snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30195,7 +30296,7 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             Some("cm_first_delivery".to_owned()),
             Some(descriptor(FIRST)),
             "http",
-            session_authority(FIRST),
+            authority,
         )
         .0
         .expect("stale carrier did not consume the existing settlement");
@@ -30210,6 +30311,7 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
         "duplicate settlement must remain after a stale piggyback carrier"
     );
 
+    let authority = session_authority(&mut snapback, SECOND);
     let duplicate = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30217,7 +30319,7 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             Some("cm_first_delivery".to_owned()),
             Some(descriptor(SECOND)),
             "http",
-            session_authority(SECOND),
+            authority,
         )
         .0
         .expect_err("settlement belongs to the first authority instance");
@@ -30243,6 +30345,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
     const AUTHORITY: &str = "018f0d90-7b24-7a22-8c33-445566778899";
     const OTHER_AUTHORITY: &str = "018f0d90-7b25-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
+    let authority = session_authority(&mut snapback, AUTHORITY);
     let settled = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30250,7 +30353,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             Some("cm_removed_function".to_owned()),
             Some(descriptor(AUTHORITY)),
             "http",
-            session_authority(AUTHORITY),
+            authority,
         )
         .0
         .expect("first delivery settles");
@@ -30272,6 +30375,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
         "{diagnostics:?}"
     );
 
+    let authority = session_authority(&mut snapback, AUTHORITY);
     let recovered = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30279,7 +30383,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             Some("cm_removed_function".to_owned()),
             Some(descriptor(AUTHORITY)),
             "http",
-            session_authority(AUTHORITY),
+            authority,
         )
         .0
         .expect("removed function still exposes its committed settlement");
@@ -30296,6 +30400,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
         "settlement recovery never dispatches removed code"
     );
 
+    let authority = session_authority(&mut snapback, AUTHORITY);
     let stale = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30303,20 +30408,22 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             Some("cm_removed_function".to_owned()),
             Some(descriptor(OTHER_AUTHORITY)),
             "http",
-            session_authority(AUTHORITY),
+            authority,
         )
         .0
         .expect_err("descriptor drift refuses before settlement lookup");
     assert_eq!(stale.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
 
+    let authority = session_authority(&mut snapback, AUTHORITY);
     let stale_ack = snapback
         .acknowledge_client_mutations_with_authority_descriptor(
-            &session_authority(AUTHORITY),
+            &authority,
             Some(&descriptor(OTHER_AUTHORITY)),
             &["cm_removed_function".to_owned()],
         )
         .expect_err("standalone ACK descriptor drift refuses before GC");
     assert_eq!(stale_ack.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+    let authority = session_authority(&mut snapback, AUTHORITY);
     snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30324,20 +30431,22 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             Some("cm_removed_function".to_owned()),
             Some(descriptor(AUTHORITY)),
             "http",
-            session_authority(AUTHORITY),
+            authority,
         )
         .0
         .expect("stale standalone ACK retained the settlement");
 
+    let authority = session_authority(&mut snapback, AUTHORITY);
     assert_eq!(
         snapback
             .acknowledge_client_mutations_with_authority(
-                &session_authority(AUTHORITY),
+                &authority,
                 &["cm_removed_function".to_owned()],
             )
             .expect("acknowledge settlement"),
         1
     );
+    let authority = session_authority(&mut snapback, AUTHORITY);
     let retired = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30345,7 +30454,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             Some("cm_removed_function".to_owned()),
             Some(descriptor(AUTHORITY)),
             "http",
-            session_authority(AUTHORITY),
+            authority,
         )
         .0
         .expect_err("after ACK, removed function is unknown");
@@ -30354,14 +30463,15 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
 
 #[test]
 fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
-    const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
     let secrets = install_service_replay_auth(&mut snapback);
     let first = service_mutation_authority(&mut snapback, &secrets, "token-a")
         .expect("resolve first replay token");
-    let descriptor =
-        crate::auth::invocation::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
-            .expect("service descriptor");
+    let descriptor = snapback
+        .prepare_authority_descriptor(first)
+        .expect("service descriptor")
+        .authority_descriptor()
+        .clone();
 
     let replacement = service_mutation_authority(&mut snapback, &secrets, "token-b")
         .expect("resolve replacement replay token");
@@ -37142,15 +37252,18 @@ fn invoke_service_host_plan_path(
     };
     match path {
         ServiceHostPlanPath::RecordedStaging => {
-            match snapback.stage_recorded_authorization_mutation(
-                "hostInsert",
-                call_input,
-                None,
-                None,
-                &[],
-                "test",
-                authority,
-            ) {
+            let staged = snapback
+                .bind_recorded_mutation_authority(authority, None, None)
+                .and_then(|recorded_authority| {
+                    snapback.stage_recorded_authorization_mutation(
+                        "hostInsert",
+                        call_input,
+                        recorded_authority,
+                        &[],
+                        "test",
+                    )
+                });
+            match staged {
                 Err(error) => error,
                 Ok(_) => panic!("the recorded staging path must refuse the sealed target"),
             }
