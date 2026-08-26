@@ -1,4 +1,8 @@
-fn raw_connection_accessor(connection: &GuardedConnection) {
+fn raw_connection_accessor(transaction: &mut ProtectedTx<'_>) {
     // @attack
-    let _ = connection.connection();
+    transaction.connection.authorizer(Some(raw_allow_all));
+}
+
+fn raw_allow_all(_: rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization {
+    rusqlite::hooks::Authorization::Allow
 }

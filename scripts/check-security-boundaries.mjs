@@ -15,6 +15,10 @@ import {
   runCargoMetadata,
   workspacePackages,
 } from './security-gates-lib.mjs';
+import {
+  AUTHORITY_RUNTIME_TESTS,
+  scoreAuthorityRuntimeOutput,
+} from './authority-runtime-output.mjs';
 
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_FIXTURE_ROOT = resolve(DEFAULT_ROOT, 'tests/fixtures/security-boundaries');
@@ -23,16 +27,6 @@ const OWNING_CRATE_TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-owni
 const RUNTIME_TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-runtime');
 const DIAGNOSTIC = 'SNAPBACK_SECURITY_BOUNDARY';
 const OWNING_CRATE_MODE = 'kernel-unit-compile-fail';
-const AUTHORITY_RUNTIME_SENTINELS = [
-  '01-transaction-liveness',
-  '02-connection-ownership',
-  '03-prepare-execution-lifetime',
-  '04-replace-unrepresentable',
-  '05-private-proof-derivation',
-  '06-wrapper-generation',
-  '07-executing-gate',
-  'resource-guard-reread',
-];
 
 function sorted(values) {
   return [...new Set(values)].sort();
@@ -343,7 +337,7 @@ export function runAuthorityRuntimeAttacks({
       'authority_transition_runtime_',
     ];
     if (features.length > 0) args.push('--features', features.join(','));
-    args.push('--', '--nocapture', '--test-threads=1');
+    args.push('--', '--show-output', '--test-threads=1');
     const result = spawnCargo('cargo', args, {
       cwd: root,
       env: { ...process.env, CARGO_TARGET_DIR: targetDir },
@@ -356,20 +350,28 @@ export function runAuthorityRuntimeAttacks({
       );
     }
     const output = `${result.stdout}\n${result.stderr}`;
-    const observed = AUTHORITY_RUNTIME_SENTINELS.filter((id) =>
-      output.includes(`AUTHORITY_TRANSITION_RUNTIME_PROBE: ${id}`));
-    const missing = setDifference(AUTHORITY_RUNTIME_SENTINELS, observed);
+    const score = scoreAuthorityRuntimeOutput(output, result.status);
     const featureLabel = `[${features.join(',')}]`;
-    if (result.status !== 0 || missing.length > 0) {
+    if (!score.passed) {
+      const reason = result.status !== 0
+        ? `tests exited ${result.status}`
+        : [
+          score.missingSentinels.length > 0
+            ? `missing executed sentinel(s): ${score.missingSentinels.join(', ')}`
+            : null,
+          score.missingOkTests.length > 0
+            ? `missing exact ok test(s): ${score.missingOkTests.join(', ')}`
+            : null,
+        ].filter(Boolean).join('; ');
       outcomes.push({
         passed: false,
-        line: `[security-boundary] RED authority-runtime: ${result.status !== 0 ? `tests exited ${result.status}` : `missing executed sentinel(s): ${missing.join(', ')}`} under features ${featureLabel}`,
+        line: `[security-boundary] RED authority-runtime: ${reason} under features ${featureLabel}`,
         diagnostics: output.trim().split('\n').slice(-40),
       });
     } else {
       outcomes.push({
         passed: true,
-        line: `[security-boundary] PASS authority-runtime: executed ${observed.length} refusal probe(s) under features ${featureLabel}`,
+        line: `[security-boundary] PASS authority-runtime: executed ${score.observed.length}/${AUTHORITY_RUNTIME_TESTS.length} exact named probe(s) under features ${featureLabel}`,
         diagnostics: [],
       });
     }

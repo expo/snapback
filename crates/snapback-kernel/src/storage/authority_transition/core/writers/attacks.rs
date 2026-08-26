@@ -1,10 +1,11 @@
 //! Unit-only reproductions of routes the production writer API cannot spell.
 
+use super::super::evidence::ProtectedTx;
 use super::super::*;
 use rusqlite::{CachedStatement, params};
 
 const SESSION_INSERT: &str =
-    "INSERT INTO _auth_sessions(id, user_id, assurance_generation) VALUES(?1, ?2, ?3)";
+    "INSERT OR ABORT INTO _auth_sessions(id, user_id, assurance_generation) VALUES(?1, ?2, ?3)";
 
 pub(in super::super) fn unscoped_session_insert(
     connection: &Connection,
@@ -17,13 +18,13 @@ pub(in super::super) fn unscoped_session_insert(
 pub(in super::super) fn transaction_control_sql(
     transaction: &mut ProtectedTx<'_>,
 ) -> rusqlite::Result<()> {
-    transaction.connection.execute_batch("COMMIT")
+    transaction.transaction_control_for_test()
 }
 
 pub(in super::super) fn prime_cached_session_insert<'connection>(
     transaction: &'connection mut ProtectedTx<'_>,
 ) -> rusqlite::Result<CachedStatement<'connection>> {
-    transaction.connection.prepare_cached(SESSION_INSERT)
+    transaction.prepare_cached_for_test()
 }
 
 pub(in super::super) fn execute_cached_session_insert(
@@ -40,13 +41,17 @@ pub(in super::super) fn stale_generation_session_insert(
     session_id: &str,
     user_id: &str,
 ) -> AuthorityTransitionResult<usize> {
-    let mut stale = ProtectedTx {
-        connection: transaction.connection,
-        authorizer_cell: transaction.authorizer_cell,
-        generation: transaction.generation.saturating_sub(1),
-        operation: transaction.operation,
-        _scope: PhantomData,
-        _not_send_sync: PhantomData,
-    };
-    super::insert_password_session(&mut stale, session_id, user_id, 1)
+    transaction.insert_at_generation_for_test(
+        transaction_generation_for_test(transaction).saturating_sub(1),
+        session_id,
+        user_id,
+    )
+}
+
+fn transaction_generation_for_test(_transaction: &ProtectedTx<'_>) -> u64 {
+    // The first successful ceremony advances to generation 1 and this helper is
+    // called only from the live generation-2 regression. Supplying 1 is the
+    // stale copied fact under attack; writer code still cannot read the live
+    // generation or authorizer cell.
+    2
 }

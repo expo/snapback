@@ -1,32 +1,29 @@
 //! Private verification, derivation, scoped effect, and commit choreography.
+#![allow(unexpected_cfgs)]
 
 use super::*;
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior};
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
+
+mod protected_tx;
+
+use protected_tx::CompositePolicyState;
+pub(super) use protected_tx::{DerivedPasswordSession, GuardedConnection, ProtectedTx};
 
 pub(super) struct RawPasswordProof {
     pub(super) user_selector: String,
     pub(super) presented_secret: Vec<u8>,
 }
 
-pub(super) struct PasswordSessionPayload {
-    pub(super) session_id: String,
-}
-
-struct DerivedPasswordSession {
-    session_id: String,
-    subject_user_id: String,
-    assurance_generation: i64,
-}
-
 struct ScopeReset {
-    cell: Arc<Mutex<AuthorizerCell>>,
+    state: Arc<CompositePolicyState>,
     generation: u64,
 }
 
 impl Drop for ScopeReset {
     fn drop(&mut self) {
-        if let Ok(mut cell) = self.cell.lock() {
+        if let Ok(mut cell) = self.state.transition.lock() {
             if matches!(
                 cell.phase,
                 ScopePhase::Active { generation, .. }
@@ -42,23 +39,26 @@ impl Drop for ScopeReset {
 }
 
 // @ref LLP 0303#the-governing-principle — the exact ceremony accepts raw
-// selector/proof and ordinary payload only. Subject, operation, write shape,
+// selector/proof only. Subject, operation, write shape,
 // successor columns, and scope generation are derived below this boundary.
 pub(super) fn issue_password_session(
     guarded: &mut GuardedConnection,
     proof: RawPasswordProof,
-    payload: PasswordSessionPayload,
 ) -> AuthorityTransitionResult<()> {
     execute_verified_effect(
         guarded,
-        move |transaction| verify_and_derive_password_session(transaction, proof, payload),
+        move |transaction| verify_and_derive_password_session(transaction, proof),
         |protected, derived| {
-            writers::insert_password_session(
-                protected,
-                &derived.session_id,
-                &derived.subject_user_id,
-                derived.assurance_generation,
-            )?;
+            let affected = writers::insert_password_session(protected, derived)?;
+            #[cfg(not(snapback_authority_mutation_ignore_write_count))]
+            if affected != 1 {
+                return Err(AuthorityTransitionError::UnexpectedWriteCount {
+                    expected: 1,
+                    actual: affected,
+                });
+            }
+            #[cfg(snapback_authority_mutation_ignore_write_count)]
+            let _ = affected;
             Ok(())
         },
     )
@@ -100,7 +100,8 @@ where
 
     let generation = {
         let mut cell = guarded
-            .authorizer_cell
+            .authorizer_state
+            .transition
             .lock()
             .map_err(|_| AuthorityTransitionError::ScopeStatePoisoned)?;
         let ScopePhase::Idle {
@@ -119,25 +120,24 @@ where
         generation
     };
     let reset = ScopeReset {
-        cell: Arc::clone(&guarded.authorizer_cell),
+        state: Arc::clone(&guarded.authorizer_state),
         generation,
     };
 
     let result = {
-        let mut protected = ProtectedTx {
-            connection: &transaction,
-            authorizer_cell: &guarded.authorizer_cell,
+        let mut protected = ProtectedTx::new(
+            &transaction,
+            &guarded.authorizer_state,
             generation,
-            operation: RegisteredOperation::IssuePasswordSession,
-            _scope: PhantomData,
-            _not_send_sync: PhantomData,
-        };
+            RegisteredOperation::IssuePasswordSession,
+        );
         writer(&mut protected, &derived)
     };
 
     {
         let mut cell = guarded
-            .authorizer_cell
+            .authorizer_state
+            .transition
             .lock()
             .map_err(|_| AuthorityTransitionError::ScopeStatePoisoned)?;
         if !matches!(
@@ -169,27 +169,66 @@ where
 fn verify_and_derive_password_session(
     transaction: &Transaction<'_>,
     proof: RawPasswordProof,
-    payload: PasswordSessionPayload,
 ) -> AuthorityTransitionResult<DerivedPasswordSession> {
     let credential = transaction
         .query_row(
-            "SELECT secret_digest, assurance_generation
+            "SELECT user_id, secret_digest, assurance_generation
              FROM _auth_password_credentials
              WHERE user_id = ?1",
             [&proof.user_selector],
-            |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, i64>(1)?)),
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
         )
         .optional()?
         .ok_or(AuthorityTransitionError::ProofRefused)?;
     let presented_digest: [u8; 32] = Sha256::digest(&proof.presented_secret).into();
-    if credential.0.as_slice() != presented_digest {
+    if credential.0.is_empty() || credential.1.as_slice() != presented_digest || credential.2 < 0 {
         return Err(AuthorityTransitionError::ProofRefused);
     }
-    Ok(DerivedPasswordSession {
-        session_id: payload.session_id,
-        subject_user_id: proof.user_selector,
-        assurance_generation: credential.1,
-    })
+
+    // @ref LLP 0303#the-governing-principle — both the exact durable key and
+    // canonical subject come from the verified credential row. The caller's
+    // selector locates a candidate but never becomes successor state.
+    #[allow(unexpected_cfgs)]
+    let (session_id, subject_user_id) = if cfg!(snapback_authority_mutation_supply_selector) {
+        (proof.user_selector.clone(), proof.user_selector)
+    } else {
+        (
+            derive_session_id(&credential.0, &credential.1, credential.2),
+            credential.0,
+        )
+    };
+    Ok(DerivedPasswordSession::new(
+        session_id,
+        subject_user_id,
+        credential.2,
+    ))
+}
+
+fn derive_session_id(
+    canonical_user_id: &str,
+    secret_digest: &[u8],
+    assurance_generation: i64,
+) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback-password-session-v1\0");
+    digest.update((canonical_user_id.len() as u64).to_be_bytes());
+    digest.update(canonical_user_id.as_bytes());
+    digest.update(secret_digest);
+    digest.update(assurance_generation.to_be_bytes());
+    let bytes: [u8; 32] = digest.finalize().into();
+    let mut encoded = String::with_capacity(67);
+    encoded.push_str("ps_");
+    for byte in bytes {
+        use std::fmt::Write as _;
+        write!(&mut encoded, "{byte:02x}").expect("writing to String cannot fail");
+    }
+    encoded
 }
 
 #[cfg(test)]

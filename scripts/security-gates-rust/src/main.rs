@@ -10,8 +10,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Block, Expr, ExprLit, Fields, FnArg, ImplItem, Item, ItemImpl, ItemMod, Lit, Meta,
-    Pat, PathArguments, ReturnType, Stmt, Token, Type, UseTree, Visibility,
+    Attribute, Block, Expr, ExprLit, Fields, FieldsNamed, FnArg, ImplItem, Item, ItemImpl, ItemMod,
+    Lit, Meta, Pat, PathArguments, ReturnType, Stmt, Token, Type, UseTree, Visibility,
 };
 
 // Rust raw identifiers are spelling escapes, not distinct names. syn and
@@ -4153,11 +4153,11 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
         "durable_origin",
         "resource_binding",
         "statement_cache_policy",
-        "authorizer_cell",
+        "authorizer_state",
     ];
     const PROTECTED_TX_FIELDS: &[&str] = &[
         "connection",
-        "authorizer_cell",
+        "authorizer_state",
         "generation",
         "operation",
         "_scope",
@@ -4180,12 +4180,14 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
     let authority_mod = authority_root.join("mod.rs");
     let core_mod = authority_root.join("core/mod.rs");
     let evidence_path = authority_root.join("core/evidence.rs");
+    let protected_path = authority_root.join("core/evidence/protected_tx.rs");
     let writers_root = authority_root.join("core/writers");
     let required_paths = [
         &storage_path,
         &authority_mod,
         &core_mod,
         &evidence_path,
+        &protected_path,
         &writers_root,
     ];
     for path in required_paths {
@@ -4214,6 +4216,7 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
     let authority_syntax = parse(&authority_mod)?;
     let core_syntax = parse(&core_mod)?;
     let evidence_syntax = parse(&evidence_path)?;
+    let protected_syntax = parse(&protected_path)?;
     let mut violations = Vec::new();
 
     let storage_mount = storage_syntax.items.iter().find_map(|item| match item {
@@ -4437,6 +4440,109 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
             _ => {}
         }
     }
+
+    // The raw handle-bearing types live below `evidence`, as a sibling of
+    // `core::writers`. Private fields in core/mod.rs are visible to every
+    // descendant writer; private fields here are not. Mutation-only duplicate
+    // fields deliberately widen that boundary for the checked mutation proof
+    // and are excluded from the production shape projection.
+    let production_fields = |fields: &FieldsNamed| {
+        fields
+            .named
+            .iter()
+            .filter(|field| {
+                !field.attrs.iter().any(|attribute| {
+                    let tokens = authority_tokens(attribute);
+                    tokens.contains("cfg(snapback_authority_mutation_writer_raw_access)")
+                        && !tokens.contains("cfg(not(")
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    for item in &protected_syntax.items {
+        match item {
+            Item::Struct(item) if ident_matches(&item.ident, "GuardedConnection") => {
+                let Fields::Named(fields) = &item.fields else {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &protected_path,
+                        item.fields.span(),
+                        "guarded-connection-fields",
+                        "GuardedConnection must have named evidence-private fields",
+                    );
+                    continue;
+                };
+                let observed_fields = production_fields(fields);
+                let observed = observed_fields
+                    .iter()
+                    .map(|field| field.ident.as_ref().map(ident_name).unwrap_or_default())
+                    .collect::<Vec<_>>();
+                guarded_connection_fields = observed.len();
+                let evidence_private = observed_fields.iter().all(|field| {
+                    matches!(
+                        &field.vis,
+                        Visibility::Restricted(restricted) if path_is_ident(&restricted.path, "super")
+                    )
+                });
+                if !matches!(item.vis, Visibility::Restricted(_))
+                    || observed != GUARDED_FIELDS
+                    || !evidence_private
+                    || !authority_tokens(item).contains("connection:Connection")
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &protected_path,
+                        item.span(),
+                        "guarded-connection-fields",
+                        format!(
+                            "GuardedConnection fields were {observed:?}, expected evidence-private {GUARDED_FIELDS:?} with an owned Connection"
+                        ),
+                    );
+                }
+            }
+            Item::Struct(item) if ident_matches(&item.ident, "ProtectedTx") => {
+                let Fields::Named(fields) = &item.fields else {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &protected_path,
+                        item.fields.span(),
+                        "protected-tx-fields",
+                        "ProtectedTx must have named private fields",
+                    );
+                    continue;
+                };
+                let observed_fields = production_fields(fields);
+                let observed = observed_fields
+                    .iter()
+                    .map(|field| field.ident.as_ref().map(ident_name).unwrap_or_default())
+                    .collect::<Vec<_>>();
+                protected_tx_fields = observed.len();
+                if !matches!(item.vis, Visibility::Restricted(_))
+                    || item.generics.lifetimes().count() != 1
+                    || observed != PROTECTED_TX_FIELDS
+                    || observed_fields
+                        .iter()
+                        .any(|field| !matches!(field.vis, Visibility::Inherited))
+                {
+                    push_authority_violation(
+                        &mut violations,
+                        crate_root,
+                        &protected_path,
+                        item.span(),
+                        "protected-tx-fields",
+                        format!(
+                            "ProtectedTx fields were {observed:?}, expected one lifetime and evidence-sibling-private {PROTECTED_TX_FIELDS:?}"
+                        ),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
     if guarded_connection_fields == 0
         || protected_tx_fields == 0
         || !authorizer_cell_seen
@@ -4484,10 +4590,17 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
         {
             let signature = authority_tokens(&function.sig);
             if !signature.contains("proof:RawPasswordProof")
-                || !signature.contains("payload:PasswordSessionPayload")
-                || ["write_set", "nonce", "mutation", "epoch", "successor"]
-                    .iter()
-                    .any(|forbidden| signature.contains(forbidden))
+                || signature.contains("PasswordSessionPayload")
+                || [
+                    "session_id",
+                    "write_set",
+                    "nonce",
+                    "mutation",
+                    "epoch",
+                    "successor",
+                ]
+                .iter()
+                .any(|forbidden| signature.contains(forbidden))
             {
                 push_authority_violation(
                     &mut violations,
@@ -4590,7 +4703,16 @@ fn authority_transition_audit(crate_root: &Path) -> Result<AuthorityTransitionAu
                     for member in &item_impl.items {
                         if let ImplItem::Fn(function) = member {
                             let signature = authority_tokens(&function.sig);
+                            let evidence_private_constructor = path == protected_path
+                                && ["new", "from_initialized"]
+                                    .contains(&ident_name(&function.sig.ident).as_str())
+                                && matches!(
+                                    &function.vis,
+                                    Visibility::Restricted(restricted)
+                                        if path_is_ident(&restricted.path, "super")
+                                );
                             if !matches!(function.vis, Visibility::Inherited)
+                                && !evidence_private_constructor
                                 && (signature.contains("Connection")
                                     || signature.contains("Transaction")
                                     || signature.contains("Statement"))
