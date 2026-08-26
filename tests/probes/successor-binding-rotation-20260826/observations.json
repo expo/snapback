@@ -5,17 +5,17 @@
     "0310.000 A0"
   ],
   "runtimeBinary": "/Users/ccheever/projects/snapback-sbs0826/int2/target/debug/snapback",
-  "editAtMs": 3378,
+  "editAtMs": 10123,
   "predecessorDescriptorIdentity": "sha256:dbc67d7478cb0f02e7d2fa3bea9416fd95357e8bff4592109d1248e541677e5e",
   "bindingRotated": {
     "emitted": true,
-    "atMs": 5523,
+    "atMs": 17644,
     "previousDescriptorIdentity": "sha256:dbc67d7478cb0f02e7d2fa3bea9416fd95357e8bff4592109d1248e541677e5e",
     "descriptorIdentity": "sha256:4bf382cc538b953f0104add34a64503d830287677d3a786351f1a61a6af79112",
     "changed": "schema.mjs"
   },
   "generatedAndLoaded": {
-    "atMs": 5523,
+    "atMs": 17644,
     "precedesRemint": true
   },
   "startupSuccessorActivated": null,
@@ -26,21 +26,21 @@
   },
   "stalePredicateSide": "delivered-binding",
   "staleWindow": {
-    "samples": 2,
-    "firstAtMs": 5503,
-    "lastAtMs": 5517,
-    "approximateMs": 14,
+    "samples": 5,
+    "firstAtMs": 17288,
+    "lastAtMs": 17638,
+    "approximateMs": 350,
     "samplePeriodMs": 10
   },
   "successorMetroReload": {
-    "atMs": 6188,
+    "atMs": 19400,
     "reason": "successor-binding",
     "descriptorIdentity": "sha256:4bf382cc538b953f0104add34a64503d830287677d3a786351f1a61a6af79112",
-    "previousPid": 37245,
-    "pid": 37448,
-    "backendPid": 37219,
-    "followsRemintByMs": 665
+    "previousPid": 37693,
+    "pid": 39208,
+    "backendPid": 37645,
+    "followsRemintByMs": 1756
   },
-  "sampleCount": 208,
+  "sampleCount": 424,
   "eventCount": 11
 }
