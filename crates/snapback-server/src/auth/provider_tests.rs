@@ -2077,23 +2077,13 @@ mod tests {
         .await;
         let legacy_bearer = issue_token(&legacy_issue);
         let legacy_admission = legacy_provider.admit().await;
-        let PlannedLogout::Revoke(legacy_plan) = legacy_admission
+        let legacy_error = legacy_admission
             .plan_logout(&legacy, &legacy_bearer, start_ms + 1)
-            .expect("legacy logout plan")
-        else {
-            panic!("legacy current bearer must plan a revocation");
-        };
-        assert!(matches!(
-            legacy_admission.commit_planned_revocation(&mut legacy, &legacy_plan, start_ms + 1,),
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(_))
-        ));
-        assert!(matches!(
-            legacy_admission.commit_planned_revocation(&mut legacy, &legacy_plan, start_ms + 1,),
-            AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
-                generation: 2,
-                reason: None,
-            })
-        ));
+            .expect_err("frozen v1 cannot assert a modern logout predecessor");
+        assert_eq!(
+            legacy_error.diagnostic().code,
+            "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
+        );
     }
 
     #[tokio::test]
