@@ -14903,7 +14903,10 @@ export class SnapbackClient {
         try {
           if (
             deferredReplayCapabilityFact?.kind === 'fact'
-            && deferredReplayCapabilityFact.fact?.supported === false
+            && !samePositiveOfflineMutationReplayAuthority(
+              replayCapabilityFact,
+              deferredReplayCapabilityFact.fact,
+            )
           ) {
             const recorded = await this.#recordOfflineMutationReplayCapabilityFact(
               deferredReplayCapabilityFact.fact,
@@ -15305,31 +15308,30 @@ export class SnapbackClient {
       }, queueFence);
       if (!await capabilityIsCurrent()) {
         const insertionOwnership = outboxInsertionOwnershipFrom(stored);
-        let discarded = false;
-        if (
-          insertionOwnership !== null
-          && typeof store.outboxDiscardPendingInsertion === 'function'
-        ) {
-          discarded = await store.outboxDiscardPendingInsertion(
-            stored.id,
-            insertionOwnership.sequence,
-            outboxAuthorizationFenceFrom(stored),
-          );
-        } else if (typeof store.outboxDiscard === 'function') {
-          discarded = await store.outboxDiscard(
-            stored.id,
-            outboxAuthorizationFenceFrom(stored),
-          );
-        }
-        if (discarded !== true) {
-          const current = (await store.outboxRecords())
-            .find((record) => record?.id === stored.id) ?? null;
-          if (current?.status === 'pending') {
-            const error = offlineQueueSettlementLedgerError({
-              reason: 'inspection-superseded',
-            });
-            error.outboxSettlementPersistenceFailure = true;
-            throw error;
+        if (insertionOwnership !== null) {
+          let discarded = false;
+          if (typeof store.outboxDiscardPendingInsertion === 'function') {
+            discarded = await store.outboxDiscardPendingInsertion(
+              stored.id,
+              insertionOwnership.sequence,
+              outboxAuthorizationFenceFrom(stored),
+            );
+          } else if (typeof store.outboxDiscard === 'function') {
+            discarded = await store.outboxDiscard(
+              stored.id,
+              outboxAuthorizationFenceFrom(stored),
+            );
+          }
+          if (discarded !== true) {
+            const current = (await store.outboxRecords())
+              .find((record) => record?.id === stored.id) ?? null;
+            if (current?.status === 'pending') {
+              const error = offlineQueueSettlementLedgerError({
+                reason: 'inspection-superseded',
+              });
+              error.outboxSettlementPersistenceFailure = true;
+              throw error;
+            }
           }
         }
         throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
@@ -15404,6 +15406,12 @@ export class SnapbackClient {
         if (capability.evidence === 'cached-negative') {
           throw offlineQueueSettlementLedgerError(capability);
         }
+        if (capability.evidence === 'uncommitted') {
+          throw offlineQueueSettlementLedgerError({
+            ...capability,
+            reason: 'inspection-superseded',
+          });
+        }
         // Automatic mode on a ledger-less or inspection-unavailable target is
         // an ordinary online-only write. Clear all operation-local queue
         // authority so no record or ambiguous-response fallback can be minted.
@@ -15413,6 +15421,18 @@ export class SnapbackClient {
         queueCapabilityFact = null;
         queueCapabilityRequestSequence = null;
       }
+    }
+    if (
+      queueCapabilityVerified === true
+      && !await this.#isOfflineMutationReplayCapabilityFactCurrent(
+        queueCapabilityFact,
+        queueCapabilityRequestSequence,
+        operationTarget,
+      )
+    ) {
+      // A losing inspection CAS may still return its direct positive answer.
+      // Re-read shared/local authority before minting a settlement identity.
+      throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
     }
     if (queueCapabilityVerified === true && clientMutationId === null) {
       clientMutationId = createClientMutationId();
@@ -15485,9 +15505,9 @@ export class SnapbackClient {
       ? generatedComposedStore
       : queue === false ? null : this.#offlineQueueStore(queue === true);
     // A capability answer may be superseded while generated preparation or
-    // custody capture is in flight. Revalidate at the enqueue boundary: an
-    // explicit queue refuses, while automatic mode degrades to an ordinary
-    // online-only attempt without creating replayable bytes.
+    // custody capture is in flight. Revalidate at the enqueue boundary: both
+    // explicit and automatic queueing refuse instead of dispatching without
+    // the durable settlement identity already admitted by this invocation.
     if (
       queueStore !== null
       && queueCapabilityVerified === true
@@ -15497,14 +15517,7 @@ export class SnapbackClient {
         operationTarget,
       )
     ) {
-      if (queue === true) {
-        throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
-      }
-      queueStore = null;
-      queueCapabilityVerified = false;
-      queueCapabilityEvidence = null;
-      queueCapabilityFact = null;
-      queueCapabilityRequestSequence = null;
+      throw offlineQueueSettlementLedgerError({ reason: 'inspection-superseded' });
     }
     const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
     if (operationIdentityEnabled) {
@@ -15872,29 +15885,28 @@ export class SnapbackClient {
       const expectedAuthorizationFence = durableOnlineStoredRecord === null
         ? null
         : outboxAuthorizationFenceFrom(durableOnlineStoredRecord);
-      let discarded = false;
-      if (
-        queueInsertionOwnership !== null
-        && typeof queueStore.outboxDiscardPendingInsertion === 'function'
-      ) {
-        discarded = await queueStore.outboxDiscardPendingInsertion(
-          clientMutationId,
-          queueInsertionOwnership.sequence,
-          expectedAuthorizationFence,
-        );
-      } else if (typeof queueStore.outboxDiscard === 'function') {
-        discarded = await queueStore.outboxDiscard(
-          clientMutationId,
-          expectedAuthorizationFence,
-        );
-      }
-      if (discarded !== true) {
-        const current = (await queueStore.outboxRecords())
-          .find((record) => record?.id === clientMutationId) ?? null;
-        if (current?.status === 'pending') {
-          const error = capabilitySupersededError();
-          error.outboxSettlementPersistenceFailure = true;
-          throw error;
+      if (queueInsertionOwnership !== null) {
+        let discarded = false;
+        if (typeof queueStore.outboxDiscardPendingInsertion === 'function') {
+          discarded = await queueStore.outboxDiscardPendingInsertion(
+            clientMutationId,
+            queueInsertionOwnership.sequence,
+            expectedAuthorizationFence,
+          );
+        } else if (typeof queueStore.outboxDiscard === 'function') {
+          discarded = await queueStore.outboxDiscard(
+            clientMutationId,
+            expectedAuthorizationFence,
+          );
+        }
+        if (discarded !== true) {
+          const current = (await queueStore.outboxRecords())
+            .find((record) => record?.id === clientMutationId) ?? null;
+          if (current?.status === 'pending') {
+            const error = capabilitySupersededError();
+            error.outboxSettlementPersistenceFailure = true;
+            throw error;
+          }
         }
       }
       durableOnlineRecord = false;

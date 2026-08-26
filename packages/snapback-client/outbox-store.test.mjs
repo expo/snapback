@@ -2670,6 +2670,90 @@ test('an uncommitted positive capability fact is enqueue-only for an IndexedDB f
   }
 });
 
+test("queue:'auto' refuses when a newer shared negative wins an in-flight positive inspection", async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://positive-inspection-loses-cas.example';
+  const targetProfileId = 'local-dev-sqlite-ibex';
+  await commitCompleteReplayCapability(store, origin, targetProfileId);
+  const inspectingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  inspectingClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  replacingClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let resolvePositiveInspection;
+  let announcePositiveInspection;
+  const positiveInspectionStarted = new Promise((resolve) => {
+    announcePositiveInspection = resolve;
+  });
+  const positiveInspectionResponse = new Promise((resolve) => {
+    resolvePositiveInspection = resolve;
+  });
+  let inspectionMode = 'held-positive';
+  let mutationPosts = 0;
+  const postedClientMutationIds = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      if (inspectionMode === 'held-positive') {
+        announcePositiveInspection();
+        return positiveInspectionResponse;
+      }
+      return Response.json(offlineReplayInspection({
+        supported: false,
+        targetProfileId,
+      }));
+    }
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      postedClientMutationIds.push(JSON.parse(init.body).clientMutationId ?? null);
+      return Response.json({ result: { wronglyDispatched: true }, version: 1 });
+    }
+    throw new Error(`unexpected CAS-loser request ${path}`);
+  };
+
+  try {
+    const mutating = inspectingClient.mutate('createThing', {
+      args: { title: 'stale positive must not mint transport identity' },
+      queue: 'auto',
+    }).then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
+    );
+    await positiveInspectionStarted;
+    inspectionMode = 'negative';
+    await replacingClient.inspect();
+    resolvePositiveInspection(Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId,
+    })));
+
+    const outcome = await mutating;
+    assert.equal(outcome.value, null);
+    assert.equal(
+      outcome.error?.code,
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(outcome.error?.diagnostic?.details?.reason, 'inspection-superseded');
+    assert.equal(mutationPosts, 0, 'the CAS-losing positive sends no mutation POST');
+    assert.deepEqual(postedClientMutationIds, [], 'no clientMutationId reaches transport');
+    assert.deepEqual(await store.outboxRecords(), [], 'the refused call creates no durable intent');
+  } finally {
+    resolvePositiveInspection(Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId,
+    })));
+    await replacingClient.close();
+    await inspectingClient.close();
+    await store.close();
+  }
+});
+
 test("queue:'auto' retains authorization fencing when replay capability is unavailable", async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const generatedReference = {
@@ -3921,7 +4005,7 @@ test('repointing a client drops a local negative override from the previous orig
   await store.close();
 });
 
-test('a rejected answered-negative commit still overrides the predecessor positive locally', async (t) => {
+test('a rejected answered-negative commit refuses and overrides the predecessor positive locally', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://rejected-capability-commit.example';
@@ -3959,12 +4043,17 @@ test('a rejected answered-negative commit still overrides the predecessor positi
   };
 
   try {
-    const answeredNegative = await client.mutate('createThing', {
-      args: { title: 'answered negative wins locally' },
-      clientMutationId: 'cm-rejected-answered-negative',
-    });
-    assert.equal(answeredNegative.status, 'settled');
-    assert.equal(mutationPosts, 1, 'the answered negative permits one online-only mutation POST');
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'answered negative wins locally' },
+        clientMutationId: 'cm-rejected-answered-negative',
+      }),
+      (error) => (
+        error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+        && error?.diagnostic?.details?.reason === 'inspection-superseded'
+      ),
+    );
+    assert.equal(mutationPosts, 0, 'the rejected negative CAS permits no mutation POST');
     assert.deepEqual(await store.outboxRecords(), [], 'the answered negative queues no intent');
     assert.equal(
       (await store.readOfflineMutationReplayCapabilityFact()).supported,
@@ -3981,7 +4070,7 @@ test('a rejected answered-negative commit still overrides the predecessor positi
     );
     assert.equal(
       mutationPosts,
-      1,
+      0,
       'the local negative override refuses a later unavailable probe without another POST',
     );
     assert.deepEqual(await store.outboxRecords(), [], 'the shared predecessor positive is never queued');
@@ -5029,6 +5118,118 @@ test('replay persists a final negative before releasing a waiting foreground dis
       'the refused foreground record is not retained as dispatched pending custody',
     );
   } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('replay persists a changed positive authority before releasing a waiting foreground dispatch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-successor-before-dispatch-release.example';
+  const targetProfileId = 'local-dev-sqlite-ibex';
+  const successorGeneration = Object.freeze({
+    ...TEST_ARTIFACT_GENERATION,
+    bundleHash: testDigest('d'),
+  });
+  const successorLedgerIncarnation = 'ledger-incarnation-after-replay-admission';
+  await commitCompleteReplayCapability(store, origin, targetProfileId);
+  await store.outboxEnqueue({
+    id: 'cm-replay-successor-before-dispatch-release',
+    function: 'createThing',
+    ...currentOutboxTarget({ origin, targetProfileId }),
+    args: { title: 'replay owns the dispatch lock' },
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let inspectRequests = 0;
+  let mutationPosts = 0;
+  let resolveReplayFinalInspection;
+  let resolveReplayFinalInspectionStarted;
+  const replayFinalInspectionStartedPromise = new Promise((resolve) => {
+    resolveReplayFinalInspectionStarted = resolve;
+  });
+  const replayFinalInspection = new Promise((resolve) => {
+    resolveReplayFinalInspection = resolve;
+  });
+  let resolveForegroundEnqueue;
+  let resolveForegroundEnqueueStarted;
+  const foregroundEnqueueStarted = new Promise((resolve) => {
+    resolveForegroundEnqueueStarted = resolve;
+  });
+  const foregroundEnqueueRelease = new Promise((resolve) => {
+    resolveForegroundEnqueue = resolve;
+  });
+  const outboxEnqueue = store.outboxEnqueue.bind(store);
+  store.outboxEnqueue = async (record, ...args) => {
+    const stored = await outboxEnqueue(record, ...args);
+    if (record.id === 'cm-foreground-waits-behind-replay-successor') {
+      resolveForegroundEnqueueStarted();
+      await foregroundEnqueueRelease;
+    }
+    return stored;
+  };
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectRequests += 1;
+      if (inspectRequests === 3) {
+        resolveReplayFinalInspectionStarted();
+        return replayFinalInspection;
+      }
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      throw new TypeError('simulated lost response after predecessor mutation effect');
+    }
+    throw new Error(`unexpected replay/foreground request ${path}`);
+  };
+
+  try {
+    const foregroundOutcome = client.mutate('createThing', {
+      args: { title: 'foreground waits behind replay successor' },
+      clientMutationId: 'cm-foreground-waits-behind-replay-successor',
+      queue: 'auto',
+    }).then(
+      (value) => ({ value, error: null }),
+      (error) => ({ value: null, error }),
+    );
+    await foregroundEnqueueStarted;
+    const replayPromise = client.replayQueuedMutations();
+    await replayFinalInspectionStartedPromise;
+    resolveForegroundEnqueue();
+    await new Promise((resolve) => setImmediate(resolve));
+    resolveReplayFinalInspection(Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId,
+      generation: successorGeneration,
+      ledgerIncarnation: successorLedgerIncarnation,
+    })));
+
+    const [replay, foreground] = await Promise.all([replayPromise, foregroundOutcome]);
+    assert.equal(replay.replayed, 0);
+    assert.equal(replay.stopped, true);
+    assert.equal(foreground.value, null);
+    assert.equal(
+      foreground.error?.code,
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(mutationPosts, 0, 'neither predecessor-pinned mutation reaches transport');
+    const currentFact = await store.readOfflineMutationReplayCapabilityFact();
+    assert.deepEqual(currentFact.artifactGeneration, successorGeneration);
+    assert.equal(currentFact.ledgerIncarnation, successorLedgerIncarnation);
+  } finally {
+    resolveForegroundEnqueue();
+    resolveReplayFinalInspection(Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId,
+      generation: successorGeneration,
+      ledgerIncarnation: successorLedgerIncarnation,
+    })));
     await client.close();
     await store.close();
   }
@@ -6928,6 +7129,86 @@ test('fresh automatic queue reuses one pre-POST identity after an applied respon
     );
     assert.equal(effectCount, 1, 'the server observes one logical effect across lost response replay');
   } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('capability supersession preserves a pre-existing ambiguous idempotent identity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://ambiguous-idempotent-supersession.example';
+  const targetProfileId = 'ambiguous-idempotent-supersession-profile';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  replacingClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  const clientMutationId = 'cm-ambiguous-idempotent-supersession';
+  let mutationPosts = 0;
+  let inspectionSupported = true;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: inspectionSupported,
+        targetProfileId,
+      }));
+    }
+    if (path === '/mutation/createThing') {
+      mutationPosts += 1;
+      throw new TypeError('mutation may have committed before response loss');
+    }
+    throw new Error(`unexpected idempotent supersession request ${path}`);
+  };
+
+  try {
+    const queued = await client.mutate('createThing', {
+      args: { title: 'one durable settlement identity' },
+      clientMutationId,
+      queue: 'auto',
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(mutationPosts, 1);
+    const beforeRetry = structuredClone(await store.outboxPending());
+    assert.deepEqual(beforeRetry.map((record) => record.id), [clientMutationId]);
+
+    const outboxEnqueue = store.outboxEnqueue.bind(store);
+    let replacementInspection = null;
+    store.outboxEnqueue = async (record, ...args) => {
+      const stored = await outboxEnqueue(record, ...args);
+      if (record.id === clientMutationId) {
+        inspectionSupported = false;
+        replacementInspection = replacingClient.inspect();
+        await replacementInspection;
+      }
+      return stored;
+    };
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'one durable settlement identity' },
+        clientMutationId,
+        queue: 'auto',
+      }),
+      (error) => (
+        error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+        && error?.diagnostic?.details?.reason === 'inspection-superseded'
+      ),
+    );
+    await replacementInspection;
+    assert.equal(mutationPosts, 1, 'the refused idempotent retry sends no second POST');
+    assert.deepEqual(
+      await store.outboxPending(),
+      beforeRetry,
+      'supersession preserves the pre-existing possibly committed settlement identity',
+    );
+  } finally {
+    await replacingClient.close();
     await client.close();
     await store.close();
   }

@@ -10,8 +10,9 @@ cycle-start, and final pre-POST inspection now share one classification.
 Transport loss and answered 5xx/proxy failures are local, non-durable
 unavailability observations with bounded transient retry; they preserve the
 last positive fact and its enqueue-only `queue: 'auto'` authority but never
-authorize a mutation POST. Answered 4xx or a 200 manifest gap is a durable
-negative that supersedes a positive and pauses the drain without self-waking.)
+authorize a mutation POST. Answered terminal 4xx excluding 408/425/429, or a
+200 manifest gap, is a durable negative that supersedes a positive and pauses
+the drain without self-waking.)
 **Revised:** 2026-08-26 (round-27 dispatch/error/contract correction: a final
 pre-POST inspection records its observation before releasing dispatch; its
 classification and retry posture are superseded by the round-29 rule above.

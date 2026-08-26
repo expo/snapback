@@ -1255,7 +1255,7 @@ test("a 502 and transport loss preserve positive enqueue-only evidence for queue
   });
 });
 
-for (const status of [408, 429]) {
+for (const status of [408, 425, 429]) {
   test(`retryable HTTP ${status} at enqueue inspection preserves positive enqueue-only evidence`, async (t) => {
     t.after(() => { globalThis.fetch = originalFetch; });
     const origin = `https://drain-enqueue-inspection-${status}.test`;
@@ -1300,7 +1300,7 @@ for (const status of [408, 429]) {
   });
 }
 
-for (const status of [408, 429]) {
+for (const status of [408, 425, 429]) {
   test(`retryable HTTP ${status} at replay cycle start preserves the positive and backs off`, async (t) => {
     t.after(() => { globalThis.fetch = originalFetch; });
     const origin = `https://drain-cycle-inspection-${status}.test`;
@@ -1336,7 +1336,7 @@ for (const status of [408, 429]) {
   });
 }
 
-for (const status of [408, 429]) {
+for (const status of [408, 425, 429]) {
   test(`retryable HTTP ${status} at final pre-POST inspection preserves the positive and backs off`, async (t) => {
     t.after(() => { globalThis.fetch = originalFetch; });
     const origin = `https://drain-final-inspection-${status}.test`;
