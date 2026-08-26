@@ -79,7 +79,7 @@ test('row-attack ledger carries every measured row and all feature cells', () =>
     ledger.attacks
       .filter(({ expected, expectedCode }) => expected === 'CLOSED' && expectedCode === undefined)
       .map(({ row }) => row),
-    ['F157', 'F171', 'F172', 'F173', 'F188', 'F190', 'F191', 'F126'],
+    ['F157', 'F171', 'F172', 'F173', 'F188', 'F190', 'F191', 'F182', 'F126'],
     'only runtime-refusal CLOSED rows may omit a Rust expectedCode',
   );
   const rawSql = ledger.attacks.find(({ row }) => row === 'F313');
