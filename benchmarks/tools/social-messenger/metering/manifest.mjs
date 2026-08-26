@@ -29,6 +29,9 @@ import {
   retainRawEventContext,
   withEventDiagnostic,
 } from "./finalization-diagnostics.mjs";
+import { addTokenCounts, nullTokenCounts, zeroTokenCounts } from "./counts.mjs";
+import { usageTurnCompletesAfterSettlement } from "./joiner.mjs";
+import { validateScaleReplayEvidence } from "./scale-replay-evidence.mjs";
 import { assertCapFamily } from "./sources.mjs";
 import { validateJsonSchema } from "../../lib/json-schema.mjs";
 
@@ -40,6 +43,8 @@ const R2_DRIVER_V1_TERMINAL_RULE = R2_CODEX_SETTLED_TERMINAL_RULE;
 const R2_DRIVER_V1_CLOCK_EVIDENCE =
   "controller and native CLI use the same host clock; 5s covers receipt-to-final-sample handoff";
 const FULL_JOURNEY_DRIVER_ID = "social-messenger-full-journey-native-cli-driver.v1";
+const FULL_JOURNEY_CODEX_SETTLED_TERMINAL_RULE =
+  "social-messenger-full-journey-native-cli-driver.v1-codex-usage-settlement.v1";
 const R2_RECOVERED_HANDOFF_REGISTRATION = Object.freeze({
   ruleId: "social-messenger-r2-cell-1-signal-handoff-exclusions.v1",
   laneRunId: "2026-08-23-r2-published-0125/sol-clique-explicit",
@@ -401,16 +406,23 @@ function applyFullJourneyTerminalCompatibility({
       boundaries[milestone] === undefined ? [] : [[milestone, boundaries[milestone]]]
     )));
     if (Object.keys(selected).length === 0) return null;
+    const replayFailed = session.sourceId === "builder"
+      && manifest.scaleReplayFailure !== undefined;
+    const settlementTimedOut = replayFailed
+      && manifest.scaleReplayFailure.outcome === "settlement-timeout";
     return recoverCodexSignalSettlements({
       records: session.records,
       boundaryValue: { ...boundaryValue, milestones: selected },
-      streamClosedAt: Object.values(selected).some((boundary) => boundary.status !== "green")
+      streamClosedAt: replayFailed
+        || Object.values(selected).some((boundary) => boundary.status !== "green")
         ? manifest.driver.stampedAt
         : null,
       ...(session.sourceId === "builder" && Object.hasOwn(selected, "M8")
         ? {
             closingSettlementSelection: "first",
             allowTrailingUsage: true,
+            ...(replayFailed ? { allowClosedWithoutTaskComplete: true } : {}),
+            ...(settlementTimedOut ? { allowMissingClosingSettlement: true } : {}),
           }
         : {}),
     });
@@ -420,10 +432,24 @@ function applyFullJourneyTerminalCompatibility({
     ...(freshM7 === undefined ? [] : [{ session: freshM7, recovery: recover(freshM7, ["M7"]) }]),
   ].filter(({ recovery }) => recovery !== null);
   const usageSettlements = recoveries
-    .flatMap(({ recovery }) => recovery.usageSettlements)
+    .flatMap(({ session, recovery }) => recovery.usageSettlements.map((settlement) => ({
+      ...settlement,
+      nativeSourceId: session.sourceId,
+    })))
     .sort((left, right) => (
       boundaries[left.milestone].terminalSequence - boundaries[right.milestone].terminalSequence
     ));
+  // The 5s correlation bound protects controller/native receipt comparisons.
+  // Once a boundary has been recovered from an exact hash-bound native signal
+  // ordinal and its exact following token_count ordinal, ordering rather than
+  // wall-clock proximity selects the prefix. Retain the original evidence in
+  // compatibilityEvents and use the shared-host zero-skew contract for this
+  // ordinal-settled join, exactly as the reduced driver does below.
+  const effectiveClockCorrelation = {
+    method: "rfc3339-with-bounded-skew",
+    maxSkewMillis: 0,
+    evidence: R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
+  };
   const orderedMilestones = usageSettlements.map((settlement) => settlement.milestone);
   const milestoneIndex = new Map(orderedMilestones.map((milestone, index) => [milestone, index]));
   const observationTerminalInclusions = observationEvents
@@ -468,10 +494,26 @@ function applyFullJourneyTerminalCompatibility({
   });
   return {
     boundaryValue,
-    clockCorrelation,
+    clockCorrelation: effectiveClockCorrelation,
     observationEvents: effectiveObservations,
     usageSettlements,
-    compatibilityEvents: [],
+    compatibilityEvents: recoveries.map(({ session, recovery }) => ({
+      ruleId: FULL_JOURNEY_CODEX_SETTLED_TERMINAL_RULE,
+      originalClockCorrelation: clockCorrelation,
+      effectiveClockCorrelation,
+      nativeSourceId: session.sourceId,
+      nativeSessionId: session.nativeSessionId,
+      nativeStreamSha256: session.resolvedSha256,
+      taskCompleteAt: recovery.taskCompleteAt,
+      taskCompleteRecordOrdinal: recovery.taskCompleteRecordOrdinal,
+      ...(recovery.streamClosedAt === null
+        ? {}
+        : { streamClosedAt: recovery.streamClosedAt }),
+      usageSettlements: recovery.usageSettlements,
+      observationWindowPolicy: "protocol-terminal-inclusive.v1",
+      observationHandoffExclusions: [],
+      observationTerminalInclusions,
+    })),
   };
 }
 
@@ -527,12 +569,16 @@ function applyR2DriverV1TerminalCompatibility({
       ? manifest.driver.stampedAt
       : null,
   });
+  const usageSettlements = recovery.usageSettlements.map((settlement) => ({
+    ...settlement,
+    nativeSourceId: builder.sourceId,
+  }));
   const effectiveClockCorrelation = {
     method: "rfc3339-with-bounded-skew",
     maxSkewMillis: 0,
     evidence: R2_CODEX_SHARED_HOST_CLOCK_EVIDENCE,
   };
-  const orderedMilestones = recovery.usageSettlements.map((item) => item.milestone);
+  const orderedMilestones = usageSettlements.map((item) => item.milestone);
   const observationHandoffExclusions = [];
   const instrumentationCommandsObserved = manifest.driver.instrumentationCommandsObserved !== false;
   const observationDescriptor = manifest.observations?.find(
@@ -553,7 +599,7 @@ function applyR2DriverV1TerminalCompatibility({
   // candidate set to inspect. Only recovered cell 1 uses the exact immutable
   // native/observation registration below.
   if (instrumentationCommandsObserved) {
-    for (const [index, settlement] of recovery.usageSettlements.entries()) {
+    for (const [index, settlement] of usageSettlements.entries()) {
       if (index === orderedMilestones.length - 1 || settlement.signalRecordOrdinal === null) continue;
       const nextMilestone = orderedMilestones[index + 1];
       const candidates = observationEvents.filter((event) => (
@@ -651,7 +697,7 @@ function applyR2DriverV1TerminalCompatibility({
     boundaryValue,
     clockCorrelation: effectiveClockCorrelation,
     observationEvents: effectiveObservations,
-    usageSettlements: recovery.usageSettlements,
+    usageSettlements,
     compatibilityEvents: [{
       ruleId: R2_DRIVER_V1_TERMINAL_RULE,
       originalClockCorrelation: clockCorrelation,
@@ -777,7 +823,7 @@ async function loadSuiteStatusLinkage(
     throw new TypeError("manifest.suiteStatus must contain an object keyed by milestone");
   }
   const milestones = [];
-  for (const milestone of Object.keys(boundaries).filter((value) => value !== "M7")) {
+  for (const milestone of Object.keys(boundaries)) {
     const segment = milestone.toLowerCase();
     const status = parsed[segment];
     if (!status || typeof status !== "object" || typeof status.pass !== "boolean") {
@@ -892,56 +938,44 @@ function sameJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function deriveScaleClock(value) {
+function validateScaleReplayFailure(value) {
   if (
-    value?.version !== "snapback.full-journey-scale-replay.v1"
-    || value.attempted !== true
-    || !Number.isFinite(value.capSeconds)
-    || value.capSeconds <= 0
-    || !Number.isFinite(value.probeWallSecondsExcluded)
-    || value.probeWallSecondsExcluded < 0
-    || !Array.isArray(value.attempts)
-    || value.attempts.length === 0
+    value?.version !== "snapback.full-journey-scale-replay-failure.v1"
+    || !["aborted", "settlement-timeout"].includes(value.outcome)
+    || value.clock?.attempted !== true
   ) {
-    throw new Error("full-journey scale replay has an invalid clock contract");
+    throw new Error("full-journey replay failure has an unsupported disposition");
   }
-  let priorFinishedAt = null;
-  let totalAttemptSeconds = 0;
-  for (const [index, attempt] of value.attempts.entries()) {
-    const startedAt = timestampMillis(attempt?.startedAt, `scale attempt ${index + 1}.startedAt`);
-    const finishedAt = timestampMillis(attempt?.finishedAt, `scale attempt ${index + 1}.finishedAt`);
-    const final = index === value.attempts.length - 1;
+  const startedAtMs = timestampMillis(value.startedAt, "scale replay failure.startedAt");
+  const finishedAtMs = timestampMillis(value.finishedAt, "scale replay failure.finishedAt");
+  if (finishedAtMs < startedAtMs) {
+    throw new Error("full-journey replay failure finishes before it starts");
+  }
+  const expectedWall = (finishedAtMs - startedAtMs) / 1_000;
+  if (value.clock.wallSeconds !== expectedWall) {
+    throw new Error("full-journey replay failure wall does not equal its retained timestamps");
+  }
+  if (value.outcome === "settlement-timeout") {
+    const deadlineAtMs = timestampMillis(
+      value.deadlineAt,
+      "scale replay settlement timeout.deadlineAt",
+    );
     if (
-      attempt?.attempt !== index + 1
-      || finishedAt < startedAt
-      || (priorFinishedAt !== null && startedAt < priorFinishedAt)
-      || !Number.isInteger(attempt.settledPrefix)
-      || attempt.settledPrefix < 0
-      || (index === 0 ? attempt.continuationOf !== null : attempt.continuationOf !== index)
-      || (final
-        ? !["completed", "aborted"].includes(attempt.disposition)
-        : attempt.disposition !== "continued")
+      value.failure?.cause !== "missing-post-m8-token-count"
+      || !Number.isFinite(value.clock.capSeconds)
+      || value.clock.capSeconds <= 0
+      || deadlineAtMs !== startedAtMs + value.clock.capSeconds * 1_000
+      || value.clock.capFractionUsed !== value.clock.wallSeconds / value.clock.capSeconds
+      || value.clock.capExhausted !== true
+      || finishedAtMs < deadlineAtMs
     ) {
-      throw new Error(`scale attempt ${index + 1} violates chronological continuation semantics`);
+      throw new Error("full-journey replay settlement timeout lacks its exact wall-cap disposition");
     }
-    priorFinishedAt = finishedAt;
-    totalAttemptSeconds += (finishedAt - startedAt) / 1_000;
   }
-  if (value.probeWallSecondsExcluded > totalAttemptSeconds) {
-    throw new Error("full-journey scale probe exclusion exceeds attempted wall");
-  }
-  const wallSeconds = totalAttemptSeconds - value.probeWallSecondsExcluded;
   return {
-    clock: {
-      attempted: true,
-      wallSeconds,
-      capSeconds: value.capSeconds,
-      capFractionUsed: wallSeconds / value.capSeconds,
-      capExhausted: wallSeconds >= value.capSeconds,
-      probeWallSecondsExcluded: value.probeWallSecondsExcluded,
-    },
-    firstStartedAt: value.attempts[0].startedAt,
-    lastFinishedAt: value.attempts.at(-1).finishedAt,
+    firstStartedAt: value.startedAt,
+    lastFinishedAt: value.finishedAt,
+    clock: value.clock,
   };
 }
 
@@ -949,13 +983,15 @@ function deriveScaleClock(value) {
 // separate clocks. The first native settlement after M8 closes continuous
 // authoring; later builder turns belong to replay and the fresh process launch
 // is M7's independent wall origin.
-async function bindFullJourneyAccounting({
+export function bindFullJourneyAccountingValues({
   manifest,
-  manifestDirectory,
   boundaryValue,
   driverCompatibility,
   loadedSessions,
   channel,
+  replayValue = null,
+  replayReceiptValue = null,
+  replayFailureValue = null,
 }) {
   if (manifest.driver.id !== FULL_JOURNEY_DRIVER_ID) {
     return { channel, milestoneWallStarts: {} };
@@ -973,15 +1009,9 @@ async function bindFullJourneyAccounting({
     ) {
       throw new Error("full-journey M7 lacks its fresh-session handoff policy binding");
     }
-    await readArtifact(manifestDirectory, handoff.source, "manifest.freshSessionHandoff.source");
-    await readArtifact(
-      manifestDirectory,
-      handoff.renderedPrompt,
-      "manifest.freshSessionHandoff.renderedPrompt",
-    );
   }
   if (boundaries.M8?.status !== "green") {
-    if (manifest.scaleReplay !== undefined) {
+    if (manifest.scaleReplay !== undefined || manifest.scaleReplayFailure !== undefined) {
       throw new Error("full-journey replay cannot be retained before M8 is green");
     }
     return {
@@ -989,26 +1019,41 @@ async function bindFullJourneyAccounting({
       milestoneWallStarts: freshM7 === undefined ? {} : { M7: freshM7.startedAt },
     };
   }
-  const replayArtifact = await readArtifact(
-    manifestDirectory,
-    manifest.scaleReplay,
-    "manifest.scaleReplay",
-  );
-  const replayValue = JSON.parse(replayArtifact.text);
-  const replay = deriveScaleClock(replayValue);
-  if (
-    !sameJson(manifest.scaleReplay.attempts, replayValue.attempts)
-    || !sameJson(manifest.scaleReplay.clock, replay.clock)
-  ) {
-    throw new Error("full-journey replay descriptor differs from its hash-bound artifact");
+  const completedReplay = replayValue !== null || replayReceiptValue !== null;
+  const failedReplay = replayFailureValue !== null;
+  if (completedReplay === failedReplay) {
+    throw new Error("full-journey green M8 requires exactly one completed or retained-failure replay disposition");
+  }
+  let replay;
+  const settlementTimedOut = replayFailureValue?.outcome === "settlement-timeout";
+  if (completedReplay) {
+    if (replayValue === null || replayReceiptValue === null) {
+      throw new Error("full-journey completed replay requires both replay and receipt values");
+    }
+    replay = validateScaleReplayEvidence(replayValue, replayReceiptValue);
+    if (
+      !sameJson(manifest.scaleReplay.attempts, replayValue.attempts)
+      || !sameJson(manifest.scaleReplay.clock, replay.clock)
+      || !sameJson(manifest.scaleReplay.receipt, replay.receipt)
+    ) {
+      throw new Error("full-journey replay descriptor differs from its hash-bound artifact");
+    }
+  } else {
+    replay = validateScaleReplayFailure(replayFailureValue);
+    if (freshM7 !== undefined) {
+      throw new Error("fresh M7 cannot start after a failed scale replay");
+    }
   }
   const m8Settlement = driverCompatibility.usageSettlements?.find(
     (settlement) => settlement.milestone === "M8",
   );
-  if (!m8Settlement?.usageAvailable) {
+  if (!m8Settlement || (!m8Settlement.usageAvailable && !settlementTimedOut)) {
     throw new Error("full-journey M8 lacks a native usage settlement before scale replay");
   }
-  if (Date.parse(replay.firstStartedAt) < Date.parse(m8Settlement.usageSettledAt)) {
+  if (
+    m8Settlement.usageAvailable
+    && Date.parse(replay.firstStartedAt) < Date.parse(m8Settlement.usageSettledAt)
+  ) {
     throw new Error("full-journey scale replay starts before M8 native usage settles");
   }
   if (
@@ -1017,17 +1062,94 @@ async function bindFullJourneyAccounting({
   ) {
     throw new Error("fresh M7 starts before the scale replay clock closes");
   }
-  const filteredChannel = channel.turns === null ? channel : {
+  const filteredChannel = settlementTimedOut || channel.turns === null ? channel : {
     ...channel,
     turns: channel.turns.filter((turn) => !(
       turn.sourceId === "builder"
-      && Date.parse(turn.completedAt) > Date.parse(m8Settlement.usageSettledAt)
+      && usageTurnCompletesAfterSettlement(turn, m8Settlement)
     )),
   };
+  const replayTurns = settlementTimedOut ? null : channel.turns?.filter((turn) => (
+    turn.sourceId === "builder"
+    && usageTurnCompletesAfterSettlement(turn, m8Settlement)
+  )) ?? null;
+  const replayTokens = replayTurns === null
+    ? nullTokenCounts()
+    : replayTurns.reduce(
+        (total, turn) => addTokenCounts(total, turn.usage),
+        zeroTokenCounts(),
+      );
   return {
     channel: filteredChannel,
     milestoneWallStarts: freshM7 === undefined ? {} : { M7: freshM7.startedAt },
+    separateTokenPhases: { replay: replayTokens },
+    separateClockPhases: { replay: replay.clock },
   };
+}
+
+async function bindFullJourneyAccounting({
+  manifest,
+  manifestDirectory,
+  boundaryValue,
+  driverCompatibility,
+  loadedSessions,
+  channel,
+}) {
+  if (manifest.driver.id !== FULL_JOURNEY_DRIVER_ID) {
+    return bindFullJourneyAccountingValues({
+      manifest,
+      boundaryValue,
+      driverCompatibility,
+      loadedSessions,
+      channel,
+    });
+  }
+  const boundaries = boundaryValue?.milestones ?? boundaryValue;
+  if (Object.hasOwn(boundaries, "M7")) {
+    const handoff = manifest.freshSessionHandoff;
+    await readArtifact(manifestDirectory, handoff?.source, "manifest.freshSessionHandoff.source");
+    await readArtifact(
+      manifestDirectory,
+      handoff?.renderedPrompt,
+      "manifest.freshSessionHandoff.renderedPrompt",
+    );
+  }
+  let replayValue = null;
+  let replayReceiptValue = null;
+  let replayFailureValue = null;
+  if (boundaries.M8?.status === "green") {
+    if (manifest.scaleReplayFailure !== undefined) {
+      const replayFailureArtifact = await readArtifact(
+        manifestDirectory,
+        manifest.scaleReplayFailure,
+        "manifest.scaleReplayFailure",
+      );
+      replayFailureValue = JSON.parse(replayFailureArtifact.text);
+    } else {
+      const replayArtifact = await readArtifact(
+        manifestDirectory,
+        manifest.scaleReplay,
+        "manifest.scaleReplay",
+      );
+      replayValue = JSON.parse(replayArtifact.text);
+      const replayReceiptArtifact = await readArtifact(
+        manifestDirectory,
+        replayValue.receipt,
+        "manifest.scaleReplay receipt",
+      );
+      replayReceiptValue = JSON.parse(replayReceiptArtifact.text);
+    }
+  }
+  return bindFullJourneyAccountingValues({
+    manifest,
+    boundaryValue,
+    driverCompatibility,
+    loadedSessions,
+    channel,
+    replayValue,
+    replayReceiptValue,
+    replayFailureValue,
+  });
 }
 
 export async function loadMeteringManifest(manifestPath) {
@@ -1179,6 +1301,8 @@ export async function loadMeteringManifest(manifestPath) {
     channel,
     boundaries,
     milestoneWallStarts: fullJourneyAccounting.milestoneWallStarts,
+    separateTokenPhases: fullJourneyAccounting.separateTokenPhases ?? {},
+    separateClockPhases: fullJourneyAccounting.separateClockPhases ?? {},
     usageSettlements: driverCompatibility.usageSettlements,
     firstProductEdit,
     recordBase,

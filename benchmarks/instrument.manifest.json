@@ -70,27 +70,27 @@
     "baseRunRecordSchema": {
       "kind": "file",
       "path": "schema/run-record.schema.json",
-      "sha256": "d8bd58dd94ec5726cd543fa72ea37dedf7a0226287ff5606fe295320a2651654"
+      "sha256": "48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3"
     },
     "runRecordSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record.schema.json",
-      "sha256": "3403455e98fad656125ea2ab0993f780bdb112849fb127bd8bcfcbcf6f2b8a64"
+      "sha256": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6"
     },
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "4e93fdd6e563b738d9d7067fd413373c8e22fcda894dea9462bb9da67b3546bb"
+      "sha256": "c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "540cacf0e39c06abc4dc0b4a6277a023c466763aa809c58e48d14e7048ad5b34"
+      "sha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "edf859b1fc920e55047464890541369d2c9411ccfb918d59b965796198bd83f0"
+      "sha256": "1520b0b3d026fcae02c957dadfa04c37f5fe49e0747c477c4310f3ff4f071980"
     },
     "observabilityRoot": {
       "kind": "directory",

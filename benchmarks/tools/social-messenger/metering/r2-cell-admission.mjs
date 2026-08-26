@@ -27,6 +27,7 @@ import {
   releaseExclusiveHostLock,
   verifyExclusiveHostLock,
 } from "./r2-host-lock.mjs";
+import { resolveRegisteredJourney } from "./journey-contract.mjs";
 import { assertR2ExecutionEnvironment } from "./r2-execution-environment.mjs";
 import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
 
@@ -1547,6 +1548,11 @@ export async function createAdmissionArtifact({
   }
   const cell = harnessConfig.cells.find((candidate) => candidate.id === cellId);
   if (!cell) throw new Error(`R2_ADMISSION_INVALID: unknown cell ${cellId}`);
+  resolveRegisteredJourney({
+    milestones: harnessConfig.execution?.milestones,
+    sessionShape: harnessConfig.execution?.sessionShape,
+    cell,
+  });
   const repositoryRoot = dependencies.repositoryRoot ?? REPOSITORY_ROOT;
   const sourceIdentity = (dependencies.resolveSourceIdentity ?? resolveSourceIdentity)({
     repositoryRoot,

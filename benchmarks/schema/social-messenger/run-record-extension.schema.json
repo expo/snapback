@@ -807,7 +807,8 @@
                     "enum": [
                       "social-messenger-r2-native-cli-driver.v1-observation-terminal.v1",
                       "social-messenger-r2-native-cli-driver.v1-codex-signal-settlement.v2",
-                      "social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3"
+                      "social-messenger-r2-native-cli-driver.v1-codex-usage-settlement.v3",
+                      "social-messenger-full-journey-native-cli-driver.v1-codex-usage-settlement.v1"
                     ]
                   },
                   "originalClockCorrelation": {
@@ -866,6 +867,7 @@
                         "settlementKind": {
                           "enum": [
                             "signal-turn-token-count",
+                            "closing-signal-first-token-count",
                             "final-native-token-count",
                             "closed-failure-native-token-count"
                           ]
@@ -902,9 +904,11 @@
                         "settlementKind": {
                           "enum": [
                             "signal-turn-token-count",
+                            "closing-signal-first-token-count",
                             "final-native-token-count",
                             "closed-failure-native-token-count",
-                            "closed-failure-native-usage-unavailable"
+                            "closed-failure-native-usage-unavailable",
+                            "closing-signal-settlement-timeout"
                           ]
                         }
                       }
@@ -1527,6 +1531,10 @@
               ],
               "minimum": 0,
               "description": "Checkpoint-probe wall time excluded from the cap."
+            },
+            "tokens": {
+              "$ref": "#/$defs/tokenCounts",
+              "description": "Harness-native usage after the continuous-session M8 settlement and before the builder session closes. It is a separate replay phase and never contributes to authoring."
             }
           }
         },

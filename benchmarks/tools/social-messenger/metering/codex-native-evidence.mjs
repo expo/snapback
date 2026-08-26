@@ -72,6 +72,9 @@ export function recoverCodexSignalSettlements({
   streamClosedAt = null,
   closingSettlementSelection = "last",
   allowTrailingUsage = false,
+  allowClosedWithoutTaskComplete = false,
+  allowOpenWithoutTaskComplete = false,
+  allowMissingClosingSettlement = false,
 }) {
   if (!Array.isArray(records) || records.length === 0) {
     throw new TypeError("Codex terminal recovery requires a non-empty native stream");
@@ -83,6 +86,18 @@ export function recoverCodexSignalSettlements({
   }
   if (typeof allowTrailingUsage !== "boolean") {
     throw new TypeError("Codex allowTrailingUsage must be boolean");
+  }
+  if (typeof allowClosedWithoutTaskComplete !== "boolean") {
+    throw new TypeError("Codex allowClosedWithoutTaskComplete must be boolean");
+  }
+  if (typeof allowOpenWithoutTaskComplete !== "boolean") {
+    throw new TypeError("Codex allowOpenWithoutTaskComplete must be boolean");
+  }
+  if (typeof allowMissingClosingSettlement !== "boolean") {
+    throw new TypeError("Codex allowMissingClosingSettlement must be boolean");
+  }
+  if (allowMissingClosingSettlement && streamClosedAt === null) {
+    throw new Error("Codex missing closing settlement can be retained only after the native stream closes");
   }
   const orderedMilestones = Object.entries(boundaries)
     .sort((left, right) => left[1].terminalSequence - right[1].terminalSequence)
@@ -137,7 +152,18 @@ export function recoverCodexSignalSettlements({
   const closedFailureWithoutTaskComplete = closingFailure
     && taskCompletes.length === 0
     && streamClosedAt !== null;
-  if (taskCompletes.length !== 1 && !closedFailureWithoutTaskComplete) {
+  const allowedReplayCloseWithoutTaskComplete = allowClosedWithoutTaskComplete
+    && taskCompletes.length === 0
+    && streamClosedAt !== null;
+  // The production driver uses the open-stream form only to observe the
+  // closing signal's first settlement before replay. Final recovery retains
+  // the stricter task_complete/closed-stream requirement above.
+  if (
+    taskCompletes.length !== 1
+    && !closedFailureWithoutTaskComplete
+    && !allowedReplayCloseWithoutTaskComplete
+    && !(allowOpenWithoutTaskComplete && taskCompletes.length === 0)
+  ) {
     throw new Error(
       `Codex closing-terminal recovery requires exactly one native task_complete; received ${taskCompletes.length}`,
     );
@@ -170,7 +196,11 @@ export function recoverCodexSignalSettlements({
     const settled = closing && closingSettlementSelection === "last"
       ? settlements.at(-1)
       : settlements[0];
-    if (settled === undefined && !signal.unsignaledClosedFailure) {
+    if (
+      settled === undefined
+      && !signal.unsignaledClosedFailure
+      && !(closing && allowMissingClosingSettlement)
+    ) {
       throw new Error(`${signal.milestone} has no native token_count settlement after its signal`);
     }
     if (!closing && settlements[0].recordIndex >= orderedSignals[index + 1].index) {
@@ -185,7 +215,9 @@ export function recoverCodexSignalSettlements({
       usageSettledAt: settled?.record.timestamp ?? null,
       usageRecordOrdinal: settled?.record.ordinal ?? null,
       usageAvailable: settled !== undefined,
-      settlementKind: signal.unsignaledClosedFailure && settled === undefined
+      settlementKind: closing && allowMissingClosingSettlement && settled === undefined
+        ? "closing-signal-settlement-timeout"
+        : signal.unsignaledClosedFailure && settled === undefined
         ? "closed-failure-native-usage-unavailable"
         : signal.unsignaledClosedFailure
         ? "closed-failure-native-token-count"

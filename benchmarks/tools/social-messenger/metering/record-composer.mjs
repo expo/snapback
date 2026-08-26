@@ -15,6 +15,13 @@ function secondsBetween(startedAt, finishedAt) {
   return Math.max(0, (Date.parse(finishedAt) - Date.parse(startedAt)) / 1_000);
 }
 
+function sumTokenCounts(values) {
+  return values.reduce(
+    (total, value) => addTokenCounts(total, value),
+    zeroTokenCounts(),
+  );
+}
+
 function milestoneCharging({ status, authoring, caps }) {
   const actualTokens = tokenTotal(authoring.tokens);
   if (status === "green") {
@@ -61,8 +68,11 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
   ]);
   const finishedAt = attempted.at(-1)?.[1]?.authoring?.terminalAt;
   requiredString(finishedAt, "final milestone terminalAt");
+  const continuousAttempted = attempted.filter(([milestone]) => milestone !== "M7");
+  const authoringFinishedAt = continuousAttempted.at(-1)?.[1]?.authoring?.terminalAt;
+  requiredString(authoringFinishedAt, "continuous-session terminalAt");
   const record = structuredClone(base);
-  const totalSeconds = secondsBetween(startedAt, finishedAt);
+  const continuousSeconds = secondsBetween(startedAt, authoringFinishedAt);
   const firstGreenProofAt = attempted
     .map(([, value]) => value.authoring.firstGreenAt)
     .filter((value) => value !== null)
@@ -70,34 +80,10 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
   const orientationAt = patch.firstProductEdit.at;
   const orientationSeconds = orientationAt === null
     ? 0
-    : Math.min(totalSeconds, secondsBetween(startedAt, orientationAt));
-  const totalTokens = tokenTotal(patch.totals);
-  const orientationTokens = tokenTotal(patch.firstProductEdit.orientationTokens);
+    : Math.min(continuousSeconds, secondsBetween(startedAt, orientationAt));
 
   record.timestamps = { startedAt, finishedAt };
   record.firstGreenProofAt = firstGreenProofAt;
-  record.wallClock = {
-    totalSeconds,
-    phases: {
-      orientation: orientationSeconds,
-      authoring: totalSeconds - orientationSeconds,
-      verification: 0,
-      diagnosis: 0,
-    },
-  };
-  record.tokens = {
-    input: patch.totals.input,
-    output: patch.totals.output,
-    source: patch.source,
-    phases: {
-      orientation: orientationTokens,
-      authoring: totalTokens === null || orientationTokens === null
-        ? null
-        : totalTokens - orientationTokens,
-      verification: totalTokens === null ? null : 0,
-      diagnosis: totalTokens === null ? null : 0,
-    },
-  };
 
   let previousAt = startedAt;
   const milestones = {};
@@ -175,6 +161,60 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
     efficiencyScorecardEligibility: patch.efficiencyScorecardEligibility,
     suiteStatusLinkage: patch.suiteStatusLinkage,
   };
+
+  const fullJourney = record.socialMessenger.runScope === "full";
+  const continuousTokens = fullJourney
+    ? sumTokenCounts(continuousAttempted.map(([, value]) => value.authoring.tokens))
+    : patch.totals;
+  const replayTokens = fullJourney
+    ? patch.separateTokenPhases?.replay ?? zeroTokenCounts()
+    : zeroTokenCounts();
+  const m7Tokens = fullJourney && attempted.some(([milestone]) => milestone === "M7")
+    ? milestones.M7.authoring.tokens
+    : zeroTokenCounts();
+  const totalCounts = fullJourney
+    ? sumTokenCounts([continuousTokens, replayTokens, m7Tokens])
+    : continuousTokens;
+  const continuousTokenTotal = tokenTotal(continuousTokens);
+  const replayTokenTotal = tokenTotal(replayTokens);
+  const m7TokenTotal = tokenTotal(m7Tokens);
+  const orientationTokens = tokenTotal(patch.firstProductEdit.orientationTokens);
+  const replayClock = patch.separateClockPhases?.replay
+    ?? record.socialMessenger.clocks?.replay;
+  const replayWallSeconds = fullJourney
+    && replayClock?.attempted === true
+    && Number.isFinite(replayClock.wallSeconds)
+    ? replayClock.wallSeconds
+    : 0;
+  const m7WallSeconds = fullJourney
+    && attempted.some(([milestone]) => milestone === "M7")
+    && Number.isFinite(milestones.M7.authoring.wallSeconds)
+    ? milestones.M7.authoring.wallSeconds
+    : 0;
+  record.wallClock = {
+    totalSeconds: continuousSeconds + replayWallSeconds + m7WallSeconds,
+    phases: {
+      orientation: orientationSeconds,
+      authoring: continuousSeconds - orientationSeconds,
+      ...(fullJourney ? { replay: replayWallSeconds, m7Session: m7WallSeconds } : {}),
+      verification: 0,
+      diagnosis: 0,
+    },
+  };
+  record.tokens = {
+    input: totalCounts.input,
+    output: totalCounts.output,
+    source: patch.source,
+    phases: {
+      orientation: orientationTokens,
+      authoring: continuousTokenTotal === null || orientationTokens === null
+        ? null
+        : continuousTokenTotal - orientationTokens,
+      ...(fullJourney ? { replay: replayTokenTotal, m7Session: m7TokenTotal } : {}),
+      verification: continuousTokenTotal === null ? null : 0,
+      diagnosis: continuousTokenTotal === null ? null : 0,
+    },
+  };
   if (record.socialMessenger.clocks?.m7Session !== undefined && milestones.M7 !== undefined) {
     record.socialMessenger.clocks.m7Session = {
       ...record.socialMessenger.clocks.m7Session,
@@ -182,5 +222,12 @@ export function composeRunRecord({ base, patch, expectedMilestones = [] }) {
       tokens: milestones.M7.authoring.tokens,
     };
   }
+  if (record.socialMessenger.clocks?.replay !== undefined && fullJourney) {
+    record.socialMessenger.clocks.replay = {
+      ...replayClock,
+      tokens: replayTokens,
+    };
+  }
   return record;
 }
+import { addTokenCounts, zeroTokenCounts } from "./counts.mjs";

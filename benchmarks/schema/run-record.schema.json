@@ -122,6 +122,8 @@
           "properties": {
             "orientation": { "type": ["number", "null"], "minimum": 0 },
             "authoring": { "type": ["number", "null"], "minimum": 0 },
+            "replay": { "type": ["number", "null"], "minimum": 0 },
+            "m7Session": { "type": ["number", "null"], "minimum": 0 },
             "verification": { "type": ["number", "null"], "minimum": 0 },
             "diagnosis": { "type": ["number", "null"], "minimum": 0 }
           }
@@ -147,6 +149,8 @@
           "properties": {
             "orientation": { "type": ["integer", "null"], "minimum": 0 },
             "authoring": { "type": ["integer", "null"], "minimum": 0 },
+            "replay": { "type": ["integer", "null"], "minimum": 0 },
+            "m7Session": { "type": ["integer", "null"], "minimum": 0 },
             "verification": { "type": ["integer", "null"], "minimum": 0 },
             "diagnosis": { "type": ["integer", "null"], "minimum": 0 }
           }

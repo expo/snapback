@@ -23,18 +23,15 @@ import {
 } from "./codex-native-evidence.mjs";
 import { validateCoverageManifestBytes } from "./coverage-manifest.mjs";
 import { parseJsonLines } from "./jsonl.mjs";
+import { resolveConfigJourney } from "./journey-contract.mjs";
 import { suiteReceiptVerdict } from "./manifest.mjs";
 import {
   CURRENT_INSTRUMENT_PIN,
   CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
 } from "./observations.mjs";
 import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
+import { validateScaleReplayEvidence } from "./scale-replay-evidence.mjs";
 
-const REDUCED_DRIVER_ID = "social-messenger-r2-native-cli-driver.v1";
-const FULL_JOURNEY_DRIVER_ID = "social-messenger-full-journey-native-cli-driver.v1";
-const REDUCED_MILESTONES = Object.freeze(["M1", "M2", "M3"]);
-const CONTINUOUS_MILESTONES = Object.freeze(["M1", "M2", "M3", "M4", "M5", "M6", "M8"]);
-const FULL_JOURNEY_MILESTONES = Object.freeze([...CONTINUOUS_MILESTONES, "M7"]);
 const MARKER_FILE = "events/cell-milestones.jsonl";
 const states = new Map();
 
@@ -72,42 +69,11 @@ function nullCounts() {
   return { input: null, output: null, cacheRead: null, cacheWrite: null, reasoning: null };
 }
 
-function sameArray(left, right) {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
 // @ref LLP 0201#d1--the-app-and-why-this-app — full scope is a continuous
 // M1-M6+M8 builder followed by a genuinely fresh, handoff-only M7 session.
 // The original M1-M3 R2 shape remains a distinct, unchanged reduced mode.
 export function resolveCellJourney(config) {
-  if (sameArray(config.milestones, REDUCED_MILESTONES)) {
-    return {
-      runScope: "reduced",
-      driverId: REDUCED_DRIVER_ID,
-      continuous: REDUCED_MILESTONES,
-      fresh: [],
-    };
-  }
-  const shape = config.harnessConfig.execution?.sessionShape;
-  if (
-    sameArray(config.milestones, FULL_JOURNEY_MILESTONES)
-    && sameArray(shape?.continuous, CONTINUOUS_MILESTONES)
-    && sameArray(shape?.fresh, ["M7"])
-    && shape.m7FreshSessionRequired === true
-    && shape.m7BackendState === "fresh-starter-only-pre-replay"
-    && Array.isArray(config.cell.m7Ports)
-    && config.cell.m7Ports.length === 2
-  ) {
-    return {
-      runScope: "full",
-      driverId: FULL_JOURNEY_DRIVER_ID,
-      continuous: CONTINUOUS_MILESTONES,
-      fresh: ["M7"],
-    };
-  }
-  throw new Error(
-    "R2_DRIVER_SESSION_SHAPE: milestones must be the retained M1-M3 reduced shape or the registered continuous M1-M6+M8 plus fresh-M7 full journey",
-  );
+  return resolveConfigJourney(config);
 }
 
 function renderPrompt(config, cellRoot) {
@@ -174,7 +140,12 @@ Send the M8 signal immediately when M8's suite and choreography are green; that
 signal ends M8's authoring clock. After it returns, run the separately clocked
 scale replay and write scale-replay.json using
 snapback.full-journey-scale-replay.v1. It must carry attempted=true, the replay
-cap/probe-exclusion fields, and a chronological attempts array. Attempts are
+   cap/probe-exclusion fields, a chronological attempts array, and a receipt
+   descriptor (relative path plus SHA-256) for a
+   snapback.full-journey-scale-replay-receipt.v1 adapter receipt. That receipt
+   must name the fixture pack's exact scale-log SHA-256/action count, every
+   reached 10%/50% checkpoint prefix/hash, the final settled prefix, and failed
+   action count. Attempts are
 numbered from 1; every non-final attempt has disposition=continued; each later
 attempt names the immediately preceding attempt in continuationOf; the final
 attempt is completed or aborted. Every attempt records startedAt, finishedAt,
@@ -748,69 +719,7 @@ async function waitForMarker(state, milestone) {
   }
 }
 
-function validateScaleReplay(value) {
-  if (
-    value?.version !== "snapback.full-journey-scale-replay.v1"
-    || value.attempted !== true
-    || !Number.isFinite(value.capSeconds)
-    || value.capSeconds <= 0
-    || !Number.isFinite(value.probeWallSecondsExcluded)
-    || value.probeWallSecondsExcluded < 0
-    || !Array.isArray(value.attempts)
-    || value.attempts.length === 0
-  ) {
-    throw new Error("R2_DRIVER_SCALE_REPLAY: scale-replay.json has an invalid clock contract");
-  }
-  let previousFinishedAt = null;
-  let totalAttemptSeconds = 0;
-  for (const [index, attempt] of value.attempts.entries()) {
-    const startedAt = Date.parse(attempt?.startedAt);
-    const finishedAt = Date.parse(attempt?.finishedAt);
-    const final = index === value.attempts.length - 1;
-    if (
-      attempt?.attempt !== index + 1
-      || !Number.isFinite(startedAt)
-      || !Number.isFinite(finishedAt)
-      || finishedAt < startedAt
-      || (previousFinishedAt !== null && startedAt < previousFinishedAt)
-      || !Number.isInteger(attempt.settledPrefix)
-      || attempt.settledPrefix < 0
-      || (index === 0 ? attempt.continuationOf !== null : attempt.continuationOf !== index)
-      || (final
-        ? !["completed", "aborted"].includes(attempt.disposition)
-        : attempt.disposition !== "continued")
-    ) {
-      throw new Error(
-        `R2_DRIVER_SCALE_REPLAY: attempt ${index + 1} violates chronological attempt/continuation semantics`,
-      );
-    }
-    previousFinishedAt = finishedAt;
-    totalAttemptSeconds += (finishedAt - startedAt) / 1_000;
-  }
-  if (value.probeWallSecondsExcluded > totalAttemptSeconds) {
-    throw new Error("R2_DRIVER_SCALE_REPLAY: excluded probe wall exceeds attempted wall");
-  }
-  const wallSeconds = totalAttemptSeconds - value.probeWallSecondsExcluded;
-  const capFractionUsed = wallSeconds / value.capSeconds;
-  const capExhausted = wallSeconds >= value.capSeconds;
-  if (
-    value.wallSeconds !== wallSeconds
-    || value.capFractionUsed !== capFractionUsed
-    || value.capExhausted !== capExhausted
-  ) {
-    throw new Error("R2_DRIVER_SCALE_REPLAY: derived replay clock fields do not match attempt timestamps");
-  }
-  return {
-    attempted: true,
-    wallSeconds,
-    capSeconds: value.capSeconds,
-    capFractionUsed,
-    capExhausted,
-    probeWallSecondsExcluded: value.probeWallSecondsExcluded,
-  };
-}
-
-async function waitForScaleReplay(state) {
+async function waitForScaleReplay(state, { notBefore }) {
   const path = join(state.root, "scale-replay.json");
   while (true) {
     try {
@@ -820,9 +729,33 @@ async function waitForScaleReplay(state) {
       }
       const bytes = await readFile(path);
       const value = JSON.parse(bytes.toString("utf8"));
+      const receiptPath = resolve(
+        state.root,
+        requiredString(value.receipt?.path, "scale replay receipt.path"),
+      );
+      const logicalReceiptPath = logicalPath(state.root, receiptPath);
+      const receiptStatus = await lstat(receiptPath);
+      if (receiptStatus.isSymbolicLink() || !receiptStatus.isFile()) {
+        throw new Error("R2_DRIVER_SCALE_REPLAY: replay receipt must be a regular non-symlink file");
+      }
+      const receiptBytes = await readFile(receiptPath);
+      const receiptSha256 = sha256Prefixed(receiptBytes);
+      if (receiptSha256 !== value.receipt.sha256) {
+        throw new Error("R2_DRIVER_SCALE_REPLAY: replay receipt differs from its declared SHA-256");
+      }
+      const replay = validateScaleReplayEvidence(
+        value,
+        JSON.parse(receiptBytes.toString("utf8")),
+      );
+      if (Date.parse(replay.firstStartedAt) < Date.parse(notBefore)) {
+        throw new Error(
+          "R2_DRIVER_SCALE_REPLAY: scale replay starts before M8 native usage settles",
+        );
+      }
       state.scaleReplay = {
-        clock: validateScaleReplay(value),
-        attempts: value.attempts,
+        clock: replay.clock,
+        attempts: replay.attempts,
+        receipt: { path: logicalReceiptPath, sha256: receiptSha256 },
         artifact: { path: "scale-replay.json", sha256: sha256Prefixed(bytes) },
       };
       return state.scaleReplay;
@@ -841,6 +774,47 @@ async function waitForScaleReplay(state) {
   }
 }
 
+async function retainScaleReplayFailure(state, error, startedAt, {
+  outcome = "aborted",
+  capSeconds = null,
+  deadlineAt = null,
+  cause = null,
+} = {}) {
+  const finishedAt = new Date().toISOString();
+  const wallSeconds = Math.max(0, (Date.parse(finishedAt) - Date.parse(startedAt)) / 1_000);
+  const value = {
+    version: "snapback.full-journey-scale-replay-failure.v1",
+    outcome,
+    startedAt,
+    finishedAt,
+    ...(deadlineAt === null ? {} : { deadlineAt }),
+    clock: {
+      attempted: true,
+      wallSeconds,
+      capSeconds,
+      capFractionUsed: capSeconds === null ? null : wallSeconds / capSeconds,
+      capExhausted: capSeconds === null ? null : wallSeconds >= capSeconds,
+      probeWallSecondsExcluded: 0,
+    },
+    failure: {
+      name: error?.name ?? "Error",
+      message: error?.message ?? String(error),
+      ...(cause === null ? {} : { cause }),
+    },
+  };
+  const bytes = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
+  const path = join(state.root, "scale-replay-failure.json");
+  await writeFile(path, bytes, { flag: "wx" });
+  state.scaleReplayFailure = {
+    value,
+    artifact: { path: "scale-replay-failure.json", sha256: sha256Prefixed(bytes) },
+  };
+  state.failureDisposition = outcome === "settlement-timeout"
+    ? "scale-replay-settlement-timeout"
+    : "scale-replay-aborted";
+  return state.scaleReplayFailure;
+}
+
 async function releaseNativeSignalForExecutionOrder(state, milestone) {
   const numericNext = `M${Number(milestone.slice(1)) + 1}`;
   const configuredNext = state.config.milestones[
@@ -848,6 +822,107 @@ async function releaseNativeSignalForExecutionOrder(state, milestone) {
   ];
   if (numericNext !== configuredNext && numericNext !== "M4") {
     await writeFile(join(state.root, "gates", numericNext), `${new Date().toISOString()}\n`);
+  }
+}
+
+async function findCodexRolloutPath(nativeSession) {
+  const searchRoot = process.env.CODEX_HOME ?? join(homedir(), ".codex");
+  const candidates = [];
+  async function visit(directory, depth = 0) {
+    if (depth > 6) return;
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
+    for (const entry of entries) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(path, depth + 1);
+      else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
+        const status = await stat(path);
+        if (status.mtimeMs >= Date.parse(nativeSession.startedAt) - 5_000) candidates.push(path);
+      }
+    }
+  }
+  await visit(join(searchRoot, "sessions"));
+  for (const path of candidates.sort()) {
+    const text = await readFile(path, "utf8");
+    const meta = text.split(/\r?\n/u).filter(Boolean).map((line) => {
+      try { return JSON.parse(line); } catch { return null; }
+    }).find((record) => record?.type === "session_meta" && typeof record?.payload?.id === "string");
+    if (meta?.payload.id === nativeSession.nativeSessionId) return path;
+  }
+  return null;
+}
+
+async function readLiveCodexRecords(state) {
+  const path = state.currentSession.nativeRolloutPath
+    ?? await findCodexRolloutPath(state.currentSession);
+  if (path === null) return null;
+  state.currentSession.nativeRolloutPath = path;
+  const text = await readFile(path, "utf8");
+  if (!text.endsWith("\n")) return null;
+  return parseJsonLines(text, path);
+}
+
+// @ref LLP 0201#d2--quantitative-instrument — replay cannot begin until the
+// same first post-M8 native token_count that closes continuous authoring has
+// been observed. Reuse authoritative recovery so execution and finalization
+// cannot disagree about that boundary.
+async function waitForM8UsageSettlement(state, marker) {
+  const capSeconds = state.config.harnessConfig?.execution
+    ?.perMilestoneWallSafetyLimitSeconds;
+  if (!Number.isFinite(capSeconds) || capSeconds <= 0) {
+    throw new Error("R2_DRIVER_M8_SETTLEMENT_TIMEOUT: replay settlement wait requires a positive recorded wall cap");
+  }
+  const startedAt = new Date().toISOString();
+  const deadlineMs = Date.parse(startedAt) + capSeconds * 1_000;
+  const deadlineAt = new Date(deadlineMs).toISOString();
+  while (true) {
+    const records = await (state.readLiveCodexRecords ?? readLiveCodexRecords)(state);
+    if (records !== null) {
+      try {
+        const recovery = recoverCodexSignalSettlements({
+          records,
+          boundaryValue: {
+            M8: {
+              status: marker.status,
+              terminalAt: marker.recordedAt,
+              terminalSequence: 1,
+            },
+          },
+          closingSettlementSelection: "first",
+          allowTrailingUsage: true,
+          allowOpenWithoutTaskComplete: true,
+        });
+        return recovery.usageSettlements[0];
+      } catch (error) {
+        if (!/exactly one successful M8 signal|no native token_count settlement/u.test(error.message)) {
+          throw error;
+        }
+      }
+    }
+    const remainingMs = deadlineMs - Date.now();
+    if (remainingMs <= 0) {
+      const error = new Error(
+        `R2_DRIVER_M8_SETTLEMENT_TIMEOUT: no post-M8 token_count before the recorded replay wall-cap deadline ${deadlineAt}`,
+      );
+      error.code = "R2_DRIVER_M8_SETTLEMENT_TIMEOUT";
+      error.causeCode = "missing-post-m8-token-count";
+      error.startedAt = startedAt;
+      error.deadlineAt = deadlineAt;
+      error.capSeconds = capSeconds;
+      throw error;
+    }
+    const exit = await Promise.race([
+      state.exit.then((value) => ({ type: "exit", value })),
+      new Promise((resolveWait) => setTimeout(
+        () => resolveWait({ type: "poll" }),
+        Math.min(250, remainingMs),
+      )),
+    ]);
+    if (exit.type === "exit") {
+      throw new Error(
+        `R2_DRIVER_SCALE_REPLAY: continuous native session exited before M8 usage settlement (${JSON.stringify(exit.value)})`,
+      );
+    }
   }
 }
 
@@ -973,28 +1048,13 @@ async function receiptDescriptor(state, marker) {
 }
 
 async function findCodexRollout(state, nativeSession) {
-  const searchRoot = process.env.CODEX_HOME ?? join(homedir(), ".codex");
-  const candidates = [];
-  async function visit(directory, depth = 0) {
-    if (depth > 6) return;
-    let entries;
-    try { entries = await readdir(directory, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) await visit(path, depth + 1);
-      else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
-        const status = await stat(path);
-        if (status.mtimeMs >= Date.parse(nativeSession.startedAt) - 5_000) candidates.push(path);
-      }
-    }
-  }
-  await visit(join(searchRoot, "sessions"));
-  for (const path of candidates.sort()) {
+  const path = nativeSession.nativeRolloutPath ?? await findCodexRolloutPath(nativeSession);
+  if (path !== null) {
+    nativeSession.nativeRolloutPath = path;
     const text = await readFile(path, "utf8");
     const meta = text.split(/\r?\n/u).filter(Boolean).map((line) => {
       try { return JSON.parse(line); } catch { return null; }
     }).find((record) => record?.type === "session_meta" && typeof record?.payload?.id === "string");
-    if (!meta || meta.payload.id !== nativeSession.nativeSessionId) continue;
     const target = join(
       state.root,
       "events",
@@ -1104,7 +1164,7 @@ async function writeTerminalArtifacts(state, error) {
   }
   const markers = await readMarkers(state);
   const terminalTimes = await controllerTerminalTimes(state);
-  if (error && state.currentMilestone) {
+  if (error && state.currentMilestone && !state.failureDisposition?.startsWith("scale-replay-")) {
     const existing = markers.find((item) => item.milestone === state.currentMilestone);
     const failure = {
       milestone: state.currentMilestone,
@@ -1178,17 +1238,25 @@ async function writeTerminalArtifacts(state, error) {
         ))),
       };
       if (Object.keys(sessionBoundaries.milestones).length > 0) {
+        const replayFailed = state.journey.runScope === "full"
+          && nativeSession.sourceId === "builder"
+          && state.scaleReplayFailure !== null;
+        const settlementTimedOut = replayFailed
+          && state.scaleReplayFailure.value.outcome === "settlement-timeout";
         recoverCodexSignalSettlements({
           records,
           boundaryValue: sessionBoundaries,
-          streamClosedAt: Object.values(sessionBoundaries.milestones)
-            .some((boundary) => boundary.status !== "green")
+          streamClosedAt: replayFailed
+            || Object.values(sessionBoundaries.milestones)
+              .some((boundary) => boundary.status !== "green")
             ? driverFinalizedAt
             : null,
           ...(state.journey.runScope === "full" && nativeSession.sourceId === "builder"
             ? {
                 closingSettlementSelection: "first",
                 allowTrailingUsage: true,
+                ...(replayFailed ? { allowClosedWithoutTaskComplete: true } : {}),
+                ...(settlementTimedOut ? { allowMissingClosingSettlement: true } : {}),
               }
             : {}),
         });
@@ -1276,10 +1344,16 @@ async function writeTerminalArtifacts(state, error) {
     : { path: "coverage-manifest.json", sha256: coverage.sha256, validated: true };
   if (state.journey.runScope === "full") {
     const m8Green = markers.some((marker) => marker.milestone === "M8" && marker.status === "green");
-    if (m8Green && state.scaleReplay === null) {
+    if (m8Green && state.scaleReplay === null && state.scaleReplayFailure === null) {
       throw new Error("R2_DRIVER_SCALE_REPLAY: full journey cannot finalize without scale replay custody");
     }
-    if (state.scaleReplay !== null) base.socialMessenger.clocks.replay = state.scaleReplay.clock;
+    if (state.scaleReplay !== null) {
+      base.socialMessenger.clocks.replay = state.scaleReplay.clock;
+    }
+    if (state.scaleReplayFailure !== null) {
+      base.socialMessenger.clocks.replay = state.scaleReplayFailure.value.clock;
+      base.socialMessenger.termination.reason = state.failureDisposition;
+    }
   }
   const retainedSetups = receipts
     .map((receipt) => receipt.summary?.setup)
@@ -1319,7 +1393,14 @@ async function writeTerminalArtifacts(state, error) {
       ...state.scaleReplay.artifact,
       clock: state.scaleReplay.clock,
       attempts: state.scaleReplay.attempts,
+      receipt: state.scaleReplay.receipt,
     } }),
+    ...(state.scaleReplayFailure === null
+      ? {}
+      : { scaleReplayFailure: {
+          ...state.scaleReplayFailure.artifact,
+          outcome: state.scaleReplayFailure.value.outcome,
+        } }),
     driver: {
       id: state.journey.driverId,
       startedAt: state.startedAt,
@@ -1468,6 +1549,8 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     m7HandoffSource: null,
     m7Handoff: null,
     scaleReplay: null,
+    scaleReplayFailure: null,
+    failureDisposition: null,
   });
 }
 
@@ -1536,7 +1619,30 @@ export async function runMilestone({ milestone, controls, config }) {
     throw new Error(`${milestone} green signal lacks suite/choreography observation sidecars`);
   }
   if (milestone === "M8" && state.journey.runScope === "full" && marker.status === "green") {
-    await waitForScaleReplay(state);
+    let settlement;
+    try {
+      settlement = await waitForM8UsageSettlement(state, marker);
+    } catch (error) {
+      if (error.code === "R2_DRIVER_M8_SETTLEMENT_TIMEOUT") {
+        await retainScaleReplayFailure(state, error, error.startedAt, {
+          outcome: "settlement-timeout",
+          capSeconds: error.capSeconds,
+          deadlineAt: error.deadlineAt,
+          cause: error.causeCode,
+        });
+      }
+      throw error;
+    }
+    const replayStartedAt = new Date(Math.max(
+      Date.now(),
+      Date.parse(settlement.usageSettledAt),
+    )).toISOString();
+    try {
+      await waitForScaleReplay(state, { notBefore: settlement.usageSettledAt });
+    } catch (error) {
+      await retainScaleReplayFailure(state, error, replayStartedAt);
+      throw error;
+    }
   }
   if (milestone === config.milestones.at(-1)) {
     const exit = await state.exit;

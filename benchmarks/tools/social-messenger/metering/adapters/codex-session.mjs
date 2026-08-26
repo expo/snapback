@@ -116,6 +116,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
           `Codex token_count record ${index + 1}.timestamp`,
         ),
         recordIndex: index + 1,
+        nativeRecordOrdinal: Number.isInteger(record.ordinal) ? record.ordinal : null,
         rawRecord: record,
         cumulative: normalizeCodexCumulative(
           info.total_token_usage,
@@ -131,7 +132,13 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
     });
     if (entry !== null) cumulativeRecords.push(entry);
   }
-  cumulativeRecords.sort((left, right) => left.completedAtMs - right.completedAtMs);
+  cumulativeRecords.sort((left, right) => (
+    Number.isInteger(left.nativeRecordOrdinal)
+    && Number.isInteger(right.nativeRecordOrdinal)
+    && left.nativeRecordOrdinal !== right.nativeRecordOrdinal
+      ? left.nativeRecordOrdinal - right.nativeRecordOrdinal
+      : left.completedAtMs - right.completedAtMs
+  ));
 
   let previous = zeroTokenCounts();
   const turns = [];
@@ -175,6 +182,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
       turns.push({
         id: `codex-token-count:${nativeSessionId}:${entry.completedAt}:${cumulativeIdentity}`,
         sourceId,
+        nativeRecordOrdinal: entry.nativeRecordOrdinal,
         completedAt: entry.completedAt,
         usage,
       });
@@ -214,10 +222,19 @@ export function adaptCodexSessionTree(sessions) {
       byIdentity.set(turn.id, turn);
     }
   }
-  const turns = [...byIdentity.values()].sort((left, right) => (
-    timestampMillis(left.completedAt, `${left.id}.completedAt`)
-    - timestampMillis(right.completedAt, `${right.id}.completedAt`)
-  ));
+  const turns = [...byIdentity.values()].sort((left, right) => {
+    const timestampDelta = timestampMillis(left.completedAt, `${left.id}.completedAt`)
+      - timestampMillis(right.completedAt, `${right.id}.completedAt`);
+    if (timestampDelta !== 0) return timestampDelta;
+    if (
+      left.sourceId === right.sourceId
+      && Number.isInteger(left.nativeRecordOrdinal)
+      && Number.isInteger(right.nativeRecordOrdinal)
+    ) {
+      return left.nativeRecordOrdinal - right.nativeRecordOrdinal;
+    }
+    return left.id.localeCompare(right.id);
+  });
   return {
     adapter: "codex-rollout-jsonl",
     adapterVersion: CODEX_ADAPTER_VERSION,

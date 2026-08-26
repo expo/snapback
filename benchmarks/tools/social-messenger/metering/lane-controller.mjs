@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { joinUsageToMilestones } from "./joiner.mjs";
+import { resolveConfigJourney } from "./journey-contract.mjs";
 import { loadMeteringManifest } from "./manifest.mjs";
 import {
   formatFinalizationFailure,
@@ -736,6 +737,7 @@ async function main() {
         campaignState,
         actualExecution,
       });
+      resolveConfigJourney(config);
       const claim = claimExclusiveHostLock({
         lock: artifact.exclusiveHostLock,
         harnessConfig: config.harnessConfig,

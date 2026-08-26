@@ -12,6 +12,7 @@ import {
 } from "./metering/codex-native-evidence.mjs";
 import {
   applyR2DriverV1TerminalCompatibility,
+  bindFullJourneyAccountingValues,
   loadObservationCompatibility,
 } from "./metering/manifest.mjs";
 import {
@@ -164,6 +165,7 @@ function physicalCurrentR2Identity(artifactRoot) {
       const value = JSON.parse(readFileSync(resolve(artifactRoot, name), "utf8"));
       if (
         value?.driver?.id === "social-messenger-r2-native-cli-driver.v1"
+        || value?.driver?.id === "social-messenger-full-journey-native-cli-driver.v1"
         || value?.instrumentPin === CURRENT_INSTRUMENT_PIN
         || /^2026-08-23-r2-published-0125\//u.test(value?.laneRunId ?? "")
       ) return true;
@@ -364,6 +366,79 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
   })) {
     errors.push(`${path}/boundaries: descriptor must equal the metering manifest boundary artifact`);
   }
+  let fullJourneyAccounting = { channel, milestoneWallStarts: {}, separateTokenPhases: {} };
+  if (manifest.driver.id === "social-messenger-full-journey-native-cli-driver.v1") {
+    const boundaries = boundaryValue?.milestones ?? boundaryValue;
+    if (Object.hasOwn(boundaries, "M7")) {
+      resolveArtifact(
+        errors,
+        artifactRoot,
+        manifest.freshSessionHandoff?.source,
+        `${path}/manifest/freshSessionHandoff/source`,
+      );
+      resolveArtifact(
+        errors,
+        artifactRoot,
+        manifest.freshSessionHandoff?.renderedPrompt,
+        `${path}/manifest/freshSessionHandoff/renderedPrompt`,
+      );
+    }
+    let replayValue = null;
+    let replayReceiptValue = null;
+    let replayFailureValue = null;
+    if (boundaries.M8?.status === "green") {
+      if (manifest.scaleReplayFailure !== undefined) {
+        const replayFailureLoaded = resolveArtifact(
+          errors,
+          artifactRoot,
+          manifest.scaleReplayFailure,
+          `${path}/manifest/scaleReplayFailure`,
+        );
+        replayFailureValue = parseArtifactJson(
+          errors,
+          replayFailureLoaded,
+          `${path}/manifest/scaleReplayFailure`,
+        );
+      } else {
+        const replayLoaded = resolveArtifact(
+          errors,
+          artifactRoot,
+          manifest.scaleReplay,
+          `${path}/manifest/scaleReplay`,
+        );
+        replayValue = parseArtifactJson(errors, replayLoaded, `${path}/manifest/scaleReplay`);
+        if (replayValue !== null) {
+          const replayReceiptLoaded = resolveArtifact(
+            errors,
+            artifactRoot,
+            replayValue.receipt,
+            `${path}/manifest/scaleReplay/receipt`,
+          );
+          replayReceiptValue = parseArtifactJson(
+            errors,
+            replayReceiptLoaded,
+            `${path}/manifest/scaleReplay/receipt`,
+          );
+        }
+      }
+    }
+    try {
+      fullJourneyAccounting = bindFullJourneyAccountingValues({
+        manifest,
+        boundaryValue,
+        driverCompatibility: recovery,
+        loadedSessions,
+        channel,
+        replayValue,
+        replayReceiptValue,
+        replayFailureValue,
+      });
+      channel = fullJourneyAccounting.channel;
+    } catch (error) {
+      errors.push(`${path}: full-journey accounting replay failed: ${error.message}`);
+      return;
+    }
+  }
   const expectedReceipts = (manifest.receipts ?? []).map((receipt) => ({
     sourceId: receipt.sourceId,
     runId: receipt.runId,
@@ -464,7 +539,10 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
       suiteStatusLinkage = {
         input: { path: manifest.suiteStatus.path, sha256: manifest.suiteStatus.sha256 },
         milestones: Object.keys(boundaries)
-          .filter((milestone) => milestone !== "M7")
+          .filter((milestone) => (
+            manifest.driver.id === "social-messenger-full-journey-native-cli-driver.v1"
+            || milestone !== "M7"
+          ))
           .map((milestone) => {
             const segment = status[milestone.toLowerCase()];
             if (!segment || typeof segment.pass !== "boolean") {
@@ -529,6 +607,9 @@ function validateCurrentMeteringProvenance(errors, record, extension, artifactRo
       wallClockOrigin: manifest.driver.startedAt,
       provenance: expectedProvenance,
       usageSettlements: recovery.usageSettlements,
+      milestoneWallStarts: fullJourneyAccounting.milestoneWallStarts,
+      separateTokenPhases: fullJourneyAccounting.separateTokenPhases ?? {},
+      separateClockPhases: fullJourneyAccounting.separateClockPhases ?? {},
     });
     const expectedRecord = composeRunRecord({
       base: recordBase,
@@ -1110,7 +1191,7 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
   }
   for (const [milestone, value] of Object.entries(extension.milestones ?? {})) {
     if (
-      milestone !== "M7"
+      (milestone !== "M7" || extension.runScope === "full")
       && ATTEMPTED_STATUSES.has(value?.status)
       && !linked.has(milestone)
     ) {

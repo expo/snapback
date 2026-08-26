@@ -185,6 +185,33 @@
       "then": {
         "$ref": "#/$defs/nullMeteringRecord"
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "socialMessenger": {
+            "properties": {
+              "runScope": { "const": "full" }
+            },
+            "required": ["runScope"]
+          }
+        },
+        "required": ["socialMessenger"]
+      },
+      "then": {
+        "properties": {
+          "wallClock": {
+            "properties": {
+              "phases": { "required": ["replay", "m7Session"] }
+            }
+          },
+          "tokens": {
+            "properties": {
+              "phases": { "required": ["replay", "m7Session"] }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {

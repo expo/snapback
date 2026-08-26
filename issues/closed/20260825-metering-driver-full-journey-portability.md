@@ -125,3 +125,84 @@ It covers the full/two-session join and clocks, replay-token exclusion,
 handoff-only fresh M7 state, retained reduced record validation, Darwin/Linux
 dispatch, Gitless acceptance/refusal/tamper detection (including gitlinks), M7
 port probing, exact host/Node binding, and non-consuming current-pin smoke.
+
+## Review fix round (2026-08-25)
+
+The first driver revision overstated full-journey harness support and did not
+exercise the production manifest loader. The supported contract is now exact:
+full journey is available only for `codex-sol`. Claude and Grok retain their
+registered reduced-run accounting paths, but a full-journey shape for either
+is refused from the registered config during production admission, before the
+admission host lock is acquired. The controller repeats the same pure support
+check before claiming an admission lock, while driver preflight keeps the same
+defense in depth. Refusal therefore creates no rendered prompt, attempt
+capsule, native launch, or brief lock claim-and-release. This follows LLP 0295
+R2 admission's fail-closed, pre-attempt philosophy; no attempt or host-lock
+custody is consumed by a contract that cannot later compose.
+
+The Codex full-journey manifest still retains the conservative 5-second
+controller/native clock-correlation evidence. After the hash-bound native
+signal ordinal and its exact following `token_count` ordinal recover a usage
+settlement, the join uses the same shared-host zero-skew ordering contract as
+the retained reduced driver. The compatibility event preserves both clock
+contracts and the complete recovered settlement provenance. A production-path
+test now runs `loadMeteringManifest()` and `joinUsageToMilestones()` with the
+settlement timestamp exactly equal to the admitted token turn.
+
+Scale replay now requires a separately hash-bound adapter receipt naming the
+registered fixture action-log SHA-256 and action count, every reached 10%/50%
+checkpoint prefix and prefix hash, the settled prefix, failed-action count,
+and pass verdict. Both driver ingestion and final composition validate that
+receipt; a syntactically self-consistent receipt for another action log is
+rejected. Continuous authoring ends at M8's native settlement boundary, while
+replay and fresh M7 carry separate wall and token phases whose sums equal the
+record totals. M7 suite-status is cross-checked like every other green
+milestone, and full-journey compatibility events are retained instead of
+being emitted as an empty list.
+
+All three retained R2 records are now exercised by the semantic validator and
+all three retained slots by the complete finalized-slot validator. Their
+current failures were reproduced byte-for-byte from local `origin/main` and
+are therefore inherited, not caused or repaired by this lane; the retained
+campaign directory remains unchanged:
+
+| Retained cell | Semantic validation | Complete slot validation |
+| --- | --- | --- |
+| `opus-clique-explicit` | Invalid: missing current provenance fields | Invalid: legacy `completed` slot is not exact finalized single-attempt form |
+| `sol-clique-explicit` | Pass | Invalid: M1 lacks a `0.3.4-m8` refusal-time attestation |
+| `sol-clique-familiar` | Invalid: orphaned M3 correction episode | Invalid for the same semantic-replay failure |
+
+## Review fix round 3 (2026-08-25)
+
+The second Codex re-review found four further production-path gaps. All four
+are fixed in the driver/validator contract rather than refuted:
+
+1. The semantic record validator now invokes the same journey-aware accounting
+   projection as the manifest loader, including M7 suite-status custody, the
+   fresh-M7 wall origin, replay token separation, and the replay clock. Reduced
+   records keep their prior inputs and exact validation path. A regression
+   composes a full record from the production loader/join and writes it through
+   `R2LaneController.writeCompleteRecord()`, whose semantic validator is the
+   authoritative pre-write decision.
+2. Codex usage turns retain their native record ordinal. Each recovered
+   settlement also retains its internal native source identity, and the join
+   requires the authorized `(source, ordinal, timestamp)` turn before selecting
+   a prefix. Replay partitioning uses that ordinal boundary for the builder
+   stream and timestamp only for other sources. A later token-count ordinal at
+   the exact authorized millisecond is therefore replay usage, not M8 usage.
+3. Waiting for scale replay is now a distinct driver phase after green M8. A
+   mid-replay error retains a hash-bound `scale-replay-failure.json` with an
+   `aborted` replay disposition and exact replay wall, leaves M8 green, records
+   `scale-replay-aborted` as the orthogonal lane termination reason, and
+   partitions post-M8 native usage into the replay token phase. Fresh M7 stays
+   `not-run`; wall and token phases sum exactly to their totals.
+4. Journey/harness support is a shared pure registered-config contract used by
+   admission, controller pre-claim, and driver preflight. Unsupported full
+   Claude/Grok configurations now refuse before either production lock path;
+   the regression calls `createAdmissionArtifact()` and proves the lock
+   acquisition callback is never reached.
+
+The round changes metering-tree and validator bytes but does not change either
+run-record schema. Instrument-manifest digest reconciliation is deliberately
+left to the integration orchestrator, which must compute the complete combined
+tree after all lanes are present.

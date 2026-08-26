@@ -1,5 +1,6 @@
 import {
   addTokenCounts,
+  assertTokenCounts,
   nullTokenCounts,
   subtractTokenCounts,
   tokenCountsEqual,
@@ -36,6 +37,13 @@ function normalizedTurns(channel) {
     if (typeof turn.id !== "string" || turn.id.length === 0) {
       throw new TypeError("usage turns must carry lane-global stable IDs");
     }
+    if (
+      turn.nativeRecordOrdinal !== undefined
+      && turn.nativeRecordOrdinal !== null
+      && (!Number.isInteger(turn.nativeRecordOrdinal) || turn.nativeRecordOrdinal < 0)
+    ) {
+      throw new TypeError(`usage turn ${turn.id} nativeRecordOrdinal must be a non-negative integer or null`);
+    }
     const previous = identities.get(turn.id);
     if (previous !== undefined) {
       if (!tokenCountsEqual(previous.usage, turn.usage)) {
@@ -45,19 +53,67 @@ function normalizedTurns(channel) {
     }
     identities.set(turn.id, turn);
   }
-  return [...identities.values()].sort(
-    (left, right) => left.completedAtMs - right.completedAtMs,
-  );
+  return [...identities.values()].sort((left, right) => {
+    const timestampDelta = left.completedAtMs - right.completedAtMs;
+    if (timestampDelta !== 0) return timestampDelta;
+    if (
+      left.sourceId === right.sourceId
+      && Number.isInteger(left.nativeRecordOrdinal)
+      && Number.isInteger(right.nativeRecordOrdinal)
+    ) {
+      return left.nativeRecordOrdinal - right.nativeRecordOrdinal;
+    }
+    return left.id.localeCompare(right.id);
+  });
 }
 
-function prefixAt(turns, atMs) {
+function settlementSourceBound(settlement) {
+  return typeof settlement?.nativeSourceId === "string"
+    && settlement.nativeSourceId.length > 0
+    && Number.isInteger(settlement.usageRecordOrdinal);
+}
+
+export function usageTurnCompletesAfterSettlement(turn, settlement) {
+  if (settlementSourceBound(settlement) && turn.sourceId === settlement.nativeSourceId) {
+    if (!Number.isInteger(turn.nativeRecordOrdinal)) {
+      throw new Error(
+        `usage turn ${turn.id} from ${turn.sourceId} lacks the native ordinal required by its authorized settlement`,
+      );
+    }
+    return turn.nativeRecordOrdinal > settlement.usageRecordOrdinal;
+  }
+  return Date.parse(turn.completedAt) > Date.parse(settlement.usageSettledAt);
+}
+
+function prefixAt(turns, atMs, settlement = null) {
   if (turns === null) return nullTokenCounts();
   let prefix = zeroTokenCounts();
   for (const turn of turns) {
-    if (turn.completedAtMs > atMs) break;
+    const after = settlementSourceBound(settlement)
+      ? usageTurnCompletesAfterSettlement(turn, settlement)
+      : turn.completedAtMs > atMs;
+    if (after) continue;
     prefix = addTokenCounts(prefix, turn.usage);
   }
   return prefix;
+}
+
+function assertAuthorizedSettlementTurn(turns, settlement, milestone) {
+  if (turns === null || !settlementSourceBound(settlement)) return;
+  const authorized = turns.filter((turn) => (
+    turn.sourceId === settlement.nativeSourceId
+    && turn.nativeRecordOrdinal === settlement.usageRecordOrdinal
+  ));
+  if (authorized.length !== 1) {
+    throw new Error(
+      `${milestone} authorized usage ordinal must identify exactly one adapted native turn; received ${authorized.length}`,
+    );
+  }
+  if (authorized[0].completedAt !== settlement.usageSettledAt) {
+    throw new Error(
+      `${milestone} authorized usage ordinal timestamp differs from its immutable native turn`,
+    );
+  }
 }
 
 function normalizeFirstProductEdit(marker) {
@@ -146,6 +202,8 @@ export function joinUsageToMilestones({
   suiteStatusLinkage = null,
   usageSettlements = null,
   milestoneWallStarts = {},
+  separateTokenPhases = {},
+  separateClockPhases = {},
 }) {
   if (channel === null || typeof channel !== "object") {
     throw new TypeError("usage channel is required");
@@ -169,6 +227,34 @@ export function joinUsageToMilestones({
     || typeof milestoneWallStarts !== "object"
   ) {
     throw new TypeError("milestoneWallStarts must be an object");
+  }
+  if (
+    separateTokenPhases === null
+    || Array.isArray(separateTokenPhases)
+    || typeof separateTokenPhases !== "object"
+  ) {
+    throw new TypeError("separateTokenPhases must be an object");
+  }
+  for (const [phase, counts] of Object.entries(separateTokenPhases)) {
+    if (phase !== "replay") throw new Error(`unsupported separate token phase ${phase}`);
+    assertTokenCounts(counts, `${phase} phase token counts`);
+  }
+  if (
+    separateClockPhases === null
+    || Array.isArray(separateClockPhases)
+    || typeof separateClockPhases !== "object"
+  ) {
+    throw new TypeError("separateClockPhases must be an object");
+  }
+  for (const [phase, clock] of Object.entries(separateClockPhases)) {
+    if (phase !== "replay") throw new Error(`unsupported separate clock phase ${phase}`);
+    if (
+      clock?.attempted !== true
+      || !Number.isFinite(clock.wallSeconds)
+      || clock.wallSeconds < 0
+    ) {
+      throw new Error("replay clock phase must retain its attempted wall");
+    }
   }
   const ordered = Object.entries(boundaryMap)
     .map(([milestone, boundary]) => ({
@@ -210,6 +296,13 @@ export function joinUsageToMilestones({
         if (!Number.isInteger(settlement.usageRecordOrdinal)) {
           throw new TypeError(`${item.milestone}.usageRecordOrdinal must be an integer`);
         }
+        if (
+          settlement.nativeSourceId !== undefined
+          && (typeof settlement.nativeSourceId !== "string" || settlement.nativeSourceId.length === 0)
+        ) {
+          throw new TypeError(`${item.milestone}.nativeSourceId must be a non-empty string when present`);
+        }
+        assertAuthorizedSettlementTurn(turns, settlement, item.milestone);
       } else if (settlement.usageSettledAt !== null || settlement.usageRecordOrdinal !== null) {
         throw new Error(`${item.milestone} unavailable usage settlement must retain null time and ordinal`);
       }
@@ -297,7 +390,9 @@ export function joinUsageToMilestones({
       ? lastBoundary.atMs
       : Date.parse(lastSettlement.usageSettledAt);
     const trailingTurn = turns?.find((turn) => (
-      turn.completedAtMs > usageUpperMs + maxClockSkewMs
+      settlementSourceBound(lastSettlement)
+        ? usageTurnCompletesAfterSettlement(turn, lastSettlement)
+        : turn.completedAtMs > usageUpperMs + maxClockSkewMs
     ));
     if (trailingTurn !== undefined) {
       throw new Error(
@@ -318,7 +413,9 @@ export function joinUsageToMilestones({
       : settlement.usageAvailable
       ? Date.parse(settlement.usageSettledAt)
       : null;
-    const prefix = usageAvailable ? prefixAt(turns, usageAtMs) : nullTokenCounts();
+    const prefix = usageAvailable
+      ? prefixAt(turns, usageAtMs, settlement)
+      : nullTokenCounts();
     const tokens = !usageAvailable
       ? nullTokenCounts()
       : subtractTokenCounts(prefix, previousPrefix);
@@ -391,6 +488,12 @@ export function joinUsageToMilestones({
         && orientationTokenEvidenceAvailable(firstEdit.orientationTokens),
     }),
     boundarySnapshots,
+    ...(Object.keys(separateTokenPhases).length === 0
+      ? {}
+      : { separateTokenPhases: structuredClone(separateTokenPhases) }),
+    ...(Object.keys(separateClockPhases).length === 0
+      ? {}
+      : { separateClockPhases: structuredClone(separateClockPhases) }),
     firstProductEdit: firstEdit,
     meteringProvenance: provenance,
     ...(suiteStatusLinkage === null ? {} : { suiteStatusLinkage }),

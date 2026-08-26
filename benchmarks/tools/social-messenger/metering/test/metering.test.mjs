@@ -163,7 +163,6 @@ async function migrateCurrentR2CellFixture(root) {
 
   const basePath = join(root, "record-base.json");
   const base = JSON.parse(await readFile(basePath, "utf8"));
-
   const setup = {
     schemaVersion: "social-messenger.setup-identity.v1",
     instrumentPin: instrument.instrumentPin,
