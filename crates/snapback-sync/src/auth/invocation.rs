@@ -4162,12 +4162,22 @@ fn function_kind_matches(constraint: FunctionKindConstraint, kind: &FunctionKind
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::crypto::{CryptoError, RandomSource, SessionBearer};
     use crate::auth::mode::{
         AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeStateRecord, AuthModeStatus,
         DeploymentIdentity, FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX,
     };
     use crate::manifest::{FunctionRuntime, HandlerPlan, QueryPlan};
     use serde_json::json;
+
+    struct EffectAttributionRandom(u8);
+
+    impl RandomSource for EffectAttributionRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0);
+            Ok(())
+        }
+    }
 
     fn function(requirement: Option<AuthRequirement>) -> FunctionDefinition {
         let mut function = FunctionDefinition::new(
@@ -4193,6 +4203,9 @@ mod tests {
         local
             .activate_current_auth_catalog()
             .expect("activate pending-effect attribution auth catalog");
+        local
+            .ensure_authorization_stream_incarnation()
+            .expect("activate pending-effect attribution authorization stream");
         let mut schema = crate::manifest::SchemaManifest::default();
         schema.app_id = "effect-attribution-fixture".to_owned();
         schema.api = Some(crate::contract_types::ApiManifest {
@@ -4238,29 +4251,68 @@ mod tests {
         approver: Option<&str>,
         now_ms: u64,
     ) -> crate::storage::pending_effects::PendingEffectRecord {
-        database
-            .create_pending_effect_admitted(crate::storage::pending_effects::CreatePendingEffect {
-                function_id: "fn:effectAttribution".to_owned(),
-                function_name: "effectAttribution".to_owned(),
-                function_kind: FunctionKind::Mutation,
-                args: json!({ "caller": caller_key }),
-                caller_lane: "integration".to_owned(),
-                caller_key: caller_key.to_owned(),
-                authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
-                generation: crate::manifest::ArtifactGeneration {
-                    schema_version: "snapback.v1".to_owned(),
-                    app_id: "effect-attribution-fixture".to_owned(),
-                    schema_hash: "schema".to_owned(),
-                    bundle_hash: "bundle".to_owned(),
-                    inputs_hash: "inputs".to_owned(),
-                },
-                link_origin_id: None,
-                approver_principal_id: approver.map(str::to_owned),
-                declared_write_set: vec!["items".to_owned()],
+        let owner = database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Anonymous,
                 now_ms,
-                ttl_ms: 60_000,
-            })
+            )
+            .expect("derive anonymous pending-effect owner");
+        database
+            .create_pending_effect_admitted(
+                &owner,
+                crate::storage::pending_effects::CreatePendingEffect {
+                    function_id: "fn:effectAttribution".to_owned(),
+                    function_name: "effectAttribution".to_owned(),
+                    function_kind: FunctionKind::Mutation,
+                    args: json!({ "caller": caller_key }),
+                    caller_lane: "integration".to_owned(),
+                    caller_key: caller_key.to_owned(),
+                    authority: crate::storage::pending_effects::PendingEffectAuthority::Anonymous,
+                    generation: crate::manifest::ArtifactGeneration {
+                        schema_version: "snapback.v1".to_owned(),
+                        app_id: "effect-attribution-fixture".to_owned(),
+                        schema_hash: "schema".to_owned(),
+                        bundle_hash: "bundle".to_owned(),
+                        inputs_hash: "inputs".to_owned(),
+                    },
+                    link_origin_id: None,
+                    approver_principal_id: approver.map(str::to_owned),
+                    declared_write_set: vec!["items".to_owned()],
+                    now_ms,
+                    ttl_ms: 60_000,
+                },
+            )
             .expect("create durable pending effect")
+    }
+
+    fn effect_management_owner(
+        database: &mut crate::storage::ServingDatabase,
+        principal_id: &str,
+        marker: u8,
+    ) -> crate::storage::pending_effects::PendingEffectOwner {
+        let bearer = SessionBearer::generate(&EffectAttributionRandom(marker))
+            .expect("generate pending-effect management bearer");
+        database
+            .auth_catalog()
+            .insert_email_session_for_test(
+                principal_id,
+                &format!("identity-{marker}"),
+                &format!("session-{marker}"),
+                &format!("authority-{marker}"),
+                &format!("approver-{marker}@example.test"),
+                bearer.token_hash().as_bytes(),
+                1,
+                1,
+                10_000,
+                10_000,
+            )
+            .expect("seed pending-effect management session");
+        database
+            .resolve_pending_effect_owner(
+                crate::storage::pending_effects::PendingEffectOwnerEvidence::Session(bearer),
+                100,
+            )
+            .expect("derive pending-effect management owner")
     }
 
     fn effect_execution_authority(admission: &AdmissionController) -> PreparedAuthority {
@@ -4315,11 +4367,13 @@ mod tests {
             create_effect_attribution_row(&mut database, "caller-C0", Some("approver-A0"), 100);
         let effect_c1 =
             create_effect_attribution_row(&mut database, "caller-C1", Some("approver-A1"), 101);
+        let owner_a0 = effect_management_owner(&mut database, "approver-A0", 10);
+        let owner_a1 = effect_management_owner(&mut database, "approver-A1", 11);
         let prepared_c0_a0 = database
-            .prepare_pending_effect_approval(&effect_c0.id, "approver-A0", 110)
+            .prepare_pending_effect_approval(&owner_a0, &effect_c0.id, 110)
             .expect("prepare C0/A0");
         let prepared_c1_a1 = database
-            .prepare_pending_effect_approval(&effect_c1.id, "approver-A1", 110)
+            .prepare_pending_effect_approval(&owner_a1, &effect_c1.id, 110)
             .expect("prepare C1/A1");
         let authority = effect_execution_authority(&admission);
         let approver_a0 = effect_management_authority(&admission, "approver-A0")
@@ -4378,8 +4432,9 @@ mod tests {
             Some("approver-A0"),
             100,
         );
+        let foreign_owner = effect_management_owner(&mut foreign_database, "approver-A0", 12);
         let foreign_approval = foreign_database
-            .prepare_pending_effect_approval(&foreign_effect.id, "approver-A0", 110)
+            .prepare_pending_effect_approval(&foreign_owner, &foreign_effect.id, 110)
             .expect("prepare same-shaped row in another database");
         let foreign_error = authority
             .with_effect_caller_attribution(foreign_approval.effect(), &approver_a0)
@@ -4399,13 +4454,15 @@ mod tests {
             .expect("foreign graph remains usable by its legitimate authority");
 
         // Adapt the original public two-call attack instead of merely proving
-        // the old string parameter disappeared. Storage may prepare an
-        // unrestricted row for an arbitrary string, but the final consumer
-        // refuses to record it when the actual approving authority derives A0.
+        // the old string parameter disappeared. A distinct durably resolved
+        // attacker owner may prepare the unrestricted row, but the final
+        // consumer refuses to record it when the actual authority derives A0.
         let unrestricted = create_effect_attribution_row(&mut database, "caller-open", None, 120);
+        let attacker_owner =
+            effect_management_owner(&mut database, "attacker-selected-approver", 13);
         let forged = database
-            .prepare_pending_effect_approval(&unrestricted.id, "attacker-selected-approver", 121)
-            .expect("raw storage preparation remains independently callable");
+            .prepare_pending_effect_approval(&attacker_owner, &unrestricted.id, 121)
+            .expect("attacker-owned storage preparation remains independently callable");
         let adapted_attack = effect_execution_authority(&admission)
             .with_effect_caller_attribution(forged.effect(), &approver_a0)
             .expect_err("caller-supplied storage binding is not approver authority");

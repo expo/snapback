@@ -19,7 +19,9 @@ import {
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_FIXTURE_ROOT = resolve(DEFAULT_ROOT, 'tests/fixtures/security-boundaries');
 const TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-fixtures');
+const OWNING_CRATE_TARGET = resolve(DEFAULT_ROOT, 'target/security-boundary-owning-crate');
 const DIAGNOSTIC = 'SNAPBACK_SECURITY_BOUNDARY';
+const OWNING_CRATE_MODE = 'kernel-unit-compile-fail';
 
 function sorted(values) {
   return [...new Set(values)].sort();
@@ -48,7 +50,9 @@ export function loadAttacks(fixtureRoot = DEFAULT_FIXTURE_ROOT) {
       throw new GateInfrastructureError(`${path} has an invalid or duplicate attack id`);
     }
     ids.add(attack.id);
-    if (typeof attack.bin !== 'string' || typeof attack.source !== 'string'
+    const hasExecutionTarget = attack.mode === OWNING_CRATE_MODE
+      || typeof attack.bin === 'string';
+    if (!hasExecutionTarget || typeof attack.source !== 'string'
         || typeof attack.mount !== 'string' || !Array.isArray(attack.featureSets)
         || attack.featureSets.length === 0) {
       throw new GateInfrastructureError(`${path} attack ${attack.id} is incomplete`);
@@ -64,7 +68,9 @@ export function loadAttacks(fixtureRoot = DEFAULT_FIXTURE_ROOT) {
 // naming anything outside this set is unrunnable, not merely wrong.
 export function fixtureDependencyNames(root, fixtureRoot) {
   const product = runCargoMetadata(resolve(root, 'Cargo.toml'));
-  const productNames = new Set(workspacePackages(product).map(({ name }) => name));
+  const productPackages = workspacePackages(product);
+  const productNames = new Set(productPackages.map(({ name }) => name));
+  const kernel = productPackages.find(({ name }) => name === 'snapback-kernel');
   const fixture = runCargoMetadata(resolve(fixtureRoot, 'Cargo.toml'));
   const pkg = workspacePackages(fixture)
     .find(({ name }) => name === 'snapback-security-boundary-fixtures');
@@ -144,6 +150,32 @@ export function validateFixtureInventory(
     .map((target) => [target.name, target]));
   for (const attack of attacks) {
     if (!productNames.has(attack.mount)) errors.push(`${attack.id} names non-member mount ${attack.mount}`);
+    if (attack.mode === OWNING_CRATE_MODE) {
+      if (!kernel || attack.mount !== 'snapback-kernel') {
+        errors.push(`${attack.id} owning-crate probe must mount snapback-kernel`);
+        continue;
+      }
+      const source = resolve(root, attack.source);
+      let canonicalSource;
+      try {
+        canonicalSource = realpathSync(source);
+      } catch (error) {
+        errors.push(`${attack.id} names unreadable owning-crate source ${attack.source}: ${error.message}`);
+        continue;
+      }
+      const kernelRoot = dirname(kernel.manifest_path);
+      const sourceWithinKernel = relative(kernelRoot, canonicalSource);
+      if (!sourceWithinKernel.startsWith('src/storage/authority_transition/core/writers/compile_fail/')) {
+        errors.push(`${attack.id} owning-crate source is outside the private compile-fail probe directory`);
+      }
+      const featureNames = new Set(Object.keys(kernel.features ?? {}));
+      const unknownFeatures = sorted(attack.featureSets.flat().filter((feature) =>
+        typeof feature !== 'string' || !featureNames.has(feature)));
+      if (unknownFeatures.length > 0) {
+        errors.push(`${attack.id} names unknown snapback-kernel feature(s): ${unknownFeatures.join(', ')}`);
+      }
+      continue;
+    }
     const bin = bins.get(attack.bin);
     if (!bin) {
       errors.push(`${attack.id} names missing bin ${attack.bin}`);
@@ -282,6 +314,115 @@ export function runAttack({
   return outcomes;
 }
 
+function scoreOwningCrateAttack({ attack, features, compilation, root }) {
+  const source = resolve(root, attack.source);
+  const canonicalSource = realpathSync(source);
+  const attackSpan = runAst(['attack-span', '--file', source]);
+  const featureLabel = `[${features.join(',')}]`;
+  if (compilation.status === 0) {
+    return {
+      passed: false,
+      line: `[security-boundary] RED ${attack.id}: attack compiled under features ${featureLabel}`,
+      diagnostics: [],
+    };
+  }
+  const hits = [];
+  for (const message of compilation.messages) {
+    for (const span of message.spans) {
+      if (span.is_primary && span.canonical === canonicalSource && locationOverlaps(span, attackSpan)) {
+        hits.push({ message, span });
+      }
+    }
+  }
+  const expectedHits = attack.expectedCode
+    ? hits.filter(({ message }) => message.code === attack.expectedCode)
+    : hits;
+  if (expectedHits.length === 0) {
+    const reason = hits.length > 0
+      ? `@attack primary span had ${sorted(hits.map(({ message }) => message.code ?? 'uncoded')).join(', ')}, expected ${attack.expectedCode}`
+      : 'no primary span overlapped @attack (unrelated diagnostic would have satisfied a message regex)';
+    return {
+      passed: false,
+      line: `[security-boundary] RED ${attack.id}: ${reason} under features ${featureLabel}`,
+      diagnostics: compilation.messages.slice(0, 8).map(({ rendered }) => rendered.trim()),
+    };
+  }
+  const { message, span } = expectedHits[0];
+  return {
+    passed: true,
+    line: `[security-boundary] PASS ${attack.id}: ${message.code ?? 'error'} at ${relative(root, canonicalSource)}:${span.line_start}:${span.column_start} under features ${featureLabel}`,
+    diagnostics: [],
+  };
+}
+
+// LLP 0313's evidence is intentionally unnameable from a dependent crate. These
+// probes therefore compile in the owning crate's unit-test module, where they
+// can exercise the real private type and fail on the claimed trait/type/lifetime
+// boundary instead of on an invented public method spelling.
+export function runOwningCrateAttacks({
+  attacks,
+  root = DEFAULT_ROOT,
+  targetDir = OWNING_CRATE_TARGET,
+  spawnCargo = spawnSync,
+}) {
+  if (attacks.length === 0) return [];
+  const featureSets = new Map();
+  for (const attack of attacks) {
+    for (const features of attack.featureSets) {
+      featureSets.set(JSON.stringify(features), features);
+    }
+  }
+  const compilations = new Map();
+  for (const [key, features] of featureSets) {
+    const args = [
+      'test',
+      '--offline',
+      '--locked',
+      '--message-format=json',
+      '--package', 'snapback-kernel',
+      '--lib',
+      '--no-run',
+    ];
+    if (features.length > 0) args.push('--features', features.join(','));
+    const rustflags = [
+      process.env.RUSTFLAGS,
+      '--cfg snapback_authority_compile_fail',
+      '--check-cfg=cfg(snapback_authority_compile_fail)',
+    ].filter(Boolean).join(' ');
+    const env = {
+      ...process.env,
+      CARGO_TARGET_DIR: targetDir,
+      RUSTFLAGS: rustflags,
+    };
+    delete env.CARGO_ENCODED_RUSTFLAGS;
+    const result = spawnCargo('cargo', args, {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+      maxBuffer: 128 * 1024 * 1024,
+    });
+    if (result.error || result.status === null) {
+      throw new GateInfrastructureError(
+        `cargo did not execute owning-crate authority probes: ${result.error?.message ?? 'no exit status'}`,
+      );
+    }
+    const messages = parseCompilerMessages(`${result.stdout}\n${result.stderr}`, root);
+    if (result.status !== 0 && messages.length === 0) {
+      throw new GateInfrastructureError(
+        `cargo failed owning-crate authority probes without a rustc compiler-message error under features [${features.join(',')}]\n${result.stderr || result.stdout}`,
+      );
+    }
+    compilations.set(key, { status: result.status, messages });
+  }
+  return attacks.flatMap((attack) => attack.featureSets.map((features) =>
+    scoreOwningCrateAttack({
+      attack,
+      features,
+      compilation: compilations.get(JSON.stringify(features)),
+      root,
+    })));
+}
+
 function validateSeedWitnessCoverage(privilegeFindings, attacks) {
   const obtainable = sorted(privilegeFindings
     .filter((finding) => ['seed-obtain', 'caller-discriminant'].includes(finding.kind)
@@ -338,7 +479,12 @@ export function auditSecurityBoundaries(
   if (skipped > 0) {
     process.stderr.write(`[security-boundary] skipping ${skipped} unrunnable attack(s); see inventory REDs above\n`);
   }
-  const outcomes = runnable.flatMap((attack) => runAttack({ attack, fixtureRoot }));
+  const owningCrateAttacks = runnable.filter(({ mode }) => mode === OWNING_CRATE_MODE);
+  const dependentCrateAttacks = runnable.filter(({ mode }) => mode !== OWNING_CRATE_MODE);
+  const outcomes = [
+    ...dependentCrateAttacks.flatMap((attack) => runAttack({ attack, fixtureRoot })),
+    ...runOwningCrateAttacks({ attacks: owningCrateAttacks, root }),
+  ];
   const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
   return { attacks, authorityTransition, inventoryErrors, outcomes, durationMs };
 }

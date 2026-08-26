@@ -212,8 +212,11 @@ struct ActivePermit {
     successor_digest: [u8; 32],
 }
 
-struct AuthorityWritePermit<'tx> {
+struct AuthorityWritePermit<'tx, 'conn> {
     transaction: &'tx TransactionIdentity,
+    // @ref LLP 0313#4-private-evidence-and-permits — commit consumes the
+    // borrowed SQLite transaction, so a permit cannot survive that commit.
+    _sqlite_transaction: &'tx rusqlite::Transaction<'conn>,
     nonce: NonZeroU128,
     mutation: AuthorityMutation,
     successor_digest: [u8; 32],

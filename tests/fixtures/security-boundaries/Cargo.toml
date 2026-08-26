@@ -363,36 +363,8 @@ name = "name-kernel-verified-evidence"
 path = "src/bin/name_kernel_verified_evidence.rs"
 
 [[bin]]
-name = "obtain-kernel-verified-evidence"
-path = "src/bin/obtain_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "accept-kernel-verified-evidence"
-path = "src/bin/accept_kernel_verified_evidence.rs"
-
-[[bin]]
 name = "construct-kernel-verified-evidence"
 path = "src/bin/construct_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "clone-kernel-verified-evidence"
-path = "src/bin/clone_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "convert-kernel-verified-evidence"
-path = "src/bin/convert_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "deserialize-kernel-verified-evidence"
-path = "src/bin/deserialize_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "decompose-kernel-verified-evidence"
-path = "src/bin/decompose_kernel_verified_evidence.rs"
-
-[[bin]]
-name = "reinstall-kernel-verified-evidence"
-path = "src/bin/reinstall_kernel_verified_evidence.rs"
 
 [[bin]]
 name = "name-kernel-verified-evidence-component"
