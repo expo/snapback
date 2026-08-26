@@ -6,6 +6,11 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-8 consumer closure: the common kernel room
+completion consumer and both sync facades now perform an always-on
+managed/direct `LocalSnapback` scope refusal before lifecycle or SQLite. This
+closes a captured public/doc-hidden completion-owner composition in release
+builds without relying on the unsound rank checker, and preserves retry.)
 **Revised:** 2026-08-26 (round-7 structural closure: room and outbox guards
 now release before exact obligation settlement drops the SQLite transaction;
 `DatabaseBinding` retains private creator-process identity and compares it
@@ -1759,7 +1764,13 @@ The following remain unconditional:
 
 - Exact room-reauthorization completion acquires no managed or direct
   `LocalSnapback` guard. Its narrow SQLite owner is transferred once out of the
-  serving database graph during app-state construction. Authorization
+  serving database graph during app-state construction. Every completion
+  consumer refuses with `SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` before
+  lifecycle or SQLite when the current thread already owns a managed or direct
+  Local write scope. The common kernel check covers direct and forwarding
+  consumers; the sync facade repeats the check before lifecycle acquisition.
+  This is an always-on release-build invariant, not a lock-rank or debug-only
+  assertion. Authorization
   transaction bind remains a pre-existing Local overlap and is enumerated
   below; the former absolute-Local wording was false.
 - No code holding participant activation/projection state, the authority
@@ -1803,8 +1814,12 @@ ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
 ```
 
 The maintenance worker invokes this owner directly from `spawn_blocking`, not
-inside `with_snapback`. Completion takes the lifecycle read guard before it
-waits for `IMMEDIATE`, but during that wait it holds no participant projection,
+inside `with_snapback`. Public and `#[doc(hidden)] pub` take-once accessors do
+not expand that authority: a caller may capture the owner, but every terminal
+consumer converges on the always-on Local-scope refusal before any lock or
+database acquisition. Refusal retains the level-triggered obligation for a
+fresh outside-Local resolution and retry. Completion then takes the lifecycle
+read guard before it waits for `IMMEDIATE`, but during that wait it holds no participant projection,
 registry, rooms, room, outbox, notifier, or global Local guard. SQLite remains
 held through the durable session and membership rereads, exact
 subscriber/effect-fence mutation and subscriber-outbox effects. Every outbox,
@@ -1843,6 +1858,17 @@ was:
 
 The result is:
 
+- The completion effect's public consumers are the kernel
+  `begin_room_reauthorization_completion{,_off_local}` pair and their
+  `AuthorizingRoomAuthority` forwarders, sync
+  `complete_room_reauthorization{,_off_local}`, and the engine's take-once
+  completion owner. All converge on the common kernel begin implementation;
+  it performs the always-on Local-scope refusal before SQLite or registry
+  access. Sync also refuses before lifecycle acquisition. The resolved batch,
+  finite completion, and take-once owners have private fields and no
+  `Clone`, serialization, or from-parts reconstruction surface. A runtime
+  witness captures the public consumer, invokes it from a Local scope, proves
+  typed refusal, then proves the exact legitimate retry succeeds outside Local.
 - `storage/room_authority.rs` contains no caller-supplied or trait-object
   closure invocation under participant projection or registry state.
 - Outbox state contains no callable parameter. `OutboxDrainLease::try_commit`

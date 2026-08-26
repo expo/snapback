@@ -5,6 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (round-8 consumer closure: every room
+reauthorization completion consumer performs an always-on managed/direct
+`LocalSnapback` scope refusal before lifecycle or SQLite acquisition, so a
+public or doc-hidden completion owner captured by caller code cannot recreate
+the reverse edge in release builds; refusal preserves the level-triggered
+obligation for an outside-Local retry.)
 **Revised:** 2026-08-26 (round-7 structural closure: exact completion releases
 subscriber outbox, room, and rooms-map guards before obligation settlement
 drops SQLite, eliminating SQLite execution beneath those guards.)
@@ -799,7 +805,14 @@ Local overlaps enumerated below and in LLP 0290 §7.1:
   room-authority settlement, notifier wake, and ephemeral diagnostics likewise
   never acquire their process locks while a managed or direct `LocalSnapback`
   write scope is active. Exact room-reauthorization completion runs on its
-  separate take-once owner after Local has been released. A committed Local
+  separate take-once owner after Local has been released. Every kernel and sync
+  completion consumer refuses with
+  `SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` before lifecycle, SQLite, or
+  process-state acquisition when that thread still owns a managed or direct
+  Local write scope. This check is always on, not a debug assertion: capturing
+  the public or doc-hidden take-once owner in caller-supplied Local code cannot
+  reintroduce the reverse edge, and refusal leaves the exact level-triggered
+  obligation retryable outside Local. A committed Local
   phase transfers immutable callbacks and any exact admission owner to its
   blocking owner, releases Local and the scope, and only then executes those
   callbacks. The logical managed writer remains closed until the callback
@@ -834,7 +847,9 @@ ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
 
 The completion SQLite connection is claimed once from `ServingDatabase` during
 app-state construction and owned beside, not inside, the managed
-`LocalSnapback` graph. Completion takes the lifecycle read guard, then may wait
+`LocalSnapback` graph. The common kernel consumer and the sync facade first
+perform the always-on Local-scope refusal above. Completion then takes the
+lifecycle read guard and may wait
 for `IMMEDIATE`; it holds no registry, rooms, room, outbox, notifier, or global
 Local guard during that wait. After SQLite is acquired it remains held through
 the durable session and membership rereads, the exact subscriber/effect-fence
@@ -1556,6 +1571,11 @@ mismatch or subscriber-set change leaves the level-triggered obligation
 pending; a result resolved for a predecessor is never installed on a same-id
 replacement. This split also enforces the prohibited-overlap rule above:
 registry/coordinator locks are never acquired from beneath `LocalSnapback`.
+The completion consumers enforce the split in every build: a caller that
+captures the take-once completion owner and invokes it from caller-supplied
+Local code receives `SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` before the
+consumer can acquire lifecycle, SQLite, registry, or room state, and can retry
+the still-pending obligation after releasing Local.
 
 The bounded writer handoff has a 5000-monotonic-millisecond ordinary-send
 deadline as well as the terminal close deadline. A peer that does not read may
