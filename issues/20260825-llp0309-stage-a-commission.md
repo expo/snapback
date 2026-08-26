@@ -69,3 +69,13 @@ LLP 0190 D3); the replica continuity contract (LLP 0209 OQ-6).
   r7 = unreviewed obligation-register bookkeeping. Spec stays
   `Review` pending author acceptance. Proceeding to plan step 3
   (implementation via /sbs-orchestrate).
+- 2026-08-26 — **Stage A LANDED on main** (lane tip `9b9ab5f4a`):
+  reference evaluator crate `tools/snapback-delta-semantics`
+  (serving-path-isolated, dev-dependency of the corpus runner only)
+  + 128-vector corpus `tests/conformance/delta-semantics-v1/` +
+  runner `delta_semantics_corpus_v1.rs`. Implemented codex
+  gpt-5.6-sol @ xhigh; dual review-gated (codex + grok @ xhigh)
+  through five review rounds and four fix rounds (12 → 3 → 5 → 2 →
+  1 findings); final round grok CLEAN, codex's one finding was a
+  spec-side formula artifact folded as the r8 UNREVIEWED
+  correction. Stage B (audit) is the remaining deliverable.
