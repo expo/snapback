@@ -100,7 +100,11 @@ only `generated/`.
    `v.principal()` is a snapshot, not membership.
 4. A changed seed identity never silently resets data: expect
    `SNAPBACK_SEED_MIGRATION_REQUIRED`, then migrate or reset-install.
-5. Every `SNAPBACK_*` refusal names its rule and fix; use
+5. An inline handler cannot capture a module-level `const` or an import
+   (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`); the admitted shape is a
+   same-file top-level `function` declaration, or the value passed through
+   args/`ctx`.
+6. Every `SNAPBACK_*` refusal names its rule and fix; use
    `snapback guide <CODE>` for its entry.
 
 ## Escalate

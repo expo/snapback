@@ -897,16 +897,26 @@ function buildSameFileGraphRecord({
   };
 }
 
+// @ref LLP 0310#work-to-do — P7. Hoisting a shared value to a module-level
+// `const` is the ordinary JavaScript move, and this grammar refuses it. A
+// refusal that only says why is a correction loop; every hint here also names
+// the admitted rewrite, so the reader leaves the diagnostic with a working
+// spelling rather than a prohibition.
 function freeIdentifierHints(free, freeTopLevel) {
   const hints = free
     .filter((identifier) => freeTopLevel.has(identifier))
     .map((identifier) => {
       const declarationKind = freeTopLevel.get(identifier);
       if (declarationKind === 'import') {
-        return `${identifier} is an imported binding; imports cannot be spliced into a runtime module`;
+        return `${identifier} is an imported binding; imports cannot be spliced into a runtime module `
+          + `— inline the value at the use site, pass it through args or ctx, or move the logic into a `
+          + `top-level function declaration in this file`;
       }
       return `${identifier} is a top-level ${declarationKind}; only top-level function declarations are `
-        + `spliceable helpers — a ${declarationKind} would be a temporal-dead-zone or laundering edge`;
+        + `spliceable helpers — a ${declarationKind} would be a temporal-dead-zone or laundering edge. `
+        + `Admitted rewrite: turn ${identifier} into a same-file function declaration `
+        + `(\`function ${identifier}() { ... }\`, returning or applying the value), or pass the value `
+        + `through args or ctx`;
     });
   return hints.length > 0 ? ` (${hints.join('; ')})` : '';
 }
