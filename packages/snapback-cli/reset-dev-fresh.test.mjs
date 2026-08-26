@@ -390,7 +390,7 @@ try {
   assert.deepEqual(await unknown.json(), {
     ok: false,
     code: 'SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN',
-    supported: ['dev-fresh'],
+    supported: ['dev-fresh', 'reload-metro', 'stop-children'],
   });
 
   evolveSchema(supervised);

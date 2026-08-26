@@ -67,17 +67,23 @@ socket residue for explicit recovery. The active reaper's deletion rule is the
 separate stricter exact cleanup-lease inode/incarnation match plus a bounded
 dead-endpoint probe, and removes the matching bound owner marker with the
 socket. No FIFO or client
-`recook` verb was added. The Guide classifies the artifacts as transient
+`recook` verb was added. The detached planes have an exact precedence:
+authenticated HTTP with the managed admin-token file, then the owner-bound
+socket, then interactive or newline-delimited JSON stdin. The socket is
+required only when both stdin and authenticated HTTP are unavailable. A
+non-empty regular-file stdin redirect may carry JSON commands; `/dev/null`, a
+closed pipe, and an empty regular file are unavailable. Startup refuses with
+`SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE` only when no managed token makes the
+HTTP route usable, the socket cannot publish, and stdin cannot carry a command.
+A group-writable project therefore remains ready with `controlSocket: null`
+when its managed-token HTTP route is usable; the socket-unavailable diagnostic
+advertises that fallback. The Guide classifies the artifacts as transient
 instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
 command's JSON UID remains advisory. A non-owner-only state directory or a
 non-root-owned/hostile symlink emits
-`SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`. An interactive TTY or a preserved
-readable command pipe may keep the packaged supervisor alive with stdin-only
-control. Under `--json`, if stdin is `/dev/null`, closed, or otherwise cannot
-carry `snapback.dev-command.v1`, the same missing socket instead refuses startup
-with `SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; a chain-admission message names
-the exact failing component and reason and directs the operator to put
+`SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`; a chain-admission message names the
+exact failing component and reason and directs the operator to put
 `--ready-file` inside a `0700` owner-only tree or fix that directory mode. A
 mode-`0775` project root remains ineligible for default socket publication even
 when its `.snapback/` leaf is `0700`, because another group member could rename
@@ -86,8 +92,9 @@ also ineligible even when the caller supplies the project itself as the chain
 root, because the parent can replace the whole project; an external owner-only
 ready-file tree with secure ancestry is the supported recovery.
 Bind failures and a failed prepublication `connect()` of the advertised path
-follow the same usable-stdin fallback or unavailable-channel refusal, but the
-required-channel message now calls out bind/publication versus advertised-path
+follow the same authenticated-HTTP or usable-stdin fallback, and refuse only
+when neither remains. The required-channel message calls out bind/publication
+versus advertised-path
 probe and preserves the underlying cause rather than describing either as
 directory-chain admission. Thus a state directory beyond the platform's
 Unix-socket path budget reports its bind cause and cannot publish an unreachable

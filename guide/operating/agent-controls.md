@@ -99,11 +99,14 @@ refuse with `SNAPBACK_EXPO_CONTROL_UNAUTHORIZED`; unknown verbs refuse with
 API: its CORS projection advertises only `GET, OPTIONS`, not `POST` or the
 operator-token header.
 
-`snapback dev --expo --json` also publishes an owner-bound Unix control socket
-in the same state directory as its ready file. This plane is required when the
-managed ready descriptor has no admin-token file: HTTP has no bearer to
-authenticate, while the owner-only pathname and descriptor can still gate the
-same `reload-metro` / `stop-children` implementations. The default path is
+The detached-control precedence is exact: authenticated HTTP with the managed
+token first, the owner-bound Unix socket second, and interactive or
+newline-delimited JSON stdin third. `snapback dev --expo --json` publishes the
+socket in the same state directory as its ready file. The socket is required
+only when the managed ready descriptor has no usable admin-token file and
+stdin is unavailable: HTTP then has no bearer to authenticate, while the
+owner-only pathname and descriptor can still gate the same `reload-metro` /
+`stop-children` implementations. The default path is
 `.snapback/.dc-sock`; read the exact path and lifecycle binding from
 the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
@@ -136,15 +139,21 @@ cross-UID kernel gate. The UID repeated in command JSON is an advisory
 descriptor-consistency check, not a peer-credential check. The instance cleanup
 lease removes the exact socket inode on ordinary shutdown or owner death. If the
 `--ready-file` directory is not a same-UID owner-only real directory, the
-supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE`, omits the endpoint,
-and continues with stdin-only control only when an interactive TTY or readable
-command pipe remains available. With `--json` and stdin at `/dev/null`, closed,
-or otherwise unreadable, Snapback instead refuses startup with
-`SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE`; the diagnostic names the exact
-chain component and reason. Choose `--ready-file` inside a `0700` owner-only
-tree or fix the named directory mode. A Unix-socket bind or advertised-path
-probe failure uses the same usable-stdin fallback or unavailable-channel
-refusal, but its message identifies the bind/publication or advertised-path
+supervisor emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and publishes
+`controlSocket: null`. It continues when authenticated HTTP is usable, or when
+stdin is an interactive TTY or readable command channel. A non-empty regular
+file redirected to stdin is a readable newline-delimited JSON carrier; an
+empty regular file, `/dev/null`, and a closed pipe have already reached EOF and
+are unavailable. With `--json`, Snapback refuses startup with
+`SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE` only when all three planes are
+unavailable: no usable managed-token HTTP route, no owner-bound socket, and no
+usable stdin. The diagnostic names the exact chain component and reason; when
+HTTP remains usable, the socket-unavailable diagnostic advertises that fallback
+route instead of aborting startup. Choose `--ready-file` inside a `0700`
+owner-only tree or fix the named directory mode. A Unix-socket bind or
+advertised-path probe failure uses the same authenticated-HTTP or usable-stdin
+fallback, and refuses only when neither remains. Its message identifies the
+bind/publication or advertised-path
 probe failure and its cause instead of calling it directory-chain admission.
 The `--ready-file` recovery remains present; a state directory beyond the
 platform's `sockaddr_un` path budget is the common `ENAMETOOLONG` bind case.

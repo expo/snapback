@@ -221,6 +221,27 @@ if (failures.length === 0) {
     );
     const semanticFixtures = `
 import { defineTemplateCarrierConfig } from '@expo/snapback-cli/carrier-kit';
+import { startDevControlSocket } from '@expo/snapback-cli/expo-dev';
+import type { RunExpoDevOptions } from '@expo/snapback-cli/expo-dev';
+
+type OnControlStopIsUndeclared = unknown extends RunExpoDevOptions['onControlStop']
+  ? true
+  : false;
+const onControlStopIsUndeclared: OnControlStopIsUndeclared = true;
+void onControlStopIsUndeclared;
+
+void startDevControlSocket({
+  readyFile: '/tmp/snapback/dev.ready.json',
+  ownerIncarnationId: 'fixture-owner',
+  ownerStartTime: 'fixture-start',
+  startedAt: 'fixture-started-at',
+  verbs: {
+    'reload-metro': async () => {},
+    'stop-children': async () => {},
+  },
+  // @ts-expect-error The socket owner survives stop-children; no completion callback is public.
+  onStopComplete() {},
+});
 
 defineTemplateCarrierConfig({
   schemaVersion: 'snapback.template-carriers.v1',

@@ -7226,20 +7226,32 @@ async function inspectDevControlInput(stdin) {
       }
     }
   }
-  if ((metadata?.isFIFO() || metadata?.isSocket()) && typeof stdin.read === 'function') {
-    // A pipe can initially advertise readable=true/readableEnded=false even
-    // after its writer has already closed. Start the zero-byte read that
-    // latches kernel EOF, then let the stream publish that state before this
-    // channel is accepted as the socket fallback. Buffered commands remain
-    // untouched because read(0) consumes no bytes.
+  if ((metadata?.isFIFO() || metadata?.isSocket() || metadata?.isFile())
+      && typeof stdin.read === 'function') {
+    // A pipe/socket can initially advertise readable=true/readableEnded=false
+    // after its writer has closed, and an empty regular redirect has the same
+    // false-live shape. Start the zero-byte read that latches kernel EOF, then
+    // let the stream publish that state before accepting the channel. Buffered
+    // commands remain untouched because read(0) consumes no bytes.
     stdin.read(0);
     await new Promise((resolveProbe) => setImmediate(resolveProbe));
-    if (stdin.destroyed === true || stdin.readableEnded === true || stdin.readable === false) {
+    if (
+      (metadata.isFile() && metadata.size === 0)
+      || stdin.destroyed === true
+      || stdin.readableEnded === true
+      || stdin.readable === false
+    ) {
+      const regularFile = metadata.isFile();
       return Object.freeze({
         available: false,
-        kind: 'closed-pipe',
-        reason: 'stdin pipe reached EOF before control-channel startup',
+        kind: regularFile ? 'empty-regular-file' : 'closed-pipe',
+        reason: regularFile
+          ? 'stdin regular file reached EOF before control-channel startup'
+          : 'stdin pipe reached EOF before control-channel startup',
       });
+    }
+    if (metadata.isFile()) {
+      return Object.freeze({ available: true, kind: 'regular-file-command-channel' });
     }
   }
   return Object.freeze({ available: true, kind: 'readable-command-channel' });
@@ -9338,7 +9350,7 @@ export async function runCli(argv, options = {}) {
           ...(expoAppScheme ? { expoAppScheme } : {}),
           platform: expoSelectedPlatform,
           controlSocket: true,
-          requireControlSocket: json && !stdinControl.available,
+          requireControlCarrier: json && !stdinControl.available,
           stdinControl,
           signal: interrupt.signal,
           onEvent(event) {

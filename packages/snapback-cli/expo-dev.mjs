@@ -115,7 +115,7 @@ function requiredDevControlChannelDiagnostic({
   }
   return devControlDiagnostic(
     'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
-    `owner-bound dev control cannot start because ${failure}; ${stdinReason}, so stdin cannot carry snapback.dev-command.v1; ${recovery}`,
+    `detached dev control cannot start because authenticated HTTP has no usable managed admin-token carrier, ${failure}, and ${stdinReason}, so stdin cannot carry snapback.dev-command.v1; ${recovery}`,
     {
       ...unavailableDetails,
       component,
@@ -4026,7 +4026,7 @@ export async function runExpoDev(options = {}) {
         let expectedOperatorToken = null;
         try {
           expectedOperatorToken = managedAdminToken(
-            readyDescriptor,
+            readReadyDescriptor(dev.readyFile),
             database,
           );
           // @ref LLP 0181#provider — the operator capability remains
@@ -4741,6 +4741,16 @@ export async function runExpoDev(options = {}) {
         (context = {}) => controlDispatcher.enqueue(verb, context),
       ]),
     ));
+    const inspectHttpControl = () => {
+      let httpOperatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
+      const projection = Object.freeze({
+        available: typeof httpOperatorToken === 'string' && httpOperatorToken.length > 0,
+        controlPath: SUPERVISED_CONTROL_PATH,
+      });
+      httpOperatorToken = null;
+      return projection;
+    };
+    let httpControl = inspectHttpControl();
     if (options.controlSocket === true) {
       controlSocketHandle = await startDevControlSocketWithDependencies({
         readyFile: dev.readyFile,
@@ -4754,12 +4764,18 @@ export async function runExpoDev(options = {}) {
           'stop-children': stopChildrenVerb,
         },
         onUnavailable(diagnostic) {
-          controlSocketUnavailable = diagnostic;
+          controlSocketUnavailable = Object.freeze({
+            ...diagnostic,
+            details: Object.freeze({
+              ...diagnostic.details,
+              httpControl,
+            }),
+          });
           emit({
             ok: true,
             state: 'control-socket-unavailable',
-            notice: diagnostic.message,
-            diagnostics: [diagnostic],
+            notice: controlSocketUnavailable.message,
+            diagnostics: [controlSocketUnavailable],
           });
         },
       }, {
@@ -4767,8 +4783,16 @@ export async function runExpoDev(options = {}) {
         afterEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
       });
     }
-    if (controlSocketHandle === null && options.requireControlSocket === true) {
-      const unavailableDetails = controlSocketUnavailable?.details ?? {};
+    httpControl = inspectHttpControl();
+    if (
+      controlSocketHandle === null
+      && options.requireControlCarrier === true
+      && !httpControl.available
+    ) {
+      const unavailableDetails = {
+        ...(controlSocketUnavailable?.details ?? {}),
+        httpControl,
+      };
       const unavailableDiagnostic = requiredDevControlChannelDiagnostic({
         unavailableDetails,
         stdinControl: options.stdinControl,
@@ -4797,7 +4821,8 @@ export async function runExpoDev(options = {}) {
       ...(dev.environmentFile === null ? {} : { environmentFile: dev.environmentFile }),
       metro: metroReadiness,
       bootstrap: bootstrapReadiness,
-      ...(controlSocketHandle === null ? {} : { controlSocket: controlSocketHandle.descriptor }),
+      controlPath: SUPERVISED_CONTROL_PATH,
+      controlSocket: controlSocketHandle?.descriptor ?? null,
       portPlan,
       adminConsoleCommand: `snapback admin --ready-file ${JSON.stringify(dev.readyFile)}`,
     };
@@ -4834,7 +4859,7 @@ export async function runExpoDev(options = {}) {
       applicationReady: applicationReceiptProjection,
       exchangeOrigin: bootstrap.origin,
       controlPath: SUPERVISED_CONTROL_PATH,
-      ...(controlSocketHandle === null ? {} : { controlSocket: controlSocketHandle.descriptor }),
+      controlSocket: controlSocketHandle?.descriptor ?? null,
       metro: metroReadiness,
       ...(metroAttestation === null ? {} : {
         attestation: {

@@ -121,7 +121,6 @@ export function startDevControlSocket(options: Readonly<{
     'reload-metro': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
     'stop-children': (context: Readonly<{ requestId: string }>) => unknown | Promise<unknown>;
   }>;
-  onStopComplete?: () => void;
   onUnavailable?: (diagnostic: Readonly<{
     code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE';
     severity: 'warning';
@@ -456,8 +455,6 @@ export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
     port: number,
     reservation: Readonly<{ close(): Promise<void> }>,
   ) => void | Promise<void>;
-  /** Called after a stop-children result has been flushed and the socket closed. */
-  readonly onControlStop?: () => void;
 }
 
 export function runExpoDev(options?: RunExpoDevOptions): Promise<ExpoDevSupervisor>;

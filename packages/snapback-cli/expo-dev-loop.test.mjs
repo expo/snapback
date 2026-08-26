@@ -4,6 +4,7 @@ import { createHash, webcrypto } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
+  createReadStream,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -40,6 +41,7 @@ import {
 import {
   __test as expoDevTest,
   EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
+  SUPERVISED_CONTROL_PATH,
   SUPERVISED_EXCHANGE_PATH,
   createExpoRoutingPlan,
   expoBackendClientOrigins,
@@ -48,7 +50,7 @@ import {
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
-import { managedAdminToken, readReadyDescriptor, runDev } from './index.mjs';
+import { managedAdminToken, readReadyDescriptor, runCli, runDev } from './index.mjs';
 import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
@@ -66,6 +68,8 @@ const metroFreshnessOnly = process.argv.includes('--metro-freshness-only');
 const controlSocketOnly = process.argv.includes('--control-socket-only');
 const httpControlOnly = process.argv.includes('--http-control-only');
 const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival-only');
+const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
+const regularFileOnly = process.argv.includes('--regular-file-only');
 if (!metroFreshnessOnly) {
   assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
 }
@@ -550,11 +554,14 @@ async function startFixture(target, options = {}) {
     bindingRefreshWindowMs: options.bindingRefreshWindowMs,
     afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
     controlSocket: options.controlSocket,
+    requireControlCarrier: options.requireControlCarrier,
+    stdinControl: options.stdinControl,
     afterControlEndpointLeaseActivation: options.afterControlEndpointLeaseActivation,
     beforeStopChildren: options.beforeStopChildren,
     beforeDevFreshExpoRefresh: options.beforeDevFreshExpoRefresh,
     afterMetroReloadPreviousStopped: options.afterMetroReloadPreviousStopped,
     afterMetroReloadListenersVerified: options.afterMetroReloadListenersVerified,
+    beforeReadinessPublish: options.beforeReadinessPublish,
     devOptions: options.devOptions,
     clientPort: options.clientPort,
     bootstrapPort: options.bootstrapPort,
@@ -736,7 +743,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertStdinRestartBeforeSocketReload = false,
   assertConcurrentStdinSocketReload = false,
   expectControlUnavailable = false,
-  expectControlChannelRefusal = null,
+  expectHttpFallback = false,
   closeStdinImmediately = false,
   failMetroReload = false,
   stubbornMetroDuringReload = false,
@@ -815,38 +822,6 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   );
   const startupOutcome = events.find((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && (event.state === 'ready' || event.state === 'startup-failed'));
-  if (expectControlChannelRefusal !== null) {
-    const exitPromise = child.exitCode !== null || child.signalCode !== null
-      ? Promise.resolve({ code: child.exitCode, signal: child.signalCode })
-      : new Promise((resolveExit) => {
-          child.once('exit', (code, signal) => resolveExit({ code, signal }));
-        });
-    if (startupOutcome.state === 'ready') child.kill('SIGTERM');
-    const exit = await Promise.race([
-      exitPromise,
-      new Promise((_, rejectExit) => setTimeout(
-        () => rejectExit(new Error('control-channel startup refusal did not join cleanup')),
-        15_000,
-      )),
-    ]);
-    assert.equal(
-      startupOutcome.state,
-      'startup-failed',
-      `expected coded control-channel startup refusal, got ${startupOutcome.state}`,
-    );
-    const diagnostic = startupOutcome.diagnostics?.[0];
-    assert.equal(diagnostic?.code, 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE');
-    assert.equal(diagnostic?.details?.component, expectControlChannelRefusal.component);
-    assert.equal(diagnostic?.details?.reason, expectControlChannelRefusal.reason);
-    assert.equal(diagnostic.message.includes(expectControlChannelRefusal.component), true);
-    assert.match(diagnostic.message, new RegExp(expectControlChannelRefusal.reason, 'u'));
-    assert.match(diagnostic.message, /--ready-file/u);
-    assert.match(diagnostic.message, /0700/u);
-    assert.match(diagnostic.message, /directory mode/u);
-    assert.equal(events.some((event) => event.state === 'ready'), false);
-    assert.deepEqual(exit, { code: 1, signal: null }, stderr || stdoutBuffer);
-    return { events, startupOutcome };
-  }
   assert.equal(
     startupOutcome.state,
     'ready',
@@ -883,8 +858,8 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
       'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
       'an unavailable control socket must emit the coded stdin-only notice',
     );
-    assert.equal(readyEvent.controlSocket, undefined);
-    assert.equal(controlSocket, undefined);
+    assert.equal(readyEvent.controlSocket, null);
+    assert.equal(controlSocket, null);
     if (assertStdinReload) await assertReloadThroughStdin();
     const exitPromise = new Promise((resolveExit) => {
       child.once('exit', (code, signal) => resolveExit({ code, signal }));
@@ -894,6 +869,43 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
       exitPromise,
       new Promise((_, rejectExit) => setTimeout(
         () => rejectExit(new Error('stdin-only Expo supervisor did not join SIGTERM cleanup')),
+        15_000,
+      )),
+    ]);
+    return { events, readyEvent, listenerEvent, bearer: exchange.authority.token };
+  }
+  if (expectHttpFallback) {
+    const unavailableEvent = events.find((event) => event.state === 'control-socket-unavailable');
+    assert.equal(
+      unavailableEvent?.diagnostics?.[0]?.code,
+      'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+      'an unavailable socket must retain its coded diagnostic while HTTP remains usable',
+    );
+    assert.equal(readyEvent.controlSocket, null);
+    assert.equal(readyEvent.controlPath, SUPERVISED_CONTROL_PATH);
+    assert.equal(supervisorDescriptor.controlSocket, null);
+    assert.equal(supervisorDescriptor.controlPath, SUPERVISED_CONTROL_PATH);
+    assert.deepEqual(unavailableEvent.diagnostics[0].details.httpControl, {
+      available: true,
+      controlPath: SUPERVISED_CONTROL_PATH,
+    });
+    const operatorToken = managedAdminToken(readReadyDescriptor(target.readyFile), target.database);
+    const reload = await sendHttpControl(
+      supervisorDescriptor,
+      operatorToken,
+      'reload-metro',
+      'http-fallback-reload-1',
+    );
+    assert.equal(reload.status, 200);
+    assert.equal(reload.body.ok, true, JSON.stringify(reload.body));
+    const exitPromise = new Promise((resolveExit) => {
+      child.once('exit', (code, signal) => resolveExit({ code, signal }));
+    });
+    child.kill('SIGTERM');
+    await Promise.race([
+      exitPromise,
+      new Promise((_, rejectExit) => setTimeout(
+        () => rejectExit(new Error('HTTP-fallback Expo supervisor did not join SIGTERM cleanup')),
         15_000,
       )),
     ]);
@@ -1236,6 +1248,7 @@ async function runHttpControlE1Suite() {
     );
     assert.equal(unknown.status, 400);
     assert.equal(unknown.body.code, 'SNAPBACK_EXPO_CONTROL_VERB_UNKNOWN');
+    assert.deepEqual(unknown.body.supported, ['dev-fresh', 'reload-metro', 'stop-children']);
     console.log('HTTP E1: unauthorized and unknown verbs refused');
 
     const initialMetroPid = supervisorDescriptor.metro.pid;
@@ -1703,11 +1716,9 @@ async function runControlSocketSuite() {
     await runCliSupervisor(groupWritableFixture, 'web', [
       '--port-range', `${groupWritableRefusalRange.lo}-${groupWritableRefusalRange.hi}`,
     ], {
-      expectControlChannelRefusal: {
-        component: realpathSync.native(groupWritableFixture.projectRoot),
-        reason: 'writable-component',
-      },
+      expectHttpFallback: true,
     });
+
     const groupWritableExternalState = join(controlRoot, 'group-writable-external-state');
     mkdirSync(groupWritableExternalState, { mode: 0o700 });
     chmodSync(groupWritableExternalState, 0o700);
@@ -1719,7 +1730,7 @@ async function runControlSocketSuite() {
     await runCliSupervisor(groupWritableExternalTarget, 'web', [
       '--port-range', `${groupWritableExternalRange.lo}-${groupWritableExternalRange.hi}`,
     ]);
-    console.log('group-writable project: /dev/null JSON startup refuses without a socket and an external 0700 ready tree publishes one');
+    console.log('group-writable project: authenticated HTTP survives socket loss; no-token triple loss refuses; external 0700 ready tree publishes a socket');
     const customReadyFixture = fixture('custom-ready-app', { sessions: true, root: controlRoot });
     const customReadyParent = join(customReadyFixture.projectRoot, 'caller-ready-state');
     mkdirSync(customReadyParent, { mode: 0o755 });
@@ -1733,10 +1744,7 @@ async function runControlSocketSuite() {
       '--port-range', `${closedPipeRange.lo}-${closedPipeRange.hi}`,
     ], {
       closeStdinImmediately: true,
-      expectControlChannelRefusal: {
-        component: customReadyParent,
-        reason: 'state-directory-custody-failed',
-      },
+      expectHttpFallback: true,
     });
     const customReadyRange = await reserveFreeRange(8);
     await runCliSupervisor(customReadyTarget, 'web', [
@@ -1808,24 +1816,145 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: closed-pipe refusal, open-pipe stdin reload fallback, --json /dev/null default control posture, long-project external ready path, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: closed-pipe HTTP fallback, open-pipe stdin reload fallback, --json /dev/null default control posture, long-project external ready path, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }
 }
 
+async function runNoTokenCarrierRefusalSuite() {
+  const root = mkdtempSync('/tmp/sbnotoken-');
+  try {
+    const target = fixture('group-writable-no-token-project', { sessions: true, root });
+    chmodSync(target.projectRoot, 0o775);
+    mkdirSync(target.stateRoot, { recursive: true, mode: 0o700 });
+    chmodSync(target.stateRoot, 0o700);
+    await assert.rejects(
+      startFixture(target, {
+        platform: 'web',
+        controlSocket: true,
+        requireControlCarrier: true,
+        stdinControl: {
+          available: false,
+          kind: 'empty-regular-file',
+          reason: 'stdin regular file reached EOF before control-channel startup',
+        },
+        beforeReadinessPublish() {
+          const descriptor = JSON.parse(readFileSync(target.readyFile, 'utf8'));
+          const adminTokenFile = descriptor.adminTokenFile;
+          delete descriptor.adminTokenFile;
+          writeFileSync(target.readyFile, `${JSON.stringify(descriptor, null, 2)}\n`);
+          if (typeof adminTokenFile === 'string') rmSync(adminTokenFile, { force: true });
+        },
+      }),
+      (error) => error?.diagnostic?.code === 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
+      'no managed token, unusable stdin, and an unavailable socket must refuse startup',
+    );
+    console.log('unavailable carrier refusal: no token + stdin EOF + no socket refuses startup');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+async function runRegularFileControlInputSuite() {
+  const emptyInputPath = join(scratchRoot, 'empty-control-input.jsonl');
+  writeFileSync(emptyInputPath, '');
+  const emptyInput = createReadStream(emptyInputPath);
+  await new Promise((resolveOpen, rejectOpen) => {
+    emptyInput.once('open', resolveOpen);
+    emptyInput.once('error', rejectOpen);
+  });
+  await assert.rejects(
+    runCli(['dev', 'snapback', '--expo', '--json'], {
+      cwd: scratchRoot,
+      stdin: emptyInput,
+      async runExpoDev(options) {
+        assert.deepEqual(options.stdinControl, {
+          available: false,
+          kind: 'empty-regular-file',
+          reason: 'stdin regular file reached EOF before control-channel startup',
+        });
+        assert.equal(
+          options.requireControlCarrier,
+          true,
+          'an empty regular stdin file must require another detached control carrier',
+        );
+        const error = new Error('no authenticated HTTP route or owner-bound socket');
+        error.diagnostic = {
+          code: 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
+          severity: 'error',
+          subsystem: 'cli',
+          message: error.message,
+        };
+        throw error;
+      },
+    }),
+    (error) => error?.diagnostic?.code === 'SNAPBACK_DEV_CONTROL_CHANNEL_UNAVAILABLE',
+  );
+
+  const commandInputPath = join(scratchRoot, 'regular-control-input.jsonl');
+  writeFileSync(commandInputPath, `${JSON.stringify({
+    schemaVersion: 'snapback.dev-command.v1',
+    verb: 'reload-metro',
+    requestId: 'regular-file-reload-1',
+  })}\n`);
+  const commandInput = createReadStream(commandInputPath);
+  await new Promise((resolveOpen, rejectOpen) => {
+    commandInput.once('open', resolveOpen);
+    commandInput.once('error', rejectOpen);
+  });
+  const abort = new AbortController();
+  let invoked = null;
+  let closed = false;
+  const exitCode = await runCli(['dev', 'snapback', '--expo', '--json'], {
+    cwd: scratchRoot,
+    stdin: commandInput,
+    signal: abort.signal,
+    async runExpoDev(options) {
+      assert.deepEqual(options.stdinControl, {
+        available: true,
+        kind: 'regular-file-command-channel',
+      });
+      assert.equal(options.requireControlCarrier, false);
+      return {
+        ok: true,
+        verbs: {
+          async 'reload-metro'(context) {
+            invoked = context;
+            abort.abort();
+          },
+        },
+        reportControlEvent() {},
+        async close() { closed = true; },
+      };
+    },
+  });
+  assert.equal(exitCode, 0);
+  assert.deepEqual(invoked, { requestId: 'regular-file-reload-1' });
+  assert.equal(closed, true);
+  console.log('regular-file stdin: empty EOF requires another carrier; buffered JSON command executes');
+}
+
 try {
   if (httpControlOnly) {
     await runHttpControlE1Suite();
+  } else if (noTokenCarrierOnly) {
+    await runNoTokenCarrierRefusalSuite();
+  } else if (regularFileOnly) {
+    await runRegularFileControlInputSuite();
   } else if (controlOwnerSurvivalOnly) {
     await runPackagedControlOwnerSurvivalSuite();
   } else if (controlSocketOnly) {
     await runHttpControlE1Suite();
+    await runNoTokenCarrierRefusalSuite();
+    await runRegularFileControlInputSuite();
     await runControlSocketSuite();
   } else {
   // The package-default suite owns the E1 no-TTY witness too; CI cannot green
   // by running only the broader lifecycle cases below.
   await runHttpControlE1Suite();
+  await runNoTokenCarrierRefusalSuite();
+  await runRegularFileControlInputSuite();
   await runControlSocketSuite();
   let largeUpstreamCancelled = false;
   let largeUpstreamBytes = 0;
