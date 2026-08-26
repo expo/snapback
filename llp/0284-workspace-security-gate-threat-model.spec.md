@@ -5,6 +5,11 @@
 **Systems:** Security/authorization, Build, Verification, Packaging, Rust core
 **Author:** Grok 4.6 (xAI) — independent of the LLP 0276 implementer lane; commissioned by LLP 0283 F-2
 **Date:** 2026-08-19
+**Revised:** 2026-08-26 (closes the demonstrated I-16 indirection and
+sink-renaming residual with a bounded syn body-flow rule over local rebinding,
+match arms, identity-return helpers, struct wrapping, references, and
+call-site-bound terminal sinks; the probes failed first and the product scan
+remained at 100 inherited findings.)
 **Revised:** 2026-08-26 (closes the cross-crate seed-graph residual: cargo
 metadata orders normal local dependencies before dependents and carries
 canonical seed identity through named opaque re-exports, with an excluded
@@ -130,10 +135,10 @@ stamp authoritative provenance. This revision deliberately **extends** the
 specification: caller-constructible data may not select a privileged lane or
 authoritative provenance, even when it never yields one of the original seed
 types. The first adversarial revision described I-16 as registered-sink taint
-analysis. That was an overclaim: the implementation only intersects public-
-constructible type names directly present in a fixed registry of sink
-signatures. This final revision calls it a direct-signature constructibility
-ratchet and records body indirection and sink renaming as explicit limits.
+analysis. That was an overclaim at the time. I-16 now retains that
+direct-signature constructibility ratchet and adds only the bounded syn
+body-flow shapes stated in §3.7 and §3.8. It is still not rustc dataflow or a
+proof of the semantic authority objective.
 
 Inspection technique, pinned to this repository's toolchain: **syn-parsed
 Rust plus `cargo metadata` plus `rustc --message-format=json` span
@@ -762,9 +767,22 @@ as security evidence. An unrelated error whose message matches a regex is a
   coherence: external trait implementations, specialization, arbitrary
   where-clause implication, synthesized macro output, and opaque hidden
   `impl Trait` concrete types remain outside the syn claim.
-- **I-16 is direct-signature matching, not taint analysis.** The scanner does
-  not inspect bodies. This exact shape produces no caller-discriminant finding
-  (assuming the fixed registry spellings resolve elsewhere in the corpus):
+- **I-16 has bounded syn body flow, not rustc taint analysis.** The original
+  direct-signature intersection remains. In addition, the scanner starts from
+  caller-constructible types in public free-function parameters and follows
+  the demonstrated shape through a direct local `let`, a `match` whose arms
+  return the discriminator (including a catch-all binding), a same-module
+  helper whose final expression returns one of its parameters unchanged, a
+  struct literal that wraps the value, and a reference to that literal at a
+  semicolon-terminated call. It reports the terminal call at that call site's
+  span. If the callee leaf is in the privilege-sink registry the call receives
+  a `caller-discriminant` finding; if it is renamed, that same call receives
+  both `caller-discriminant` and `sink-registry-unresolved`. Corpus-wide
+  declaration liveness remains a separate dead-registry check and supplies no
+  body-flow coverage, so an unrelated declaration with the remembered name
+  cannot satisfy the renamed terminal call.
+
+  This exact committed shape is therefore a finding:
 
   ```rust
   pub enum UserWriter { User, Admin }
@@ -780,10 +798,19 @@ as security evidence. An unrelated error whose message matches a regex is a
   }
   ```
 
-  Renaming the real sink to `renamed_sanctioned` also evades matching when an
-  unrelated function named `sanctioned` elsewhere satisfies the global
-  registry-observed check. The gate therefore cannot claim body-flow,
-  helper-indirection, private-field, or per-sink renaming coverage.
+  The committed sibling probe calls `renamed_sanctioned` with the same wrapped
+  flow while retaining an unrelated `sanctioned`; it independently produces
+  the call-site `sink-registry-unresolved` finding.
+
+  The boundary remains deliberately narrow. The body pass does not analyze
+  public methods, arbitrary helper semantics, mutation/assignment, loops,
+  closures, arbitrary destructuring or projections, trait dispatch, alias
+  analysis, or rustc type/name resolution. Helper summaries recognize only a
+  bare final parameter return. Body findings require the demonstrated struct
+  wrapper and terminal statement-call shape. Body-flow findings remain bound
+  to their terminal call even when the same discriminator type appears in a
+  direct sink signature elsewhere. Other control-flow, interprocedural,
+  macro-generated, or semantic authority paths remain outside the claim.
 - **Type-level opacity via `impl Trait` in public return position** that
   names no seed type but *is* a seed type is theoretically a hole
   (`pub fn foo() -> impl Clone`). syn sees `impl Clone`, not the hidden
@@ -813,9 +840,10 @@ it exists because I-1 is blind there.
 
 ### 3.8 Authority discriminators
 
-**I-16 (SC, direct-signature ratchet only).** Public enum variants (including
-unit and tuple variants), public unit/tuple-struct constructors, and public-
-field struct literals enter a public-constructibility set. The scanner
+**I-16 (SC, direct-signature plus bounded body-flow ratchet).** Public enum
+variants (including unit and tuple variants), public unit/tuple-struct
+constructors, and public-field struct literals enter a public-constructibility
+set. The scanner
 intersects that set with type names written directly in the signatures of a
 fixed privilege-sink-name registry containing privileged planning,
 `MembershipCommitAuthority::sanctioned`, membership bypass gates, and
@@ -827,13 +855,21 @@ Every registered sink name must also resolve to at least one real item in the
 scanned corpus; otherwise the gate emits a distinct
 `sink-registry-unresolved` violation. A dead spelling cannot count as coverage.
 
+For the additional bounded body shape in §3.7, the scanner carries a
+constructible discriminator through the enumerated local expressions and
+checks the terminal call itself. A registered callee is reported at that call
+site; an unregistered/renamed callee is a call-site
+`sink-registry-unresolved` violation even if an unrelated item elsewhere has
+the remembered name.
+
 This does **not** implement the broader semantic property that caller-
 constructible data never selects a privileged lane or authoritative
 provenance. That remains the F-1 product objective: a kernel verifier derives
 an unforgeable private-field carrier and commit accepts/revalidates that
 carrier (resource, role eligibility, writer class, and provenance binding).
-The scanner presently ratchets the direct `MembershipWriter` signatures; it
-does not prove the objective, and §3.7 records concrete evasions.
+The scanner presently ratchets the direct `MembershipWriter` signatures and
+the exact bounded body-flow family above. It does not prove the objective, and
+§3.7 defines the remaining analysis boundary.
 
 ## 4. Gate specification
 
@@ -922,8 +958,9 @@ text is not.
 | Rooted/parent local re-exports and reverse conversion impls | `pub use crate::hidden::leak`; `pub use super::leak`; `impl From<Wrapper> for rusqlite::Connection` |
 | Cross-crate opaque seed re-exports | excluded local dependency exports `KernelCommitAuthority` only as `Root`; workspace façade has only `pub use opaque_bridge::Root as Facade` |
 | Generic projection and private trait contracts | `impl<T> Project for Wrapper<T> { type Output = T; }`; public boxed private-path trait return; public trait inheriting a private raw-handle supertrait |
-| Direct-signature caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures |
+| Direct and bounded-flow caller discriminators (I-16) | caller-constructible `MembershipWriter` is named directly by fixed-name privileged-plan, sanctioned, bypass, and provenance sink signatures; the §3.7 wrapped local/match/helper flow is checked at its terminal call |
 | Dead privilege-sink registry entries (I-16) | every registered sink spelling resolves to a scanned Rust item or fails as `sink-registry-unresolved` |
+| Renamed bounded-flow terminal sink (I-16) | a wrapped discriminator reaching `renamed_sanctioned` fails at that call site even when an unrelated `sanctioned` declaration keeps the registry spelling live |
 | Macro/build-generated API approximations (I-14) | ordinary `macro_rules!` tokens emitting a public seed API; recognized direct, qualified, imported-alias, hardcoded-wrapper, and literal parameter-forwarded `OUT_DIR` Rust includes in module/impl/trait/foreign item positions without an exact review row; the Guide's `include_bytes!` artifact is inert data and creates no generated-API finding |
 
 On `ede899a20` this gate **must print violations and exit 1**, including
@@ -1220,7 +1257,8 @@ The compile-fail list is a **witness**, not the coverage measure.
 **R-1 (syntactic scanner ratchet).** Within the implemented syntactic scope in
 §4.1 and the explicit limits in §3.7, adding a new public item that directly
 expands the I-1 obtainability fixpoint, the I-5 egress set, the I-6 re-export
-set, I-8/I-9/I-14/I-15, or I-16's direct-signature intersection fails
+set, I-8/I-9/I-14/I-15, or either of I-16's direct-signature/bounded-body rules
+fails
 `kernel-raw-sql-api` with no fixture update required. This is materially wider
 than the six remembered spellings in the 0276 gates; it is not a claim that
 the scanner computes the complete semantic API closure.
@@ -1339,6 +1377,8 @@ additive-plus-remainder cells, and closure requires `E0616` on that expression.
 | `connection-as-ref` | public wrapper implements `AsRef<rusqlite::Connection>` with an inherited-visibility impl method | corpus | MISS | trait generic argument and method are RED |
 | `no-default-feature-predicate` | `cfg(all(feature = "remainder-tests", not(feature = "services-owner"))) pub use rusqlite` | corpus | MISS | symbolic `caller-features` RED |
 | `caller-membership-discriminator` | public enum with `Admin` unit variant appears directly in registered privileged-plan and sanctioned signatures | corpus | MISS | I-16 direct-signature check RED without adding the enum name to the seed list |
+| `caller-discriminator-body-flow` | public `UserWriter` crosses a local `let`, both arms of a `match` (including catch-all), an identity-return helper, a struct literal, and a reference into `sanctioned` | corpus | MISS | call-site `caller-discriminant` RED on the bounded flow |
+| `caller-discriminator-renamed-sink` | the same flow calls `renamed_sanctioned` while an unrelated `sanctioned` remains declared | corpus | MISS | call-site `caller-discriminant` plus `sink-registry-unresolved`; the unrelated declaration supplies no coverage |
 | `obtainable-seed-receiver-chain` | `Db -> KernelCommitAuthority -> ServiceAuthorityTerminalFactory -> PreparedServiceAuthorityTerminal` | corpus | final carrier missed | every receiver edge is RED once its receiver is independently obtainable; findings use `default` when that path exists |
 | `non-unix-public-api` | `#[cfg(not(unix))] pub fn leak() -> rusqlite::Connection` | corpus | MISS on Unix host | target-symbolic scanner RED |
 | `mount-source-mismatch` | replace the `snapback-sync` attack bin/source with the kernel-claim bin/source but retain `mount: snapback-sync` | harness inventory mutation | PASS | I-12 RED because the source does not reference `snapback_sync` |
@@ -1422,7 +1462,9 @@ inventory LLP 0276 added) must contain at least:
 8. A public enum discriminator named directly in registered privilege-sink
    signatures, plus the direct-dependent `MembershipWriter::Admin` product
    witness; removing a registered sink item produces the distinct
-   `sink-registry-unresolved` violation. This is not body-flow coverage.
+   `sink-registry-unresolved` violation. The sibling bounded-flow probes cover
+   the exact local/match/helper/wrapper/reference shape and its renamed
+   terminal call, without converting this into a rustc-dataflow claim.
 9. Nested `cfg_attr` path escape beyond one level.
 10. Ordinary-macro and public `OUT_DIR`-include probes covering bare,
     path-qualified, raw bare/qualified, imported-alias, module-local
@@ -1587,6 +1629,19 @@ dependency. The probe then reports all three items independently. The product
 tree remained at the same 103 inherited F-1 findings, so no legitimate item was
 newly rejected.
 
+The 2026-08-26 I-16 residual-4 hardening committed the literal body-flow probe
+and a sibling renamed-terminal-call control before changing the scanner.
+Fail-first, the focused test exited 1 and a probe-only audit printed
+`residual-4 findings: []`. The bounded syn pass then followed the public
+free-function parameter through the local `let`, `match` arms, bare-identity
+helper, struct literal, and reference. The registered `sanctioned` call now
+reports `caller-discriminant`; the `renamed_sanctioned` sibling independently
+reports `caller-discriminant` and call-site `sink-registry-unresolved` despite
+an unrelated `sanctioned` declaration. The current product tree measured 100
+inherited findings before and 100 after across 30 feature cells, so the change
+newly rejects no legitimate product item. The exact commands and focused
+outputs are also recorded in the residual-evasions ticket.
+
 ## 8. Acceptance
 
 The rewrite implements this spec when:
@@ -1606,12 +1661,13 @@ The rewrite implements this spec when:
 6. R-1 is demonstrated in the rewrite's own tests by planting
    `pub fn leak() -> rusqlite::Connection` in a synthetic kernel-like
    crate and observing scanner RED without adding a product fixture.
-7. I-16's direct-signature check is demonstrated synthetically. Separately, a
-   direct-dependent compiler fixture constructs `MembershipWriter::Admin`,
-   plans a privileged insert, and commits it; that product behavior stays RED
-   until the discriminator becomes kernel-derived, unforgeable, and
-   revalidated at commit. The scanner is not credited with following that body
-   flow.
+7. I-16's direct-signature check and the exact §3.7 bounded body-flow family
+   are demonstrated synthetically, including the renamed terminal-call
+   control. Separately, a direct-dependent compiler fixture constructs
+   `MembershipWriter::Admin`, plans a privileged insert, and commits it; that
+   product behavior stays RED until the discriminator becomes kernel-derived,
+   unforgeable, and revalidated at commit. The bounded scanner evidence is not
+   credited as semantic authority closure.
 8. Caller-feature coverage catches a satisfiable `not(default-feature)` leak;
    no security claim depends on the former 47 additive cells.
 

@@ -10,8 +10,8 @@ use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, FnArg, ImplItem, Item, ItemImpl, ItemMod, Lit, Meta,
-    PathArguments, ReturnType, Stmt, Token, Type, UseTree, Visibility,
+    Attribute, Block, Expr, ExprLit, Fields, FnArg, ImplItem, Item, ItemImpl, ItemMod, Lit, Meta,
+    Pat, PathArguments, ReturnType, Stmt, Token, Type, UseTree, Visibility,
 };
 
 // Rust raw identifiers are spelling escapes, not distinct names. syn and
@@ -94,10 +94,9 @@ const POWERLESS_ROUTING_TYPES: &[(&str, &str)] = &[("snapback-kernel", "Database
 const RAW_SQL_IDENTIFIERS: &[&str] = &["Connection", "Transaction", "rusqlite"];
 const AUTHORITY_DISCRIMINATOR_TYPES: &[&str] = &["MembershipWriter"];
 
-// @ref LLP 0284#38-authority-discriminators — this is the deliberately narrow
-// direct-signature sink-name registry. It is a ratchet for known shapes, not
-// data-flow analysis: wrapper/helper indirection and renamed sinks are recorded
-// as residual evasions in LLP 0284 §3.7.
+// @ref LLP 0284#38-authority-discriminators — the registry is checked at each
+// bounded body-flow terminal call, while direct signatures remain the broader
+// cheap ratchet. This is not rustc dataflow or name resolution.
 const PRIVILEGE_SINKS: &[&str] = &[
     "plan_privileged_membership_insert",
     "plan_membership_insert",
@@ -323,6 +322,8 @@ struct PrivilegeScanner {
     obtainability_edges: Vec<ObtainabilityEdge>,
     seed_returns: Vec<SeedReturnCandidate>,
     discriminator_sinks: Vec<DiscriminatorSinkCandidate>,
+    discriminator_bodies: Vec<DiscriminatorBodyCandidate>,
+    local_identity_helpers: BTreeMap<String, usize>,
     trait_contracts: Vec<TraitContractDefinition>,
     trait_contract_uses: Vec<TraitContractUseCandidate>,
     projecting_traits: BTreeSet<String>,
@@ -366,6 +367,26 @@ struct DiscriminatorSinkCandidate {
     type_names: BTreeSet<String>,
     item: String,
     file: PathBuf,
+    span: Span,
+}
+
+struct DiscriminatorBodyCandidate {
+    inputs: Vec<(String, BTreeSet<String>)>,
+    module: Vec<String>,
+    item: String,
+    file: PathBuf,
+    body: Block,
+}
+
+#[derive(Clone, Default)]
+struct FlowValue {
+    type_names: BTreeSet<String>,
+    wrapped: bool,
+}
+
+struct TerminalDiscriminatorCall {
+    callee: String,
+    value: FlowValue,
     span: Span,
 }
 
@@ -475,6 +496,7 @@ impl PrivilegeScanner {
                 );
             }
         }
+        self.report_discriminator_body_flows();
         for declaration in std::mem::take(&mut self.constructible_declarations) {
             if !direct_sink_discriminants.contains(&declaration.type_name) {
                 continue;
@@ -578,6 +600,7 @@ impl PrivilegeScanner {
                 continue;
             }
             if let Item::Fn(function) = item {
+                self.record_local_identity_helper(function, module);
                 self.record_discriminator_sink(
                     &function.sig,
                     None,
@@ -585,6 +608,16 @@ impl PrivilegeScanner {
                     &self.item_name(module, &ident_name(&function.sig.ident)),
                     function.sig.ident.span(),
                 );
+                if module_public && public(&function.vis) {
+                    self.record_discriminator_body(
+                        &function.sig,
+                        &function.block,
+                        &names,
+                        module,
+                        source,
+                        &self.item_name(module, &ident_name(&function.sig.ident)),
+                    );
+                }
             }
             if let Item::Impl(item_impl) = item {
                 let self_name =
@@ -1832,6 +1865,139 @@ impl PrivilegeScanner {
         }
     }
 
+    fn record_local_identity_helper(&mut self, function: &syn::ItemFn, module: &[String]) {
+        let Some(Stmt::Expr(Expr::Path(returned), None)) = function.block.stmts.last() else {
+            return;
+        };
+        let Some(returned_name) = single_path_name(&returned.path) else {
+            return;
+        };
+        let parameter = function
+            .sig
+            .inputs
+            .iter()
+            .filter_map(|argument| match argument {
+                FnArg::Typed(argument) => direct_pattern_name(&argument.pat),
+                FnArg::Receiver(_) => None,
+            })
+            .position(|name| name == returned_name);
+        if let Some(parameter) = parameter {
+            self.local_identity_helpers.insert(
+                local_function_key(module, &ident_name(&function.sig.ident)),
+                parameter,
+            );
+        }
+    }
+
+    fn record_discriminator_body(
+        &mut self,
+        signature: &syn::Signature,
+        body: &Block,
+        names: &ModuleNames,
+        module: &[String],
+        source: &Path,
+        item: &str,
+    ) {
+        let inputs = signature
+            .inputs
+            .iter()
+            .filter_map(|argument| {
+                let FnArg::Typed(argument) = argument else {
+                    return None;
+                };
+                let binding = direct_pattern_name(&argument.pat)?;
+                Some((binding, inspect_type(&argument.ty, names).type_names))
+            })
+            .collect::<Vec<_>>();
+        if inputs.is_empty() {
+            return;
+        }
+        self.discriminator_bodies.push(DiscriminatorBodyCandidate {
+            inputs,
+            module: module.to_vec(),
+            item: item.to_owned(),
+            file: source.to_path_buf(),
+            body: body.clone(),
+        });
+    }
+
+    fn report_discriminator_body_flows(&mut self) {
+        let bodies = std::mem::take(&mut self.discriminator_bodies);
+        for candidate in bodies {
+            let mut bindings = BTreeMap::new();
+            for (binding, type_names) in &candidate.inputs {
+                let type_names = type_names
+                    .intersection(&self.constructible_types)
+                    .cloned()
+                    .collect::<BTreeSet<_>>();
+                if !type_names.is_empty() {
+                    bindings.insert(
+                        binding.clone(),
+                        FlowValue {
+                            type_names,
+                            wrapped: false,
+                        },
+                    );
+                }
+            }
+            if bindings.is_empty() {
+                continue;
+            }
+            let mut terminal_calls = Vec::new();
+            evaluate_discriminator_block(
+                &candidate.body,
+                &mut bindings,
+                &candidate.module,
+                &self.constructible_types,
+                &self.local_identity_helpers,
+                &mut terminal_calls,
+            );
+            for call in terminal_calls {
+                if !call.value.wrapped {
+                    continue;
+                }
+                let flowed_types = call.value.type_names.into_iter().collect::<Vec<_>>();
+                if flowed_types.is_empty() {
+                    continue;
+                }
+                let registered = PRIVILEGE_SINKS.contains(&call.callee.as_str());
+                if !registered {
+                    self.push_finding(
+                        "sink-registry-unresolved",
+                        format!("{}::{}", candidate.item, call.callee),
+                        &candidate.file,
+                        call.span,
+                        format!(
+                            "terminal authority-discriminator call {} is not registered",
+                            call.callee
+                        ),
+                        None,
+                    );
+                }
+                for type_name in flowed_types {
+                    self.push_finding(
+                        "caller-discriminant",
+                        candidate.item.clone(),
+                        &candidate.file,
+                        call.span,
+                        if registered {
+                            format!(
+                                "caller-constructible {type_name} reaches registered privilege sink {} through bounded body flow",
+                                call.callee
+                            )
+                        } else {
+                            format!(
+                                "caller-constructible {type_name} reaches unregistered terminal call {} through bounded body flow",
+                                call.callee
+                            )
+                        },
+                        Some(type_name),
+                    );
+                }
+            }
+        }
+    }
+
     fn record_constructible(&mut self, type_name: &str, item: &str, source: &Path, span: Span) {
         self.constructible_types.insert(type_name.to_owned());
         self.constructible_declarations
@@ -1856,11 +2022,11 @@ impl PrivilegeScanner {
             return;
         }
         self.push_finding(
-            "sink-registry-observed",
+            "sink-registry-declared",
             item.to_owned(),
             source,
             span,
-            format!("registered privilege sink {sink_name} resolves in the scanned corpus"),
+            format!("registered privilege sink {sink_name} is declared in the scanned corpus"),
             None,
         );
         let names = ModuleNames::default();
@@ -2485,6 +2651,266 @@ impl PrivilegeScanner {
             seed_type,
             generated_expression: None,
         });
+    }
+}
+
+fn direct_pattern_name(pattern: &Pat) -> Option<String> {
+    match pattern {
+        Pat::Ident(pattern) if pattern.subpat.is_none() => Some(ident_name(&pattern.ident)),
+        Pat::Reference(pattern) => direct_pattern_name(&pattern.pat),
+        Pat::Type(pattern) => direct_pattern_name(&pattern.pat),
+        _ => None,
+    }
+}
+
+fn bind_pattern_flow(pattern: &Pat, value: &FlowValue, bindings: &mut BTreeMap<String, FlowValue>) {
+    match pattern {
+        Pat::Ident(pattern) => {
+            bindings.insert(ident_name(&pattern.ident), value.clone());
+            if let Some((_, subpat)) = &pattern.subpat {
+                bind_pattern_flow(subpat, value, bindings);
+            }
+        }
+        Pat::Reference(pattern) => bind_pattern_flow(&pattern.pat, value, bindings),
+        Pat::Type(pattern) => bind_pattern_flow(&pattern.pat, value, bindings),
+        _ => {}
+    }
+}
+
+fn single_path_name(path: &syn::Path) -> Option<String> {
+    (path.leading_colon.is_none() && path.segments.len() == 1)
+        .then(|| {
+            path.segments
+                .first()
+                .map(|segment| ident_name(&segment.ident))
+        })
+        .flatten()
+}
+
+fn local_function_key(module: &[String], leaf: &str) -> String {
+    module
+        .iter()
+        .cloned()
+        .chain(std::iter::once(leaf.to_owned()))
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
+fn merge_flow(values: impl IntoIterator<Item = FlowValue>) -> FlowValue {
+    let mut merged = FlowValue::default();
+    for value in values {
+        merged.type_names.extend(value.type_names);
+        merged.wrapped |= value.wrapped;
+    }
+    merged
+}
+
+// @ref LLP 0284#38-authority-discriminators — bounded syn body flow follows
+// direct locals, match-arm bindings, identity-returning local helpers, struct
+// wrapping, and references. It deliberately does not claim rustc dataflow,
+// type checking, arbitrary call summaries, alias analysis, or name resolution.
+fn evaluate_discriminator_block(
+    block: &Block,
+    bindings: &mut BTreeMap<String, FlowValue>,
+    module: &[String],
+    constructible_types: &BTreeSet<String>,
+    identity_helpers: &BTreeMap<String, usize>,
+    terminal_calls: &mut Vec<TerminalDiscriminatorCall>,
+) -> FlowValue {
+    let mut returned = FlowValue::default();
+    for statement in &block.stmts {
+        match statement {
+            Stmt::Local(local) => {
+                let Some(initializer) = &local.init else {
+                    continue;
+                };
+                let value = evaluate_discriminator_expr(
+                    &initializer.expr,
+                    bindings,
+                    module,
+                    constructible_types,
+                    identity_helpers,
+                    terminal_calls,
+                    false,
+                );
+                bind_pattern_flow(&local.pat, &value, bindings);
+            }
+            Stmt::Expr(expression, semicolon) => {
+                let value = evaluate_discriminator_expr(
+                    expression,
+                    bindings,
+                    module,
+                    constructible_types,
+                    identity_helpers,
+                    terminal_calls,
+                    semicolon.is_some(),
+                );
+                if semicolon.is_none() {
+                    returned = value;
+                }
+            }
+            Stmt::Item(_) | Stmt::Macro(_) => {}
+        }
+    }
+    returned
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_discriminator_expr(
+    expression: &Expr,
+    bindings: &BTreeMap<String, FlowValue>,
+    module: &[String],
+    constructible_types: &BTreeSet<String>,
+    identity_helpers: &BTreeMap<String, usize>,
+    terminal_calls: &mut Vec<TerminalDiscriminatorCall>,
+    terminal: bool,
+) -> FlowValue {
+    match expression {
+        Expr::Path(path) => {
+            if let Some(name) = single_path_name(&path.path)
+                && let Some(value) = bindings.get(&name)
+            {
+                return value.clone();
+            }
+            let type_names = path
+                .path
+                .segments
+                .iter()
+                .map(|segment| ident_name(&segment.ident))
+                .filter(|name| constructible_types.contains(name))
+                .collect::<BTreeSet<_>>();
+            FlowValue {
+                type_names,
+                wrapped: false,
+            }
+        }
+        Expr::Reference(reference) => evaluate_discriminator_expr(
+            &reference.expr,
+            bindings,
+            module,
+            constructible_types,
+            identity_helpers,
+            terminal_calls,
+            false,
+        ),
+        Expr::Paren(paren) => evaluate_discriminator_expr(
+            &paren.expr,
+            bindings,
+            module,
+            constructible_types,
+            identity_helpers,
+            terminal_calls,
+            terminal,
+        ),
+        Expr::Group(group) => evaluate_discriminator_expr(
+            &group.expr,
+            bindings,
+            module,
+            constructible_types,
+            identity_helpers,
+            terminal_calls,
+            terminal,
+        ),
+        Expr::Struct(structure) => {
+            let mut value = merge_flow(structure.fields.iter().map(|field| {
+                evaluate_discriminator_expr(
+                    &field.expr,
+                    bindings,
+                    module,
+                    constructible_types,
+                    identity_helpers,
+                    terminal_calls,
+                    false,
+                )
+            }));
+            if !value.type_names.is_empty() {
+                value.wrapped = true;
+            }
+            value
+        }
+        Expr::Match(expression_match) => {
+            let matched = evaluate_discriminator_expr(
+                &expression_match.expr,
+                bindings,
+                module,
+                constructible_types,
+                identity_helpers,
+                terminal_calls,
+                false,
+            );
+            merge_flow(expression_match.arms.iter().map(|arm| {
+                let mut arm_bindings = bindings.clone();
+                bind_pattern_flow(&arm.pat, &matched, &mut arm_bindings);
+                evaluate_discriminator_expr(
+                    &arm.body,
+                    &arm_bindings,
+                    module,
+                    constructible_types,
+                    identity_helpers,
+                    terminal_calls,
+                    false,
+                )
+            }))
+        }
+        Expr::Block(expression_block) => {
+            let mut block_bindings = bindings.clone();
+            evaluate_discriminator_block(
+                &expression_block.block,
+                &mut block_bindings,
+                module,
+                constructible_types,
+                identity_helpers,
+                terminal_calls,
+            )
+        }
+        Expr::Call(call) => {
+            let arguments = call
+                .args
+                .iter()
+                .map(|argument| {
+                    evaluate_discriminator_expr(
+                        argument,
+                        bindings,
+                        module,
+                        constructible_types,
+                        identity_helpers,
+                        terminal_calls,
+                        false,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let callee = match call.func.as_ref() {
+                Expr::Path(path) => path
+                    .path
+                    .segments
+                    .last()
+                    .map(|segment| ident_name(&segment.ident)),
+                _ => None,
+            };
+            if terminal && let Some(callee) = &callee {
+                terminal_calls.push(TerminalDiscriminatorCall {
+                    callee: callee.clone(),
+                    value: merge_flow(arguments.clone()),
+                    span: call.func.span(),
+                });
+            }
+            let helper_parameter = match call.func.as_ref() {
+                Expr::Path(path) => {
+                    let rendered = macro_path_label(&path.path);
+                    let key = if path.path.segments.len() == 1 {
+                        local_function_key(module, &rendered)
+                    } else {
+                        canonical_local_path(module, &rendered)
+                    };
+                    identity_helpers.get(&key).copied()
+                }
+                _ => None,
+            };
+            helper_parameter
+                .and_then(|index| arguments.get(index).cloned())
+                .unwrap_or_default()
+        }
+        _ => FlowValue::default(),
     }
 }
 
@@ -3663,6 +4089,8 @@ fn run() -> Result<(), String> {
                 obtainability_edges: Vec::new(),
                 seed_returns: Vec::new(),
                 discriminator_sinks: Vec::new(),
+                discriminator_bodies: Vec::new(),
+                local_identity_helpers: BTreeMap::new(),
                 trait_contracts: Vec::new(),
                 trait_contract_uses: Vec::new(),
                 projecting_traits: BTreeSet::new(),

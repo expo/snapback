@@ -166,6 +166,60 @@ pub fn plan_membership_teardown(_writer: &MembershipWriter) {}
 
 pub fn plan_membership_sweep_expired(_writer: &MembershipWriter) {}
 
+pub mod authority_indirection {
+    pub enum UserWriter {
+        User,
+        Admin,
+    }
+
+    struct Wrapped {
+        writer: UserWriter,
+    }
+
+    fn helper(writer: UserWriter) -> UserWriter {
+        writer
+    }
+
+    fn sanctioned(_wrapped: &Wrapped) {}
+
+    pub fn execute_membership(writer: UserWriter) {
+        let writer = match writer {
+            UserWriter::Admin => helper(UserWriter::Admin),
+            other => helper(other),
+        };
+        sanctioned(&Wrapped { writer });
+    }
+}
+
+pub mod renamed_authority_sink {
+    pub enum UserWriter {
+        User,
+        Admin,
+    }
+
+    struct Wrapped {
+        writer: UserWriter,
+    }
+
+    fn helper(writer: UserWriter) -> UserWriter {
+        writer
+    }
+
+    fn renamed_sanctioned(_wrapped: &Wrapped) {}
+
+    // A same-spelled item elsewhere in the crate must not satisfy the registry
+    // observation for the terminal call in execute_membership.
+    fn sanctioned() {}
+
+    pub fn execute_membership(writer: UserWriter) {
+        let writer = match writer {
+            UserWriter::Admin => helper(UserWriter::Admin),
+            other => helper(other),
+        };
+        renamed_sanctioned(&Wrapped { writer });
+    }
+}
+
 pub struct AuthorizedMembershipPlan;
 
 impl AuthorizedMembershipPlan {
