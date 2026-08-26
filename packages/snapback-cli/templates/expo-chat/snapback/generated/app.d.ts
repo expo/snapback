@@ -39,7 +39,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:2fd93c91ad6c955c900efff05523568c88774aa267e4c4a837b87c0551c7a019`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:f1f5d53b044f732ce3d90f7169c52b0d268c86890e9a748f344298c11048730c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }
@@ -69,7 +69,7 @@ export interface GeneratedAppSurfaces {
 export type ApplicationAuthProviderV1 =
   | Readonly<{ provider: 'apple'; kind: 'apple'; credentials: 'auto' | 'shared' | 'app-owned' }>
   | Readonly<{ provider: 'google'; kind: 'oidc'; preset: 'google'; credentials: 'auto' | 'shared' | 'app-owned' }>;
-export type GeneratedAuthProviderName = never;
+export type GeneratedAuthProviderName = "apple" | "google";
 export interface ApplicationAuthBootstrapV1 {
   readonly format: 'snapback.application-auth-bootstrap.v1';
   readonly appId: string;

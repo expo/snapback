@@ -11,6 +11,7 @@ import {
 import * as FileSystem from 'expo-file-system';
 import * as Crypto from 'expo-crypto';
 import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
+import type { AuthIdentityProvider, ResolvedProviderEntryV1 } from '@expo/snapback-client';
 import {
   SnapbackExpoProvider,
   useSnapbackAuth,
@@ -51,6 +52,63 @@ function BootFallback({ state }: Readonly<{ state: ExpoBootState }>) {
         ) : null}
       </View>
     </SafeAreaView>
+  );
+}
+
+const PROVIDERS: readonly AuthIdentityProvider[] = ['apple', 'google'];
+const PROVIDER_LABELS: Readonly<Record<AuthIdentityProvider, string>> = {
+  apple: 'Continue with Apple',
+  google: 'Continue with Google',
+};
+
+// One button per declared provider, and one call for all of them. The Adapter
+// behind `signIn` is resolved before the attempt starts and frozen for its
+// duration: with no provider credentials configured, `snapback dev --expo`
+// serves a local broker that issues a hermetic rehearsal identity, and a
+// configured, rebuilt client uses the native provider instead. A cancelled or
+// refused attempt is the result — there is no second Adapter to fall back to.
+function ProviderEntry() {
+  const auth = useSnapbackAuth();
+  const [failure, setFailure] = useState<string | null>(null);
+  const entries = PROVIDERS.map((provider) => (
+    [provider, auth.providerEntry(provider)] as const
+  )).filter((pair): pair is readonly [AuthIdentityProvider, ResolvedProviderEntryV1] => (
+    pair[1] !== null
+  ));
+  if (entries.length === 0) return null;
+
+  const signIn = async (provider: AuthIdentityProvider) => {
+    setFailure(null);
+    try {
+      await auth.signIn({ provider });
+    } catch (error) {
+      setFailure(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  return (
+    <View style={styles.providerCard}>
+      {entries.map(([provider, entry]) => (
+        <View key={provider} style={styles.providerRow}>
+          <Button
+            title={PROVIDER_LABELS[provider]}
+            disabled={entry.readiness !== 'ready'}
+            onPress={() => void signIn(provider)}
+          />
+          <Text style={styles.status}>
+            {entry.adapter} · {entry.identityRealm} · {entry.readiness}
+          </Text>
+          {entry.nextAction ? <Text style={styles.status}>{entry.nextAction}</Text> : null}
+        </View>
+      ))}
+      {entries.some(([, entry]) => entry.identityRealm === 'rehearsal') ? (
+        <Text style={styles.status}>
+          Rehearsal identities are issued by your local supervisor. This is not an
+          Apple or Google login, and it cannot enter staging or production.
+        </Text>
+      ) : null}
+      {failure ? <Text style={styles.error}>{failure}</Text> : null}
+    </View>
   );
 }
 
@@ -111,6 +169,7 @@ function AccountEntry() {
             <Button title="Sign up" onPress={() => void signUp()} />
             <Button title="Sign in" onPress={() => void signIn()} />
           </View>
+          <ProviderEntry />
         </>
       ) : null}
       {principal.status === 'authenticated'
@@ -151,6 +210,8 @@ const styles = StyleSheet.create({
   accountCard: { backgroundColor: palette.surface, gap: 8, padding: 14 },
   accountTitle: { color: palette.ink, fontSize: 18, fontWeight: '800' },
   accountActions: { flexDirection: 'row', gap: 12 },
+  providerCard: { gap: 10, paddingTop: 6 },
+  providerRow: { gap: 4 },
   input: { backgroundColor: palette.canvas, borderRadius: 8, color: palette.ink, padding: 10 },
   recoveryTitle: { color: palette.ink, fontWeight: '700' },
   recoveryCodes: { color: palette.muted, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },

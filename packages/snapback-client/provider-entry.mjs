@@ -211,7 +211,7 @@ export function resolveProviderEntry(rawInput, nowMs = Date.now()) {
     return blockedEntry(
       input,
       'SNAPBACK_AUTH_PROVIDER_SHARED_UNAVAILABLE',
-      `Start snapback dev, or run snapback auth configure ${input.declaration.provider}.`,
+      `Start snapback dev --expo, or run snapback auth configure ${input.declaration.provider}.`,
     );
   }
   return readyEntry(

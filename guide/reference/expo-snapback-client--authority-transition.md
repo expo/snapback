@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:c088cab4811783471668d7e4a7e03a3aa7d0b89d2042
 # @expo/snapback-client/authority-transition
 
 Build-bound public API projection for `@expo/snapback-client/authority-transition`. Canonical registry identity:
-`sha256:7a7f1e7f8953a1d6c815aae24d1b3997183d3abf0a76f0a9ad95dadea22ac7af`.
+`sha256:c22cc554d3671e76aeadd396913a4a040177c0756b2a7e04aff5afeee062ff74`.
 Runtime parity condition:
 `import` → `packages/snapback-client/authority-transition.mjs`.
 

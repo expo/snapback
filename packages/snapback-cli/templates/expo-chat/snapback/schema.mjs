@@ -32,6 +32,19 @@ const authProgram = defineAuth({
       delivery: 'email',
     },
   },
+  // Apple and Google with no provider credentials. `credentials: 'auto'` takes
+  // app-owned credentials once `snapback auth configure` records them and the
+  // build carries the native integration; until then `snapback dev --expo`
+  // serves a local broker that issues hermetic rehearsal identities. Nothing
+  // here contacts Apple or Google, and staging and production refuse rehearsal
+  // custody outright.
+  providers: {
+    apple: { kind: 'apple', credentials: 'auto' },
+    google: { kind: 'oidc', preset: 'google', credentials: 'auto' },
+  },
+  // The broker hands the app one short-lived external completion; the ordinary
+  // coordinator still issues and owns the session.
+  externalSessionEntry: true,
   assuranceRequirements: {},
   recoveryPolicy: {
     recoveryCodes: {

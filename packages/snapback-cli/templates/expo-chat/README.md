@@ -4,6 +4,11 @@ An Expo (iOS/Android/web) conversation app over a generated Snapback backend:
 memberships, DM and group inboxes, replies, reactions, image upload via one
 bound `send` command, and typing presence, in Sessions auth mode.
 
+Sign-in is guest, password, or Apple/Google. The providers need no credentials
+in development: `bun run dev:supervised` serves a local broker that issues
+hermetic rehearsal identities — a working development sign-in, not an Apple or
+Google login.
+
 ```sh
 bun install
 bun run generate   # regenerate after editing snapback/schema.mjs or functions.mjs

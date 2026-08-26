@@ -1,7 +1,7 @@
 {
   "appId": "expo-chat",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:72e390376b0316cf57af99ef8894d178b02e03e566768787a79832d89d55cadc",
+  "authoredSourceHash": "sha256:8923eceece65fb542e3dd9588cb917580d9f23985eefd9282cd5bd448a18b63f",
   "commands": [
     {
       "authRequirement": "authenticated",
@@ -118,7 +118,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2fd93c91ad6c955c900efff05523568c88774aa267e4c4a837b87c0551c7a019",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:f1f5d53b044f732ce3d90f7169c52b0d268c86890e9a748f344298c11048730c",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -837,7 +837,8 @@
           "value": [
             "guest-v1",
             "password-v1",
-            "email-code-v1"
+            "email-code-v1",
+            "external-session-explicit-v1"
           ]
         },
         {
@@ -849,7 +850,19 @@
           "field": "providers",
           "optional": true,
           "semanticIdentityEffect": "rotates-semanticId",
-          "value": null
+          "value": [
+            {
+              "credentials": "auto",
+              "kind": "apple",
+              "provider": "apple"
+            },
+            {
+              "credentials": "auto",
+              "kind": "oidc",
+              "preset": "google",
+              "provider": "google"
+            }
+          ]
         },
         {
           "derivation": "normalized-functions:authRequirement+normalized-schema:table.visibility",
@@ -1532,7 +1545,7 @@
           "targetCapability": null
         },
         {
-          "configured": false,
+          "configured": true,
           "familiarHook": null,
           "mechanism": "external-session-explicit-v1",
           "operations": [

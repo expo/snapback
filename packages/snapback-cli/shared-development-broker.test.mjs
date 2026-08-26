@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import test from 'node:test';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { after, test } from 'node:test';
 
 import {
   createSharedDevelopmentVerifier,
@@ -15,6 +18,7 @@ import {
   sharedDevelopmentAuthProjection,
   supervisedSharedAuthReturnTargets,
 } from './shared-development-broker.mjs';
+import { __test as expoDevTest } from './expo-dev.mjs';
 
 const APP_ID = 'app-broker-fixture';
 const METRO_PORT = 8081;
@@ -308,4 +312,44 @@ test('an oversized request body refuses instead of being buffered', async () => 
   } finally {
     await server.close();
   }
+});
+
+// The broker mints rehearsal identities through the supervisor's mechanical
+// impersonation capability, which it reads from the `<ready-file>.impersonation`
+// sibling and nowhere else.
+test('the impersonation capability is matched by what it names, not how it is spelled', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-impersonation-'));
+  after(() => rmSync(scratch, { recursive: true, force: true }));
+  const real = join(scratch, 'real');
+  const link = join(scratch, 'link');
+  mkdirSync(real);
+  symlinkSync(real, link, 'dir');
+  const readyFile = join(real, 'dev.ready.json');
+  writeFileSync(readyFile, '{}');
+  writeFileSync(`${readyFile}.impersonation`, 'impersonation-capability\n');
+
+  // The server pins the real directory before publishing; a caller reaching the
+  // same file through a symlinked directory still names the same sibling. Every
+  // macOS temporary directory is reached that way, so a lexical comparison
+  // refuses the supervisor's own capability.
+  assert.equal(
+    expoDevTest.readSupervisedImpersonationCapability(
+      { impersonationCapabilityFile: `${readyFile}.impersonation` },
+      join(link, 'dev.ready.json'),
+    ),
+    'impersonation-capability',
+  );
+  // A descriptor naming any other file is still a refusal, not a file read.
+  writeFileSync(join(real, 'elsewhere.impersonation'), 'other-capability\n');
+  assert.throws(
+    () => expoDevTest.readSupervisedImpersonationCapability(
+      { impersonationCapabilityFile: join(real, 'elsewhere.impersonation') },
+      readyFile,
+    ),
+    (error) => error.code === 'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE',
+  );
+  assert.throws(
+    () => expoDevTest.readSupervisedImpersonationCapability({}, readyFile),
+    (error) => error.code === 'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE',
+  );
 });

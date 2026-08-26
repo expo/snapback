@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:ee1e74962b32b05835e3d1a401dd86f6b2908c684d90f8d9467fd7bdf644db48 -->
+<!-- start-packet:begin expo-chat digest=sha256:a982797682da292c16a2027c24016c359352321d597f52bdacb83616e9e614df -->
 This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
@@ -43,7 +43,7 @@ Metro must not inherit `CI=1`, which disables watching.
   `sendReply` / `react` mutations, and the bound `send` command.
 - `snapback/seed.json` — seeded demo personas and conversations.
 - `App.tsx` — generated `app` → `SnapbackExpoProvider`; retained files; password
-  entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
+  and provider entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
   `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
   typing, upload) from `@expo/snapback-expo`.
@@ -56,7 +56,7 @@ only `generated/`.
 
 ## Posture
 
-- **Auth: sessions, guest-first plus password.** From anonymous `ready`, use
+- **Auth: sessions, guest-first, password, Apple/Google.** From anonymous `ready`, use
   the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
   before sends/uploads. Recovery codes appear once. Web starts sessionless;
   native auto-adopts. `adoptSupervisedSession` opts web in/native out.

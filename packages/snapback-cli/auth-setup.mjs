@@ -18,6 +18,7 @@
 // output, or receipts.
 
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { join, relative, resolve } from 'node:path';
 
@@ -284,9 +285,14 @@ export function runAuthEnable({ backendDirectory = 'snapback', providers, cwd = 
     providers: Object.freeze([...requested]),
     beforeDigest,
     afterDigest: digestOf(after),
-    // Everything the declaration change does not by itself accomplish.
+    // Everything the declaration change does not by itself accomplish. The
+    // broker that serves the shared development Adapter is mounted by the Expo
+    // supervisor, not by the backend server, so `--expo` is part of the command
+    // named here: plain `snapback dev` answers 404 on the shared auth routes.
+    // Status observes that supervisor, so it needs no assertion flag.
     next: Object.freeze([
       `${backendDirectory === 'snapback' ? 'snapback generate' : `snapback generate ${backendDirectory}`}`,
+      'snapback dev --expo',
       'snapback auth status',
     ]),
     nonclaims: Object.freeze([
@@ -612,6 +618,97 @@ function appManifestNativeIntegration(root, provider) {
   });
 }
 
+// The Expo supervisor's discovery descriptor, and the shared-auth projection it
+// records. Both format strings are repeated rather than imported: reading a
+// descriptor must not drag the whole supervisor module into `auth status`.
+// `sharedBrokerObservationDrift` in the test suite binds them to their issuers.
+const EXPO_SUPERVISOR_DESCRIPTOR_FILE = 'expo-supervisor.json';
+const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
+const SHARED_AUTH_PROJECTION_FORMAT = 'snapback.shared-development-auth-projection.v1';
+
+/**
+ * The recorded start time of a live process, in the same `ps lstart` spelling
+ * the supervisor recorded, or `null` when no such process is running.
+ *
+ * A pid alone does not identify a process: pids are reused, so a descriptor
+ * left behind by a crashed supervisor can name a pid that now belongs to
+ * something else. The start time settles it.
+ */
+function supervisorProcessStartTime(pid) {
+  if (!Number.isSafeInteger(pid) || pid < 1) return null;
+  const result = spawnSync('/bin/ps', ['-o', 'lstart=', '-p', String(pid)], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+  if (result.error || result.status !== 0) return null;
+  const startTime = result.stdout.trim();
+  return startTime.length === 0 ? null : startTime;
+}
+
+/**
+ * Observe whether a shared development broker is actually being served.
+ *
+ * The broker is mounted by the Expo supervisor on the client bootstrap origin,
+ * under `--expo`, and only when server-held deployment state admits the shared
+ * profile. None of that is visible from a project directory, so the supervisor
+ * records its own projection in the discovery descriptor and this reads it back
+ * behind a liveness check.
+ *
+ * Every uncertainty resolves to unavailable. A descriptor this cannot parse, a
+ * supervisor that is no longer running, or a supervisor predating the recorded
+ * projection all report the pessimistic answer, because the failure mode that
+ * matters is claiming a broker that answers nothing.
+ *
+ * @ref LLP 0151#shared-development-browser-adapter — admission is server-held
+ * state repeated per transaction, so availability is the supervisor's fact to
+ * report and never an inference from the presence of a dev readiness file.
+ */
+export function observeSharedDevelopmentAuth({
+  cwd = process.cwd(),
+  stateDirectory = '.snapback',
+} = {}) {
+  const path = resolve(cwd, stateDirectory, EXPO_SUPERVISOR_DESCRIPTOR_FILE);
+  const unavailable = (observed, extra = {}) => Object.freeze({
+    available: false,
+    observed,
+    descriptor: path,
+    ...extra,
+  });
+  if (!existsSync(path)) return unavailable('no-supervisor');
+  let descriptor;
+  try {
+    descriptor = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return unavailable('descriptor-unreadable');
+  }
+  if (descriptor?.schemaVersion !== EXPO_SUPERVISOR_DESCRIPTOR_FORMAT
+      || descriptor?.formatVersion !== 1) {
+    return unavailable('descriptor-unrecognized');
+  }
+  const supervisor = descriptor.supervisor ?? null;
+  if (!Number.isSafeInteger(supervisor?.pid)
+      || typeof supervisor?.startTime !== 'string'
+      || supervisorProcessStartTime(supervisor.pid) !== supervisor.startTime) {
+    return unavailable('supervisor-not-running');
+  }
+  const projection = descriptor.sharedAuth ?? null;
+  if (projection?.format !== SHARED_AUTH_PROJECTION_FORMAT) {
+    return unavailable('projection-unrecorded');
+  }
+  if (projection.available !== true) {
+    return unavailable('not-admitted', {
+      ...(typeof projection.reason === 'string' ? { reason: projection.reason } : {}),
+    });
+  }
+  return Object.freeze({
+    available: true,
+    observed: 'supervised',
+    descriptor: path,
+    origin: typeof projection.origin === 'string' ? projection.origin : null,
+    identityRealm: projection.identityRealm ?? null,
+  });
+}
+
 /**
  * Report the resolved Adapter, readiness, and one next action per provider.
  *
@@ -630,10 +727,17 @@ export function runAuthStatus({
   cwd = process.cwd(),
   deployment = 'development',
   platform = 'ios',
-  sharedAvailable = false,
+  sharedAvailable = null,
   nowMs = Date.now(),
 }) {
   const root = resolve(cwd);
+  // Observation is the default and the assertion is the override. A caller
+  // that knows something this process cannot see — a broker served elsewhere —
+  // still says so with `--shared-available`; everyone else gets the
+  // supervisor's own answer instead of a pessimistic guess that never clears.
+  const sharedDevelopment = observeSharedDevelopmentAuth({ cwd: root });
+  const sharedAsserted = sharedAvailable === true;
+  const sharedResolved = sharedAsserted || sharedDevelopment.available;
   const backend = resolve(root, backendDirectory);
   const descriptorPath = join(backend, 'generated', 'app.descriptor.json');
   const descriptor = readJsonIfPresent(descriptorPath);
@@ -658,7 +762,7 @@ export function runAuthStatus({
       declaration,
       deployment,
       platform,
-      sharedAvailable,
+      sharedAvailable: sharedResolved,
       appOwned: {
         configReady,
         ...(recorded?.configGeneration ? { configGeneration: recorded.configGeneration } : {}),
@@ -700,7 +804,11 @@ export function runAuthStatus({
     appId: bootstrap?.appId ?? null,
     deployment,
     platform,
-    sharedAvailable,
+    sharedAvailable: sharedResolved,
+    sharedDevelopment: Object.freeze({
+      ...sharedDevelopment,
+      asserted: sharedAsserted,
+    }),
     entryMechanisms: Object.freeze([...(bootstrap?.entryMechanisms ?? [])]),
     providers: Object.freeze(providers),
     next: Object.freeze(

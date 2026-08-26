@@ -49,6 +49,29 @@ assert.match(schemaSource, /auth:\s*\{\s*mode:\s*'sessions'\s*\}/);
 assert.match(schemaSource, /custody:\s*'volatile-explicit'/);
 assert.match(schemaSource, /20260815-llp-0258-phase-2-native-custody-evidence\.md/);
 assert.match(schemaSource, /kind:\s*'password'/);
+// Zero-configuration provider sign-in: declared with no credentials, served in
+// development by the supervisor's local broker, and never claiming to be an
+// Apple or Google login.
+assert.match(schemaSource, /apple:\s*\{\s*kind:\s*'apple',\s*credentials:\s*'auto'\s*\}/);
+assert.match(schemaSource, /google:\s*\{\s*kind:\s*'oidc',\s*preset:\s*'google',\s*credentials:\s*'auto'\s*\}/);
+assert.match(schemaSource, /externalSessionEntry:\s*true/);
+assert.deepEqual(
+  descriptor.authBootstrap.providers.map(({ provider, credentials }) => [provider, credentials]),
+  [['apple', 'auto'], ['google', 'auto']],
+);
+assert(descriptor.authBootstrap.entryMechanisms.includes('external-session-explicit-v1'));
+assert.match(appSource, /auth\.providerEntry\(/);
+assert.match(appSource, /auth\.signIn\(\{ provider \}\)/);
+assert.match(appSource, /Continue with Apple/);
+assert.match(appSource, /Continue with Google/);
+assert.match(appSource, /not an\s*\n?\s*Apple or Google login/u);
+for (const dependency of ['expo-web-browser', 'expo-linking']) {
+  assert.equal(
+    typeof packageManifest.dependencies[dependency],
+    'string',
+    `${dependency} must ship so the shared development Adapter resolves`,
+  );
+}
 assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
 assert.equal(descriptor.authBootstrap.custody, 'volatile-explicit');
 assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));

@@ -57,7 +57,7 @@ Metro must not inherit `CI=1`, which disables watching.
   `sendReply` / `react` mutations, and the bound `send` command.
 - `snapback/seed.json` — seeded demo personas and conversations.
 - `App.tsx` — generated `app` → `SnapbackExpoProvider`; retained files; password
-  entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
+  and provider entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
 - `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
   `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
   typing, upload) from `@expo/snapback-expo`.
@@ -70,7 +70,7 @@ only `generated/`.
 
 ## Posture
 
-- **Auth: sessions, guest-first plus password.** From anonymous `ready`, use
+- **Auth: sessions, guest-first, password, Apple/Google.** From anonymous `ready`, use
   the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
   before sends/uploads. Recovery codes appear once. Web starts sessionless;
   native auto-adopts. `adoptSupervisedSession` opts web in/native out.

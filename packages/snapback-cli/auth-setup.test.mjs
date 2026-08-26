@@ -56,6 +56,50 @@ export default defineSchema({
 }, { auth: { mode: 'sessions' }, authProgram });
 `;
 
+// The Expo supervisor's discovery descriptor, as `snapback dev --expo` writes
+// it. `auth status` reads this file to learn whether the shared development
+// broker is actually being served; the format strings are bound to their
+// issuing modules by the drift test at the bottom of this file.
+const SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
+const SERVED_PROJECTION = Object.freeze({
+  format: 'snapback.shared-development-auth-projection.v1',
+  available: true,
+  origin: 'http://127.0.0.1:4300',
+  identityRealm: 'rehearsal',
+  userLimit: 100,
+});
+
+// A live supervisor is this test process: a recorded pid alone proves nothing,
+// so the observation compares the recorded start time against the running one.
+function supervisorIdentity() {
+  const result = spawnSync('/bin/ps', ['-o', 'lstart=', '-p', String(process.pid)], {
+    encoding: 'utf8',
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 0);
+  return { pid: process.pid, startTime: result.stdout.trim() };
+}
+
+function writeSupervisorDescriptor(root, { raw, sharedAuth, ...overrides } = {}) {
+  mkdirSync(join(root, '.snapback'), { recursive: true });
+  const path = join(root, '.snapback', 'expo-supervisor.json');
+  if (raw !== undefined) {
+    writeFileSync(path, raw);
+    return path;
+  }
+  writeFileSync(path, `${JSON.stringify({
+    schemaVersion: SUPERVISOR_DESCRIPTOR_FORMAT,
+    formatVersion: 1,
+    state: 'ready',
+    pid: process.pid,
+    supervisor: supervisorIdentity(),
+    exchangeOrigin: 'http://127.0.0.1:4300',
+    ...(sharedAuth === undefined ? {} : { sharedAuth }),
+    ...overrides,
+  }, null, 2)}\n`);
+  return path;
+}
+
 function project({
   declaration = DECLARATION, manifest = {}, appConfig = null, appConfigModule = null, descriptor = null,
 } = {}) {
@@ -167,7 +211,7 @@ test('enable writes the app declaration and reports its digests', () => {
   assert.match(written, /providers: \{/u);
   // The generated declaration stays credential-free.
   assert.equal(/secret|clientSecret|privateKey/iu.test(written.match(/providers: \{[\s\S]*?\},/u)[0]), false);
-  assert.deepEqual(result.next, ['snapback generate', 'snapback auth status']);
+  assert.deepEqual(result.next, ['snapback generate', 'snapback dev --expo', 'snapback auth status']);
   assert.equal(result.nonclaims.some((note) => note.includes('rehearsal')), true);
 });
 
@@ -419,6 +463,104 @@ test('status resolves the shared development profile and never claims native rea
     ['auth.apple.privateKey', 'auth.google.clientSecret'],
   );
   assert.equal(/"[^"]*[Ss]ecret[^"]*":\s*"(?!auth\.)/u.test(JSON.stringify(result)), false);
+});
+
+test('a cold status is blocked on the broker, not on configuration', () => {
+  const root = project({
+    descriptor: descriptorWith([
+      { provider: 'apple', kind: 'apple', credentials: 'auto' },
+      { provider: 'google', kind: 'oidc', preset: 'google', credentials: 'auto' },
+    ]),
+  });
+  // Nothing is configured and no supervisor is running, so the block is the
+  // broker's absence and the named command is the one that serves it.
+  const result = runAuthStatus({ cwd: root });
+  assert.equal(result.sharedAvailable, false);
+  assert.equal(result.sharedDevelopment.observed, 'no-supervisor');
+  assert.equal(result.sharedDevelopment.asserted, false);
+  for (const provider of result.providers) {
+    assert.equal(provider.readiness, 'blocked');
+    assert.equal(
+      provider.nextAction,
+      `Start snapback dev --expo, or run snapback auth configure ${provider.provider}.`,
+    );
+  }
+});
+
+test('status observes a live supervisor that is serving the broker', () => {
+  const root = project({
+    descriptor: descriptorWith([
+      { provider: 'apple', kind: 'apple', credentials: 'auto' },
+      { provider: 'google', kind: 'oidc', preset: 'google', credentials: 'auto' },
+    ]),
+  });
+  writeSupervisorDescriptor(root, { sharedAuth: SERVED_PROJECTION });
+  const result = runAuthStatus({ cwd: root });
+  assert.equal(result.sharedAvailable, true);
+  assert.equal(result.sharedDevelopment.observed, 'supervised');
+  assert.equal(result.sharedDevelopment.asserted, false);
+  assert.equal(result.sharedDevelopment.origin, 'http://127.0.0.1:4300');
+  // The next action cleared without anyone asserting anything.
+  assert.deepEqual(result.next, []);
+  for (const provider of result.providers) {
+    assert.equal(provider.resolvedAdapter, 'snapback-shared-browser');
+    assert.equal(provider.identityRealm, 'rehearsal');
+    assert.equal(provider.readiness, 'ready');
+  }
+});
+
+test('every uncertain supervisor observation reports the broker as unavailable', () => {
+  const descriptor = descriptorWith([{ provider: 'apple', kind: 'apple', credentials: 'auto' }]);
+  const cases = [
+    // A descriptor a crashed supervisor left behind: the pid may even be live
+    // again as something else, so the recorded start time settles it.
+    ['supervisor-not-running', {
+      sharedAuth: SERVED_PROJECTION,
+      supervisor: { pid: process.pid, startTime: 'Mon Jan  1 00:00:00 2001' },
+    }],
+    // A supervisor predating the recorded projection says nothing, and
+    // silence is not availability.
+    ['projection-unrecorded', { sharedAuth: undefined }],
+    // Deployment state refused the shared profile even though the supervisor
+    // is up and has a broker object.
+    ['not-admitted', {
+      sharedAuth: {
+        format: 'snapback.shared-development-auth-projection.v1',
+        available: false,
+        reason: 'deployment-not-admitted:staging',
+      },
+    }],
+    ['descriptor-unrecognized', { schemaVersion: 'snapback.expo-supervisor.v0' }],
+    ['descriptor-unreadable', { raw: 'not json' }],
+  ];
+  for (const [observed, overrides] of cases) {
+    const root = project({ descriptor });
+    writeSupervisorDescriptor(root, overrides);
+    const result = runAuthStatus({ cwd: root });
+    assert.equal(result.sharedDevelopment.observed, observed, observed);
+    assert.equal(result.sharedAvailable, false, observed);
+    assert.equal(result.providers[0].readiness, 'blocked', observed);
+  }
+});
+
+test('the assertion flag overrides the observation without erasing it', () => {
+  const root = project({
+    descriptor: descriptorWith([{ provider: 'apple', kind: 'apple', credentials: 'auto' }]),
+  });
+  const result = runAuthStatus({ cwd: root, sharedAvailable: true });
+  assert.equal(result.sharedAvailable, true);
+  assert.equal(result.sharedDevelopment.asserted, true);
+  // What this process could actually see is still reported next to the claim.
+  assert.equal(result.sharedDevelopment.available, false);
+  assert.equal(result.sharedDevelopment.observed, 'no-supervisor');
+  assert.equal(result.providers[0].readiness, 'ready');
+});
+
+test('the observed descriptor format is the one the supervisor writes', async () => {
+  const { EXPO_SUPERVISOR_DESCRIPTOR_FORMAT } = await import('./expo-dev.mjs');
+  const { sharedDevelopmentAuthProjection } = await import('./shared-development-broker.mjs');
+  assert.equal(EXPO_SUPERVISOR_DESCRIPTOR_FORMAT, SUPERVISOR_DESCRIPTOR_FORMAT);
+  assert.equal(sharedDevelopmentAuthProjection(null, null).format, SERVED_PROJECTION.format);
 });
 
 test('status reports the rebuild next action when configuration is complete but the build is not', () => {
