@@ -4087,7 +4087,8 @@ impl LocalEphemeralBackend {
         let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(&room_id).cloned() else {
-            return Ok(RoomReauthorizationDisposition::Missing);
+            // SAFETY: the exact room lookup above observed no room.
+            return Ok(unsafe { RoomReauthorizationDisposition::missing_after_observation() });
         };
         let mut room = lock(&room_arc);
         let expected = room
@@ -4111,7 +4112,9 @@ impl LocalEphemeralBackend {
             // permission checks ran. Keep the level-triggered obligation
             // pending so maintenance resolves the replacement's exact fence;
             // never apply the predecessor's result to it.
-            return Ok(RoomReauthorizationDisposition::Abandoned);
+            // SAFETY: the exact subscriber/effect-fence comparison above
+            // observed a mismatch before any settlement mutation.
+            return Ok(unsafe { RoomReauthorizationDisposition::abandoned_after_observation() });
         }
 
         let denied = resolutions
@@ -4303,7 +4306,9 @@ impl LocalEphemeralBackend {
         self.prune_room_if_empty(&room_id);
         #[cfg(any(test, feature = "test-support"))]
         self.pause_room_reauthorization_after_mutation_for_test();
-        Ok(RoomReauthorizationDisposition::Complete)
+        // SAFETY: every exact subscriber, entry, index, outbox, notification,
+        // and pruning effect has completed before this terminal fact is made.
+        Ok(unsafe { RoomReauthorizationDisposition::complete_after_settlement() })
     }
 
     #[cfg(any(test, feature = "test-support"))]

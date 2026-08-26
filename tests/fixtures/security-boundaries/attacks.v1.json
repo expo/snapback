@@ -1277,6 +1277,23 @@
           "snapback-sync/test-support"
         ]
       ]
+    },
+    {
+      "id": "forge-room-reauthorization-complete",
+      "bin": "forge-room-reauthorization-complete",
+      "source": "src/bin/forge_room_reauthorization_complete.rs",
+      "mount": "snapback-kernel",
+      "featureSets": [
+        [],
+        [
+          "snapback-engine/test-support",
+          "snapback-auth/test-support",
+          "snapback-kernel/test-support",
+          "snapback-sync/test-support"
+        ]
+      ],
+      "expectedCode": "E0599",
+      "row": "F244"
     }
   ]
 }
