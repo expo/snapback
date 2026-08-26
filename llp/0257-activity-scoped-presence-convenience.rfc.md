@@ -6,7 +6,12 @@
 experience, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (implementation reconciliation, landed with the
+**Revised:** 2026-08-26 (dated LLP 0310.000 Ruling 3 amendment: one active
+typing episode now reuses the generation admitted by its first `touch()`;
+changed values coalesce behind an in-flight publish, and every episode
+boundary discards queued work. The original per-`touch()` generation increment
+is superseded; boundary fencing and Expo background withdrawal are unchanged).
+2026-08-15 (implementation reconciliation, landed with the
 implementation: `excludeSelf?: boolean` restored to the public options
 (default `true` removes only the `selfKey` entry; `false` opts out); error
 class 1 pinned to preserve a previously admitted, unexpired generation
@@ -46,7 +51,7 @@ as an absolute deadline with a generation fence, scope-change reset pinned,
 value-thunk sampling pinned to touch-time, result/error surface closed over
 the base presence state, Expo background/resume hazard addressed, OQ1/OQ3
 closed)
-**Related:** LLP 0013, LLP 0061, LLP 0107, LLP 0114, LLP 0247
+**Related:** LLP 0013, LLP 0061, LLP 0107, LLP 0114, LLP 0247, LLP 0310.000
 
 ## Summary
 
@@ -132,16 +137,29 @@ posture.
 
 ### Activity model: absolute deadline plus generation fence
 
-- `touch()` records an absolute wall-clock deadline `now + idleMs`,
-  increments an activity generation, evaluates the `value` thunk, and calls
-  the base `publish` with the resolved TTL. The provider treats an unchanged
-  canonical value/TTL pair as a local no-op, so per-keystroke `touch()` is
-  cheap; a changed value republishes once. All heartbeat/renewal scheduling
-  is provider-owned; the helper schedules **no** republish cadence.
+**Dated amendment — 2026-08-26 (LLP 0310.000 Ruling 3).** This section's
+original rule incremented the activity generation on every `touch()`. That
+rule is superseded. The first `touch()` opens an episode and admits its
+generation; later touches reuse it until explicit withdrawal, idle expiry,
+unmount, routing-key change, or session change. Those boundaries still fence
+predecessor work, and Expo backgrounding still withdraws immediately. Only
+the per-keystroke increment changes.
+
+- `touch()` evaluates the `value` thunk and records an absolute wall-clock
+  deadline `now + idleMs`. The first touch in an inactive episode starts its
+  generation and calls the base `publish` with the resolved TTL. Later touches
+  retain that generation and extend the deadline. An unchanged canonical
+  value/TTL pair remains a local base-publisher no-op. A changed value waits
+  for the episode's in-flight publish to settle, coalesces to the latest
+  captured value, and then publishes under the same episode generation. Every
+  episode boundary discards the coalesced value so settlement cannot resurrect
+  ended presence. All heartbeat/renewal scheduling is provider-owned; the
+  helper schedules **no** republish cadence.
 - The idle timer firing checks both the activity generation and the absolute
   deadline before withdrawing, so a canceled-but-queued timeout can never
-  withdraw a newer `touch()`, and a timer that slept through OS suspension
-  withdraws correctly late rather than never. Withdrawal uses the base
+  withdraw an episode whose later `touch()` extended that deadline, and a
+  timer that slept through OS suspension withdraws correctly late rather than
+  never. Withdrawal uses the base
   `delete()`, which is fenced per LLP 0247 §D3 (`(scopeEpoch, entryVersion)`
   expectations; a `superseded` outcome cannot delete a successor); peer
   visibility of a withdrawal is bounded by the §D3 withdrawal-visibility

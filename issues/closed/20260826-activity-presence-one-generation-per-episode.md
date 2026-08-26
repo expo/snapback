@@ -1,4 +1,4 @@
-# `touch()` starts a new presence generation on every call
+# `touch()` started a new presence generation on every call
 
 **Filed:** 2026-08-26
 **Source:** Clique grok-4.6 xhigh published 0.1.27, lane `grok-clique-familiar`
@@ -75,3 +75,14 @@ ticket and is gated on the same probe.
 Fixture: one generation for one episode; delayed publish after withdraw
 does not resurrect; Clique-shaped 2s/5s can green without isolating the
 whole chrome.
+
+## Resolution
+
+Resolved 2026-08-26 by the LLP 0310.000 Track D implementation. The React
+activity helper now keeps one generation per active episode, serializes and
+coalesces changed captures behind the in-flight publish, extends the absolute
+idle deadline on every touch, and discards queued work independently at
+withdrawal, idle expiry, unmount, routing-key change, and auth-session change.
+LLP 0257 carries the required dated amendment. Focused React, React
+characterization, base presence, and Expo suites plus `ref-check` cover the
+landing.

@@ -69,9 +69,16 @@ export const skip = Symbol.for('snapback.react.skip.v1');
 const ACTIVITY_PRESENCE_INTERNAL = Symbol.for(
   'snapback.react.activity-presence.internal.v1',
 );
+const ACTIVITY_PRESENCE_SESSION_EPOCH = Symbol(
+  'snapback.react.activity-presence.session-epoch',
+);
 const ACTIVITY_CAPTURE_EMPTY = Symbol('snapback.react.activity-presence.capture-empty');
 const ACTIVITY_IDLE_MIN_MS = 250;
 const ACTIVITY_IDLE_MAX_MS = 2_147_483_647;
+
+function readActivityPresenceSessionEpoch(provider) {
+  return provider.registry[ACTIVITY_PRESENCE_SESSION_EPOCH]?.() ?? 0;
+}
 
 const QUERY_CACHE_CAP = 256;
 const CONSUMER_CAP = 1_024;
@@ -766,6 +773,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let terminal = false;
   let custodyPaused = false;
   let hostPaused = false;
+  let activityPresenceSessionEpoch = 0;
   // The staged publication callback is a level as well as an edge: stores
   // may register after its one synchronous registry walk but before the
   // coordinator reopens public capture. Retain only the confirmed capture and
@@ -3757,6 +3765,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     async quiesce() {
       custodyPaused = true;
       confirmedAuthorityContext = null;
+      // @ref LLP 0310.000#ruling-3--one-typing-episode-is-one-presence-generation
+      // — session replacement is an activity-episode boundary. Advance before
+      // awaiting predecessor work so its settlement cannot flush a queued value.
+      activityPresenceSessionEpoch += 1;
+      for (const room of rooms.values()) notifyRoom(room);
       await quiesceRegistry();
     },
     blank(context = {}) {
@@ -4336,6 +4349,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     presenceDescriptor,
     subscribePresence,
     presenceSnapshot,
+    [ACTIVITY_PRESENCE_SESSION_EPOCH]() { return activityPresenceSessionEpoch; },
     snapshot,
     optimisticCreateSnapshot,
     get connectionId() { return connectionId; },
@@ -5972,6 +5986,7 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     value: skip,
   });
   const scopeKey = canonicalContractInputKey(reference.scopeContract, options.scope, 'scope');
+  const sessionEpoch = readActivityPresenceSessionEpoch(provider);
   const lifecycleGated = internalOptions?.[ACTIVITY_PRESENCE_INTERNAL]?.gated === true;
   const [, forceRender] = useState(0);
   const activityRef = useRef(null);
@@ -5980,11 +5995,14 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
       provider,
       reference,
       scopeKey,
+      sessionEpoch,
       generation: 0,
+      episodeEpoch: 0,
       active: false,
       deadlineMs: null,
       captured: ACTIVITY_CAPTURE_EMPTY,
-      admittedGeneration: null,
+      queuedCaptured: ACTIVITY_CAPTURE_EMPTY,
+      publishInFlight: null,
       deferredWithdrawalGeneration: null,
       timer: null,
       mounted: false,
@@ -6057,6 +6075,15 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     ).then(() => undefined);
   }, [activity, notifyActivity, reportActivityError]);
 
+  const discardQueuedActivityPublish = useCallback(() => {
+    // @ref LLP 0310.000#ruling-3--one-typing-episode-is-one-presence-generation
+    // — idle expiry does not advance the activity generation, so the distinct
+    // episode epoch is the load-bearing fence for queued coalesced values.
+    activity.episodeEpoch += 1;
+    activity.queuedCaptured = ACTIVITY_CAPTURE_EMPTY;
+    activity.publishInFlight = null;
+  }, [activity]);
+
   const expireActivity = useCallback((generation, deadlineMs, {
     notify = true,
     deferWithdrawal = false,
@@ -6071,15 +6098,21 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     const remainingMs = deadlineMs - Date.now();
     if (remainingMs > 0) return false;
     if (!deferWithdrawal) clearActivityTimer();
+    discardQueuedActivityPublish();
     activity.active = false;
     activity.deadlineMs = null;
     activity.captured = ACTIVITY_CAPTURE_EMPTY;
-    activity.admittedGeneration = null;
     if (notify) notifyActivity();
     if (deferWithdrawal) activity.deferredWithdrawalGeneration = generation;
     else void attemptActivityWithdrawal(generation);
     return true;
-  }, [activity, attemptActivityWithdrawal, clearActivityTimer, notifyActivity]);
+  }, [
+    activity,
+    attemptActivityWithdrawal,
+    clearActivityTimer,
+    discardQueuedActivityPublish,
+    notifyActivity,
+  ]);
 
   const scheduleActivityDeadline = useCallback((generation, deadlineMs) => {
     clearActivityTimer();
@@ -6105,22 +6138,33 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     schedule();
   }, [activity, clearActivityTimer, expireActivity]);
 
-  const admitCapturedActivity = useCallback((generation, captured) => {
+  const admitCapturedActivity = useCallback((
+    generation,
+    captured,
+    episodeEpoch = activity.episodeEpoch,
+  ) => {
     if (
       activity.disposed
       || !activity.mounted
       || activity.lifecycle !== 'active'
       || !activity.active
       || activity.generation !== generation
+      || activity.episodeEpoch !== episodeEpoch
+      || readActivityPresenceSessionEpoch(provider) !== activity.sessionEpoch
       || activity.captured !== captured
-      || activity.admittedGeneration === generation
     ) return;
     const deadlineMs = activity.deadlineMs;
     if (deadlineMs === null || deadlineMs <= Date.now()) {
       expireActivity(generation, deadlineMs);
       return;
     }
-    activity.admittedGeneration = generation;
+    if (activity.publishInFlight !== null) {
+      activity.queuedCaptured = captured;
+      return;
+    }
+    const admittedSessionEpoch = activity.sessionEpoch;
+    const flight = Object.freeze({ generation, episodeEpoch, admittedSessionEpoch });
+    activity.publishInFlight = flight;
     let task;
     try {
       task = activity.latest.presence.publish(
@@ -6130,41 +6174,72 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
           : { ttlMs: activity.latest.ttlMs },
       );
     } catch (error) {
-      activity.admittedGeneration = null;
+      if (activity.publishInFlight === flight) activity.publishInFlight = null;
       reportActivityError(error);
       return;
     }
     // Admission executes synchronously inside the async base action. Install
     // the rejection handler in this same call stack so its already-rejected
     // promise can never become an unhandled rejection.
+    const settle = () => {
+      if (activity.publishInFlight !== flight) return;
+      activity.publishInFlight = null;
+      if (
+        activity.disposed
+        || !activity.mounted
+        || !activity.active
+        || activity.generation !== generation
+        || activity.episodeEpoch !== episodeEpoch
+        || readActivityPresenceSessionEpoch(provider) !== admittedSessionEpoch
+      ) return;
+      const queuedCaptured = activity.queuedCaptured;
+      activity.queuedCaptured = ACTIVITY_CAPTURE_EMPTY;
+      if (queuedCaptured !== ACTIVITY_CAPTURE_EMPTY) {
+        // Coalesce to the latest captured value, but only after this episode's
+        // predecessor publish has settled. The base publisher sees the same
+        // activity generation throughout the episode.
+        activity.admitCapturedActivity(generation, queuedCaptured, episodeEpoch);
+      }
+    };
     void Promise.resolve(task).then(
       () => {
-        if (activity.generation !== generation) return;
-        if (activity.lastError !== null) {
+        if (
+          activity.generation === generation
+          && activity.episodeEpoch === episodeEpoch
+          && readActivityPresenceSessionEpoch(provider) === admittedSessionEpoch
+          && activity.lastError !== null
+        ) {
           activity.lastError = null;
           notifyActivity();
         }
+        settle();
       },
       (error) => {
-        if (activity.generation === generation) activity.admittedGeneration = null;
         reportActivityError(error);
+        settle();
       },
     );
-  }, [activity, expireActivity, notifyActivity, reportActivityError]);
+  }, [activity, expireActivity, notifyActivity, provider, reportActivityError]);
 
   const withdraw = useCallback(() => {
     if (activity.disposed || !activity.mounted) return Promise.resolve();
     clearActivityTimer();
     activity.generation += 1;
     const generation = activity.generation;
+    discardQueuedActivityPublish();
     activity.active = false;
     activity.deadlineMs = null;
     activity.captured = ACTIVITY_CAPTURE_EMPTY;
-    activity.admittedGeneration = null;
     activity.deferredWithdrawalGeneration = null;
     notifyActivity();
     return attemptActivityWithdrawal(generation);
-  }, [activity, attemptActivityWithdrawal, clearActivityTimer, notifyActivity]);
+  }, [
+    activity,
+    attemptActivityWithdrawal,
+    clearActivityTimer,
+    discardQueuedActivityPublish,
+    notifyActivity,
+  ]);
 
   const touch = useCallback(() => {
     if (
@@ -6173,6 +6248,23 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
       || activity.lifecycle === 'failed'
       || activity.lifecycle === 'inactive'
     ) return;
+    const currentSessionEpoch = readActivityPresenceSessionEpoch(provider);
+    if (activity.sessionEpoch !== currentSessionEpoch) {
+      // Auth-barrier quiescence is the session boundary even if React has not
+      // rendered the provider notification yet. Start any concurrent touch as
+      // a successor episode; never let it flush predecessor queued work.
+      clearActivityTimer();
+      activity.sessionEpoch = currentSessionEpoch;
+      activity.generation += 1;
+      discardQueuedActivityPublish();
+      activity.active = false;
+      activity.deadlineMs = null;
+      activity.captured = ACTIVITY_CAPTURE_EMPTY;
+      activity.deferredWithdrawalGeneration = null;
+      // Do not episode-fence this delete. It synchronously relinquishes the
+      // predecessor base intent; LLP 0247's authority pair fences wire cleanup.
+      void attemptActivityWithdrawal(activity.generation);
+    }
     const now = Date.now();
     if (
       activity.active
@@ -6181,10 +6273,10 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     ) {
       const expiredGeneration = activity.generation;
       clearActivityTimer();
+      discardQueuedActivityPublish();
       activity.active = false;
       activity.deadlineMs = null;
       activity.captured = ACTIVITY_CAPTURE_EMPTY;
-      activity.admittedGeneration = null;
       activity.deferredWithdrawalGeneration = null;
       // Clear the predecessor intent synchronously before admitting a new
       // generation. LLP 0247 D3 fences the in-flight wire withdrawal.
@@ -6198,23 +6290,30 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
       reportActivityError(activityThunkDiagnostic(error));
       return;
     }
-    activity.generation += 1;
+    if (!activity.active) {
+      activity.generation += 1;
+      activity.episodeEpoch += 1;
+    }
     const generation = activity.generation;
+    const episodeEpoch = activity.episodeEpoch;
     const deadlineMs = now + activity.latest.idleMs;
     activity.active = true;
     activity.deadlineMs = deadlineMs;
     activity.captured = captured;
-    activity.admittedGeneration = null;
     activity.deferredWithdrawalGeneration = null;
     scheduleActivityDeadline(generation, deadlineMs);
     notifyActivity();
-    if (activity.lifecycle === 'active') admitCapturedActivity(generation, captured);
+    if (activity.lifecycle === 'active') {
+      admitCapturedActivity(generation, captured, episodeEpoch);
+    }
   }, [
     activity,
     admitCapturedActivity,
     attemptActivityWithdrawal,
     clearActivityTimer,
+    discardQueuedActivityPublish,
     notifyActivity,
+    provider,
     reportActivityError,
     scheduleActivityDeadline,
   ]);
@@ -6261,10 +6360,10 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
         activity.clearActivityTimer();
         activity.generation += 1;
         const generation = activity.generation;
+        discardQueuedActivityPublish();
         activity.active = false;
         activity.deadlineMs = null;
         activity.captured = ACTIVITY_CAPTURE_EMPTY;
-        activity.admittedGeneration = null;
         activity.deferredWithdrawalGeneration = null;
         reportActivityError(diagnosticValue);
         void activity.attemptActivityWithdrawal(generation, {
@@ -6274,11 +6373,11 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     });
   }
 
-  if (
-    activity.provider !== provider
+  const routingBoundary = activity.provider !== provider
     || activity.reference !== reference
-    || activity.scopeKey !== scopeKey
-  ) {
+    || activity.scopeKey !== scopeKey;
+  const sessionBoundary = activity.sessionEpoch !== sessionEpoch;
+  if (routingBoundary || sessionBoundary) {
     // @ref LLP 0257#scope-identity-and-scope-change — activity never migrates
     // with the base token into a successor room; the old base lease owns its
     // fenced withdrawal and the new room starts locally withdrawn.
@@ -6286,12 +6385,18 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
     activity.provider = provider;
     activity.reference = reference;
     activity.scopeKey = scopeKey;
+    activity.sessionEpoch = sessionEpoch;
     activity.generation += 1;
+    discardQueuedActivityPublish();
     activity.active = false;
     activity.deadlineMs = null;
     activity.captured = ACTIVITY_CAPTURE_EMPTY;
-    activity.admittedGeneration = null;
-    activity.deferredWithdrawalGeneration = null;
+    // Scope/provider replacement releases the predecessor base token itself.
+    // A same-room session cut retains that token, so passive work must clear
+    // its desired intent without performing a render-time side effect.
+    activity.deferredWithdrawalGeneration = sessionBoundary && !routingBoundary
+      ? activity.generation
+      : null;
     activity.lastError = null;
     activity.lastPublisherError = null;
   }
@@ -6332,15 +6437,21 @@ export function useSnapbackActivityPresence(reference, options, internalOptions 
         activity.disposed = true;
         activity.generation += 1;
         const generation = activity.generation;
+        discardQueuedActivityPublish();
         activity.active = false;
         activity.deadlineMs = null;
         activity.captured = ACTIVITY_CAPTURE_EMPTY;
-        activity.admittedGeneration = null;
         activity.deferredWithdrawalGeneration = null;
         void attemptActivityWithdrawal(generation);
       });
     };
-  }, [activity, attemptActivityWithdrawal, clearActivityTimer, scheduleActivityDeadline]);
+  }, [
+    activity,
+    attemptActivityWithdrawal,
+    clearActivityTimer,
+    discardQueuedActivityPublish,
+    scheduleActivityDeadline,
+  ]);
 
   useEffect(() => {
     const generation = activity.deferredWithdrawalGeneration;

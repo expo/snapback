@@ -7,6 +7,9 @@ experience, CLI, Local server lifecycle, Auth, Live queries, Ephemeral state,
 Code generation, React/Expo, Diagnostics, Guide, Testing
 **Author:** Grok / Charlie Cheever
 **Date:** 2026-08-25
+**Revised:** 2026-08-26 (P6 / Track D implemented with one generation per
+typing episode and all-boundary queued-work discard; the F4 source account is
+retained as published-0.1.27 evidence)
 **Revised:** 2026-08-26 (r8, reconciliation with `main`: P4/Track B landed at
 `15797fe10` and P17's guide fix at `c80a35f0c` while this document was in review)
 **Revised:** 2026-08-26 (r6, after round-5 dual review: the P1 inventory row
@@ -364,6 +367,11 @@ then isolated `MessageComposer` so Playwright `pressSequentially` of a
 45-character run id dropped from ~2.7s to ~1.4s. Typing greened at
 `visibleMs ~1261ms`.
 
+**Implementation note (2026-08-26).** The preceding paragraph describes the
+published 0.1.27 subject of this research, not the current tree. P6 / Track D
+now keeps one generation per episode, coalesces changed values after the
+in-flight publish settles, and discards queued work at every episode boundary.
+
 **The package split (r3 downgrade).** The r1/r2 text asserted that
 `@expo/snapback-expo`'s `useSnapbackActivityPresence` *requires*
 `SnapbackExpoLifecycleContext` and therefore cannot run under a URL-first
@@ -543,7 +551,7 @@ in 0.1.27.
 | P3 | both | generate | `SNAPBACK_EXPO_METRO_EXITED` on codegen `.tmp-*` ENOENT | snapback-defect | RFC Track C; `issues/20260825-metro-exit-on-codegen-tmp.md` | planned, not started |
 | P4 | familiar | provider | supervisor mint is boot-eager and adopted by default; hides password UI; signOut → `SNAPBACK_AUTH_SESSION_EXPIRED` | snapback-defect | RFC Track B; `issues/closed/20260825-supervised-expo-web-hides-password-ui.md` | **done (landed `15797fe10`, not published)** — bootstrap returns authority `unavailable`, adoption is an explicit capability-bearing POST, and `EXPO_PUBLIC_SNAPBACK_URL` is injected; familiar-page docs still owed |
 | P5 | familiar | presence | the lane read `@expo/snapback-expo`'s presence types and concluded the facade **requires** an Expo lifecycle context a URL-first provider cannot give, so it switched packages. The runtime falls back and probably works (P20) — but the type and doc surface made the wrong reading the natural one, and that is the defect whichever way P20 lands | snapback-defect (discoverability, upgraded from docs-only under the pit-of-success standard) | RFC Track D; facade/lifecycle conflict `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`; needs a type/doc surface that makes the working composition obvious | planned, not started |
-| P6 | familiar | presence | `touch()` generation-fenced; per-keystroke publish cancels | snapback-defect | RFC Track D; `issues/20260826-activity-presence-one-generation-per-episode.md` | planned, not started |
+| P6 | familiar | presence | `touch()` generation-fenced; per-keystroke publish cancels | snapback-defect | RFC Track D; `issues/closed/20260826-activity-presence-one-generation-per-episode.md` | implemented 2026-08-26 |
 | P7 | explicit | grammar | inline handler cannot capture a top-level `const` (`SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER`). Hoisting a shared regex to a module const is the ordinary JS move; the grammar refuses it and the lane had to discover that a function declaration is the admitted shape | snapback-defect (recovery, not grammar) — **re-dispositioned in r6**: the refusal may be by design, but a design that refuses the idiomatic spelling owes the reader the admitted one | RFC keeps the grammar with LLP 0108; `issues/20260826-inline-handler-free-identifier-recovery.md` — the diagnostic must name the working shape inline, and the explicit start packet must warn before the first handler is written | planned, not started |
 | P8 | explicit | grammar | durable custody unavailable on Node `memory` | snapback-defect | `issues/closed/20260825-guide-gap-memory-platform-durable-custody.md` | done (docs on main) |
 | P9 | explicit | assets | `defineCommand` max one asset | known | existing `issues/20260815-finish-media-happy-path.md` / LLP 0239 | planned, not started (out of 0310.000 bar) |
@@ -605,7 +613,7 @@ tested route, not a new control plane.
 |---|---|---|
 | Product | Make a supervised-dev mismatch retryable at boot admission instead of terminal (I2, the primary repair), and drive a client reload right after the remint so the window is bounded rather than incidental (I1, which needs Track E's `reload-metro`). LLP 0310.000 r6 **withdrew** the earlier publish-before-activate reordering as both unrunnable and harmful; do not implement it. The residual activation window is LLP 0310.000's open obligation W2 | P1 Track A · `issues/20260825-successor-expo-receipt-stale.md` |
 | ~~Product~~ **Landed** | Mint on demand, explicit adoption, sign-out to the password UI — all shipped at `15797fe10` while this document was in review. What remains is the familiar-page documentation and running B1 against the landed code | P4 Track B · `issues/closed/20260825-supervised-expo-web-hides-password-ui.md` |
-| Product | One `touch()` generation per typing episode | P6 Track D · `issues/20260826-activity-presence-one-generation-per-episode.md` |
+| Product | One `touch()` generation per typing episode | P6 Track D · `issues/closed/20260826-activity-presence-one-generation-per-episode.md` |
 | Product | Facade vs Ruling 3 under bare `SnapbackProvider` | P5 · `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md` · gated on P20 |
 
 ### Already done on main (not in published 0.1.27)

@@ -5,7 +5,7 @@
 **Owner:** LLP 0310.000 Track D / acceptance D2
 **Related:** `issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md`
   (gated on this), `issues/closed/20260825-guide-gap-activity-presence-url-first.md`,
-  `issues/20260826-activity-presence-one-generation-per-episode.md`,
+  `issues/closed/20260826-activity-presence-one-generation-per-episode.md`,
   LLP 0310 F4 / P5 / P20, LLP 0257
 
 ## Why
