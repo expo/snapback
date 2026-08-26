@@ -124,7 +124,12 @@ function writeOwnerOnlyJsonAtomic(path, value) {
   });
 }
 
-function publishSupervisorDescriptorAtomically(path, descriptor, temporaryFile = null) {
+function publishSupervisorDescriptorAtomically(
+  path,
+  descriptor,
+  temporaryFile = null,
+  { cleanup = null, afterRename = null } = {},
+) {
   // @ref LLP 0310.000#track-c--generate-must-not-kill-metro — the live Metro
   // policy carrier is read concurrently by bare generate, so every revision
   // is a private same-directory rename rather than truncate-and-rewrite.
@@ -142,7 +147,30 @@ function publishSupervisorDescriptorAtomically(path, descriptor, temporaryFile =
       mode: 0o600,
     });
     chmodSync(temporary, 0o600);
+    if (cleanup !== null) {
+      if (cleanup.mode !== 'rebind') {
+        throw new TypeError('Expo supervisor descriptor cleanup mode must rebind');
+      }
+      // Prepare the durable lease with the staged inode before publication.
+      // A crash on either side of rename leaves the reaper authorized for the
+      // old destination or the exact staged successor, never an arbitrary
+      // same-generation replacement.
+      rebindCleanupPath(cleanup.resource, {
+        runIdField: cleanup.runIdField,
+        runId: cleanup.runId,
+        candidatePath: temporary,
+      });
+    }
     renameSync(temporary, destination);
+    afterRename?.({ destination, temporary });
+    if (cleanup !== null) {
+      // Settle the two-inode prepared record after rename. If the owner dies
+      // before this write, cleanup accepts either prepared identity.
+      rebindCleanupPath(cleanup.resource, {
+        runIdField: cleanup.runIdField,
+        runId: cleanup.runId,
+      });
+    }
   } finally {
     rmSync(temporary, { force: true });
   }
@@ -600,6 +628,17 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let ownerStateEndpoint = null;
   let startupUnavailable = null;
   let close = async () => {};
+  const observeBoundEndpoint = () => {
+    const observed = observeEndpoint(path);
+    if (boundEndpoint !== null && !sameControlEndpoint(observed, boundEndpoint)) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+        'the bound dev control endpoint was replaced by another pathname owner',
+        { path },
+      );
+    }
+    return observed;
+  };
   const server = createNetServer({ allowHalfOpen: false }, (socket) => {
     sockets.add(socket);
     socket.setEncoding('utf8');
@@ -649,7 +688,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         }
         let endpoint;
         try {
-          endpoint = observeEndpoint(path);
+          endpoint = observeBoundEndpoint();
         } catch (error) {
           void flushControlResult(socket, `${JSON.stringify(devControlResult({
             requestId: typeof command?.requestId === 'string' ? command.requestId : null,
@@ -879,10 +918,11 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         }
       });
       boundEndpoint = observedControlEndpoint(path);
-      endpoint = observeEndpoint(path);
+      endpoint = observeBoundEndpoint();
       dependencies.afterEndpointListen?.({ path, ownerStatePath, endpoint });
+      endpoint = observeBoundEndpoint();
       chmodSync(path, 0o600);
-      endpoint = observeEndpoint(path);
+      endpoint = observeBoundEndpoint();
       if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
         throw diagnosticError(
           'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
@@ -952,14 +992,12 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           },
         );
       }
-      const published = observeEndpoint(path);
-      if (!sameControlEndpoint(published, endpoint)) {
-        throw diagnosticError(
-          'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
-          'the published dev control endpoint does not match its owner state',
-          { path },
-        );
-      }
+      const published = observeBoundEndpoint();
+      if (!sameControlEndpoint(published, endpoint)) throw diagnosticError(
+        'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+        'the published dev control endpoint does not match its owner state',
+        { path },
+      );
       await dependencies.afterEndpointPublish?.({ path, descriptor });
     } catch (error) {
       await (dependencies.closeServer ?? ((boundServer) => new Promise((resolveClose) => {
@@ -3813,7 +3851,13 @@ export async function runExpoDev(options = {}) {
           };
         }
         const requestId = typeof body.requestId === 'string' ? body.requestId : undefined;
-        const event = await dev.verbs['dev-fresh']({ requestId });
+        if (controlDispatcher === null) {
+          throw diagnosticError(
+            'SNAPBACK_EXPO_CONTROL_FAILED',
+            'the supervised control dispatcher is not ready',
+          );
+        }
+        const event = await controlDispatcher.enqueue('dev-fresh', { requestId });
         if (event?.ok !== true) {
           return {
             statusCode: 200,
@@ -3996,10 +4040,13 @@ export async function runExpoDev(options = {}) {
           portPlan,
           binding: bindingProjection,
           applicationReady: applicationReceiptProjection,
-        });
-        rebindCleanupPath(supervisorDescriptorCleanupResource, {
-          runIdField: 'supervisorGeneration',
-          runId: generation,
+        }, null, {
+          cleanup: {
+            resource: supervisorDescriptorCleanupResource,
+            mode: 'rebind',
+            runIdField: 'supervisorGeneration',
+            runId: generation,
+          },
         });
       }
       return bindingProjection;
@@ -4045,7 +4092,7 @@ export async function runExpoDev(options = {}) {
         binding: publicBinding(rotatedBinding),
       };
     };
-    const backendPid = dev.child?.pid ?? readyDescriptor.pid;
+    let backendPid = dev.child?.pid ?? readyDescriptor.pid;
     listeners = await waitForListenerInventory({
       backendPid,
       metroPid: metro.child.pid,
@@ -4138,12 +4185,35 @@ export async function runExpoDev(options = {}) {
       metroPid: metro.child.pid,
       webFrontPort: metroFront?.port ?? null,
     });
-    const expectedListeners = [
+    let expectedListeners = [
       { owner: 'backend', port: backendRoute.port },
       { owner: 'metro', port: metroProcessPort },
       ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
       { owner: 'bootstrap', port: bootstrap.port },
     ];
+    const refreshLiveBackendListenerTarget = () => {
+      const liveReady = readReadyDescriptor(dev.readyFile);
+      const liveRoute = portFromOrigin(liveReady.serverUrl, 'Snapback backend');
+      if (!isLoopbackHost(liveRoute.host)) {
+        throw diagnosticError(
+          'SNAPBACK_EXPO_LISTENER_EXPOSED',
+          'the current supervised backend is not loopback-bound',
+          { host: liveRoute.host, port: liveRoute.port },
+        );
+      }
+      backendPid = liveReady.pid;
+      backendRoute = liveRoute;
+      expectedListeners = [
+        { owner: 'backend', port: liveRoute.port },
+        { owner: 'metro', port: metroProcessPort },
+        ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
+        { owner: 'bootstrap', port: bootstrap.port },
+      ];
+      return Object.freeze({
+        backendPid,
+        expectedListeners: Object.freeze([...expectedListeners]),
+      });
+    };
     if (!expectedListeners.every(({ owner, port }) => (
       listeners.some((listener) => (
         listener.owner === owner
@@ -4202,10 +4272,16 @@ export async function runExpoDev(options = {}) {
           { path: supervisorDescriptorFile, expected: generation, observed: current.supervisorGeneration },
         );
       }
-      publishSupervisorDescriptorAtomically(supervisorDescriptorFile, { ...current, ...fields });
-      rebindCleanupPath(supervisorDescriptorCleanupResource, {
-        runIdField: 'supervisorGeneration',
-        runId: generation,
+      publishSupervisorDescriptorAtomically(supervisorDescriptorFile, {
+        ...current,
+        ...fields,
+      }, null, {
+        cleanup: {
+          resource: supervisorDescriptorCleanupResource,
+          mode: 'rebind',
+          runIdField: 'supervisorGeneration',
+          runId: generation,
+        },
       });
     };
     const reloadMetroVerb = async ({ requestId } = {}) => {
@@ -4231,12 +4307,13 @@ export async function runExpoDev(options = {}) {
           if (metro === previousMetro) metro = null;
         }
         const restartedMetro = await launchMetro(backendRoute.origin);
+        const liveBackend = refreshLiveBackendListenerTarget();
         listeners = await waitForListenerInventory({
-          backendPid,
+          backendPid: liveBackend.backendPid,
           metroPid: restartedMetro.child.pid,
           metroProcess: restartedMetro.child,
           webFrontPort: metroFront?.port ?? null,
-          expected: expectedListeners,
+          expected: liveBackend.expectedListeners,
           timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
         });
         await options.afterMetroReloadListenersVerified?.({
@@ -4328,10 +4405,15 @@ export async function runExpoDev(options = {}) {
         reclaimed: closedEvent?.reclaimed ?? null,
       });
     };
+    const runBackendLifecycleVerb = async (verb, context) => {
+      const event = await dev.verbs[verb](context);
+      if (!closed && event?.ok === true) refreshLiveBackendListenerTarget();
+      return event;
+    };
     controlDispatcher = createDevControlDispatcher({
-      reload: (context) => dev.verbs.reload(context),
-      restart: (context) => dev.verbs.restart(context),
-      'dev-fresh': (context) => dev.verbs['dev-fresh'](context),
+      reload: (context) => runBackendLifecycleVerb('reload', context),
+      restart: (context) => runBackendLifecycleVerb('restart', context),
+      'dev-fresh': (context) => runBackendLifecycleVerb('dev-fresh', context),
       'reload-metro': reloadMetroVerb,
       'stop-children': stopChildrenVerb,
     });

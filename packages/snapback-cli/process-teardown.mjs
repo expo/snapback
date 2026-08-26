@@ -990,7 +990,11 @@ export function activateCleanupPath(resource, { runIdField, runId } = {}) {
   return Object.freeze({ ...fileIdentity });
 }
 
-export function rebindCleanupPath(resource, { runIdField, runId } = {}) {
+export function rebindCleanupPath(resource, {
+  runIdField,
+  runId,
+  candidatePath = null,
+} = {}) {
   if (resource === null || resource === undefined) return null;
   if (typeof runIdField !== 'string' || runIdField.length === 0
       || typeof runId !== 'string' || runId.length === 0) {
@@ -1004,14 +1008,22 @@ export function rebindCleanupPath(resource, { runIdField, runId } = {}) {
       || record.state !== 'active'
       || record.leaseUnique === true
       || record.fileIdentity?.runIdField !== runIdField
-      || record.fileIdentity?.runId !== runId) {
+      || record.fileIdentity?.runId !== runId
+      || (candidatePath !== null && record.previousFileIdentity !== undefined)) {
     throw new Error('cleanup file lease is not rebindable');
   }
-  const fileIdentity = exactFileIdentity(record.path, runIdField, runId);
+  const identityPath = candidatePath === null ? record.path : resolve(candidatePath);
+  if (dirname(identityPath) !== dirname(resolve(record.path))) {
+    throw new Error('cleanup file rebind candidate must share the leased path directory');
+  }
+  const fileIdentity = exactFileIdentity(identityPath, runIdField, runId);
+  const settledRecord = { ...record };
+  delete settledRecord.previousFileIdentity;
   writeOwnerOnlyJson(resource.path, {
-    ...record,
+    ...(candidatePath === null ? settledRecord : record),
+    ...(candidatePath === null ? {} : { previousFileIdentity: record.fileIdentity }),
     fileIdentity,
-    reboundAt: new Date().toISOString(),
+    [candidatePath === null ? 'reboundAt' : 'rebindPreparedAt']: new Date().toISOString(),
   });
   return Object.freeze({ ...fileIdentity });
 }
@@ -1632,13 +1644,23 @@ async function cleanupExactPath(resource, dependencies = {}) {
         || typeof identity?.inode !== 'string'
         || typeof identity?.runIdField !== 'string'
         || typeof identity?.runId !== 'string') return false;
+    const previousIdentity = resource.previousFileIdentity ?? null;
+    if (previousIdentity !== null && (
+      typeof previousIdentity?.device !== 'string'
+      || typeof previousIdentity?.inode !== 'string'
+      || previousIdentity?.runIdField !== identity.runIdField
+      || previousIdentity?.runId !== identity.runId
+    )) return false;
     try {
       const observed = exactFileIdentity(
         resource.path,
         identity.runIdField,
         identity.runId,
       );
-      if (observed.device !== identity.device || observed.inode !== identity.inode) return false;
+      const accepted = [identity, ...(previousIdentity === null ? [] : [previousIdentity])];
+      if (!accepted.some((candidate) => (
+        observed.device === candidate.device && observed.inode === candidate.inode
+      ))) return false;
       rmSync(resource.path, { force: true });
       return true;
     } catch {

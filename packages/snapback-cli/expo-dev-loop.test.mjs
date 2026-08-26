@@ -48,7 +48,7 @@ import {
   installAndroidPortForwarding,
   runExpoDev,
 } from './expo-dev.mjs';
-import { runDev } from './index.mjs';
+import { managedAdminToken, readReadyDescriptor, runDev } from './index.mjs';
 import {
   defineTemplateCarrierConfig,
   runTemplateCarrierCli,
@@ -266,6 +266,12 @@ async function eventually(check, { timeoutMs = 30_000, label = 'condition' } = {
     await new Promise((resolveWait) => setTimeout(resolveWait, 50));
   }
   throw new Error(`timed out waiting for ${label}${lastError ? `: ${lastError.message}` : ''}`);
+}
+
+function deferred() {
+  let resolvePromise;
+  const promise = new Promise((resolve) => { resolvePromise = resolve; });
+  return Object.freeze({ promise, resolve: resolvePromise });
 }
 
 async function reserveFreeRange(width) {
@@ -695,6 +701,7 @@ async function sendControlCommand(controlSocket, command) {
 
 async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertStdinReload = false,
+  assertStdinRestartBeforeSocketReload = false,
   assertConcurrentStdinSocketReload = false,
   expectControlUnavailable = false,
   failMetroReload = false,
@@ -735,7 +742,13 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
         SNAPBACK_EXPO_TEST_METRO_STUBBORN_FIRST: '1',
       } : {}),
     },
-    stdio: [assertStdinReload || assertConcurrentStdinSocketReload ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+    stdio: [
+      assertStdinReload || assertStdinRestartBeforeSocketReload || assertConcurrentStdinSocketReload
+        ? 'pipe'
+        : 'ignore',
+      'pipe',
+      'pipe',
+    ],
   });
   cliChildren.push(child);
   child.stdout.setEncoding('utf8');
@@ -817,6 +830,28 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     );
     const stdinReload = stdinReloadEvent.backend;
     assert.equal(stdinReload.ok, true, JSON.stringify(stdinReload));
+  }
+
+  if (assertStdinRestartBeforeSocketReload) {
+    const backendPidBeforeRestart = readReadyDescriptor(target.readyFile).pid;
+    child.stdin.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-command.v1',
+      verb: 'restart',
+      requestId: 'stdin-restart-before-socket-reload',
+    })}\n`);
+    const stdinRestartEvent = await eventually(
+      () => events.find((event) => (
+        event.backend?.verb === 'restart'
+          && event.backend?.requestId === 'stdin-restart-before-socket-reload'
+      )),
+      { label: 'JSON stdin restart result before socket Metro reload' },
+    );
+    assert.equal(stdinRestartEvent.backend.ok, true, JSON.stringify(stdinRestartEvent.backend));
+    assert.notEqual(
+      readReadyDescriptor(target.readyFile).pid,
+      backendPidBeforeRestart,
+      'stdin restart must replace the backend before the socket Metro reload regression',
+    );
   }
 
   const stale = await sendControlCommand(
@@ -1147,6 +1182,91 @@ async function runControlSocketSuite() {
     });
     supervisors.splice(supervisors.indexOf(lateExitRun.supervisor), 1);
 
+    const dispatcherFixture = fixture('dispatcher-overlap-app', {
+      sessions: true,
+      root: controlRoot,
+    });
+    const reloadAtDispatcherBarrier = deferred();
+    const releaseDispatcherReload = deferred();
+    let holdDispatcherReload = false;
+    const dispatcherRun = await startFixture(dispatcherFixture, {
+      platform: 'web',
+      controlSocket: true,
+      async afterMetroReloadListenersVerified() {
+        if (!holdDispatcherReload) return;
+        reloadAtDispatcherBarrier.resolve();
+        await releaseDispatcherReload.promise;
+      },
+    });
+    const dispatcherControl = dispatcherRun.supervisor.controlSocket;
+    const dispatcherDescriptor = JSON.parse(readFileSync(
+      join(dirname(dispatcherFixture.readyFile), 'expo-supervisor.json'),
+      'utf8',
+    ));
+    let dispatcherOperatorToken = managedAdminToken(
+      readReadyDescriptor(dispatcherFixture.readyFile),
+      dispatcherFixture.database,
+    );
+    holdDispatcherReload = true;
+    const dispatcherReload = openControlCommand(
+      dispatcherControl,
+      controlCommand(dispatcherControl, 'reload-metro', 'dispatcher-reload'),
+    );
+    await dispatcherReload.acknowledged;
+    await reloadAtDispatcherBarrier.promise;
+    let httpDevFreshSettled = false;
+    const httpDevFresh = fetch(
+      `${dispatcherDescriptor.exchangeOrigin}${dispatcherDescriptor.controlPath}`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-snapback-operator-token': dispatcherOperatorToken,
+        },
+        body: JSON.stringify({
+          verb: 'dev-fresh',
+          requestId: 'http-dev-fresh-overlap',
+        }),
+      },
+    ).then(async (response) => {
+      const body = await response.json();
+      httpDevFreshSettled = true;
+      return { status: response.status, body };
+    });
+    let receiptMissingWhileReloadBlocked = false;
+    const overlapDeadline = Date.now() + 500;
+    while (Date.now() < overlapDeadline) {
+      if (!existsSync(`${dispatcherFixture.readyFile}.application-ready`)) {
+        receiptMissingWhileReloadBlocked = true;
+        break;
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
+    const httpSettledWhileReloadBlocked = httpDevFreshSettled;
+    releaseDispatcherReload.resolve();
+    const [dispatcherReloadMessages, httpDevFreshResult] = await Promise.all([
+      dispatcherReload.completion,
+      httpDevFresh,
+    ]);
+    dispatcherOperatorToken = null;
+    assert.equal(
+      receiptMissingWhileReloadBlocked,
+      false,
+      'HTTP dev-fresh must remain queued while an acknowledged socket reload owns the dispatcher lane',
+    );
+    assert.equal(
+      httpSettledWhileReloadBlocked,
+      false,
+      'HTTP dev-fresh must not settle before the acknowledged socket reload releases the lane',
+    );
+    assert.equal(dispatcherReloadMessages.at(-1)?.ok, true, JSON.stringify(dispatcherReloadMessages));
+    assert.equal(httpDevFreshResult.status, 200);
+    assert.equal(httpDevFreshResult.body.ok, true, JSON.stringify(httpDevFreshResult.body));
+    assert.equal(httpDevFreshResult.body.requestId, 'http-dev-fresh-overlap');
+    await dispatcherRun.supervisor.close();
+    supervisors.splice(supervisors.indexOf(dispatcherRun.supervisor), 1);
+    console.log('control dispatcher: HTTP dev-fresh queues behind an acknowledged socket Metro reload');
+
     const ignoredStdinFixture = fixture('ignored-stdin-app', { sessions: true, root: controlRoot });
     const ignoredStdinRange = await reserveFreeRange(8);
     await runCliSupervisor(ignoredStdinFixture, 'web', [
@@ -1199,7 +1319,10 @@ async function runControlSocketSuite() {
     ], { expectControlUnavailable: true });
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
-    ], { assertConcurrentStdinSocketReload: true });
+    ], {
+      assertStdinRestartBeforeSocketReload: true,
+      assertConcurrentStdinSocketReload: true,
+    });
     assert.equal(controlRun.readyEvent.platform, 'web');
     const failureFixture = fixture('failure-app', { sessions: true, root: controlRoot });
     const failureRange = await reserveFreeRange(8);

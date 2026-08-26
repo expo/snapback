@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -39,6 +40,7 @@ const scratchRoot = mkdtempSync(join(tmpdir(), 'sbctl-unit-'));
 const holderScript = join(scratchRoot, 'holder.mjs');
 const pathLockScript = join(scratchRoot, 'path-lock-holder.mjs');
 const foreignSocketScript = join(scratchRoot, 'foreign-socket-holder.mjs');
+const descriptorCrashScript = join(scratchRoot, 'descriptor-crash-holder.mjs');
 const holders = new Set();
 
 writeFileSync(holderScript, `
@@ -158,6 +160,53 @@ server.listen(path, () => {
   }) + '\\n');
 });
 setInterval(() => {}, 60_000);
+`);
+
+writeFileSync(descriptorCrashScript, `
+import { writeFileSync, writeSync } from 'node:fs';
+import { __test } from ${JSON.stringify(pathToFileURL(join(packageRoot, 'expo-dev.mjs')).href)};
+import {
+  activateCleanupPath,
+  createCarrierCleanupLease,
+  reserveCleanupPath,
+} from ${JSON.stringify(pathToFileURL(join(packageRoot, 'process-teardown.mjs')).href)};
+
+const descriptorPath = process.argv[2];
+const cleanupLease = await createCarrierCleanupLease();
+const cleanupResource = reserveCleanupPath(cleanupLease, descriptorPath, {
+  type: 'file',
+  label: 'crash-boundary supervisor descriptor',
+});
+writeFileSync(
+  descriptorPath,
+  JSON.stringify({ supervisorGeneration: 'crash-owner', revision: 1 }) + '\\n',
+  { mode: 0o600 },
+);
+activateCleanupPath(cleanupResource, {
+  runIdField: 'supervisorGeneration',
+  runId: 'crash-owner',
+});
+const crashAtBoundary = () => {
+  writeSync(1, JSON.stringify({ state: 'descriptor-renamed-before-lease-settle' }) + '\\n');
+  process.kill(process.pid, 'SIGKILL');
+};
+__test.publishSupervisorDescriptorAtomically(
+  descriptorPath,
+  { supervisorGeneration: 'crash-owner', revision: 2 },
+  null,
+  {
+    cleanup: {
+      resource: cleanupResource,
+      mode: 'rebind',
+      runIdField: 'supervisorGeneration',
+      runId: 'crash-owner',
+    },
+    afterRename: crashAtBoundary,
+  },
+);
+// Old implementations ignore the fourth argument, so preserve the exact
+// rename-before-rebind crash boundary for the fail-first witness.
+crashAtBoundary();
 `);
 
 async function eventually(check, { timeoutMs = 10_000, label = 'condition' } = {}) {
@@ -334,6 +383,33 @@ async function startForeignSocketHolder(endpointPath) {
     return false;
   }, { label: 'foreign socket collision readiness' });
   return { child, ...ready };
+}
+
+async function startDescriptorCrashHolder(descriptorPath) {
+  const child = spawn(process.execPath, [descriptorCrashScript, descriptorPath], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  holders.add(child);
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const barrier = await eventually(() => {
+    const newline = stdout.indexOf('\n');
+    if (newline !== -1) return JSON.parse(stdout.slice(0, newline));
+    if (child.exitCode !== null || child.signalCode !== null) {
+      throw new Error(`descriptor crash holder exited before its barrier: ${stderr || stdout}`);
+    }
+    return false;
+  }, { label: 'descriptor rename-before-rebind crash barrier' });
+  await eventually(
+    () => child.signalCode === 'SIGKILL',
+    { label: 'descriptor crash holder SIGKILL' },
+  );
+  holders.delete(child);
+  return { child, barrier };
 }
 
 async function startStaleReclaimContender(endpointPath, contenderId, releaseFile) {
@@ -593,6 +669,16 @@ try {
   assert.equal(existsSync(leasedDescriptorPath), false);
   console.log('supervisor descriptor publication: owner-only same-directory atomic replacement');
 
+  const descriptorCrashRoot = makeRoot('descriptor-crash-boundary');
+  const crashBoundaryDescriptorPath = join(descriptorCrashRoot, 'expo-supervisor.json');
+  const descriptorCrash = await startDescriptorCrashHolder(crashBoundaryDescriptorPath);
+  assert.equal(descriptorCrash.barrier.state, 'descriptor-renamed-before-lease-settle');
+  await eventually(
+    () => !existsSync(crashBoundaryDescriptorPath),
+    { label: 'renamed supervisor descriptor cleanup after pre-rebind SIGKILL' },
+  );
+  console.log('supervisor descriptor cleanup: rename-before-rebind SIGKILL reaps the published inode');
+
   const uidlessRoot = makeRoot('n');
   const unavailableNotices = [];
   const uidlessControl = await expoDevTest.startDevControlSocketWithDependencies(
@@ -684,6 +770,38 @@ try {
   await killHolder(foreignSocketHolder);
   rmSync(collisionPath, { force: true });
   console.log('real socket publication collision: owner refuses and preserves foreign inode');
+
+  const postBindReplacementRoot = makeRoot('post-bind-replacement');
+  const postBindReplacementPath = join(postBindReplacementRoot, '.dc-sock');
+  const postBindForeignPath = join(postBindReplacementRoot, '.foreign-sock');
+  const displacedBoundPath = join(postBindReplacementRoot, '.owner-sock-displaced');
+  const postBindForeign = await startForeignSocketHolder(postBindForeignPath);
+  let postBindReplacementControl = null;
+  let postBindReplacementError = null;
+  try {
+    postBindReplacementControl = await expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(postBindReplacementRoot, 'unit-post-bind-replacement-owner'),
+      {
+        afterEndpointListen({ path }) {
+          renameSync(path, displacedBoundPath);
+          renameSync(postBindForeignPath, path);
+        },
+      },
+    );
+  } catch (error) {
+    postBindReplacementError = error;
+  }
+  await postBindReplacementControl?.close();
+  assert.equal(
+    postBindReplacementError?.diagnostic?.code,
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+    'a same-UID socket renamed over the bound endpoint must refuse instead of being advertised',
+  );
+  await killHolder(postBindForeign);
+  rmSync(postBindReplacementPath, { force: true });
+  rmSync(postBindForeignPath, { force: true });
+  rmSync(displacedBoundPath, { force: true });
+  console.log('post-bind pathname replacement: foreign same-UID socket is refused before advertisement');
 
   const lockTimeoutRoot = makeRoot('lock-timeout');
   const lockTimeoutNotices = [];
