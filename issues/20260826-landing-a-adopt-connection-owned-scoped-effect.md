@@ -135,3 +135,63 @@ the replacement must preserve the service-terminal carrier retained on uncertain
 zero `async fn`/`.await`, and no transaction-across-await or returned transaction borrow
 was found.
 
+## The pivot is now settled by evidence, not argument (2026-08-26)
+
+Round 4 attempted the patch route and fixed all seven previously-found defects, each with
+an executed runtime regression AND a mutation proof. It was then reviewed and returned
+**DO NOT LAND** on **four independent authorization bypasses**, including the predicted
+eighth route. That is the fourth consecutive round to close its findings and produce a new
+one, which is what the architectural argument predicted.
+
+### The eighth route, concretely
+
+`AuthorityTransaction::sqlite()` exposes `&rusqlite::Transaction`, and `Transaction`
+exposes `Connection::authorizer`. A protected writer can therefore call
+`transaction.authorizer(Some(|_| Authorization::Allow))`, **replacing the kernel
+authorizer in SQLite's single-authorizer slot**, then execute `ATTACH`, schema SQL, a
+forbidden `PRAGMA`, or an UPDATE of the wrong column, and commit. The pre-update hook
+cannot save structural operations, and its UPDATE check compares table and operation but
+not column or accessor. No taint is raised. The structural gate only requires
+permit-taking functions to live under `core::writers`; it does not forbid authorizer
+installation or raw connection use.
+
+### The other three
+
+- **Permit and writer transaction remain structurally unjoined.** The sole protected-writer
+  witness takes an arbitrary `&Transaction` plus an unrelated permit and ignores the
+  permit: obtain a permit from transaction A, open transaction C on another protected
+  handle, and the write lands on C under A's authority. The second-connection regression
+  masks this — it installs the authorizer on B and executes SQL there directly, so its
+  isolated denial cell hides the architectural hole. The review notes this "directly
+  contradicts the already-recorded Landing A decision requiring one connection-owned
+  scoped effect API."
+- **Close-induced rollback leaves live authority, and pointer reuse rebinds it.**
+  Connection identity is only the raw `sqlite3*` address, and installation treats an equal
+  address as the original connection. Forget permit and transaction, drop the connection
+  without SQL COMMIT/ROLLBACK — rusqlite removes hooks before `sqlite3_close`, and SQLite
+  does not invoke the rollback hook for close-induced rollback — then open connections
+  until the allocator reuses the address. The stale cell is accepted as the old connection.
+
+### What round 4 got right and must be salvaged
+
+- **The gate genuinely executes.** `--no-run` survives only in the compile-fail phase; a
+  separate phase runs `cargo test` and requires an `ok` line for every exact name, so a
+  test that silently does not run fails the gate. Keep this.
+- **The conflict-resolution family is covered.** `REPLACE`, `INSERT OR REPLACE`,
+  schema-level `ON CONFLICT REPLACE`, `UPDATE OR REPLACE`, UPSERT/`DO UPDATE`,
+  `INSERT OR IGNORE`/`DO NOTHING`, triggers and FK cascades were each checked and no
+  separate ordinary-table bypass was found. **Exception:** SQLite does not run pre-update
+  hooks for **virtual tables**. No protected object is currently a virtual table, so it is
+  not a present route, but dynamic-table configuration must prohibit virtual tables before
+  activation.
+- **Six executed runtime regressions** covering the earlier defects, with mutation proofs.
+- Taint does not persist into the next transaction; mutex poison and epoch exhaustion fail
+  closed (as permanent denial for that authorizer instance).
+
+### Standing constraint
+
+The branch is inert as claimed, so it cannot currently displace `LocalDatabase`'s
+`WriterAuthorityV1`. But installing it on that connection later would overwrite
+`WriterAuthorityV1` — so **this design cannot safely be activated unchanged**, which is
+the same conclusion the adversarial check reached independently.
+
