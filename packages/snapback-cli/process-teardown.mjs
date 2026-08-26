@@ -375,15 +375,24 @@ function processIdExists(pid) {
 }
 
 function liveCleanupPathLockOwner(owner, table = null) {
-  if (!validCleanupPathLockOwner(owner)) return false;
+  // A malformed or unreadable owner record is ambiguous, not proof that the
+  // publisher is dead. Preserve the pathname until an exact identity can be
+  // excluded; reclaim is allowed only for a provably dead owner.
+  if (!validCleanupPathLockOwner(owner)) return true;
   if (!processIdExists(owner.pid)) return false;
-  const current = processIdentity(owner.pid, table ?? processTable());
+  let current;
+  try {
+    current = processIdentity(owner.pid, table ?? processTable());
+  } catch {
+    return true;
+  }
   // kill(pid, 0) proves the numeric process still exists. If a concurrent ps
   // parse misses it, preserve the live marker: ambiguity is not authority to
-  // replace a lock. When ps does return an identity, its OS start time fences
-  // PID reuse before the marker can be treated as live.
+  // replace a lock. When ps does return an identity, its OS start time and
+  // exact command fence same-second PID reuse before the marker is live.
   if (current === null) return true;
-  return current?.startTime === owner.startTime;
+  return current?.startTime === owner.startTime
+    && current.command === owner.command;
 }
 
 function observeCleanupPathLockMarker(path) {
@@ -1891,6 +1900,7 @@ function registerCleanupLeaseProcess(path) {
 
 export const __test = Object.freeze({
   cleanupExactPath,
+  liveCleanupPathLockOwner,
   stopGuardedProcessGroup,
 });
 

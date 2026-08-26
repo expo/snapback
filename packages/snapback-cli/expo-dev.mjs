@@ -991,15 +991,15 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     if ((error?.diagnostic?.code ?? error?.code) !== 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE') {
       throw error;
     }
-    startupUnavailable = error?.diagnostic ?? devControlDiagnostic(
-      'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-      error?.message ?? 'timed out waiting for the owner-bound dev control path lock',
+    throw diagnosticError(
+      'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      'the owner-bound dev control path lock could not exclude a live or ambiguous owner',
       {
         path: stateDirectoryPath,
         endpointPath: path,
         readyFile,
         cause: error?.code ?? error?.message ?? String(error),
-        recovery: 'wait for the current same-uid owner to exit or choose another owner-only state directory with --ready-file <path>',
+        recovery: 'wait for the current lifecycle owner to exit before starting another supervisor',
       },
     );
   });

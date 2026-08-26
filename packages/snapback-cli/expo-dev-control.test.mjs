@@ -465,6 +465,84 @@ try {
     'the default Expo lifecycle suite must retain the no-TTY E1 control-socket witness',
   );
 
+  const reusedLockPidOwner = {
+    schemaVersion: 'snapback.cleanup-path-lock.v1',
+    pid: process.pid,
+    startTime: 'Tue Aug 25 12:34:56 2026',
+    command: 'node original-control-owner.mjs',
+    token: 'unit-reused-lock-pid',
+    acquiredAt: new Date().toISOString(),
+  };
+  assert.equal(
+    teardownTest.liveCleanupPathLockOwner(reusedLockPidOwner, [{
+      pid: process.pid,
+      ppid: process.ppid,
+      processGroup: process.pid,
+      startTime: reusedLockPidOwner.startTime,
+      command: 'node replacement-process.mjs',
+    }]),
+    false,
+    'same-second PID reuse with a different command must not preserve a dead .dc-lock owner',
+  );
+  assert.equal(
+    teardownTest.liveCleanupPathLockOwner({
+      ...reusedLockPidOwner,
+      command: undefined,
+    }),
+    true,
+    'an unclassifiable .dc-lock owner must be preserved rather than reclaimed',
+  );
+  console.log('cleanup lock identity: exact command fences PID reuse and ambiguity remains live');
+
+  const liveLockRoot = makeRoot('live-lock-owner');
+  const liveLockEndpointBound = deferred();
+  const releaseLiveLockOwner = deferred();
+  const liveLockOwner = expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(liveLockRoot, 'unit-live-lock-owner'),
+    {
+      async afterEndpointLeaseActivation() {
+        liveLockEndpointBound.resolve();
+        await releaseLiveLockOwner.promise;
+      },
+    },
+  );
+  await liveLockEndpointBound.promise;
+  const competingDescriptorPath = join(liveLockRoot, 'expo-supervisor.json');
+  let competingStartupError = null;
+  try {
+    const competingControl = await expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(liveLockRoot, 'unit-competing-supervisor'),
+      {
+        withPathLock(path, action) {
+          return withCleanupPathLock(path, action, { timeoutMs: 75 });
+        },
+      },
+    );
+    expoDevTest.publishSupervisorDescriptorAtomically(competingDescriptorPath, {
+      schemaVersion: EXPO_SUPERVISOR_DESCRIPTOR_FORMAT,
+      supervisorGeneration: 'unit-competing-supervisor',
+      ...(competingControl === null ? {} : { controlSocket: competingControl.descriptor }),
+    });
+    await competingControl?.close();
+  } catch (error) {
+    competingStartupError = error;
+  }
+  releaseLiveLockOwner.resolve();
+  const liveLockControl = await liveLockOwner;
+  await liveLockControl.close();
+  assert.deepEqual(
+    {
+      code: competingStartupError?.diagnostic?.code ?? competingStartupError?.code ?? null,
+      descriptorPublished: existsSync(competingDescriptorPath),
+    },
+    {
+      code: 'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+      descriptorPublished: false,
+    },
+    'a supervisor racing a live owner paused after bind must abort before descriptor publication',
+  );
+  console.log('live lock owner: competing supervisor aborts before descriptor publication');
+
   const atomicDescriptorRoot = makeRoot('atomic-descriptor');
   const atomicDescriptorPath = join(atomicDescriptorRoot, 'expo-supervisor.json');
   writeFileSync(atomicDescriptorPath, '{"supervisorGeneration":"atomic-owner","revision":1}\n', {
@@ -609,23 +687,24 @@ try {
 
   const lockTimeoutRoot = makeRoot('lock-timeout');
   const lockTimeoutNotices = [];
-  const lockTimeoutControl = await expoDevTest.startDevControlSocketWithDependencies(
-    testOptions(lockTimeoutRoot, 'unit-lock-timeout-owner', {
-      onUnavailable: (diagnostic) => lockTimeoutNotices.push(diagnostic),
-    }),
-    {
-      async withPathLock() {
-        throw Object.assign(new Error('injected cleanup path lock timeout'), {
-          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
-        });
+  await assertRefusal(
+    () => expoDevTest.startDevControlSocketWithDependencies(
+      testOptions(lockTimeoutRoot, 'unit-lock-timeout-owner', {
+        onUnavailable: (diagnostic) => lockTimeoutNotices.push(diagnostic),
+      }),
+      {
+        async withPathLock() {
+          throw Object.assign(new Error('injected cleanup path lock timeout'), {
+            code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          });
+        },
       },
-    },
+    ),
+    'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
   );
-  assert.equal(lockTimeoutControl, null);
-  assert.equal(lockTimeoutNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
-  assert.equal(lockTimeoutNotices[0].details.cause, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(lockTimeoutNotices.length, 0);
   assert.equal(existsSync(join(lockTimeoutRoot, '.dc-sock')), false);
-  console.log('cleanup path lock timeout: coded stdin-only fallback remains live');
+  console.log('cleanup path lock timeout: foreign-owner refusal prevents stdin-only startup');
 
   const socketModeRoot = makeRoot('socket-mode');
   const socketModeNotices = [];
