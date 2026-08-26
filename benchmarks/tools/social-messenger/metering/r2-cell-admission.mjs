@@ -11,6 +11,7 @@ import {
   readdirSync,
   realpathSync,
   renameSync,
+  statfsSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -29,7 +30,7 @@ import {
 } from "./r2-host-lock.mjs";
 import { resolveRegisteredJourney } from "./journey-contract.mjs";
 import { assertR2ExecutionEnvironment } from "./r2-execution-environment.mjs";
-import { inspectPrivateCellPath } from "./r2-private-paths.mjs";
+import { canonicalPrivateExecutionRoot, inspectPrivateCellPath } from "./r2-private-paths.mjs";
 
 export const R2_ADMISSION_VERSION = "snapback.r2-cell-admission.v2";
 export const R2_SOURCE_CLOSURE_VERSION = "snapback.r2-executing-source-closure.v1";
@@ -861,6 +862,18 @@ export function configuredExecutionBinding({
   const node = fileDescriptor(command[0], "configured Node binary");
   const controller = fileDescriptor(controllerPath, "configured controller");
   const driver = fileDescriptor(driverPath, "configured driver");
+  let prompt;
+  if (harnessConfig.prompts !== undefined) {
+    const registeredPrompt = harnessConfig.prompts?.[cell.promptFile];
+    const promptPath = resolve(repositoryRoot, harnessConfig.paths?.committedRunRoot ?? "", cell.promptFile);
+    prompt = fileDescriptor(promptPath, `configured prompt ${cell.promptFile}`);
+    if (
+      registeredPrompt?.sha256 !== prompt.sha256.replace(/^sha256:/u, "")
+      || registeredPrompt.path !== cell.promptFile
+    ) {
+      throw new Error(`R2_ADMISSION_PROMPT_PIN: prompt ${cell.promptFile} differs from its registered SHA-256`);
+    }
+  }
   return {
     cwd: realpathSync(repositoryRoot),
     argv: [controller.path, ...command.slice(2)],
@@ -868,6 +881,9 @@ export function configuredExecutionBinding({
     node,
     controller: { ...controller, configuredArg: command[1] },
     driver: { ...driver, configuredArg: driverArg },
+    ...(prompt === undefined ? {} : {
+      prompt: { ...prompt, configuredArg: cell.promptFile },
+    }),
     environment: executionEnvironment,
     sourceClosure: liveSourceClosure({ harnessConfig, repositoryRoot }),
   };
@@ -917,6 +933,11 @@ export function registeredCellExpectations(harnessConfig, cell) {
   ) {
     throw new Error(`R2_ADMISSION_METERING_POLICY: cell ${cell.id} lacks an honest registered adapter/count policy`);
   }
+  const milestones = registeredMilestonesForCell(harnessConfig, cell);
+  const runScope = cell.runScope ?? (milestones.includes("M7") ? "full" : "reduced");
+  const driverId = cell.driverId ?? (runScope === "full"
+    ? "social-messenger-full-journey-native-cli-driver.v1"
+    : "social-messenger-r2-native-cli-driver.v1");
   return {
     runId: harnessConfig.runId,
     cellId: cell.id,
@@ -925,6 +946,10 @@ export function registeredCellExpectations(harnessConfig, cell) {
     clientStack: cell.clientStack,
     profile: cell.profile,
     promptFile: cell.promptFile,
+    promptSha256: harnessConfig.prompts?.[cell.promptFile]?.sha256 ?? null,
+    driverId,
+    runScope,
+    milestones,
     harnessKey: cell.harness,
     harnessBinary: harness.binary,
     harnessVersion: harness.observedVersion,
@@ -937,6 +962,47 @@ export function registeredCellExpectations(harnessConfig, cell) {
     allowedHostId: cell.allowedHostId,
     loadCeilingId: cell.loadCeilingId,
     controllerCommand: cell.controllerCommand,
+  };
+}
+
+// A disk refusal is deliberately evaluated before the exclusive lock exists:
+// it cannot consume an attempt or leave campaign custody behind.
+export function inspectAdmissionDiskFloor({
+  harnessConfig,
+  statfs = statfsSync,
+  now = Date.now,
+}) {
+  const policy = harnessConfig.execution?.diskPolicy;
+  if (policy === undefined) return null;
+  if (
+    !Number.isInteger(policy.privateRootFreeSpaceFloorGiB)
+    || policy.privateRootFreeSpaceFloorGiB <= 0
+    || typeof policy.refusalDiagnostic !== "string"
+    || policy.refusalDiagnostic.length === 0
+  ) {
+    throw new Error("R2_ADMISSION_DISK_POLICY: configured disk floor is malformed");
+  }
+  const root = canonicalPrivateExecutionRoot(harnessConfig);
+  let filesystem;
+  try {
+    filesystem = statfs(root, { bigint: true });
+  } catch (error) {
+    throw new Error(`${policy.refusalDiagnostic}: cannot measure private execution root filesystem: ${error.message}`);
+  }
+  const availableBytes = BigInt(filesystem.bsize) * BigInt(filesystem.bavail);
+  const floorBytes = BigInt(policy.privateRootFreeSpaceFloorGiB) * 1024n * 1024n * 1024n;
+  if (availableBytes < floorBytes) {
+    throw new Error(
+      `${policy.refusalDiagnostic}: ${root} has ${availableBytes} free bytes; ${floorBytes} required`,
+    );
+  }
+  return {
+    diagnostic: policy.refusalDiagnostic,
+    filesystemRoot: root,
+    checkedAt: new Date(now()).toISOString(),
+    availableBytes: availableBytes.toString(),
+    floorBytes: floorBytes.toString(),
+    passed: true,
   };
 }
 
@@ -1217,6 +1283,29 @@ export function verifyAdmissionArtifact({
   if (!sameJson(artifact.registeredCell, expectations)) {
     throw new Error("R2_ADMISSION_IDENTITY: admitted cell/harness/model/adapter expectations changed");
   }
+  const diskPolicy = harnessConfig.execution?.diskPolicy;
+  if (diskPolicy !== undefined) {
+    const expectedRoot = canonicalPrivateExecutionRoot(harnessConfig);
+    let availableBytes;
+    let floorBytes;
+    try {
+      availableBytes = BigInt(artifact.diskAdmission?.availableBytes ?? "-1");
+      floorBytes = BigInt(artifact.diskAdmission?.floorBytes ?? "-1");
+    } catch {
+      throw new Error(`${diskPolicy.refusalDiagnostic}: admitted disk-floor byte counts are invalid`);
+    }
+    const configuredFloor = BigInt(diskPolicy.privateRootFreeSpaceFloorGiB) * 1024n * 1024n * 1024n;
+    if (
+      artifact.diskAdmission?.diagnostic !== diskPolicy.refusalDiagnostic
+      || artifact.diskAdmission?.filesystemRoot !== expectedRoot
+      || artifact.diskAdmission?.passed !== true
+      || !Number.isFinite(Date.parse(artifact.diskAdmission?.checkedAt))
+      || floorBytes !== configuredFloor
+      || availableBytes < floorBytes
+    ) {
+      throw new Error(`${diskPolicy.refusalDiagnostic}: admitted disk-floor evidence is absent or invalid`);
+    }
+  }
   const allowedMachine = harnessConfig.machines?.[cell.allowedHostId];
   if (
     allowedMachine?.node?.path !== execution.node.path
@@ -1469,6 +1558,11 @@ export async function inspectNonConsumingAdmissionSmoke({
     cell,
     repositoryRoot,
   });
+  const diskAdmission = (dependencies.inspectAdmissionDiskFloor ?? inspectAdmissionDiskFloor)({
+    harnessConfig,
+    statfs: dependencies.statfs ?? statfsSync,
+    now: dependencies.now ?? Date.now,
+  });
   if (
     execution.controller.sha256 !== `sha256:${harnessConfig.pins.instrument.d06MeteringOverlay.laneControllerSha256}`
     || execution.driver.sha256 !== `sha256:${harnessConfig.pins.instrument.d06MeteringOverlay.productionDriverSha256}`
@@ -1532,6 +1626,7 @@ export async function inspectNonConsumingAdmissionSmoke({
     },
     host,
     harness,
+    ...(diskAdmission === null ? {} : { diskAdmission }),
     ...quiet,
     loadIsolation: {
       policyId: policy.policyId,
@@ -1619,6 +1714,11 @@ export async function createAdmissionArtifact({
   const sampleLoad = dependencies.loadavg ?? loadavg;
   const sleep = dependencies.sleep ?? ((millis) => new Promise((done) => setTimeout(done, millis)));
   const policy = loadPolicyForCell(harnessConfig, cell);
+  const diskAdmission = (dependencies.inspectAdmissionDiskFloor ?? inspectAdmissionDiskFloor)({
+    harnessConfig,
+    statfs: dependencies.statfs ?? statfsSync,
+    now,
+  });
   const lock = (dependencies.acquireExclusiveHostLock ?? acquireExclusiveHostLock)({
     harnessConfig,
     cellId,
@@ -1687,6 +1787,7 @@ export async function createAdmissionArtifact({
       ...quiet,
       harness,
       host,
+      ...(diskAdmission === null ? {} : { diskAdmission }),
       exclusiveHostLock: lock,
       loadIsolation: {
         policyId: policy.policyId,

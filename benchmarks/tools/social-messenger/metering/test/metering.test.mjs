@@ -53,6 +53,7 @@ import {
 import {
   completeAdmittedDriverPreflight,
   importAndPreflightR2Driver,
+  runWithCellWallCap,
   loadLaneControllerConfig,
   R2LaneController,
   writeAttemptFailure,
@@ -63,6 +64,7 @@ import {
   allCampaignPorts,
   configuredExecutionBinding,
   createAdmissionArtifact,
+  inspectAdmissionDiskFloor,
   inspectCommittedSeriality,
   liveSourceClosure,
   measureSourceClosure,
@@ -126,6 +128,53 @@ const extensionSchema = JSON.parse(await readFile(
   new URL("benchmarks/schema/social-messenger/run-record-extension.schema.json", ROOT),
   "utf8",
 ));
+
+test("cell wall cap terminates before returning a named fail-closed timeout", async () => {
+  let terminated = null;
+  await assert.rejects(runWithCellWallCap({
+    cellWallCapSeconds: 14_400,
+    operation: () => new Promise(() => {}),
+    terminate: async (reason) => {
+      terminated = reason;
+      return { acknowledged: true };
+    },
+    setTimer: (callback) => { queueMicrotask(callback); return 1; },
+    clearTimer: () => {},
+  }), (error) => (
+    error.code === "R3_CELL_WALL_CAP_TIMEOUT"
+    && error.processTerminationAcknowledged === true
+  ));
+  assert.deepEqual(terminated, {
+    code: "R3_CELL_WALL_CAP_TIMEOUT",
+    cellWallCapSeconds: 14_400,
+  });
+});
+
+test("disk-floor measurement uses statfs available blocks and names refusal", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r3-disk-floor-")));
+  try {
+    const harnessConfig = {
+      paths: { privateExecutionRoot: temp },
+      execution: { diskPolicy: {
+        privateRootFreeSpaceFloorGiB: 20,
+        refusalDiagnostic: "R3_ADMISSION_DISK_FLOOR",
+      } },
+    };
+    const passing = inspectAdmissionDiskFloor({
+      harnessConfig,
+      statfs: () => ({ bsize: 4096n, bavail: 6_000_000n }),
+      now: () => Date.parse("2026-08-26T20:00:00.000Z"),
+    });
+    assert.equal(passing.passed, true);
+    assert.equal(passing.floorBytes, String(20n * 1024n * 1024n * 1024n));
+    assert.throws(() => inspectAdmissionDiskFloor({
+      harnessConfig,
+      statfs: () => ({ bsize: 4096n, bavail: 1n }),
+    }), /R3_ADMISSION_DISK_FLOOR/u);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
 
 async function currentR2HarnessFixture() {
   const config = JSON.parse(await readFile(RETAINED_R2_CONFIG, "utf8"));
@@ -2129,6 +2178,69 @@ test("production driver classifies source-inspection retries and surfaces queued
   }
 });
 
+test("production driver enforces a registered Claude native-stream token cap", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r3-driver-token-cap-")));
+  const laneRunId = "fixture-run/native-token-cap";
+  const state = {
+    config: {
+      laneRunId,
+      cell: { id: "opus-fixture", harness: "claude-opus5", leg: "B" },
+      milestones: ["M1"],
+      harnessConfig: { execution: { tokenCapsByLeg: {
+        B: { capFamily: "claude-frontier", perMilestone: { M1: 5 } },
+      } } },
+    },
+    root: temp,
+    journey: { runScope: "reduced" },
+    currentSession: { sourceId: "builder" },
+    child: {},
+    exit: new Promise(() => {}),
+    controls: null,
+    currentMilestone: null,
+    observationQueue: Promise.resolve(),
+    streamWriteQueue: Promise.resolve(),
+    actionSequence: 0,
+    episodeSequence: 0,
+    apiSequence: 0,
+    lastFailedApiRequest: null,
+    pendingEpisodes: new Map(),
+    pendingNativeTools: new Map(),
+    seenNativeActions: new Set(),
+    correctionLoops: [],
+    observationSources: [],
+    failureDisposition: null,
+    tokenWatchdog: null,
+    usageFailure: null,
+  };
+  const controls = {
+    semanticAction: async () => {},
+    recoveryEpisode: async () => {},
+    reseed: async (_options, operation) => operation(),
+    restart: async (operation) => operation(),
+    apiRequest: async (_fields, operation) => operation(),
+  };
+  try {
+    await mkdir(join(temp, "gates"), { recursive: true });
+    r2CellDriverTestHooks.installState(laneRunId, state);
+    const run = runProductionDriverMilestone({ milestone: "M1", controls, config: state.config });
+    setTimeout(() => r2CellDriverTestHooks.handleNativeRecord(state, {
+      timestamp: new Date().toISOString(),
+      message: {
+        id: "native-over-cap",
+        usage: { input_tokens: 4, output_tokens: 2 },
+      },
+    }), 10);
+    await assert.rejects(run, (error) => (
+      error.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
+      && error.trip.charging.chargedTokens === 5
+    ));
+    assert.equal(state.failureDisposition, "token-cap");
+  } finally {
+    r2CellDriverTestHooks.removeState(laneRunId);
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("controller re-probes actual process and port quiet after driver preflight and before attempt creation", async () => {
   const temp = await realpath(await mkdtemp(join(tmpdir(), "r2-second-quiet-probe-")));
   const configDirectory = join(temp, "private", "cells", "cell-1");
@@ -2734,6 +2846,10 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
     sourceConfig.pins.instrument.manifestPath = "benchmarks/instrument.manifest.json";
     sourceConfig.paths.instrumentRoot = materializedRoot;
     sourceConfig.paths.privateExecutionRoot = join(temp, "private");
+    sourceConfig.execution.diskPolicy = {
+      privateRootFreeSpaceFloorGiB: 20,
+      refusalDiagnostic: "R3_ADMISSION_DISK_FLOOR",
+    };
     sourceConfig.execution.exclusiveHostLock.path = join(temp, "private", "locks", "host.lock");
     const instrumentBytes = await readFile(new URL("benchmarks/instrument.manifest.json", ROOT));
     sourceConfig.pins.instrument.manifestSha256 = sha256(instrumentBytes).replace(/^sha256:/u, "");
@@ -2790,7 +2906,21 @@ test("per-cell admission binds exact execution, probes after sampling, and owns 
       now: () => clock,
       loadavg: () => { samplesObserved += 1; return [1, 2, 3]; },
       sleep: async (millis) => { clock += millis; },
+      statfs: () => ({ bsize: 4096n, bavail: 6_000_000n }),
     };
+    let lowDiskLockCalls = 0;
+    await assert.rejects(createAdmissionArtifact({
+      harnessConfigPath: configPath,
+      cellId: cell.id,
+      reservedBy: "metering-test-low-disk",
+      admissionPath,
+      dependencies: {
+        ...injected,
+        statfs: () => ({ bsize: 4096n, bavail: 1n }),
+        acquireExclusiveHostLock: () => { lowDiskLockCalls += 1; return null; },
+      },
+    }), /R3_ADMISSION_DISK_FLOOR/u);
+    assert.equal(lowDiskLockCalls, 0, "disk refusal must precede exclusive lock acquisition");
     let samplesBeforeInstrument = 0;
     await assert.rejects(createAdmissionArtifact({
       harnessConfigPath: configPath,
@@ -3337,6 +3467,26 @@ async function makeFinalizeExistingFixture({
     },
   };
 }
+
+test("finalize-existing refuses a retained manifest relabeled to another supported driver", async () => {
+  const fixture = await makeFinalizeExistingFixture();
+  try {
+    const manifestPath = join(fixture.privateCell, "metering-manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    assert.equal(manifest.driver.id, "social-messenger-r2-native-cli-driver.v1");
+    manifest.driver.id = "social-messenger-full-journey-native-cli-driver.v1";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    await assert.rejects(finalizeExisting({
+      harnessConfigPath: fixture.configPath,
+      cellId: fixture.cellId,
+      publish: false,
+      reservedBy: "relabeled-driver-refusal-test",
+      dependencies: fixture.dependencies,
+    }), /retained raw manifest.*registered attempt/u);
+  } finally {
+    await fixture.cleanup();
+  }
+});
 
 test("finalize-existing publishes the complete provenance graph and resumes every exact copy/slot interruption", async () => {
   const fixture = await makeFinalizeExistingFixture();

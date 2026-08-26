@@ -17,7 +17,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
     "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
-    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-v2",
     "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
   },
   "pins": {
@@ -57,7 +57,7 @@
     "instrument": {
       "manifestPath": "benchmarks/instrument.manifest.json",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "3fb6d974ce4c4b35ae8e930bcb02a2c987cba1d07443efa95cee71e620eae5b0",
+      "manifestSha256": "fc08cc2d88d755d9cdbe5b9d138ac6f51e4073fb7041a8df92408c161923734e",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",
@@ -71,21 +71,27 @@
         "recordValidatorSha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c",
-        "laneControllerSha256": "2c9cec4fb86811bffcc7e5e80b0ce035ddbdb2ed4d3eb8fc782258e7b5f5969b",
-        "productionDriverSha256": "349d0ab554e2ac9c6f0b1561bf24c4bd6d596f7a8bf7f8efd67e65e5ef3b5959",
+        "laneControllerSha256": "6f8f10c5d75fe6caf82d02f0403dadbf3bda4c70075a379509403e826630cf12",
+        "productionDriverSha256": "35ed95f086c0c17596bad4a269a26246fa3e5b06b3ab76813484f6a6bfeecd3c",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
         "manifestLoaderSha256": "09300790421db0bd55d0771633db8fe54e648e49fd7e8342a2067c44835492e6",
         "joinerSha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
         "observationsSha256": "89032eafe7816c3664df28d0e82262ead328a655866db529481d1b0aeec1407e",
         "codexNativeEvidenceSha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
         "recordComposerSha256": "db3a64611d6a8d03554e1ffd36d95e1401938db6f4c791950acd60d24274a0be",
-        "admissionToolSha256": "04d7293a97ca8471d65b8445bcadca6454ead9c217fb4b079043b40ad851ef54",
-        "finalizedCellValidatorSha256": "cce9a149c421801e0badea8b7bc04518df12e9280d5f7ed664d246fca7baadb2",
+        "admissionToolSha256": "e3b84957ab27d364bb32f2ccd03b96f534ce0db498c7753e174ff6168ef57269",
+        "finalizedCellValidatorSha256": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
         "hostLockSha256": "55a4c8cb77d13658f7e5a4aae73c3aefd1826408124e4cc60bb70d972f57a6fb",
-        "finalizeExistingSha256": "f5b7b1d32859e1df1bb6f26b8b5d85f582b3fca563525f8f4116b027241d3b7a",
+        "finalizeExistingSha256": "e8adb8be16501c3d3c022e15542ba736491f5283a6e8c18b71c1429dfe3308e8",
         "instrumentMaterializerSha256": "1ac7cd354d22e67c4b1eb19d96ac395a0ab62e0ecd3506bdf13844952c65306a"
       }
     }
+  },
+  "prompts": {
+    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "c40cba747cd99fc873c169ef4bbe9abf2366add303a4b4f4207a371d1787a57b"},
+    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "7d55ca9ae8eaa42cedac1821f1a4d8d70aea6e92daf2a710b1675e47afe845ed"},
+    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "8dcfef6937212f6c9b232fa9036be56a3479efb21dc734883159934eb7450577"},
+    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "51bbac3a18d4e9ec5c7d5f3473cfc79555b42243a50fb292fe10711e8ace5f40"}
   },
   "machines": {
     "charlies-macbook-air": {
@@ -171,6 +177,15 @@
       "m7BackendState": "fresh-starter-only-pre-replay"
     },
     "perMilestoneWallSafetyLimitSeconds": 14400,
+    "cellWallCapSeconds": 14400,
+    "cellWallCapDisposition": {"diagnostic": "R3_CELL_WALL_CAP_TIMEOUT", "status": "capability-failure", "terminalReason": "wall-cap", "terminateNativeProcessTree": true},
+    "tokenCapFormula": "For each (cap family, milestone), 2 * the largest validator-clean green pilot fresh-input-plus-output count; where any registered condition lacks that figure, LLP 0201's 2,000,000-token safety figure is used and doubled to 4,000,000. Capstone M7 has a complete 331,698-token fresh-session figure, doubled to 663,396. Grok has no approved native adapter and remains null/advisory.",
+    "tokenCapsByLeg": {
+      "A": {"capFamily": "gpt-frontier", "nativeUsageSource": "codex-rollout-token-count", "enforced": true, "perMilestone": {"M1": 4000000, "M2": 4000000, "M3": 4000000, "M4": 4000000, "M5": 4000000, "M6": 4000000, "M8": 4000000, "M7": 663396}},
+      "B": {"capFamily": "claude-frontier", "nativeUsageSource": "claude-code-session-usage", "enforced": true, "perMilestone": {"M1": 4000000, "M2": 4000000, "M3": 4000000}},
+      "C": {"capFamily": "grok-advisory", "nativeUsageSource": null, "enforced": false, "perMilestone": {"M1": null, "M2": null, "M3": null}}
+    },
+    "conductorStoppingRule": {"consecutiveFailures": 2, "scope": "same-leg", "sameRootCauseField": "rootCauseClass", "action": "pause-wave-for-orchestrator-review", "diagnostic": "R3_CONDUCTOR_REVIEW_REQUIRED"},
     "exclusiveHostLock": {"version": "snapback.r2-exclusive-host-lock.v1", "path": "/Users/ccheever/bench-r3-20260826/locks/2026-08-26-r3-published-0127.host.lock", "staleRecovery": "explicit-only; never authorizes a rerun"},
     "loadIsolation": {
       "policies": {
@@ -191,7 +206,7 @@
     },
     "diskPolicy": {
       "commissioningAvailableGiB": 45,
-      "admissionFloorGiB": 20,
+      "privateRootFreeSpaceFloorGiB": 20,
       "refusalDiagnostic": "R3_ADMISSION_DISK_FLOOR",
       "cleanupAfterSeal": ["workspace node_modules", "workspace build outputs"],
       "neverDelete": ["evidence capsules", "committed record", "committed blocked report"],
@@ -200,7 +215,7 @@
     "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
     "sourceClosure": {
       "version": "snapback.r2-executing-source-closure.v1",
-      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:d383fbaae22c68c7090a7b2f98525bf8783cdff1444e992035f9cd3334df1162"},
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:27e1a9626db1092018a689c0099c2cc83f2953883150aa5baeb25d916027f47f"},
       "files": [
         {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
         {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a", "bytes": 100230},
@@ -222,6 +237,25 @@
     "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
     "checkedValidator": "benchmarks/tools/social-messenger/record-validator.mjs",
     "eligibilityRule": "Missing phase metering, any load ceiling breach, or any API interruption makes a cell scorecard-ineligible; a full-journey row additionally requires M7 session metering; product findings remain retained."
+  },
+  "scoring": {
+    "successfulCompletion": {"recordStatus": "SUCCESSFUL", "validator": "validator-clean", "milestoneRule": "all registered milestones green for the leg profile"},
+    "successFloor": {"minimumSuccessfulReplicatesPerSide": 3, "belowFloorDisposition": "insufficient successful replicates", "failedReplicateUse": "A fully metered failed replicate enters failure-rate reporting only and never token or correction ratios."},
+    "contrasts": ["Explicit-minus-Familiar within family and app", "Clique-minus-Coterie within family and profile"],
+    "scorecardRows": [
+      {"id": "covered-fact-source-inspections", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
+      {"id": "custom-fixed-origin-relays", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
+      {"id": "destructive-additive-schema-restarts", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
+      {"id": "silent-auth-query-waits", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
+      {"id": "advertised-path-disagreements", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
+      {"id": "bounded-orientation-packet", "threshold": {"operator": "<=", "bytes": 16384}, "aggregation": "every successful eligible constituent must meet the threshold; publish every constituent, median, range, and N; missing orientation evidence is not zero"},
+      {"id": "choreography-retry-ceiling", "excluded": true, "rationale": "The frozen 0.3.4-m8 record aggregates retried classes but cannot prove the LLP 0186 per-failed-assertion retry ceiling or unaffected-isolation retry count."},
+      {"id": "grouped-migration-advisories", "excluded": true, "rationale": "The frozen schema has no typed repair-class-by-table migration advisory event, so grouping cannot be measured without post-registration instrumentation."},
+      {"id": "debug-artifact-attribution", "excluded": true, "rationale": "The frozen record has no debug/release build-artifact size and link-time attribution fields; inferring them from aggregate wall time would be invalid."},
+      {"id": "semantic-correction-actions", "contrastBarPercent": 40, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
+      {"id": "output-tokens", "contrastBarPercent": 20, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
+      {"id": "m1-wall-to-first-green", "contrastBarPercent": 30, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"}
+    ]
   },
   "cellOrder": [
     "sol-clique-explicit-1", "opus-clique-explicit-1", "grok-clique-explicit-1",

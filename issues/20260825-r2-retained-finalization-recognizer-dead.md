@@ -33,3 +33,10 @@ authorize a relaunch or recovery of consumed evidence.
 This resolves the R3 policy decision, not the dead-code cleanup. Keep this
 ticket open until the unconditional recognizer, helper, and callers are removed
 or replaced by an independently commissioned contract.
+
+## R3 commissioning follow-up (2026-08-26)
+
+The recognizer stays dead. The R3 `2026-08-26-r3-published-0127` validator now
+fails closed if its run config contains any `instrumentMigrations` entry, so a
+future edit to this packet cannot resurrect cross-overlay retained
+finalization while the generic dead code awaits removal.

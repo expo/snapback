@@ -74,6 +74,24 @@ The zero-count structural rows are primary. Each eligible scored cell reports:
 5. zero advertised-path Guide/type/codegen/runtime/client disagreements on
    paths closed by the vertical fixtures.
 
+The four remaining LLP 0186 commissioned rows are frozen as follows:
+
+6. **bounded orientation packet:** measurable; every successful eligible cell
+   must retain a first-edit orientation packet of at most 16 KiB. Publish every
+   constituent, median, range, and N. Missing evidence is never zero;
+7. **choreography retry ceiling:** explicitly excluded because instrument
+   0.3.4-m8 aggregates retried classes but cannot prove the per-failed-assertion
+   ceiling or unaffected-isolation retry count;
+8. **grouped migration advisories:** explicitly excluded because the frozen
+   schema has no typed repair-class-by-table advisory event; and
+9. **debug-artifact attribution:** explicitly excluded because the frozen
+   record has no debug/release artifact-size, link-time, or attribution fields.
+
+Rows 10–12 are the registered semantic-correction, output-token, and M1
+wall-to-first-green contrasts below. These twelve rows, their aggregations, and
+the three explicit exclusions are also frozen machine-readably in
+`harness-config.json`.
+
 A row passes a family/profile/app comparison set only when every eligible
 constituent cell is zero. Inapplicable facts are named; missing observations are
 not treated as zero.
@@ -108,8 +126,19 @@ For each family/profile-scoped contrast independently:
    variance claim. No conventional alpha cutoff is preregistered; the test is a
    guard and disclosure, not a license to overstate the small sample.
 
-If eligibility leaves fewer than two matched replicate pairs, report the row
-as insufficient rather than pooling across family, profile, app, or history.
+## Successful-completion floor
+
+`SUCCESSFUL` means the checked validator accepts the complete record and every
+milestone registered for that leg profile is green: M1–M6+M8 and fresh M7 for
+Leg A, and M1–M3 for Legs B/C. A scored contrast requires at least three such
+validator-clean successful replicates on **each** side. If either side has
+fewer than three, publish **“insufficient successful replicates”** and do not
+compute that contrast at reduced N or pool across family, profile, app, or
+history.
+
+A fully metered failed replicate remains in attempt and failure-rate reporting.
+It never enters token, correction-action, or wall-to-green ratios. The paired
+sign-test guard is applied only after the N>=3 successful-per-side floor holds.
 
 ## Eligibility and retention
 
@@ -130,3 +159,25 @@ the slot using `R3_ADMISSION_DISK_FLOOR`.
 Finalization is same-config only. After a committed record or blocked report
 seals a cell, the conductor removes only rebuildable workspace node_modules and
 build outputs, never evidence capsules, then repeats the next admission gates.
+
+## Budgets and conductor stop
+
+The controller enforces one 14,400-second (four-hour) wall cap for the complete
+cell. Expiry terminates the native process group and retains
+`R3_CELL_WALL_CAP_TIMEOUT` with capability-failure / `wall-cap` disposition.
+
+Token caps use LLP 0201's cap-family formula: twice the largest
+validator-clean green pilot fresh-input-plus-output count for the same cap
+family and milestone. If any registered condition lacks such a figure, use
+LLP 0201's 2,000,000-token safety figure as the pilot figure, hence a 4,000,000
+cap. R2 lacks complete trusted per-condition figures, so Leg A M1–M6+M8 and
+Leg B M1–M3 use 4,000,000. The capstone fresh-M7 session recorded
+273,343 fresh input plus 58,355 output = 331,698, doubled to 663,396. Leg C is
+null/advisory because its registered adapter cannot report native tokens. The
+Codex and Claude caps are enforced from their registered native usage streams;
+cap exhaustion terminates the process group before another turn.
+
+Two consecutive cells in the same leg failing for the same retained
+`rootCauseClass` pause the wave with `R3_CONDUCTOR_REVIEW_REQUIRED`. The
+conductor may resume only after orchestrator review; the rule does not silently
+skip, reorder, or consume a cell.

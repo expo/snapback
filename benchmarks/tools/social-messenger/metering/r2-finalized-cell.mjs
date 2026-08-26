@@ -148,6 +148,11 @@ function configuredRegisteredCell(harnessConfig, cell) {
   ) {
     throw new Error(`registered cell ${cell.id} has no exact harness-native metering policy`);
   }
+  const milestones = cell.milestones ?? harnessConfig.execution?.milestones;
+  const runScope = cell.runScope ?? (milestones?.includes("M7") ? "full" : "reduced");
+  const driverId = cell.driverId ?? (runScope === "full"
+    ? "social-messenger-full-journey-native-cli-driver.v1"
+    : "social-messenger-r2-native-cli-driver.v1");
   return {
     runId: harnessConfig.runId,
     cellId: cell.id,
@@ -156,6 +161,10 @@ function configuredRegisteredCell(harnessConfig, cell) {
     clientStack: cell.clientStack,
     profile: cell.profile,
     promptFile: cell.promptFile,
+    promptSha256: harnessConfig.prompts?.[cell.promptFile]?.sha256 ?? null,
+    driverId,
+    runScope,
+    milestones,
     harnessKey: cell.harness,
     harnessBinary: harness?.binary,
     harnessVersion: harness?.observedVersion,

@@ -280,6 +280,7 @@ function assertRawRetainedManifestIdentity({
   if (
     manifest.laneRunId !== expected.laneRunId
     || !SUPPORTED_PRODUCTION_DRIVERS.has(manifest.driver?.id)
+    || manifest.driver?.id !== expected.driverId
     || manifest.capFamily !== expected.capFamily
     || manifest.adapter !== expected.adapter
     || base.harness?.model !== expected.model
@@ -653,6 +654,7 @@ function assertRetainedCellIdentity({
   if (
     manifest.laneRunId !== expected.laneRunId
     || !SUPPORTED_PRODUCTION_DRIVERS.has(manifest.driver?.id)
+    || manifest.driver?.id !== expected.driverId
     || manifest.capFamily !== expected.capFamily
     || manifest.adapter !== expected.adapter
     || base.harness?.model !== expected.model
@@ -895,6 +897,7 @@ function preflightPublicationTargets({ targetRoot, expected, slotBytes }) {
 async function publish({
   repositoryRoot,
   harnessConfig,
+  cell,
   cellId,
   cellRoot,
   publication,
@@ -1115,6 +1118,7 @@ export async function finalizeExisting({
       ? await publish({
         repositoryRoot,
         harnessConfig,
+        cell,
         cellId,
         cellRoot,
         publication,

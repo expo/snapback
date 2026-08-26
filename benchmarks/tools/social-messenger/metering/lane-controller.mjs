@@ -475,10 +475,67 @@ export async function writeAttemptFailure(configDirectory, error, phase) {
     phase,
     name: error?.name ?? "Error",
     message: error?.message ?? String(error),
+    rootCauseClass: error?.rootCauseClass ?? error?.code ?? error?.name ?? "Error",
     failedAt: new Date().toISOString(),
     modelOrProductLaunchStarted: Number.isInteger(ownership.nativeHarnessPid),
+    ...(error?.code === "R3_CELL_WALL_CAP_TIMEOUT" ? {
+      timeoutDisposition: {
+        diagnostic: "R3_CELL_WALL_CAP_TIMEOUT",
+        cellWallCapSeconds: error.cellWallCapSeconds,
+        processTerminationAcknowledged: error.processTerminationAcknowledged === true,
+      },
+    } : {}),
   };
   await writeFile(join(configDirectory, "attempt-failure.json"), `${JSON.stringify(failure, null, 2)}\n`, { flag: "wx" });
+}
+
+export class CellWallCapTimeoutError extends Error {
+  constructor({ cellWallCapSeconds, processTerminationAcknowledged }) {
+    super(`R3_CELL_WALL_CAP_TIMEOUT: cell exceeded its ${cellWallCapSeconds}s registered wall cap`);
+    this.name = "CellWallCapTimeoutError";
+    this.code = "R3_CELL_WALL_CAP_TIMEOUT";
+    this.rootCauseClass = "cell-wall-cap";
+    this.cellWallCapSeconds = cellWallCapSeconds;
+    this.processTerminationAcknowledged = processTerminationAcknowledged;
+  }
+}
+
+export async function runWithCellWallCap({
+  cellWallCapSeconds,
+  operation,
+  terminate,
+  setTimer = setTimeout,
+  clearTimer = clearTimeout,
+}) {
+  if (!Number.isInteger(cellWallCapSeconds) || cellWallCapSeconds <= 0) {
+    throw new TypeError("execution.cellWallCapSeconds must be a positive integer");
+  }
+  requiredOperation(operation, "cell wall cap");
+  requiredOperation(terminate, "cell wall cap termination");
+  let timer;
+  const timeout = new Promise((resolveTimeout, rejectTimeout) => {
+    timer = setTimer(async () => {
+      let acknowledged = false;
+      try {
+        const result = await terminate({
+          code: "R3_CELL_WALL_CAP_TIMEOUT",
+          cellWallCapSeconds,
+        });
+        acknowledged = result?.acknowledged === true;
+      } catch {
+        acknowledged = false;
+      }
+      rejectTimeout(new CellWallCapTimeoutError({
+        cellWallCapSeconds,
+        processTerminationAcknowledged: acknowledged,
+      }));
+    }, cellWallCapSeconds * 1_000);
+  });
+  try {
+    return await Promise.race([operation(), timeout]);
+  } finally {
+    clearTimer(timer);
+  }
 }
 
 export async function importAndPreflightR2Driver({
@@ -786,27 +843,37 @@ async function main() {
     let record = null;
     let prepared = false;
     try {
-      if (typeof driver.prepare === "function") {
-        attemptPhase = "driver-prepare";
-        await driver.prepare({ config, configDirectory, preflight: driverPreflight });
-      }
-      prepared = true;
-      attemptPhase = "model-product-execution";
-      for (const milestone of config.milestones) {
-        const claimOptions = typeof driver.claimOptions === "function"
-          ? await driver.claimOptions({ milestone, config, configDirectory })
-          : {};
-        await controller.runMilestone(
-          milestone,
-          (controls) => driver.runMilestone({
-            milestone,
-            controls,
-            config,
-            configDirectory,
-          }),
-          claimOptions,
-        );
-      }
+      await runWithCellWallCap({
+        cellWallCapSeconds: config.harnessConfig.execution.cellWallCapSeconds,
+        terminate: async (reason) => (
+          typeof driver.terminate === "function"
+            ? driver.terminate({ config, configDirectory, reason })
+            : { acknowledged: false }
+        ),
+        operation: async () => {
+          if (typeof driver.prepare === "function") {
+            attemptPhase = "driver-prepare";
+            await driver.prepare({ config, configDirectory, preflight: driverPreflight });
+          }
+          prepared = true;
+          attemptPhase = "model-product-execution";
+          for (const milestone of config.milestones) {
+            const claimOptions = typeof driver.claimOptions === "function"
+              ? await driver.claimOptions({ milestone, config, configDirectory })
+              : {};
+            await controller.runMilestone(
+              milestone,
+              (controls) => driver.runMilestone({
+                milestone,
+                controls,
+                config,
+                configDirectory,
+              }),
+              claimOptions,
+            );
+          }
+        },
+      });
     } catch (error) {
       cellError = error;
     } finally {

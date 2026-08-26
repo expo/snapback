@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,6 +36,10 @@ for (const name of config.execution.environment.forbiddenVariables) delete clean
 
 function fail(message) {
   throw new Error(`R3_PLAN_INVALID: ${message}`);
+}
+
+function namedFailure(diagnostic, message) {
+  throw new Error(`${diagnostic}: ${message}`);
 }
 
 function same(left, right) {
@@ -74,6 +78,29 @@ function expectedOrder() {
     }
   }
   return result;
+}
+
+function expectedSlotSemantics(cellId, index) {
+  const match = cellId.match(/^(sol|opus|grok)-(clique|coterie)-(explicit|familiar)-([123])$/u);
+  if (!match) fail(`cell ID cannot be decoded: ${cellId}`);
+  const [, family, appId, profile, replicateText] = match;
+  const familyRegistration = {
+    sol: {leg: "A", harness: "codex-sol", model: "gpt-5.6-sol", effort: "xhigh", runScope: "full", scoringProfile: "full-journey", claimEligibility: "scored-family-and-profile-scoped", milestones: full, driverId: "social-messenger-full-journey-native-cli-driver.v1"},
+    opus: {leg: "B", harness: "claude-opus5", model: "claude-opus-5", effort: null, runScope: "reduced", scoringProfile: "reduced-run-m1-m3", claimEligibility: "scored-family-and-profile-scoped-reduced-only", milestones: reduced, driverId: "social-messenger-r2-native-cli-driver.v1"},
+    grok: {leg: "C", harness: "grok-46", model: "grok-4.6", effort: "xhigh", runScope: "reduced", scoringProfile: "reduced-run-m1-m3", claimEligibility: "exploratory-claim-ineligible-by-registration", milestones: reduced, driverId: "social-messenger-r2-native-cli-driver.v1"},
+  }[family];
+  const app = appId === "clique" ? "Clique" : "Coterie";
+  const aIndex = expectedOrder().slice(0, index + 1).filter((id) => id.startsWith("sol-")).length - 1;
+  return {
+    ...familyRegistration,
+    app,
+    clientStack: app === "Clique" ? "Expo Router web" : "Exact/Contract web",
+    profile,
+    replicate: Number(replicateText),
+    promptFile: `prompts/${appId}-${profile}.md`,
+    ports: [57000 + (index * 60), 57059 + (index * 60)],
+    ...(family === "sol" ? {m7Ports: [59000 + (aIndex * 60), 59059 + (aIndex * 60)]} : {}),
+  };
 }
 
 // @ref LLP 0295#r3-claim-eligible-wave — R3 is N>=3 for the scored legs;
@@ -133,6 +160,17 @@ for (const [index, cell] of config.cells.entries()) {
   if (!/^(sol|opus|grok)-(clique|coterie)-(explicit|familiar)-[123]$/u.test(cell.id)) {
     fail(`cell slot name violates modelfamily-app-profile-replicateN: ${cell.id}`);
   }
+  const frozenSlot = expectedSlotSemantics(cell.id, index);
+  const semanticFields = [
+    "leg", "harness", "model", "effort", "app", "clientStack", "profile", "replicate",
+    "promptFile", "runScope", "scoringProfile", "claimEligibility", "milestones", "driverId",
+    "ports", "m7Ports",
+  ];
+  const actualSemantics = Object.fromEntries(semanticFields.map((field) => [field, cell[field]]));
+  const expectedSemantics = Object.fromEntries(semanticFields.map((field) => [field, frozenSlot[field]]));
+  if (!same(actualSemantics, expectedSemantics)) {
+    namedFailure("R3_PLAN_SLOT_MAPPING_DRIFT", `cell ${cell.id} no longer matches its full ID semantics`);
+  }
   const expected = expectedHarness[cell.leg];
   if (!same([cell.harness, cell.model, cell.effort, cell.runScope, cell.scoringProfile, cell.claimEligibility], expected)) {
     fail(`cell ${cell.id} leg registration drifted`);
@@ -161,16 +199,46 @@ for (const [index, cell] of config.cells.entries()) {
   registeredCellExpectations(config, cell);
 
   const promptPath = join(root, cell.promptFile);
-  const prompt = readFileSync(promptPath, "utf8");
-  if (!prompt.includes("Snapback 0.1.27") || !prompt.includes("/Users/ccheever/bench-r3-20260826/instrument")) {
+  const promptBytes = readFileSync(promptPath);
+  const prompt = promptBytes.toString("utf8");
+  const promptPin = config.prompts?.[cell.promptFile];
+  if (
+    promptPin?.path !== cell.promptFile
+    || promptPin.sha256 !== createHash("sha256").update(promptBytes).digest("hex")
+  ) namedFailure("R3_PLAN_PROMPT_HASH_DRIFT", `cell ${cell.id} prompt bytes differ from the registered pin`);
+  if (!prompt.includes("Snapback 0.1.27") || !prompt.includes(config.paths.instrumentRoot)) {
     fail(`cell ${cell.id} prompt lacks the frozen product/instrument pin`);
   }
 
   const slotRoot = join(root, "cells", cell.id);
   const entries = readdirSync(slotRoot);
-  if (!same(entries, ["cell.json"])) fail(`cell ${cell.id} is not pristine`);
+  if (!same(entries, ["cell.json"])) {
+    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `cell ${cell.id} slot directory carries extra files`);
+  }
   const slot = JSON.parse(readFileSync(join(slotRoot, "cell.json"), "utf8"));
-  if (slot.cellId !== cell.id || slot.status !== "not-started") fail(`cell ${cell.id} slot status drifted`);
+  const expectedSlot = {
+    schemaVersion: "snapback.r2-cell-slot.v1",
+    cellId: cell.id,
+    status: "not-started",
+    waveConfig: "../../harness-config.json",
+    recordOutput: "record.json",
+    recordSchema: "../../../../schema/social-messenger/run-record.schema.json",
+    checkedValidator: "../../../../tools/social-messenger/record-validator.mjs",
+  };
+  if (!same(slot, expectedSlot)) {
+    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `cell ${cell.id} slot has prior-attempt fields or drift`);
+  }
+}
+
+for (const admissionsRoot of [join(root, "admissions"), join(config.paths.privateExecutionRoot, "admissions")]) {
+  if (existsSync(admissionsRoot) && readdirSync(admissionsRoot).length !== 0) {
+    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `${admissionsRoot} contains prior-attempt admission artifacts`);
+  }
+}
+for (const cellId of config.cellOrder) {
+  if (existsSync(join(config.paths.privateExecutionRoot, "cells", cellId))) {
+    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `private execution state exists for pristine cell ${cellId}`);
+  }
 }
 
 let fullRefusal = null;
@@ -203,12 +271,44 @@ if (
 ) fail("allCampaignPorts is not the exact main-plus-M7 union");
 
 if (
-  config.execution.diskPolicy.admissionFloorGiB !== 20
+  config.execution.diskPolicy.privateRootFreeSpaceFloorGiB !== 20
   || config.execution.diskPolicy.refusalDiagnostic !== "R3_ADMISSION_DISK_FLOOR"
   || !config.execution.diskPolicy.cleanupAfterSeal.includes("workspace node_modules")
   || !config.execution.diskPolicy.neverDelete.includes("evidence capsules")
   || config.execution.finalizationPolicy !== "same-config-only"
 ) fail("disk or same-config finalization ruling drifted");
+
+if (Object.hasOwn(config.pins.instrument, "instrumentMigrations")) {
+  namedFailure("R3_PLAN_RETAINED_FINALIZATION_FORBIDDEN", "this run must not register a retained-finalization migration entry");
+}
+
+if (
+  config.execution.cellWallCapSeconds !== 14400
+  || config.execution.cellWallCapDisposition?.diagnostic !== "R3_CELL_WALL_CAP_TIMEOUT"
+  || config.execution.cellWallCapDisposition?.terminateNativeProcessTree !== true
+  || !config.execution.tokenCapFormula.includes("2 *")
+  || !same(config.execution.tokenCapsByLeg?.A?.perMilestone, {M1:4000000,M2:4000000,M3:4000000,M4:4000000,M5:4000000,M6:4000000,M8:4000000,M7:663396})
+  || !same(config.execution.tokenCapsByLeg?.B?.perMilestone, {M1:4000000,M2:4000000,M3:4000000})
+  || !same(config.execution.tokenCapsByLeg?.C?.perMilestone, {M1:null,M2:null,M3:null})
+  || !same(config.execution.conductorStoppingRule, {consecutiveFailures:2,scope:"same-leg",sameRootCauseField:"rootCauseClass",action:"pause-wave-for-orchestrator-review",diagnostic:"R3_CONDUCTOR_REVIEW_REQUIRED"})
+) fail("wall, token-cap, or conductor stopping registration drifted");
+
+if (
+  config.scoring?.successfulCompletion?.recordStatus !== "SUCCESSFUL"
+  || config.scoring.successfulCompletion.validator !== "validator-clean"
+  || config.scoring.successFloor?.minimumSuccessfulReplicatesPerSide !== 3
+  || config.scoring.successFloor.belowFloorDisposition !== "insufficient successful replicates"
+  || config.scoring.scorecardRows?.length !== 12
+  || config.scoring.scorecardRows.filter((row) => row.excluded === true).length !== 3
+  || !same(config.scoring.scorecardRows.map((row) => row.id), [
+    "covered-fact-source-inspections", "custom-fixed-origin-relays",
+    "destructive-additive-schema-restarts", "silent-auth-query-waits",
+    "advertised-path-disagreements", "bounded-orientation-packet",
+    "choreography-retry-ceiling", "grouped-migration-advisories",
+    "debug-artifact-attribution", "semantic-correction-actions",
+    "output-tokens", "m1-wall-to-first-green",
+  ])
+) fail("successful-completion floor or 12-row scorecard registration drifted");
 
 const machine = config.machines["charlies-macbook-air"];
 const observedHost = currentHostIdentity();
@@ -234,6 +334,11 @@ if (
   || Object.values(config.pins.snapback0127.packages).some((version) => version !== "0.1.27")
   || config.pins.instrument.instrumentPin !== "social-messenger@0.3.4-m8"
 ) fail("published closure or instrument pin drifted");
+if (
+  config.pins.snapback0125.compatibilityAliasOf !== "snapback0127"
+  || config.pins.snapback0125.version !== config.pins.snapback0127.version
+  || config.pins.snapback0125.closureId !== config.pins.snapback0127.closureId
+) fail("pins.snapback0125 is not an exact compatibility alias of the 0.1.27 registration");
 
 const manifestDigest = sha256(config.pins.instrument.manifestPath);
 if (manifestDigest !== config.pins.instrument.manifestSha256) fail("instrument manifest digest drifted");

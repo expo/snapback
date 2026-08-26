@@ -31,6 +31,9 @@ import {
 } from "./observations.mjs";
 import { scrubR2NodeLoaderEnvironment } from "./r2-execution-environment.mjs";
 import { validateScaleReplayEvidence } from "./scale-replay-evidence.mjs";
+import { adaptClaudeSession } from "./adapters/claude-session.mjs";
+import { adaptCodexSessionTree } from "./adapters/codex-session.mjs";
+import { TokenCapEnforcedError, TokenCapWatchdog } from "./watchdog.mjs";
 
 const MARKER_FILE = "events/cell-milestones.jsonl";
 const states = new Map();
@@ -79,6 +82,10 @@ export function resolveCellJourney(config) {
 function renderPrompt(config, cellRoot) {
   const source = resolve(config.planDirectory, requiredString(config.cell.promptFile, "cell.promptFile"));
   return readFile(source, "utf8").then((prompt) => {
+    const registeredSha256 = config.harnessConfig.prompts?.[config.cell.promptFile]?.sha256;
+    if (registeredSha256 !== undefined && sha256(prompt) !== registeredSha256) {
+      throw new Error(`R2_DRIVER_PROMPT_PIN: ${config.cell.promptFile} differs from its registered SHA-256`);
+    }
     const rendered = prompt
       .replaceAll("{{LANE_ID}}", config.cell.id)
       .replaceAll("{{MODEL}}", config.cell.model)
@@ -231,7 +238,7 @@ function recordBase(
     {
       caps: {
         wallCapSeconds: config.harnessConfig.execution.perMilestoneWallSafetyLimitSeconds,
-        tokenCap: null,
+        tokenCap: configuredTokenCap(config, milestone),
       },
     },
   ]));
@@ -340,6 +347,22 @@ function recordBase(
   };
 }
 
+function configuredTokenCap(config, milestone) {
+  const registration = config.harnessConfig?.execution?.tokenCapsByLeg?.[config.cell.leg];
+  if (registration === undefined) return null;
+  if (
+    registration.capFamily !== capFamily(config.cell.harness)
+    || !Object.hasOwn(registration.perMilestone, milestone)
+  ) {
+    throw new Error(`R2_DRIVER_TOKEN_CAP_REGISTRATION: ${config.cell.id}/${milestone} has no exact leg cap`);
+  }
+  const cap = registration.perMilestone[milestone];
+  if (cap !== null && (!Number.isInteger(cap) || cap <= 0)) {
+    throw new Error(`R2_DRIVER_TOKEN_CAP_REGISTRATION: ${config.cell.id}/${milestone} cap is invalid`);
+  }
+  return cap;
+}
+
 function harnessInvocation(state) {
   const argv = [...(state.config.harness.argvTemplate ?? [])];
   const promptFile = state.currentSession.promptPath;
@@ -433,6 +456,78 @@ function queueStreamWrite(state, operation) {
   state.streamWriteQueue = state.streamWriteQueue.then(operation, operation);
 }
 
+async function terminateNativeProcessTree(state, reason = "controller-stop") {
+  const child = state?.child;
+  if (!child || !Number.isInteger(child.pid) || child.exitCode !== null || child.signalCode !== null) {
+    return {
+      acknowledged: true,
+      acknowledgedAt: new Date().toISOString(),
+      evidence: `no-live-native-process:${reason}`,
+    };
+  }
+  const signalTree = (signal) => {
+    try {
+      process.kill(-child.pid, signal);
+    } catch (error) {
+      if (error.code !== "ESRCH") child.kill(signal);
+    }
+  };
+  signalTree("SIGTERM");
+  let closed = await Promise.race([
+    state.closed.then(() => true),
+    new Promise((resolveWait) => setTimeout(() => resolveWait(false), 5_000)),
+  ]);
+  if (!closed) {
+    signalTree("SIGKILL");
+    closed = await Promise.race([
+      state.closed.then(() => true),
+      new Promise((resolveWait) => setTimeout(() => resolveWait(false), 5_000)),
+    ]);
+  }
+  if (!closed) throw new Error("R2_DRIVER_PROCESS_TERMINATION: native process tree did not close");
+  return {
+    acknowledged: true,
+    acknowledgedAt: new Date().toISOString(),
+    evidence: `isolated-native-process-group:${child.pid}:${reason}`,
+  };
+}
+
+function observeUsageTurns(state, turns) {
+  if (!state.tokenWatchdog) return;
+  for (const turn of turns) state.tokenWatchdog.observe(turn, { inFlight: true });
+}
+
+async function pollNativeUsage(state) {
+  if (state.tokenWatchdog?.state?.armed !== true || state.config.cell.harness !== "codex-sol") return;
+  const records = await (state.readLiveCodexRecords ?? readLiveCodexRecords)(state);
+  if (records === null) return;
+  const adapted = adaptCodexSessionTree([{
+    sourceId: state.currentSession.sourceId,
+    nativeSessionId: state.currentSession.nativeSessionId,
+    records,
+  }]);
+  observeUsageTurns(state, adapted.turns);
+}
+
+async function finishTokenWatchdog(state, marker) {
+  await pollNativeUsage(state);
+  if (state.usageFailure) throw state.usageFailure;
+  const watchdogState = state.tokenWatchdog?.state;
+  if (watchdogState?.tripped === true) {
+    const acknowledgement = await state.tokenWatchdog.waitForTermination();
+    state.failureDisposition = "token-cap";
+    throw new TokenCapEnforcedError(watchdogState.trip, acknowledgement);
+  }
+  if (watchdogState?.armed === true) {
+    state.tokenWatchdog.reconcileMilestone({
+      retainedTokens: watchdogState.actualTokens,
+      terminalAt: marker.recordedAt,
+    });
+  }
+  state.tokenWatchdog?.disarm();
+  state.tokenWatchdog = null;
+}
+
 function handleNativeRecord(state, record) {
   if (
     state.config.cell.harness === "codex-sol"
@@ -441,6 +536,13 @@ function handleNativeRecord(state, record) {
   ) {
     state.currentSession.nativeSessionId = record.thread_id;
     state.nativeSessionId = record.thread_id;
+  }
+  if (state.config.cell.harness === "claude-opus5" && state.tokenWatchdog) {
+    try {
+      observeUsageTurns(state, adaptClaudeSession([record]).turns);
+    } catch (error) {
+      state.usageFailure ??= error;
+    }
   }
   if (!state.controls) return;
   if (typeof record?.type === "string" && record.type.endsWith(".started")) return;
@@ -578,6 +680,7 @@ async function launchHarness(state) {
       ...scrubR2NodeLoaderEnvironment(process.env),
       R2_LANE_RUN_ID: state.config.laneRunId,
     },
+    detached: true,
     stdio: ["pipe", "pipe", "pipe"],
   });
   state.child = child;
@@ -606,6 +709,10 @@ async function launchHarness(state) {
     ownership.nativeHarnessPid = child.pid;
     ownership.nativeHarnessPids = [...new Set([
       ...(ownership.nativeHarnessPids ?? []),
+      child.pid,
+    ])];
+    ownership.nativeHarnessProcessGroupIds = [...new Set([
+      ...(ownership.nativeHarnessProcessGroupIds ?? []),
       child.pid,
     ])];
     ownership.nativeHarnessStartedAt = new Date().toISOString();
@@ -705,6 +812,13 @@ async function controllerTerminalTimes(state) {
 
 async function waitForMarker(state, milestone) {
   while (true) {
+    await pollNativeUsage(state);
+    if (state.usageFailure) throw state.usageFailure;
+    if (state.tokenWatchdog?.state?.tripped === true) {
+      const acknowledgement = await state.tokenWatchdog.waitForTermination();
+      state.failureDisposition = "token-cap";
+      throw new TokenCapEnforcedError(state.tokenWatchdog.state.trip, acknowledgement);
+    }
     const marker = (await readMarkers(state)).find((candidate) => candidate.milestone === milestone);
     if (marker) return marker;
     const exit = await Promise.race([
@@ -1166,10 +1280,16 @@ async function writeTerminalArtifacts(state, error) {
   const terminalTimes = await controllerTerminalTimes(state);
   if (error && state.currentMilestone && !state.failureDisposition?.startsWith("scale-replay-")) {
     const existing = markers.find((item) => item.milestone === state.currentMilestone);
+    const capReason = error?.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
+      ? "token-cap"
+      : error?.code === "R3_CELL_WALL_CAP_TIMEOUT"
+        ? "wall-cap"
+        : null;
+    if (capReason !== null) state.failureDisposition = capReason;
     const failure = {
       milestone: state.currentMilestone,
-      status: "aborted",
-      terminalReason: "abort",
+      status: capReason === null ? "aborted" : "capability-failure",
+      terminalReason: capReason ?? "abort",
       recordedAt: new Date().toISOString(),
       suiteStatus: state.suiteStatusPath,
     };
@@ -1551,6 +1671,8 @@ export async function prepare({ config, configDirectory, preflight: prepared = n
     scaleReplay: null,
     scaleReplayFailure: null,
     failureDisposition: null,
+    tokenWatchdog: null,
+    usageFailure: null,
   });
 }
 
@@ -1571,6 +1693,20 @@ export async function runMilestone({ milestone, controls, config }) {
   if (!state) throw new Error("R2 production driver was not prepared");
   state.currentMilestone = milestone;
   state.controls = controls;
+  const tokenCap = configuredTokenCap(config, milestone);
+  state.tokenWatchdog = new TokenCapWatchdog({
+    enforcementController: {
+      id: "social-messenger-r2-native-process-group-controller.v1",
+      terminate: (trip) => terminateNativeProcessTree(state, `${trip.milestone}-token-cap`),
+    },
+  });
+  state.tokenWatchdog.arm({
+    capFamily: capFamily(config.cell.harness),
+    milestone,
+    tokenCap,
+    startedAt: new Date().toISOString(),
+    maxClockSkewMs: config.cell.harness === "codex-sol" ? 5_000 : 0,
+  });
   await writeFile(join(state.root, "gates", milestone), `${new Date().toISOString()}\n`);
   if (
     milestone === "M7"
@@ -1598,6 +1734,7 @@ export async function runMilestone({ milestone, controls, config }) {
     });
   }
   const marker = await waitForMarker(state, milestone);
+  await finishTokenWatchdog(state, marker);
   await releaseNativeSignalForExecutionOrder(state, milestone);
   state.suiteStatusPath = marker.suiteStatus ?? state.suiteStatusPath;
   for (const [suffix, path] of [
@@ -1658,8 +1795,7 @@ export async function finalize({ config, error }) {
   const state = states.get(config.laneRunId);
   if (!state) throw new Error("R2 production driver was not prepared");
   if (error && state.child && state.child.exitCode === null && state.child.signalCode === null) {
-    state.child.kill("SIGTERM");
-    await state.closed;
+    await terminateNativeProcessTree(state, "driver-finalize-error");
   }
   // Drain the observation queue so late queued failures are captured, then
   // fail closed on the first observation failure with its named cause.
@@ -1669,6 +1805,11 @@ export async function finalize({ config, error }) {
       ? new Error(`observation stream failed: ${state.observationFailure.message}`, { cause: state.observationFailure })
       : null);
   await writeTerminalArtifacts(state, effectiveError);
+}
+
+export async function terminate({ config, reason }) {
+  const state = states.get(config.laneRunId);
+  return terminateNativeProcessTree(state, reason?.code ?? "controller-timeout");
 }
 
 export function observationSources({ config }) {
