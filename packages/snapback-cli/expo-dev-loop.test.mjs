@@ -457,17 +457,6 @@ function fixture(name, { sessions, root = scratchRoot }) {
   // resolve those bare imports only through a project-local node_modules.
   symlinkSync(join(repoRoot, 'node_modules'), join(projectRoot, 'node_modules'), 'dir');
   cpSync(sourceFixture, backendRoot, { recursive: true });
-  // Generated app bindings execute from the copied project and import the
-  // public package name, so give the fixture the same workspace dependency a
-  // real app install would provide instead of relying on the test runner's
-  // repository-local resolution ancestry.
-  const fixtureExpoModules = join(projectRoot, 'node_modules', '@expo');
-  mkdirSync(fixtureExpoModules, { recursive: true });
-  symlinkSync(
-    join(repoRoot, 'packages', 'snapback-client'),
-    join(fixtureExpoModules, 'snapback-client'),
-    'dir',
-  );
   const governance = governanceInputs.map((name) => [
     name,
     readFileSync(join(backendRoot, 'generated', name)),
@@ -1946,6 +1935,10 @@ async function runControlSocketSuite() {
       join(dirname(dispatcherFixture.readyFile), 'expo-supervisor.json'),
       'utf8',
     ));
+    await requestSupervisedMint(
+      dispatcherRun.supervisor.exchangeOrigin,
+      dispatcherRun.supervisor.metroOrigin,
+    );
     let dispatcherOperatorToken = managedAdminToken(
       readReadyDescriptor(dispatcherFixture.readyFile),
       dispatcherFixture.database,

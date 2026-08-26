@@ -129,7 +129,8 @@ E's private supervisor state. For both web and native carriers, `{artifacts}`
 expands exactly to the directory named by `--artifacts`, so a custom v1 command
 writing `{artifacts}/proof.json` leaves that file in the caller-visible
 directory beside logs and `director-log.json`. `{supervisorState}` expands to
-the owner-only `{artifacts}/.snapback-carrier-state` child. The shipped Expo web
+a run-unique owner-only directory below the platform temporary tree (never a
+child of `--artifacts`), removed after supervised cleanup. The shipped Expo web
 carrier uses `{supervisorState}` for its `--ready-file` and
 `expo-supervisor.json`, and the structured-readiness declaration requires that
 private placeholder. Ordinary artifacts are never silently redirected into
