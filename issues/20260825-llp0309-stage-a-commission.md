@@ -79,3 +79,21 @@ LLP 0190 D3); the replica continuity contract (LLP 0209 OQ-6).
   1 findings); final round grok CLEAN, codex's one finding was a
   spec-side formula artifact folded as the r8 UNREVIEWED
   correction. Stage B (audit) is the remaining deliverable.
+- 2026-08-26 — **Stage B LANDED on main** (`5e32021a5` +
+  regeneration `5d05450da`): audit harness
+  `delta_semantics_stage_b_audit_v1.rs` + fixture adapter, report
+  `llp/0309.001-stage-b-audit.research.md` — **17 divergences: 0
+  class (a), 2 class (b) (tickets
+  `20260826-graph-delta-projection-custody-leak`,
+  `20260826-graph-exec-disabled-established-delta-bypass`), 15
+  class (c), 0 unclassified; 12-item honest gap register. Stage C
+  is unblocked** per the D4.2 decision rule. Three disclosed
+  read-only test-support hooks; no runtime behavior change. Dual
+  review-gated over 5 rounds (4 fix rounds; final: grok CLEAN,
+  codex CLEAN on finding-owner verification).
+- 2026-08-26 — Exit criteria: evaluator+corpus landed/green ✓;
+  Stage B report recorded, all divergences classified, class-(b)
+  tickets filed ✓; LLP 0209 §7 provenance cross-reference added ✓;
+  spec dual-READY ✓ — **author acceptance ruling still pending**
+  (the one open exit item; the loop record recommends Accepted).
+  **Ticket closes when the author rules on acceptance.**

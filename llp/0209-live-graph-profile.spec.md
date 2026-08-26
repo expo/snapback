@@ -2775,7 +2775,14 @@ opacity (LLP 0191's repaired framing): opaque JavaScript handlers cannot
 be incrementally maintained, only re-run — and re-run plus rung-1
 scheduling plus §6 memoization is a legitimate stable resting point, not
 a waypoint (external prior art, non-load-bearing: Convex reportedly
-stopped exactly there). This rung is the expensive one; it lands only
+stopped exactly there). **Rule-content provenance (2026-08-26):**
+per LLP 0309 (Accepted) and its Stage A/B landing, future rungs of
+this section instantiate their classification and patch logic from
+the operator delta semantics of LLP 0309.000 and are checked against
+its reference evaluator (`tools/snapback-delta-semantics`) and
+conformance corpus (`tests/conformance/delta-semantics-v1/`); the
+Stage B audit record is LLP 0309.001. This section's admission
+posture is unchanged. This rung is the expensive one; it lands only
 where the ledger shows an admitted shape's re-run cost × wake rate still
 dominating after rungs 1 and 3.
 
