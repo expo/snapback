@@ -735,19 +735,29 @@ function preflight(input) {
   const policy = validateAppPolicy(app);
   const appDeclaredDev = app?.declaredDev;
   const declaredDevCapability = declaredDevCapabilityFromApp(app);
-  if (appDeclaredDev !== undefined && appDeclaredDev !== null && declaredDevCapability === null) {
-    throw refusal(
-      'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
-      'The declared-dev capability is not installed on this exact generated app object.',
-      { suppliedAsOption: false, generatedApp: false },
-    );
-  }
   let binding = input.binding;
   let declaredDevInternal = false;
   const hasRealUrl = Object.hasOwn(input, 'url')
     && input.url !== undefined
     && input.url !== null
     && input.url !== '';
+  // @ref LLP 0302#4-source-precedence--rendezvous-wins-literally — an
+  // explicitly admitted binding wins without consuming an inert declared-dev
+  // candidate. Exact-object custody is enforced when URL selection actually
+  // asks this module instance to exercise that capability.
+  if (
+    binding === undefined
+    && hasRealUrl
+    && appDeclaredDev !== undefined
+    && appDeclaredDev !== null
+    && declaredDevCapability === null
+  ) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
+      'The declared-dev capability is not installed on this exact generated app object.',
+      { suppliedAsOption: false, generatedApp: false },
+    );
+  }
   if (declaredDevCapability === null && hasRealUrl) {
     emitDebug(
       'snapback.declared-dev-url-ignored',

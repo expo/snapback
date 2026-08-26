@@ -417,6 +417,40 @@ const optionsFor = (app, binding = makeBinding(app), extra = {}) => ({
   ...extra,
 });
 
+test('an explicit binding leaves a foreign declared-dev stamp inert while URL selection refuses it', async () => {
+  const server = installServer();
+  try {
+    const app = structuredClone(makeApp());
+    Object.defineProperty(app, 'declaredDev', {
+      value: Object.freeze({
+        format: 'snapback.declared-dev-capability.v1',
+        deploymentIdentity: deploymentIdentity(APP_ID),
+      }),
+      enumerable: false,
+    });
+    Object.freeze(app);
+
+    const appClient = await createSnapbackAppClient(optionsFor(app));
+    try {
+      assert.equal(appClient.bootstrapState().status, 'ready');
+    } finally {
+      await appClient.dispose();
+    }
+
+    await assert.rejects(
+      createSnapbackAppClient({
+        app,
+        url: 'http://127.0.0.1:4711',
+        platform: { kind: 'memory', cryptoObject: webcrypto },
+      }),
+      (error) => error?.code === 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED'
+        && error?.diagnostic?.details?.generatedApp === false,
+    );
+  } finally {
+    server.restore();
+  }
+});
+
 test('framework-neutral bootstrap reaches ready through every starting stage and keeps secrets out', async () => {
   const server = installServer();
   const app = makeApp();
