@@ -124,3 +124,74 @@ refusal semantics, full-tuple load validation with bounded decoding,
 an LLP 0010 readiness amendment, and a test matrix; rebuild-isolation
 claim restated honestly; OQ3/OQ5 tightened; Phase 4 `snapbackd` Guide
 note; Non-goals PocketBase figure fixed (the one PRE-EXISTING minor).
+
+## Round 3 — closure delta round on r3
+
+Enumerated diff `fca941e42..4c48d0ca0` (346 lines); same capsule
+construction (git archive, 0314 review artifacts removed); brief sha256
+`d9ce621f…44a4f0a`; codex launched with `--skip-git-repo-check` from
+the start (one launch), ultra confirmed; both reviews back at ~21
+minutes.
+
+- Verdicts: **0314 READY from both families** — dual-READY on revision
+  `4c48d0ca0` (sha256 `f7ace0dd…a15c04`). **0314.000 NOT READY from
+  both**, every MATERIAL again IN-DELTA (r3-fold defects): both
+  families flagged the `s01-r005` row left in the 1a change set after
+  its consumer moved to 1b; grok (MATERIAL) and codex (minor) flagged
+  the Linux source-custody assertion having no named CI home after the
+  switch; codex (MATERIAL) and grok (minor) flagged the 1c stamp as
+  specified being unimplementable (Cargo exposes `PROFILE`, not the
+  resolved recipe tuple) with unclosed override channels; codex
+  additionally flagged the contributor source-test assembly getting
+  both embedded and sidecar Guide copies. No PRE-EXISTING MATERIAL
+  from either family in any round after r1.
+- Orchestrator verification before folding: s01-r005/r024/r025
+  consumers in the migration manifest, `default_admin_dist()`
+  manifest-dir probe, runtime-package `.gitignore` contents, Darwin
+  `package.test.mjs:490` source-topology assertion, LLP 0123 seal
+  member enumeration, `build_identity.rs` rustc-env emission. All
+  held. One reviewer misnomer corrected while folding: the extra Guide
+  consumers are `guide_artifact.rs`/`guide_reference.rs` (codex's
+  `guide_mcp.rs`/`guide_command.rs` do not exist in
+  `crates/snapback-server/src/`).
+
+### Revision r4 (reviser: orchestrator, 2026-08-26) — POST-BUDGET, UNREVIEWED
+
+The round-3 findings were mechanical (a row moved between two lists, a
+named CI home, restated stamp mechanics, a third assembly mode), so
+they were folded as r4 rather than left as loose review debt:
+`s01-r005` removed from 1a and pinned verify-unchanged under 1b; the
+Linux lane split given its named home (second ordinary release build +
+sibling receipt in `linux-runtime-package.yml`; Darwin mirrors the
+installed-custody test); 1c restated implementably (PROFILE + declared
+recipe stamped by `build_identity.rs`, enumerated forbidden override
+channels, negative tests); Phase 2 given three explicit assembly modes
+with stale-member removal, the load-validation tuple split for
+bare-binary launches, pack-time clean-source refusal, gitignore /
+`manifest.files` pins, a dedicated discovery env with no manifest-dir
+probe, the LLP 0123 amendment, the real consumer inventory, and the
+`gitDirty`-scoped honesty fix. Round-3 PRE-EXISTING minors (LLP 0123,
+consumer naming, Darwin test) were folded in the same pass.
+
+## Terminal state (2026-08-26)
+
+- **LLP 0314 (research): CONVERGED — dual-READY** on commit
+  `4c48d0ca0` (r3). r4 did not touch the research document; its final
+  verdicts bind to sha256 `f7ace0dd…a15c04` with no later revision.
+  Recommendation: author applies `Accepted` (this loop never does).
+- **LLP 0314.000 (plan): round budget (3) exhausted.** Delta
+  convergence held from round 2 on — zero PRE-EXISTING MATERIAL
+  concerns from either family across rounds 2–3; every remaining
+  MATERIAL was introduced by the previous fold and fixed by the next.
+  Final reviewed revision: r3 (`4c48d0ca0`, sha256 `a6c4ee5f…e2eb64`,
+  dual NOT READY on in-delta findings). **r4 exists and is
+  unreviewed**; it folds every round-3 finding per the reviewers' own
+  suggested fixes, orchestrator-verified against the tree.
+- Growth: plan r4 is well over the ~20% advisory budget vs the
+  entering revision (~+90% bytes across r2–r4), spent on the closed
+  inventories the reviews demanded; research +~25%.
+- Proposal to the author: keep 0314.000 in `Review` and either
+  (a) authorize one extension delta round on the r3→r4 diff to seal
+  dual convergence, or (b) accept the r4 state with its final delta
+  labeled unreviewed. MATERIAL cross-family contradiction: none.
+  Sustained asymmetry: none (families agreed every round).

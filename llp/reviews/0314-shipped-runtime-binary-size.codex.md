@@ -169,3 +169,67 @@ The plan’s Phase 1 custody inventories are mutually inconsistent, and Phase 2 
 VERDICT 0314: NOT READY
 VERDICT 0314.000: NOT READY
 VERDICT SET: NOT READY
+
+## Round 3 — closure delta round on revision r3
+
+- Revision under review: commit
+  `4c48d0ca03ae841f759221c26e098c4ca11429a0`
+  - 0314 sha256 `f7ace0dd861ae70c045f61ee9b1a5537e76479e1fb6f7a530e5a2ebb50a15c04`
+  - 0314.000 sha256 `a6c4ee5f0503a84a2f9656726ba66a247fe2bf57b2166465fcbb407d66e2eb64`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed (structural exclusion); enumerated delta `r3-delta.diff`
+  (`fca941e42..4c48d0ca0`) at the capsule root. Runner confinement to the
+  capsule is instruction-based and SELF-ATTESTED. Instruction brief sha256
+  `d9ce621fb01a867d414b9e158f7a3c9666aca5c273d3a3b9c11d5472d44a4f0a`.
+- Runtime: both reviews returned at the ~21-minute poll tick.
+- Result: **0314 READY. 0314.000 NOT READY (3 MATERIAL, all IN-DELTA;
+  minors include 3 PRE-EXISTING).** Effort header "ultra" confirmed;
+  launched with `--skip-git-repo-check` from the start (single launch).
+
+### Verbatim review body (round 3)
+
+1. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 1 §1c “Profile attestation.”** The proposed “compiler-authoritative” recipe stamp is not feasible as specified. The current build script can observe the selected profile but not Cargo’s effective `lto`, `codegen-units`, `incremental`, and `strip` tuple. Reading `Cargo.toml` would attest declared policy, not actual compiler inputs. Moreover, forbidding only `CARGO_PROFILE_*` leaves `CARGO_INCREMENTAL`, `RUSTFLAGS`, `CARGO_ENCODED_RUSTFLAGS`, wrappers, target configuration, and Cargo `--config` overrides capable of changing the artifact while preserving the claimed stamp. The repository already treats these as build-affecting in `prepared-runtime-reuse.mjs`.
+
+   Suggested fix: choose an implementable authority model. Either capture and digest-bind the effective final `rustc` invocation through a mandatory attested wrapper, or explicitly attest a controlled build closure and reject every ambient profile/config/flag override channel. Add negative tests for ordinary release and each override class, including cross-host attestation transport.
+
+2. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 1 §1a versus §1b.** The closed inventories contradict each other about path-migration row `s01-r005`. Section 1a includes it among ship-profile rows that change, while 1b correctly says `scripts/assemble-runtime-package` must retain ordinary release. The manifest itself identifies `s01-r005` as that script’s `cargo build --release` command and says its target remains unchanged. This can retarget the source-repair path that r3 intended to preserve.
+
+   Suggested fix: remove `s01-r005` from the production-retarget set and explicitly retain it as an ordinary-release source-custody row. If its metadata needs reclassification, distinguish that metadata-only change from changing its command or output path.
+
+3. **MATERIAL — IN-DELTA — LLP 0314.000, Phase 2 “Staging semantics” and “Carriage selection.”** The new text says all final assembly and package seals require the sidecar, while contributor-source builds retain embedded carriage. `scripts/assemble-runtime-package` creates a final sealed package through `--source-test-staging --strict-clean-release` from a `contributor-source` binary. Following both rules therefore places embedded and external Guide copies in that package, contradicting build-distribution-selected carriage and “fail closed both ways.”
+
+   Suggested fix: define three explicit modes: native-artifact staging omits the sidecar; public-package final assembly requires and seals it; contributor source-test assembly omits it and uses embedded bytes. Swapping into contributor mode must remove any stale `guide/` member. Test all three transitions.
+
+4. **minor — IN-DELTA — LLP 0314.000, Phase 1 §1a Linux lane split.** The plan removes the source-checkout assertion from its only demonstrated lane but merely says it will run “where a source release build exists.” No replacement owner issues and verifies the sibling release receipt and then exercises source-topology resolution. `scripts/assemble-runtime-package` builds release but currently neither issues that receipt nor runs the assertion.
+
+   Suggested fix: name a dedicated source-custody lane, or extend the assembler’s affected proof to issue/reopen the exact release receipt and run the source resolver test. Keep the public-package lane installed-custody-only.
+
+5. **minor — IN-DELTA — LLP 0314.000, Phase 2 “Producer” and “Build-graph split.”** Requiring the producer to use the binary’s exact clean source revision is correct, but the plan does not assign authority for proving it after Guide paths leave the binary dirty closure. Existing packer admission sees only the binary-scoped commit and `gitDirty`; a dirty Guide record not covered by `contentHash` could otherwise be encoded and sealed under clean binary identity.
+
+   Suggested fix: have the producer read from the immutable Git tree named by `identity.binary.gitCommit`, or require an independently checked package-input closure with clean status and HEAD equality. Add dirty-unbound-record and wrong-checkout refusal tests.
+
+6. **minor — IN-DELTA — LLP 0314.000, Phase 2 “Build-graph split.”** “Sidecar-only edits do not restamp binary identity” is too broad. Both identity build scripts track Git refs and stamp the checkout commit; every committed Guide change still advances HEAD and restamps identity. The pathspec split only prevents package-only working-tree edits from changing the binary-scoped dirty bit.
+
+   Suggested fix: state that the split scopes `gitDirty`, not commit identity or rebuilds, and retain the separate package-input cleanliness gate from finding 5.
+
+7. **minor — IN-DELTA — LLP 0314.000, Phase 2 member-path inventory.** The new `guide/embedded-guide.v1.bin` package member requires a new ignored assembly directory, but neither runtime package’s `.gitignore` includes `/guide/`. Both EAS and Linux CI require preparation to leave `git status --untracked-files=all` empty, and package tests pin the exact ignore arrays.
+
+   Suggested fix: add `/guide/` to both runtime-package `.gitignore` files and their exact tests, or stage the member outside the checkout.
+
+8. **minor — PRE-EXISTING — LLP 0314.000, Phase 2 governing-document inventory.** R2 already made the Guide a package-seal member without requiring an LLP 0123 amendment. LLP 0123’s live seal contract still enumerates only the binary, Hermes header, and Hermes runtime, while adding the Guide also changes package verification and app-owned CV-3 rehashing.
+
+   Suggested fix: add LLP 0123 to the same-landing amendments and test Guide drift through both package-seal reopening and `runtime-qualify --persist/--verify`.
+
+9. **minor — PRE-EXISTING — LLP 0314.000, Phase 2 implementation inventory.** The plan calls `crates/snapback-server/src/guide.rs` the HTTP surface, but it owns decoding/data access. HTTP routing is in `server.rs`; MCP and native Guide consumers live in `guide_mcp.rs`, `guide_reference.rs`, and `guide_command.rs`, with user-facing “embedded Guide” wording elsewhere.
+
+   Suggested fix: inventory these consumers and terminology migrations so every public-package path uses the same external loader and refusal semantics.
+
+10. **minor — PRE-EXISTING — LLP 0314.000, Phase 1 test inventory.** The Darwin package test calls `resolveRuntimeBinary()` from source-checkout topology, so it may select or refuse on `target/release` instead of proving installed-package custody. Linux already passes a non-CLI package root to force the installed path.
+
+   Suggested fix: mirror the Linux installed-custody test on Darwin and keep any source-checkout assertion in the named release lane from finding 4.
+
+Overall, LLP 0314’s r3 corrections are sound: the manufacture/source-repair split matches the capsule, the `jsonschema` inventory now has exactly two normal-dependency manifests, and the PocketBase executable/archive distinction is corrected. LLP 0314.000 remains not ready because MATERIAL findings 1–3, all IN-DELTA, leave the recipe authority infeasible and the two custody inventories internally contradictory.
+
+VERDICT 0314: READY
+VERDICT 0314.000: NOT READY
+VERDICT SET: NOT READY

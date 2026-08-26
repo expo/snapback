@@ -398,3 +398,138 @@ Those are small, local edits — not a new design. Until they are in the text, a
 - `VERDICT 0314: NOT READY` — MATERIAL finding 1 (IN-DELTA).
 - `VERDICT 0314.000: NOT READY` — MATERIAL findings 1, 2, and 3 (all IN-DELTA).
 - `VERDICT SET: NOT READY` — both documents have unresolved MATERIAL concerns (findings 1–3).
+
+## Round 3 — closure delta round on revision r3
+
+- Revision under review: commit
+  `4c48d0ca03ae841f759221c26e098c4ca11429a0`
+  - 0314 sha256 `f7ace0dd861ae70c045f61ee9b1a5537e76479e1fb6f7a530e5a2ebb50a15c04`
+  - 0314.000 sha256 `a6c4ee5f0503a84a2f9656726ba66a247fe2bf57b2166465fcbb407d66e2eb64`
+- Capsule: `git archive` export of that commit with `llp/reviews/0314-*`
+  removed (structural exclusion); enumerated delta `r3-delta.diff`
+  (`fca941e42..4c48d0ca0`) at the capsule root. Runner confinement to the
+  capsule is instruction-based and SELF-ATTESTED. Instruction brief sha256
+  `d9ce621fb01a867d414b9e158f7a3c9666aca5c273d3a3b9c11d5472d44a4f0a`.
+- Runtime: both reviews returned at the ~21-minute poll tick.
+- Result: **0314 READY. 0314.000 NOT READY (2 MATERIAL, both IN-DELTA;
+  one PRE-EXISTING minor).**
+- Capture note: stdout preceded the review with one line of progress
+  narration, preserved verbatim below.
+
+### Runner narration (verbatim, round 3)
+
+I'll review both LLP 0314 documents and the r3 delta against the capsule, using only file-reading tools. Starting with the targets, the diff, and the cited sources.Documents and the delta are in. Next I’ll check the cited source files and related LLPs so I can classify each concern as in-delta or pre-existing.I’m checking Cargo.toml dependency tables, path-migration rows, packers, and the identity/attestation machinery next.I’m tracing identity, receipts, admin discovery, and the Guide/LLP constraints that Phase 2 claims to preserve.# Super-refine round 3 — LLP 0314 cluster (delta review)
+
+### Verbatim review body (round 3)
+
+Reviewed the full research and plan, then checked `r3-delta.diff` against the capsule: packers, Linux/EAS workflows, `tests/ci_workflows_v0.mjs`, `scripts/assemble-runtime-package`, path-migration rows, identity/attestation, Guide encoder/decoder, runtime-build inputs, and LLPs 0010, 0041, 0061 §4a, 0123, 0276, and 0284 §3.7.
+
+The r3 fold is mostly the right shape. Public manufacture vs source-repair is now a real split, jsonschema sites and PocketBase units match the tree, 1c’s compiler-derived stamp is the right authority, and Phase 2 now has a producer, member path, admin-shaped staging, and a test matrix. Two Phase 1 inventory defects from this fold remain.
+
+---
+
+## Findings
+
+### 1. MATERIAL — IN-DELTA — `llp/0314.000` Phase 1a / 1b
+
+**Defect.** r3 correctly moved `scripts/assemble-runtime-package` into **1b** (keep ordinary `--release`, pass that binary explicitly once packer defaults move). The same revision still lists path-migration row **`s01-r005`** under **1a** as a ship-path `verify-unchanged` row that “changes intentionally.”
+
+That row’s consumer is `scripts/assemble-runtime-package:63`, and its `currentPathExpression` is `cargo build --release --bin snapback` — the source-repair command 1b just preserved. Capsule check: the script builds `--release` with no `SNAPBACK_BUILD_DISTRIBUTION`, then calls `prepare-runtime.mjs --source-test-staging --strict-clean-release`.
+
+An implementer following the 1a “at least …” list will retarget that command (or its migration row) to `--profile production`, which is exactly the source-repair/manufacture mix-up r3 was meant to close.
+
+**Suggested fix.** Drop `s01-r005` from the 1a change list. Keep it under 1b as *verify-unchanged* (command stays `--release`; at most record an explicit `SNAPBACK_RUNTIME_SOURCE_BINARY=…/target/release/snapback` once packer defaults move). Restrict the 1a list to rows whose expression is the *public-package* ship command or the public-package binary path: `s01-r013`, `s01-r024`, `s01-r025`, `s07-r004`.
+
+---
+
+### 2. MATERIAL — IN-DELTA — `llp/0314.000` Phase 1a Linux lane split / 1b
+
+**Defect.** The lane split is the right *problem* statement and the wrong *closed inventory*.
+
+Today `linux-runtime-package.yml` is the only CI home that (1) builds `target/release/snapback`, (2) issues the named sibling receipt, and (3) runs `packages/snapback-runtime-linux-x64/package.test.mjs`, whose source-checkout assertion requires `resolveRuntimeBinary()` → `target/release/snapback`. Darwin’s `package.test.mjs` has no such assertion.
+
+1a still retargets that workflow’s cargo build **and** both `--binary …/target/release/snapback` receipt steps, and it retargets the `tests/ci_workflows_v0.mjs` pin that currently requires that binding. 1b forbids retargeting the test assertion. The new default then says the assertion “runs where a source release build exists” without naming a job, step, or workflow.
+
+After the manufacture switch, no remaining Linux CI producer in this capsule still builds ordinary `--release` for that assertion (EAS `linux_runtime` is also in the 1a switch). “Where a source release build exists” therefore collapses to local `assemble-runtime-package`, and the only Linux CI coverage of LLP 0010 source-checkout resolution is dropped without an explicit decision.
+
+**Suggested fix.** Close the inventory with one named home, for example:
+
+- In `linux-runtime-package.yml`, keep a **second** ordinary `--release` build + sibling receipt solely for the existing source-checkout assertion; production remains the pack/seal path; split `package.test.mjs` so the public-package lane asserts installed-package custody only; or
+- Name another existing Linux job that already builds source-checkout `--release` and move the assertion there; or
+- Explicitly drop Linux CI coverage of that assertion (Darwin/local only) in one sentence.
+
+Do not leave “where a source release build exists” as the landing instruction.
+
+---
+
+### 3. minor — IN-DELTA — `llp/0314.000` Phase 1c
+
+**Defect.** Authority is correctly the compiler, not the ceremony. The normative fields (`lto`, `codegen-units`, `incremental`, `strip`) are not Cargo build-script environment. Cargo sets `PROFILE` (and `OPT_LEVEL` / `DEBUG`); `CARGO_PROFILE_*` is a *user override* channel, not a report of the resolved recipe. `crates/snapback-types/build_identity.rs` already stamps via `cargo:rustc-env`; that is the right emitter, but the plan still reads as if rustc will hand back those four fields.
+
+**Suggested fix.** Stamp `PROFILE` plus the `[profile.production]` recipe as declared in root `Cargo.toml` (production currently has `incremental = false`, `lto = "fat"`, `codegen-units = 1`, and no `strip` until 1d). Forbid `CARGO_PROFILE_PRODUCTION_{LTO,CODEGEN_UNITS,INCREMENTAL,STRIP,OPT_LEVEL}` (and `RUSTFLAGS` `-C lto=` / `-C strip=` if you want the same spoof class closed). Public-package assembly requires `PROFILE=production` and those declared field values.
+
+---
+
+### 4. minor — IN-DELTA — `llp/0314.000` Phase 2 load validation vs bare-binary tests
+
+**Defect.** The full seal tuple `{sourceRevision, contentHash, artifactSha256}` cannot live on **binary** identity: `artifactSha256` is only known after pack-time production, and compiling it in would put sidecar bytes back on the binary input set. `qualified-staging-assemble` already binds `gitCommit` to `HEAD`; the compiled-in manifest already binds `contentHash` (LLP 0284 §3.7). Bare-binary tests in the new matrix have no package seal, so they cannot check the full tuple.
+
+**Suggested fix.** Split the check: compiled-in manifest `contentHash` + binary `gitCommit` vs sidecar-stamped revision on every load; `artifactSha256` only when a package seal exists. State that a valid bare-binary load is env-injected sidecar + those two binary facts, not a seal.
+
+---
+
+### 5. minor — IN-DELTA — `llp/0314.000` Phase 2 member inventory
+
+**Defect.** The member list (package `files`, `swapStagedAssembly`, seal candidates) matches admin’s *seal* surface and misses the adjacent pins that will fail when `guide/` is added:
+
+- Darwin `package.test.mjs` `manifest.files` and `.gitignore` (`/admin/`, `/bin/`, …)
+- Linux `package.test.mjs` `manifest.files`
+- both packages’ `.gitignore` (linux-runtime-package.yml fails closed on a dirty tree; a new un-ignored `guide/` member will red that lane)
+
+**Suggested fix.** Add those pins to the Phase 2 inventory, mirroring `admin/`.
+
+---
+
+### 6. minor — IN-DELTA — `llp/0314.000` Phase 2 discovery (“SNAPBACK_ADMIN_DIST pattern”)
+
+**Defect.** CLI injection of a package-relative path is the right analog (`runtimeSpawnEnvironment` sets `SNAPBACK_ADMIN_DIST` from `bin/../admin` after seal checks). The full admin pattern also includes `default_admin_dist()`: a compile-time `CARGO_MANIFEST_DIR/../../admin-ui/dist` existence probe. Copying that onto `guide/` would be checkout-tree discovery, which this phase forbids.
+
+**Suggested fix.** Name a new env (do not reuse `SNAPBACK_ADMIN_DIST`). Discovery = (1) CLI-injected package-relative `guide/embedded-guide.v1.bin` after seal membership checks, (2) that explicit env, fail closed. No `CARGO_MANIFEST_DIR` / cwd / loose `guide/` fallback.
+
+---
+
+### 7. minor — IN-DELTA — `llp/0314.000` Phase 2 producer
+
+**Defect.** “Final assembly runs [the encoder] from the exact clean source revision the binary was built from” is the right constraint (EAS assemble already refuses Darwin `gitCommit !== HEAD`). It is not a coded assembly refusal if the checkout is dirty, or if `prepare-runtime.mjs` (the actual final-assembly caller via `snapback-publish` prepack) encodes a tree that does not match `identity.binary.gitCommit`. Runtime wrong-revision refusal is a backstop, not a substitute for failing the seal.
+
+**Suggested fix.** Pack-time producer runs inside non-`--native-artifact-staging` prepare (both platforms), refuses dirty package-input pathspecs or `HEAD !== identity.binary.gitCommit`, and is the same Rust encoder `build.rs` calls.
+
+---
+
+### 8. minor — IN-DELTA — `llp/0314.000` Phase 0 vs 1d strip
+
+**Defect.** 1d now requires Cargo `strip = "symbols"` (or Phase 0 records both transforms). Phase 0’s goal bullet still leads with `strip -x (or equivalent)`. Root `[profile.production]` currently has no `strip` key.
+
+**Suggested fix.** Make Phase 0’s primary transform Cargo `strip = "symbols"` on the production binary; mention `strip -x` only as an optional extra measurement row.
+
+---
+
+### 9. minor — PRE-EXISTING — `llp/0314` F2 / measurement custody
+
+**Defect.** The F2 table is still not locally re-runnable (staged Darwin `bin/snapback` is not in the checkout). The research already says future snapshots should retain digest + raw `size`/`otool` output. That remains a custody hole, not a new r3 contradiction.
+
+**Suggested fix.** Land the first Phase 0 snapshot with those raw artifacts as the research already asks; no prose change required for READY.
+
+---
+
+## Overall assessment
+
+**0314 (research).** The r3 diagnosis fold is sound. F3’s public-manufacture vs source-repair split matches `assemble-runtime-package` and the CLI’s `target/release` source-checkout path. F6’s jsonschema inventory matches Cargo.toml (`snapback-engine` and `snapback` normal; kernel and types `[dev-dependencies]` only). F7’s PocketBase row is internally consistent with the plan’s non-goal. No MATERIAL defect.
+
+**0314.000 (plan).** Phases 0, 1c–1e, 2’s admin-shaped carriage, 3, and 4 are implementable enough for a plan. The r3 Phase 1 closed-inventory claim is not closed: `s01-r005` is still on the manufacture change list after its consumer was moved to source-repair, and the Linux source-checkout assertion has no named CI home once the only Linux workflow that builds `--release` is retargeted. Those are defects of this fold, not leftover r1 text.
+
+---
+
+- `VERDICT 0314: READY`
+- `VERDICT 0314.000: NOT READY` (MATERIAL findings 1 and 2, both IN-DELTA)
+- `VERDICT SET: NOT READY` (blocked by 0314.000 findings 1 and 2)
