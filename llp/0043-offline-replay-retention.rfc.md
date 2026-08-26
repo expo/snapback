@@ -5,6 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-25 (round-23 systemic recovery fence: one shared client
+selection boundary admits only locally present v2 records matching the complete
+current enqueue target while the authorization-dispatch lock is held. Public
+observation, recovery, ACK consumption, custody reconciliation, adoption,
+replay, foreground range issuance, and caller-supplied piggyback ACK ids use
+that boundary; targetless, legacy, missing, and foreign ids are coded no-ops.)
 **Revised:** 2026-08-25 (round-16 target/custody correction: drain and
 observation paths no longer reconcile whole-queue custody; replay reconciles
 only the target-fenced record at its submission slot; optional
@@ -565,11 +571,15 @@ default drain cannot hot-loop the refused head.
 
 Observation and recovery pre-reads are non-mutating: `outboxStatus()`,
 `mutationStatus()`, `quarantinedMutations()`, `settledMutations()`,
-`createOptimisticMutationView()`, and
-`acknowledgeResultGoneMutations()` do not reconcile whole-queue custody.
+and `createOptimisticMutationView()` do not reconcile whole-queue custody.
+`acknowledgeResultGoneMutations()` is an explicit mutating recovery cut: it
+may discard only a locally retained `result-gone` record admitted by the
+complete current enqueue-target fence under the authorization-dispatch lock.
 Explicit authority-transition and app-directed recovery operations retain
-their separately governed custody writes; merely observing a sidecar-adopted
-queue can never strand a record before its persisted target fence runs.
+their separately governed, record-scoped custody writes; merely observing a
+sidecar-adopted queue can never strand a record before its persisted target
+fence runs. Missing, targetless/legacy, and foreign caller ids return a coded
+no-op rather than granting record observation or mutation authority.
 
 The additive enqueue-target identity also recognizes an opaque
 `ledgerIncarnation` whenever inspection provides it. The client persists the

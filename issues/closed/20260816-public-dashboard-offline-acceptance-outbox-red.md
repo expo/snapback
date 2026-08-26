@@ -1169,3 +1169,72 @@ for `guide/capabilities.md` and
 errors, 0 unchecked`. `git diff --check` produces no output. All generated
 projection paths remain byte-identical to merge base
 `baacaa20983f029f3e9cd23f60385ba00085e947`.
+
+### Round-23 dual-review closure (2026-08-25)
+
+Round 23 replaced the remaining per-method target checks with one shared
+client selection boundary. `#withTargetFencedOutboxRecords` acquires (or
+requires existing ownership of) the shared authorization-dispatch lock,
+re-reads local records, requires schema-v2 `enqueueTarget`, requires the
+complete current projection/operation target, and delegates equality to
+`outboxRecordMatchesAcknowledgementTarget`. Missing, foreign, targetless, and
+legacy ids are no-ops recorded as `SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED` with
+`record-not-local`, `enqueue-target-missing`, `current-target-incomplete`, or
+`enqueue-target-mismatch`.
+
+The systemic client API inventory is:
+
+| Client API / entry point | ID/filter admitted to work | Target fence | Lock ownership |
+| --- | --- | --- | --- |
+| `outboxStatus()` / `#outboxHeadFact()` | all locally retained current-target records | shared projection fence | shared authorization-dispatch lock |
+| `mutationStatus(id)` / `subscribeMutation(id)` | exact locally present caller id | shared projection fence; foreign/legacy is `unknown` | shared authorization-dispatch lock per observation |
+| `createOptimisticMutationView()` / `__createOptimisticRebaseEngine()` | all current-target optimistic layers | shared projection fence | shared authorization-dispatch lock per rebase read |
+| `acknowledgeMutations({ clientMutationIds })` | exact local ids surviving cohort and post-custody re-read | fresh complete ACK target plus exact persisted enqueue target | held through scoped custody, ACK POST, and exact-target confirmation |
+| `acknowledgeResultGoneMutations(ids)` | exact local `result-gone` ids | shared projection fence | held through each discard |
+| `quarantinedMutations()` | redacted quarantine rows whose private target metadata matches | shared projection fence | held through observation |
+| `reenterQuarantinedMutations()` | current-target quarantine ids only | shared projection fence before scoped custody | held through custody and re-entry transition |
+| `strandedMutations()` | current-target, rerecordable, current-principal rows | shared projection fence plus principal scope | held through observation |
+| `discardStrandedMutations(ids)` | exact current-target, rerecordable, current-principal ids | shared projection fence plus principal scope | held through discard |
+| `reRecordStrandedMutation(id)` | exact current-target, rerecordable predecessor; replacement is a new current-target id | shared projection fence at source read and predecessor cleanup | held independently through both predecessor cuts; replacement uses foreground custody |
+| `settledMutations()` | current-target settlement cohort only | shared projection fence plus user/authority cohort | held through observation |
+| `markMutationSettlementsConsumed(ids)` / store `markAcksReady` | exact current-target settled cohort, grouped by persisted enqueue target | shared projection fence; store transition requires the complete target | held through ACK-ready transition |
+| `mutate(... acknowledgedClientMutationIds)` and automatic piggyback | locally present, ACK-ready ids excluding the mutation's own id | shared operation-target fence; re-evaluated immediately before mutation transport | held through final selection, mutation POST, and exact-target confirmation |
+| `#reconcileQueueCustody()` / `#applyQueueCustodyReconciliation()` | target-fenced explicit record ids; an empty admitted set is a no-op | shared projection fence before any custody write | shared lock, or documented ownership inherited from replay/recovery/foreground |
+| `replayQueuedMutations()` / terminal result-gone, stranded, quarantine, failure consumers | the ordered pending head after capability and exact persisted-target checks | shared operation-target fence plus replay binding error | held through scoped custody, range, POST, and durable terminal/settled transition |
+| `adoptQueuedMutations()` | current-target rows in before/after counts; replay owns each admitted row | shared projection fence plus expected store/generation/fresh-snapshot checks | shared lock for counts; replay lock for mutation |
+| foreground durable mutation, identity-range issuance, settlement and terminal consumers | the newly enqueued current-target record | shared operation-target fence after enqueue and again immediately before range transport | held from final capability/record validation through range assignment, then through mutation dispatch and durable disposition |
+
+The table-driven shared-store regression exercises every public recovery row
+that can be invoked without creating new intent: status, per-id status and
+subscription, stranded read/discard/re-record, quarantine read/re-entry,
+result-gone acknowledgement, settlement read/consumption, standalone ACK,
+replay/terminal consumption, and sidecar adoption. Each row uses a foreign
+target record and asserts byte-identical foreign custody plus zero transport.
+The optimistic projection, explicit mutation piggyback, foreground range,
+and the two authority-unsettled terminal handlers have focused regressions
+because those entries necessarily create or dispatch current-target work.
+
+The four named regressions failed before the production fix with these
+verbatim lines:
+
+```text
+✖ foreground checks peer capability currency under the dispatch lock before range refresh
+AssertionError: a peer negative prevents foreground identity-range transport
+1 !== 0
+✖ fresh direct manifest cannot durably admit a string-named mutation across same-app redeploy
+AssertionError: Missing expected rejection.
+✖ foreign-target result-gone acknowledgement is a coded no-op
+actual { acknowledged: 1, clientMutationIds: ['cm-result-gone-ack-target-a'] }
+expected { acknowledged: 0, clientMutationIds: [] }
+✖ foreign-target settlement cannot cross the consumed acknowledgement cut
+1 !== 0
+```
+
+The direct-manifest admission path now requires the schema and function
+manifests to form one complete trusted artifact generation before a
+string-named mutation can acquire durable custody. App id alone no longer
+survives a same-app redeploy as queue authority. Foreground identity-range
+issuance acquires the shared authorization-dispatch lock, revalidates shared
+capability currency and the record target at the exact pre-request cut, and
+keeps ownership through durable range assignment. The older range/root tests
+now assert this serialized order rather than waiting cyclically on the lock.

@@ -1036,8 +1036,21 @@ export async function createSqliteRqsResumeStore({
         enqueueTarget,
       ));
     },
-    outboxMarkAcknowledgementsReady(ids, userId = undefined, descriptor = undefined) {
-      return mutateOutbox('outbox-acks-ready', (state) => outboxOps.markAcksReady(state, ids, userId, descriptor));
+    outboxMarkAcknowledgementsReady(
+      ids,
+      userId = undefined,
+      descriptor = undefined,
+      expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
+    ) {
+      return mutateOutbox('outbox-acks-ready', (state) => outboxOps.markAcksReady(
+        state,
+        ids,
+        userId,
+        descriptor,
+        expectedAuthorizationFence,
+        enqueueTarget,
+      ));
     },
     outboxConfirmAcknowledgements(
       ids,

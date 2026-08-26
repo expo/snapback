@@ -1565,9 +1565,22 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
-    async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxMarkAcknowledgementsReady(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
+    ) {
       return outboxWrite(
-        (state) => outboxOps.markAcksReady(state, ids, userId, authorityDescriptor),
+        (state) => outboxOps.markAcksReady(
+          state,
+          ids,
+          userId,
+          authorityDescriptor,
+          expectedAuthorizationFence,
+          enqueueTarget,
+        ),
       );
     },
 

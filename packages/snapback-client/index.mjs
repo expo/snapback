@@ -3328,6 +3328,20 @@ const outboxRecordMatchesAcknowledgementTarget = (record, target, knownAppId) =>
   return offlineMutationReplayTargetBindingError(record, target, knownAppId) === null;
 };
 
+const outboxTargetFenceRefusalReason = (record, target, knownAppId) => {
+  if (record === null || record === undefined) return 'record-not-local';
+  if (
+    record.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
+    || record.enqueueTarget == null
+  ) return 'enqueue-target-missing';
+  if (target?.targetProfileId === null || target?.artifactGeneration === null) {
+    return 'current-target-incomplete';
+  }
+  return outboxRecordMatchesAcknowledgementTarget(record, target, knownAppId)
+    ? null
+    : 'enqueue-target-mismatch';
+};
+
 // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — retained
 //   presentation is target-bound observation, but it never reconciles or
 //   rewrites predecessor custody merely because a different app opened it.
@@ -8051,6 +8065,30 @@ export class SnapbackClient {
         operationTarget: transportTarget,
       });
     }
+    if (
+      fact.supported
+      && expectedGeneration === null
+      && (
+        fact.artifactGeneration === null
+        || (
+          typeof this.__inspectionAppId === 'string'
+          && fact.artifactGeneration.appId !== this.__inspectionAppId
+        )
+      )
+    ) {
+      // A direct capability manifest can identify a target profile without
+      // carrying the schema/function manifests that form one trusted
+      // generation. App id alone survives a same-app redeploy and therefore
+      // cannot label durable string-named intent.
+      return Object.freeze({
+        ...fact,
+        supported: false,
+        reason: 'artifact-generation-required',
+        evidence,
+        inspectionRequestSequence,
+        operationTarget: transportTarget,
+      });
+    }
     const completedTarget = completeOfflineMutationOperationTarget(transportTarget, fact);
     if (completedTarget === null) {
       return Object.freeze({
@@ -8636,13 +8674,114 @@ export class SnapbackClient {
     });
   }
 
+  // One record-selection boundary for every public recovery/consumption API.
+  // Caller ids are advisory until the record is re-read from this store and
+  // matched to the complete current enqueue target while the shared
+  // authorization-dispatch lock is held. Foreign, targetless, legacy, and
+  // missing ids are coded no-ops, never authority to inspect or mutate bytes.
+  //
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+  //   recovery authority is the same complete target identity as replay.
+  async #withTargetFencedOutboxRecords(
+    store,
+    {
+      api,
+      clientMutationIds = null,
+      target = null,
+      authorizationDispatchOwned = false,
+      lane = 'foreground',
+    },
+    operation,
+  ) {
+    const requestedIds = clientMutationIds === null
+      ? null
+      : [...new Set(clientMutationIds)];
+    const release = authorizationDispatchOwned
+      ? async () => {}
+      : await acquireOutboxAuthorizationDispatch(store, lane);
+    let released = false;
+    const releaseAuthorizationDispatch = async () => {
+      if (released) return;
+      released = true;
+      await release();
+    };
+    let value;
+    let thrown = null;
+    const refused = [];
+    try {
+      const currentTarget = target ?? await this.#outboxProjectionTarget(store);
+      const knownAppId = currentTarget.artifactGeneration?.appId
+        ?? this.__inspectionAppId
+        ?? (this.__offlineMutationReplayCapability === null
+          ? null
+          : INTERNAL_CONFIGURED_REPLAY_APP_ID);
+      const projectedRecords = await store.outboxRecords();
+      const quarantineTargets = typeof store.outboxQuarantinedRecordTargets === 'function'
+        ? await store.outboxQuarantinedRecordTargets()
+        : [];
+      const quarantineTargetsById = new Map(
+        quarantineTargets.map((record) => [record.id, record]),
+      );
+      const records = projectedRecords.map((record) => (
+        record?.status === 'quarantined' && quarantineTargetsById.has(record.id)
+          ? { ...record, ...quarantineTargetsById.get(record.id) }
+          : record
+      ));
+      const recordsById = new Map(records.map((record) => [record?.id, record]));
+      const candidates = requestedIds === null
+        ? records
+        : requestedIds.map((id) => recordsById.get(id) ?? null);
+      const selectedRecords = [];
+      for (let index = 0; index < candidates.length; index += 1) {
+        const record = candidates[index];
+        const id = requestedIds === null ? record?.id ?? null : requestedIds[index];
+        const reason = outboxTargetFenceRefusalReason(record, currentTarget, knownAppId);
+        if (reason === null) selectedRecords.push(record);
+        else refused.push(Object.freeze({
+          code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+          reason,
+          clientMutationId: id,
+        }));
+      }
+      const authorizationFence = outboxAuthorizationFenceFrom(
+        await store.outboxAuthorizationStatus(),
+      );
+      value = await operation(Object.freeze({
+        target: currentTarget,
+        knownAppId,
+        records: Object.freeze(selectedRecords),
+        clientMutationIds: Object.freeze(selectedRecords.map((record) => record.id)),
+        authorizationFence,
+        releaseAuthorizationDispatch,
+      }));
+    } catch (error) {
+      thrown = error;
+    } finally {
+      await releaseAuthorizationDispatch();
+    }
+    if (requestedIds !== null && refused.length > 0) {
+      const reasons = Object.freeze([...new Set(refused.map((entry) => entry.reason))]);
+      this.#recordOutboxDiagnostic({
+        code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+        api,
+        refused: refused.length,
+        reasons,
+        clientMutationIds: Object.freeze(refused
+          .map((entry) => entry.clientMutationId)
+          .filter((id) => typeof id === 'string')),
+      }, { notify: false });
+    }
+    if (thrown !== null) throw thrown;
+    return value;
+  }
+
   #targetAwareOptimisticRecordStore(store) {
     return Object.freeze({
-      outboxRecords: async () => {
-        const target = await this.#outboxProjectionTarget(store);
-        const records = await store.outboxRecords();
-        return records.filter((record) => outboxRecordMatchesProjectionTarget(record, target));
-      },
+      outboxRecords: async () => this.#withTargetFencedOutboxRecords(
+        store,
+        { api: 'createOptimisticMutationView' },
+        async ({ records }) => records,
+      ),
     });
   }
 
@@ -10400,56 +10539,50 @@ export class SnapbackClient {
     authorityDescriptor = null,
     authorityCapture = null,
   } = {}) {
-    const store = this.#offlineQueueStore();
-    const acknowledgementTransportTarget = pinOfflineMutationTransportTarget(this.baseUrl);
-    let acknowledgementCapability = null;
-    if (store && clientMutationIds.length > 0) {
-      acknowledgementCapability = await this.#offlineMutationReplayCapabilityFact({
-        operationTarget: acknowledgementTransportTarget,
-      });
+    if (
+      !Array.isArray(clientMutationIds)
+      || clientMutationIds.some((id) => typeof id !== 'string' || id.length === 0)
+    ) {
+      throw new TypeError('acknowledgeMutations requires an array of client mutation ids');
     }
-    let authorizationDispatchRelease = null;
-    let acknowledgementFence = null;
-    let selectedClientMutationIds = [...clientMutationIds];
-    let acknowledgementConfirmationGroups = [];
-    const releaseAuthorizationDispatch = async () => {
-      const release = authorizationDispatchRelease;
-      authorizationDispatchRelease = null;
-      await release?.();
-    };
-    let resolvedAuthorityDescriptor = authorityDescriptor;
-    if (store && clientMutationIds.length > 0) {
-      authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(store);
-      try {
-        const recordsBeforeCustody = await store.outboxRecords();
-        const recordsBeforeCustodyById = new Map(
-          recordsBeforeCustody.map((record) => [record.id, record]),
-        );
-        const capabilityCurrent = acknowledgementCapability?.supported === true
-          && !isOfflineMutationReplayEnqueueOnlyEvidence(acknowledgementCapability.evidence)
-          && await this.#isOfflineMutationReplayCapabilityFactCurrent(
+    const store = this.#offlineQueueStore();
+    if (clientMutationIds.length === 0) return Object.freeze({ acknowledged: 0 });
+    if (!store) {
+      // Settlement GC authority is local durable custody plus its complete
+      // enqueue target. Caller ids alone never authorize a transport.
+      return Object.freeze({ acknowledged: 0 });
+    }
+    const acknowledgementTransportTarget = pinOfflineMutationTransportTarget(this.baseUrl);
+    const acknowledgementCapability = await this.#offlineMutationReplayCapabilityFact({
+      operationTarget: acknowledgementTransportTarget,
+    });
+    const capabilityCurrent = acknowledgementCapability?.supported === true
+      && !isOfflineMutationReplayEnqueueOnlyEvidence(acknowledgementCapability.evidence)
+      && await this.#isOfflineMutationReplayCapabilityFactCurrent(
+        acknowledgementCapability,
+        acknowledgementCapability.inspectionRequestSequence,
+        acknowledgementCapability.operationTarget,
+      );
+    return this.#withTargetFencedOutboxRecords(
+      store,
+      {
+        api: 'acknowledgeMutations',
+        clientMutationIds,
+      },
+      async ({
+        clientMutationIds: initiallySelectedIds,
+        knownAppId,
+        target: acknowledgementTarget,
+        releaseAuthorizationDispatch,
+      }) => {
+        if (
+          !capabilityCurrent
+          || !offlineMutationOperationTargetMatchesFact(
+            acknowledgementTarget,
             acknowledgementCapability,
-            acknowledgementCapability.inspectionRequestSequence,
-            acknowledgementCapability.operationTarget,
-          );
-        const completeTarget = capabilityCurrent
-          ? acknowledgementCapability.operationTarget
-          : null;
-        const currentTarget = completeTarget ?? acknowledgementTransportTarget;
-        const knownAppId = currentTarget.artifactGeneration?.appId
-          ?? this.__inspectionAppId
-          ?? (this.__offlineMutationReplayCapability === null
-            ? null
-            : INTERNAL_CONFIGURED_REPLAY_APP_ID);
-        selectedClientMutationIds = clientMutationIds.filter((id) => {
-          const record = recordsBeforeCustodyById.get(id);
-          return record !== undefined
-            && outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
-        });
-        if (selectedClientMutationIds.length === 0) {
-          await releaseAuthorizationDispatch();
-          return Object.freeze({ acknowledged: 0 });
-        }
+          )
+        ) return Object.freeze({ acknowledged: 0 });
+        if (initiallySelectedIds.length === 0) return Object.freeze({ acknowledged: 0 });
         let status = await store.outboxAuthorizationStatus();
         if (status?.suspended === true) {
           const error = new Error(
@@ -10458,13 +10591,10 @@ export class SnapbackClient {
           error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
           throw error;
         }
-        // Target eligibility is established before any authority can mutate
-        // custody. A client attached to target B therefore cannot strand or
-        // privacy-delete target-A recovery records merely by requesting them.
         await this.#reconcileQueueCustody(store, {
           required: true,
           authorizationDispatchOwned: true,
-          recordIds: [...new Set(selectedClientMutationIds)],
+          recordIds: initiallySelectedIds,
         });
         status = await store.outboxAuthorizationStatus();
         if (status?.suspended === true) {
@@ -10474,41 +10604,25 @@ export class SnapbackClient {
           error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
           throw error;
         }
-        acknowledgementFence = outboxAuthorizationFenceFrom(status);
-        const records = await store.outboxRecords();
-        const recordsById = new Map(records.map((record) => [record.id, record]));
-        selectedClientMutationIds = selectedClientMutationIds.filter((id) => {
-          const record = recordsById.get(id);
-          return record !== undefined
-            && outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
-        });
-        const selectedIds = new Set(selectedClientMutationIds);
-        const selected = records.filter((record) => selectedIds.has(record.id));
-        const groups = new Map();
-        for (const record of selected) {
-          const enqueueTarget = record?.enqueueTarget ?? undefined;
-          const key = enqueueTarget === undefined
-            ? 'legacy'
-            : canonicalizeClientValueV1(enqueueTarget);
-          const group = groups.get(key) ?? { ids: [], enqueueTarget };
-          group.ids.push(record.id);
-          groups.set(key, group);
-        }
-        acknowledgementConfirmationGroups = [...groups.values()];
-        if (selectedClientMutationIds.length === 0) {
-          await releaseAuthorizationDispatch();
-          return Object.freeze({ acknowledged: 0 });
-        }
+        const acknowledgementFence = outboxAuthorizationFenceFrom(status);
+        const selectedIdSet = new Set(initiallySelectedIds);
+        const selected = (await store.outboxRecords()).filter((record) => (
+          selectedIdSet.has(record.id)
+          && outboxRecordMatchesAcknowledgementTarget(
+            record,
+            acknowledgementTarget,
+            knownAppId,
+          )
+        ));
+        if (selected.length === 0) return Object.freeze({ acknowledged: 0 });
+        let resolvedAuthorityDescriptor = authorityDescriptor;
         if (!resolvedAuthorityDescriptor) {
           const descriptors = new Map(selected
             .map((record) => record.settlementAuthorityDescriptor
               ?? record.settlement?.authorityDescriptor
               ?? null)
             .filter(Boolean)
-            .map((record) => [
-              record.authorityInstanceId,
-              record,
-            ]));
+            .map((descriptor) => [descriptor.authorityInstanceId, descriptor]));
           if (selected.some((record) => !(
             record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor
           ))) {
@@ -10527,40 +10641,41 @@ export class SnapbackClient {
           }
           resolvedAuthorityDescriptor = descriptors.values().next().value ?? null;
         }
-      } catch (error) {
-        await releaseAuthorizationDispatch();
-        throw error;
-      }
-    }
-    try {
-      const body = {
-        auth: SnapbackClient.auth(userId),
-        clientMutationIds: selectedClientMutationIds,
-      };
-      if (resolvedAuthorityDescriptor) {
-        body.authorityDescriptor = requireAuthorityDescriptor(
-          resolvedAuthorityDescriptor,
-          'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
-        );
-      }
-      const response = await this.#req(
-        'POST',
-        '/client-mutations/acknowledge',
-        body,
-        undefined,
-        {
-          expectedAuthorityCapture: authorityCapture,
-          onTransportFailure: async (error) => {
-            if (requestFailureReentersAuthorityTransport(error)) {
-              await releaseAuthorizationDispatch();
-            }
+        const selectedClientMutationIds = selected.map((record) => record.id);
+        const body = {
+          auth: SnapbackClient.auth(userId),
+          clientMutationIds: selectedClientMutationIds,
+        };
+        if (resolvedAuthorityDescriptor) {
+          body.authorityDescriptor = requireAuthorityDescriptor(
+            resolvedAuthorityDescriptor,
+            'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+          );
+        }
+        const response = await this.#req(
+          'POST',
+          '/client-mutations/acknowledge',
+          body,
+          undefined,
+          {
+            expectedAuthorityCapture: authorityCapture,
+            onTransportFailure: async (error) => {
+              if (requestFailureReentersAuthorityTransport(error)) {
+                await releaseAuthorizationDispatch();
+              }
+            },
+            transportBaseUrl: acknowledgementTransportTarget.baseUrl,
+            pinnedOperationTarget: acknowledgementTransportTarget,
           },
-          transportBaseUrl: acknowledgementTransportTarget.baseUrl,
-          pinnedOperationTarget: acknowledgementTransportTarget,
-        },
-      );
-      if (store && selectedClientMutationIds.length > 0) {
-        for (const group of acknowledgementConfirmationGroups) {
+        );
+        const groups = new Map();
+        for (const record of selected) {
+          const key = canonicalizeClientValueV1(record.enqueueTarget);
+          const group = groups.get(key) ?? { ids: [], enqueueTarget: record.enqueueTarget };
+          group.ids.push(record.id);
+          groups.set(key, group);
+        }
+        for (const group of groups.values()) {
           await store.outboxConfirmAcknowledgements(
             group.ids,
             typeof userId === 'string' ? userId : null,
@@ -10569,11 +10684,9 @@ export class SnapbackClient {
             group.enqueueTarget,
           );
         }
-      }
-      return response;
-    } finally {
-      await releaseAuthorizationDispatch();
-    }
+        return response;
+      },
+    );
   }
 
   // -------------------------------------------------------------------
@@ -10776,8 +10889,12 @@ export class SnapbackClient {
     // re-read from the durable store notification seam, never reconstructed
     // from the bounded __outboxDiagnostics history.
     const records = typeof store.outboxRecords === 'function'
-      ? await store.outboxRecords()
-      : await store.outboxPending();
+      ? await this.#withTargetFencedOutboxRecords(
+          store,
+          { api: '#outboxHeadFact' },
+          async ({ records: targetRecords }) => targetRecords,
+        )
+      : [];
     const pendingFromRecords = records
       .filter((record) => record?.status === 'pending').length;
     const pending = status.pending === pendingFromRecords
@@ -10991,6 +11108,33 @@ export class SnapbackClient {
       recordIds = null,
     } = {},
   ) {
+    if (!authorizationDispatchOwned) {
+      return this.#withTargetFencedOutboxRecords(
+        store,
+        {
+          api: '#reconcileQueueCustody',
+          clientMutationIds: recordIds,
+        },
+        async ({ clientMutationIds: targetRecordIds }) => this.#applyQueueCustodyReconciliation(
+          store,
+          authority,
+          {
+            validateCurrent,
+            expectedAuthorityGeneration,
+            authorizationDispatchOwned: true,
+            recordIds: targetRecordIds,
+          },
+        ),
+      );
+    }
+    if (Array.isArray(recordIds) && recordIds.length === 0) {
+      return {
+        deleted: 0,
+        deletedIds: [],
+        stranded: 0,
+        strandedIds: [],
+      };
+    }
     let beforeRecords = [];
     try { beforeRecords = await store.outboxRecords(); } catch { /* transition remains authoritative */ }
     const pendingBefore = new Map(beforeRecords
@@ -11011,13 +11155,7 @@ export class SnapbackClient {
         expectedAuthorityGeneration,
       ));
     let result;
-    if (authorizationDispatchOwned) {
-      result = await commit();
-    } else if (typeof store.withOutboxAuthorizationDispatch === 'function') {
-      result = await store.withOutboxAuthorizationDispatch(commit);
-    } else {
-      result = await commit();
-    }
+    result = await commit();
     if (
       !result
       || (validateCurrent && this.authorityFence.isCurrent?.(authority.capture) !== true)
@@ -11069,7 +11207,7 @@ export class SnapbackClient {
     return result;
   }
 
-  #recordOutboxDiagnostic(diagnostic) {
+  #recordOutboxDiagnostic(diagnostic, { notify = true } = {}) {
     const recorded = Object.freeze({ at: Date.now(), ...diagnostic });
     this.__outboxDiagnostics.push(recorded);
     if (this.__outboxDiagnostics.length > 256) this.__outboxDiagnostics.shift();
@@ -11094,7 +11232,7 @@ export class SnapbackClient {
         });
       } catch { /* diagnostic observation cannot own queue behavior */ }
     }
-    this.#notifyOutboxListeners();
+    if (notify) this.#notifyOutboxListeners();
   }
 
   // @ref LLP 0219#channel-semantics — adapter from LLP 0218 §4.4's stable
@@ -11236,8 +11374,12 @@ export class SnapbackClient {
     ) blockedReason = 'auth-barrier';
     try {
       const records = typeof store.outboxRecords === 'function'
-        ? await store.outboxRecords()
-        : await store.outboxPending();
+        ? await this.#withTargetFencedOutboxRecords(
+            store,
+            { api: 'outboxStatus' },
+            async ({ records: targetRecords }) => targetRecords,
+          )
+        : [];
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
         else if (record?.status === 'pending') {
@@ -11322,15 +11464,18 @@ export class SnapbackClient {
     if (!store || typeof store.outboxRecords !== 'function') {
       return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
-    let record;
+    let selection;
     try {
-      record = (await store.outboxRecords())
-        .find((candidate) => candidate?.id === clientMutationId);
+      selection = await this.#withTargetFencedOutboxRecords(
+        store,
+        { api: 'mutationStatus', clientMutationIds: [clientMutationId] },
+        async ({ records, target }) => ({ record: records[0] ?? null, target }),
+      );
     } catch {
       return Object.freeze({ status: 'unknown', timing: mutationTiming() });
     }
+    const { record, target } = selection;
     if (!record) return Object.freeze({ status: 'unknown', timing: mutationTiming() });
-    const target = await this.#outboxProjectionTarget(store);
     const targetStatus = outboxRecordTargetStatus(record, target);
     const projectedTarget = targetStatus === null ? {} : targetStatus;
     const disposition = (value) => freezeDeep(value);
@@ -11427,27 +11572,27 @@ export class SnapbackClient {
     }
     const ids = [...new Set(clientMutationIds)];
     const store = this.#offlineQueueStore(true);
-    const records = new Map((await store.outboxRecords()).map((record) => [record?.id, record]));
-    const invalid = ids.find((id) => records.get(id)?.status !== 'result-gone');
-    if (invalid !== undefined) {
-      const error = new Error(
-        'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT: acknowledge only retained result-gone mutation ids',
-      );
-      error.code = 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT';
-      throw error;
-    }
-    const acknowledged = [];
-    const release = await acquireOutboxAuthorizationDispatch(store);
-    try {
-      const discardFence = outboxAuthorizationFenceFrom(
-        await store.outboxAuthorizationStatus(),
-      );
-      for (const id of ids) {
-        if (await store.outboxDiscard(id, discardFence)) acknowledged.push(id);
-      }
-    } finally {
-      await release();
-    }
+    const acknowledged = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'acknowledgeResultGoneMutations', clientMutationIds: ids },
+      async ({ records, authorizationFence }) => {
+        const invalid = records.find((record) => record.status !== 'result-gone');
+        if (invalid !== undefined) {
+          const error = new Error(
+            'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT: acknowledge only retained result-gone mutation ids',
+          );
+          error.code = 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT';
+          throw error;
+        }
+        const discarded = [];
+        for (const record of records) {
+          if (await store.outboxDiscard(record.id, authorizationFence)) {
+            discarded.push(record.id);
+          }
+        }
+        return discarded;
+      },
+    );
     if (acknowledged.length > 0) {
       this.#recordOutboxDiagnostic({
         code: 'SNAPBACK_OUTBOX_RESULT_GONE_ACKNOWLEDGED',
@@ -11475,29 +11620,28 @@ export class SnapbackClient {
       error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
       throw error;
     }
-    const target = await this.#outboxProjectionTarget(store);
-    const targetIds = new Set((await store.outboxQuarantinedRecordTargets())
-      .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
-      .map((record) => record.id));
-    return (await store.outboxRecords())
-      .filter((record) => record?.status === 'quarantined')
-      .filter((record) => targetIds.has(record.id))
-      .map((record) => Object.freeze({
-        format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
-        status: 'quarantined',
-        id: record.id,
-        clientMutationId: record.clientMutationId ?? record.id,
-        function: record.function,
-        sequence: record.sequence,
-        quarantinedAt: record.quarantinedAt,
-        refusalCode: record.refusalCode,
-        quarantineDisposition: record.quarantineDisposition,
-        causeClientMutationId: record.causeClientMutationId,
-        provenance: Object.freeze({
-          source: 'server-replay-refusal',
-          payload: 'redacted',
-        }),
-      }));
+    return this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'quarantinedMutations' },
+      async ({ records }) => records
+        .filter((record) => record?.status === 'quarantined')
+        .map((record) => Object.freeze({
+          format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
+          status: 'quarantined',
+          id: record.id,
+          clientMutationId: record.clientMutationId ?? record.id,
+          function: record.function,
+          sequence: record.sequence,
+          quarantinedAt: record.quarantinedAt,
+          refusalCode: record.refusalCode,
+          quarantineDisposition: record.quarantineDisposition,
+          causeClientMutationId: record.causeClientMutationId,
+          provenance: Object.freeze({
+            source: 'server-replay-refusal',
+            payload: 'redacted',
+          }),
+        })),
+    );
   }
 
   /// Explicit first-cut successor admission. The application calls this only
@@ -11521,30 +11665,29 @@ export class SnapbackClient {
       error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
       throw error;
     }
-    const release = await acquireOutboxAuthorizationDispatch(store);
-    let result;
-    try {
-      const target = await this.#outboxProjectionTarget(store);
-      const recordIds = (await store.outboxQuarantinedRecordTargets())
-        .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
-        .map((record) => record.id);
-      if (recordIds.length > 0) {
-        await this.#reconcileQueueCustody(store, {
-          required: true,
-          authorizationDispatchOwned: true,
+    const result = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'reenterQuarantinedMutations' },
+      async ({ records }) => {
+        const recordIds = records
+          .filter((record) => record.status === 'quarantined')
+          .map((record) => record.id);
+        if (recordIds.length > 0) {
+          await this.#reconcileQueueCustody(store, {
+            required: true,
+            authorizationDispatchOwned: true,
+            recordIds,
+          });
+        }
+        const expectedAuthorizationFence = outboxAuthorizationFenceFrom(
+          await store.outboxAuthorizationStatus(),
+        );
+        return store.outboxReenterQuarantined(
+          expectedAuthorizationFence,
           recordIds,
-        });
-      }
-      const expectedAuthorizationFence = outboxAuthorizationFenceFrom(
-        await store.outboxAuthorizationStatus(),
-      );
-      result = await store.outboxReenterQuarantined(
-        expectedAuthorizationFence,
-        recordIds,
-      );
-    } finally {
-      await release();
-    }
+        );
+      },
+    );
     if (!result) {
       const error = new Error(
         'SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE: quarantined mutations were not re-entered',
@@ -11584,43 +11727,45 @@ export class SnapbackClient {
   async strandedMutations() {
     const store = this.#offlineQueueStore(true);
     const authority = await this.#currentStrandedAuthority();
-    const target = await this.#outboxProjectionTarget(store);
-    return (await store.outboxRecords())
-      .filter((record) => (
-        record?.status === 'stranded'
-        && record.rerecordable === true
-        && outboxRecordMatchesProjectionTarget(record, target)
-        && samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
-      ))
-      .map((record) => freezeDeep(structuredClone({
-        status: 'stranded',
-        id: record.id,
-        clientMutationId: record.id,
-        function: record.function,
-        args: record.args,
-        userId: record.userId ?? null,
-        readSet: record.readSet ?? [],
-        correlation: record.correlation ?? null,
-        ctxLedger: record.ctxLedger ?? null,
-        expectedGeneration: record.expectedGeneration ?? null,
-        settlementLane: record.settlementLane ?? 'replay-accept',
-        settlementIdentity: record.settlementIdentity ?? null,
-        settlementClaims: record.settlementClaims ?? null,
-        boundedSkew: record.boundedSkew ?? null,
-        operationIssuance: record.operationIssuance ?? null,
-        operationCoverageDisposition: record.operationCoverageDisposition ?? null,
-        optimisticOperation: record.optimisticOperation ?? null,
-        capturedNow: record.capturedNow ?? null,
-        sequence: record.sequence,
-        enqueuedAt: record.enqueuedAt,
-        authorityDescriptor: record.authorityDescriptor,
-        predecessorPrincipalScope: record.predecessorPrincipalScope,
-        disposition: 'strand',
-        reason: record.reason,
-        strandedAt: record.strandedAt,
-        replayable: false,
-        rerecordable: true,
-      })));
+    return this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'strandedMutations' },
+      async ({ records }) => records
+        .filter((record) => (
+          record?.status === 'stranded'
+          && record.rerecordable === true
+          && samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
+        ))
+        .map((record) => freezeDeep(structuredClone({
+          status: 'stranded',
+          id: record.id,
+          clientMutationId: record.id,
+          function: record.function,
+          args: record.args,
+          userId: record.userId ?? null,
+          readSet: record.readSet ?? [],
+          correlation: record.correlation ?? null,
+          ctxLedger: record.ctxLedger ?? null,
+          expectedGeneration: record.expectedGeneration ?? null,
+          settlementLane: record.settlementLane ?? 'replay-accept',
+          settlementIdentity: record.settlementIdentity ?? null,
+          settlementClaims: record.settlementClaims ?? null,
+          boundedSkew: record.boundedSkew ?? null,
+          operationIssuance: record.operationIssuance ?? null,
+          operationCoverageDisposition: record.operationCoverageDisposition ?? null,
+          optimisticOperation: record.optimisticOperation ?? null,
+          capturedNow: record.capturedNow ?? null,
+          sequence: record.sequence,
+          enqueuedAt: record.enqueuedAt,
+          authorityDescriptor: record.authorityDescriptor,
+          predecessorPrincipalScope: record.predecessorPrincipalScope,
+          disposition: 'strand',
+          reason: record.reason,
+          strandedAt: record.strandedAt,
+          replayable: false,
+          rerecordable: true,
+        }))),
+    );
   }
 
   async discardStrandedMutations(clientMutationIds = []) {
@@ -11629,33 +11774,26 @@ export class SnapbackClient {
     }
     const store = this.#offlineQueueStore(true);
     const authority = await this.#currentStrandedAuthority();
-    const release = await acquireOutboxAuthorizationDispatch(store);
-    let result;
-    try {
-      const target = await this.#outboxProjectionTarget(store);
-      const requestedIds = new Set(clientMutationIds);
-      const selectedIds = (await store.outboxRecords())
-        .filter((record) => requestedIds.has(record?.id))
-        .filter((record) => record?.status === 'stranded' && record.rerecordable === true)
-        .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
-        .filter((record) => (
-          samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
-        ))
-        .map((record) => record.id);
-      const discardFence = outboxAuthorizationFenceFrom(
-        await store.outboxAuthorizationStatus(),
-      );
-      if (this.authorityFence?.isCurrent?.(authority.capture) !== true) {
-        throw staleAuthorityError();
-      }
-      result = await store.outboxDiscardStranded(
-        selectedIds,
-        authority.principalScope,
-        discardFence,
-      );
-    } finally {
-      await release();
-    }
+    const result = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'discardStrandedMutations', clientMutationIds },
+      async ({ records, authorizationFence }) => {
+        const selectedIds = records
+          .filter((record) => record.status === 'stranded' && record.rerecordable === true)
+          .filter((record) => (
+            samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
+          ))
+          .map((record) => record.id);
+        if (this.authorityFence?.isCurrent?.(authority.capture) !== true) {
+          throw staleAuthorityError();
+        }
+        return store.outboxDiscardStranded(
+          selectedIds,
+          authority.principalScope,
+          authorizationFence,
+        );
+      },
+    );
     if (!result) throw staleAuthorityError();
     if (this.authorityFence?.isCurrent?.(authority.capture) !== true) throw staleAuthorityError();
     if (result.discarded > 0) {
@@ -11681,14 +11819,15 @@ export class SnapbackClient {
     }
     const store = this.#offlineQueueStore(true);
     const authority = await this.#currentStrandedAuthority();
-    const target = await this.#outboxProjectionTarget(store);
-    const record = (await store.outboxRecords()).find((candidate) => (
-      candidate?.id === clientMutationId
-      && candidate.status === 'stranded'
-      && candidate.rerecordable === true
-      && outboxRecordMatchesProjectionTarget(candidate, target)
-      && samePrincipalScope(candidate.predecessorPrincipalScope, authority.principalScope)
-    ));
+    const record = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'reRecordStrandedMutation', clientMutationIds: [clientMutationId] },
+      async ({ records }) => records.find((candidate) => (
+        candidate.status === 'stranded'
+        && candidate.rerecordable === true
+        && samePrincipalScope(candidate.predecessorPrincipalScope, authority.principalScope)
+      )) ?? null,
+    );
     if (!record) {
       const error = new Error(
         'SNAPBACK_OUTBOX_STRANDED_NOT_CURRENT: no rerecordable stranded mutation belongs to the current principal',
@@ -11730,34 +11869,32 @@ export class SnapbackClient {
     let discarded = null;
     let discardError = null;
     try {
-      const release = await acquireOutboxAuthorizationDispatch(store);
-      try {
-        const currentTarget = await this.#outboxProjectionTarget(store);
-        const currentPredecessor = (await store.outboxRecords()).find((candidate) => (
-          candidate?.id === clientMutationId
-          && candidate.status === 'stranded'
-          && candidate.rerecordable === true
-          && outboxRecordMatchesProjectionTarget(candidate, currentTarget)
-          && samePrincipalScope(
-            candidate.predecessorPrincipalScope,
+      discarded = await this.#withTargetFencedOutboxRecords(
+        store,
+        {
+          api: 'reRecordStrandedMutation:discardPredecessor',
+          clientMutationIds: [clientMutationId],
+        },
+        async ({ records, authorizationFence }) => {
+          const currentPredecessor = records.find((candidate) => (
+            candidate.status === 'stranded'
+            && candidate.rerecordable === true
+            && samePrincipalScope(
+              candidate.predecessorPrincipalScope,
+              authority.principalScope,
+            )
+          ));
+          if (currentPredecessor === undefined) throw staleAuthorityError();
+          if (this.authorityFence?.isCurrent?.(authority.capture) !== true) {
+            throw staleAuthorityError();
+          }
+          return store.outboxDiscardStranded(
+            [clientMutationId],
             authority.principalScope,
-          )
-        ));
-        if (currentPredecessor === undefined) throw staleAuthorityError();
-        const discardFence = outboxAuthorizationFenceFrom(
-          await store.outboxAuthorizationStatus(),
-        );
-        if (this.authorityFence?.isCurrent?.(authority.capture) !== true) {
-          throw staleAuthorityError();
-        }
-        discarded = await store.outboxDiscardStranded(
-          [clientMutationId],
-          authority.principalScope,
-          discardFence,
-        );
-      } finally {
-        await release();
-      }
+            authorizationFence,
+          );
+        },
+      );
       if (discarded?.discarded !== 1) discardError = staleAuthorityError();
     } catch (error) {
       discardError = error;
@@ -11819,34 +11956,42 @@ export class SnapbackClient {
     const store = this.#offlineQueueStore();
     if (!store || typeof store.outboxRecords !== 'function') return [];
     const cohort = await this.#currentSettlementRecoveryCohort(userId);
-    const target = await this.#outboxProjectionTarget(store);
-    return (await store.outboxRecords())
-      .filter((record) => record?.status === 'settled')
-      .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
-      .filter((record) => (record.userId ?? null) === cohort.userId)
-      .filter((record) => (
-        !cohort.enforceAuthorityDescriptor
-        || sameAuthorityDescriptor(
-          record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor,
-          cohort.authorityDescriptor,
-        )
-      ))
-      .map((record) => {
-        const targetStatus = outboxRecordTargetStatus(record, target);
-        return freezeDeep({
-          clientMutationId: record.id,
-          function: record.function,
-          settlement: structuredClone(record.settlement),
-          settledAt: record.settledAt,
-          authorityDescriptor: record.settlementAuthorityDescriptor
-            ?? record.settlement?.authorityDescriptor
-            ?? null,
-          ...(targetStatus === null ? {} : targetStatus),
-        });
-      });
+    return this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'settledMutations' },
+      async ({ records, target }) => records
+        .filter((record) => record?.status === 'settled')
+        .filter((record) => (record.userId ?? null) === cohort.userId)
+        .filter((record) => (
+          !cohort.enforceAuthorityDescriptor
+          || sameAuthorityDescriptor(
+            record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor,
+            cohort.authorityDescriptor,
+          )
+        ))
+        .map((record) => {
+          const targetStatus = outboxRecordTargetStatus(record, target);
+          return freezeDeep({
+            clientMutationId: record.id,
+            function: record.function,
+            settlement: structuredClone(record.settlement),
+            settledAt: record.settledAt,
+            authorityDescriptor: record.settlementAuthorityDescriptor
+              ?? record.settlement?.authorityDescriptor
+              ?? null,
+            ...(targetStatus === null ? {} : targetStatus),
+          });
+        }),
+    );
   }
 
   async markMutationSettlementsConsumed(clientMutationIds = [], { userId = null } = {}) {
+    if (
+      !Array.isArray(clientMutationIds)
+      || clientMutationIds.some((id) => typeof id !== 'string' || id.length === 0)
+    ) {
+      throw new TypeError('markMutationSettlementsConsumed requires an array of client mutation ids');
+    }
     const store = this.#offlineQueueStore(true);
     if (typeof store.outboxMarkAcknowledgementsReady !== 'function') {
       const error = new Error(
@@ -11856,10 +12001,43 @@ export class SnapbackClient {
       throw error;
     }
     const cohort = await this.#currentSettlementRecoveryCohort(userId);
-    return store.outboxMarkAcknowledgementsReady(
-      clientMutationIds,
-      cohort.userId,
-      cohort.enforceAuthorityDescriptor ? cohort.authorityDescriptor : undefined,
+    return this.#withTargetFencedOutboxRecords(
+      store,
+      {
+        api: 'markMutationSettlementsConsumed',
+        clientMutationIds,
+      },
+      async ({ records, authorizationFence }) => {
+        const matching = records.filter((record) => (
+          record.status === 'settled'
+          && (record.userId ?? null) === cohort.userId
+          && (
+            !cohort.enforceAuthorityDescriptor
+            || sameAuthorityDescriptor(
+              record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor,
+              cohort.authorityDescriptor,
+            )
+          )
+        ));
+        const groups = new Map();
+        for (const record of matching) {
+          const key = canonicalizeClientValueV1(record.enqueueTarget);
+          const group = groups.get(key) ?? { ids: [], enqueueTarget: record.enqueueTarget };
+          group.ids.push(record.id);
+          groups.set(key, group);
+        }
+        let changed = 0;
+        for (const group of groups.values()) {
+          changed += await store.outboxMarkAcknowledgementsReady(
+            group.ids,
+            cohort.userId,
+            cohort.enforceAuthorityDescriptor ? cohort.authorityDescriptor : undefined,
+            authorizationFence,
+            group.enqueueTarget,
+          );
+        }
+        return changed;
+      },
     );
   }
 
@@ -12008,6 +12186,7 @@ export class SnapbackClient {
     authorityDescriptor,
     authorityCapture,
     operationTarget,
+    beforeTransportDispatch = null,
   ) {
     const previousRange = await store.outboxOperationIdentityRange(authorityCohortKey);
     const body = {
@@ -12017,6 +12196,9 @@ export class SnapbackClient {
     };
     if (authorityDescriptor) body.authorityDescriptor = authorityDescriptor;
     if (previousRange) body.previousRange = previousRange;
+    if (typeof beforeTransportDispatch === 'function') {
+      await beforeTransportDispatch();
+    }
     const response = await this.#req(
       'POST',
       '/client-mutations/identity-range',
@@ -13307,7 +13489,19 @@ export class SnapbackClient {
         // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
         //   mismatched target custody stays byte-identical and pending.
         await assertReplayCapabilityCurrent();
-        assertReplayRecordTargetCurrent(record);
+        const targetFencedRecord = await this.#withTargetFencedOutboxRecords(
+          store,
+          {
+            api: '#replayOutboxOnce',
+            clientMutationIds: [record.id],
+            target: replayOperationTarget,
+            authorizationDispatchOwned: true,
+            lane: record.dispatchLane ?? 'foreground',
+          },
+          async ({ records }) => records[0] ?? null,
+        );
+        if (targetFencedRecord === null) assertReplayRecordTargetCurrent(record);
+        record = targetFencedRecord;
         // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
         //   record under an authority other than its enqueue authority.
         const custody = await this.#reconcileQueueCustody(store, {
@@ -13466,6 +13660,7 @@ export class SnapbackClient {
             replayAuthorityDescriptor,
             replayAuthority?.capture ?? null,
             replayOperationTarget,
+            assertReplayCapabilityCurrent,
           );
           record = await store.outboxAssignOperationIdentity(
             record.id,
@@ -13999,7 +14194,11 @@ export class SnapbackClient {
     // persisted per-record target fences run before a target-valid prefix is
     // reconciled. Adoption prerequisites may inspect this snapshot, but must
     // not mutate a mismatched record before replay reports the target refusal.
-    const beforeRecords = await store.outboxRecords();
+    const beforeRecords = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'adoptQueuedMutations:before' },
+      async ({ records }) => records.map((record) => structuredClone(record)),
+    );
     const before = outboxDispositionCounts(beforeRecords);
     for (const record of beforeRecords.filter((entry) => entry?.status === 'pending')) {
       const recordGeneration = record.expectedGeneration === null
@@ -14024,7 +14223,12 @@ export class SnapbackClient {
     const replay = await this.#replayQueuedMutationsWithOptions({
       preserveTerminalFailures: true,
     });
-    const after = outboxDispositionCounts(await store.outboxRecords());
+    const afterRecords = await this.#withTargetFencedOutboxRecords(
+      store,
+      { api: 'adoptQueuedMutations:after' },
+      async ({ records }) => records.map((record) => structuredClone(record)),
+    );
+    const after = outboxDispositionCounts(afterRecords);
     const retained = after.pending + after.quarantined + after.resultGone;
     const replayStop = replay.stopped === true ? this.__outboxLastReplayStop : null;
     const outcome = replay.stopped === true
@@ -14161,6 +14365,15 @@ export class SnapbackClient {
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
+    if (
+      !Array.isArray(acknowledgedClientMutationIds)
+      || acknowledgedClientMutationIds.some((id) => (
+        typeof id !== 'string' || id.length === 0
+      ))
+    ) {
+      throw new TypeError('mutate acknowledgedClientMutationIds requires an array of client mutation ids');
+    }
+    const requestedAcknowledgementIds = [...new Set(acknowledgedClientMutationIds)];
     const transitionStatus = this.authorityTransitionStatus();
     if (dispatchLane === 'housekeeping' && transitionStatus.transitionOwner === 'auth-coordinator') {
       let store = queue === true
@@ -14535,7 +14748,7 @@ export class SnapbackClient {
     if (
       queueStore
       && body.authorityDescriptor
-      && acknowledgedClientMutationIds.length === 0
+      && requestedAcknowledgementIds.length === 0
     ) {
       try {
         const status = await queueStore.outboxAuthorizationStatus();
@@ -14568,8 +14781,52 @@ export class SnapbackClient {
         );
       } catch { /* retained obligations are retried on a later mutation */ }
     };
-    if (acknowledgedClientMutationIds.length > 0) {
-      body.acknowledgedClientMutationIds = acknowledgedClientMutationIds;
+    const selectRequestedAcknowledgements = async ({ authorizationDispatchOwned = false } = {}) => {
+      if (
+        requestedAcknowledgementIds.length === 0
+        || queueStore === null
+        || body.authorityDescriptor == null
+        || sentAcknowledgementTarget === null
+      ) return [];
+      return this.#withTargetFencedOutboxRecords(
+        queueStore,
+        {
+          api: 'mutate:acknowledgedClientMutationIds',
+          clientMutationIds: requestedAcknowledgementIds,
+          target: operationTarget,
+          authorizationDispatchOwned,
+          lane: dispatchLane,
+        },
+        async ({ records, authorizationFence }) => {
+          const locallyOwned = new Set(records.map((record) => record.id));
+          const pending = new Set(await queueStore.outboxPendingAcknowledgements(
+            typeof userId === 'string' ? userId : null,
+            Math.max(64, requestedAcknowledgementIds.length),
+            body.authorityDescriptor,
+            sentAcknowledgementTarget,
+          ));
+          sentAcknowledgementFence = authorizationFence;
+          return requestedAcknowledgementIds.filter((id) => (
+            id !== clientMutationId && locallyOwned.has(id) && pending.has(id)
+          ));
+        },
+      );
+    };
+    if (requestedAcknowledgementIds.length > 0) {
+      if (queueStore === null) {
+        this.#recordOutboxDiagnostic({
+          code: 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+          api: 'mutate:acknowledgedClientMutationIds',
+          refused: requestedAcknowledgementIds.length,
+          reasons: Object.freeze(['record-not-local']),
+          clientMutationIds: Object.freeze(requestedAcknowledgementIds),
+        }, { notify: false });
+      } else {
+        sentAcknowledgements = await selectRequestedAcknowledgements();
+        if (sentAcknowledgements.length > 0) {
+          body.acknowledgedClientMutationIds = sentAcknowledgements;
+        }
+      }
     }
     if (ctxLedger) body.ctx_ledger = ctxLedger;
     // This is an ordinary synthetic wire carrier, not a local executor. The
@@ -14862,6 +15119,37 @@ export class SnapbackClient {
           ) {
             let range;
             try {
+              // Range issuance and durable assignment are one
+              // authorization-dispatch ownership interval. Re-read both the
+              // record target and shared capability after enqueue, then again
+              // at #refreshOperationIdentityRange's exact pre-fetch cut.
+              await releaseAuthorizationDispatch();
+              authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
+                queueStore,
+                dispatchLane,
+              );
+              if (!await revalidateQueueCapability({ retireRecord: true })) {
+                throw capabilitySupersededError();
+              }
+              const fencedStored = await this.#withTargetFencedOutboxRecords(
+                queueStore,
+                {
+                  api: 'foregroundOperationIdentityRange',
+                  clientMutationIds: [stored.id],
+                  target: operationTarget,
+                  authorizationDispatchOwned: true,
+                  lane: dispatchLane,
+                },
+                async ({ records }) => records[0] ?? null,
+              );
+              if (fencedStored === null) {
+                await retireSupersededCapabilityRecord();
+                throw offlineQueueSettlementLedgerError({
+                  reason: 'target-identity-mismatch',
+                });
+              }
+              stored = fencedStored;
+              preparationFence = outboxAuthorizationFenceFrom(stored);
               range = await this.#refreshOperationIdentityRange(
                 queueStore,
                 authorityCohortKey,
@@ -14870,6 +15158,11 @@ export class SnapbackClient {
                 body.authorityDescriptor,
                 queueAuthority?.capture ?? authorityCapture,
                 operationTarget,
+                async () => {
+                  if (!await revalidateQueueCapability({ retireRecord: true })) {
+                    throw capabilitySupersededError();
+                  }
+                },
               );
               stored = await queueStore.outboxAssignOperationIdentity(
                 stored.id,
@@ -14949,7 +15242,10 @@ export class SnapbackClient {
                   knownAppId,
                 ) ? [stored.id] : [];
                 if (recordIds.length > 0) {
-                  await this.#reconcileQueueCustody(queueStore, { recordIds });
+                  await this.#reconcileQueueCustody(queueStore, {
+                    authorizationDispatchOwned: true,
+                    recordIds,
+                  });
                 }
                 throw error;
               }
@@ -15183,6 +15479,16 @@ export class SnapbackClient {
                 // fence: it runs under the dispatch lock and after submission
                 // preparation, while retirement is still provably pre-fetch.
                 throw capabilitySupersededError();
+              }
+              if (requestedAcknowledgementIds.length > 0) {
+                sentAcknowledgements = await selectRequestedAcknowledgements({
+                  authorizationDispatchOwned: true,
+                });
+                if (sentAcknowledgements.length === 0) {
+                  delete body.acknowledgedClientMutationIds;
+                } else {
+                  body.acknowledgedClientMutationIds = sentAcknowledgements;
+                }
               }
               if (ephemeralOptimisticRecord) {
                 this.#markEphemeralOptimisticDispatched(clientMutationId);
@@ -15481,7 +15787,10 @@ export class SnapbackClient {
               knownAppId,
             ) ? [clientMutationId] : [];
             if (recordIds.length > 0) {
-              await this.#reconcileQueueCustody(queueStore, { recordIds });
+              await this.#reconcileQueueCustody(queueStore, {
+                authorizationDispatchOwned: true,
+                recordIds,
+              });
             }
             throw error;
           }

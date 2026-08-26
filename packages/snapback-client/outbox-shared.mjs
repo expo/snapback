@@ -2275,7 +2275,20 @@ export const outboxOps = {
       },
     };
   },
-  markAcksReady(state, ids, userId = undefined, authorityDescriptor = undefined) {
+  markAcksReady(
+    state,
+    ids,
+    userId = undefined,
+    authorityDescriptor = undefined,
+    expectedAuthorizationFence = null,
+    enqueueTarget = undefined,
+  ) {
+    requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
+    // Settlement consumption is target authority, not merely id authority.
+    // A legacy caller that omits the complete enqueue target is a no-op.
+    if (normalizeOutboxEnqueueTarget(enqueueTarget) === null) {
+      return { state, result: 0 };
+    }
     const selected = new Set(ids);
     let changed = 0;
     const acks = state.acks.map((ack) => {
@@ -2283,6 +2296,7 @@ export const outboxOps = {
         !selected.has(ack.id)
         || ack.ready === true
         || !acknowledgementMatches(ack, userId, authorityDescriptor)
+        || !acknowledgementTargetMatches(state, ack, enqueueTarget)
       ) return ack;
       changed += 1;
       return { ...ack, ready: true };

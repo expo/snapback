@@ -392,6 +392,28 @@ const offlineReplayInspection = ({
   capabilityManifest: offlineReplayCapabilityManifest({ supported, targetProfileId }),
 });
 
+const commitCompleteReplayCapability = async (
+  store,
+  origin,
+  targetProfileId = 'local-dev-sqlite-ibex',
+) => store.commitOfflineMutationReplayCapabilityFact({
+  schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+  origin,
+  supported: true,
+  reason: null,
+  targetProfileId,
+  artifactGeneration: TEST_ARTIFACT_GENERATION,
+});
+
+const prepareCompleteReplayTarget = async (
+  store,
+  origin,
+  targetProfileId = 'local-dev-sqlite-ibex',
+) => {
+  await commitCompleteReplayCapability(store, origin, targetProfileId);
+  return currentOutboxTarget({ origin, targetProfileId });
+};
+
 const currentOutboxTarget = ({
   origin,
   targetProfileId = 'local-dev-sqlite-ibex',
@@ -445,6 +467,7 @@ const createForeignTargetSessionFixture = async ({
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     rqsStore: store,
+    __outboxDrainLifecycle: false,
     ...(operationIdentityProtocol === null ? {} : { operationIdentityProtocol }),
   });
   await client.authSession();
@@ -617,6 +640,10 @@ test('store_meta migration defaults only declared additive fields and fails clos
 });
 
 async function exerciseOutboxContract(store, { label }) {
+  const contractTarget = currentOutboxTarget({
+    origin: 'https://outbox-contract.example',
+    targetProfileId: 'outbox-contract',
+  });
   assert.equal(await store.outboxEmpty(), true, `${label}: starts empty`);
   const capabilityFact = {
     schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
@@ -674,6 +701,7 @@ async function exerciseOutboxContract(store, { label }) {
   const first = await store.outboxEnqueue({
     id: 'cm-1',
     function: 'createThing',
+    ...contractTarget,
     args: { title: 'a' },
     userId: 'user_a',
     capturedNow: 1234,
@@ -681,6 +709,7 @@ async function exerciseOutboxContract(store, { label }) {
   const second = await store.outboxEnqueue({
     id: 'cm-2',
     function: 'updateThing',
+    ...contractTarget,
     args: { title: 'b' },
     userId: 'user_a',
   });
@@ -694,6 +723,7 @@ async function exerciseOutboxContract(store, { label }) {
   const re = await store.outboxEnqueue({
     id: 'cm-1',
     function: 'createThing',
+    ...contractTarget,
     args: { title: 'a' },
     userId: 'user_a',
     capturedNow: 1234,
@@ -704,6 +734,7 @@ async function exerciseOutboxContract(store, { label }) {
     () => store.outboxEnqueue({
       id: 'cm-1',
       function: 'createThing',
+      ...contractTarget,
       args: { title: 'different' },
       userId: 'user_a',
       capturedNow: 1234,
@@ -753,14 +784,18 @@ async function exerciseOutboxContract(store, { label }) {
   assert.equal(await store.outboxEmpty(), true, `${label}: only failed records left -> empty for resume`);
   assert.deepEqual((await store.outboxPending()), []);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), []);
-  await store.outboxMarkAcknowledgementsReady(['cm-2']);
+  await store.outboxMarkAcknowledgementsReady(
+    ['cm-2'], undefined, undefined, null, contractTarget.enqueueTarget,
+  );
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), ['cm-2']);
   assert.deepEqual(
     await store.outboxPendingAcknowledgements('user_b', 64),
     [],
     `${label}: another identity never sends this one's ACKs`,
   );
-  await store.outboxConfirmAcknowledgements(['cm-2']);
+  await store.outboxConfirmAcknowledgements(
+    ['cm-2'], undefined, undefined, null, contractTarget.enqueueTarget,
+  );
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64), []);
   assert.equal(
     (await store.outboxRecords()).some((record) => record.id === 'cm-2'),
@@ -858,6 +893,7 @@ async function exerciseOutboxContract(store, { label }) {
   const fenced = (id) => ({
     id,
     function: 'createThing',
+    ...contractTarget,
     args: { privateValue: id },
     authorityDescriptor: predecessorDescriptor,
     principalScope: predecessorScope,
@@ -912,7 +948,13 @@ async function exerciseOutboxContract(store, { label }) {
     result: { privateValue: 'settled-predecessor-result' },
     authorityDescriptor: predecessorDescriptor,
   }, predecessorScope.userId);
-  await store.outboxMarkAcknowledgementsReady(['cm-custody-settled']);
+  await store.outboxMarkAcknowledgementsReady(
+    ['cm-custody-settled'],
+    undefined,
+    undefined,
+    null,
+    contractTarget.enqueueTarget,
+  );
   const stranded = await reconcileQueueCustody(store, predecessorScope, {
     ...predecessorDescriptor,
     authorityInstanceId: 'authority-b',
@@ -1188,19 +1230,30 @@ test('ACK custody is scoped by authority instance as well as user', async () => 
     sessionGeneration: 1,
   };
   const store = createMemoryRqsResumeStore();
+  const target = currentOutboxTarget({
+    origin: 'https://authority-ack.example',
+    targetProfileId: 'authority-ack',
+  });
   await store.outboxEnqueue({
     id: 'cm-authority',
     function: 'createThing',
+    ...target,
     userId: 'user_a',
     authorityDescriptor: first,
   });
   await store.outboxDurablyConsume('cm-authority', { result: { ok: true } }, 'user_a');
-  await store.outboxMarkAcknowledgementsReady(['cm-authority']);
+  await store.outboxMarkAcknowledgementsReady(
+    ['cm-authority'], undefined, undefined, null, target.enqueueTarget,
+  );
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, first), ['cm-authority']);
   assert.deepEqual(await store.outboxPendingAcknowledgements('user_a', 64, second), []);
-  assert.equal(await store.outboxConfirmAcknowledgements(['cm-authority'], 'user_a', second), 0);
+  assert.equal(await store.outboxConfirmAcknowledgements(
+    ['cm-authority'], 'user_a', second, null, target.enqueueTarget,
+  ), 0);
   assert.equal((await store.outboxRecords())[0].status, 'settled');
-  assert.equal(await store.outboxConfirmAcknowledgements(['cm-authority'], 'user_a', first), 1);
+  assert.equal(await store.outboxConfirmAcknowledgements(
+    ['cm-authority'], 'user_a', first, null, target.enqueueTarget,
+  ), 1);
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
@@ -2108,7 +2161,13 @@ test('file arm retains a consumed settlement and ACK obligation across relaunch'
   const directory = mkdtempSync(join(tmpdir(), 'snapback-outbox-settlement-'));
   const store = createFileRqsResumeStore({ directory, identity: 'origin:settlement' });
   await store.whenLockSettled();
-  await store.outboxEnqueue({ id: 'cm-settled', function: 'createThing', args: { n: 1 } });
+  const target = currentOutboxTarget({
+    origin: 'https://file-settlement.example',
+    targetProfileId: 'file-settlement',
+  });
+  await store.outboxEnqueue({
+    id: 'cm-settled', function: 'createThing', args: { n: 1 }, ...target,
+  });
   await store.outboxDurablyConsume(
     'cm-settled',
     { result: { id: 'thing_1' }, version: 9 },
@@ -2123,9 +2182,13 @@ test('file arm retains a consumed settlement and ACK obligation across relaunch'
   assert.equal(retained.status, 'settled');
   assert.deepEqual(retained.settlement.result, { id: 'thing_1' });
   assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), []);
-  await relaunched.outboxMarkAcknowledgementsReady(['cm-settled']);
+  await relaunched.outboxMarkAcknowledgementsReady(
+    ['cm-settled'], undefined, undefined, null, target.enqueueTarget,
+  );
   assert.deepEqual(await relaunched.outboxPendingAcknowledgements('user_a'), ['cm-settled']);
-  await relaunched.outboxConfirmAcknowledgements(['cm-settled']);
+  await relaunched.outboxConfirmAcknowledgements(
+    ['cm-settled'], undefined, undefined, null, target.enqueueTarget,
+  );
   assert.deepEqual(await relaunched.outboxRecords(), []);
   await relaunched.close();
 });
@@ -5284,9 +5347,12 @@ const exerciseTargetAwareOptimisticProjection = async ({
       view.close();
     }
     const status = await projectionClient.mutationStatus(queued.clientMutationId);
-    assert.equal(status.status, 'pending');
-    assert.equal(status.targetMatchesCurrent, false);
-    assert.deepEqual(status.enqueueTarget, pendingRecord.enqueueTarget);
+    assert.equal(
+      status.status,
+      'unknown',
+      'a foreign id is a target-fenced no-op rather than a predecessor observation',
+    );
+    assert.equal(status.enqueueTarget, undefined);
     assert.deepEqual(
       await projectionClient.settledMutations(),
       [],
@@ -5363,8 +5429,7 @@ test('legacy targetless records never project into a current target', async (t) 
   try {
     await client.inspect();
     const status = await client.mutationStatus('cm-legacy-targetless-projection');
-    assert.equal(status.status, 'settled');
-    assert.equal(status.targetMatchesCurrent, undefined);
+    assert.equal(status.status, 'unknown', 'a targetless legacy id is a target-fenced no-op');
     assert.equal(status.enqueueTarget, undefined);
     assert.deepEqual(
       await client.settledMutations(),
@@ -5577,7 +5642,88 @@ test('replay checks peer capability currency under the dispatch lock before rang
   }
 });
 
-test('operation-range transport loss revalidates capability before queued relinquishment', async (t) => {
+test('foreground checks peer capability currency under the dispatch lock before range refresh', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://foreground-range-capability-lock.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+    __outboxDrainLifecycle: false,
+  });
+  const replacingClient = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  replacingClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let negativeEnabled = false;
+  let rangePosts = 0;
+  let mutationPosts = 0;
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: !negativeEnabled,
+        targetProfileId: negativeEnabled
+          ? 'cloudflare-do-sqlite-v8'
+          : 'local-dev-sqlite-ibex',
+      }));
+    }
+    if (path === '/client-mutations/identity-range') {
+      rangePosts += 1;
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-foreground-range-capability-lock',
+          authorityInstanceId: 'authority-foreground-range-capability-lock',
+          epochId: 'epoch-foreground-range-capability-lock',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: testDigest('8'),
+        },
+      });
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { committed: true }, version: 1 });
+  };
+  const enqueueWithIdentity = store.outboxEnqueueWithOperationIdentity.bind(store);
+  let injectedNegative = false;
+  store.outboxEnqueueWithOperationIdentity = async (...args) => {
+    const stored = await enqueueWithIdentity(...args);
+    if (!injectedNegative) {
+      injectedNegative = true;
+      negativeEnabled = true;
+      await replacingClient.inspect();
+    }
+    return stored;
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'peer negative precedes foreground range transport' },
+        clientMutationId: 'cm-foreground-range-capability-lock',
+        queue: true,
+      }),
+      (error) => error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    );
+    assert.equal(rangePosts, 0, 'a peer negative prevents foreground identity-range transport');
+    assert.equal(mutationPosts, 0, 'the superseded foreground issues no mutation POST');
+    assert.deepEqual(await store.outboxRecords(), [], 'pre-dispatch supersession retires intent');
+  } finally {
+    await replacingClient.close();
+    await client.close();
+    await store.close();
+  }
+});
+
+test('operation-range transport loss serializes a peer capability replacement through relinquishment', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://operation-range-capability-supersession.example';
@@ -5622,22 +5768,22 @@ test('operation-range transport loss revalidates capability before queued relinq
     });
     await rangeRequested;
     negativeEnabled = true;
-    await replacingClient.inspect();
+    const replacement = replacingClient.inspect();
     rejectRangeRequest(new TypeError('operation range request lost transport'));
     const outcome = await mutating.then(
       (value) => ({ value, error: null }),
       (error) => ({ value: null, error }),
     );
+    assert.equal(outcome.error, null);
+    assert.equal(outcome.value?.status, 'queued');
+    assert.equal(mutationPosts, 0, 'the failed range path issues no mutation POST');
+    await replacement;
     assert.equal(
-      outcome.error?.code,
-      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
-      'the newer negative is surfaced instead of returning queued',
-    );
-    assert.equal(mutationPosts, 0, 'the superseded range path issues no mutation POST');
-    assert.deepEqual(
-      await store.outboxRecords(),
-      [],
-      'pre-dispatch range supersession retires the admitted durable record',
+      (await store.outboxRecords()).find(
+        (record) => record.id === 'cm-range-capability-supersession',
+      )?.status,
+      'pending',
+      'the peer negative commits only after range ownership safely relinquishes custody',
     );
   } finally {
     await replacingClient.close();
@@ -6128,6 +6274,47 @@ test('automatic string-named mutation stays online-only with identity-free cache
   );
 });
 
+test('fresh direct manifest cannot durably admit a string-named mutation across same-app redeploy', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://fresh-direct-manifest-generation.example';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayCapabilityManifest({
+        supported: true,
+        targetProfileId: 'fresh-direct-manifest-profile',
+      }));
+    }
+    mutationPosts += 1;
+    throw new TypeError('same-app generation changed after direct-manifest admission');
+  };
+
+  try {
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'generation must be known before enqueue' },
+        clientMutationId: 'cm-fresh-direct-manifest-generation',
+        queue: true,
+      }),
+      (error) => (
+        error.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED'
+        && error.diagnostic?.details?.reason === 'artifact-generation-required'
+      ),
+    );
+    assert.equal(mutationPosts, 0, 'generation-incomplete support sends no mutation POST');
+    assert.deepEqual(await store.outboxRecords(), [], 'generation-incomplete support stores no intent');
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('closeAuth releases an owned default store for the next sequential client', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-client-handoff-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -6391,25 +6578,25 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
   assert.equal(receipt.schemaVersion, 'snapback.outbox-adoption.v1');
   assert.equal(receipt.clientStoreId, clientStoreId);
   assert.equal(receipt.writer, true);
-  assert.equal(receipt.pendingBefore, 1);
+  assert.equal(receipt.pendingBefore, 0);
   assert.equal(receipt.replayed, 0, JSON.stringify({
     receipt,
     stop: candidate.__outboxLastReplayStop,
     diagnostics: candidate.outboxDiagnostics,
   }));
-  assert.equal(receipt.remaining, 1);
+  assert.equal(receipt.remaining, 0);
   assert.deepEqual(receipt.outcome, {
     status: 'paused',
     reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-    retained: 1,
+    retained: 0,
   });
   assert.deepEqual(
     receipt.before,
-    { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
+    { pending: 0, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
   );
   assert.deepEqual(
     receipt.after,
-    { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
+    { pending: 0, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
   );
   assert.deepEqual(delivered, [], 'target adoption is not inferred from sidecar admission');
   assert.equal(
@@ -6457,7 +6644,7 @@ test('checked sidecar adoption names a retained legacy targetless pause', async 
     assert.deepEqual(receipt.outcome, {
       status: 'paused',
       reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING',
-      retained: 1,
+      retained: 0,
     });
     assert.equal(mutationPosts, 0, 'legacy targetless adoption sends zero mutation POSTs');
     assert.deepEqual(
@@ -6542,15 +6729,15 @@ test('sidecar adoption target mismatch precedes authority-instance custody recon
       afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
     });
     assert.equal(receipt.replayed, 0);
-    assert.equal(receipt.remaining, 1);
+    assert.equal(receipt.remaining, 0);
     assert.deepEqual(receipt.outcome, {
       status: 'paused',
       reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-      retained: 1,
+      retained: 0,
     });
     assert.equal(mutationPosts, 0, 'adoption sends zero POSTs for the target-A record');
     const status = await candidate.outboxStatus();
-    assert.equal(status.pending, 1, 'outboxStatus observes the adopted target-A record read-only');
+    assert.equal(status.pending, 0, 'outboxStatus does not project the target-A record');
     assert.deepEqual(
       (await store.outboxRecords())[0],
       before,
@@ -6703,11 +6890,11 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
     {
       replayed: 0,
       failedDelta: 0,
-      remaining: 1,
+      remaining: 0,
       outcome: {
         status: 'paused',
         reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-        retained: 1,
+        retained: 0,
       },
     },
   );
@@ -6803,6 +6990,7 @@ test('cached enqueue defers operation identity range transport until fresh-gated
 test('opt-in client range transport allocates before first mutation and reuses one retry carrier', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-range.example');
   const clientAudienceId = (await store.readStoreMeta()).clientStoreId;
   const requests = [];
   const issuedAtMs = Date.now();
@@ -6902,6 +7090,7 @@ test('equivalent enqueue integration keeps generated function ids from distinct 
 test('foreground range preparation defers while an authorization root remains active', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-foreground-fence.example');
   const issuedAtMs = Date.now();
   let announceRangeRequest;
   const rangeRequested = new Promise((resolve) => { announceRangeRequest = resolve; });
@@ -6926,7 +7115,7 @@ test('foreground range preparation defers while an authorization root remains ac
     queue: true,
   });
   await rangeRequested;
-  await applyQueueRoot(store, testQueueObligation);
+  const rootApplication = applyQueueRoot(store, testQueueObligation);
   releaseRange(Response.json({
     schemaVersion: 1,
     range: {
@@ -6942,6 +7131,7 @@ test('foreground range preparation defers while an authorization root remains ac
       authorityAuthenticatorDigest: `sha256:${'e'.repeat(64)}`,
     },
   }));
+  await rootApplication;
   const deferred = await mutating;
   assert.equal(deferred.status, 'queued');
   assert.equal(deferred.authorizationDisposition, 'authorization-suspended');
@@ -6955,6 +7145,7 @@ test('foreground range preparation defers while an authorization root remains ac
 test('operation-identity enqueue under delete is redacted without range transport', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-delete-root.example');
   await applyQueueRoot(store, {
     ...testQueueObligation,
     maxDisposition: 'delete',
@@ -6997,6 +7188,7 @@ test('operation-identity enqueue under delete is redacted without range transpor
 test('uncovered offline intent obtains and durably assigns a range before reconnect admission', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-reconnect.example');
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const client = new SnapbackClient('https://operation-reconnect.example', {
     rqsStore: store,
@@ -7050,12 +7242,12 @@ test('uncovered offline intent obtains and durably assigns a range before reconn
 test('replay range preparation pauses while an authorization root remains active', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-range-fence.example');
   await store.outboxEnqueue({
     id: 'cm-delayed-range-replay',
     function: 'createThing',
     ...currentOutboxTarget({
       origin: 'https://operation-range-fence.example',
-      targetProfileId: null,
     }),
     args: { title: 'fenced during range refresh' },
     userId: 'user-a',
@@ -7080,7 +7272,7 @@ test('replay range preparation pauses while an authorization root remains active
   });
   const replaying = client.replayQueuedMutations();
   await rangeRequested;
-  await applyQueueRoot(store, testQueueObligation);
+  const rootApplication = applyQueueRoot(store, testQueueObligation);
   releaseRange(Response.json({
     schemaVersion: 1,
     range: {
@@ -7096,6 +7288,7 @@ test('replay range preparation pauses while an authorization root remains active
       authorityAuthenticatorDigest: `sha256:${'f'.repeat(64)}`,
     },
   }));
+  await rootApplication;
   const replay = await replaying;
   assert.equal(replay.stopped, true);
   assert.equal(replay.replayed, 0);
@@ -7109,6 +7302,7 @@ test('replay range preparation pauses while an authorization root remains active
 test('server epoch-capacity refusal keeps uncovered intent queued for fresh authority', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-capacity.example');
   const devDiagnosticsEvents = [];
   globalThis.fetch = async (url) => {
     assert.match(String(url), /\/client-mutations\/identity-range$/u);
@@ -7159,6 +7353,7 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
 test('fresh same-principal authority atomically covers capacity-stranded intent', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-successor.example');
   const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
   const descriptorB = {
     descriptorVersion: 1,
@@ -7345,6 +7540,7 @@ test('sessions mode automatically carries authority through range issuance and A
 test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'https://operation-rotation.example');
   const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
   const descriptorB = {
     descriptorVersion: 1,
@@ -7412,6 +7608,7 @@ test('authority rotation allocates a disjoint range without rebinding old queued
 test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
 
@@ -7482,6 +7679,7 @@ test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item
 test('LLP 0133 sketch 3 rewrites mapped speculative-id leaves before dependent submission', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
 
@@ -7581,6 +7779,7 @@ test('LLP 0133 sketch 3 rewrites mapped speculative-id leaves before dependent s
 test('LLP 0133 sketch 3 rejection cascades transitively without dependent submission', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
 
@@ -7972,15 +8171,71 @@ test('standalone ACK confirms only its exact authority cohort', async (t) => {
 
 test('shared-store recovery APIs never reconcile foreign-target custody', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
+  const strand = async ({ store, foreignId }) => {
+    const record = (await store.outboxRecords()).find((entry) => entry.id === foreignId);
+    await store.outboxMarkStranded(
+      foreignId,
+      'foreign-target-fixture',
+      record.principalScope,
+    );
+  };
+  const quarantine = async ({ store, foreignId }) => {
+    await store.outboxMarkQuarantined(foreignId, {
+      code: 'SNAPBACK_TEST_UPGRADE_REQUIRED',
+    });
+  };
+  const resultGone = async ({ store, foreignId }) => {
+    await store.outboxMarkResultGone(foreignId, {
+      outcome: 'committed',
+      receiptDigest: testDigest('9'),
+    });
+  };
+  const settle = async ({ store, foreignId }) => {
+    await store.outboxDurablyConsume(
+      foreignId,
+      {
+        result: { foreign: true },
+        authorityDescriptor: TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+      },
+      null,
+    );
+  };
   const cases = [
     {
+      label: 'outbox-status',
+      invoke: async ({ client }) => {
+        assert.equal((await client.outboxStatus()).pending, 0);
+      },
+    },
+    {
+      label: 'mutation-status',
+      invoke: async ({ client, foreignId }) => {
+        assert.equal((await client.mutationStatus(foreignId)).status, 'unknown');
+      },
+    },
+    {
+      label: 'mutation-subscription',
+      invoke: async ({ client, foreignId }) => {
+        const statuses = [];
+        const unsubscribe = client.subscribeMutation(
+          foreignId,
+          (status) => statuses.push(status.status),
+        );
+        await new Promise((resolve) => setImmediate(resolve));
+        unsubscribe();
+        assert.deepEqual(statuses, ['unknown']);
+      },
+    },
+    {
       label: 'stranded-read',
+      prepare: strand,
       invoke: async ({ client }) => {
         assert.deepEqual(await client.strandedMutations(), []);
       },
     },
     {
       label: 'stranded-discard',
+      prepare: strand,
       invoke: async ({ client, foreignId }) => {
         assert.deepEqual(
           await client.discardStrandedMutations([foreignId]),
@@ -7990,6 +8245,7 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
     },
     {
       label: 'stranded-rerecord',
+      prepare: strand,
       invoke: async ({ client, foreignId }) => {
         await assert.rejects(
           () => client.reRecordStrandedMutation(foreignId),
@@ -7998,7 +8254,15 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
       },
     },
     {
+      label: 'quarantine-read',
+      prepare: quarantine,
+      invoke: async ({ client }) => {
+        assert.deepEqual(await client.quarantinedMutations(), []);
+      },
+    },
+    {
       label: 'quarantine-reentry',
+      prepare: quarantine,
       invoke: async ({ client }) => {
         assert.deepEqual(
           await client.reenterQuarantinedMutations(),
@@ -8006,22 +8270,166 @@ test('shared-store recovery APIs never reconcile foreign-target custody', async 
         );
       },
     },
+    {
+      label: 'result-gone-acknowledgement',
+      prepare: resultGone,
+      invoke: async ({ client, foreignId }) => {
+        assert.deepEqual(
+          await client.acknowledgeResultGoneMutations([foreignId]),
+          { acknowledged: 0, clientMutationIds: [] },
+        );
+      },
+    },
+    {
+      label: 'settlement-read',
+      prepare: settle,
+      invoke: async ({ client }) => {
+        assert.deepEqual(await client.settledMutations(), []);
+      },
+    },
+    {
+      label: 'settlement-consumed',
+      prepare: settle,
+      invoke: async ({ client, foreignId, store }) => {
+        assert.equal(await client.markMutationSettlementsConsumed([foreignId]), 0);
+        assert.deepEqual(
+          await store.outboxPendingAcknowledgements(
+            null,
+            64,
+            TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+          ),
+          [],
+        );
+      },
+    },
+    {
+      label: 'standalone-acknowledgement',
+      prepare: settle,
+      invoke: async ({ client, foreignId }) => {
+        assert.deepEqual(
+          await client.acknowledgeMutations({ clientMutationIds: [foreignId] }),
+          { acknowledged: 0 },
+        );
+      },
+    },
+    {
+      label: 'replay-and-terminal-consumers',
+      invoke: async ({ client }) => {
+        const replay = await client.replayQueuedMutations();
+        assert.equal(replay.replayed, 0);
+        assert.equal(replay.stopped, true);
+      },
+    },
+    {
+      label: 'sidecar-adoption',
+      invoke: async ({ client, store }) => {
+        client.inspect = async () => offlineReplayInspection({
+          supported: true,
+          targetProfileId: 'sidecar-adoption-target-b',
+        });
+        const receipt = await client.adoptQueuedMutations({
+          expectedClientStoreId: (await store.readStoreMeta()).clientStoreId,
+          expectedGeneration: TEST_ARTIFACT_GENERATION,
+          afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+        });
+        assert.equal(receipt.replayed, 0);
+      },
+    },
   ];
   for (const recoveryCase of cases) {
     await t.test(recoveryCase.label, async () => {
       const fixture = await createForeignTargetSessionFixture({ label: recoveryCase.label });
       try {
+        await recoveryCase.prepare?.(fixture);
+        const before = structuredClone(
+          (await fixture.store.outboxRecords())
+            .find((record) => record.id === fixture.foreignId),
+        );
+        const transportRequests = [];
+        globalThis.fetch = async (url) => {
+          transportRequests.push(String(url));
+          throw new Error(`${recoveryCase.label} must not reach transport`);
+        };
         await recoveryCase.invoke(fixture);
         assert.deepEqual(
           (await fixture.store.outboxRecords())
             .find((record) => record.id === fixture.foreignId),
-          fixture.before,
-          `${recoveryCase.label} leaves target-A pending bytes unchanged`,
+          before,
+          `${recoveryCase.label} leaves target-A bytes unchanged`,
         );
+        assert.deepEqual(transportRequests, [], `${recoveryCase.label} sends zero transport`);
       } finally {
         await fixture.close();
       }
     });
+  }
+});
+
+test('foreign-target result-gone acknowledgement is a coded no-op', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const fixture = await createForeignTargetSessionFixture({ label: 'result-gone-ack' });
+  try {
+    await fixture.store.outboxMarkResultGone(fixture.foreignId, {
+      outcome: 'committed',
+      receiptDigest: testDigest('7'),
+    });
+    const before = structuredClone(
+      (await fixture.store.outboxRecords()).find((record) => record.id === fixture.foreignId),
+    );
+    assert.deepEqual(
+      await fixture.client.acknowledgeResultGoneMutations([fixture.foreignId]),
+      { acknowledged: 0, clientMutationIds: [] },
+    );
+    assert.deepEqual(
+      (await fixture.store.outboxRecords()).find((record) => record.id === fixture.foreignId),
+      before,
+    );
+    assert.equal(
+      fixture.client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+    );
+  } finally {
+    await fixture.close();
+  }
+});
+
+test('foreign-target settlement cannot cross the consumed acknowledgement cut', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const fixture = await createForeignTargetSessionFixture({ label: 'settlement-consumed' });
+  try {
+    await fixture.store.outboxDurablyConsume(
+      fixture.foreignId,
+      {
+        result: { foreign: true },
+        authorityDescriptor: TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+      },
+      null,
+    );
+    const before = structuredClone(
+      (await fixture.store.outboxRecords()).find((record) => record.id === fixture.foreignId),
+    );
+    assert.equal(
+      await fixture.client.markMutationSettlementsConsumed([fixture.foreignId]),
+      0,
+    );
+    assert.deepEqual(
+      await fixture.store.outboxPendingAcknowledgements(
+        null,
+        64,
+        TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+      ),
+      [],
+    );
+    assert.deepEqual(
+      (await fixture.store.outboxRecords()).find((record) => record.id === fixture.foreignId),
+      before,
+    );
+    assert.equal(
+      fixture.client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED',
+    );
+  } finally {
+    await fixture.close();
   }
 });
 
@@ -8141,7 +8549,10 @@ test('standalone ACK refreshes same-origin generation evidence before custody or
     { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
     null,
   );
-  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  await store.outboxMarkAcknowledgementsReady(
+    [clientMutationId], undefined, undefined, null,
+    (await store.outboxRecords())[0].enqueueTarget,
+  );
   globalThis.fetch = async (url) => {
     assert.equal(new URL(url).pathname, '/inspect');
     return Response.json(offlineReplayInspection({
@@ -8203,7 +8614,10 @@ test('durable injected stores without shared capability evidence methods refuse 
     { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
     null,
   );
-  await backingStore.outboxMarkAcknowledgementsReady([clientMutationId]);
+  await backingStore.outboxMarkAcknowledgementsReady(
+    [clientMutationId], undefined, undefined, null,
+    (await backingStore.outboxRecords())[0].enqueueTarget,
+  );
   const incompleteStore = Object.create(backingStore);
   Object.defineProperties(incompleteStore, {
     beginOfflineMutationReplayCapabilityObservation: { value: undefined },
@@ -8266,7 +8680,10 @@ test('standalone ACK never crosses the persisted enqueue target after client rep
     { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
     null,
   );
-  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  await store.outboxMarkAcknowledgementsReady(
+    [clientMutationId], undefined, undefined, null,
+    (await store.outboxRecords())[0].enqueueTarget,
+  );
   const requests = [];
   globalThis.fetch = async (url, init) => {
     requests.push({ url: String(url), body: JSON.parse(init.body) });
@@ -8419,8 +8836,8 @@ test('legacy targetless standalone ACK never crosses origin after client repoint
   );
   assert.deepEqual(
     await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
-    [clientMutationId],
-    'targetless legacy intent keeps its local ACK obligation',
+    [],
+    'targetless legacy intent cannot become an ACK obligation',
   );
 });
 
@@ -8465,7 +8882,10 @@ test('piggyback ACK never crosses the persisted enqueue target after client repo
     { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
     null,
   );
-  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  await store.outboxMarkAcknowledgementsReady(
+    [clientMutationId], undefined, undefined, null,
+    (await store.outboxRecords())[0].enqueueTarget,
+  );
   const mutationBodies = [];
   globalThis.fetch = async (url, init) => {
     if (new URL(url).pathname === '/inspect') {
@@ -8496,6 +8916,7 @@ test('piggyback ACK never crosses the persisted enqueue target after client repo
   const outcome = await client.mutate('createThing', {
     args: { title: 'target B write' },
     authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    acknowledgedClientMutationIds: [clientMutationId],
   });
   assert.equal(outcome.status, 'settled');
   assert.equal(mutationBodies.length, 1);
@@ -8703,6 +9124,7 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
 test('post-response persistence failure remains pending and is never published as failed', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const consume = store.outboxDurablyConsume.bind(store);
   store.outboxDurablyConsume = async () => {
     const error = new Error('simulated fsync failure');
@@ -8732,6 +9154,7 @@ test('post-response persistence failure remains pending and is never published a
 test('replay persistence failure stops without drop-and-mark-failed', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
@@ -8753,6 +9176,7 @@ test('replay persistence failure stops without drop-and-mark-failed', async (t) 
 test('identity horizon outcome-unknown remains pending online and during replay', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => Response.json({
     diagnostic: {
@@ -8796,6 +9220,7 @@ test('identity horizon outcome-unknown remains pending online and during replay'
 test('committed result-expired becomes durable result-gone and blocks ordered successors', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   let calls = 0;
   globalThis.fetch = async () => {
@@ -8826,7 +9251,7 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
   await store.outboxEnqueue({
     id: 'cm-after-result-expired',
     function: 'updateThing',
-    ...currentOutboxTarget({ origin: 'http://127.0.0.1:9', targetProfileId: null }),
+    ...target,
     args: { title: 'must-wait' },
   });
   calls = 0;
@@ -8997,6 +9422,10 @@ test('recreated file-backed client preserves result-gone without redelivery', as
     identity: 'origin:result-gone-relaunch',
   });
   await firstStore.whenLockSettled();
+  const target = await prepareCompleteReplayTarget(
+    firstStore,
+    'https://result-gone.example',
+  );
   const firstClient = new SnapbackClient('https://result-gone.example', {
     rqsStore: firstStore,
   });
@@ -9028,10 +9457,7 @@ test('recreated file-backed client preserves result-gone without redelivery', as
   await reopenedStore.outboxEnqueue({
     id: 'cm-after-result-gone-relaunch',
     function: 'updateThing',
-    ...currentOutboxTarget({
-      origin: 'https://result-gone.example',
-      targetProfileId: null,
-    }),
+    ...target,
     args: { title: 'must remain fenced' },
   });
   let calls = 0;
@@ -9074,6 +9500,7 @@ test('recreated file-backed client preserves result-gone without redelivery', as
 test('replay drop-and-mark-failed on server refusal, pending kept on connectivity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const a = await client.mutate('createThing', { args: { n: 1 } });
@@ -9131,6 +9558,7 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
 test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // The exact witnessed Expo simulator rejection shape: name 'Error'.
@@ -9214,13 +9642,20 @@ test('connectivity classification excludes custody and answered refusals', () =>
 
 test('mutationStatus reports pending durable intent without inferring outcome-unknown', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-pending', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({
+    id: 'cm-status-pending', function: 'createThing', ...target,
+  });
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   const disposition = await client.mutationStatus('cm-status-pending');
+  assert.equal(disposition.targetMatchesCurrent, true);
   assert.deepEqual(
-    { ...disposition, timing: undefined },
-    { status: 'pending', blockedReason: null, timing: undefined },
+    { ...disposition, timing: undefined, enqueueTarget: undefined, targetMatchesCurrent: undefined },
+    {
+      status: 'pending', blockedReason: null, timing: undefined,
+      enqueueTarget: undefined, targetMatchesCurrent: undefined,
+    },
   );
   assert.equal(Number.isSafeInteger(disposition.timing.enqueuedAtMs), true);
   assert.equal(Object.isFrozen(disposition), true);
@@ -9229,6 +9664,7 @@ test('mutationStatus reports pending durable intent without inferring outcome-un
 test('restart settlement recovery reports settled with the complete retained payload', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const first = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   const queued = await first.mutate('createThing', { args: { title: 'restart' } });
@@ -9253,7 +9689,8 @@ test('restart settlement recovery reports settled with the complete retained pay
 
 test('mutationStatus reports a retained terminal failure', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-failed', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-status-failed', function: 'createThing', ...target });
   await store.outboxMarkFailed('cm-status-failed', {
     code: 'SNAPBACK_TEST_REFUSAL',
     message: 'fixture refusal',
@@ -9261,29 +9698,48 @@ test('mutationStatus reports a retained terminal failure', async () => {
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   const disposition = await client.mutationStatus('cm-status-failed');
-  assert.deepEqual({ ...disposition, timing: undefined }, {
+  assert.equal(disposition.targetMatchesCurrent, true);
+  assert.deepEqual({
+    ...disposition,
+    timing: undefined,
+    enqueueTarget: undefined,
+    targetMatchesCurrent: undefined,
+  }, {
     status: 'failed',
     failure: { code: 'SNAPBACK_TEST_REFUSAL', message: 'fixture refusal' },
     timing: undefined,
+    enqueueTarget: undefined,
+    targetMatchesCurrent: undefined,
   });
   assert.equal(Number.isSafeInteger(disposition.timing.enqueuedAtMs), true);
 });
 
 test('mutationStatus reports a payload-free quarantined disposition', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-quarantined', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-status-quarantined', function: 'createThing', ...target });
   await store.outboxMarkQuarantined('cm-status-quarantined', {
     code: 'SNAPBACK_TEST_UPGRADE_REQUIRED',
   });
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   const disposition = await client.mutationStatus('cm-status-quarantined');
-  assert.deepEqual({ ...disposition, timing: undefined }, { status: 'quarantined', timing: undefined });
+  assert.equal(disposition.targetMatchesCurrent, true);
+  assert.deepEqual({
+    ...disposition,
+    timing: undefined,
+    enqueueTarget: undefined,
+    targetMatchesCurrent: undefined,
+  }, {
+    status: 'quarantined', timing: undefined,
+    enqueueTarget: undefined, targetMatchesCurrent: undefined,
+  });
 });
 
 test('mutationStatus maps result-gone and carries its retained outcome facts', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-result-gone', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-status-result-gone', function: 'createThing', ...target });
   const receiptDigest = `sha256:${'d'.repeat(64)}`;
   await store.outboxMarkResultGone('cm-status-result-gone', {
     outcome: 'committed',
@@ -9292,23 +9748,34 @@ test('mutationStatus maps result-gone and carries its retained outcome facts', a
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   const disposition = await client.mutationStatus('cm-status-result-gone');
-  assert.deepEqual({ ...disposition, timing: undefined }, {
+  assert.equal(disposition.targetMatchesCurrent, true);
+  assert.deepEqual({
+    ...disposition,
+    timing: undefined,
+    enqueueTarget: undefined,
+    targetMatchesCurrent: undefined,
+  }, {
     status: 'resultGone',
     disposition: 'result-expired',
     outcome: 'committed',
     receiptDigest,
     timing: undefined,
+    enqueueTarget: undefined,
+    targetMatchesCurrent: undefined,
   });
 });
 
 test('result-gone acknowledgement is payload-free and releases its ordered-successor fence', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-ack-result-gone', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-ack-result-gone', function: 'createThing', ...target });
   await store.outboxMarkResultGone('cm-ack-result-gone', {
     outcome: 'committed',
     receiptDigest: `sha256:${'e'.repeat(64)}`,
   });
-  await store.outboxEnqueue({ id: 'cm-after-ack-result-gone', function: 'updateThing' });
+  await store.outboxEnqueue({
+    id: 'cm-after-ack-result-gone', function: 'updateThing', ...target,
+  });
   assert.equal(
     (await store.outboxPrepareSubmission('cm-after-ack-result-gone')).status,
     'blocked',
@@ -9332,7 +9799,8 @@ test('result-gone acknowledgement is payload-free and releases its ordered-succe
 
 test('mutationStatus reports unknown after ACK consumption and collection', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-collected', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-status-collected', function: 'createThing', ...target });
   await store.outboxDurablyConsume('cm-status-collected', {
     version: 1,
     changed_count: 1,
@@ -9343,7 +9811,9 @@ test('mutationStatus reports unknown after ACK consumption and collection', asyn
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   assert.equal((await client.mutationStatus('cm-status-collected')).status, 'settled');
   await client.markMutationSettlementsConsumed(['cm-status-collected']);
-  assert.equal(await store.outboxConfirmAcknowledgements(['cm-status-collected']), 1);
+  assert.equal(await store.outboxConfirmAcknowledgements(
+    ['cm-status-collected'], undefined, undefined, null, target.enqueueTarget,
+  ), 1);
 
   const disposition = await client.mutationStatus('cm-status-collected');
   assert.deepEqual({ ...disposition, timing: undefined }, { status: 'unknown', timing: undefined });
@@ -9353,6 +9823,7 @@ test('mutationStatus reports unknown after ACK consumption and collection', asyn
 test('subscribeMutation delivers current pending then settled during replay', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
   globalThis.fetch = async () => { throw new TypeError('offline'); };
   const queued = await client.mutate('createThing', { args: { title: 'subscribe' } });
@@ -9450,9 +9921,9 @@ test('subscribeMutation publishes target disposition changes while status stays 
     dispositions.map(({ status, targetMatchesCurrent }) => ({ status, targetMatchesCurrent })),
     [
       { status: 'pending', targetMatchesCurrent: true },
-      { status: 'pending', targetMatchesCurrent: false },
+      { status: 'unknown', targetMatchesCurrent: undefined },
     ],
-    'capability replacement publishes the complete changed disposition',
+    'capability replacement publishes the foreign-id no-op disposition',
   );
   await client.close();
   await store.close();
@@ -9460,7 +9931,8 @@ test('subscribeMutation publishes target disposition changes while status stays 
 
 test('mutation observation never consumes settlement or changes ACK eligibility', async () => {
   const store = createDurableTestStore();
-  await store.outboxEnqueue({ id: 'cm-status-observed', function: 'createThing' });
+  const target = await prepareCompleteReplayTarget(store, 'http://127.0.0.1:9');
+  await store.outboxEnqueue({ id: 'cm-status-observed', function: 'createThing', ...target });
   await store.outboxDurablyConsume('cm-status-observed', {
     version: 3,
     changed_count: 1,
@@ -9494,6 +9966,7 @@ test('mutation observation never consumes settlement or changes ACK eligibility'
 test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-arm seam)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  await commitCompleteReplayCapability(store, 'http://127.0.0.1:9');
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
 
   // No outbox-capable store -> supported: false, never a guessed empty queue.

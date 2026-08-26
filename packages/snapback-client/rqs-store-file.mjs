@@ -1515,10 +1515,23 @@ export function createFileRqsResumeStore({
       ));
     },
 
-    async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxMarkAcknowledgementsReady(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.markAcksReady(outbox, ids, userId, authorityDescriptor),
+        (outbox) => outboxOps.markAcksReady(
+          outbox,
+          ids,
+          userId,
+          authorityDescriptor,
+          expectedAuthorizationFence,
+          enqueueTarget,
+        ),
       )).result);
     },
 

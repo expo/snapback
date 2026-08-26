@@ -822,9 +822,22 @@ export function createMemoryRqsResumeStore({
       );
     },
 
-    async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxMarkAcknowledgementsReady(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
+    ) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.markAcksReady(state.outbox, ids, userId, authorityDescriptor);
+      const applied = outboxOps.markAcksReady(
+        state.outbox,
+        ids,
+        userId,
+        authorityDescriptor,
+        expectedAuthorizationFence,
+        enqueueTarget,
+      );
       state.outbox = applied.state;
       return applied.result;
     },
