@@ -6,7 +6,7 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
-**Revised:** 2026-08-26 (u — a retainable value guarded by a destructor is the same defect)
+**Revised:** 2026-08-26 (u — a retainable value guarded by a destructor is the same defect; generalized to any caller-authored fact)
 **Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
@@ -807,6 +807,37 @@ pins its cell and refuses later *legitimate* writes; a stranded completion wedge
 authorization progress permanently. So this defect class does not merely permit forgery —
 its failure mode is denial, and denial is the harder half to notice in review because
 nothing looks unauthorized.
+
+
+**Generalization (added same day, on further evidence).** Revision (u) was written from two
+lanes that both handed out a *retainable value*. A third lane then failed twice more, and the
+defect was neither retention nor a destructor:
+
+- Its round 2 correctly stopped returning a retainable completion — reviewers confirmed the
+  borrowed view could not escape, was not `Clone`/`Copy`, had private fields, and could not
+  have its private fence identity reconstructed. That fix genuinely held.
+- Its round 3 failed anyway, because the authority had **moved into the callback's return
+  value**: the caller's closure returns the terminal disposition, and nothing proves the
+  callback performed the settlement it asserts. `|_| Ok((Complete, ()))` clears the
+  obligation while no subscriber auth, entry, or outbox is touched.
+
+In parallel, a second lane's step-up proofs were rejected for the same reason at a different
+layer: the proof carries private binding coordinates and the sink checks every one, but the
+caller can also write the durable challenge those coordinates are compared against. The
+review's phrasing is the general statement — *the private fields prove nothing because both
+the artifact and its durable predecessor are caller-mintable.*
+
+So the rule is not about retention, lifetimes, or destructors specifically. **It is about any
+fact that authority derives from which the caller can author.** Across one programme the same
+defect has appeared as: a retained permit; a forgotten owner; a raw accessor reaching past the
+wrapper; a caller-supplied write set; a caller-written challenge row; a caller-selected policy
+digest; and a caller-returned disposition. Closing one form relocates it to the next.
+
+**The operative question for authors and reviewers** is therefore not "can this be retained?"
+but: *for every fact this decision rests on, who authored it, and could a caller have authored
+it instead?* If the answer is the caller — directly, or by writing the durable record the
+check compares against — the check is decorative regardless of how many coordinates it carries.
+A protection that merely verifies a caller "should" have done the work is not a protection.
 
 **Scope.** This says nothing about ordinary RAII. Guards that protect only their holder's
 own correctness are fine. The rule binds where the value's continued existence is what
