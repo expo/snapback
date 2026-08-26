@@ -605,7 +605,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 358,
+  expectedTotal = 360,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1148,6 +1148,7 @@ export function checkPackageTestInventories(options = {}) {
 // 357 -> 358 (2026-08-25, guide-gap round-2/round-13 repairs): @expo/snapback-cli
 // gains the independently runnable complete diagnostic-anchor regression.
 // 357 -> 358 (2026-08-25, guide-gap round-14 review): @expo/snapback-react's
+// 358 -> 360 (integration: origin/main added maintained tests since the guide-gaps base)
 // activity-presence characterization of shipped behavior that the Guide relies
 // on joins the package test command and canonical gating inventory.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
