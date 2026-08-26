@@ -6712,9 +6712,9 @@ export async function runDev(options = {}) {
     && (filename.startsWith('generated') || filename.startsWith('.generated'))
   );
   const watcher = watch(backendRoot, { recursive: true }, (_event, filename) => {
-    // Ignore codegen's own outputs: the committed `generated/` tree and the
-    // `.generated.tmp-*` staging directories it renames into place —
-    // otherwise every regeneration retriggers the watcher forever.
+    // Ignore the committed `generated/` tree and `.generated.*` coordination
+    // files. LLP 0310.000 Track C keeps graph publication staging outside this
+    // project tree; output events must not retrigger regeneration forever.
     if (closed || !filename || isGeneratedWatchPath(filename)) return;
     queuedFilename = filename;
     clearTimeout(timer);

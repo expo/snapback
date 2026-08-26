@@ -8657,7 +8657,7 @@ async function generateInProcessLocked({
       : {}),
   };
   legacyArtifactIndex.artifacts.splice(3, 0, ...governanceArtifactFiles);
-  const tmpOutDir = join(backendRoot, `.generated.tmp-${process.pid}-${Date.now()}`);
+  const { publicationStagingRoot, tmpOutDir } = codegenPublicationStagingPaths(backendRoot);
   let artifactIndex;
   let summary;
   let verifiedGraph;
@@ -8854,7 +8854,7 @@ async function generateInProcessLocked({
       recordLatestEmittedGeneration(generationEnvelope);
     }
   } catch (error) {
-    rmSync(tmpOutDir, { recursive: true, force: true });
+    rmSync(publicationStagingRoot, { recursive: true, force: true });
     err(
       error.code ?? 'CODEGEN_WRITE_FAILED',
       'codegen',
@@ -8863,7 +8863,7 @@ async function generateInProcessLocked({
     );
     return { ok: false, diagnostics };
   }
-
+  rmSync(publicationStagingRoot, { recursive: true, force: true });
   return {
     ok: true,
     diagnostics,
@@ -22315,4 +22315,20 @@ function writeDeclarationPair(outDir, stem, source) {
 
 function renderFamiliarApiBootstrapTypes() {
   return `${HEADER}\n// Familiar definition bootstrap; replaced by the transactional final projection.\nexport declare const api: Readonly<Record<string, Readonly<Record<string, unknown>>>>;\nexport default api;\n`;
+}
+
+// @ref LLP 0310.000#track-c--generate-must-not-kill-metro — candidate and
+// rollback directories live beside, not within, Metro's project watch root.
+// The sibling stays on the same filesystem so complete-directory renames
+// publish the successor immediately when generation returns.
+function codegenPublicationStagingPaths(backendRoot) {
+  const projectRoot = codegenProjectRoot(backendRoot);
+  const publicationStagingRoot = join(
+    dirname(projectRoot),
+    `.${relative(dirname(projectRoot), projectRoot)}.snapback-codegen-${process.pid}-${randomBytes(12).toString('hex')}`,
+  );
+  return {
+    publicationStagingRoot,
+    tmpOutDir: join(publicationStagingRoot, 'candidate-graph'),
+  };
 }

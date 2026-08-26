@@ -164,12 +164,21 @@ const scheduleRefresh = () => {
   refreshTimer = setTimeout(refreshPublishedGraph, 10);
 };
 let generatedWatcher = null;
+let stagingWatcher = null;
 if (watching && pollGeneratedAlias) {
   const aliasPath = join(generatedRoot, 'app.mjs');
   watchFile(aliasPath, { interval: 10 }, scheduleRefresh);
   generatedWatcher = { close: () => unwatchFile(aliasPath, scheduleRefresh) };
 } else if (watching) {
   generatedWatcher = watch(generatedRoot, scheduleRefresh);
+}
+if (watching) {
+  stagingWatcher = watch(join(generatedRoot, '..'), (_event, filename) => {
+    const entry = String(filename ?? '').split(/[\\\\/]/u)[0];
+    if (!/^(?:\\.generated\\.tmp-|generated\\.tmp-|generated\\.bak-)/u.test(entry)) return;
+    console.error('ENOENT: Metro observed disappearing codegen staging directory ' + entry);
+    process.exit(86);
+  });
 }
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_ENV, JSON.stringify({
   nodeOptions: process.env.NODE_OPTIONS,
@@ -215,6 +224,7 @@ server.listen(port, '127.0.0.1', () => {
 });
 const stop = () => {
   generatedWatcher?.close();
+  stagingWatcher?.close();
   if (refreshTimer !== null) clearTimeout(refreshTimer);
   if (process.env.SNAPBACK_EXPO_TEST_METRO_STUBBORN_FIRST === '1' && launchCount === 1) return;
   server.close(() => process.exit(0));
@@ -447,10 +457,10 @@ function snapshotEnvFiles(directory) {
   return files;
 }
 
-function fixture(name, { sessions, root = scratchRoot }) {
+function fixture(name, { sessions, root = scratchRoot, expoAtProjectRoot = false }) {
   const projectRoot = join(root, name);
   const backendRoot = join(projectRoot, 'snapback');
-  const expoRoot = join(projectRoot, 'app');
+  const expoRoot = expoAtProjectRoot ? projectRoot : join(projectRoot, 'app');
   mkdirSync(projectRoot, { recursive: true });
   // The copied fixture's generated modules import workspace packages such as
   // @expo/snapback-client. Once they live under this scratch project, Node can
@@ -585,6 +595,7 @@ async function startFixture(target, options = {}) {
       events.push(event);
       options.onEvent?.(event);
     },
+    onCriticalExit: options.onCriticalExit,
   });
   assert.equal(supervisor.ok, true, JSON.stringify(supervisor));
   supervisors.push(supervisor);
@@ -594,6 +605,33 @@ async function startFixture(target, options = {}) {
     'supervised startup must not create or mutate any .env* file',
   );
   return { supervisor, events };
+}
+
+async function runSnapbackGenerate(backendRoot) {
+  const child = spawn(process.execPath, [
+    join(packageRoot, 'cli.mjs'),
+    'generate',
+    backendRoot,
+    '--json',
+  ], {
+    cwd: dirname(backendRoot),
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const exit = await new Promise((resolveExit) => {
+    child.once('exit', (code, signal) => resolveExit({ code, signal }));
+  });
+  assert.equal(exit.signal, null, stderr);
+  assert.equal(exit.code, 0, stderr || stdout);
+  const result = JSON.parse(stdout);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  return result;
 }
 
 function assertListenerInventory(supervisor) {
@@ -3095,6 +3133,96 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(existsSync(join(cliTimeoutArtifacts, 'expo-supervisor.json')), false);
   assert.equal(existsSync(join(cliTimeout.expoRoot, 'public')), false);
 
+  // @ref LLP 0310.000#acceptance — C1 exercises the public generate command
+  // while Metro watches the project that contains snapback/generated. The
+  // headless Metro child exits on any in-project generated staging directory,
+  // so serving the successor proves both watcher safety and graph freshness.
+  const generateLive = fixture('generate-under-live-metro', {
+    sessions: false,
+    expoAtProjectRoot: true,
+  });
+  const generateCriticalExits = [];
+  const generateRun = await startFixture(generateLive, {
+    platform: 'web',
+    onCriticalExit(error) { generateCriticalExits.push(error); },
+  });
+  const generateSupervisor = generateRun.supervisor;
+  const supervisorDescriptorPath = join(generateLive.stateRoot, 'expo-supervisor.json');
+  const predecessorOwnerPid = JSON.parse(
+    readFileSync(supervisorDescriptorPath, 'utf8'),
+  ).pid;
+  const generatePredecessorBackendPid = JSON.parse(
+    readFileSync(generateLive.readyFile, 'utf8'),
+  ).pid;
+  const generatePredecessorMetroPid = generateSupervisor.inspection().metro.pid;
+  const predecessorGeneratedDescriptor = JSON.parse(readFileSync(
+    join(generateLive.generatedRoot, 'app.descriptor.json'),
+    'utf8',
+  )).identity.descriptor;
+  const predecessorGeneratedBundle = await (
+    await fetch(`${generateSupervisor.metroOrigin}/bundle`)
+  ).text();
+  assert.match(predecessorGeneratedBundle, new RegExp(predecessorGeneratedDescriptor, 'u'));
+
+  const generateFunctionsPath = join(generateLive.backendRoot, 'functions.mjs');
+  const generatePredecessorFunctions = readFileSync(generateFunctionsPath, 'utf8');
+  const generateSuccessorFunctions = generatePredecessorFunctions
+    .replace(
+      'export const publishLiveRow = defineJsMutation({',
+      'export const publishLiveRowAfterGenerate = defineJsMutation({',
+    )
+    .replace(
+      'mutations: { publish: bind(publishLiveRow,',
+      'mutations: { publish: bind(publishLiveRowAfterGenerate,',
+    );
+  assert.notEqual(generateSuccessorFunctions, generatePredecessorFunctions);
+  writeFileSync(generateFunctionsPath, generateSuccessorFunctions);
+  const generatedByCommand = await runSnapbackGenerate(generateLive.backendRoot);
+  assert.equal(generatedByCommand.outDir, generateLive.generatedRoot);
+  const successorGeneratedDescriptor = await eventually(() => {
+    const identity = JSON.parse(readFileSync(
+      join(generateLive.generatedRoot, 'app.descriptor.json'),
+      'utf8',
+    )).identity.descriptor;
+    return identity === predecessorGeneratedDescriptor ? false : identity;
+  }, { label: 'successor graph published by snapback generate' });
+
+  const successorGeneratedBundle = await eventually(async () => {
+    const response = await fetch(`${generateSupervisor.metroOrigin}/bundle`);
+    const source = await response.text();
+    return source.includes(successorGeneratedDescriptor) ? { response, source } : false;
+  }, { timeoutMs: 30_000, label: 'Metro serves graph updated by snapback generate' });
+  assert.equal(successorGeneratedBundle.source.includes(predecessorGeneratedDescriptor), false);
+  assert(Number(successorGeneratedBundle.response.headers.get('x-metro-files-changed-count')) >= 1);
+  assert.equal(
+    JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).pid,
+    predecessorOwnerPid,
+    'snapback generate preserves the supervised owner pid',
+  );
+  assert.equal(
+    JSON.parse(readFileSync(generateLive.readyFile, 'utf8')).pid,
+    generatePredecessorBackendPid,
+    'snapback generate preserves the backend pid',
+  );
+  assert.equal(
+    generateSupervisor.inspection().metro.pid,
+    generatePredecessorMetroPid,
+    'snapback generate preserves the Metro pid',
+  );
+  assert.equal(generateCriticalExits.length, 0, generateCriticalExits[0]?.stack);
+  assert.doesNotMatch(JSON.stringify(generateRun.events), /SNAPBACK_EXPO_METRO_EXITED/u);
+  assert.deepEqual(
+    readdirSync(generateLive.backendRoot).filter((name) => (
+      /^(?:\.generated\.tmp-|generated\.tmp-|generated\.bak-)/u.test(name)
+    )),
+    [],
+    'no codegen publication staging enters Metro\'s project tree',
+  );
+  await generateSupervisor.close();
+  await eventually(() => !existsSync(generateLive.readyFile), {
+    label: 'generate-under-live-Metro ready-file cleanup',
+  });
+
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
@@ -4071,7 +4199,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, control-socket reload/refusals/ack/cleanup, repeated TTL cold boots, transient descriptor, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, control-socket reload/refusals/ack/cleanup, repeated TTL cold boots, transient descriptor, one mounted provider arm recovering across schema/functions successors, live-owner snapback generate watcher safety, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
   }
 } finally {
   for (const child of cliChildren) {
