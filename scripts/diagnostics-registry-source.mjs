@@ -1409,8 +1409,14 @@ function isRustMatchArmPattern(source, offset, code) {
 }
 
 function isRustMatchesReference(source, offset) {
-  const before = source.slice(Math.max(0, offset - 4096), offset);
-  return /\bmatches!\s*\([^;{}]*$/su.test(before);
+  const start = Math.max(0, offset - 4096);
+  const before = source.slice(start, offset);
+  const candidates = [...before.matchAll(/\bmatches!\s*\(/gu)].reverse();
+  return candidates.some((candidate) => {
+    const open = start + candidate.index + candidate[0].lastIndexOf('(');
+    const close = matchingDelimiter(source, open);
+    return close !== source.length && offset < close;
+  });
 }
 
 function isCatalogueLiteralContext(source, open) {
@@ -1610,6 +1616,16 @@ function emissionWinsEnvironmentSite(source, match, analysis) {
     hasEmissionMarker(source, offset, match[0])
     && !isCommentReference(offset, analysis.literals.comments)
   ) return true;
+  // Proven direct environment access is the stronger syntax even when it is
+  // nested inside a broad throw/error shape. Explicit emission markers above
+  // remain the escape hatch for a genuinely dual-role spelling at one offset.
+  if (
+    analysis.siteKinds.has(offset)
+    && (
+      directEnvironmentSiteKind(source, offset, match[0]) !== null
+      || shellEnvironmentSiteKind(source, offset, match[0], analysis.literals) !== null
+    )
+  ) return false;
   if (
     isGeneratedSourceDiagnosticPosition(source, match, analysis.literals)
     || isStoredDiagnosticSqlPosition(source, match, analysis.literals)

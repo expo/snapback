@@ -44,8 +44,11 @@ and are admitted only when their direct structure proves a name collection:
 arrays of ordinary string literals or objects proven by ordinary string-literal
 name keys or values. Only direct elements, keys, and values become table entries; nested
 functions, methods, calls, objects, arrays, and template bodies never do.
-Explicit throw/error/failure/diagnostic syntax wins over any environment site
-kind at the same offset. The round-17 fail-first fixture is exactly:
+Explicit emission markers win over an environment classification at the same
+offset. Broad throw/error/failure/diagnostic syntax wins for otherwise
+ambiguous literals, but proven direct environment access remains an environment
+site even when nested inside that syntax. The round-17 fail-first fixture is
+exactly:
 
 ```js
 const environment = {
@@ -58,6 +61,24 @@ bindingFailure('SNAPBACK_APP_BINDING_EXPIRED');
 
 Both literals are emissions and neither is an environment site. The older
 direct-array-plus-following-throw delimiter fixture remains covered separately.
+
+The round-18 correction pins the opposite precedence boundary with the exact
+fail-first fixture
+`throw new Error(process.env["SNAPBACK_FIXTURE_ENV"])`: it produces one
+environment read and zero diagnostic emissions. Direct `process.env.X`,
+`process.env["X"]`, injected `env["X"]`, Rust `var_os("X")`, and shell
+`${X}`/`$X` syntax remain environment access regardless of an enclosing broad
+throw heuristic; a named emission marker remains the explicit override.
+
+Round 18 also bounds Rust `matches!(...)` reference detection to the macro's
+matched closing parenthesis. Five real emitters that follow completed macros
+are restored: `SNAPBACK_ADMIN_LAN_TARGET_INVALID` at
+`admin_link.rs:765`, `SNAPBACK_ADMIN_TAILSCALE_TARGET_UNSUPPORTED` at
+`admin_link.rs:1008`, `SNAPBACK_PROFILE_FORBIDS` at `cli.rs:4464`,
+`SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID` at `cli.rs:6638`, and the additional
+`SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID` site at `admin.rs:696`.
+Exact per-file line lists for the four reviewed codes guard the generated
+registry projection.
 
 The final round-16 correction derives each table's opener from the lexical
 delimiter stack and then tests containment against that exact declaration
@@ -205,7 +226,7 @@ Captured output:
   "counts": {
     "codes": 3543,
     "sourceFiles": 642,
-    "emittingSites": 9216,
+    "emittingSites": 9221,
     "receivedSites": 339,
     "reservedSites": 9,
     "httpClassified": 1709,
@@ -250,3 +271,6 @@ the registry's `environment` section and mislabels received/reserved sites as
 emissions. This closed ticket does not claim native parity; the exact Rust
 change and parity tests are tracked in
 `issues/20260825-native-guide-lookup-registry-kinds-parity.md`.
+That ticket also records the v1 schema obligation: diagnostic `sites` entries
+now carry optional `kind`, and native must read it rather than treating every
+site as an emission.

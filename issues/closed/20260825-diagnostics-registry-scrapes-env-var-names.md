@@ -35,7 +35,8 @@ now proven direct-string collections: arrays contain only direct ordinary
 string literals, and objects are proven by direct string-literal name keys or
 values. Tokens inside nested functions, methods,
 calls, objects, arrays, or template bodies are never table entries. Explicit
-emission syntax wins over an environment classification at the same offset.
+emission markers win over an environment classification at the same offset;
+broad throw syntax does not override proven direct environment access.
 The round-17 fail-first fixture is exactly:
 
 ```js
@@ -50,6 +51,14 @@ bindingFailure('SNAPBACK_APP_BINDING_EXPIRED');
 Both literals are emissions and neither is environment vocabulary. The older
 delimiter-boundary fixture remains: a direct name array followed by a throw
 retains the array entry and the real diagnostic separately.
+
+Round 18 adds the exact inverse-boundary fixture
+`throw new Error(process.env["SNAPBACK_FIXTURE_ENV"])`, which must yield one
+environment read and zero diagnostics. It also binds Rust `matches!(...)`
+reference detection to the macro's matched closing parenthesis. This restores
+five production emitters following completed macros, including the four
+reviewed sites at `admin_link.rs:765,1008` and `cli.rs:4464,6638`; the fifth is
+`admin.rs:696`. The generated registry now contains 9,221 emitting sites.
 
 The final round-16 correction binds environment-name tables to the opener
 found for their declaration by the lexical delimiter stack. Comment braces,
@@ -117,7 +126,7 @@ projection regeneration. Its captured output is:
   "counts": {
     "codes": 3543,
     "sourceFiles": 642,
-    "emittingSites": 9216,
+    "emittingSites": 9221,
     "receivedSites": 339,
     "reservedSites": 9,
     "httpClassified": 1709,
@@ -162,3 +171,5 @@ the registry's `environment` section and mislabels received/reserved sites as
 emissions. This closed ticket does not claim native parity; the exact Rust
 change and parity tests are tracked in
 `issues/20260825-native-guide-lookup-registry-kinds-parity.md`.
+That ticket explicitly records that v1 diagnostic `sites` entries now carry an
+optional `kind` field and native must consume it.

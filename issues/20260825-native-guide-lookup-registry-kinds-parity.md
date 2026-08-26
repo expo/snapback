@@ -30,6 +30,13 @@ and environment sites separately. A dual-role name such as
 the diagnostic record and its environment binding sites instead of allowing
 diagnostic precedence to hide the binding.
 
+Schema note: `snapback-diagnostics-registry.v1` now carries an optional `kind`
+on entries in the existing diagnostic `sites` array (`emission` when absent,
+otherwise currently `received` or `reserved`). This is deliberate v1
+kind-mixing, not a new top-level array or schema-version bump. The native reader
+must consume `sites[].kind` instead of continuing to treat every v1 site as an
+emission.
+
 ## Required Rust change
 
 Keep this work in the Rust-capable native lane:
@@ -47,7 +54,8 @@ Keep this work in the Rust-capable native lane:
    `diagnostic-environment-slice`, with `nextSlice`/`nextCommand`. Combined
    pagination must cover diagnostic and environment sites deterministically so
    no site kind disappears at a page boundary.
-3. In `format_lookup`, group diagnostic sites by `kind`: missing or
+3. In the native v1 registry reader and `format_lookup`, preserve and group
+   diagnostic `sites[].kind`: missing or
    `"emission"` → `Emitting sites:`, `"received"` → `Received sites:`, and
    `"reserved"` → `Reserved sites:`. Render a separate `Environment sites:`
    section with each environment site's own kind. A combined result must render

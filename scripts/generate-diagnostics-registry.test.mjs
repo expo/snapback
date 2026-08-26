@@ -352,6 +352,17 @@ test('environment-name tables classify direct strings without swallowing nested 
   );
 });
 
+test('direct environment access takes precedence over enclosing throw syntax', () => {
+  const fixture = 'throw new Error(process.env["SNAPBACK_FIXTURE_ENV"])';
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [{ name: 'SNAPBACK_FIXTURE_ENV', kind: 'read' }],
+  );
+  assert.deepEqual(diagnosticSourceSites(fixture, { javascript: true }), []);
+});
+
 test('shell classifier retains operator emissions and environment reads only', () => {
   const fixture = [
     'app="${SNAPBACK_FIXTURE_SHELL_APP:-notes}"',
@@ -476,6 +487,37 @@ test('generated registry retains target emitters and dynamic artifact-header emi
         site.file === 'targets/cloudflare/deploy.sh' && site.kind === undefined
       )),
       `${code} must retain its shell deploy_fail emission`,
+    );
+  }
+
+  for (const [code, file, lines] of [
+    [
+      'SNAPBACK_ADMIN_LAN_TARGET_INVALID',
+      'crates/snapback-server/src/admin_link.rs',
+      [744, 765],
+    ],
+    [
+      'SNAPBACK_ADMIN_TAILSCALE_TARGET_UNSUPPORTED',
+      'crates/snapback-server/src/admin_link.rs',
+      [998, 1008],
+    ],
+    [
+      'SNAPBACK_PROFILE_FORBIDS',
+      'crates/snapback-cli/src/cli.rs',
+      [4464],
+    ],
+    [
+      'SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID',
+      'crates/snapback-cli/src/cli.rs',
+      [6619, 6623, 6629, 6638],
+    ],
+  ]) {
+    assert.deepEqual(
+      registry.diagnostics[code]?.sites
+        .filter((site) => site.file === file)
+        .map((site) => site.line),
+      lines,
+      `${code} must retain every emitter surrounding a completed matches! call`,
     );
   }
 
