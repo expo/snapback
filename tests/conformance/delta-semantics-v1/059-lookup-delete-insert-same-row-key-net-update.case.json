@@ -141,6 +141,12 @@
               "join": "j1",
               "name": "replacement"
             },
+            "preImage": {
+              "_id": "c1",
+              "_version": 1,
+              "join": "j1",
+              "name": "old"
+            },
             "admit": "stay-in",
             "rankKeys": []
           }

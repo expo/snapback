@@ -87,6 +87,11 @@
             "rank": 1,
             "roomId": "r2"
           },
+          "preImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r1"
+          },
           "admit": "stay-in",
           "rankKeys": [
             1

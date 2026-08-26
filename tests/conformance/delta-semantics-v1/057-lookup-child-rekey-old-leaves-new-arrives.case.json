@@ -77,15 +77,15 @@
       "ops": [
         {
           "kind": "presence",
+          "scope": "old"
+        },
+        {
+          "kind": "presence",
           "scope": "new",
           "childKey": "c1",
           "value": {
             "name": "moved"
           }
-        },
-        {
-          "kind": "presence",
-          "scope": "old"
         }
       ]
     },

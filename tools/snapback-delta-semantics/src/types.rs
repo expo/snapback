@@ -110,6 +110,8 @@ pub struct DeltaZEntry {
     pub op: ChangeOp,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_image: Option<Row>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_image: Option<Row>,
     pub admit: Admission,
     #[serde(default)]
     pub rank_keys: Vec<Value>,
@@ -222,7 +224,13 @@ pub enum ReadRequest {
         k: usize,
         #[serde(default)]
         label_only: bool,
+        #[serde(default, skip_serializing_if = "is_false")]
+        inclusive: bool,
     },
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

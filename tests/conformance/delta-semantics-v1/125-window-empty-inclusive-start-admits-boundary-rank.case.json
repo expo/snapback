@@ -1,0 +1,128 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "window-empty-inclusive-start-admits-boundary-rank",
+  "coverage": [
+    "window",
+    "finite-interval",
+    "inclusive-origin",
+    "read-maintain"
+  ],
+  "operator": {
+    "form": "window",
+    "config": {
+      "windowId": "root",
+      "order": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "interval": {
+        "lower": {
+          "key": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "inclusive": true
+        }
+      },
+      "take": 2,
+      "projectionFields": [
+        "rank",
+        "title"
+      ]
+    }
+  },
+  "initialState": {
+    "rows": [],
+    "boundary": null,
+    "resultCount": 0,
+    "complete": false,
+    "label": "incomplete",
+    "continuation": null
+  },
+  "foldedChangeBatch": {
+    "entries": []
+  },
+  "readTranscript": [
+    {
+      "request": {
+        "kind": "tail",
+        "window": "root",
+        "boundary": {
+          "values": [
+            10
+          ],
+          "rowKey": "interval-start"
+        },
+        "k": 2,
+        "labelOnly": false,
+        "inclusive": true
+      },
+      "response": {
+        "kind": "tail",
+        "rows": [
+          {
+            "_id": "interval-start",
+            "rank": 10
+          }
+        ],
+        "exhausted": true
+      }
+    }
+  ],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "row": {
+            "_id": "interval-start",
+            "rank": 10
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "interval-start",
+          "rankKeys": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "row": {
+            "_id": "interval-start",
+            "rank": 10
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          10
+        ],
+        "rowKey": "interval-start"
+      },
+      "resultCount": 1,
+      "complete": true,
+      "label": "complete",
+      "continuation": {
+        "values": [
+          10
+        ],
+        "rowKey": "interval-start"
+      }
+    }
+  }
+}

@@ -507,6 +507,7 @@ pub fn evaluate_admit(
             row_key: change.row_key.clone(),
             op: change.op,
             post_image: change.post_image.clone(),
+            pre_image: change.pre_image.clone(),
             admit,
             rank_keys,
         });
@@ -594,19 +595,14 @@ fn sorted_rows(config: &WindowConfig, map: &BTreeMap<String, RankedRow>) -> Vec<
     rows
 }
 
-fn empty_window_origin(config: &WindowConfig) -> Option<RankKey> {
-    match config.order.first().map(|field| field.direction) {
-        Some(Direction::Desc) => config
-            .interval
-            .upper
-            .as_ref()
-            .map(|bound| bound.key.clone()),
-        _ => config
-            .interval
-            .lower
-            .as_ref()
-            .map(|bound| bound.key.clone()),
-    }
+fn empty_window_origin(config: &WindowConfig) -> (Option<RankKey>, bool) {
+    config
+        .interval
+        .lower
+        .as_ref()
+        .map_or((None, false), |bound| {
+            (Some(bound.key.clone()), bound.inclusive)
+        })
 }
 
 fn project_diff(old: &Row, new: &Row, fields: &BTreeSet<String>) -> Row {
@@ -752,13 +748,13 @@ pub fn evaluate_window(
         }
     }
 
-    let b_old = state.boundary.clone().or_else(|| {
-        state
-            .rows
-            .is_empty()
-            .then(|| empty_window_origin(config))
-            .flatten()
-    });
+    let (b_old, b_old_inclusive) = if let Some(boundary) = state.boundary.clone() {
+        (Some(boundary), false)
+    } else if state.rows.is_empty() {
+        empty_window_origin(config)
+    } else {
+        (None, false)
+    };
     let mut all_rows = sorted_rows(config, &working);
     let mut selected = all_rows
         .iter()
@@ -787,6 +783,7 @@ pub fn evaluate_window(
             boundary: b_old.clone(),
             k: config.take.saturating_sub(selected_before_or_at_old),
             label_only: false,
+            inclusive: b_old_inclusive,
         };
         let (rows, exhausted) = match reads.response(&request) {
             Some(ReadResponse::Tail {
@@ -831,11 +828,16 @@ pub fn evaluate_window(
                 && !entered_admitted.contains(&entry.row_key)
         });
         if case_c {
+            let (boundary, inclusive) = selected
+                .last()
+                .map(|row| (Some(row.rank_keys.clone()), false))
+                .unwrap_or_else(|| empty_window_origin(config));
             let request = ReadRequest::Tail {
                 window: config.window_id.clone(),
-                boundary: selected.last().map(|row| row.rank_keys.clone()),
+                boundary,
                 k: 1,
                 label_only: true,
+                inclusive,
             };
             match reads.response(&request) {
                 Some(ReadResponse::Tail {
@@ -1058,6 +1060,7 @@ pub fn evaluate_lookup(
         .filter(|scope| !skipped.contains(*scope))
         .cloned()
         .collect::<Vec<_>>();
+    let mut child_ops = Vec::new();
     for scope in surviving_scopes {
         let scope_state = next
             .scopes
@@ -1104,7 +1107,7 @@ pub fn evaluate_lookup(
         if lookup_required_transition(config.presence, old_row.is_some(), new_row.is_some()) {
             return FormVerdict::fallback(FallbackReason::RefusalTransition);
         }
-        ops.extend(lookup_fill_diff(
+        child_ops.extend(lookup_fill_diff(
             config,
             &scope,
             old_row.as_ref(),
@@ -1112,6 +1115,10 @@ pub fn evaluate_lookup(
         ));
         set_lookup_scope(&mut next, &scope, scope_state.lookup_key, new_row);
     }
+    // A child re-key is leave-at-old + arrive-at-new. Keep parent-arm output
+    // first, then make multi-scope child presence order independent of map keys.
+    child_ops.sort_by_key(|op| !matches!(op, LookupDeltaOp::Presence { value: None, .. }));
+    ops.extend(child_ops);
 
     let live_children = next
         .scopes
@@ -1424,6 +1431,20 @@ fn support_join_key(
     Err(FallbackReason::ScopeUnresolved)
 }
 
+fn support_pre_join_key(
+    config: &SupportConfig,
+    entry: &DeltaZEntry,
+) -> Result<Vec<Value>, FallbackReason> {
+    if let Some(row) = entry.pre_image.as_ref() {
+        return field_values(row, &config.support_join_fields)
+            .ok_or(FallbackReason::ScopeUnresolved);
+    }
+    if entry.post_image.is_none() && entry.rank_keys.len() >= config.support_join_fields.len() {
+        return Ok(entry.rank_keys[..config.support_join_fields.len()].to_vec());
+    }
+    Err(FallbackReason::ScopeUnresolved)
+}
+
 fn transition(old: bool, new: bool) -> BitTransitionKind {
     match (old, new) {
         (false, true) => BitTransitionKind::ZeroToOne,
@@ -1529,6 +1550,43 @@ pub fn evaluate_support(
 
     let mut by_scope = BTreeMap::<String, SupportEffects>::new();
 
+    // A direct support fact that remains admitted can still move between
+    // scopes. Its folded first pre-image is the only complete old-scope
+    // attribution; post-cut reads cannot recover it.
+    if config.edge_kind == SupportEdgeKind::Direct {
+        for entry in input
+            .support
+            .entries
+            .iter()
+            .filter(|entry| entry.admit == Admission::StayIn)
+        {
+            let old_join_key = match support_pre_join_key(config, entry) {
+                Ok(key) => key,
+                Err(reason) => return FormVerdict::fallback(reason),
+            };
+            let new_join_key = match support_join_key(config, entry) {
+                Ok(key) => key,
+                Err(reason) => return FormVerdict::fallback(reason),
+            };
+            if old_join_key == new_join_key {
+                continue;
+            }
+            for (scope, scope_state) in &next.scopes {
+                if skipped.contains(scope) {
+                    continue;
+                }
+                if scope_state.join_key == old_join_key {
+                    support_effects(&mut by_scope, scope).may_remove = true;
+                }
+                if scope_state.join_key == new_join_key {
+                    let effects = support_effects(&mut by_scope, scope);
+                    effects.may_add = true;
+                    effects.proves_true = true;
+                }
+            }
+        }
+    }
+
     // A retained through row whose target identity changes removes the old
     // link and creates a new, not-yet-proved link. An identity-preserving
     // StayIn is a support no-op.
@@ -1580,7 +1638,12 @@ pub fn evaluate_support(
         .iter()
         .filter(|entry| matches!(entry.admit, Admission::Enter | Admission::Leave))
     {
-        let join_key = match support_join_key(config, entry) {
+        let join_key_result = match entry.admit {
+            Admission::Enter => support_join_key(config, entry),
+            Admission::Leave => support_pre_join_key(config, entry),
+            Admission::StayIn | Admission::StayOut => unreachable!(),
+        };
+        let join_key = match join_key_result {
             Ok(key) => key,
             Err(reason) => return FormVerdict::fallback(reason),
         };
@@ -1762,6 +1825,7 @@ pub fn evaluate_membership_lift(
                         // relation, so the synthesized ΔZ tag is `insert`.
                         op: ChangeOp::Insert,
                         post_image: Some(row.clone()),
+                        pre_image: None,
                         admit,
                         rank_keys: Vec::new(),
                     });
@@ -1783,6 +1847,7 @@ pub fn evaluate_membership_lift(
                         row_key: key.clone(),
                         op: ChangeOp::Update,
                         post_image: Some(row),
+                        pre_image: None,
                         admit: Admission::Leave,
                         rank_keys: Vec::new(),
                     });
@@ -2064,6 +2129,158 @@ fn projected_assembly_patch(node: &AssemblyNode, source_node: &str, row: &Row) -
             AssemblyProjectionArm::Field { .. } | AssemblyProjectionArm::Literal { .. } => None,
         })
         .collect()
+}
+
+fn descendant_path<'a>(
+    config: &'a AssembleConfig,
+    source_node: &str,
+    consumer_node: &str,
+) -> Option<Vec<&'a AssemblyNode>> {
+    let mut path = Vec::new();
+    let mut current = assembly_node(config, consumer_node)?;
+    while current.node_id != source_node {
+        path.push(current);
+        current = assembly_node(config, current.parent.as_deref()?)?;
+    }
+    path.reverse();
+    Some(path)
+}
+
+fn projection_consumer_instances(
+    config: &AssembleConfig,
+    input: &AssembleInput,
+    source_node: &str,
+    source_row_key: &str,
+    consumer_node: &str,
+) -> Result<Vec<(ScopeId, String)>, FallbackReason> {
+    let Some(path) = descendant_path(config, source_node, consumer_node) else {
+        return Ok(Vec::new());
+    };
+    if path.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut parent_scopes = vec![source_row_key.to_owned()];
+    let mut instances = Vec::new();
+    for (index, node) in path.iter().enumerate() {
+        let last = index + 1 == path.len();
+        let mut next_scopes = Vec::new();
+        for parent_scope in parent_scopes {
+            let output = input
+                .next_node_outputs
+                .get(&node.node_id)
+                .and_then(|outputs| outputs.get(&parent_scope))
+                .ok_or(FallbackReason::WireUnaddressable)?;
+            let rows = match node.kind {
+                AssemblyNodeKind::ToOne => {
+                    if output.is_null() {
+                        Vec::new()
+                    } else {
+                        vec![output]
+                    }
+                }
+                AssemblyNodeKind::ToMany => output
+                    .as_array()
+                    .ok_or(FallbackReason::WireUnaddressable)?
+                    .iter()
+                    .collect(),
+                AssemblyNodeKind::Exists => Vec::new(),
+                AssemblyNodeKind::Root => {
+                    return Err(FallbackReason::WireUnaddressable);
+                }
+            };
+            for row in rows {
+                let key = value_row_key(row).ok_or(FallbackReason::WireUnaddressable)?;
+                if last {
+                    instances.push((parent_scope.clone(), key.clone()));
+                }
+                next_scopes.push(key);
+            }
+        }
+        parent_scopes = next_scopes;
+    }
+    Ok(instances)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn propagate_projected_aliases(
+    config: &AssembleConfig,
+    state: &AssembleState,
+    input: &AssembleInput,
+    derived_result: &Value,
+    source_node: &str,
+    source_row_key: &str,
+    post: &Row,
+    births: &BTreeSet<AbsorptionToken>,
+    deaths: &BTreeSet<AbsorptionToken>,
+    working_result: &mut Value,
+    ops: &mut Vec<WireOp>,
+) -> Result<(), FallbackReason> {
+    for consumer in &config.nodes {
+        if consumer.node_id == source_node {
+            continue;
+        }
+        let patch = projected_assembly_patch(consumer, source_node, post);
+        if patch.is_empty() {
+            continue;
+        }
+        let instances = projection_consumer_instances(
+            config,
+            input,
+            source_node,
+            source_row_key,
+            &consumer.node_id,
+        )?
+        .into_iter()
+        .filter(|(parent_scope, key)| {
+            !births.contains(&(consumer.node_id.clone(), key.clone()))
+                && !deaths.contains(&(consumer.node_id.clone(), key.clone()))
+                && !scope_is_absorbed(
+                    config,
+                    state,
+                    derived_result,
+                    &consumer.node_id,
+                    parent_scope,
+                    births,
+                    deaths,
+                )
+        })
+        .collect::<Vec<_>>();
+        if instances.is_empty() {
+            continue;
+        }
+        // A propagated patch targets the consuming row. A to-many consumer is
+        // therefore below its array boundary even when the collection itself
+        // hangs directly from the root; the current wire can address its
+        // splices, not this ancestor-sourced row update.
+        if consumer.kind != AssemblyNodeKind::ToOne || !addressable(config, &consumer.node_id) {
+            return Err(FallbackReason::WireUnaddressable);
+        }
+        let field = consumer
+            .result_field
+            .as_deref()
+            .ok_or(FallbackReason::WireUnaddressable)?;
+        for (parent_scope, key) in instances {
+            let (root_key, root_position) = {
+                let context =
+                    scope_context(config, working_result, &consumer.node_id, &parent_scope)
+                        .ok_or(FallbackReason::WireUnaddressable)?;
+                (context.root_key, context.root_position)
+            };
+            let child = parent_value_mut(config, working_result, &consumer.node_id, &parent_scope)
+                .and_then(|parent| parent.get_mut(field))
+                .ok_or(FallbackReason::WireUnaddressable)?;
+            merge_patch(child, &patch)?;
+            ops.push(WireOp {
+                op: WireOpKind::Update,
+                node_id: consumer.node_id.clone(),
+                root_key: Some(root_key),
+                key: Some(key),
+                position: Some(root_position),
+                row: Some(row_value(patch.clone())),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn assemble_row_from_outputs(
@@ -2362,23 +2579,42 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
                             let patch = projected_assembly_patch(node, node_id, post);
-                            let Some(row) = working_result
-                                .as_array_mut()
-                                .and_then(|rows| rows.get_mut(position))
-                            else {
-                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
-                            };
-                            if let Err(reason) = merge_patch(row, &patch) {
+                            if !patch.is_empty() {
+                                let Some(row) = working_result
+                                    .as_array_mut()
+                                    .and_then(|rows| rows.get_mut(position))
+                                else {
+                                    return FormVerdict::fallback(
+                                        FallbackReason::WireUnaddressable,
+                                    );
+                                };
+                                if let Err(reason) = merge_patch(row, &patch) {
+                                    return FormVerdict::fallback(reason);
+                                }
+                                ops.push(WireOp {
+                                    op: WireOpKind::Update,
+                                    node_id: node_id.clone(),
+                                    root_key: Some(row_key.clone()),
+                                    key: Some(row_key.clone()),
+                                    position: Some(position),
+                                    row: Some(row_value(patch)),
+                                });
+                            }
+                            if let Err(reason) = propagate_projected_aliases(
+                                config,
+                                &state,
+                                &input,
+                                &derived_result,
+                                node_id,
+                                row_key,
+                                post,
+                                &births,
+                                &deaths,
+                                &mut working_result,
+                                &mut ops,
+                            ) {
                                 return FormVerdict::fallback(reason);
                             }
-                            ops.push(WireOp {
-                                op: WireOpKind::Update,
-                                node_id: node_id.clone(),
-                                root_key: Some(row_key.clone()),
-                                key: Some(row_key.clone()),
-                                position: Some(position),
-                                row: Some(row_value(patch)),
-                            });
                         }
                     }
                 }
@@ -2422,17 +2658,34 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
                             let patch = projected_assembly_patch(node, node_id, fields);
-                            if let Err(reason) = merge_patch(child, &patch) {
+                            if !patch.is_empty() {
+                                if let Err(reason) = merge_patch(child, &patch) {
+                                    return FormVerdict::fallback(reason);
+                                }
+                                ops.push(WireOp {
+                                    op: WireOpKind::Update,
+                                    node_id: node_id.clone(),
+                                    root_key: Some(root_key),
+                                    key: Some(child_key.clone()),
+                                    position: Some(root_position),
+                                    row: Some(row_value(patch)),
+                                });
+                            }
+                            if let Err(reason) = propagate_projected_aliases(
+                                config,
+                                &state,
+                                &input,
+                                &derived_result,
+                                node_id,
+                                child_key,
+                                fields,
+                                &births,
+                                &deaths,
+                                &mut working_result,
+                                &mut ops,
+                            ) {
                                 return FormVerdict::fallback(reason);
                             }
-                            ops.push(WireOp {
-                                op: WireOpKind::Update,
-                                node_id: node_id.clone(),
-                                root_key: Some(root_key),
-                                key: Some(child_key.clone()),
-                                position: Some(root_position),
-                                row: Some(row_value(patch)),
-                            });
                         }
                         LookupDeltaOp::Presence { scope, value, .. } => {
                             if scope_is_absorbed(
@@ -2623,17 +2876,34 @@ pub fn evaluate_assemble(
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
-                            if let Err(reason) = merge_patch(child, &patch) {
+                            if !patch.is_empty() {
+                                if let Err(reason) = merge_patch(child, &patch) {
+                                    return FormVerdict::fallback(reason);
+                                }
+                                ops.push(WireOp {
+                                    op: WireOpKind::Update,
+                                    node_id: node_id.clone(),
+                                    root_key: Some(root_key),
+                                    key: Some(row_key.clone()),
+                                    position: Some(position),
+                                    row: Some(row_value(patch)),
+                                });
+                            }
+                            if let Err(reason) = propagate_projected_aliases(
+                                config,
+                                &state,
+                                &input,
+                                &derived_result,
+                                node_id,
+                                row_key,
+                                post,
+                                &births,
+                                &deaths,
+                                &mut working_result,
+                                &mut ops,
+                            ) {
                                 return FormVerdict::fallback(reason);
                             }
-                            ops.push(WireOp {
-                                op: WireOpKind::Update,
-                                node_id: node_id.clone(),
-                                root_key: Some(root_key),
-                                key: Some(row_key.clone()),
-                                position: Some(position),
-                                row: Some(row_value(patch)),
-                            });
                         }
                     }
                 }

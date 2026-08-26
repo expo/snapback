@@ -75,6 +75,10 @@
             "_id": "a",
             "rank": 3
           },
+          "preImage": {
+            "_id": "a",
+            "rank": 1
+          },
           "admit": "stay-in",
           "rankKeys": [
             3

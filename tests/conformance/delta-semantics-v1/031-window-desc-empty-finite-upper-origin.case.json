@@ -51,34 +51,101 @@
       "request": {
         "kind": "tail",
         "window": "root",
-        "boundary": {
-          "values": [
-            10
-          ],
-          "rowKey": "interval-start"
-        },
         "k": 2,
         "labelOnly": false
       },
       "response": {
         "kind": "tail",
-        "rows": [],
-        "exhausted": true
+        "rows": [
+          {
+            "_id": "a",
+            "rank": 12
+          },
+          {
+            "_id": "b",
+            "rank": 11
+          }
+        ],
+        "exhausted": false
       }
     }
   ],
   "expected": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": []
+      "ops": [
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              12
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 12
+          }
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              11
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 11
+          }
+        }
+      ]
     },
     "nextState": {
-      "rows": [],
-      "boundary": null,
-      "resultCount": 0,
-      "complete": true,
-      "label": "complete",
-      "continuation": null
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              12
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 12
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              11
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 11
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          11
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          11
+        ],
+        "rowKey": "b"
+      }
     }
   }
 }

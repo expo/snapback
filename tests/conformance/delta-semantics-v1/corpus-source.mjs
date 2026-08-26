@@ -389,6 +389,11 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             "rank": 1,
             "roomId": "r2"
           },
+          "preImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r1"
+          },
           "admit": "stay-in",
           "rankKeys": [
             1
@@ -455,6 +460,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             "_id": "a",
             "rank": 3
           },
+          "preImage": {
+            "_id": "a",
+            "rank": 1
+          },
           "admit": "stay-in",
           "rankKeys": [
             3
@@ -481,6 +490,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "postImage": {
             "_id": "a",
             "rank": 3
+          },
+          "preImage": {
+            "_id": "a",
+            "rank": 1
           },
           "admit": "stay-in",
           "rankKeys": [
@@ -1156,15 +1169,79 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "window-desc-empty-finite-upper-origin": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": []
+      "ops": [
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              12
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 12
+          }
+        },
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              11
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 11
+          }
+        }
+      ]
     },
     "nextState": {
-      "rows": [],
-      "boundary": null,
-      "resultCount": 0,
-      "complete": true,
-      "label": "complete",
-      "continuation": null
+      "rows": [
+        {
+          "rowKey": "a",
+          "rankKeys": {
+            "values": [
+              12
+            ],
+            "rowKey": "a"
+          },
+          "row": {
+            "_id": "a",
+            "rank": 12
+          }
+        },
+        {
+          "rowKey": "b",
+          "rankKeys": {
+            "values": [
+              11
+            ],
+            "rowKey": "b"
+          },
+          "row": {
+            "_id": "b",
+            "rank": 11
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          11
+        ],
+        "rowKey": "b"
+      },
+      "resultCount": 2,
+      "complete": false,
+      "label": "incomplete",
+      "continuation": {
+        "values": [
+          11
+        ],
+        "rowKey": "b"
+      }
     }
   },
   "window-tail-missing-authenticated-exhausted": {
@@ -1974,15 +2051,15 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "ops": [
         {
           "kind": "presence",
+          "scope": "old"
+        },
+        {
+          "kind": "presence",
           "scope": "new",
           "childKey": "c1",
           "value": {
             "name": "moved"
           }
-        },
-        {
-          "kind": "presence",
-          "scope": "old"
         }
       ]
     },
@@ -2038,6 +2115,12 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
               "_version": 2,
               "join": "j1",
               "name": "replacement"
+            },
+            "preImage": {
+              "_id": "c1",
+              "_version": 1,
+              "join": "j1",
+              "name": "old"
             },
             "admit": "stay-in",
             "rankKeys": []
@@ -3422,6 +3505,159 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
+  "support-direct-stay-in-rekey-moves-scopes": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "transitions": [
+        {
+          "scope": "p1",
+          "transition": "one-to-zero"
+        },
+        {
+          "scope": "p2",
+          "transition": "zero-to-one"
+        }
+      ]
+    },
+    "nextState": {
+      "scopes": {
+        "p1": {
+          "joinKey": [
+            "j1"
+          ],
+          "bit": false
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
+          ],
+          "bit": true
+        }
+      }
+    }
+  },
+  "support-direct-stay-in-rekey-missing-pre-image": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
+  },
+  "assemble-ancestor-source-alias-to-one": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "update",
+          "nodeId": "root",
+          "rootKey": "p1",
+          "key": "p1",
+          "position": 0,
+          "row": {
+            "title": "new"
+          }
+        },
+        {
+          "op": "update",
+          "nodeId": "one",
+          "rootKey": "p1",
+          "key": "c1",
+          "position": 0,
+          "row": {
+            "rootTitle": "new"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "one",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:934c5260ec6928873697bf29ec77f37f7461ec9c74acb2a357b8649cd713db53"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "new",
+          "child": {
+            "name": "child",
+            "rootTitle": "new"
+          }
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  },
+  "assemble-ancestor-source-alias-below-array-unaddressable": {
+    "verdict": "Fallback",
+    "reason": "wire-unaddressable"
+  },
+  "window-empty-inclusive-start-admits-boundary-rank": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "splice-in",
+          "sortKey": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "row": {
+            "_id": "interval-start",
+            "rank": 10
+          }
+        }
+      ]
+    },
+    "nextState": {
+      "rows": [
+        {
+          "rowKey": "interval-start",
+          "rankKeys": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "row": {
+            "_id": "interval-start",
+            "rank": 10
+          }
+        }
+      ],
+      "boundary": {
+        "values": [
+          10
+        ],
+        "rowKey": "interval-start"
+      },
+      "resultCount": 1,
+      "complete": true,
+      "label": "complete",
+      "continuation": {
+        "values": [
+          10
+        ],
+        "rowKey": "interval-start"
+      }
+    }
+  },
   "admit-membership-rekey-probed-empty-transcript": {
     "verdict": "Fallback",
     "reason": "support-unproved"
@@ -3513,6 +3749,14 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "composition-lift-enters-window-same-step-empty-transcript": {
     "verdict": "Fallback",
     "reason": "scope-unresolved"
+  },
+  "support-direct-stay-in-rekey-moves-scopes-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  },
+  "window-empty-inclusive-start-admits-boundary-rank-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "boundary-displacement"
   }
 } /* EXPECTED_SOURCE_END */;
 
@@ -3528,13 +3772,17 @@ const windowState = (rows, complete = true) => ({
   label: complete ? 'complete' : 'incomplete',
   continuation: rows.length ? rankKey(rows.at(-1)[0], rows.at(-1)[1]) : null,
 });
-const dz = (rowKey, op, admit, postImage, rankKeys = []) => ({
-  rowKey, op, admit, ...(postImage === undefined ? {} : { postImage }), rankKeys,
+const dz = (rowKey, op, admit, postImage, rankKeys = [], preImage) => ({
+  rowKey, op, admit, ...(postImage === undefined ? {} : { postImage }),
+  ...(preImage === undefined ? {} : { preImage }), rankKeys,
 });
 const parent = (id, admit, join, extra = {}) => dz(id, admit === 'enter' ? 'insert' : 'update', admit,
   admit === 'leave' ? undefined : { _id: id, join, ...extra });
-const tail = (window, boundary, k, rows, exhausted, labelOnly = false) => ({
-  request: { kind: 'tail', window, ...(boundary === null ? {} : { boundary }), k, labelOnly },
+const tail = (window, boundary, k, rows, exhausted, labelOnly = false, inclusive = false) => ({
+  request: {
+    kind: 'tail', window, ...(boundary === null ? {} : { boundary }), k, labelOnly,
+    ...(inclusive ? { inclusive: true } : {}),
+  },
   response: { kind: 'tail', rows, exhausted },
 });
 const point = (index, key, found) => ({
@@ -3700,7 +3948,7 @@ add('window-incomplete-underfill-tail-exhausted', ['window', 'read-maintain'], w
 add('window-backward-tail-competition', ['window', 'backward', 'tail-competition', 'read-maintain'],
   window({ order: [{ field: 'rank', direction: 'desc' }] }), windowState([['c', 3], ['b', 2]], false), {
     entries: [dz('c', 'delete', 'leave'), dz('a', 'insert', 'enter', row('a', 1), [1])],
-  }, [tail('root', rankKey('b', 2), 1, [row('x', 1.5)], true)]);
+  }, [tail('root', rankKey('b', 2), 1, [row('x', 1.5)], false)]);
 const exactLow = exactInteger('9007199254740992');
 const exactHigh = exactInteger('9007199254740993');
 add('window-interval-clips-candidate', ['window', 'numeric-precision'], window({
@@ -3729,7 +3977,7 @@ add('window-desc-empty-finite-upper-origin', ['window', 'backward', 'finite-inte
   order: [{ field: 'rank', direction: 'desc' }],
   interval: { upper: { key: rankKey('interval-start', 10), inclusive: true } },
 }), windowState([], false), { entries: [] }, [
-  tail('root', rankKey('interval-start', 10), 2, [], true),
+  tail('root', null, 2, [row('a', 12), row('b', 11)], false),
 ]);
 add('window-tail-missing-authenticated-exhausted', ['window', 'fallback'], window(), windowState([['a', 1]], false), { entries: [] }, [{
   request: { kind: 'tail', window: 'root', boundary: rankKey('a', 1), k: 1, labelOnly: false },
@@ -3771,7 +4019,7 @@ add('window-complete-unretained-delete-noop', ['window', 'completeness'], window
 add('window-empty-incomplete-tail-from-start', ['window', 'finite-interval', 'read-maintain'], window({
   interval: { lower: { key: rankKey('interval-start', 10), inclusive: true } },
 }), windowState([], false), { entries: [dz('c', 'insert', 'enter', row('c', 15), [15])] }, [
-  tail('root', rankKey('interval-start', 10), 2, [row('a', 11), row('b', 12)], false),
+  tail('root', rankKey('interval-start', 10), 2, [row('a', 11), row('b', 12)], false, false, true),
 ]);
 add('window-backward-boundary-change', ['window', 'backward'], window({ order: [{ field: 'rank', direction: 'desc' }] }),
   windowState([['c', 3], ['b', 2]], true), {
@@ -4176,16 +4424,100 @@ add('composition-lift-enters-window-same-step', ['composition', 'membership-lift
   supportValues: { r1: 'r1' },
 }, [range('carrier.by_room', ['r1'], 4, [{ _id: 'a', roomId: 'r1', rank: 1 }])]);
 
+// Lane A re-review round 3 vectors. Appending preserves the established
+// operator-case numbers (in particular case 057's ordering pin).
+const round3Start = authored.length;
+add('support-direct-stay-in-rekey-moves-scopes',
+  ['support', 'rekey', 'provability', 'read-maintain'], support(), supportState({
+    p1: supportScope(['j1'], true), p2: supportScope(['j2'], false),
+  }), {
+    parent: { entries: [] },
+    support: { entries: [
+      dz('m1', 'update', 'stay-in', { _id: 'm1', join: 'j2' }, [], { _id: 'm1', join: 'j1' }),
+    ] },
+    target: { entries: [] },
+  }, [probe('edge', 'p1', false)]);
+add('support-direct-stay-in-rekey-missing-pre-image',
+  ['support', 'rekey', 'fallback'], support(), supportState({
+    p1: supportScope(['j1'], true), p2: supportScope(['j2'], false),
+  }), {
+    parent: { entries: [] },
+    support: { entries: [
+      dz('m1', 'update', 'stay-in', { _id: 'm1', join: 'j2' }),
+    ] },
+    target: { entries: [] },
+  });
+
+const ancestorAliasedOneNode = {
+  nodeId: 'one', parent: 'root', kind: 'to-one', resultField: 'child', projection: {
+    name: projectionField('one', 'name'), rootTitle: projectionField('root', 'title'),
+  },
+};
+add('assemble-ancestor-source-alias-to-one', ['assemble', 'projection-alias', 'ancestor-source'],
+  assemble([rootNode, ancestorAliasedOneNode]), {
+    result: [{ _id: 'p1', title: 'old', child: { name: 'child', rootTitle: 'old' } }],
+    orderedRootKeys: ['p1'],
+  }, {
+    ...assemblyInput(
+      [rootNode, ancestorAliasedOneNode],
+      [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [
+        { op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new' } },
+      ] } }],
+      {
+        root: { $root: [{ _id: 'p1', title: 'new' }] },
+        one: { p1: { _id: 'c1', name: 'child' } },
+      },
+      [{ _id: 'p1', title: 'new', child: { name: 'child', rootTitle: 'new' } }],
+    ),
+  });
+
+const ancestorAliasedManyNode = {
+  nodeId: 'many', parent: 'root', kind: 'to-many', resultField: 'children', projection: {
+    _id: projectionField('many', '_id'), rootTitle: projectionField('root', 'title'),
+  },
+};
+add('assemble-ancestor-source-alias-below-array-unaddressable',
+  ['assemble', 'projection-alias', 'ancestor-source', 'fallback'],
+  assemble([rootNode, ancestorAliasedManyNode]), {
+    result: [{ _id: 'p1', title: 'old', children: [{ _id: 'c1', rootTitle: 'old' }] }],
+    orderedRootKeys: ['p1'],
+  }, {
+    ...assemblyInput(
+      [rootNode, ancestorAliasedManyNode],
+      [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [
+        { op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new' } },
+      ] } }],
+      {
+        root: { $root: [{ _id: 'p1', title: 'new' }] },
+        many: { p1: [{ _id: 'c1' }] },
+      },
+      [{ _id: 'p1', title: 'new', children: [{ _id: 'c1', rootTitle: 'new' }] }],
+    ),
+  });
+
+add('window-empty-inclusive-start-admits-boundary-rank',
+  ['window', 'finite-interval', 'inclusive-origin', 'read-maintain'], window({
+    interval: { lower: { key: rankKey('interval-start', 10), inclusive: true } },
+  }), windowState([], false), { entries: [] }, [
+    tail('root', rankKey('interval-start', 10), 2, [row('interval-start', 10)], true, false, true),
+  ]);
+
 // Every maintain vector whose proof consumes R has an exact empty-transcript
 // twin. The reference form must return that rule's domain reason, never a
 // generic read-unavailable reason.
+const round3Cases = authored.splice(round3Start);
 for (const source of authored.filter(({ coverage }) => coverage.includes('read-maintain'))) {
   add(`${source.name}-empty-transcript`, [...source.coverage.filter((tag) => tag !== 'read-maintain'), 'fallback'],
     clone(source.operator), clone(source.initialState), clone(source.foldedChangeBatch), []);
 }
+authored.push(...round3Cases);
+for (const source of round3Cases.filter(({ coverage }) => coverage.includes('read-maintain'))) {
+  add(`${source.name}-empty-transcript`, [...source.coverage.filter((tag) => tag !== 'read-maintain'), 'fallback'],
+    clone(source.operator), clone(source.initialState), clone(source.foldedChangeBatch), []);
+}
 
-if (authored.length < 60 || authored.length > 120) {
-  throw new Error(`delta-semantics corpus must contain 60-120 cases, found ${authored.length}`);
+if (authored.length < 60 || authored.length > 140) {
+  throw new Error(`delta-semantics corpus must contain 60-140 cases, found ${authored.length}`);
 }
 if (new Set(authored.map(({ name }) => name)).size !== authored.length) throw new Error('duplicate case name');
 

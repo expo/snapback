@@ -83,8 +83,8 @@ fn delta_semantics_v1_corpus_is_exact_deterministic_and_closed() {
         "manifest/case count drift"
     );
     assert!(
-        (60..=120).contains(&paths.len()),
-        "LLP 0309.000 expects an order-60-to-120 corpus, found {}",
+        (60..=140).contains(&paths.len()),
+        "delta-semantics corpus policy expects 60-140 cases, found {}",
         paths.len()
     );
 

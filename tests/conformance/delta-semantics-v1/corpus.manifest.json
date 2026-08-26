@@ -147,7 +147,7 @@
     {
       "name": "admit-membership-rekey-probed",
       "path": "016-admit-membership-rekey-probed.case.json",
-      "sha256": "sha256:dc3829c9195d7fa02ddbcf9290c5f7fcbebb36bfd68a6a8b5d87e053246a6a7d",
+      "sha256": "sha256:c9d7efec959206cf5e79dc761a2940e6b4da0b07abecfa4093943dbae65d3a37",
       "coverage": [
         "admit",
         "membership",
@@ -176,7 +176,7 @@
     {
       "name": "admit-delete-reinsert-nets-update",
       "path": "019-admit-delete-reinsert-nets-update.case.json",
-      "sha256": "sha256:4316409b09fd8207d8589322635581d3d19835c2172f5336305d72f39089e581",
+      "sha256": "sha256:6751fb168280ff2f8316d473aa08b58249cddcc08f4475478fbc6aaf7877df63",
       "coverage": [
         "admit",
         "batch-fold"
@@ -185,7 +185,7 @@
     {
       "name": "admit-update-update-folds-last-post",
       "path": "020-admit-update-update-folds-last-post.case.json",
-      "sha256": "sha256:72bb5aedfc6c2cca744351cb25cf3ee0343daf116d00f996528900ba7bc5f702",
+      "sha256": "sha256:8024fe1dca122c29b666ee0c072c8ed48e046223855280e03902a958062bc578",
       "coverage": [
         "admit",
         "batch-fold"
@@ -219,7 +219,7 @@
     {
       "name": "window-backward-tail-competition",
       "path": "024-window-backward-tail-competition.case.json",
-      "sha256": "sha256:2b278df31d53532425a756d2191543b73d6f313bd5563adf5245781401b3ea7c",
+      "sha256": "sha256:08663fcd390cc55a1d8b5ce09115dbba611765e2f660311cedf47d65903ccad6",
       "coverage": [
         "window",
         "backward",
@@ -283,7 +283,7 @@
     {
       "name": "window-desc-empty-finite-upper-origin",
       "path": "031-window-desc-empty-finite-upper-origin.case.json",
-      "sha256": "sha256:73ed020bd1dd7e2b73c7f29bc93b20ae4d815c0da4ee0293e338167795277632",
+      "sha256": "sha256:0dd4ace338b914d32c538d836f7045577ddf6de4bdef47e122c41ae716e9f3da",
       "coverage": [
         "window",
         "backward",
@@ -403,7 +403,7 @@
     {
       "name": "window-empty-incomplete-tail-from-start",
       "path": "044-window-empty-incomplete-tail-from-start.case.json",
-      "sha256": "sha256:fac866d77d22f5e92e24e76dd94bdaee55ac1484b44d8f15e805340f2ab1770d",
+      "sha256": "sha256:eaf11afe1d7d7829c2ac9926f007ed4a8605de58946b64b5e728e4e4bf87add7",
       "coverage": [
         "window",
         "finite-interval",
@@ -527,7 +527,7 @@
     {
       "name": "lookup-child-rekey-old-leaves-new-arrives",
       "path": "057-lookup-child-rekey-old-leaves-new-arrives.case.json",
-      "sha256": "sha256:41cbae79027bb70cacc18b186752d6e64ceef1ef8a3cf9c726c27c999dc4a210",
+      "sha256": "sha256:6646afe8eca98868789f136bd1284203682fabd1bc5232b17cf481ed6f8473d2",
       "coverage": [
         "lookup",
         "rekey"
@@ -545,7 +545,7 @@
     {
       "name": "lookup-delete-insert-same-row-key-net-update",
       "path": "059-lookup-delete-insert-same-row-key-net-update.case.json",
-      "sha256": "sha256:9f3ade77a9748082cf6da0ded12f8f8ed7b917867f0fba05835b12c1bf255b35",
+      "sha256": "sha256:389372bccd3142cdf053de7caae75144766493004ec27e4eb0b0346748c36fdc",
       "coverage": [
         "lookup",
         "composition",
@@ -1139,6 +1139,81 @@
       "coverage": [
         "composition",
         "membership-lift",
+        "fallback"
+      ]
+    },
+    {
+      "name": "support-direct-stay-in-rekey-moves-scopes",
+      "path": "121-support-direct-stay-in-rekey-moves-scopes.case.json",
+      "sha256": "sha256:c25f517749cea897bd50ff45cd2d91d35e342a507fbab284bdb67bae2dc73fb3",
+      "coverage": [
+        "support",
+        "rekey",
+        "provability",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-direct-stay-in-rekey-missing-pre-image",
+      "path": "122-support-direct-stay-in-rekey-missing-pre-image.case.json",
+      "sha256": "sha256:06274d9f03595b55d78b05faa89fef14c9f483b4a9e5153adac19aee55c34b69",
+      "coverage": [
+        "support",
+        "rekey",
+        "fallback"
+      ]
+    },
+    {
+      "name": "assemble-ancestor-source-alias-to-one",
+      "path": "123-assemble-ancestor-source-alias-to-one.case.json",
+      "sha256": "sha256:6991e791fa726144a924a596fd85670eacb30f35cdd0f724eec2b548a7fba2ff",
+      "coverage": [
+        "assemble",
+        "projection-alias",
+        "ancestor-source"
+      ]
+    },
+    {
+      "name": "assemble-ancestor-source-alias-below-array-unaddressable",
+      "path": "124-assemble-ancestor-source-alias-below-array-unaddressable.case.json",
+      "sha256": "sha256:5d32136535d63d20451faa0aa6d3477ccdeb65693e928c188aef7d61271fb63d",
+      "coverage": [
+        "assemble",
+        "projection-alias",
+        "ancestor-source",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-empty-inclusive-start-admits-boundary-rank",
+      "path": "125-window-empty-inclusive-start-admits-boundary-rank.case.json",
+      "sha256": "sha256:70487c38de4eb9158a0d0805adfcb5ccb124467db72c90ba085e7d1955999274",
+      "coverage": [
+        "window",
+        "finite-interval",
+        "inclusive-origin",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "support-direct-stay-in-rekey-moves-scopes-empty-transcript",
+      "path": "126-support-direct-stay-in-rekey-moves-scopes-empty-transcript.case.json",
+      "sha256": "sha256:e01a760dc06a869c441440b7b10109141de359fd22ad3804ee176f7f39e6f10f",
+      "coverage": [
+        "support",
+        "rekey",
+        "provability",
+        "fallback"
+      ]
+    },
+    {
+      "name": "window-empty-inclusive-start-admits-boundary-rank-empty-transcript",
+      "path": "127-window-empty-inclusive-start-admits-boundary-rank-empty-transcript.case.json",
+      "sha256": "sha256:62c26df2b4087239c82bb8afcda7cbbd43eb7790cfe60232f9ec8a0876be5728",
+      "coverage": [
+        "window",
+        "finite-interval",
+        "inclusive-origin",
         "fallback"
       ]
     }

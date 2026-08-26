@@ -1,0 +1,73 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "support-direct-stay-in-rekey-moves-scopes-empty-transcript",
+  "coverage": [
+    "support",
+    "rekey",
+    "provability",
+    "fallback"
+  ],
+  "operator": {
+    "form": "support-semi-join",
+    "config": {
+      "edge": "edge",
+      "edgeKind": "direct",
+      "mode": {
+        "kind": "exists"
+      },
+      "parentJoinFields": [
+        "join"
+      ],
+      "supportJoinFields": [
+        "join"
+      ]
+    }
+  },
+  "initialState": {
+    "scopes": {
+      "p1": {
+        "joinKey": [
+          "j1"
+        ],
+        "bit": true
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
+        "bit": false
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parent": {
+      "entries": []
+    },
+    "support": {
+      "entries": [
+        {
+          "rowKey": "m1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "m1",
+            "join": "j2"
+          },
+          "preImage": {
+            "_id": "m1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "target": {
+      "entries": []
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

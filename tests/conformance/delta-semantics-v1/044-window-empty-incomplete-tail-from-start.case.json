@@ -70,7 +70,8 @@
           "rowKey": "interval-start"
         },
         "k": 2,
-        "labelOnly": false
+        "labelOnly": false,
+        "inclusive": true
       },
       "response": {
         "kind": "tail",
