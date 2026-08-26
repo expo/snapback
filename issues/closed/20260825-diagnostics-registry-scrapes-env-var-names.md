@@ -37,6 +37,12 @@ fail-first shape
 retains the first token as an environment table entry and the second as a real
 diagnostic.
 
+Generic environment-object mutations are classified before the read fallback:
+the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
+`delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The environment
+object fixture also keeps entries after a `}` embedded in a string value inside
+the same object.
+
 Package manifests now contribute shipped `.swift` and `.kt` sources, and
 the local-proof selection rule covers both extensions. Existing native custody
 emitters are pinned to their real files:
@@ -75,11 +81,11 @@ projection regeneration. Its captured output is:
     "environmentSites": 363
   },
   "environmentKinds": {
-    "read": 258,
+    "read": 250,
     "mention": 43,
     "declaration": 14,
-    "remove": 3,
-    "write": 17,
+    "remove": 9,
+    "write": 19,
     "table-entry": 12,
     "indirect-read": 16
   },

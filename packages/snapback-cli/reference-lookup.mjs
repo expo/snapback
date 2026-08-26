@@ -188,9 +188,17 @@ function budgetedDiagnosticEnvironment(
     ],
   ).flat();
   const pageSize = 24;
-  const start = (slice - 1) * pageSize;
-  const visible = sites.slice(start, start + pageSize);
-  const hasMore = start + pageSize < sites.length;
+  const hasBothOwners = diagnosticSites.length > 0 && environmentSites.length > 0;
+  const uniquePageSize = hasBothOwners ? pageSize - 1 : pageSize;
+  const start = (slice - 1) * uniquePageSize;
+  const visible = sites.slice(start, start + uniquePageSize);
+  if (hasBothOwners && !visible.some(({ owner }) => owner === 'diagnostic')) {
+    visible.unshift({ owner: 'diagnostic', site: diagnosticSites[0] });
+  }
+  if (hasBothOwners && !visible.some(({ owner }) => owner === 'environment')) {
+    visible.push({ owner: 'environment', site: environmentSites[0] });
+  }
+  const hasMore = start + uniquePageSize < sites.length;
   const result = {
     ...complete,
     match: 'diagnostic-environment-slice',
@@ -207,7 +215,7 @@ function budgetedDiagnosticEnvironment(
     truncation: {
       truncated: true,
       slice,
-      elided: [`diagnostic/environment sites outside ${start + 1}-${Math.min(start + pageSize, sites.length)} of ${sites.length}`],
+      elided: [`diagnostic/environment sites outside ${start + 1}-${Math.min(start + uniquePageSize, sites.length)} of ${sites.length}`],
       nextSlice: hasMore ? slice + 1 : null,
       nextCommand: hasMore ? `snapback guide ${query} --slice ${slice + 1}` : null,
     },

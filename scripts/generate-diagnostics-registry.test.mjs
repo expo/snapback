@@ -171,6 +171,21 @@ test('diagnostic source classifier excludes environment reads per site and retai
     [...environmentMutationKinds].map(([name, kind]) => ({ name, kind })),
   );
 
+  const genericEnvironmentMutationFixture = [
+    'const childEnv = { ...process.env };',
+    'delete childEnv.SNAPBACK_CLIENT_RQS_DIR;',
+    'const delegatedEnvironment = { ...process.env };',
+    'delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = readToken();',
+  ].join('\n');
+  assert.deepEqual(
+    environmentVariableSites(genericEnvironmentMutationFixture, { javascript: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [
+      { name: 'SNAPBACK_CLIENT_RQS_DIR', kind: 'remove' },
+      { name: 'SNAPBACK_ADMIN_TOKEN', kind: 'write' },
+    ],
+  );
+
   const canonicalReadSites = new Map([
     ['SNAPBACK_FIXTURE_RUST_TRACE', 'if std::env::var_os("SNAPBACK_FIXTURE_RUST_TRACE").is_some() {'],
     ['SNAPBACK_FIXTURE_JS_TRACE', 'const trace = process.env.SNAPBACK_FIXTURE_JS_TRACE;'],
@@ -315,7 +330,11 @@ test('environment-name tables end at their matching closing delimiter', () => {
   assert.deepEqual(
     environmentVariableSites(fixture, { javascript: true })
       .map(({ match, kind }) => ({ name: match[0], kind })),
-    [{ name: 'SNAPBACK_FOO_ENV', kind: 'table-entry' }],
+    [
+      { name: 'SNAPBACK_FOO_ENV', kind: 'table-entry' },
+      { name: 'SNAPBACK_OBJECT_BEFORE_STRING_BRACE', kind: 'write' },
+      { name: 'SNAPBACK_OBJECT_AFTER_STRING_BRACE', kind: 'write' },
+    ],
   );
   assert.deepEqual(
     diagnosticSourceSites(fixture, { javascript: true })
@@ -442,6 +461,19 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       (site) => site.file === 'targets/cloudflare/src/coordinator.js',
     ).length,
     1,
+  );
+
+  assert.ok(
+    registry.environment.SNAPBACK_CLIENT_RQS_DIR.sites.some((site) => (
+      site.file === 'packages/snapback-cli/expo-dev.mjs' && site.kind === 'remove'
+    )),
+    'delete childEnv.SNAPBACK_CLIENT_RQS_DIR must be classified as a removal',
+  );
+  assert.ok(
+    registry.environment.SNAPBACK_ADMIN_TOKEN.sites.some((site) => (
+      site.file === 'packages/snapback-cli/index.mjs' && site.kind === 'write'
+    )),
+    'delegatedEnvironment.SNAPBACK_ADMIN_TOKEN assignment must be classified as a write',
   );
 
   for (const [file, code] of [

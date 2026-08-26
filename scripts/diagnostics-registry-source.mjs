@@ -140,6 +140,19 @@ function environmentMutationOperator(after) {
   return /^\s*(?:=(?!=|>)|\?\?=|\|\|=|&&=|\+=|-=|\*=|\/=|%=)/u.test(after);
 }
 
+const GENERIC_ENVIRONMENT_OBJECT_ACCESS = String.raw`(?:(?:[A-Za-z_$][\w$]*\.)*(?:env|environment)|[A-Za-z_$][\w$]*(?:Env|Environment))`;
+
+function genericEnvironmentObjectProperty(before, { deleted = false, bracket = false } = {}) {
+  const deletePrefix = deleted ? String.raw`\bdelete\s+` : '';
+  const propertySuffix = bracket
+    ? String.raw`(?:\?\.)?\[\s*["']$`
+    : String.raw`(?:\.|\?\.)$`;
+  return new RegExp(
+    `${deletePrefix}${GENERIC_ENVIRONMENT_OBJECT_ACCESS}${propertySuffix}`,
+    'u',
+  ).test(before);
+}
+
 function directEnvironmentSiteKind(source, offset, code) {
   const before = source.slice(Math.max(0, offset - 256), offset);
   const after = source.slice(offset + code.length, offset + code.length + 128);
@@ -148,8 +161,13 @@ function directEnvironmentSiteKind(source, offset, code) {
     /\.env_remove\s*\(\s*["']$/u.test(before)
     || /\b(?:std::)?env::remove_var\s*\(\s*(?:r#*)?["']$/u.test(before)
     || /\bdelete\s+(?:process|Bun)\.env(?:\.|\?\.)$/u.test(before)
+    || genericEnvironmentObjectProperty(before, { deleted: true })
     || (
       /\bdelete\s+(?:process|Bun)\.env(?:\?\.)?\[\s*["']$/u.test(before)
+      && /^["']\s*\]/u.test(after)
+    )
+    || (
+      genericEnvironmentObjectProperty(before, { deleted: true, bracket: true })
       && /^["']\s*\]/u.test(after)
     )
   ) return 'remove';
@@ -163,6 +181,15 @@ function directEnvironmentSiteKind(source, offset, code) {
     )
     || (
       /\b(?:process|Bun)\.env(?:\?\.)?\[\s*["']$/u.test(before)
+      && /^["']\s*\]/u.test(after)
+      && environmentMutationOperator(after.replace(/^["']\s*\]/u, ''))
+    )
+    || (
+      genericEnvironmentObjectProperty(before)
+      && environmentMutationOperator(after)
+    )
+    || (
+      genericEnvironmentObjectProperty(before, { bracket: true })
       && /^["']\s*\]/u.test(after)
       && environmentMutationOperator(after.replace(/^["']\s*\]/u, ''))
     )
@@ -237,7 +264,7 @@ function javaScriptEnvironmentObjectKind(source, offset, code) {
     }
   }
   return candidates.sort((left, right) => right.open - left.open)
-    .find(({ open }) => matchingBrace(source, open) > offset)?.kind ?? null;
+    .find(({ open }) => matchingDelimiter(source, open) > offset)?.kind ?? null;
 }
 
 function isEnvironmentNameTable(source, offset) {

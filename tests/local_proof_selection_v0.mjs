@@ -341,6 +341,15 @@ test('diagnostic production sources select registry fixtures and Guide drift', (
   }
 });
 
+test('manifest-only package source additions and removals select registry fixtures', () => {
+  const manifestOnly = select(['packages/snapback-client/package.json']);
+  includesAll(manifestOnly, ['diagnostics-registry-fixtures']);
+  assert(
+    manifestOnly.matchedRules.includes('diagnostics-package-manifests'),
+    'package shipment manifests must route through the diagnostics registry generator gate',
+  );
+});
+
 test('known-red LLP 0284 product gates stay scheduled while their evasion harness stays always-on', () => {
   assert(context.policy.alwaysGates.includes('security-gate-fixtures'));
   for (const gate of [

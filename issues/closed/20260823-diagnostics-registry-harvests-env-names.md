@@ -49,6 +49,12 @@ const SNAPBACK_ENVIRONMENT_NAMES = ['SNAPBACK_FOO_ENV']; throw new Error('SNAPBA
 It retains only `SNAPBACK_FOO_ENV` as a table entry and
 `SNAPBACK_REAL_FAILURE` as an emission.
 
+Generic environment-object mutations are classified before the read fallback:
+the current `delete childEnv.SNAPBACK_CLIENT_RQS_DIR` site is a removal and
+`delegatedEnvironment.SNAPBACK_ADMIN_TOKEN = …` is a write. The object-boundary
+fixture also retains environment entries after a `}` embedded in a string
+value.
+
 Manifest-derived package inventory now admits shipped `.swift` and `.kt`
 files alongside JavaScript. Six native package files join the production
 inventory. In particular, the generated registry retains
@@ -146,11 +152,11 @@ Captured output:
     "environmentSites": 363
   },
   "environmentKinds": {
-    "read": 258,
+    "read": 250,
     "mention": 43,
     "declaration": 14,
-    "remove": 3,
-    "write": 17,
+    "remove": 9,
+    "write": 19,
     "table-entry": 12,
     "indirect-read": 16
   },

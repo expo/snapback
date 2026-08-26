@@ -73,6 +73,18 @@ const internalDiagnostic = lookupGuideReference(
   { projectRoot: root, includeDiagnosticSites: true },
 );
 assert.ok(internalDiagnostic.diagnostic.sites.length > 0);
+const receivedDiagnostic = lookupGuideReference(
+  ['SNAPBACK_INVALID_FLOAT'],
+  { projectRoot: root, includeDiagnosticSites: true },
+);
+assert.match(
+  formatGuideReferenceLookup(receivedDiagnostic),
+  /Received sites:\n- crates\/snapback-types\/src\/error_tracking\.rs:/u,
+);
+assert.doesNotMatch(
+  formatGuideReferenceLookup(receivedDiagnostic),
+  /Emitting sites:/u,
+);
 
 const environment = lookupGuideReference(
   ['SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE'],
@@ -108,7 +120,7 @@ assert.match(
 const syntheticRoot = mkdtempSync(join(tmpdir(), 'snapback-reference-lookup-'));
 try {
   const syntheticName = 'SNAPBACK_SYNTHETIC_DUAL_ROLE_PAGINATION';
-  const sites = (owner) => Array.from({ length: 25 }, (_, index) => ({
+  const sites = (owner, count) => Array.from({ length: count }, (_, index) => ({
     file: `synthetic/${owner}-${String(index + 1).padStart(2, '0')}.mjs`,
     line: index + 1,
     column: 1,
@@ -128,7 +140,7 @@ try {
       [syntheticName]: {
         code: syntheticName,
         subsystem: 'synthetic',
-        sites: sites('diagnostic'),
+        sites: sites('diagnostic', 1),
         httpStatus: null,
         httpStatusClass: null,
         guideAnchor: null,
@@ -136,7 +148,7 @@ try {
       },
     },
     environment: {
-      [syntheticName]: { name: syntheticName, sites: sites('environment') },
+      [syntheticName]: { name: syntheticName, sites: sites('environment', 25) },
     },
   };
   const symbolBytes = Buffer.from(`${JSON.stringify(symbolRegistry)}\n`);
@@ -169,12 +181,32 @@ try {
   const pagedDualRole = lookupGuideReference([syntheticName], {
     projectRoot: syntheticRoot,
     includeDiagnosticSites: true,
-    lookupBudgetBytes: 2_800,
+    lookupBudgetBytes: 2_500,
   });
   assert.equal(pagedDualRole.match, 'diagnostic-environment-slice');
-  assert.ok(pagedDualRole.diagnostic.sites.length > 0);
-  assert.ok(pagedDualRole.environment.sites.length > 0);
-  assert.ok(Buffer.byteLength(JSON.stringify(pagedDualRole)) <= 2_800);
+  const ownerKinds = (page) => [
+    ...(page.diagnostic.sites.length > 0 ? ['diagnostic'] : []),
+    ...(page.environment.sites.length > 0 ? ['environment'] : []),
+  ];
+  assert.deepEqual(ownerKinds(pagedDualRole), ['diagnostic', 'environment']);
+  assert.ok(Buffer.byteLength(JSON.stringify(pagedDualRole)) <= 2_500);
+  assert.equal(pagedDualRole.truncation.nextSlice, 2);
+  const pagedDualRoleSecond = lookupGuideReference([syntheticName, '--slice', '2'], {
+    projectRoot: syntheticRoot,
+    includeDiagnosticSites: true,
+    lookupBudgetBytes: 2_500,
+  });
+  assert.equal(pagedDualRoleSecond.match, 'diagnostic-environment-slice');
+  assert.deepEqual(ownerKinds(pagedDualRoleSecond), ['diagnostic', 'environment']);
+  assert.equal(pagedDualRoleSecond.truncation.nextSlice, null);
+  assert.ok(Buffer.byteLength(JSON.stringify(pagedDualRoleSecond)) <= 2_500);
+  assert.deepEqual(
+    new Set([
+      ...pagedDualRole.environment.sites,
+      ...pagedDualRoleSecond.environment.sites,
+    ].map(({ file }) => file)),
+    new Set(sites('environment', 25).map(({ file }) => file)),
+  );
 } finally {
   rmSync(syntheticRoot, { recursive: true, force: true });
 }

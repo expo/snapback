@@ -720,6 +720,15 @@
       ]
     },
     {
+      "id": "diagnostics-package-manifests",
+      "groups": [
+        "diagnostics-registry"
+      ],
+      "suffixes": [
+        "/package.json"
+      ]
+    },
+    {
       "id": "rust-sources",
       "groups": [
         "rustfmt"

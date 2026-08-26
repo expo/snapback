@@ -12,15 +12,20 @@
 The JavaScript Guide wrapper resolves both top-level vocabularies in
 `guide/reference/diagnostics-registry.json`, but native lookup only consults
 `diagnostics` at `crates/snapback-server/src/guide_reference.rs` around the
-exact-lookup branch currently near line 483. Consequently
-`snapback-guide://symbol/SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` returns
-`Resource not found` even though the generated registry publishes it under
-`environment`.
+exact-lookup branch currently near line 483. The concrete regression after the
+registry-classification lane lands is that native
+`snapback guide SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` returns `Resource not
+found`. It was previously found only because the environment variable was
+mis-typed as a diagnostic; the generated registry now correctly publishes it
+only under `environment`. The equivalent native MCP resource
+`snapback-guide://symbol/SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` fails the same
+way. The JavaScript CLI lookup is correct.
 
 The native formatter currently groups every diagnostic site under `Emitting
-sites:` near line 606. It therefore mislabels `kind: "received"` and `kind:
-"reserved"` sites. The JavaScript wrapper already labels emitting, received,
-reserved, and environment sites separately. A dual-role name such as
+sites:` near line 606. Concretely, native output prints received and reserved
+sites under `Emitting sites:` instead of `Received sites:` and `Reserved
+sites:`. The JavaScript wrapper already labels emitting, received, reserved,
+and environment sites separately. A dual-role name such as
 `SNAPBACK_ACCEPTED_SOCKET_LIMIT` also needs one combined exact result containing
 the diagnostic record and its environment binding sites instead of allowing
 diagnostic precedence to hide the binding.
