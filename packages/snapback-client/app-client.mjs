@@ -754,15 +754,24 @@ function preflight(input) {
   ) {
     throw refusal(
       'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED',
-      'The declared-dev capability is not installed on this exact generated app object.',
-      { suppliedAsOption: false, generatedApp: false },
+      'This @expo/snapback-client module instance does not recognize the app\'s declaredDev field. A likely cause is that a different physical copy of @expo/snapback-client stamped the app; ensure one client copy serves the consumer, or import the app client from the same package instance that minted the app.',
+      {
+        suppliedAsOption: false,
+        declaredDevPresent: true,
+        recognizedByThisModule: false,
+      },
     );
   }
   if (declaredDevCapability === null && hasRealUrl) {
     emitDebug(
       'snapback.declared-dev-url-ignored',
-      'The release-generated app has no declared-dev capability; the url option was ignored for binding source selection.',
-      { selectedSource: binding === undefined ? null : 'binding', ignoredUrl: input.url },
+      'This @expo/snapback-client module instance did not recognize a declared-dev capability, so the url option was ignored for binding source selection.',
+      {
+        selectedSource: binding === undefined ? null : 'binding',
+        ignoredUrl: input.url,
+        declaredDevPresent: appDeclaredDev !== undefined && appDeclaredDev !== null,
+        recognizedByThisModule: false,
+      },
     );
   }
   if (binding === undefined && hasRealUrl && declaredDevCapability !== null) {
@@ -801,7 +810,8 @@ function preflight(input) {
       'createSnapbackAppClient requires an admitted binding; the url option is available only on a development-generated app.',
       {
         actualKeys: Object.keys(input).sort(),
-        declaredDevPresent: declaredDevCapability !== null,
+        declaredDevPresent: appDeclaredDev !== undefined && appDeclaredDev !== null,
+        recognizedByThisModule: declaredDevCapability !== null,
         urlOptionPresent: hasRealUrl,
       },
     );

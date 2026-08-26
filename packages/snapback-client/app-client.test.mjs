@@ -420,6 +420,7 @@ const optionsFor = (app, binding = makeBinding(app), extra = {}) => ({
 test('an explicit binding leaves a foreign declared-dev stamp inert while URL selection refuses it', async () => {
   const server = installServer();
   try {
+    const diagnostics = [];
     const app = structuredClone(makeApp());
     Object.defineProperty(app, 'declaredDev', {
       value: Object.freeze({
@@ -430,9 +431,24 @@ test('an explicit binding leaves a foreign declared-dev stamp inert while URL se
     });
     Object.freeze(app);
 
-    const appClient = await createSnapbackAppClient(optionsFor(app));
+    const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+      url: 'http://127.0.0.1:4711',
+      onDiagnostic: (event) => diagnostics.push(event),
+    }));
     try {
       assert.equal(appClient.bootstrapState().status, 'ready');
+      assert.deepEqual(diagnostics, [{
+        schemaVersion: 'snapback.client-debug-event.v1',
+        event: 'snapback.declared-dev-url-ignored',
+        severity: 'debug',
+        message: 'This @expo/snapback-client module instance did not recognize a declared-dev capability, so the url option was ignored for binding source selection.',
+        details: {
+          selectedSource: 'binding',
+          ignoredUrl: 'http://127.0.0.1:4711',
+          declaredDevPresent: true,
+          recognizedByThisModule: false,
+        },
+      }]);
     } finally {
       await appClient.dispose();
     }
@@ -443,8 +459,36 @@ test('an explicit binding leaves a foreign declared-dev stamp inert while URL se
         url: 'http://127.0.0.1:4711',
         platform: { kind: 'memory', cryptoObject: webcrypto },
       }),
-      (error) => error?.code === 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED'
-        && error?.diagnostic?.details?.generatedApp === false,
+      (error) => {
+        assert.equal(error?.code, 'SNAPBACK_APP_BINDING_DECLARED_DEV_REFUSED');
+        assert.equal(
+          error?.diagnostic?.message,
+          'This @expo/snapback-client module instance does not recognize the app\'s declaredDev field. A likely cause is that a different physical copy of @expo/snapback-client stamped the app; ensure one client copy serves the consumer, or import the app client from the same package instance that minted the app.',
+        );
+        assert.deepEqual(error?.diagnostic?.details, {
+          suppliedAsOption: false,
+          declaredDevPresent: true,
+          recognizedByThisModule: false,
+        });
+        return true;
+      },
+    );
+
+    await assert.rejects(
+      createSnapbackAppClient({
+        app,
+        platform: { kind: 'memory', cryptoObject: webcrypto },
+      }),
+      (error) => {
+        assert.equal(error?.code, 'SNAPBACK_APP_BINDING_UNAVAILABLE');
+        assert.deepEqual(error?.diagnostic?.details, {
+          actualKeys: ['app', 'platform'],
+          declaredDevPresent: true,
+          recognizedByThisModule: false,
+          urlOptionPresent: false,
+        });
+        return true;
+      },
     );
   } finally {
     server.restore();
