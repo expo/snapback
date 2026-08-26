@@ -30057,6 +30057,19 @@ fn session_authority(
     )
 }
 
+fn session_authority_cohort(
+    snapback: &mut LocalSnapback,
+    fixture_authority_label: &str,
+) -> (PreparedAuthority, AuthorityDescriptor) {
+    let authority = session_authority(snapback, fixture_authority_label);
+    let descriptor = snapback
+        .prepare_authority_descriptor(authority.clone())
+        .expect("derive descriptor from the resolved session cohort")
+        .authority_descriptor()
+        .clone();
+    (authority, descriptor)
+}
+
 #[test]
 fn prepared_authority_descriptor_refuses_foreign_engine_graph() {
     let input = HandlerInput::default();
@@ -30436,7 +30449,8 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
     const SECOND: &str = "018f0d90-7b25-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
 
-    for supplied in [None, Some(descriptor(SECOND))] {
+    for foreign in [false, true] {
+        let supplied = foreign.then(|| session_authority_cohort(&mut snapback, SECOND).1);
         let authority = session_authority(&mut snapback, FIRST);
         let (result, _) = snapback.invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
@@ -30462,13 +30476,13 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
         );
     }
 
-    let authority = session_authority(&mut snapback, FIRST);
+    let (authority, first_descriptor) = session_authority_cohort(&mut snapback, FIRST);
     snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
             input(),
             Some("cm_first_delivery".to_owned()),
-            Some(descriptor(FIRST)),
+            Some(first_descriptor.clone()),
             "http",
             authority,
         )
@@ -30477,12 +30491,13 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
     assert_eq!(snapback.durable_version().unwrap(), 1);
 
     let authority = session_authority(&mut snapback, FIRST);
+    let second_descriptor = session_authority_cohort(&mut snapback, SECOND).1;
     let stale_with_ack = snapback
         .invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
             "hostInsert",
             input(),
             Some("cm_stale_ack_carrier".to_owned()),
-            Some(descriptor(SECOND)),
+            Some(second_descriptor.clone()),
             &["cm_first_delivery".to_owned()],
             "http",
             authority,
@@ -30495,7 +30510,7 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             "hostInsert",
             input(),
             Some("cm_first_delivery".to_owned()),
-            Some(descriptor(FIRST)),
+            Some(first_descriptor.clone()),
             "http",
             authority,
         )
@@ -30518,16 +30533,19 @@ fn queued_mutation_descriptor_is_enforced_before_first_and_duplicate_effects() {
             "hostInsert",
             input(),
             Some("cm_first_delivery".to_owned()),
-            Some(descriptor(SECOND)),
+            Some(second_descriptor),
             "http",
             authority,
         )
         .0
         .expect_err("settlement belongs to the first authority instance");
     assert_eq!(duplicate.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+    // A second production session necessarily changes the canonical auth
+    // context as well as its authority instance. The impossible old fixture
+    // held the session id fixed while rewriting only the authority instance.
     assert_eq!(
-        duplicate.diagnostic.details["reason"],
-        "authority_instance_mismatch"
+        duplicate.diagnostic.details["clientMutationId"], "cm_first_delivery",
+        "unexpected duplicate refusal: {duplicate:?}"
     );
     assert_eq!(snapback.durable_version().unwrap(), 1);
     assert_eq!(
@@ -30546,13 +30564,13 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
     const AUTHORITY: &str = "018f0d90-7b24-7a22-8c33-445566778899";
     const OTHER_AUTHORITY: &str = "018f0d90-7b25-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
-    let authority = session_authority(&mut snapback, AUTHORITY);
+    let (authority, descriptor) = session_authority_cohort(&mut snapback, AUTHORITY);
     let settled = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
             input(),
             Some("cm_removed_function".to_owned()),
-            Some(descriptor(AUTHORITY)),
+            Some(descriptor.clone()),
             "http",
             authority,
         )
@@ -30582,7 +30600,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             "hostInsert",
             input(),
             Some("cm_removed_function".to_owned()),
-            Some(descriptor(AUTHORITY)),
+            Some(descriptor.clone()),
             "http",
             authority,
         )
@@ -30602,12 +30620,13 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
     );
 
     let authority = session_authority(&mut snapback, AUTHORITY);
+    let other_descriptor = session_authority_cohort(&mut snapback, OTHER_AUTHORITY).1;
     let stale = snapback
         .invoke_mutation_recording_with_authority_descriptor(
             "hostInsert",
             input(),
             Some("cm_removed_function".to_owned()),
-            Some(descriptor(OTHER_AUTHORITY)),
+            Some(other_descriptor.clone()),
             "http",
             authority,
         )
@@ -30619,7 +30638,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
     let stale_ack = snapback
         .acknowledge_client_mutations_with_authority_descriptor(
             &authority,
-            Some(&descriptor(OTHER_AUTHORITY)),
+            Some(&other_descriptor),
             &["cm_removed_function".to_owned()],
         )
         .expect_err("standalone ACK descriptor drift refuses before GC");
@@ -30630,7 +30649,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             "hostInsert",
             input(),
             Some("cm_removed_function".to_owned()),
-            Some(descriptor(AUTHORITY)),
+            Some(descriptor.clone()),
             "http",
             authority,
         )
@@ -30653,7 +30672,7 @@ fn committed_settlement_survives_function_removal_until_acknowledged() {
             "hostInsert",
             input(),
             Some("cm_removed_function".to_owned()),
-            Some(descriptor(AUTHORITY)),
+            Some(descriptor),
             "http",
             authority,
         )
@@ -37786,8 +37805,13 @@ fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
                 .unwrap();
         }));
     });
-    let authority =
-        prepare_admitted_dev_authority_for_test(InvocationSource::LocalMutation, &input());
+    let authority = snapback
+        .prepare_legacy_dev_authority(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+        )
+        .expect("prepare file-backed postcommit authority");
     let (result, receipt) = snapback.invoke_mutation_recording_with_authority_descriptor(
         "hostInsert",
         input(),
@@ -37827,15 +37851,14 @@ fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
 #[test]
 fn postcommit_publication_guard_failure_confirms_without_retaining_sensitive_output() {
     let mut snapback = permission_epoch_guarded_snapback();
-    let controller = AdmissionController::new(0, true).unwrap();
-    let lease = controller.admit_dev().unwrap();
-    let authority = InvocationGate::prepare_admitted_dev_input(
-        InvocationSource::LocalMutation,
-        ServerProfile::Test,
-        &input(),
-        lease,
-    )
-    .unwrap();
+    let controller = snapback.admission.clone();
+    let authority = snapback
+        .prepare_legacy_dev_authority(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+        )
+        .expect("prepare postcommit authority in the target graph");
     let controller_for_hook = controller.clone();
     BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
         *slot.borrow_mut() = Some(Box::new(move || {
