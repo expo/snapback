@@ -3183,6 +3183,10 @@ const offlineMutationOperationTargetMatchesFact = (target, fact) => (
 
 const OPERATION_TARGET_CHANGED = 'SNAPBACK_CLIENT_OPERATION_TARGET_CHANGED';
 
+const isOfflineMutationReplayEnqueueOnlyEvidence = (evidence) => (
+  evidence === 'cached' || evidence === 'uncommitted'
+);
+
 const offlineMutationOperationTargetChangedError = (target, currentBaseUrl) => {
   const current = normalizedOperationBaseUrl(currentBaseUrl);
   const message = 'the client target changed after mutation/replay admission; transport was refused';
@@ -8029,7 +8033,7 @@ export class SnapbackClient {
         operationTarget: transportTarget,
       });
     }
-    const evidence = factCommitted === false ? null : 'fresh';
+    const evidence = factCommitted === false ? 'uncommitted' : 'fresh';
     if (
       fact.supported
       && expectedGeneration !== null
@@ -10409,20 +10413,12 @@ export class SnapbackClient {
     };
     let resolvedAuthorityDescriptor = authorityDescriptor;
     if (store && clientMutationIds.length > 0) {
-      await this.#reconcileQueueCustody(store, { required: true });
       authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(store);
       try {
-        const status = await store.outboxAuthorizationStatus();
-        if (status?.suspended === true) {
-          const error = new Error(
-            'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: mutation acknowledgement waits for authorization proof',
-          );
-          error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
-          throw error;
-        }
-        acknowledgementFence = outboxAuthorizationFenceFrom(status);
-        const records = await store.outboxRecords();
-        const recordsById = new Map(records.map((record) => [record.id, record]));
+        const recordsBeforeCustody = await store.outboxRecords();
+        const recordsBeforeCustodyById = new Map(
+          recordsBeforeCustody.map((record) => [record.id, record]),
+        );
         const currentFact = await this.#currentOfflineMutationReplayCapabilityFact(
           acknowledgementTransportTarget,
         );
@@ -10436,6 +10432,42 @@ export class SnapbackClient {
             ? null
             : INTERNAL_CONFIGURED_REPLAY_APP_ID);
         selectedClientMutationIds = clientMutationIds.filter((id) => {
+          const record = recordsBeforeCustodyById.get(id);
+          return record !== undefined
+            && outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
+        });
+        if (selectedClientMutationIds.length === 0) {
+          await releaseAuthorizationDispatch();
+          return Object.freeze({ acknowledged: 0 });
+        }
+        let status = await store.outboxAuthorizationStatus();
+        if (status?.suspended === true) {
+          const error = new Error(
+            'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: mutation acknowledgement waits for authorization proof',
+          );
+          error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
+          throw error;
+        }
+        // Target eligibility is established before any authority can mutate
+        // custody. A client attached to target B therefore cannot strand or
+        // privacy-delete target-A recovery records merely by requesting them.
+        await this.#reconcileQueueCustody(store, {
+          required: true,
+          authorizationDispatchOwned: true,
+          recordIds: [...new Set(selectedClientMutationIds)],
+        });
+        status = await store.outboxAuthorizationStatus();
+        if (status?.suspended === true) {
+          const error = new Error(
+            'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: mutation acknowledgement waits for authorization proof',
+          );
+          error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
+          throw error;
+        }
+        acknowledgementFence = outboxAuthorizationFenceFrom(status);
+        const records = await store.outboxRecords();
+        const recordsById = new Map(records.map((record) => [record.id, record]));
+        selectedClientMutationIds = selectedClientMutationIds.filter((id) => {
           const record = recordsById.get(id);
           return record !== undefined
             && outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
@@ -13614,6 +13646,7 @@ export class SnapbackClient {
           });
           replayStop.value = Object.freeze({
             kind: 'paused',
+            code: error.code,
             reason: error.code === 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING'
               ? 'replay-paused:enqueue-target-missing'
               : 'replay-paused:enqueue-target-mismatch',
@@ -13753,6 +13786,7 @@ export class SnapbackClient {
           stopped = true;
           replayStop.value = Object.freeze({
             kind: 'paused',
+            code: 'SNAPBACK_OUTBOX_ADOPTION_REPLAY_REFUSED',
             reason: 'replay-paused:adoption-refused',
           });
           break;
@@ -13810,9 +13844,10 @@ export class SnapbackClient {
   }
 
   /**
-   * Adopt the caller-owned durable outbox after a sidecar transport change.
-   * This is an explicit opt-in store handoff: default per-origin store
-   * selection remains unchanged, so unrelated servers never merge queues.
+   * Check the caller-owned durable outbox after a sidecar transport change.
+   * This does not authorize a target rewrite: mismatched or targetless records
+   * return a typed retained pause until the explicit adoption protocol lands.
+   * Default per-origin store selection remains unchanged.
    *
    * @ref LLP 0129#phase-2b-desktop-sidecar-first-rung-note--2026-08-05 —
    * pending-work-preserving replacement is a checked follow-on to the cold
@@ -13908,6 +13943,17 @@ export class SnapbackClient {
       preserveTerminalFailures: true,
     });
     const after = outboxDispositionCounts(await store.outboxRecords());
+    const retained = after.pending + after.quarantined + after.resultGone;
+    const replayStop = replay.stopped === true ? this.__outboxLastReplayStop : null;
+    const outcome = replay.stopped === true
+      ? {
+          status: 'paused',
+          reason: replayStop?.code
+            ?? replayStop?.reason
+            ?? 'SNAPBACK_OUTBOX_ADOPTION_REPLAY_PAUSED',
+          retained,
+        }
+      : { status: 'complete', retained };
     const receipt = {
       schemaVersion: 'snapback.outbox-adoption.v1',
       candidateOrigin: this.baseUrl,
@@ -13923,8 +13969,9 @@ export class SnapbackClient {
       strandedDelta: Math.max(0, after.stranded - before.stranded),
       quarantinedDelta: Math.max(0, after.quarantined - before.quarantined),
       resultGoneDelta: Math.max(0, after.resultGone - before.resultGone),
-      remaining: after.pending + after.quarantined + after.resultGone,
+      remaining: retained,
       stopped: replay.stopped === true,
+      outcome,
     };
     return freezeDeep(receipt);
   }
@@ -14194,13 +14241,10 @@ export class SnapbackClient {
       });
       if (capability.supported) {
         queueCapabilityVerified = true;
-        queueCapabilityEvidence = capability.evidence ?? 'fresh';
+        queueCapabilityEvidence = capability.evidence;
         queueCapabilityFact = capability;
         queueCapabilityRequestSequence = capability.inspectionRequestSequence;
         operationTarget = capability.operationTarget ?? operationTarget;
-        if (queueCapabilityEvidence === 'cached' && clientMutationId === null) {
-          clientMutationId = createClientMutationId();
-        }
       } else {
         // Automatic mode on a ledger-less or inspection-unavailable target is
         // an ordinary online-only write. Clear all operation-local queue
@@ -14211,6 +14255,9 @@ export class SnapbackClient {
         queueCapabilityFact = null;
         queueCapabilityRequestSequence = null;
       }
+    }
+    if (queueCapabilityVerified === true && clientMutationId === null) {
+      clientMutationId = createClientMutationId();
     }
     let generatedMutation = null;
     let generatedComposedStore = null;
@@ -14729,7 +14776,7 @@ export class SnapbackClient {
           claimForegroundOwnership(stored);
           if (
             stored.operationIssuance === null
-            && queueCapabilityEvidence !== 'cached'
+            && !isOfflineMutationReplayEnqueueOnlyEvidence(queueCapabilityEvidence)
           ) {
             let range;
             try {
@@ -14830,7 +14877,10 @@ export class SnapbackClient {
               throw error;
             }
           }
-          if (queueCapabilityEvidence !== 'cached' && !stored?.operationIssuance) {
+          if (
+            !isOfflineMutationReplayEnqueueOnlyEvidence(queueCapabilityEvidence)
+            && !stored?.operationIssuance
+          ) {
             const error = new Error(
               'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
             );
@@ -14879,12 +14929,12 @@ export class SnapbackClient {
         else {
           const code = error?.diagnostic?.code ?? error?.code;
           if (
-            queueCapabilityEvidence === 'cached'
+            isOfflineMutationReplayEnqueueOnlyEvidence(queueCapabilityEvidence)
             && code === 'SNAPBACK_OUTBOX_NOT_WRITER'
           ) {
-            // Cached support authorizes enqueue custody only. If another writer
-            // owns that custody, surface its exact refusal and never convert the
-            // missing record into a ledger error or an online POST.
+            // Cached or uncommitted support authorizes enqueue custody only. If
+            // another writer owns that custody, surface its exact refusal and
+            // never convert the missing record into a ledger error or POST.
             throw error;
           }
           if (
@@ -14918,12 +14968,12 @@ export class SnapbackClient {
       ephemeralOptimisticRecord = true;
       await this.#refreshOptimisticMutationViews('generated-ir-ephemeral-admitted');
     }
-    if (queueCapabilityEvidence === 'cached') {
+    if (isOfflineMutationReplayEnqueueOnlyEvidence(queueCapabilityEvidence)) {
       // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
-      // cached support grants enqueue custody only. It cannot authorize a
-      // foreground attempt against a target that may have changed since the
-      // answered manifest, because a lost response could otherwise duplicate
-      // the effect before fresh-gated replay.
+      // Cached or uncommitted support grants enqueue custody only. It cannot
+      // authorize a foreground attempt against a target that may have changed
+      // since the answered manifest, because a lost response could otherwise
+      // duplicate the effect before fresh-gated replay.
       const queued = durableOnlineRecord && queueStore && durableMutationRecord
         ? await this.#enqueueOfflineMutation(queueStore, durableMutationRecord, {
             alreadyCommitted: true,

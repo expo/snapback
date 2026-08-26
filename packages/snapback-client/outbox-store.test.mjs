@@ -1299,7 +1299,7 @@ test('authorization generations fence prepare, settlement, late enqueue, and del
   await store.close();
 });
 
-test('default foreground mutation without an explicit id defers behind an active root', async (t) => {
+test('default foreground mutation mints durable identity before deferring behind an active root', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   await applyQueueRoot(store, testQueueObligation);
@@ -1311,14 +1311,15 @@ test('default foreground mutation without an explicit id defers behind an active
   const client = new SnapbackClient('https://default-foreground-root.example', {
     rqsStore: store,
   });
-  await assert.rejects(
-    () => client.mutate('createThing', {
-      args: { title: 'proof-gated default mutation' },
-    }),
-    (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
-  );
+  const deferred = await client.mutate('createThing', {
+    args: { title: 'proof-gated default mutation' },
+  });
+  assert.equal(deferred.status, 'queued');
+  assert.equal(deferred.authorizationDisposition, 'authorization-suspended');
   assert.equal(mutationAttempts, 0);
-  assert.deepEqual(await store.outboxRecords(), []);
+  const [retained] = await store.outboxRecords();
+  assert.equal(retained.id, deferred.clientMutationId);
+  assert.equal(retained.status, 'pending');
   await store.close();
 });
 
@@ -2432,6 +2433,96 @@ test("queue:'auto' uses online-only dispatch for a ledger-less target and cached
   );
   await followerStore.close();
   await writerStore.close();
+});
+
+test('an uncommitted positive capability fact is enqueue-only for an IndexedDB follower', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const indexedDB = new IDBFactory();
+  const lockManager = createContendedLockManager();
+  const options = {
+    indexedDB,
+    lockManager,
+    databaseName: 'outbox-uncommitted-positive-follower',
+    broadcastChannelFactory: null,
+  };
+  const writerStore = createIndexedDbRqsResumeStore(options);
+  const followerStore = createIndexedDbRqsResumeStore(options);
+  await Promise.all([writerStore.whenLockSettled(), followerStore.whenLockSettled()]);
+  assert.equal(writerStore.isWriter(), true);
+  assert.equal(followerStore.isWriter(), false);
+  const origin = 'https://uncommitted-positive-follower.example';
+  const targetProfileId = 'local-dev-sqlite-ibex';
+  await writerStore.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId,
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
+  const commitCapabilityFact = followerStore.commitOfflineMutationReplayCapabilityFact.bind(
+    followerStore,
+  );
+  followerStore.commitOfflineMutationReplayCapabilityFact = async () => false;
+  const generatedReference = {
+    artifactKind: 'functionReference',
+    kind: 'Mutation',
+    id: 'outbox-adoption-test:uncommittedPositiveFollower',
+    name: 'uncommittedPositiveFollower',
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+    mutationIr: {
+      format: 'snapback.generated-mutation-ir.v1',
+      capabilityClass: 'local-executable',
+      operationHash: `sha256:${'e'.repeat(64)}`,
+      plan: { steps: [] },
+    },
+  };
+  const followerClient = new InspectingSnapbackClient(origin, {
+    rqsStore: followerStore,
+    __outboxDrainLifecycle: false,
+  });
+  followerClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  const storeRuntimeInvoke = followerClient.__storeRuntimeInvoke.bind(followerClient);
+  followerClient.__storeRuntimeInvoke = async (name, ...args) => {
+    if (name !== 'prepareGeneratedMutation') return storeRuntimeInvoke(name, ...args);
+    const [{ clientMutationId }] = args;
+    return {
+      generatedMutation: { operationHash: generatedReference.mutationIr.operationHash },
+      clientMutationId,
+      optimisticOperation: null,
+      ctxLedger: null,
+      settlementLane: 'replay-accept',
+      settlementIdentity: null,
+      settlementClaims: null,
+      boundedSkew: null,
+    };
+  };
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { wronglyDispatched: true }, version: 1 });
+  };
+
+  try {
+    await assert.rejects(
+      () => followerClient.mutate(generatedReference, {
+        args: { title: 'writer custody is not committed here' },
+      }),
+      (error) => error.code === 'SNAPBACK_OUTBOX_NOT_WRITER',
+      'the uncommitted answer has the same enqueue-only fence as cached evidence',
+    );
+    assert.equal(mutationPosts, 0, 'uncommitted evidence never licenses an online mutation POST');
+    assert.deepEqual(await writerStore.outboxRecords(), [], 'the writer queue remains untouched');
+  } finally {
+    followerStore.commitOfflineMutationReplayCapabilityFact = commitCapabilityFact;
+    await followerClient.close();
+    await followerStore.close();
+    await writerStore.close();
+  }
 });
 
 test("queue:'auto' retains authorization fencing when replay capability is unavailable", async (t) => {
@@ -5990,6 +6081,64 @@ test('closeAuth releases an owned default store for the next sequential client',
   }
 });
 
+test('fresh automatic queue reuses one pre-POST identity after an applied response is lost', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://applied-response-lost.example';
+  const targetProfileId = 'applied-response-lost-profile';
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  const settledIds = new Set();
+  const mutationBodies = [];
+  let effectCount = 0;
+  let loseFirstResponse = true;
+  globalThis.fetch = async (url, init = {}) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    const body = JSON.parse(init.body);
+    mutationBodies.push(body);
+    if (
+      typeof body.clientMutationId !== 'string'
+      || !settledIds.has(body.clientMutationId)
+    ) {
+      effectCount += 1;
+      if (typeof body.clientMutationId === 'string') settledIds.add(body.clientMutationId);
+    }
+    if (loseFirstResponse) {
+      loseFirstResponse = false;
+      throw new TypeError('mutation applied but response lost');
+    }
+    return Response.json({ result: { effectCount }, version: 1 });
+  };
+
+  try {
+    const queued = await client.mutate('createThing', {
+      args: { title: 'exactly once across response loss' },
+    });
+    assert.equal(queued.status, 'queued');
+    assert.equal(
+      mutationBodies[0].clientMutationId,
+      queued.clientMutationId,
+      'the applied foreground POST and durable fallback share one pre-transport identity',
+    );
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 1);
+    assert.deepEqual(
+      mutationBodies.map((body) => body.clientMutationId),
+      [queued.clientMutationId, queued.clientMutationId],
+      'replay presents the exact identity the applied POST carried',
+    );
+    assert.equal(effectCount, 1, 'the server observes one logical effect across lost response replay');
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 test('mutate queues on connectivity failure and replays exactly-once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -6167,7 +6316,11 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
     diagnostics: candidate.outboxDiagnostics,
   }));
   assert.equal(receipt.remaining, 1);
-  assert.equal(receipt.stopped, true);
+  assert.deepEqual(receipt.outcome, {
+    status: 'paused',
+    reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    retained: 1,
+  });
   assert.deepEqual(
     receipt.before,
     { pending: 1, failed: 0, stranded: 0, quarantined: 0, resultGone: 0 },
@@ -6183,6 +6336,57 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
   );
   assert.equal(Object.isFrozen(receipt), true);
   assert.equal(Object.isFrozen(receipt.before), true);
+});
+
+test('checked sidecar adoption names a retained legacy targetless pause', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientStoreId = (await store.readStoreMeta()).clientStoreId;
+  const clientMutationId = 'cm-sidecar-adoption-legacy-targetless';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    args: { title: 'queued before target schema v2' },
+    expectedGeneration: TEST_ARTIFACT_GENERATION,
+    argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+  });
+  const before = structuredClone((await store.outboxRecords())[0]);
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'local-dev-sqlite-ibex',
+      }));
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { wronglyReplayed: true }, version: 1 });
+  };
+  const candidate = new InspectingSnapbackClient('http://127.0.0.1:41002', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const receipt = await candidate.adoptQueuedMutations({
+      expectedClientStoreId: clientStoreId,
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
+    });
+    assert.deepEqual(receipt.outcome, {
+      status: 'paused',
+      reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING',
+      retained: 1,
+    });
+    assert.equal(mutationPosts, 0, 'legacy targetless adoption sends zero mutation POSTs');
+    assert.deepEqual(
+      (await store.outboxRecords())[0],
+      before,
+      'the upgrade-while-offline intent remains byte-identical for the adoption protocol',
+    );
+  } finally {
+    await candidate.close();
+    await store.close();
+  }
 });
 
 test('sidecar adoption target mismatch precedes authority-instance custody reconciliation', async (t) => {
@@ -6257,7 +6461,11 @@ test('sidecar adoption target mismatch precedes authority-instance custody recon
     });
     assert.equal(receipt.replayed, 0);
     assert.equal(receipt.remaining, 1);
-    assert.equal(receipt.stopped, true);
+    assert.deepEqual(receipt.outcome, {
+      status: 'paused',
+      reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+      retained: 1,
+    });
     assert.equal(mutationPosts, 0, 'adoption sends zero POSTs for the target-A record');
     const status = await candidate.outboxStatus();
     assert.equal(status.pending, 1, 'outboxStatus observes the adopted target-A record read-only');
@@ -6408,9 +6616,18 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
       replayed: receipt.replayed,
       failedDelta: receipt.failedDelta,
       remaining: receipt.remaining,
-      stopped: receipt.stopped,
+      outcome: receipt.outcome,
     },
-    { replayed: 0, failedDelta: 0, remaining: 1, stopped: true },
+    {
+      replayed: 0,
+      failedDelta: 0,
+      remaining: 1,
+      outcome: {
+        status: 'paused',
+        reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+        retained: 1,
+      },
+    },
   );
   const [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
@@ -7714,6 +7931,79 @@ test('standalone ACK never crosses the persisted enqueue target after client rep
     [clientMutationId],
     'target A keeps its local ACK obligation',
   );
+});
+
+test('foreign-target standalone ACK never reconciles that record under a different authority', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const originA = 'https://authority-scoped-ack-target-a.example';
+  const originB = 'https://authority-scoped-ack-target-b.example';
+  const store = createDurableTestStore();
+  const coordinator = createSuccessorCoordinator();
+  let acknowledgementPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      const handshake = sessionHandshake(
+        TEST_SUCCESSOR_AUTHORITY_DESCRIPTOR,
+        TEST_SESSION_USER_ID,
+      );
+      return Response.json({
+        ...handshake,
+        deploymentIdentity: {
+          ...handshake.deploymentIdentity,
+          appId: TEST_ARTIFACT_GENERATION.appId,
+        },
+      });
+    }
+    acknowledgementPosts += 1;
+    return Response.json({ acknowledged: 1 });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  try {
+    const capture = await settleSuccessorCoordinator(coordinator);
+    await client.authSession();
+    const clientMutationId = 'cm-authority-scoped-ack-target-a';
+    await store.outboxEnqueue({
+      id: clientMutationId,
+      function: 'createThing',
+      ...currentOutboxTarget({ origin: originA, generated: true }),
+      args: { title: 'target A authority must stay untouched' },
+      expectedGeneration: TEST_ARTIFACT_GENERATION,
+      argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+      principalScope: {
+        authMode: 'sessions',
+        authorizationStreamIncarnation: '018f0d90-7b26-7a22-8c33-445566778899',
+        userId: TEST_SESSION_USER_ID,
+      },
+      custody: {
+        authorityEpoch: capture.authorityEpoch,
+        authorityKey: capture.authorityKey,
+      },
+    });
+    const before = structuredClone((await store.outboxRecords())[0]);
+
+    assert.deepEqual(
+      await client.acknowledgeMutations({ clientMutationIds: [clientMutationId] }),
+      { acknowledged: 0 },
+    );
+    assert.equal(acknowledgementPosts, 0, 'target B receives no ACK for target A');
+    assert.deepEqual(
+      (await store.outboxRecords())[0],
+      before,
+      'target eligibility precedes custody, so B cannot strand or delete A records',
+    );
+  } finally {
+    await client.close();
+    await coordinator.close();
+    await store.close();
+  }
 });
 
 test('legacy targetless standalone ACK never crosses origin after client repoint', async (t) => {

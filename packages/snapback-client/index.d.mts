@@ -1332,7 +1332,7 @@ export interface OfflineMutationReplayCapabilityDiscovery {
   readonly supported: boolean;
   readonly reason: string | null;
   readonly targetProfileId: string | null;
-  readonly evidence: 'fresh' | 'configured' | 'cached' | null;
+  readonly evidence: 'fresh' | 'configured' | 'cached' | 'uncommitted' | null;
 }
 
 /** Outcome of one LLP 0043 M2 ordered outbox drain. */
@@ -1359,9 +1359,19 @@ export interface OutboxDispositionCounts {
   readonly resultGone: number;
 }
 
-/** Checked receipt for an explicit cross-origin sidecar store handoff. The
- * global default store remains per-origin; only a caller-injected durable
- * store can enter this path. */
+export type OutboxAdoptionOutcome =
+  | Readonly<{
+      readonly status: 'complete';
+      readonly retained: number;
+    }>
+  | Readonly<{
+      readonly status: 'paused';
+      readonly reason: string;
+      readonly retained: number;
+    }>;
+
+/** Checked sidecar store receipt. This does not authorize cross-origin target
+ * adoption: mismatched/targetless records return a typed retained pause. */
 export interface OutboxAdoptionReceipt {
   readonly schemaVersion: 'snapback.outbox-adoption.v1';
   readonly candidateOrigin: string;
@@ -1378,7 +1388,9 @@ export interface OutboxAdoptionReceipt {
   readonly quarantinedDelta: number;
   readonly resultGoneDelta: number;
   readonly remaining: number;
+  /** @deprecated Read outcome.status and outcome.reason instead. */
   readonly stopped: boolean;
+  readonly outcome: OutboxAdoptionOutcome;
 }
 
 /** Stable LLP 0081 payload-free observation of one held mutation. The durable
@@ -2125,9 +2137,9 @@ export class SnapbackClient {
   startOutboxDrain(options?: OutboxDrainOptions): OutboxDrainController;
   /** Drain the durable outbox in sequence order (single-flight). */
   replayQueuedMutations(): Promise<OutboxReplayOutcome>;
-  /** Explicit sidecar-only handoff of one caller-owned durable store across a
-   * transport-origin change. Requires an app-owned full-snapshot barrier,
-   * exact artifact generation, store identity, and writer custody. */
+  /** Check one caller-owned durable store after a sidecar transport change.
+   * Requires an app-owned full-snapshot barrier, exact artifact generation,
+   * store identity, and writer custody; target adoption remains unimplemented. */
   adoptQueuedMutations(options: {
     readonly expectedClientStoreId: string;
     readonly expectedGeneration: ArtifactGeneration;

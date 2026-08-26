@@ -323,7 +323,7 @@ test('sessions enqueue captures only descriptor, principal scope, and durable cu
   ]) assert.equal(Object.hasOwn(record, forbidden), false, forbidden);
 });
 
-test('clearing fence refuses post-connectivity enqueue and preserves the original error', async (t) => {
+test('pre-POST custody remains pending after response loss while the clearing fence advances', async (t) => {
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
@@ -370,15 +370,15 @@ test('clearing fence refuses post-connectivity enqueue and preserves the origina
     fixture.onAuthSessionAttempt = beginTransitionDuringQueueCapture;
   };
   fixture.offlineMutations = true;
-  await assert.rejects(
-    client.mutate('refusedWhileClearing', { args: { value: 1 } }),
-    (error) => isSnapbackDiagnosticError(error)
-      && error.cause instanceof TypeError
-      && /original fixture connectivity failure/u.test(error.cause.message),
-  );
-  assert.deepEqual(await fixture.store.outboxRecords(), []);
-  assert.equal(client.outboxDiagnostics.at(-1)?.code, 'SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED');
+  const queued = await client.mutate('retainedWhileClearing', { args: { value: 1 } });
+  assert.equal(queued.status, 'queued');
+  assert.equal(fixture.mutationAttempts[0]?.clientMutationId, queued.clientMutationId);
   await transition;
+  const [record] = await fixture.store.outboxRecords();
+  assert.equal(record.id, queued.clientMutationId);
+  assert.equal(record.status, 'pending');
+  assert.notEqual(record.replayable, false);
+  assert.deepEqual(record.authorityDescriptor, descriptor(actorA1()));
   await unregister();
 });
 
@@ -410,10 +410,10 @@ test('capture-validate-commit race preserves successor-owned stranded dispositio
   await assert.rejects(
     racingClient.mutate('racingIntent'),
     (error) => isSnapbackDiagnosticError(error)
-      && error.cause instanceof TypeError
-      && /original fixture connectivity failure/u.test(error.cause.message),
+      && error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
   );
   assert.equal(raced, true);
+  assert.equal(fixture.mutationAttempts.length, 0);
   const [record] = await underlying.outboxRecords();
   assert.equal(record.status, 'stranded');
   assert.equal(record.reason, 'authority_instance_changed');

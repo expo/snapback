@@ -423,59 +423,60 @@ that must queue from the store-owning client; this is the outbox twin of the
 registrations.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
-  // Offline: fetch refuses at the transport (TypeError, like undici).
+  let mutationPosts = 0;
   globalThis.fetch = async (url) => {
-    if (new URL(url).pathname === '/inspect') {
-      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
-    }
-    throw new TypeError('fetch failed');
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('offline after first discovery');
   };
-  const queued = await client.mutate('createThing', { args: { title: 'offline' } });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'first-discovery-remains-cacheable' },
+    clientMutationId: 'cm-first-discovery-remains-cacheable',
+  });
   assert.equal(queued.status, 'queued');
-  assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');
-  assert.equal(queued.presentation, 'withheld');
+  assert.equal(mutationPosts, 0, 'the preserved positive takes the enqueue-only cached path');
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-first-discovery-remains-cacheable'],
+  );
 ```
 
-## Preserve pending work across a desktop sidecar swap
+## Pause pending work across a desktop sidecar target change
 
 The desktop sidecar is the explicit exception to default per-origin store
 selection. Because each candidate starts on a new ephemeral port, an ordinary
 fresh client would resolve another default file-store blob. The embedding app
 instead owns one durable file store for the canonical sidecar database domain
 and injects that same store into predecessor, candidate, and rollback clients.
-Do not generalize this to arbitrary servers: the default isolation rule is a
-safety boundary.
+Injection lets the candidate inspect the same pending bytes; it does not grant
+authority to rewrite their persisted enqueue target. Do not generalize it to
+arbitrary servers: the default isolation rule is a safety boundary.
 
 After candidate nonce attestation, construct the fresh client with the
 candidate URL and shared store, complete an application-owned full-snapshot
 barrier, then call `adoptQueuedMutations`. The checked API requires the captured
 `clientStoreId` and exact artifact generation; it also checks writer custody,
-candidate `/inspect`, and every pending record generation before replay. Its
-receipt reports authoritative before/after dispositions and terminal deltas.
-The sidecar commits only at zero remaining, no stop, and no new failed,
-quarantined, or result-gone record.
+candidate `/inspect`, and every pending record generation before entering the
+ordinary target-fenced replay path. It does **not** currently adopt a different
+origin or a predecessor record with no v2 target identity.
 
-Replay keeps the original `clientMutationId`; the candidate client's `baseUrl`
-supplies the new origin. The shared SQLite `_snapback_client_mutations` row is
-the exactly-once authority, so a predecessor commit whose response was lost is
-republished rather than applied twice. Startup nonce, port, and pid are
-attachment evidence, not duplicate identity.
-
-This is a pending-work-preserving stop/start swap. The predecessor is stopped
-before the candidate starts, so it does not provide zero-request-downtime. A
-stable front door or overlapping runtime ownership is separate work.
+Until the explicit
+[outbox target-adoption protocol](../../issues/20260825-outbox-target-adoption-protocol.md)
+lands, a v2 cross-origin or otherwise different-target record pauses with
+`SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH`; a legacy pre-v2 targetless record
+pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both paths send zero
+mutation POSTs and retain the intent instead of dropping it. The receipt names
+that state as
+`outcome: { status: 'paused', reason: <diagnostic code>, retained: <count> }`;
+there is no shipped cross-origin handoff to infer from the method name. The
+predecessor can be reattached to the retained store while the ticket defines
+the authority proof, crash-safe rewrite, and upgrade-while-offline migration.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
-  const outcome = await client.replayQueuedMutations();
-  assert.deepEqual(
-    { replayed: outcome.replayed, failed: outcome.failed, remaining: outcome.remaining },
-    { replayed: 2, failed: 0, remaining: 0 },
-  );
-  assert.deepEqual(
-    delivered.map((body) => body.clientMutationId),
-    [queued.clientMutationId, queuedUpdate.clientMutationId],
-    'replay is ordered by sequence and keeps the minted durable identity',
-  );
+  assert.deepEqual(receipt.outcome, {
+    status: 'paused',
+    reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
+    retained: 1,
+  });
 ```
 
 ## Render retained rows proof-validated after relaunch (the materialization bridge)
