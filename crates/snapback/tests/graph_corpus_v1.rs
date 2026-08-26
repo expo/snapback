@@ -73,6 +73,7 @@ const GRAPH_CORPUS_MATCHING_DATA_MUTATION: &str = "graphCorpusMatchingDataCommit
 const GRAPH_CORPUS_DISJOINT_DATA_MUTATION: &str = "graphCorpusDisjointDataCommit";
 const GRAPH_CORPUS_PATCH_ISSUE: &str = "graphCorpusPatchIssue";
 const GRAPH_CORPUS_PATCH_ISSUE_TWO_FIELDS: &str = "graphCorpusPatchIssueTwoFields";
+const GRAPH_CORPUS_PATCH_ISSUE_PROJECTION_CUSTODY: &str = "graphCorpusPatchIssueProjectionCustody";
 const GRAPH_CORPUS_PATCH_ISSUE_ORDER: &str = "graphCorpusPatchIssueOrder";
 const GRAPH_CORPUS_PATCH_ISSUE_ASSIGNEE: &str = "graphCorpusPatchIssueAssignee";
 const GRAPH_CORPUS_PATCH_ISSUE_LIST_ORDER: &str = "graphCorpusPatchIssueListOrder";
@@ -2009,6 +2010,25 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
             return_value: None,
         })),
     );
+    let patch_issue_projection_custody = FunctionDefinition::new(
+        GRAPH_CORPUS_PATCH_ISSUE_PROJECTION_CUSTODY,
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Patch {
+                table: "issue".to_owned(),
+                id: ValueExpr::Arg("rowID".to_owned()),
+                values: BTreeMap::from([
+                    ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                    (
+                        "description".to_owned(),
+                        ValueExpr::Arg("unprojected".to_owned()),
+                    ),
+                ]),
+            }],
+            return_value: None,
+        })),
+    );
     let add_membership = FunctionDefinition::new(
         GRAPH_CORPUS_ADD_MEMBERSHIP,
         FunctionKind::Mutation,
@@ -2032,6 +2052,7 @@ fn graph_corpus_scheduler_mutations(corpus: &Value) -> Vec<FunctionDefinition> {
         disjoint_data,
         patch(GRAPH_CORPUS_PATCH_ISSUE, "issue", "title"),
         patch_issue_two_fields,
+        patch_issue_projection_custody,
         patch(GRAPH_CORPUS_PATCH_ISSUE_ORDER, "issue", "modified"),
         patch(GRAPH_CORPUS_PATCH_ISSUE_ASSIGNEE, "issue", "assigneeID"),
         patch(
@@ -8223,6 +8244,138 @@ fn graph_delta_dispositions_are_frozen_and_convergent() {
         first,
         "graph delta disposition artifact is stale",
     );
+}
+
+/// Retained physical rows may contain application and system fields that the
+/// client never projected. Even when those fields change in the same commit
+/// as a projected field, the serialized graph operation stays projection-
+/// scoped and the normal convergence oracle still checks the resulting view.
+///
+/// @ref LLP 0309.000#15-wire-mapping — update patches carry only fields
+/// referenced by the emitting node's closed projection.
+#[test]
+fn graph_projection_scoped_delta_omits_unprojected_fields_from_serialized_wire_ops() {
+    let corpus = graph_corpus();
+    let (mut snapback, connection_id, _subscription_id) =
+        serve_issue_summary_window_ledger(&corpus, 2);
+    let secret = "projection-custody-secret-value";
+    snapback
+        .invoke_mutation(
+            GRAPH_CORPUS_PATCH_ISSUE_PROJECTION_CUSTODY,
+            graph_corpus_dev_mutation_input(json!({
+                "rowID":"issue_ded0c2976675c34f4756035d",
+                "title":"projection custody projected title",
+                "unprojected":secret,
+            })),
+        )
+        .expect("commit projected and unprojected issue fields together");
+
+    let frames = snapback
+        .drain_live_stream(&connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("projection custody frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(frames.len(), 1, "one projection custody delivery");
+    assert_eq!(frames[0]["kind"], "live_delta");
+    let operations = frames[0]["graph"]["ops"]
+        .as_array()
+        .expect("projection custody graph operations");
+    assert_eq!(operations.len(), 1);
+    assert_eq!(
+        operations[0]["row"],
+        json!({"title":"projection custody projected title"}),
+    );
+    let serialized = serde_json::to_string(operations).expect("serialize graph wire operations");
+    for unprojected in ["description", secret, "_version", "_updatedAt"] {
+        assert!(
+            !serialized.contains(unprojected),
+            "serialized graph operations leaked unprojected field/value {unprojected}: {serialized}",
+        );
+    }
+}
+
+/// Raising the serving execution kill switch after establishment must prevent
+/// the subscription from reaching incremental graph evaluation. Run the
+/// process-global switch transition in an isolated child, then prove a clean
+/// process with the switch cleared still takes the documented delta lane.
+#[test]
+fn graph_exec_disabled_established_subscription_never_enters_delta_evaluator() {
+    const CHILD_MARKER: &str = "SNAPBACK_TEST_GRAPH_EXEC_DISABLED_DELTA_CHILD";
+    if std::env::var_os(CHILD_MARKER).is_none() {
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("resolve graph corpus test binary"),
+        )
+        .args([
+            "--exact",
+            "graph_exec_disabled_established_subscription_never_enters_delta_evaluator",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(CHILD_MARKER, "1")
+        .env_remove("SNAPBACK_GRAPH_EXEC_DISABLED")
+        .output()
+        .expect("run isolated established-subscription kill-switch child");
+        assert!(
+            output.status.success(),
+            "established-subscription kill-switch child failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        return;
+    }
+
+    let corpus = graph_corpus();
+    let (mut disabled, disabled_connection, _subscription_id) =
+        serve_issue_summary_window_ledger(&corpus, 2);
+    let before = disabled
+        .inspect_core()
+        .expect("inspect before established-subscription switch flip")
+        .live_evaluation;
+    // SAFETY: the parent launches this exact test in an isolated single-test
+    // child, so no other environment reader can race the process-global flip.
+    unsafe { std::env::set_var("SNAPBACK_GRAPH_EXEC_DISABLED", "1") };
+    patch_issue_summary_title(&mut disabled, "kill switch blocks established delta");
+    let disabled_frames = disabled
+        .drain_live_stream(&disabled_connection)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("disabled graph frame JSON"))
+        .collect::<Vec<_>>();
+    assert!(
+        disabled_frames
+            .iter()
+            .all(|frame| frame["kind"] != "live_delta"),
+        "execution-disabled subscription published a graph delta: {disabled_frames:#?}",
+    );
+    let after = disabled
+        .inspect_core()
+        .expect("inspect after established-subscription switch flip")
+        .live_evaluation;
+    assert_eq!(after.graph_delta_deliveries, before.graph_delta_deliveries);
+    assert_eq!(
+        after.graph_delta_evaluation_cost, before.graph_delta_evaluation_cost,
+        "execution-disabled candidacy reached graph delta evaluation",
+    );
+    assert!(
+        disabled
+            .inspect_core()
+            .expect("inspect execution-disabled diagnostic")
+            .recent_diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SNAPBACK_GRAPH_EXEC_DISABLED"),
+    );
+
+    // SAFETY: paired with the isolated child-only set above.
+    unsafe { std::env::remove_var("SNAPBACK_GRAPH_EXEC_DISABLED") };
+    let (mut enabled, enabled_connection, _subscription_id) =
+        serve_issue_summary_window_ledger(&corpus, 2);
+    patch_issue_summary_title(&mut enabled, "cleared kill switch restores graph delta");
+    let enabled_frames = enabled
+        .drain_live_stream(&enabled_connection)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("enabled graph frame JSON"))
+        .collect::<Vec<_>>();
+    assert_eq!(enabled_frames.len(), 1);
+    assert_eq!(enabled_frames[0]["kind"], "live_delta");
 }
 
 /// @ref LLP 0209#24-plan-instance-and-contextual-materialization-identity —

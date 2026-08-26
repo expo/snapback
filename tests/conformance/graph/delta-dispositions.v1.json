@@ -252,9 +252,9 @@
       "matchedNodeIds": [
         "n0"
       ],
-      "frameBytes": 32604,
+      "frameBytes": 32564,
       "evaluationCost": 517,
-      "deltaFrameBytes": 32604,
+      "deltaFrameBytes": 32564,
       "deltaEvaluationCost": 517,
       "deltaOps": [
         {
@@ -291,9 +291,9 @@
         "n1",
         "n2"
       ],
-      "frameBytes": 32825,
+      "frameBytes": 32745,
       "evaluationCost": 4,
-      "deltaFrameBytes": 32825,
+      "deltaFrameBytes": 32745,
       "deltaEvaluationCost": 4,
       "deltaOps": [
         {
@@ -345,9 +345,9 @@
       "matchedNodeIds": [
         "n0"
       ],
-      "frameBytes": 32605,
+      "frameBytes": 32565,
       "evaluationCost": 517,
-      "deltaFrameBytes": 32605,
+      "deltaFrameBytes": 32565,
       "deltaEvaluationCost": 517,
       "deltaOps": [
         {
@@ -444,9 +444,9 @@
   ],
   "corpusSideD2H3": {
     "eligibleDeliveries": 3,
-    "deltaFrameBytes": 98034,
+    "deltaFrameBytes": 97874,
     "replaceFrameBytes": 504423,
-    "frameBytesSaved": 406389,
+    "frameBytesSaved": 406549,
     "deltaEvaluationCost": 1038,
     "replaceEvaluationCost": 9309,
     "evaluationCostSaved": 8271
@@ -455,5 +455,5 @@
     "shadowCheckedDeliveries": 3,
     "failures": 0
   },
-  "contentDigest": "sha256:61783b12fa6a24ce915e1c6a24c549cfef9923b30768becadac99e5b228f98b8"
+  "contentDigest": "sha256:4426659967bb8a27f68553ed26b5fe49fbee3698d39f15575ba2d639cf358df4"
 }

@@ -1,6 +1,6 @@
 # Established graph subscriptions bypass SNAPBACK_GRAPH_EXEC_DISABLED on the delta lane
 
-- Status: open
+- Status: resolved
 - Created: 2026-08-26
 - Area: graph live-query serving kill switch
 - Found by: LLP 0309 Stage B re-derivation audit
@@ -46,3 +46,22 @@ publishing a graph delta.
 - Clearing the switch restores the documented graph serving behavior.
 - `cargo test -p snapback --test delta_semantics_stage_b_audit_v1` flips this
   executed class-(b) reproduction to the disabled disposition after repair.
+
+## Resolution
+
+Resolved 2026-08-26 by the landing named
+`fix graph delta projection custody and kill switch`. The implementation commit
+hash is pending because the linked worktree could not create its shared
+`index.lock`; the landing orchestrator must replace this note with the committed
+hash.
+
+The graph delta candidacy gate now consults `graph_execution_disabled()` before
+incremental evaluation, alongside `graph_delta_disabled()`. The regression
+establishes a real subscription before raising the switch, proves that no delta
+is published and no delta evaluator cost is incurred, then proves clearing the
+switch restores the delta lane in a clean process.
+
+Regression tests:
+
+- `graph_exec_disabled_established_subscription_never_enters_delta_evaluator`
+- `stage_b_rederivation_audit_is_fully_classified`

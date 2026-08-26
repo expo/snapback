@@ -71,23 +71,6 @@ impl Divergence {
             evidence: evidence.into(),
         }
     }
-
-    fn shipped_defect(
-        axis: &'static str,
-        case: impl Into<String>,
-        shipped: impl Into<String>,
-        reference: impl Into<String>,
-        evidence: impl Into<String>,
-    ) -> Self {
-        Self {
-            axis,
-            case: case.into(),
-            shipped: shipped.into(),
-            reference: reference.into(),
-            class: DivergenceClass::ShippedDefect,
-            evidence: evidence.into(),
-        }
-    }
 }
 
 fn repository_path(relative: &str) -> PathBuf {
@@ -649,8 +632,7 @@ fn expected_children_index_keys(
                 .as_str()
                 .expect("fixture-derived predecessor parent row id");
             assert_eq!(
-                parent["key"]["id"],
-                parent_row_id,
+                parent["key"]["id"], parent_row_id,
                 "{}: predecessor parent physical key agrees with its fixture row",
                 replay.case["id"],
             );
@@ -2414,7 +2396,6 @@ fn stage_b_rederivation_audit_is_fully_classified() {
     let mut graph_harness_gaps = Vec::new();
     let mut state_comparison_gaps = BTreeSet::new();
     let mut independent_e3_admissions = BTreeMap::new();
-    let mut projection_leak_observed = false;
     for replay in &replays {
         let id = replay.case["id"].as_str().expect("executed graph case id");
         let frozen = frozen_by_id
@@ -2511,11 +2492,10 @@ fn stage_b_rederivation_audit_is_fully_classified() {
                                 .cloned()
                         })
                         .collect::<BTreeSet<_>>();
-                    assert!(
-                        projected_fields.is_subset(&actual_fields),
-                        "{id}: shipped ops omitted reference projection fields",
+                    assert_eq!(
+                        actual_fields, projected_fields,
+                        "{id}: shipped graph patch fields must equal the closed projection",
                     );
-                    projection_leak_observed |= actual_fields != projected_fields;
                 }
             }
             GraphReferenceMirror::Fallback { form, reason } => {
@@ -2599,17 +2579,31 @@ fn stage_b_rederivation_audit_is_fully_classified() {
 
     // Execute the named asymmetry itself: raise EXEC_DISABLED only after the
     // subscription is established, then deliver an otherwise eligible commit.
-    // The incremental frame proves the bypass; the ticket carries the two code
-    // citations for the fresh-path check and incremental candidacy boundary.
+    // The incremental candidacy gate must honor the same execution kill switch
+    // as fresh graph evaluation.
     let exec_disabled = graph_stage_b::execute_exec_disabled_probe(&corpus);
-    assert_eq!(exec_disabled.disposition["lane"], "delta");
-    divergences.push(Divergence::shipped_defect(
-        "outer eligibility",
-        "graph-exec-disabled-established-subscription",
-        "established eligible graph subscription can enter incremental evaluation after the switch is raised",
-        "the execution kill switch refuses all graph evaluation, including incremental evaluation",
-        "fresh execute_query_invocation checks SNAPBACK_GRAPH_EXEC_DISABLED; try_graph_delta_fanout does not",
-    ));
+    assert!(
+        exec_disabled
+            .frame_kinds
+            .iter()
+            .all(|kind| kind != "live_delta"),
+        "execution-disabled established subscription emitted a delta: {:?}",
+        exec_disabled.frame_kinds,
+    );
+    assert_eq!(
+        exec_disabled.delta_deliveries_after,
+        exec_disabled.delta_deliveries_before,
+    );
+    assert_eq!(
+        exec_disabled.delta_evaluation_cost_after,
+        exec_disabled.delta_evaluation_cost_before,
+    );
+    assert!(
+        exec_disabled
+            .diagnostic_codes
+            .iter()
+            .any(|code| code == "SNAPBACK_GRAPH_EXEC_DISABLED"),
+    );
 
     divergences.push(Divergence::conservative(
         "retained state",
@@ -2618,18 +2612,6 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         "E0 next state advances admitted membership and its count",
         "executed add advanced Query.rows from 0 to 1 while the observed result_count stayed 0",
     ));
-    assert!(
-        projection_leak_observed,
-        "executed graph ops reproduce projection leakage"
-    );
-    divergences.push(Divergence::shipped_defect(
-        "emitted ops / projection custody",
-        "graph-unfiltered-retained-row-patch",
-        "all changed retained-row fields, including unprojected/system fields, enter graph wire ops",
-        "E3/E4 patches contain projection_fields only",
-        "executed eligible corpus frames contain fields outside the executed E3/E4 projection-scoped DeltaOut",
-    ));
-
     graph_harness_gaps.push(
         "publication-guard internals have no observation hook; successful enqueue proves publication occurred but not the guard's internal ordering".to_owned(),
     );
@@ -2685,14 +2667,14 @@ fn stage_b_rederivation_audit_is_fully_classified() {
             .all(|row| row.class != DivergenceClass::Unclassified),
         "Stage C is blocked by an unclassified divergence: {divergences:#?}",
     );
-    assert_eq!(divergences.len(), 17, "closed Stage B divergence register");
+    assert_eq!(divergences.len(), 15, "closed Stage B divergence register");
     assert_eq!(
         divergences
             .iter()
             .filter(|row| row.class == DivergenceClass::ShippedDefect)
             .count(),
-        2,
-        "the two verified class-(b) probes must remain visible",
+        0,
+        "the two fixed class-(b) probes must remain in agreement",
     );
     assert_eq!(
         divergences
@@ -2727,10 +2709,14 @@ fn stage_b_rederivation_audit_is_fully_classified() {
         "every divergence row carries all report axes"
     );
 
-    // Keep all four enum outcomes compile-visible: Stage B found no class (a),
-    // and an unclassified outcome is the only semantic test failure.
+    // Keep all four enum outcomes compile-visible: Stage B now has no open
+    // class (a) or class (b), and an unclassified outcome remains a failure.
     assert_ne!(
         DivergenceClass::ReferenceError,
+        DivergenceClass::Unclassified
+    );
+    assert_ne!(
+        DivergenceClass::ShippedDefect,
         DivergenceClass::Unclassified
     );
     assert_eq!(AUDITED_COMMIT.len(), 40);

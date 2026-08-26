@@ -347,8 +347,9 @@ pub struct LiveGraphDeltaProofTupleV1 {
 
 /// One node-scoped retained-row update. Rung 1 emits only `update`; the shared
 /// op enum's add/remove variants are rejected by the graph client-view oracle.
-/// `row` is the full old-versus-new field diff, including system fields, and
-/// `position` is the proven unchanged root-window position.
+/// `row` is the old-versus-new diff restricted to fields referenced by the
+/// emitting node's closed projection, and `position` is the proven unchanged
+/// root-window position.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LiveGraphDeltaWireOpV1 {

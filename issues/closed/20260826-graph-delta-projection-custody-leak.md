@@ -1,6 +1,6 @@
 # Graph delta retained-row patches bypass projection custody
 
-- Status: open
+- Status: resolved
 - Created: 2026-08-26
 - Area: graph live-query delta delivery
 - Found by: LLP 0309 Stage B re-derivation audit
@@ -46,3 +46,23 @@ bytes.
 - The frozen graph corpus and LLP 0309 Stage A corpus stay green.
 - `cargo test -p snapback --test delta_semantics_stage_b_audit_v1` flips this
   executed class-(b) reproduction to agreement after the repair.
+
+## Resolution
+
+Resolved 2026-08-26 by the landing named
+`fix graph delta projection custody and kill switch`. The implementation commit
+hash is pending because the linked worktree could not create its shared
+`index.lock`; the landing orchestrator must replace this note with the committed
+hash.
+
+`retained_row_patch` now receives the emitting node's closed-projection field
+set and produces a diff over that set only, retaining projected removal `null`s
+without exposing unprojected application or system fields. The frozen graph
+corpus moved only in delta frame-byte measurements and their derived totals and
+digest.
+
+Regression tests:
+
+- `graph_projection_scoped_delta_omits_unprojected_fields_from_serialized_wire_ops`
+- `projection_scoped_retained_row_patch_omits_unprojected_application_and_system_fields_from_wire_op`
+- `stage_b_rederivation_audit_is_fully_classified`

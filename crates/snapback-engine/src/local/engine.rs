@@ -34164,6 +34164,14 @@ impl LocalSnapback {
                     && !changes.is_empty()
                     && !force_replace.contains(&subscription.id)
                     && match_outcome == LiveMatchOutcome::Match
+                    // @ref LLP 0309.000#5-composition-and-eligibility — both
+                    // graph serving kill switches gate the incremental
+                    // consumer lane before any evaluator work.
+                    && !graph_execution_disabled(
+                        std::env::var("SNAPBACK_GRAPH_EXEC_DISABLED")
+                            .ok()
+                            .as_deref(),
+                    )
                     && !graph_delta_disabled(
                         std::env::var("SNAPBACK_GRAPH_DELTA_DISABLED")
                             .ok()

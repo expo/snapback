@@ -3585,7 +3585,47 @@ fn project_retained_result(
         .collect()
 }
 
-fn retained_row_patch(previous: &Value, current: &Value) -> SnapbackResult<Value> {
+fn collect_projection_fields_by_node(
+    object: &GraphProjectionObjectV1,
+    fields: &mut BTreeMap<String, BTreeSet<String>>,
+) {
+    for field in &object.fields {
+        match &field.value {
+            GraphProjectionValueV1::Field { node_id, field } => {
+                fields
+                    .entry(node_id.clone())
+                    .or_default()
+                    .insert(field.clone());
+            }
+            GraphProjectionValueV1::Object { object, .. }
+            | GraphProjectionValueV1::Array { item: object, .. } => {
+                collect_projection_fields_by_node(object, fields);
+            }
+            GraphProjectionValueV1::Literal { .. } | GraphProjectionValueV1::Exists { .. } => {}
+        }
+    }
+}
+
+fn projection_fields_by_node(
+    plan: &GraphQueryPlanV1,
+) -> SnapbackResult<BTreeMap<String, BTreeSet<String>>> {
+    let Some(GraphNodeV1::ClosedProjection { object, .. }) = plan.nodes.last() else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
+            "query",
+            "graph plan has no terminal projection",
+        ));
+    };
+    let mut fields = BTreeMap::new();
+    collect_projection_fields_by_node(object, &mut fields);
+    Ok(fields)
+}
+
+fn retained_row_patch(
+    previous: &Value,
+    current: &Value,
+    projected_fields: &BTreeSet<String>,
+) -> SnapbackResult<Value> {
     let previous = previous.as_object().ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED",
@@ -3600,21 +3640,16 @@ fn retained_row_patch(previous: &Value, current: &Value) -> SnapbackResult<Value
             "fresh graph row is not an object",
         )
     })?;
-    let fields = previous
-        .keys()
-        .chain(current.keys())
-        .cloned()
-        .collect::<BTreeSet<_>>();
     Ok(Value::Object(
-        fields
-            .into_iter()
-            .filter(|field| previous.get(field) != current.get(field))
+        projected_fields
+            .iter()
+            .filter(|field| previous.get(field.as_str()) != current.get(field.as_str()))
             .map(|field| {
                 let value = current
-                    .get(&field)
+                    .get(field.as_str())
                     .map(graph_transport_value)
                     .unwrap_or(Value::Null);
-                (field, value)
+                (field.clone(), value)
             })
             .collect(),
     ))
@@ -3802,6 +3837,11 @@ fn graph_delta_ops(
     current: &EvaluationState,
     matched: &BTreeSet<&str>,
 ) -> SnapbackResult<Vec<LiveGraphDeltaWireOpV1>> {
+    // @ref LLP 0309.000#15-wire-mapping — retained physical rows stay in
+    // evaluator custody; wire patches expose only the emitting node's closed
+    // projection fields, including system fields only when projected.
+    let projected_fields_by_node = projection_fields_by_node(plan)?;
+    let no_projected_fields = BTreeSet::new();
     let current_positions = current
         .roots
         .iter()
@@ -3846,7 +3886,13 @@ fn graph_delta_ops(
             if old.row == new.row {
                 continue;
             }
-            let row = retained_row_patch(&old.row, &new.row)?;
+            let row = retained_row_patch(
+                &old.row,
+                &new.row,
+                projected_fields_by_node
+                    .get(node_id)
+                    .unwrap_or(&no_projected_fields),
+            )?;
             let position = current_positions
                 .get(&new.root_key)
                 .copied()
@@ -4191,13 +4237,14 @@ mod tests {
     }
 
     #[test]
-    fn retained_row_patch_diffs_evaluated_rows_including_system_fields() {
+    fn projection_scoped_retained_row_patch_omits_unprojected_application_and_system_fields_from_wire_op()
+     {
         let previous = json!({
             "_id":"row_physical",
             "_version":7,
             "_updatedAt":100,
             "title":"before",
-            "open":false,
+            "secret":"before-secret",
             "removed":"old",
         });
         let current = json!({
@@ -4205,18 +4252,37 @@ mod tests {
             "_version":8,
             "_updatedAt":101,
             "title":"after",
-            "open":true,
+            "secret":"after-secret",
         });
-        assert_eq!(
-            retained_row_patch(&previous, &current).unwrap(),
-            json!({
-                "_version":8,
-                "_updatedAt":101,
-                "title":"after",
-                "open":true,
-                "removed":null,
-            })
-        );
+        let patch = retained_row_patch(
+            &previous,
+            &current,
+            &BTreeSet::from(["removed".to_owned(), "title".to_owned()]),
+        )
+        .unwrap();
+        assert_eq!(patch, json!({"removed":null,"title":"after"}));
+
+        let key = GraphRowKeyV1 {
+            table: "issue".to_owned(),
+            id: "row_physical".to_owned(),
+        };
+        let serialized = serde_json::to_string(&LiveGraphDeltaWireOpV1 {
+            op: LiveDeltaOpKind::Update,
+            node_id: "n0".to_owned(),
+            root_key: key.clone(),
+            key,
+            position: 0,
+            row: Some(patch),
+        })
+        .unwrap();
+        assert!(serialized.contains("\"removed\":null"));
+        assert!(serialized.contains("\"title\":\"after\""));
+        for unprojected in ["secret", "after-secret", "_version", "_updatedAt"] {
+            assert!(
+                !serialized.contains(unprojected),
+                "serialized graph wire op leaked unprojected field/value {unprojected}: {serialized}",
+            );
+        }
     }
 }
 

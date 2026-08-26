@@ -54,6 +54,16 @@ pub struct GraphReplay {
     pub delivery_after: (bool, bool),
 }
 
+#[derive(Debug)]
+pub struct ExecDisabledProbe {
+    pub frame_kinds: Vec<String>,
+    pub delta_deliveries_before: u64,
+    pub delta_deliveries_after: u64,
+    pub delta_evaluation_cost_before: u64,
+    pub delta_evaluation_cost_after: u64,
+    pub diagnostic_codes: Vec<String>,
+}
+
 fn repository_path(relative: &str) -> PathBuf {
     PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(relative)
 }
@@ -627,7 +637,7 @@ fn graph_demand_args(call: &Value) -> Value {
     Value::Object(args)
 }
 
-fn execute_commit_case(corpus: &Value, case: &Value, exec_disabled: bool) -> GraphReplay {
+fn execute_commit_case(corpus: &Value, case: &Value) -> GraphReplay {
     let query = case["query"].as_str().expect("graph case query");
     let mut snapback = graph_store(corpus);
     eprintln!("stage-b-audit: {} store-ready", case["id"]);
@@ -695,20 +705,11 @@ fn execute_commit_case(corpus: &Value, case: &Value, exec_disabled: bool) -> Gra
     assert!(snapback.drain_live_stream(&connection).is_empty());
     let table = case["changeTable"].as_str().unwrap();
     let before_rows = all_rows(&snapback, table);
-    if exec_disabled {
-        // SAFETY: this integration target has one test; the variable is
-        // removed immediately after the synchronous mutation returns.
-        unsafe { std::env::set_var("SNAPBACK_GRAPH_EXEC_DISABLED", "1") };
-    }
     let mutation = snapback.invoke_mutation(
         case["mutation"].as_str().expect("graph mutation"),
         mutation_input(case["args"].clone()),
     );
     eprintln!("stage-b-audit: {} mutated", case["id"]);
-    if exec_disabled {
-        // SAFETY: paired with the scoped set above.
-        unsafe { std::env::remove_var("SNAPBACK_GRAPH_EXEC_DISABLED") };
-    }
     mutation.unwrap_or_else(|error| panic!("mutate graph case {query}: {error:?}"));
     let after_rows = all_rows(&snapback, table);
     let frames = snapback
@@ -906,18 +907,107 @@ pub fn execute_graph_cases(corpus: &Value) -> Vec<GraphReplay> {
             if case["windowChange"] == true {
                 execute_window_change(corpus, case)
             } else {
-                execute_commit_case(corpus, case, false)
+                execute_commit_case(corpus, case)
             }
         })
         .collect()
 }
 
-pub fn execute_exec_disabled_probe(corpus: &Value) -> GraphReplay {
+pub fn execute_exec_disabled_probe(corpus: &Value) -> ExecDisabledProbe {
     let case = graph_delta_cases(corpus)
         .into_iter()
         .find(|case| case["id"] == "issue-summary-root-scalar-update")
         .expect("eligible graph exec-disabled probe");
-    execute_commit_case(corpus, &case, true)
+    let query = case["query"].as_str().expect("graph probe query");
+    let mut snapback = graph_store(corpus);
+    snapback.declare_graph_query_v1_capability();
+    let mut carriers = served_graph_carriers(&snapback, corpus);
+    let original = carriers
+        .iter()
+        .find(|(name, _, _)| name == query)
+        .expect("graph probe carrier")
+        .1
+        .clone();
+    let call = invocation(corpus, &original).clone();
+    let (_, carrier, definition) = carriers
+        .iter_mut()
+        .find(|(name, _, _)| name == query)
+        .expect("graph probe mutable carrier");
+    ensure_graph_window_pages(carrier, 2);
+    definition.runtime = FunctionRuntime::HostPlan(HandlerPlan::GraphQuery(carrier.clone()));
+    let diagnostics = snapback.load_functions(served_graph_manifest(&carriers));
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != DiagnosticSeverity::Error),
+        "graph exec-disabled probe manifest diagnostics: {diagnostics:?}",
+    );
+    let authority = corpus_authority(corpus, corpus_invocation_principal(&call));
+    snapback.install_graph_serving_authority_context_for_test(
+        query,
+        GraphServingAuthorityContextV1 {
+            evaluation: authority.clone(),
+            class2: serde_json::from_value(call["partition"]["class2"].clone()).unwrap(),
+        },
+    );
+    let connection = "stage-b-graph-exec-disabled".to_owned();
+    let established = snapback
+        .subscribe_live(
+            query,
+            LiveSubscribeInput {
+                connection_id: connection.clone(),
+                input: HandlerInput {
+                    args: graph_demand_args(&call),
+                    auth: authority.auth,
+                    read_set: Vec::new(),
+                    correlation: None,
+                    ctx_ledger: None,
+                },
+                authorization_namespace: None,
+                supersedes: None,
+                resume_from_token: None,
+            },
+        )
+        .expect("establish graph exec-disabled probe");
+    assert!(established.snapshot.is_some());
+    assert!(snapback.drain_live_stream(&connection).is_empty());
+    let before = snapback
+        .inspect_core()
+        .expect("inspect graph exec-disabled probe before mutation")
+        .live_evaluation;
+
+    // SAFETY: the Stage-B audit target contains one test, and the switch is
+    // removed immediately after the synchronous mutation returns.
+    unsafe { std::env::set_var("SNAPBACK_GRAPH_EXEC_DISABLED", "1") };
+    let mutation = snapback.invoke_mutation(
+        case["mutation"].as_str().expect("graph probe mutation"),
+        mutation_input(case["args"].clone()),
+    );
+    // SAFETY: paired with the scoped set above.
+    unsafe { std::env::remove_var("SNAPBACK_GRAPH_EXEC_DISABLED") };
+    mutation.expect("mutate graph exec-disabled probe");
+
+    let frame_kinds = snapback
+        .drain_live_stream(&connection)
+        .into_iter()
+        .map(|frame| serde_json::from_str::<Value>(&frame).expect("graph probe frame JSON"))
+        .filter_map(|frame| frame["kind"].as_str().map(str::to_owned))
+        .collect();
+    let after = snapback
+        .inspect_core()
+        .expect("inspect graph exec-disabled probe after mutation");
+    ExecDisabledProbe {
+        frame_kinds,
+        delta_deliveries_before: before.graph_delta_deliveries,
+        delta_deliveries_after: after.live_evaluation.graph_delta_deliveries,
+        delta_evaluation_cost_before: before.graph_delta_evaluation_cost,
+        delta_evaluation_cost_after: after.live_evaluation.graph_delta_evaluation_cost,
+        diagnostic_codes: after
+            .recent_diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code.clone())
+            .collect(),
+    }
 }
 
 pub fn root_window_ledger(observation: &Value) -> GraphWindowLedgerV1 {
