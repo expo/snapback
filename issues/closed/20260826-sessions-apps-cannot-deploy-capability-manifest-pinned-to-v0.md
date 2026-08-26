@@ -78,3 +78,24 @@ not by any new code.
 - LLP 0041 — publication acceptance; published packages are immutable, so this should be fixed
   before the next publication rather than after.
 - `issues/20260826-main-did-not-compile-and-no-gate-caught-it.md` — the sibling finding.
+
+## Resolution — 2026-08-26
+
+Fixed at `fde8f8635` ("fix(codegen): align sessions capability artifact versions").
+
+The mode-selected `artifactVersion` is now threaded into the capability-manifest emission instead of
+the bare `SCHEMA_VERSION` constant, and the lane checked the two sibling emitters on its own
+initiative — the asset-upload reference and the generic artifact path had the same latent bug.
+
+The test gap that let this ship is closed with a sessions-mode case asserting the **invariant** — that
+schema, functions, and capability artifacts all report the same `schemaVersion` — rather than the
+literal `snapback.v1`, so it survives the next version bump. Fail-first was verified independently:
+the suite fails on `main` without the fix and passes with it.
+
+Verified end to end by the lane: `snapback deploy build` clears
+`SNAPBACK_DEPLOY_GENERATED_IDENTITY_MISMATCH`, then reaches a later unrelated release-validator error.
+The regenerated demo capability manifests move `snapback.v0` → `snapback.v1` as expected.
+
+Found by `scripts/snapback-package-cold-install.mjs` on its first successful completion — one of the
+two F-3 witnesses LLP 0283 lists as never having been exercised. Both of those witnesses found a real
+defect the first time they ran.
