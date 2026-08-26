@@ -60,6 +60,18 @@ export function loadRowAttackLedger(fixtureRoot) {
           && !/^E\d{4}$/u.test(attack.expectedCode))) {
       throw new GateInfrastructureError(`${ledgerPath} has an invalid or duplicate attack row`);
     }
+    // An OPEN row asserts the attack COMPILES and reaches the effect, so no
+    // compiler code describes it. Recording one anyway is not merely redundant:
+    // if the witness later fails for a mechanical reason -- stale arity, a
+    // renamed identifier, a dropped import -- and that failure happens to carry
+    // the recorded code, the row is certified CLOSED by a defect in the test
+    // rather than a change in the product. F145 reached exactly that state with
+    // a recorded E0061 and an arity mismatch that produced E0061.
+    if (attack.expected === 'OPEN' && attack.expectedCode !== undefined) {
+      throw new GateInfrastructureError(
+        `${ledgerPath}: row ${attack.row} is OPEN and must not record an expectedCode`,
+      );
+    }
     rows.add(attack.row);
   }
   if (ledger.attacks.length === 0 || ledger.featureCells.length === 0) {
