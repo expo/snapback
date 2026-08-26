@@ -4094,7 +4094,9 @@ mod tests {
         db.with_auth_transaction(|transaction| {
             assert!(matches!(
                 admit_password_issuance_in(transaction, &loser, 3, profile)?,
-                PasswordIssuanceAdmission::PredecessorChanged
+                PasswordIssuanceAdmission::Invalid {
+                    committed_attempt: None
+                }
             ));
             Ok(())
         })
