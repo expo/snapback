@@ -1951,3 +1951,115 @@ merge base `baacaa20983f029f3e9cd23f60385ba00085e947`.
 
 `./ref-check --verbose` reports `311 LLP docs, 6652 refs in 12507 files, 0
 errors, 0 unchecked`. `git diff --check` produces no output.
+
+### Round-30 dual-review closure (2026-08-26)
+
+Replay now durably persists a final rule-(b) negative while it still owns the
+authorization-dispatch lock. Listener notification is deferred until after
+release with `drainWake: false`, so a foreground mutation already waiting on
+that lock revalidates against the negative and sends no mutation POST. The
+single inspect-fact rule now classifies retryable HTTP 408, 425, and 429 as
+rule-(a) unavailability at enqueue-time, cycle-start, and final pre-POST; it
+preserves the predecessor positive for enqueue-only custody and uses bounded
+backoff. Terminal 401/403/404 answers and parsed manifest-gap 200 responses
+remain durable negatives.
+
+The Expo carrier recovery fixtures now enqueue schema-v2 records with one
+exact target and carry that target through ACK mark, pending selection, and
+confirmation. File, memory, and SQLite retain an answered negative when no
+writer route answers and publish it on takeover under the same observed-
+revision rule as IndexedDB. `OutboxStatus` and `subscribeOutbox` declarations
+now expose their runtime observation/notification shapes.
+
+The fail-first regressions reported these reviewed defects before production
+changes:
+
+```text
+[item 1 — replay released the dispatch lock before its negative commit]
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual: { status: 'queued', clientMutationId: 'cm-foreground-waits-behind-replay-negative', sequence: 2, presentation: 'withheld' }
+- expected: null
+
+[item 2 — retryable inspect answers were durable negatives]
+✖ retryable HTTP 408 at enqueue inspection preserves positive enqueue-only evidence
+✖ retryable HTTP 429 at enqueue inspection preserves positive enqueue-only evidence
+✖ retryable HTTP 408 at replay cycle start preserves the positive and backs off
+✖ retryable HTTP 429 at replay cycle start preserves the positive and backs off
+✖ retryable HTTP 408 at final pre-POST inspection preserves the positive and backs off
+✖ retryable HTTP 429 at final pre-POST inspection preserves the positive and backs off
+ℹ pass 0
+ℹ fail 6
+
+[item 3 — legacy carrier fixture could not arm ACK crash custody]
+AssertionError [ERR_ASSERTION]: ACK proof was not durably observable
+false !== true
+
+[item 4 — declaration surface omitted runtime facts]
+error TS2339: Property 'offlineMutationReplayInspection' does not exist on type 'OutboxStatus'.
+error TS2345: Argument of type '(notification: any) => void' is not assignable to parameter of type '() => void'.
+
+[item 5 — unanswered-route negative was lost]
+✖ memory — timed out waiting for memory takeover negative
+✖ file — timed out waiting for file takeover negative
+✖ SQLite — timed out waiting for SQLite takeover negative
+```
+
+At exact implementation commit
+`e3e5ad81e4ef0f3aba1ee16065e7d4dd6d78d7cf`, the required combined suite
+reports:
+
+```text
+ℹ tests 276
+ℹ suites 0
+ℹ pass 276
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11867.739
+```
+
+The full `packages/snapback-client` script passes the changed outbox/store
+suites and reaches only the inherited out-of-scope RQS red:
+
+```text
+✖ pre-subscribe durable-buffer overflow fails closed to one fresh snapshot [web/indexeddb] (10.760583ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 29
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2623.830417
+```
+
+The exact client TypeScript fixture command exits zero. The export-types gate
+reports its inherited codegen declaration red only:
+
+```text
+[check-package-export-types] fixture compile ok: 121 subpaths across 14 packages
+[check-package-export-types] FAILED (1):
+  - @expo/snapback-codegen ./app-descriptor: runtime exports missing from the declaration: APPLICATION_AUTH_BOOTSTRAP_CREDENTIAL_MODES, APPLICATION_AUTH_BOOTSTRAP_PROVIDERS, APPLICATION_AUTH_BOOTSTRAP_PROVIDER_KINDS
+```
+
+The Expo carrier recovery verifier reports verbatim:
+
+```text
+[expo-sqlite-node-qualification] PASS supporting-only: 8/8 scenario groups; sqlite_source_id=2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9; receipt=demos/expo-local-first-carrier/evidence/20260826T095413158Z-c43e8efd/qualification.supporting.v1.json
+```
+
+Both public-dashboard witnesses ran at that exact implementation commit with
+`SNAPBACK_SERVER_BINARY="$PWD/target/debug/snapback"` and report verbatim:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. The configured binary is stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both runs report the expected
+checkout/binary identity mismatch and exercise this JS-only commit. No
+generator was run; integration-owned guide projections remain at merge-base
+bytes.
