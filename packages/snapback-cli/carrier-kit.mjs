@@ -1611,7 +1611,9 @@ export async function runTemplateCarrierCli(configValue, argv, options = {}) {
   const root = resolve(options.root ?? process.cwd());
   const artifacts = resolve(root, parsed.artifacts ?? join(config.artifactsDirectory, parsed.carrier));
   mkdirSync(artifacts, { recursive: true });
-  const supervisorState = prepareSupervisorStateDirectory(artifacts);
+  const supervisorState = parsed.carrier === 'headless'
+    ? null
+    : prepareSupervisorStateDirectory(artifacts);
   const verifyReceipt = verifyScaffold(config, root);
   let directorLog;
   if (parsed.carrier === 'headless') {

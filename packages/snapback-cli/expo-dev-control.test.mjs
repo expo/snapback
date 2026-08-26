@@ -797,11 +797,44 @@ try {
     'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
     'a same-UID socket renamed over the bound endpoint must refuse instead of being advertised',
   );
+  assert.equal(
+    existsSync(postBindReplacementPath),
+    true,
+    'startup refusal must not let net.Server.close remove the foreign replacement pathname',
+  );
+  const postBindReplacementMetadata = lstatSync(postBindReplacementPath);
+  assert.equal(String(postBindReplacementMetadata.dev), postBindForeign.device);
+  assert.equal(String(postBindReplacementMetadata.ino), postBindForeign.inode);
   await killHolder(postBindForeign);
   rmSync(postBindReplacementPath, { force: true });
   rmSync(postBindForeignPath, { force: true });
   rmSync(displacedBoundPath, { force: true });
   console.log('post-bind pathname replacement: foreign same-UID socket is refused before advertisement');
+
+  const shutdownReplacementRoot = makeRoot('shutdown-replacement');
+  const shutdownReplacementPath = join(shutdownReplacementRoot, '.dc-sock');
+  const shutdownForeignPath = join(shutdownReplacementRoot, '.foreign-sock');
+  const shutdownDisplacedPath = join(shutdownReplacementRoot, '.owner-sock-displaced');
+  const shutdownReplacementControl = await startDevControlSocket(
+    testOptions(shutdownReplacementRoot, 'unit-shutdown-replacement-owner'),
+  );
+  const shutdownForeign = await startForeignSocketHolder(shutdownForeignPath);
+  renameSync(shutdownReplacementPath, shutdownDisplacedPath);
+  renameSync(shutdownForeignPath, shutdownReplacementPath);
+  await shutdownReplacementControl.close();
+  assert.equal(
+    existsSync(shutdownReplacementPath),
+    true,
+    'shutdown must not let net.Server.close remove the foreign replacement pathname',
+  );
+  const shutdownReplacementMetadata = lstatSync(shutdownReplacementPath);
+  assert.equal(String(shutdownReplacementMetadata.dev), shutdownForeign.device);
+  assert.equal(String(shutdownReplacementMetadata.ino), shutdownForeign.inode);
+  await killHolder(shutdownForeign);
+  rmSync(shutdownReplacementPath, { force: true });
+  rmSync(shutdownForeignPath, { force: true });
+  rmSync(shutdownDisplacedPath, { force: true });
+  console.log('shutdown pathname replacement: foreign same-UID socket inode survives owner close');
 
   const lockTimeoutRoot = makeRoot('lock-timeout');
   const lockTimeoutNotices = [];

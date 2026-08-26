@@ -569,6 +569,34 @@ try {
     /owner-only real directory/u,
   );
 
+  const headlessConfig = defineTemplateCarrierConfig({
+    schemaVersion: 'snapback.template-carriers.v1',
+    verifyCommand: [process.execPath, verifier],
+    verifyReceipt: '.snapback/verify-receipt.json',
+    carriers: { headless: {} },
+  });
+  const headlessLooseArtifacts = join(root, 'headless-loose-state-artifacts');
+  const headlessLooseState = carrierState(headlessLooseArtifacts);
+  mkdirSync(headlessLooseState, { recursive: true, mode: 0o755 });
+  chmodSync(headlessLooseState, 0o755);
+  assert.equal(await runTemplateCarrierCli(headlessConfig, [
+    'headless', '--artifacts', headlessLooseArtifacts,
+  ], { root }), 0);
+  assert.equal(
+    lstatSync(headlessLooseState).mode & 0o777,
+    0o755,
+    'headless verification must not validate or change unused supervisor state',
+  );
+  const headlessFreshArtifacts = join(root, 'headless-fresh-artifacts');
+  assert.equal(await runTemplateCarrierCli(headlessConfig, [
+    'headless', '--artifacts', headlessFreshArtifacts,
+  ], { root }), 0);
+  assert.equal(
+    existsSync(carrierState(headlessFreshArtifacts)),
+    false,
+    'headless verification must not create unused supervisor state',
+  );
+
   const publishedReadiness = join(root, 'published-after-exit.json');
   writeFileSync(publishedReadiness, JSON.stringify({
     schemaVersion: 'snapback.expo-supervisor.v1',

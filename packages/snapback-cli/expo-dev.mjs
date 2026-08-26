@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypt
 import {
   chmodSync,
   existsSync,
+  linkSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -35,6 +36,7 @@ import {
   activateCleanupSocketPath,
   cleanupLeasedPath,
   inspectSecureDirectoryChain,
+  inspectSecureExternalDirectoryChain,
   openCarrierCleanupLease,
   rebindCleanupPath,
   releaseCleanupResource,
@@ -551,8 +553,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   if (platform === 'win32' || typeof getuid !== 'function') {
     return unavailable({ platform, readyFile });
   }
-  const path = join(dirname(readyFile), DEV_CONTROL_SOCKET_BASENAME);
-  const ownerStatePath = join(dirname(path), DEV_CONTROL_OWNER_STATE_BASENAME);
+  const requestedStateDirectoryPath = dirname(readyFile);
   const ownerUid = getuid();
   const ownerPid = process.pid;
   const lifecycleReceipt = controlLifecycleReceipt({
@@ -573,9 +574,25 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   const writeAcknowledgement = dependencies.writeAcknowledgement
     ?? ((socket, payload) => socket.write(payload));
   const dispatcher = dependencies.dispatcher ?? createDevControlDispatcher(options.verbs);
-  const stateDirectoryPath = dirname(path);
-  const pathChainRoot = resolve(options.pathChainRoot ?? stateDirectoryPath);
-  const pathChain = inspectSecureDirectoryChain(pathChainRoot, stateDirectoryPath, ownerUid);
+  const requestedPathChainRoot = resolve(options.pathChainRoot ?? requestedStateDirectoryPath);
+  let pathChain = inspectSecureDirectoryChain(
+    requestedPathChainRoot,
+    requestedStateDirectoryPath,
+    ownerUid,
+  );
+  if (!pathChain.ok && pathChain.reason === 'outside-root') {
+    pathChain = inspectSecureExternalDirectoryChain(requestedStateDirectoryPath, ownerUid);
+  }
+  const pathChainRoot = pathChain.root ?? requestedPathChainRoot;
+  const stateDirectoryPath = pathChain.ok && pathChain.external === true
+    ? pathChain.canonicalTarget
+    : requestedStateDirectoryPath;
+  const path = join(stateDirectoryPath, DEV_CONTROL_SOCKET_BASENAME);
+  // Bind through an unadvertised same-directory name, publish its inode with
+  // link(2), then remove the bind name. Node remembers only the private name,
+  // so net.Server.close cannot unlink a later replacement of the public path.
+  const privateBindPath = join(stateDirectoryPath, `.d${randomBytes(3).toString('hex')}`);
+  const ownerStatePath = join(stateDirectoryPath, DEV_CONTROL_OWNER_STATE_BASENAME);
   if (!pathChain.ok) {
     return unavailable({
       path: stateDirectoryPath,
@@ -905,25 +922,22 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         server.once('error', onError);
         server.once('listening', onListening);
         try {
-          // @ref LLP 0310.000#track-e--owner-bound-control-socket — direct
-          // bind publishes without replacement while the shared path lock is
-          // held, so a foreign endpoint can only cause a refusal.
+          // @ref LLP 0310.000#track-e--owner-bound-control-socket — bind an
+          // unadvertised inode first; link(2) below is the atomic no-replace
+          // publication primitive for the owner-bound endpoint.
           (dependencies.listenServer ?? ((boundServer, endpointPath) => (
             boundServer.listen(endpointPath)
-          )))(server, path);
+          )))(server, privateBindPath);
         } catch (cause) {
           onError(cause);
         } finally {
           process.umask(previousUmask);
         }
       });
-      boundEndpoint = observedControlEndpoint(path);
-      endpoint = observeBoundEndpoint();
-      dependencies.afterEndpointListen?.({ path, ownerStatePath, endpoint });
-      endpoint = observeBoundEndpoint();
-      chmodSync(path, 0o600);
-      endpoint = observeBoundEndpoint();
-      if (endpoint.uid !== ownerUid || endpoint.mode !== 0o600) {
+      boundEndpoint = observeEndpoint(privateBindPath);
+      chmodSync(privateBindPath, 0o600);
+      boundEndpoint = observeEndpoint(privateBindPath);
+      if (boundEndpoint.uid !== ownerUid || boundEndpoint.mode !== 0o600) {
         throw diagnosticError(
           'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
           'the dev control socket did not acquire owner-only uid/mode custody',
@@ -932,12 +946,41 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
             endpointPath: path,
             readyFile,
             expectedUid: ownerUid,
-            observedUid: endpoint.uid,
-            observedMode: endpoint.mode,
+            observedUid: boundEndpoint.uid,
+            observedMode: boundEndpoint.mode,
             recovery: 'choose another owner-only state directory with --ready-file <path>',
           },
         );
       }
+      try {
+        // link(2) publishes only into an absent destination. Removing the
+        // private name detaches Node's automatic close-time pathname unlink
+        // while the public hard link continues accepting connections.
+        linkSync(privateBindPath, path);
+        rmSync(privateBindPath);
+      } catch (cause) {
+        if (cause?.code === 'EEXIST') {
+          throw diagnosticError(
+            'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
+            'the dev control socket path became occupied before binding',
+            { path, cause: cause.code },
+          );
+        }
+        throw diagnosticError(
+          'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          `the dev control socket could not publish at ${path}: ${cause.message}`,
+          {
+            path: stateDirectoryPath,
+            endpointPath: path,
+            readyFile,
+            cause: cause?.code ?? cause?.message ?? String(cause),
+            recovery: 'choose another owner-only state directory with --ready-file <path>',
+          },
+        );
+      }
+      endpoint = observeBoundEndpoint();
+      dependencies.afterEndpointListen?.({ path, ownerStatePath, endpoint });
+      endpoint = observeBoundEndpoint();
       descriptor = Object.freeze({
         schemaVersion: DEV_CONTROL_SOCKET_FORMAT,
         path,

@@ -813,7 +813,12 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assert.equal(controlSocket.ownerPid, child.pid);
   assert.equal(controlSocket.ownerIncarnationId, supervisorDescriptor.supervisorGeneration);
   assert.deepEqual(controlSocket.verbs, ['reload-metro', 'stop-children']);
-  assert.equal(controlSocket.path, join(dirname(target.readyFile), '.dc-sock'));
+  assert.equal(
+    realpathSync.native(dirname(controlSocket.path)),
+    realpathSync.native(dirname(target.readyFile)),
+    'the control socket must stay in the canonical ready-file directory',
+  );
+  assert.equal(controlSocket.path.endsWith('/.dc-sock'), true);
   const endpointStat = statSync(controlSocket.path);
   assert.equal(endpointStat.isSocket(), true);
   assert.equal(endpointStat.mode & 0o777, 0o600);
@@ -1451,10 +1456,22 @@ async function runControlSocketSuite() {
       sessions: true,
       root: controlRoot,
     });
+    const longStateExternalReadyParent = join(controlRoot, 'long-state-external-ready');
+    mkdirSync(longStateExternalReadyParent, { mode: 0o700 });
+    chmodSync(longStateExternalReadyParent, 0o700);
+    const longStateTarget = {
+      ...longStateFixture,
+      readyFile: join(longStateExternalReadyParent, 'dev.ready.json'),
+    };
     const longStateRange = await reserveFreeRange(8);
-    await runCliSupervisor(longStateFixture, 'web', [
+    const longStateRun = await runCliSupervisor(longStateTarget, 'web', [
       '--port-range', `${longStateRange.lo}-${longStateRange.hi}`,
-    ], { expectControlUnavailable: true });
+    ]);
+    assert.equal(
+      longStateRun.events.some((event) => event.state === 'control-socket-unavailable'),
+      false,
+      'a long checkout must publish control through an external owner-only ready-file directory',
+    );
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
     ], {
@@ -1470,7 +1487,7 @@ async function runControlSocketSuite() {
       assertStdinReload: true,
       failMetroReload: true,
     });
-    console.log('expo-dev-loop.test.mjs: --json /dev/null default control posture, long-path stdin-only fallback, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
+    console.log('expo-dev-loop.test.mjs: --json /dev/null default control posture, long-project external ready path, socket concurrency, reload failure, stdin stopping latch, refusals, and cleanup pass');
   } finally {
     rmSync(controlRoot, { recursive: true, force: true });
   }

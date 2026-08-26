@@ -175,6 +175,78 @@ export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
   });
 }
 
+// An explicitly selected ready-file directory may sit outside the checkout.
+// Its own real path is the authority root: a lexical symlink cannot become
+// that root, and the ordinary chain inspector still enforces owner/mode/type
+// custody on the root itself.
+export function inspectSecureExternalDirectoryChain(targetPath, ownerUid) {
+  const target = resolve(targetPath);
+  let before;
+  try {
+    before = lstatSync(target);
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      reason: 'unreadable-component',
+      root: target,
+      target,
+      component: target,
+      cause: error?.code ?? error?.message ?? String(error),
+    });
+  }
+  if (!before.isDirectory() || before.isSymbolicLink()) {
+    return Object.freeze({
+      ok: false,
+      reason: before.isSymbolicLink() ? 'symlink-component' : 'non-directory-component',
+      root: target,
+      target,
+      component: target,
+    });
+  }
+  let root;
+  try {
+    root = realpathSync.native(target);
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      reason: 'canonicalization-failed',
+      root: target,
+      target,
+      component: target,
+      cause: error?.code ?? error?.message ?? String(error),
+    });
+  }
+  let after;
+  try {
+    after = lstatSync(target);
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      reason: 'component-changed',
+      root,
+      target,
+      component: target,
+      cause: error?.code ?? error?.message ?? String(error),
+    });
+  }
+  if (before.dev !== after.dev || before.ino !== after.ino) {
+    return Object.freeze({
+      ok: false,
+      reason: 'component-changed',
+      root,
+      target,
+      component: target,
+    });
+  }
+  const inspection = inspectSecureDirectoryChain(root, root, ownerUid);
+  return Object.freeze({
+    ...inspection,
+    target,
+    canonicalTarget: root,
+    external: true,
+  });
+}
+
 function exited(child) {
   return !child || child.exitCode != null || child.signalCode != null;
 }
