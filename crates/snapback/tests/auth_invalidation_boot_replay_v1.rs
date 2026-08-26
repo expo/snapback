@@ -316,26 +316,37 @@ fn retired_boot_refuses_fresh_and_existing_registry_mutations_across_processes()
     let mutation_directory = tempfile::tempdir().expect("registry-mutation directory");
     let mutation_database = mutation_directory.path().join("mutations.sqlite3");
     let live = live_issuer_at_path(&mutation_database);
-    let namespace = QueryNamespace {
-        client_store_id: "q43-client".to_owned(),
-        query_key: "q43-query".to_owned(),
-        query_instance_id: 1,
-    };
     let mut registry = ObligationRegistry::new(live).expect("construct boot-1 registry");
     let issuer_id = registry
         .installed_issuer()
         .authenticated()
         .issuer_id
         .clone();
-    let first = subscription_scope(issuer_id.clone(), 1, "first");
+    let first_reservation = registry
+        .installed_issuer()
+        .reserve_scope_sequence()
+        .expect("reserve boot-1 scope sequence");
+    let first = subscription_scope(
+        issuer_id.clone(),
+        first_reservation.scope_sequence(),
+        "first",
+    );
     registry
-        .register_live_scope(first.clone(), "owner-first")
+        .register_live_scope(first_reservation, first.clone(), "owner-first")
         .expect("register boot-1 scope before retirement");
+    let crafted_reservation = registry
+        .installed_issuer()
+        .reserve_scope_sequence()
+        .expect("reserve boot-1 scope before its durable retirement");
 
     let successor = run_successor(&mutation_database, mutation_directory.path());
     assert_successor_succeeded(&successor);
     let successor_rows = durable_boot_state(&mutation_database);
-    let crafted = subscription_scope(issuer_id, 2, "crafted-after-retirement");
+    let crafted = subscription_scope(
+        issuer_id,
+        crafted_reservation.scope_sequence(),
+        "crafted-after-retirement",
+    );
     let cause_allocation = registry
         .reserve_cause_sequence()
         .expect_err("retired registry must not allocate a cause sequence");
@@ -343,7 +354,7 @@ fn retired_boot_refuses_fresh_and_existing_registry_mutations_across_processes()
     assert_eq!(durable_boot_state(&mutation_database), successor_rows);
 
     let registration = registry
-        .register_live_scope(crafted, "owner-crafted")
+        .register_live_scope(crafted_reservation, crafted, "owner-crafted")
         .expect_err("public ScopeId construction must not bypass retirement");
     assert_retired(&registration);
     assert_eq!(durable_boot_state(&mutation_database), successor_rows);

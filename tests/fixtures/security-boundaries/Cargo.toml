@@ -371,6 +371,10 @@ path = "src/bin/record_effect_approver_without_authority.rs"
 name = "publish-scope-retirement-without-commit"
 path = "src/bin/publish_scope_retirement_without_commit.rs"
 
+[[bin]]
+name = "poison-scope-retirement-ceiling"
+path = "src/bin/poison_scope_retirement_ceiling.rs"
+
 # Harness-only counterexample: never part of attacks.v1.json.
 [[bin]]
 name = "unrelated-error-satisfies-regex"

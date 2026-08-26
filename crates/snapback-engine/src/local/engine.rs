@@ -23539,10 +23539,11 @@ impl LocalSnapback {
                     .auth_invalidation
                     .as_mut()
                     .expect("auth-scoped admission checked installed state");
+                let scope_reservation = state.issuer.reserve_scope_sequence()?;
                 let scope_id = ScopeId::Subscription {
                     issuer_id: connection.issuer_id().clone(),
                     namespace: namespace.clone(),
-                    scope_sequence: state.issuer.reserve_scope_sequence()?,
+                    scope_sequence: scope_reservation.scope_sequence(),
                     connection_generation: connection.connection_generation(),
                     subscription_id: subscription_id.clone(),
                 };
@@ -23553,9 +23554,11 @@ impl LocalSnapback {
                 let owner_continuity_id =
                     crate::ids::mint_time_ordered(crate::ids::Kind::OwnerContinuity);
                 let registration = (|| {
-                    state
-                        .obligations
-                        .register_live_scope(scope_id.clone(), owner_continuity_id.clone())?;
+                    state.obligations.register_live_scope(
+                        scope_reservation,
+                        scope_id.clone(),
+                        owner_continuity_id.clone(),
+                    )?;
                     let (inherited, entered) = state
                         .obligations
                         .register_connection_child_with_quarantine_lifecycle(
@@ -24540,10 +24543,11 @@ impl LocalSnapback {
                     .as_mut()
                     .expect("resume checked installed invalidation state");
                 let previous = state.obligations.pending(&predecessor_scope).cloned();
+                let scope_reservation = state.issuer.reserve_scope_sequence()?;
                 let replacement = ScopeId::Subscription {
                     issuer_id: connection.issuer_id().clone(),
                     namespace: authorization.namespace.clone(),
-                    scope_sequence: state.issuer.reserve_scope_sequence()?,
+                    scope_sequence: scope_reservation.scope_sequence(),
                     connection_generation: connection.connection_generation(),
                     subscription_id: subscription.id.clone(),
                 };
@@ -24561,9 +24565,11 @@ impl LocalSnapback {
                 let fresh_cause = state.obligations.reserve_cause_sequence()?;
                 let mut quarantine_entry = None;
                 let staged = (|| {
-                    state
-                        .obligations
-                        .register_live_scope(replacement.clone(), owner_continuity_id.clone())?;
+                    state.obligations.register_live_scope(
+                        scope_reservation,
+                        replacement.clone(),
+                        owner_continuity_id.clone(),
+                    )?;
                     let (inherited, entered) = state
                         .obligations
                         .register_connection_child_with_quarantine_lifecycle(

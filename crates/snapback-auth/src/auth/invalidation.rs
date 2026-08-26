@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub use snapback_types::auth::invalidation::*;
 
@@ -241,6 +241,10 @@ pub struct InstalledInvalidationIssuer {
 }
 
 struct InvalidationIssuerState {
+    /// The allocation identity below distinguishes independent issuer graphs
+    /// in one process; this current-process fence additionally makes inherited
+    /// pointer identity fail closed after `fork()`.
+    creator_process_id: AtomicU32,
     authenticated: AuthenticatedBootIssuer,
     /// Retains the kernel's exact database/incarnation boot-owner lease for
     /// as long as any installed issuer or obligation registry can act.
@@ -250,6 +254,21 @@ struct InvalidationIssuerState {
     version_stream: String,
     next_connection_generation: AtomicU64,
     next_scope_sequence: AtomicU64,
+}
+
+impl InvalidationIssuerState {
+    fn require_current_process(&self) -> SnapbackResult<()> {
+        // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+        // — pointer identity is still the within-process discriminator, while
+        // every inherited issuer graph refuses effects in a forked child.
+        if self.creator_process_id.load(Ordering::Relaxed) != std::process::id() {
+            return Err(invalidation_error(
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_FORKED",
+                "authorization invalidation issuer belongs to another process; exec or construct a fresh LocalSnapback",
+            ));
+        }
+        Ok(())
+    }
 }
 
 struct RetirementSigner {
@@ -313,6 +332,7 @@ impl LiveInvalidationIssuer {
         let authorization_expectation = expectation_view.into_issuer_projection()?;
         Ok(Self {
             state: Arc::new(InvalidationIssuerState {
+                creator_process_id: AtomicU32::new(std::process::id()),
                 authenticated,
                 _boot_reservation: reservation,
                 retirement_signer: RetirementSigner {
@@ -338,7 +358,12 @@ impl InstalledInvalidationIssuer {
         &self,
         effect: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
+        self.state.require_current_process()?;
         self.state._boot_reservation.with_current_issuance(effect)
+    }
+
+    fn require_current_process(&self) -> SnapbackResult<()> {
+        self.state.require_current_process()
     }
 
     pub fn authenticated(&self) -> &AuthenticatedBootIssuer {
@@ -403,14 +428,25 @@ impl InstalledInvalidationIssuer {
             })
         })
     }
-    pub fn reserve_scope_sequence(&self) -> SnapbackResult<u64> {
+    pub fn reserve_scope_sequence(&self) -> SnapbackResult<ReservedScopeSequence> {
         self.with_current_issuance(|| {
-            reserve_atomic_counter(
+            let sequence = reserve_atomic_counter(
                 &self.state.next_scope_sequence,
                 "SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED",
                 "authorization invalidation scope sequence exhausted",
-            )
+            )?;
+            Ok(ReservedScopeSequence {
+                issuer_state: self.state.clone(),
+                sequence,
+            })
         })
+    }
+
+    #[cfg(test)]
+    fn simulate_inherited_process_for_unit_test(&self) {
+        self.state
+            .creator_process_id
+            .store(std::process::id().wrapping_add(1), Ordering::Relaxed);
     }
 
     fn authenticate_scope_retirement(
@@ -892,6 +928,34 @@ pub struct ScopeRetirementCandidate {
     retire_through_scope_sequence: u64,
 }
 
+/// Opaque, single-use reservation of the next issuer-wide subscription scope
+/// sequence. Public code may read the value to build its [`ScopeId`], but only
+/// the exact installed issuer that allocated it can consume it at registration.
+/// This keeps caller-constructed scope identities from advancing a retirement
+/// frontier independently of the legitimate allocator.
+///
+/// @ref LLP 0303#a-derivation-is-only-as-strong-as-its-root — registration
+/// consumes allocator provenance, not merely a caller-copyable sequence value.
+pub struct ReservedScopeSequence {
+    issuer_state: Arc<InvalidationIssuerState>,
+    sequence: u64,
+}
+
+impl ReservedScopeSequence {
+    pub fn scope_sequence(&self) -> u64 {
+        self.sequence
+    }
+}
+
+impl std::fmt::Debug for ReservedScopeSequence {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ReservedScopeSequence")
+            .field("scope_sequence", &self.sequence)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Opaque pre-commit retirement carrier. Preparation may perform the fallible
 /// issuer authentication needed by a later publication cut, but it never
 /// exposes the signed wire proof. Only consuming this carrier through the
@@ -905,6 +969,7 @@ pub struct ScopeRetirementCandidate {
 /// the carrier retains the exact registry instance that previewed and signed it.
 pub struct PreparedScopeRetirement {
     registry_identity: Arc<()>,
+    issuer_state: Arc<InvalidationIssuerState>,
     scope_id: ScopeId,
     candidate: Option<ScopeRetirementCandidate>,
     retirement: Option<ScopeRetirement>,
@@ -1042,6 +1107,37 @@ impl ObligationRegistry {
     /// has live scopes, so churn is bounded by current live state rather than
     /// process lifetime.
     pub fn register_live_scope(
+        &mut self,
+        reservation: ReservedScopeSequence,
+        scope_id: ScopeId,
+        owner_continuity_id: impl Into<String>,
+    ) -> SnapbackResult<()> {
+        let owner_continuity_id = owner_continuity_id.into();
+        self.with_current_mutation(move |registry| {
+            if !Arc::ptr_eq(&registry.issuer.state, &reservation.issuer_state) {
+                return Err(invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_SCOPE_RESERVATION_INVALID",
+                    "live scope sequence reservation belongs to another installed issuer",
+                ));
+            }
+            let ScopeId::Subscription { scope_sequence, .. } = &scope_id else {
+                return Err(invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_SCOPE_RESERVATION_INVALID",
+                    "scope sequence reservations can register only subscription scopes",
+                ));
+            };
+            if *scope_sequence != reservation.sequence {
+                return Err(invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_SCOPE_RESERVATION_INVALID",
+                    "live scope identity does not match its consumed sequence reservation",
+                ));
+            }
+            registry.register_live_scope_unchecked(scope_id, owner_continuity_id)
+        })
+    }
+
+    #[cfg(test)]
+    fn register_live_scope_for_unit_tests(
         &mut self,
         scope_id: ScopeId,
         owner_continuity_id: impl Into<String>,
@@ -1815,6 +1911,7 @@ impl ObligationRegistry {
         &self,
         scope_id: &ScopeId,
     ) -> SnapbackResult<PreparedScopeRetirement> {
+        self.issuer.require_current_process()?;
         let candidate = self.preview_scope_retirement(scope_id);
         let retirement = candidate
             .as_ref()
@@ -1827,6 +1924,7 @@ impl ObligationRegistry {
             .transpose()?;
         Ok(PreparedScopeRetirement {
             registry_identity: self.registry_identity.clone(),
+            issuer_state: self.issuer.state.clone(),
             scope_id: scope_id.clone(),
             candidate,
             retirement,
@@ -1840,6 +1938,13 @@ impl ObligationRegistry {
         &self,
         prepared: &PreparedScopeRetirement,
     ) -> SnapbackResult<()> {
+        self.issuer.require_current_process()?;
+        prepared.issuer_state.require_current_process()?;
+        if !Arc::ptr_eq(&self.issuer.state, &prepared.issuer_state) {
+            return Err(corrupt(
+                "scope retirement preparation belongs to another installed issuer",
+            ));
+        }
         if !Arc::ptr_eq(&self.registry_identity, &prepared.registry_identity) {
             return Err(corrupt(
                 "scope retirement preparation belongs to another obligation registry",
@@ -2051,7 +2156,7 @@ mod tests {
 
     fn register_scope(registry: &mut ObligationRegistry, instance: u64) {
         registry
-            .register_live_scope(scope(instance), format!("owner-{instance}"))
+            .register_live_scope_for_unit_tests(scope(instance), format!("owner-{instance}"))
             .unwrap();
     }
 
@@ -2193,10 +2298,10 @@ mod tests {
         let first = scope_with_sequence(1, 3);
         let second = scope_with_sequence(1, 5);
         registry
-            .register_live_scope(first.clone(), "owner-first")
+            .register_live_scope_for_unit_tests(first.clone(), "owner-first")
             .unwrap();
         registry
-            .register_live_scope(second.clone(), "owner-second")
+            .register_live_scope_for_unit_tests(second.clone(), "owner-second")
             .unwrap();
         registry
             .raise(
@@ -2215,6 +2320,151 @@ mod tests {
         assert_eq!(first_retirement.retire_through_scope_sequence, 4);
         assert!(registry.retire_scope(&second).unwrap().is_some());
         assert!(registry.pending(&second).is_none());
+    }
+
+    #[test]
+    fn scope_registration_refuses_a_caller_selected_absorbing_ceiling() {
+        let fixture = live_issuer_fixture(0x71, 1);
+        let issuer_id = fixture.expected_issuer_id.clone();
+        let mut registry = ObligationRegistry::new(fixture.issuer).unwrap();
+        let issuer = registry.installed_issuer().clone();
+        let namespace = QueryNamespace {
+            client_store_id: "ceiling-store".to_owned(),
+            query_key: "ceiling:{}".to_owned(),
+            query_instance_id: 1,
+        };
+
+        // Execute the adapted public composition: pair a legitimate low
+        // allocation with a caller-selected MAX scope, which formerly wrote
+        // MAX directly to the signed retirement high-water mark.
+        let forged_reservation = issuer.reserve_scope_sequence().unwrap();
+        assert!(forged_reservation.scope_sequence() < MAX_PROTOCOL_COUNTER);
+        let forged = ScopeId::Subscription {
+            issuer_id: issuer_id.clone(),
+            namespace: namespace.clone(),
+            scope_sequence: MAX_PROTOCOL_COUNTER,
+            connection_generation: 1,
+            subscription_id: "forged-max".to_owned(),
+        };
+        let error = registry
+            .register_live_scope(forged_reservation, forged, "forged-owner")
+            .expect_err("caller-selected MAX must not reach retirement state");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_SCOPE_RESERVATION_INVALID"
+        );
+        assert!(registry.issued_scope_high_water.is_empty());
+        assert!(registry.active_subscription_scopes.is_empty());
+
+        // Refusal is not absorbing: a fresh allocator-derived identity can be
+        // registered, committed, and followed by a strictly newer identity.
+        let legitimate_reservation = issuer.reserve_scope_sequence().unwrap();
+        let legitimate_sequence = legitimate_reservation.scope_sequence();
+        let legitimate = ScopeId::Subscription {
+            issuer_id: issuer_id.clone(),
+            namespace: namespace.clone(),
+            scope_sequence: legitimate_sequence,
+            connection_generation: 1,
+            subscription_id: "legitimate".to_owned(),
+        };
+        registry
+            .register_live_scope(
+                legitimate_reservation,
+                legitimate.clone(),
+                "legitimate-owner",
+            )
+            .unwrap();
+        let prepared = registry
+            .prepare_scope_retirement_authenticated(&legitimate)
+            .unwrap();
+        let retirement = registry
+            .commit_scope_retirement_authenticated(prepared)
+            .unwrap()
+            .expect("committed legitimate scope releases its proof");
+        assert_eq!(
+            retirement.retire_through_scope_sequence,
+            legitimate_sequence
+        );
+
+        let successor_reservation = issuer.reserve_scope_sequence().unwrap();
+        assert!(successor_reservation.scope_sequence() > legitimate_sequence);
+        let successor = ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            scope_sequence: successor_reservation.scope_sequence(),
+            connection_generation: 1,
+            subscription_id: "successor".to_owned(),
+        };
+        registry
+            .register_live_scope(successor_reservation, successor, "successor-owner")
+            .expect("a rejected ceiling must not poison later registration");
+    }
+
+    #[test]
+    fn inherited_process_identity_cannot_release_a_retirement_proof() {
+        let fixture = live_issuer_fixture(0x72, 1);
+        let issuer_id = fixture.expected_issuer_id.clone();
+        let mut registry = ObligationRegistry::new(fixture.issuer).unwrap();
+        let issuer = registry.installed_issuer().clone();
+        let namespace = QueryNamespace {
+            client_store_id: "fork-store".to_owned(),
+            query_key: "fork:{}".to_owned(),
+            query_instance_id: 1,
+        };
+        let live_reservation = issuer.reserve_scope_sequence().unwrap();
+        let live_scope = ScopeId::Subscription {
+            issuer_id: issuer_id.clone(),
+            namespace: namespace.clone(),
+            scope_sequence: live_reservation.scope_sequence(),
+            connection_generation: 1,
+            subscription_id: "live-before-fork".to_owned(),
+        };
+        registry
+            .register_live_scope(live_reservation, live_scope.clone(), "live-owner")
+            .unwrap();
+        let inherited_registration = issuer.reserve_scope_sequence().unwrap();
+        let inherited_scope = ScopeId::Subscription {
+            issuer_id,
+            namespace,
+            scope_sequence: inherited_registration.scope_sequence(),
+            connection_generation: 1,
+            subscription_id: "reserved-before-fork".to_owned(),
+        };
+        let inherited_preparation = registry
+            .prepare_scope_retirement_authenticated(&live_scope)
+            .unwrap();
+
+        // This per-issuer seam models the state inherited by a child whose
+        // current process differs from the creator. Allocation identity still
+        // distinguishes graphs inside the process; the current-process check
+        // is what makes the inherited graph fail closed.
+        issuer.simulate_inherited_process_for_unit_test();
+        for error in [
+            issuer
+                .reserve_scope_sequence()
+                .expect_err("forked issuer must not allocate"),
+            registry
+                .register_live_scope(inherited_registration, inherited_scope, "inherited-owner")
+                .expect_err("forked registry must not publish a reserved scope"),
+            registry
+                .prepare_scope_retirement_authenticated(&live_scope)
+                .expect_err("forked registry must not prepare another proof"),
+            registry
+                .commit_scope_retirement_authenticated(inherited_preparation)
+                .expect_err("forked registry must not release the inherited proof"),
+        ] {
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTH_INVALIDATION_ISSUER_FORKED"
+            );
+        }
+        assert!(registry.active_subscription_scopes.contains(&live_scope));
+        assert!(
+            registry
+                .issued_scope_high_water
+                .values()
+                .all(|value| *value < 3)
+        );
     }
 
     #[test]
@@ -2270,13 +2520,13 @@ mod tests {
             "issuer-0-namespace-1",
         );
         registry_i0
-            .register_live_scope(obligation_o0.clone(), "owner-0")
+            .register_live_scope_for_unit_tests(obligation_o0.clone(), "owner-0")
             .unwrap();
         registry_i0
-            .register_live_scope(unrelated_n1.clone(), "owner-unrelated")
+            .register_live_scope_for_unit_tests(unrelated_n1.clone(), "owner-unrelated")
             .unwrap();
         registry_i1
-            .register_live_scope(obligation_o1.clone(), "owner-1")
+            .register_live_scope_for_unit_tests(obligation_o1.clone(), "owner-1")
             .unwrap();
 
         let crossed_issuer = registry_i0
@@ -2414,7 +2664,7 @@ mod tests {
             subscription_id: "sub-replacement".to_owned(),
         };
         registry
-            .register_live_scope(replacement.clone(), "replacement-owner")
+            .register_live_scope_for_unit_tests(replacement.clone(), "replacement-owner")
             .unwrap();
         registry
             .register_connection_child(&connection, replacement.clone())
@@ -2435,7 +2685,7 @@ mod tests {
         let mut registry = registry();
         let scope = scope(1);
         registry
-            .register_live_scope(scope.clone(), "tab-continuity-1")
+            .register_live_scope_for_unit_tests(scope.clone(), "tab-continuity-1")
             .unwrap();
         let obligation = registry
             .raise(
@@ -2460,7 +2710,7 @@ mod tests {
         );
         assert!(
             registry
-                .register_live_scope(scope, "different-continuity")
+                .register_live_scope_for_unit_tests(scope, "different-continuity")
                 .is_err()
         );
     }
