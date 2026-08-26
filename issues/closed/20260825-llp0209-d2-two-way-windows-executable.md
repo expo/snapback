@@ -49,3 +49,5 @@ Nothing in the requested behavior was inexpressible. The served observation API 
 ### LLP maintenance handoff
 
 The affected-scope pre-PR audit found no contradiction with LLP 0209 §§2.1, 2.2, or 2.4 and no new design decision. Once these commits land, update the v0.11 P-C row from “backward frozen/metadata-only” to reference this executable D2 evidence; that status change is deliberately not applied from an unlanded worktree.
+
+**Closed:** 2026-08-25 — delivered by the C2 lane (`297cfcf76..212735724`, `0b140beb3`): 12 two-page walks over 6 root declarations, child resume both directions with keyed multi-parent routing, forward→backward exact ordered traversal, bounded inclusive/exclusive backward cases with case-local dispositions, NULL/tie discrimination, backward live replacement, and server-held authenticated ledger lineage (forged-lineage refusal). Dual-family READY (grok r1, codex r3); records `llp/reviews/0209-c2-two-way-windows.*`.
