@@ -2532,16 +2532,19 @@ export async function runExpoDev(options = {}) {
       getBootstrapPayload: async ({ requestAuthority = false } = {}) => {
         const exchangeBinding = await bindingPublisher.bindingForExchange();
         if (exchangeBinding !== null) publishBindingProjection(exchangeBinding);
-        if (requestAuthority) await requestSupervisedAuthority();
+        const responseAuthority = requestAuthority
+          ? await requestSupervisedAuthority()
+          : Object.freeze({ status: 'unavailable' });
+        // Test-only scheduling barrier for proving that each concurrent
+        // adoption response retains the authority minted for that request.
+        if (requestAuthority) await options.afterSupervisedAuthorityRequested?.();
         return exchangeBinding === null
           ? null
           : Object.freeze({
               format: SUPERVISED_EXCHANGE_FORMAT,
               correlationId,
               binding: exchangeBinding,
-              authority: requestAuthority
-                ? authority
-                : Object.freeze({ status: 'unavailable' }),
+              authority: responseAuthority,
               // @ref LLP 0151#shared-development-browser-adapter — the broker
               // origin and its one exact return target are credential-free, so
               // they ride the ordinary exchange instead of an EXPO_PUBLIC_*

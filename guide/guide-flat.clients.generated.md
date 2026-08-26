@@ -3882,6 +3882,11 @@ two-user proof should instead use ordinary password entry with separate custody
 per context. `snapback auth dev-session` likewise remains an explicit operator
 tool, never a template-consumed app session.
 
+The mint POST admits browser callers only from an exact supervisor-admitted
+`Origin`. Native fetch may omit `Origin`, so an originless POST is admitted only
+when its timing-safe per-boot `correlationId` matches; a present wrong `Origin`
+is always refused.
+
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform
 flag is omitted):
@@ -4018,9 +4023,11 @@ carrier.
 The on-demand mint inherits the native `auth.mintSession` precondition: the
 app must already be settled and available in Sessions mode. The fixture does
 this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
-Without that precondition, default web boot still reaches anonymous `ready`; an
-explicit `adoptSupervisedSession` request reports `authority-required` with
-the native diagnostic. See [Sessions and principals](../auth/sessions-and-principals.md)
+Settle Sessions mode before relying on either anonymous password-ready web
+boot or explicit adoption. With Sessions mode, default web boot reaches
+anonymous `ready`; without it, an explicit `adoptSupervisedSession` request
+reports `authority-required` with the native diagnostic. See
+[Sessions and principals](../auth/sessions-and-principals.md)
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
 for the provider state contract.
 

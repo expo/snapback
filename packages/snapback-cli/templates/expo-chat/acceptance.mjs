@@ -95,8 +95,8 @@ process.once('SIGINT', stop);
     const readiness = events.find((event) => event.state === 'ready');
     assert(readiness, 'supervised acceptance must observe the final readiness event');
     assert.equal(readiness.connectCarrier, 'supervisor-rendezvous');
-    assert.equal(readiness.authority.status, 'ready');
-    assert.equal(readiness.authority.authMode, 'sessions');
+    assert.equal(readiness.authority.status, 'unavailable');
+    assert.equal(Object.hasOwn(readiness.authority, 'token'), false);
     assert.deepEqual(snapshotEnvFiles(root), environmentBefore);
     assert.equal(existsSync(supervisorDescriptor), true);
     assert.equal(statSync(supervisorDescriptor).mode & 0o777, 0o600);
@@ -114,11 +114,19 @@ process.once('SIGINT', stop);
         addEventListener() { return { remove() {} }; },
       },
     });
-    roundTripBoot = createSnapbackExpoBoot({ app, environment });
+    roundTripBoot = createSnapbackExpoBoot({
+      app,
+      environment,
+      adoptSupervisedSession: true,
+    });
     const bootState = await roundTripBoot.start();
     assert.equal(bootState.status, 'ready');
     assert.equal(bootState.binding.source, 'supervised-dev');
     assert.equal(bootState.binding.target.origin, readiness.binding.target.origin);
+    assert.equal(bootState.authoritySource, 'supervised-development');
+    assert.equal(roundTripBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+    assert.equal(supervisor.inspection().authorityMintCount, 1);
+    assert.equal(app.authBootstrap.mode, 'sessions');
     const roundTripClient = roundTripBoot.appClient().client;
     const before = (await roundTripClient.query(api.messagesForConversation, {
       args: { conversationId: CONVERSATION_ID },
@@ -140,7 +148,7 @@ process.once('SIGINT', stop);
     assert(after.some((row) => row._id === mutation.result && row.text === body));
     details = {
       connectCarrier: readiness.connectCarrier,
-      authMode: readiness.authority.authMode,
+      authMode: app.authBootstrap.mode,
       queryFunctionId: api.messagesForConversation.id,
       mutationFunctionId: api.sendMessage.id,
       descriptorMode: '0600',

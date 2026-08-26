@@ -222,6 +222,30 @@ function mintBearer(target, dev, email) {
   }
 }
 
+async function mintSupervisedBearer(supervisor) {
+  const headers = { Origin: supervisor.metroOrigin };
+  const bindingResponse = await fetch(
+    `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`,
+    { headers },
+  );
+  assert.equal(bindingResponse.status, 200);
+  const bindingExchange = await bindingResponse.json();
+  assert.equal(bindingExchange.authority.status, 'unavailable');
+  assert.equal(Object.hasOwn(bindingExchange.authority, 'token'), false);
+  const adoptionResponse = await fetch(
+    `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ correlationId: bindingExchange.correlationId }),
+    },
+  );
+  assert.equal(adoptionResponse.status, 200);
+  const adoptionExchange = await adoptionResponse.json();
+  assert.equal(adoptionExchange.authority.status, 'ready');
+  return adoptionExchange;
+}
+
 async function seededRows(origin, bearer) {
   const client = createExternalSessionClient(origin, {
     bearerToken: bearer,
@@ -333,9 +357,7 @@ try {
   assert.equal(statSync(supervised.supervisorFile).mode & 0o077, 0);
   assert.equal(readFileSync(supervised.supervisorFile, 'utf8').includes('token'), false);
   assertListenerInventory(supervisor);
-  const firstExchange = await (
-    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
-  ).json();
+  const firstExchange = await mintSupervisedBearer(supervisor);
   const bearer1 = firstExchange.authority.token;
 
   const unauthorized = await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_CONTROL_PATH}`, {
@@ -387,9 +409,7 @@ try {
   assert.equal(supervisedReport.seed, 'applied');
   assert.equal(supervisedReport.authority.status, 'ready');
   assert.equal(JSON.stringify(supervisedReport).includes(bearer1), false);
-  const secondExchange = await (
-    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
-  ).json();
+  const secondExchange = await mintSupervisedBearer(supervisor);
   const bearer2 = secondExchange.authority.token;
   assert.notEqual(bearer2, bearer1);
   assert.equal(JSON.stringify(supervisedReport).includes(bearer2), false);

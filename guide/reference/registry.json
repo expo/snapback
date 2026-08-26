@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:705ea64870fe97edf454b42688e2890f9c32512145f334770b7e7d97195a52fd",
+    "sourceDigest": "sha256:c00502caeb3a905d181a22bbaa41b8f5107b2a36b9b2d3bb5e03d9c0baf9933f",
     "publishedClosureVersion": "0.1.27",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.27",
@@ -103795,16 +103795,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 366,
+        "line": 367,
         "column": 1,
-        "endLine": 373
+        "endLine": 374
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 366,
+          "line": 367,
           "column": 1,
-          "endLine": 373
+          "endLine": 374
         }
       ],
       "publicDeclaration": {
@@ -108296,7 +108296,7 @@
           "default"
         ]
       },
-      "signature": "export function createSnapbackExpoBoot(options: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Explicitly request and adopt the supervisor's on-demand development session. */\n  adoptSupervisedSession?: boolean;\n  createProvider?: (\n    binding: PreparedReactBinding,\n    options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,\n  ) => SnapbackReactProvider;\n  bindLifecycle?: (\n    appState: AppStateSource,\n    provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,\n    options?: Readonly<{ onError?: (error: unknown) => void }>,\n  ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;\n  createApplicationClient?: (input: Readonly<{\n    app: SnapbackApplicationDescriptorV1;\n    binding?: SnapbackAppBindingV1;\n    url?: string;\n    platform: SnapbackAppClientPlatform;\n    now?: () => number;\n    signal?: AbortSignal;\n    rqsStore?: unknown;\n  }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;\n  adoptSupervisedAuthority?: (\n    appClient: SnapbackAppClient,\n    input: Readonly<{\n      bearer: string;\n      binding: SnapbackAppBindingV1;\n      refreshAfterMs: number;\n      clientOptions?: Readonly<{ devIdentityCapability: string }>;\n    }>,\n  ) => Promise<Readonly<{ status: 'adopted' | 'rebound' | 'conflict' | 'dropped' }>>;\n  now?: () => number;\n}>): SnapbackExpoBootController;",
+      "signature": "export function createSnapbackExpoBoot(options: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Supervised session adoption defaults to `false` on web and `true` on\n   * native; an explicit `true` or `false` overrides the platform default. */\n  adoptSupervisedSession?: boolean;\n  createProvider?: (\n    binding: PreparedReactBinding,\n    options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,\n  ) => SnapbackReactProvider;\n  bindLifecycle?: (\n    appState: AppStateSource,\n    provider: Pick<SnapbackReactProvider, 'pause' | 'resume'>,\n    options?: Readonly<{ onError?: (error: unknown) => void }>,\n  ) => Readonly<{ dispose(): void; settled(): Promise<void> }>;\n  createApplicationClient?: (input: Readonly<{\n    app: SnapbackApplicationDescriptorV1;\n    binding?: SnapbackAppBindingV1;\n    url?: string;\n    platform: SnapbackAppClientPlatform;\n    now?: () => number;\n    signal?: AbortSignal;\n    rqsStore?: unknown;\n  }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;\n  adoptSupervisedAuthority?: (\n    appClient: SnapbackAppClient,\n    input: Readonly<{\n      bearer: string;\n      binding: SnapbackAppBindingV1;\n      refreshAfterMs: number;\n      clientOptions?: Readonly<{ devIdentityCapability: string }>;\n    }>,\n  ) => Promise<Readonly<{ status: 'adopted' | 'rebound' | 'conflict' | 'dropped' }>>;\n  now?: () => number;\n}>): SnapbackExpoBootController;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -108305,16 +108305,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 405,
+        "line": 406,
         "column": 1,
-        "endLine": 444
+        "endLine": 446
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 405,
+          "line": 406,
           "column": 1,
-          "endLine": 444
+          "endLine": 446
         }
       ],
       "publicDeclaration": {
@@ -108496,16 +108496,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 387,
+        "line": 388,
         "column": 14,
-        "endLine": 387
+        "endLine": 388
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 387,
+          "line": 388,
           "column": 14,
-          "endLine": 387
+          "endLine": 388
         }
       ],
       "publicDeclaration": {
@@ -109017,16 +109017,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 375,
+        "line": 376,
         "column": 1,
-        "endLine": 375
+        "endLine": 376
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 375,
+          "line": 376,
           "column": 1,
-          "endLine": 375
+          "endLine": 376
         }
       ],
       "publicDeclaration": {
@@ -109115,16 +109115,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 464,
+        "line": 467,
         "column": 1,
-        "endLine": 464
+        "endLine": 467
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 464,
+          "line": 467,
           "column": 1,
-          "endLine": 464
+          "endLine": 467
         }
       ],
       "publicDeclaration": {
@@ -111095,16 +111095,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 374,
+        "line": 375,
         "column": 1,
-        "endLine": 374
+        "endLine": 375
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 374,
+          "line": 375,
           "column": 1,
-          "endLine": 374
+          "endLine": 375
         }
       ],
       "publicDeclaration": {
@@ -111540,16 +111540,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 389,
+        "line": 390,
         "column": 1,
-        "endLine": 391
+        "endLine": 392
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 389,
+          "line": 390,
           "column": 1,
-          "endLine": 391
+          "endLine": 392
         }
       ],
       "publicDeclaration": {
@@ -111589,16 +111589,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 393,
+        "line": 394,
         "column": 1,
-        "endLine": 403
+        "endLine": 404
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 393,
+          "line": 394,
           "column": 1,
-          "endLine": 403
+          "endLine": 404
         }
       ],
       "publicDeclaration": {
@@ -113011,9 +113011,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 378,
+              "line": 379,
               "column": 3,
-              "endLine": 378
+              "endLine": 379
             }
           ]
         },
@@ -113030,9 +113030,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 379,
+              "line": 380,
               "column": 3,
-              "endLine": 379
+              "endLine": 380
             }
           ]
         },
@@ -113049,9 +113049,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 380,
+              "line": 381,
               "column": 3,
-              "endLine": 380
+              "endLine": 381
             }
           ]
         },
@@ -113068,9 +113068,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 381,
+              "line": 382,
               "column": 3,
-              "endLine": 381
+              "endLine": 382
             }
           ]
         },
@@ -113087,9 +113087,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 382,
+              "line": 383,
               "column": 3,
-              "endLine": 382
+              "endLine": 383
             }
           ]
         },
@@ -113106,9 +113106,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 383,
+              "line": 384,
               "column": 3,
-              "endLine": 383
+              "endLine": 384
             }
           ]
         },
@@ -113125,9 +113125,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 384,
+              "line": 385,
               "column": 3,
-              "endLine": 384
+              "endLine": 385
             }
           ]
         }
@@ -113138,16 +113138,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 377,
+        "line": 378,
         "column": 1,
-        "endLine": 385
+        "endLine": 386
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 377,
+          "line": 378,
           "column": 1,
-          "endLine": 385
+          "endLine": 386
         }
       ],
       "publicDeclaration": {
@@ -113173,7 +113173,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export interface SnapbackExpoEnvironmentV1 {\n  readonly format: 'snapback.expo-environment.v1';\n  readonly appState?: AppStateSource;\n  readonly developmentSync?: false | Readonly<Record<string, unknown>>;\n  resolveAppState?(): AppStateSource | Promise<AppStateSource>;\n  /** Framework-owned platform resolution for the LLP 0258 opt-in branch. */\n  resolveAppClientPlatform?(input: Readonly<{\n    app: AppDescriptorV1Like;\n  }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;\n  /** Narrow host-OS seam used before the evidence-gated native custody load. */\n  resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;\n  /** Test/host seam for the provider-owned hashing-only expo-crypto adapter. */\n  resolveNativeAuthDigestModule?(): unknown | Promise<unknown>;\n  /** Test/host seams for exact Expo SQLite target-cell resolution. */\n  resolveExpoSqliteOperatingSystem?(): string | Promise<string>;\n  resolveExpoSqliteRuntimeKind?(): string | Promise<string>;\n  resolveExpoSqliteTarget?(): Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;\n  resolveExpoSqliteReactNativeModule?(): unknown | Promise<unknown>;\n  resolveExpoDeviceModule?(): unknown | Promise<unknown>;\n  resolveExpoSqliteModule?(): unknown | Promise<unknown>;\n  resolveExpoFileSystemModule?(): unknown | Promise<unknown>;\n  resolveExpoLegacyRqsFiles?(): Readonly<{\n    directory: string;\n    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;\n    randomBytes?: (length: number) => Uint8Array;\n  }> | null | Promise<Readonly<{\n    directory: string;\n    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;\n    randomBytes?: (length: number) => Uint8Array;\n  }> | null>;\n  resolveBinding(input: Readonly<{\n    app: AppDescriptorV1Like;\n    bindingOverride: AppBindingV1 | null;\n    signal: AbortSignal;\n    url?: string;\n  }>): Promise<Readonly<{\n    binding: AppBindingV1;\n    admission: AppBindingAdmissionEvidenceV1;\n  }>> | Readonly<{\n    binding: AppBindingV1;\n    admission: AppBindingAdmissionEvidenceV1;\n  }>;\n  adoptAuthority(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    rqsStore?: unknown;\n  }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;\n  /** Supervised carrier handoff used only by the first-party app owner. */\n  resolveSupervisedAuthority?(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    refresh?: boolean;\n  }>): Promise<\n    | Readonly<{\n        status: 'ready';\n        bearer: string;\n        refreshAfterMs: number;\n        binding: AppBindingV1;\n        admission: AppBindingAdmissionEvidenceV1;\n      }>\n    | Readonly<{ status: 'unavailable' }>\n    | Readonly<{\n        status: 'authority-required';\n        diagnostic: SnapbackDiagnostic;\n        remediations: readonly TypedRemediation[];\n        binding: AppBindingV1;\n        admission: AppBindingAdmissionEvidenceV1;\n      }>\n  >;\n  refreshAuthority?(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    admitBinding(\n      candidate: AppBindingV1,\n      admission: AppBindingAdmissionEvidenceV1,\n    ): Promise<AppBindingV1>;\n  }>): Promise<\n    | Readonly<{\n        status: 'ready';\n        publicFacts: PublicAuthorityFacts;\n        binding?: AppBindingV1;\n        admission?: AppBindingAdmissionEvidenceV1;\n      }>\n    | Readonly<{\n        status: 'authority-required';\n        diagnostic: SnapbackDiagnostic;\n        remediations: readonly TypedRemediation[];\n      }>\n  >;\n  onDiagnostic?(diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent): void;\n}",
+      "signature": "export interface SnapbackExpoEnvironmentV1 {\n  readonly format: 'snapback.expo-environment.v1';\n  readonly appState?: AppStateSource;\n  readonly developmentSync?: false | Readonly<Record<string, unknown>>;\n  resolveAppState?(): AppStateSource | Promise<AppStateSource>;\n  /** Framework-owned platform resolution for the LLP 0258 opt-in branch. */\n  resolveAppClientPlatform?(input: Readonly<{\n    app: AppDescriptorV1Like;\n  }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;\n  /** Narrow host-OS seam used before the evidence-gated native custody load. */\n  resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;\n  /** Test/host seam for the provider-owned hashing-only expo-crypto adapter. */\n  resolveNativeAuthDigestModule?(): unknown | Promise<unknown>;\n  /** Test/host seams for exact Expo SQLite target-cell resolution. */\n  resolveExpoSqliteOperatingSystem?(): string | Promise<string>;\n  resolveExpoSqliteRuntimeKind?(): string | Promise<string>;\n  resolveExpoSqliteTarget?(): Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;\n  resolveExpoSqliteReactNativeModule?(): unknown | Promise<unknown>;\n  resolveExpoDeviceModule?(): unknown | Promise<unknown>;\n  resolveExpoSqliteModule?(): unknown | Promise<unknown>;\n  resolveExpoFileSystemModule?(): unknown | Promise<unknown>;\n  resolveExpoLegacyRqsFiles?(): Readonly<{\n    directory: string;\n    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;\n    randomBytes?: (length: number) => Uint8Array;\n  }> | null | Promise<Readonly<{\n    directory: string;\n    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;\n    randomBytes?: (length: number) => Uint8Array;\n  }> | null>;\n  resolveBinding(input: Readonly<{\n    app: AppDescriptorV1Like;\n    bindingOverride: AppBindingV1 | null;\n    signal: AbortSignal;\n    url?: string;\n  }>): Promise<Readonly<{\n    binding: AppBindingV1;\n    admission: AppBindingAdmissionEvidenceV1;\n  }>> | Readonly<{\n    binding: AppBindingV1;\n    admission: AppBindingAdmissionEvidenceV1;\n  }>;\n  adoptAuthority(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    rqsStore?: unknown;\n    adoptSupervisedSession?: boolean;\n  }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;\n  /** Supervised carrier handoff used only by the first-party app owner. */\n  resolveSupervisedAuthority?(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    refresh?: boolean;\n  }>): Promise<\n    | Readonly<{\n        status: 'ready';\n        bearer: string;\n        refreshAfterMs: number;\n        binding: AppBindingV1;\n        admission: AppBindingAdmissionEvidenceV1;\n      }>\n    | Readonly<{ status: 'unavailable' }>\n    | Readonly<{\n        status: 'authority-required';\n        diagnostic: SnapbackDiagnostic;\n        remediations: readonly TypedRemediation[];\n        binding: AppBindingV1;\n        admission: AppBindingAdmissionEvidenceV1;\n      }>\n  >;\n  refreshAuthority?(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    admitBinding(\n      candidate: AppBindingV1,\n      admission: AppBindingAdmissionEvidenceV1,\n    ): Promise<AppBindingV1>;\n  }>): Promise<\n    | Readonly<{\n        status: 'ready';\n        publicFacts: PublicAuthorityFacts;\n        binding?: AppBindingV1;\n        admission?: AppBindingAdmissionEvidenceV1;\n      }>\n    | Readonly<{\n        status: 'authority-required';\n        diagnostic: SnapbackDiagnostic;\n        remediations: readonly TypedRemediation[];\n      }>\n  >;\n  onDiagnostic?(diagnostic: SnapbackDiagnostic | SnapbackAppClientDebugEvent): void;\n}",
       "overloads": [],
       "members": [
         {
@@ -113484,7 +113484,7 @@
           "identity": "npm:@expo/snapback-expo#SnapbackExpoEnvironmentV1.adoptAuthority",
           "name": "adoptAuthority",
           "kind": "method",
-          "signature": "adoptAuthority(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    rqsStore?: unknown;\n  }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;",
+          "signature": "adoptAuthority(input: Readonly<{\n    app: AppDescriptorV1Like;\n    binding: AppBindingV1;\n    signal: AbortSignal;\n    rqsStore?: unknown;\n    adoptSupervisedSession?: boolean;\n  }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;",
           "overloads": [],
           "documentation": {
             "text": "",
@@ -113495,7 +113495,7 @@
               "file": "packages/snapback-expo/index.d.mts",
               "line": 312,
               "column": 3,
-              "endLine": 317
+              "endLine": 318
             }
           ]
         },
@@ -113512,9 +113512,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 319,
+              "line": 320,
               "column": 3,
-              "endLine": 340
+              "endLine": 341
             }
           ]
         },
@@ -113531,9 +113531,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 341,
+              "line": 342,
               "column": 3,
-              "endLine": 361
+              "endLine": 362
             }
           ]
         },
@@ -113550,9 +113550,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 362,
+              "line": 363,
               "column": 3,
-              "endLine": 362
+              "endLine": 363
             }
           ]
         }
@@ -113565,14 +113565,14 @@
         "file": "packages/snapback-expo/index.d.mts",
         "line": 270,
         "column": 1,
-        "endLine": 363
+        "endLine": 364
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
           "line": 270,
           "column": 1,
-          "endLine": 363
+          "endLine": 364
         }
       ],
       "publicDeclaration": {
@@ -113603,7 +113603,7 @@
           "default"
         ]
       },
-      "signature": "export function SnapbackExpoProvider(props: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Explicitly request and adopt the supervisor's on-demand development session. */\n  adoptSupervisedSession?: boolean;\n  fallback?: any | ((state: ExpoBootState) => any);\n  children?: any;\n  outboxDrain?: 'auto' | 'manual';\n  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;\n}>): any;",
+      "signature": "export function SnapbackExpoProvider(props: Readonly<{\n  app: AppDescriptorV1Like;\n  binding?: AppBindingV1 | null;\n  url?: string;\n  environment?: SnapbackExpoEnvironmentV1;\n  /** Explicit store or null opt-out. Omission requests the evidence-gated\n   * default; pending/unqualified target rows resolve to the reported volatile\n   * fallback rather than a durable carrier. */\n  rqsStore?: RqsStore | null;\n  /** Supervised session adoption defaults to `false` on web and `true` on\n   * native; an explicit `true` or `false` overrides the platform default. */\n  adoptSupervisedSession?: boolean;\n  fallback?: any | ((state: ExpoBootState) => any);\n  children?: any;\n  outboxDrain?: 'auto' | 'manual';\n  outboxDrainOptions?: Omit<OutboxDrainOptions, 'automatic'>;\n}>): any;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -113612,16 +113612,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 446,
+        "line": 448,
         "column": 1,
-        "endLine": 461
+        "endLine": 464
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 446,
+          "line": 448,
           "column": 1,
-          "endLine": 461
+          "endLine": 464
         }
       ],
       "publicDeclaration": {
@@ -117078,16 +117078,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 463,
+        "line": 466,
         "column": 1,
-        "endLine": 463
+        "endLine": 466
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 463,
+          "line": 466,
           "column": 1,
-          "endLine": 463
+          "endLine": 466
         }
       ],
       "publicDeclaration": {
@@ -117635,16 +117635,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 365,
+        "line": 366,
         "column": 1,
-        "endLine": 365
+        "endLine": 366
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 365,
+          "line": 366,
           "column": 1,
-          "endLine": 365
+          "endLine": 366
         }
       ],
       "publicDeclaration": {
@@ -117683,16 +117683,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 366,
+        "line": 367,
         "column": 1,
-        "endLine": 373
+        "endLine": 374
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 366,
+          "line": 367,
           "column": 1,
-          "endLine": 373
+          "endLine": 374
         }
       ],
       "publicDeclaration": {
@@ -118273,16 +118273,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 375,
+        "line": 376,
         "column": 1,
-        "endLine": 375
+        "endLine": 376
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 375,
+          "line": 376,
           "column": 1,
-          "endLine": 375
+          "endLine": 376
         }
       ],
       "publicDeclaration": {
@@ -118321,16 +118321,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 374,
+        "line": 375,
         "column": 1,
-        "endLine": 374
+        "endLine": 375
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 374,
+          "line": 375,
           "column": 1,
-          "endLine": 374
+          "endLine": 375
         }
       ],
       "publicDeclaration": {
@@ -118501,16 +118501,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 365,
+        "line": 366,
         "column": 1,
-        "endLine": 365
+        "endLine": 366
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 365,
+          "line": 366,
           "column": 1,
-          "endLine": 365
+          "endLine": 366
         }
       ],
       "publicDeclaration": {

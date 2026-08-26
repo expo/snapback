@@ -1318,6 +1318,7 @@ process.exit();
       let boot = expo.createSnapbackExpoBoot({
         app: m1Generated.app,
         environment: bootEnvironment(),
+        adoptSupervisedSession: true,
       });
       let bootState = await boot.start();
       assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
@@ -1364,6 +1365,7 @@ process.exit();
       boot = expo.createSnapbackExpoBoot({
         app: m2Generated.app,
         environment: bootEnvironment(),
+        adoptSupervisedSession: true,
       });
       bootState = await boot.start();
       assert.equal(bootState.status, 'ready', JSON.stringify(bootState));
@@ -1372,7 +1374,11 @@ process.exit();
       const survivingPrincipal = appClient.auth.currentPrincipal();
       assert.equal(survivingPrincipal.userId, principal.userId);
       const survivingSession = await appClient.client.authSession();
-      assert.equal(survivingSession.authority.sessionId, originalSession.authority.sessionId);
+      assert.notEqual(
+        survivingSession.authority.sessionId,
+        originalSession.authority.sessionId,
+        'volatile custody explicitly adopts a fresh session after the M2 boot while server rows survive',
+      );
       assert.ok(
         (await appClient.client.query(m2Generated.messagesForConversation, {
           args: { conversationId },

@@ -500,6 +500,7 @@ async function startFixture(target, options = {}) {
     now: options.now,
     bindingTtlMs: options.bindingTtlMs,
     bindingRefreshWindowMs: options.bindingRefreshWindowMs,
+    afterSupervisedAuthorityRequested: options.afterSupervisedAuthorityRequested,
     devOptions: options.devOptions,
     clientPort: options.clientPort,
     bootstrapPort: options.bootstrapPort,
@@ -1250,6 +1251,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.
   const settled = fixture('settled', { sessions: true });
   let settledNow = Date.now();
+  let concurrentAuthorityBarrier = null;
   const bindingTtlMs = 1_000;
   const bindingRefreshWindowMs = 200;
   const settledRun = await startFixture(settled, {
@@ -1257,6 +1259,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     now: () => settledNow,
     bindingTtlMs,
     bindingRefreshWindowMs,
+    afterSupervisedAuthorityRequested: () => concurrentAuthorityBarrier?.(),
   });
   const { supervisor, events } = settledRun;
   assert.deepEqual(
@@ -1509,6 +1512,59 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   ).json();
   assert.equal(postMintPlainExchange.authority.status, 'unavailable');
   assert.equal(Object.hasOwn(postMintPlainExchange.authority, 'token'), false);
+
+  const concurrentMintCount = supervisor.inspection().authorityMintCount;
+  const concurrentSessionCount = authSessionCount(settled.database);
+  let concurrentAuthorityArrivals = 0;
+  let releaseConcurrentAuthorities;
+  const concurrentAuthoritiesReady = new Promise((resolve) => {
+    releaseConcurrentAuthorities = resolve;
+  });
+  concurrentAuthorityBarrier = async () => {
+    concurrentAuthorityArrivals += 1;
+    if (concurrentAuthorityArrivals === 2) releaseConcurrentAuthorities();
+    await concurrentAuthoritiesReady;
+  };
+  const concurrentBootstrap = await (
+    await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`, {
+      headers: { Origin: supervisor.metroOrigin },
+    })
+  ).json();
+  const [concurrentExchangeA, concurrentExchangeB] = await Promise.all([
+    requestSupervisedMint(
+      supervisor.exchangeOrigin,
+      supervisor.metroOrigin,
+      concurrentBootstrap,
+    ),
+    requestSupervisedMint(
+      supervisor.exchangeOrigin,
+      supervisor.metroOrigin,
+      concurrentBootstrap,
+    ),
+  ]);
+  concurrentAuthorityBarrier = null;
+  const concurrentBearers = [
+    concurrentExchangeA.authority.token,
+    concurrentExchangeB.authority.token,
+  ];
+  assert.equal(
+    new Set(concurrentBearers).size,
+    2,
+    'concurrent adoption responses must each carry the session minted for that request',
+  );
+  assert.equal(
+    supervisor.inspection().authorityMintCount,
+    concurrentMintCount + 2,
+    'two concurrent adoption requests mint exactly two ordinary sessions',
+  );
+  assert.equal(
+    authSessionCount(settled.database),
+    concurrentSessionCount + 2,
+    'two concurrent adoption requests create exactly two server-side session rows',
+  );
+  assert(concurrentBearers.every((bearer) => (
+    authSessionUserForBearer(settled.database, bearer) !== null
+  )));
 
   const app = JSON.parse(readFileSync(
     join(settled.backendRoot, 'generated', 'app.descriptor.json'),

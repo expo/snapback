@@ -538,9 +538,11 @@ carrier.
 The on-demand mint inherits the native `auth.mintSession` precondition: the
 app must already be settled and available in Sessions mode. The fixture does
 this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
-Without that precondition, default web boot still reaches anonymous `ready`; an
-explicit `adoptSupervisedSession` request reports `authority-required` with
-the native diagnostic. See [Sessions and principals](../auth/sessions-and-principals.md)
+Settle Sessions mode before relying on either anonymous password-ready web
+boot or explicit adoption. With Sessions mode, default web boot reaches
+anonymous `ready`; without it, an explicit `adoptSupervisedSession` request
+reports `authority-required` with the native diagnostic. See
+[Sessions and principals](../auth/sessions-and-principals.md)
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
 for the provider state contract.
 

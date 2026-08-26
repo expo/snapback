@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:efdf5bb528ce87b5c9c292862b206265c1711ba4eba9
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:705ea64870fe97edf454b42688e2890f9c32512145f334770b7e7d97195a52fd`.
+`sha256:c00502caeb3a905d181a22bbaa41b8f5107b2a36b9b2d3bb5e03d9c0baf9933f`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -48,7 +48,7 @@ Symbols: 14 total; 5 runtime values; 9 type-only.
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#admitAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:366`
+Source: `packages/snapback-expo/index.d.mts:367`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admitAppBindingV1(
@@ -238,7 +238,7 @@ export type HostedDevelopmentAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#isAppBindingDiagnostic`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:375`
+Source: `packages/snapback-expo/index.d.mts:376`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function isAppBindingDiagnostic(error: unknown): boolean;
@@ -249,7 +249,7 @@ export function isAppBindingDiagnostic(error: unknown): boolean;
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#publicBindingFacts`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:374`
+Source: `packages/snapback-expo/index.d.mts:375`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function publicBindingFacts(binding: AppBindingV1): PublicBindingFacts;
@@ -346,7 +346,7 @@ export type SupervisedDevAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#validateAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:365`
+Source: `packages/snapback-expo/index.d.mts:366`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function validateAppBindingV1(candidate: unknown): readonly AppBindingValidationProblem[];
