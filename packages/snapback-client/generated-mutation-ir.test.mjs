@@ -23,6 +23,28 @@ const activation = Object.freeze({
   schemaVersion: 'snapback.v1', appId: 'generated-ir-client-test',
   schemaHash: digest('1'), bundleHash: digest('2'), inputsHash: digest('3'),
 });
+const targetProfileId = 'generated-ir-client-test-profile';
+const replayInspection = () => ({
+  targetProfileId,
+  schema: {
+    schemaVersion: activation.schemaVersion,
+    appId: activation.appId,
+    schemaHash: activation.schemaHash,
+    inputsHash: activation.inputsHash,
+  },
+  functions: {
+    schemaVersion: activation.schemaVersion,
+    appId: activation.appId,
+    bundleHash: activation.bundleHash,
+    inputsHash: activation.inputsHash,
+  },
+  capabilityManifest: {
+    manifestVersion: 1,
+    targetProfileId,
+    supportedCapabilities: ['offline_mutation_replay'],
+    capabilityGaps: [],
+  },
+});
 const schema = Object.freeze({ tables: Object.freeze([Object.freeze({
   name: 'cards',
   fields: Object.freeze(['title', 'position', 'locked'].map((name) => Object.freeze({ name }))),
@@ -89,7 +111,7 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   const store = openStore();
   await store.whenLockSettled();
   const client = new SnapbackClient('http://generated-ir.invalid', {
-    rqsStore: store, offlineQueue: true,
+    rqsStore: store, offlineQueue: true, __offlineMutationReplayCapability: null,
   });
   const view = await client.createOptimisticMutationView({
     authoritativeRows: { cards: [] }, connected: true,
@@ -98,7 +120,8 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   let requestBody = null;
   let releaseResponse;
   const responseGate = new Promise((resolve) => { releaseResponse = resolve; });
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') return Response.json(replayInspection());
     requestBody = JSON.parse(init.body);
     await responseGate;
     return Response.json({ result: 'card_authoritative', version: 1 });
@@ -145,12 +168,15 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   const pendingStore = openStore(pendingDirectory);
   await pendingStore.whenLockSettled();
   const pendingClient = new SnapbackClient('http://generated-ir.invalid', {
-    rqsStore: pendingStore, offlineQueue: true,
+    rqsStore: pendingStore, offlineQueue: true, __offlineMutationReplayCapability: null,
   });
   const pendingView = await pendingClient.createOptimisticMutationView({
     authoritativeRows: { cards: [] },
   });
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') return Response.json(replayInspection());
+    throw new TypeError('fetch failed');
+  };
   const queued = await pendingClient.mutate(reference, {
     args: { title: 'Survives kill', position: 9 },
   });
@@ -162,7 +188,7 @@ test('generated mutate owns IR preparation, paints before settlement, and replay
   const relaunchedStore = openStore(pendingDirectory);
   await relaunchedStore.whenLockSettled();
   const relaunchedClient = new SnapbackClient('http://generated-ir.invalid', {
-    rqsStore: relaunchedStore, offlineQueue: true,
+    rqsStore: relaunchedStore, offlineQueue: true, __offlineMutationReplayCapability: null,
   });
   const relaunchedView = await relaunchedClient.createOptimisticMutationView({
     authoritativeRows: { cards: [] },

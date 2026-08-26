@@ -3314,29 +3314,28 @@ const outboxRecordMatchesProjectionTarget = (record, target) => {
   const persisted = record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
     ? record.enqueueTarget
     : null;
-  if (persisted === null || typeof persisted !== 'object') return true;
+  // Projection authority is no broader than replay authority. A legacy record
+  // with no enqueue target cannot be attributed to whichever app happens to
+  // open the shared store, and an app id alone cannot distinguish generations
+  // of that app at the same origin.
+  if (persisted === null || typeof persisted !== 'object') return false;
+  if (target.targetProfileId === null || target.artifactGeneration === null) return false;
   if (canonicalServerOrigin(persisted.canonicalOrigin) !== target.origin) return false;
-  if (
-    target.targetProfileId !== null
-    && persisted.targetProfileId !== target.targetProfileId
-  ) return false;
+  if (persisted.targetProfileId !== target.targetProfileId) return false;
   if (!sameOptionalLedgerIncarnation(
     persisted.ledgerIncarnation ?? null,
     target.ledgerIncarnation ?? null,
   )) return false;
-  const currentAppId = target.appId ?? target.artifactGeneration?.appId ?? null;
+  const currentAppId = target.artifactGeneration.appId;
+  if (target.appId !== null && currentAppId !== target.appId) return false;
   if (persisted.artifactIdentity?.kind === 'app') {
-    return currentAppId === null || persisted.artifactIdentity.appId === currentAppId;
+    return persisted.artifactIdentity.appId === currentAppId;
   }
   if (persisted.artifactIdentity?.kind === 'generated') {
-    if (target.artifactGeneration !== null) {
-      return sameArtifactGeneration(
-        persisted.artifactIdentity.generation,
-        target.artifactGeneration,
-      );
-    }
-    return currentAppId === null
-      || persisted.artifactIdentity.generation?.appId === currentAppId;
+    return sameArtifactGeneration(
+      persisted.artifactIdentity.generation,
+      target.artifactGeneration,
+    );
   }
   return false;
 };
@@ -7764,6 +7763,10 @@ export class SnapbackClient {
       this.__offlineMutationReplayCapabilityLocalOverride = null;
       this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
     }
+    // Capability identity is part of mutation disposition and optimistic-layer
+    // projection. Wake observers for the answered local fact; disposition
+    // deduplication suppresses callbacks when no observable field changed.
+    this.#notifyOutboxListeners();
     const commit = async () => {
       if (this.__clientClosed) {
         return result(
@@ -7805,15 +7808,13 @@ export class SnapbackClient {
             ? await store.withOutboxAuthorizationDispatch(commitAndRead)
             : await commitAndRead();
           if (committed === false) {
-            this.__observedOfflineMutationReplayCapability = shared;
-            if (
-              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence
-                === requestSequence
-            ) {
-              this.__offlineMutationReplayCapabilityLocalOverride = null;
-              this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
-            }
-            return result(shared, false);
+            // The store rejected shared replacement, but the HTTP answer is
+            // still this observer's admission fact. In particular, retain an
+            // answered negative as the local fail-closed override instead of
+            // resurrecting the predecessor shared positive.
+            this.__observedOfflineMutationReplayCapability = normalized;
+            this.#notifyOutboxListeners();
+            return result(normalized, false);
           }
           if (shared !== null) {
             this.__observedOfflineMutationReplayCapability = shared;
@@ -7824,6 +7825,7 @@ export class SnapbackClient {
               this.__offlineMutationReplayCapabilityLocalOverride = null;
               this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
             }
+            this.#notifyOutboxListeners();
             return result(shared, true);
           }
           if (committed !== false) {
@@ -7837,6 +7839,7 @@ export class SnapbackClient {
                 this.__offlineMutationReplayCapabilityLocalOverride = null;
                 this.__offlineMutationReplayCapabilityLocalOverrideRequestSequence = null;
               }
+              this.#notifyOutboxListeners();
               return result(shared, true);
             }
           }
@@ -7847,6 +7850,7 @@ export class SnapbackClient {
         && requestSequence === this.__offlineMutationReplayCapabilityLastAnsweredRequestSequence
       ) {
         this.__observedOfflineMutationReplayCapability = normalized;
+        this.#notifyOutboxListeners();
       }
       return result(normalized, null);
     };
@@ -7897,6 +7901,29 @@ export class SnapbackClient {
     const transportTarget = operationTarget
       ?? pinOfflineMutationTransportTarget(this.baseUrl, expectedGeneration);
     if (this.__offlineMutationReplayCapability !== null) {
+      if (this.__offlineMutationReplayCapability === true) {
+        // Internal configured-capability fixtures may still install the same
+        // complete target fact production learns from /inspect. Consume it so
+        // their projection and enqueue identity exercise the real target
+        // fence; the bare boolean remains transport-only test authority.
+        const configuredFact = await this.#currentOfflineMutationReplayCapabilityFact(
+          transportTarget,
+        );
+        if (configuredFact?.supported === true) {
+          const completedTarget = completeOfflineMutationOperationTarget(
+            transportTarget,
+            configuredFact,
+          );
+          if (completedTarget !== null) {
+            return Object.freeze({
+              ...configuredFact,
+              evidence: 'configured',
+              inspectionRequestSequence: null,
+              operationTarget: completedTarget,
+            });
+          }
+        }
+      }
       return Object.freeze({
         supported: this.__offlineMutationReplayCapability,
         reason: this.__offlineMutationReplayCapability ? null : 'not-advertised',
@@ -8557,16 +8584,7 @@ export class SnapbackClient {
   }
 
   async #outboxProjectionTarget(store) {
-    let capabilityFact = null;
-    if (typeof store?.readOfflineMutationReplayCapabilityFact === 'function') {
-      try {
-        capabilityFact = await store.readOfflineMutationReplayCapabilityFact();
-      } catch { /* origin and established app identity still fence projection */ }
-    }
-    if (capabilityFact === null) {
-      capabilityFact = this.__offlineMutationReplayCapabilityLocalOverride
-        ?? this.__observedOfflineMutationReplayCapability;
-    }
+    const capabilityFact = await this.#currentOfflineMutationReplayCapabilityFact();
     return offlineMutationProjectionTarget({
       baseUrl: this.baseUrl,
       appId: this.__inspectionAppId,
@@ -11234,14 +11252,15 @@ export class SnapbackClient {
       throw new TypeError('subscribeMutation requires a listener function');
     }
     let active = true;
-    let lastStatus = null;
+    let lastDispositionKey = null;
     let observations = Promise.resolve();
     const observe = () => {
       observations = observations.then(async () => {
         if (!active) return;
         const disposition = await this.mutationStatus(clientMutationId);
-        if (!active || disposition.status === lastStatus) return;
-        lastStatus = disposition.status;
+        const dispositionKey = JSON.stringify(disposition);
+        if (!active || dispositionKey === lastDispositionKey) return;
+        lastDispositionKey = dispositionKey;
         try { listener(disposition); } catch { /* observation cannot own the queue */ }
       }).catch(() => { /* a transient unreadable store is not queue authority */ });
     };
@@ -13942,7 +13961,10 @@ export class SnapbackClient {
           expectedGeneration: generation,
           operationTarget,
         });
-        if (capability.supported !== true) queue = false;
+        if (capability.supported !== true) {
+          if (capability.evidence === 'configured') queue = false;
+          else throw offlineQueueSettlementLedgerError(capability);
+        }
       } else if (queue === 'auto') {
         queue = false;
       }
@@ -14096,7 +14118,8 @@ export class SnapbackClient {
           clientMutationId = createClientMutationId();
         }
       }
-      else queue = false;
+      else if (capability.evidence === 'configured') queue = false;
+      else throw offlineQueueSettlementLedgerError(capability);
     }
     let generatedMutation = null;
     let generatedComposedStore = null;
@@ -14325,7 +14348,17 @@ export class SnapbackClient {
     if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
-    const durableOutboxEnqueueTarget = queueStore
+    if (queueStore === null && generatedPresentationEnabled) {
+      const presentationFact = await this.#currentOfflineMutationReplayCapabilityFact(
+        operationTarget,
+      );
+      const presentationTarget = completeOfflineMutationOperationTarget(
+        operationTarget,
+        presentationFact,
+      );
+      if (presentationTarget !== null) operationTarget = presentationTarget;
+    }
+    const durableOutboxEnqueueTarget = queueStore || generatedPresentationEnabled
       ? offlineMutationOutboxEnqueueTarget(
         operationTarget,
         generation,

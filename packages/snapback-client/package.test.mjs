@@ -1704,10 +1704,13 @@ assert.equal(appStateListeners.size, 0);
     };
     const operationId = '01983c8d-9f87-7ec1-bc02-7e81290debc0';
     await seedClient.ensureVersionedSeed(artifact, { operationId });
-    assert.equal(requests.length, 2);
-    assert.equal(requests[1].url, 'http://snapback.test/_snapback/api/app/seed/ensure-v1');
-    assert.equal(new Headers(requests[1].init.headers).get('x-snapback-admin-token'), 'seed-admin');
-    assert.deepEqual(JSON.parse(requests[1].init.body), {
+    const seedRequests = requests.filter(
+      ({ url }) => url === 'http://snapback.test/_snapback/api/app/seed/ensure-v1',
+    );
+    assert.equal(seedRequests.length, 1);
+    assert.ok(requests.some(({ url }) => url === 'http://snapback.test/inspect'));
+    assert.equal(new Headers(seedRequests[0].init.headers).get('x-snapback-admin-token'), 'seed-admin');
+    assert.deepEqual(JSON.parse(seedRequests[0].init.body), {
       formatVersion: 'snapback.seed.install-request.v1',
       operationId,
       artifact,

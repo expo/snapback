@@ -2292,7 +2292,7 @@ test('volatile store never claims the durable settlement-publication path', asyn
   assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
 });
 
-test("queue:'auto' keeps ledger-less attempts online and cached-evidence non-writers fail without POST", async (t) => {
+test("queue:'auto' fails ledger-less admission closed and cached-evidence non-writers fail without POST", async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
@@ -2312,14 +2312,9 @@ test("queue:'auto' keeps ledger-less attempts online and cached-evidence non-wri
 
   await assert.rejects(
     () => client.mutate('createThing', { args: { title: 'committed-or-not' } }),
-    (error) => (
-      (error instanceof TypeError && error.message === 'ambiguous transport loss')
-      || (isSnapbackDiagnosticError(error)
-        && error.cause instanceof TypeError
-        && error.cause.message === 'ambiguous transport loss')
-    ),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
-  assert.equal(mutationCalls, 1, 'auto still attempts the online mutation once');
+  assert.equal(mutationCalls, 0, 'an answered capability gap permits no mutation POST');
   assert.equal(inspectCalls, 1, 'the target manifest is checked before durable fallback');
   assert.deepEqual(await store.outboxRecords(), [], 'ambiguous delivery is never enqueued');
 
@@ -2906,7 +2901,7 @@ test('migrated retained live query discovers on reconnect, publicly settles, the
   await migratedStore.close();
 });
 
-test('a new default client stays online-only without an established app binding', async (t) => {
+test('a new default client fails closed without an established app binding', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const directory = mkdtempSync(join(tmpdir(), 'snapback-capability-product-relaunch-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -2946,10 +2941,10 @@ test('a new default client stays online-only without an established app binding'
         args: { title: 'cold-client-cached-capability' },
         clientMutationId: 'cm-product-relaunch-cached-capability',
       }),
-      (error) => isConnectivityFailureError(error),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
     assert.equal(inspectCalls, 1, 'the successor still attempts one fresh capability probe');
-    assert.equal(mutationPosts, 1, 'an unbound successor retains the online-only attempt');
+    assert.equal(mutationPosts, 0, 'an unbound successor permits no mutation POST');
     assert.deepEqual(
       (await second.rqsStore.outboxPending()).map((record) => record.id),
       [],
@@ -2986,6 +2981,8 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
     rqsStore: followerStore,
     __outboxDrainLifecycle: false,
   });
+  positiveClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  negativeClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   assert.equal(writerStore.isWriter(), true);
   assert.equal(followerStore.isWriter(), false);
 
@@ -3022,14 +3019,14 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'must-not-use-process-positive' },
       clientMutationId: 'cm-peer-negative',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     mutationCalls,
-    1,
-    'the local answered negative defeats the stale durable positive while still a follower',
+    0,
+    'the bound follower answered negative permits no mutation POST',
   );
-  assert.deepEqual(await writerStore.outboxRecords(), [], 'the stale process positive queues nothing');
+  assert.deepEqual(await writerStore.outboxRecords(), [], 'the bound follower queues no durable intent');
 
   await writerStore.close();
   const handoffDeadline = Date.now() + 5_000;
@@ -3054,11 +3051,11 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'must-remain-negative-after-handoff' },
       clientMutationId: 'cm-peer-negative-handoff',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     mutationCalls,
-    1,
+    0,
     'writer takeover does not resurrect the predecessor cached positive',
   );
   assert.deepEqual(await followerStore.outboxRecords(), [], 'handoff still queues nothing');
@@ -3070,6 +3067,7 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
     rqsStore: newcomerStore,
     __outboxDrainLifecycle: false,
   });
+  newcomerClient.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let newcomerMutationCalls = 0;
   globalThis.fetch = async (url) => {
     if (new URL(url).pathname !== '/inspect') newcomerMutationCalls += 1;
@@ -3080,12 +3078,12 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'new-context-must-observe-takeover-negative' },
       clientMutationId: 'cm-peer-negative-new-context',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(
     newcomerMutationCalls,
-    1,
-    'a new client uses the durable negative and makes one online-only attempt',
+    0,
+    'a new bound client uses the durable negative without a mutation POST',
   );
   assert.deepEqual(
     await newcomerStore.outboxRecords(),
@@ -3394,7 +3392,7 @@ test('repointing a client drops a local negative override from the previous orig
   await store.close();
 });
 
-test('a rejected capability commit reports the shared fact without fresh evidence', async (t) => {
+test('a rejected answered-negative capability commit fails bound mutation admission closed', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://rejected-capability-commit.example';
@@ -3414,32 +3412,33 @@ test('a rejected capability commit reports the shared fact without fresh evidenc
     __outboxDrainLifecycle: false,
   });
   client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  let mutationPosts = 0;
   globalThis.fetch = async (url) => {
     const path = new URL(url).pathname;
-    if (path === '/query/listThings') return Response.json({ rows: [], version: 1 });
-    assert.equal(path, '/inspect');
-    return Response.json(offlineReplayInspection({
-      supported: false,
-      targetProfileId: 'cloudflare-do-sqlite-v8',
-    }));
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: false,
+        targetProfileId: 'cloudflare-do-sqlite-v8',
+      }));
+    }
+    mutationPosts += 1;
+    throw new TypeError('mutation transport must not run after the answered negative');
   };
 
   try {
-    await client.query('listThings');
-    assert.deepEqual(
-      await client.whenOfflineMutationReplayCapabilitySettled(),
-      {
-        supported: true,
-        reason: null,
-        targetProfileId: 'local-dev-sqlite-ibex',
-        evidence: null,
-      },
-      'the rejected negative returns the store current fact without fresh evidence',
+    await assert.rejects(
+      () => client.mutate('createThing', {
+        args: { title: 'answered negative wins locally' },
+        clientMutationId: 'cm-rejected-answered-negative',
+      }),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
+    assert.equal(mutationPosts, 0, 'the answered negative permits no mutation POST');
+    assert.deepEqual(await store.outboxRecords(), [], 'the answered negative queues no intent');
     assert.equal(
       (await store.readOfflineMutationReplayCapabilityFact()).supported,
       true,
-      'the rejected payload is neither durable nor retained as a local override',
+      'the rejected shared commit leaves the predecessor bytes unchanged',
     );
   } finally {
     store.commitOfflineMutationReplayCapabilityFact = commitCapabilityFact;
@@ -3492,6 +3491,7 @@ test('an answered negative overrides cached support before durable replacement s
       args: { title: 'must-not-use-predecessor-positive' },
       clientMutationId: 'cm-interleaved-negative',
     });
+    void mutation.catch(() => {});
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(
       mutationCalls,
@@ -3502,9 +3502,9 @@ test('an answered negative overrides cached support before durable replacement s
     await negativeInspection;
     await assert.rejects(
       () => mutation,
-      (error) => isConnectivityFailureError(error),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
-    assert.equal(mutationCalls, 1, 'the parallel mutation remains an online-only attempt');
+    assert.equal(mutationCalls, 0, 'the parallel mutation remains fail-closed before transport');
     assert.deepEqual(await store.outboxRecords(), [], 'the predecessor positive queues nothing');
   } finally {
     releaseNegativeCommit();
@@ -3564,9 +3564,9 @@ test('a delayed positive capability commit cannot overtake a later answered nega
       args: { title: 'ledger-less-target' },
       clientMutationId: 'cm-inverse-inspection-race',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
-  assert.equal(mutationPosts, 1, 'the ledger-less target receives one online-only attempt');
+  assert.equal(mutationPosts, 0, 'the ledger-less target receives no mutation POST');
   assert.equal(
     (await store.readOfflineMutationReplayCapabilityFact()).supported,
     false,
@@ -3630,9 +3630,9 @@ test('a delayed earlier inspect response cannot resurrect a later answered negat
       args: { title: 'must-not-resurrect' },
       clientMutationId: 'cm-dispatch-ordered-negative',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
-  assert.equal(mutationPosts, 1, 'the negative target gets only the online-only attempt');
+  assert.equal(mutationPosts, 0, 'the negative target gets no mutation POST');
   assert.deepEqual(await store.outboxRecords(), [], 'the delayed positive queues nothing');
   await client.close();
   await store.close();
@@ -3814,9 +3814,9 @@ const exerciseCrossClientCapabilityOrdering = async ({
         args: { title: `${label}-negative-stays-closed` },
         clientMutationId: `cm-${label}-negative-stays-closed`,
       }),
-      (error) => isConnectivityFailureError(error),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
-    assert.equal(offlineMutationPosts, 1, `${label}: stale positive licenses no cached enqueue`);
+    assert.equal(offlineMutationPosts, 0, `${label}: stale positive licenses no POST or enqueue`);
     assert.deepEqual(
       await writerStore.outboxPending(),
       [],
@@ -4888,26 +4888,39 @@ const exerciseTargetAwareOptimisticProjection = async ({
   projectionOrigin,
   enqueueAppId,
   projectionAppId,
+  enqueueGenerationOverrides = {},
+  projectionGenerationOverrides = {},
 }) => {
   const store = createDurableTestStore();
+  const targetProfileId = 'target-aware-optimistic-projection';
   const enqueueGeneration = Object.freeze({
     schemaVersion: 'snapback.v1',
     appId: enqueueAppId,
     schemaHash: testDigest('a'),
     bundleHash: testDigest('b'),
     inputsHash: testDigest('c'),
+    ...enqueueGenerationOverrides,
   });
   const projectionGeneration = Object.freeze({
     ...enqueueGeneration,
     appId: projectionAppId,
+    ...projectionGenerationOverrides,
   });
   const enqueueClient = new InspectingSnapbackClient(enqueueOrigin, {
     rqsStore: store,
-    __offlineMutationReplayCapability: true,
     __outboxDrainLifecycle: false,
   });
   enqueueClient.__registerInspectionAppId(enqueueGeneration.appId);
-  globalThis.fetch = async () => { throw new TypeError('enqueue target is offline'); };
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+        generation: enqueueGeneration,
+      }));
+    }
+    throw new TypeError('enqueue target is offline');
+  };
   const queued = await enqueueClient.mutate(
     optimisticCreateCardReference(enqueueGeneration),
     {
@@ -4925,7 +4938,7 @@ const exerciseTargetAwareOptimisticProjection = async ({
     function: 'createCard',
     ...currentOutboxTarget({
       origin: enqueueOrigin,
-      targetProfileId: null,
+      targetProfileId,
       generation: enqueueGeneration,
       generated: true,
     }),
@@ -4941,11 +4954,19 @@ const exerciseTargetAwareOptimisticProjection = async ({
 
   const projectionClient = new InspectingSnapbackClient(projectionOrigin, {
     rqsStore: store,
-    __offlineMutationReplayCapability: true,
     __outboxDrainLifecycle: false,
   });
   projectionClient.__registerInspectionAppId(projectionGeneration.appId);
   try {
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).pathname, '/inspect');
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId,
+        generation: projectionGeneration,
+      }));
+    };
+    await projectionClient.inspect();
     const view = await projectionClient.createOptimisticMutationView({
       authoritativeRows: { cards: [] },
     });
@@ -4997,6 +5018,60 @@ test('same-origin app replacement filters predecessor optimistic and settlement 
     enqueueAppId: 'optimistic-app-a',
     projectionAppId: 'optimistic-app-b',
   });
+});
+
+test('same-origin same-app generation replacement filters predecessor projections', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  await exerciseTargetAwareOptimisticProjection({
+    enqueueOrigin: 'https://optimistic-generation-replacement.example',
+    projectionOrigin: 'https://optimistic-generation-replacement.example',
+    enqueueAppId: 'optimistic-generation-app',
+    projectionAppId: 'optimistic-generation-app',
+    projectionGenerationOverrides: { schemaHash: testDigest('d') },
+  });
+});
+
+test('legacy targetless records never project into a current target', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://legacy-targetless-projection.example';
+  await store.outboxEnqueue({
+    id: 'cm-legacy-targetless-projection',
+    function: 'createThing',
+    args: { title: 'legacy settlement' },
+  });
+  await store.outboxDurablyConsume(
+    'cm-legacy-targetless-projection',
+    { result: { id: 'legacy-result' }, version: 1 },
+    null,
+  );
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    return Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId: 'legacy-targetless-projection-profile',
+    }));
+  };
+  try {
+    await client.inspect();
+    const status = await client.mutationStatus('cm-legacy-targetless-projection');
+    assert.equal(status.status, 'settled');
+    assert.equal(status.targetMatchesCurrent, undefined);
+    assert.equal(status.enqueueTarget, undefined);
+    assert.deepEqual(
+      await client.settledMutations(),
+      [],
+      'a targetless legacy settlement is excluded from current recovery projection',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
 });
 
 test('matching persisted enqueue target replays exactly once after relaunch', async (t) => {
@@ -5325,8 +5400,8 @@ test('durable negative capability refuses housekeeping enqueue during an auth tr
     );
     assert.equal(
       outcome.error?.code,
-      'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
-      'queue:auto becomes online-only when the shared target fact is negative',
+      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      'queue:auto fails closed when the shared target fact is negative',
     );
     assert.equal(mutationPosts, 0, 'the refused housekeeping write issues no mutation POST');
     assert.deepEqual(
@@ -5538,7 +5613,7 @@ test('automatic enqueue never reuses a positive fact from another canonical orig
       args: { title: 'wrong-origin' },
       clientMutationId: 'cm-wrong-origin',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.deepEqual(await store.outboxRecords(), [], 'origin mismatch invalidates cached support');
   await store.close();
@@ -5646,7 +5721,7 @@ test('automatic enqueue rejects cached support bound to a different app generati
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   await assert.rejects(
     () => client.mutate(successorMutation, { args: { title: 'wrong-generation' } }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.deepEqual(await store.outboxRecords(), [], 'identity mismatch invalidates cached support');
 });
@@ -5684,10 +5759,10 @@ test('automatic string-named enqueue refuses cached support from a replaced same
         args: { title: 'belongs to app B' },
         clientMutationId: 'cm-cached-same-origin-app-replacement',
       }),
-      (error) => isConnectivityFailureError(error),
+      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
     );
     assert.equal(inspectCalls, 1, 'automatic admission still attempts a fresh capability probe');
-    assert.equal(mutationPosts, 1, 'mismatched cached evidence leaves the call online-only');
+    assert.equal(mutationPosts, 0, 'mismatched cached evidence permits no mutation POST');
     assert.deepEqual(
       await store.outboxRecords(),
       [],
@@ -5730,10 +5805,10 @@ test('automatic string-named enqueue refuses identity-free cached manifest suppo
       args: { title: 'origin-bound' },
       clientMutationId: 'cm-direct-manifest',
     }),
-    (error) => isConnectivityFailureError(error),
+    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
   );
   assert.equal(inspectCalls, 1, 'the automatic enqueue still performs its fresh re-probe');
-  assert.equal(mutationCalls, 1, 'identity-free cached evidence leaves the call online-only');
+  assert.equal(mutationCalls, 0, 'identity-free cached evidence permits no mutation POST');
   assert.deepEqual(
     (await store.outboxPending()).map((record) => record.id),
     [],
@@ -5778,16 +5853,23 @@ test('closeAuth releases an owned default store for the next sequential client',
 test('mutate queues on connectivity failure and replays exactly-once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  const targetProfileId = 'mutate-replay-exactly-once-profile';
   const devDiagnosticsEvents = [];
   const client = new SnapbackClient('http://127.0.0.1:9', {
     rqsStore: store,
+    __offlineMutationReplayCapability: null,
     devDiagnosticsChannel: {
       emit(event) { devDiagnosticsEvents.push(event); },
     },
   });
 
   // Offline: fetch refuses at the transport (TypeError, like undici).
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    throw new TypeError('fetch failed');
+  };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
   assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');
@@ -5820,9 +5902,13 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   assert(devDiagnosticsEvents.every(Object.isFrozen));
 
   // A server refusal is NOT queued: it throws with its diagnostic.
-  globalThis.fetch = async () => Response.json(
-    { diagnostic: { code: 'SNAPBACK_VALIDATION', message: 'bad args' } },
-    { status: 400 },
+  globalThis.fetch = async (url) => (
+    new URL(url).pathname === '/inspect'
+      ? Response.json(offlineReplayInspection({ supported: true, targetProfileId }))
+      : Response.json(
+          { diagnostic: { code: 'SNAPBACK_VALIDATION', message: 'bad args' } },
+          { status: 400 },
+        )
   );
   await assert.rejects(
     () => client.mutate('createThing', { args: { bad: true } }),
@@ -5832,7 +5918,10 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
 
   // Reconnect: replay drains in sequence order under the SAME minted ids.
   const delivered = [];
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
     const body = JSON.parse(init.body);
     delivered.push(body);
     return Response.json({
@@ -6740,6 +6829,12 @@ test('sessions mode automatically carries authority through range issuance and A
     if (target.endsWith('/auth/session')) {
       return Response.json(sessionHandshake(TEST_AUTHORITY_DESCRIPTOR, TEST_SESSION_USER_ID));
     }
+    if (target.endsWith('/inspect')) {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'operation-automatic-session-profile',
+      }));
+    }
     const body = JSON.parse(init.body);
     if (target.endsWith('/client-mutations/identity-range')) {
       rangeBodies.push(body);
@@ -6771,6 +6866,7 @@ test('sessions mode automatically carries authority through range issuance and A
     authClientProtocol: 1,
     rqsStore: store,
     operationIdentityProtocol: 1,
+    __offlineMutationReplayCapability: null,
   });
   const result = await client.mutate('createThing', {
     args: { title: 'automatic session authority' },
@@ -7309,15 +7405,21 @@ test('persisted generated mutation without reference kind replays as Mutation', 
 test('explicit-id online publication is durable before delivery and retires only after ACK', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  const targetProfileId = 'explicit-id-online-publication-profile';
   const devDiagnosticsEvents = [];
   const client = new SnapbackClient('http://127.0.0.1:9', {
     rqsStore: store,
+    __offlineMutationReplayCapability: null,
     devDiagnosticsChannel: {
       emit(event) { devDiagnosticsEvents.push(event); },
     },
   });
   let releaseResponse;
-  globalThis.fetch = async () => new Promise((resolve) => { releaseResponse = resolve; });
+  globalThis.fetch = async (url) => (
+    new URL(url).pathname === '/inspect'
+      ? Response.json(offlineReplayInspection({ supported: true, targetProfileId }))
+      : new Promise((resolve) => { releaseResponse = resolve; })
+  );
 
   const delivery = client.mutate('createThing', {
     args: { title: 'online' },
@@ -7530,6 +7632,8 @@ test('server settlement descriptor enriches ACK custody without rebinding reques
 test('crash recovery exposes and consumes only the re-attested authority cohort', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
+  const origin = 'https://recovery.example';
+  const targetProfileId = 'crash-recovery-projection-profile';
   const predecessor = {
     ...TEST_AUTHORITY_DESCRIPTOR,
     authorityInstanceId: '018f0d90-7b28-7a22-8c33-445566778899',
@@ -7541,6 +7645,7 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
     await store.outboxEnqueue({
       id,
       function: 'createThing',
+      ...currentOutboxTarget({ origin, targetProfileId }),
       args: {},
       userId: null,
       authorityDescriptor: null,
@@ -7551,11 +7656,19 @@ test('crash recovery exposes and consumes only the re-attested authority cohort'
       null,
     );
   }
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId,
+    artifactGeneration: TEST_ARTIFACT_GENERATION,
+  });
   globalThis.fetch = async (url) => {
     assert.match(String(url), /\/auth\/session$/);
     return Response.json(sessionHandshake(TEST_AUTHORITY_DESCRIPTOR));
   };
-  const client = new SnapbackClient('https://recovery.example', {
+  const client = new SnapbackClient(origin, {
     bearerToken: 'sbs_current_recovery_bearer',
     authClientProtocol: 1,
     rqsStore: store,
@@ -8269,6 +8382,77 @@ test('subscribeMutation delivers current pending then settled during replay', as
   assert.equal((await client.mutationStatus(queued.clientMutationId)).status, 'settled');
   unsubscribe();
   unsubscribeThrowing();
+});
+
+test('subscribeMutation publishes target disposition changes while status stays pending', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://mutation-subscription-target-replacement.example';
+  const targetProfileId = 'mutation-subscription-target-profile';
+  const generationA = Object.freeze({
+    ...TEST_ARTIFACT_GENERATION,
+    appId: 'mutation-subscription-target-app',
+  });
+  const generationB = Object.freeze({
+    ...generationA,
+    bundleHash: testDigest('d'),
+  });
+  await store.outboxEnqueue({
+    id: 'cm-subscription-target-replacement',
+    function: 'createThing',
+    ...currentOutboxTarget({
+      origin,
+      targetProfileId,
+      generation: generationA,
+      generated: true,
+    }),
+    args: { title: 'belongs to generation A' },
+  });
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId,
+    artifactGeneration: generationA,
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(generationA.appId);
+  const dispositions = [];
+  const unsubscribe = client.subscribeMutation(
+    'cm-subscription-target-replacement',
+    (disposition) => dispositions.push(disposition),
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(
+    dispositions.map(({ status, targetMatchesCurrent }) => ({ status, targetMatchesCurrent })),
+    [{ status: 'pending', targetMatchesCurrent: true }],
+  );
+
+  globalThis.fetch = async (url) => {
+    assert.equal(new URL(url).pathname, '/inspect');
+    return Response.json(offlineReplayInspection({
+      supported: true,
+      targetProfileId,
+      generation: generationB,
+    }));
+  };
+  await client.inspect();
+  await new Promise((resolve) => setImmediate(resolve));
+  unsubscribe();
+  assert.deepEqual(
+    dispositions.map(({ status, targetMatchesCurrent }) => ({ status, targetMatchesCurrent })),
+    [
+      { status: 'pending', targetMatchesCurrent: true },
+      { status: 'pending', targetMatchesCurrent: false },
+    ],
+    'capability replacement publishes the complete changed disposition',
+  );
+  await client.close();
+  await store.close();
 });
 
 test('mutation observation never consumes settlement or changes ACK eligibility', async () => {

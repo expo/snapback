@@ -101,7 +101,10 @@ const baseUrl = `http://127.0.0.1:${port}`;
 
 try {
   // --- Surface: no admin methods, no admin option, closed delegation list.
-  const facade = new SnapbackAppDataClient(baseUrl);
+  const facade = new SnapbackAppDataClient(baseUrl, {
+    rqsStore: null,
+    __outboxDrainLifecycle: false,
+  });
   for (const adminMethod of [
     'loadSchema',
     'loadFunctions',
@@ -168,7 +171,7 @@ try {
     (await facade.query('listThings')).rows,
     [{ id: 't1' }],
   );
-  await facade.mutate('addThing', { args: { title: 'planted' } });
+  await facade.mutate('addThing', { args: { title: 'planted' }, queue: false });
   await facade.action('pingThing');
   assert.equal(await facade.run('pingThing'), 'pong');
   // The request capture is what matters here; a strict challenge-projection

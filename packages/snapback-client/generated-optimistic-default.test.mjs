@@ -84,6 +84,8 @@ const hashRecord = (domain, value) => (
   `sha256:${hex(sha256(concat(encoder.encode(domain), jcsBytes(value))))}`
 );
 const STORE_ID = 'generated-optimistic-default-store';
+const GENERATED_ORIGIN = 'https://generated-optimistic-default.test';
+const TARGET_PROFILE_ID = 'generated-optimistic-default-profile';
 const ACTIVATION = Object.freeze({
   schemaVersion: 'snapback.v1',
   appId: 'generated-optimistic-default-test',
@@ -480,12 +482,25 @@ const openStore = (directory) => createFileRqsResumeStore({
   clientStoreId: STORE_ID,
 });
 
+const installProjectionTarget = async (store, origin = GENERATED_ORIGIN) => {
+  const observation = await store.beginOfflineMutationReplayCapabilityObservation();
+  await store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin,
+    supported: true,
+    reason: null,
+    targetProfileId: TARGET_PROFILE_ID,
+    artifactGeneration: ACTIVATION,
+  }, observation);
+};
+
 const openHost = async (store, rows = BASE_ROWS, query = QUERY, {
   clientOptions = {},
   snapshot = null,
   onAuthorizationBoundary = null,
 } = {}) => {
-  const client = new SnapbackClient('https://generated-optimistic-default.test', {
+  await installProjectionTarget(store);
+  const client = new SnapbackClient(GENERATED_ORIGIN, {
     rqsStore: store,
     offlineQueue: true,
     ...clientOptions,
@@ -1641,6 +1656,7 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
     clientStoreId: `generated-auth-${boundaryCallbackThrows ? 'error' : 'quarantine'}`,
   });
   await store.whenLockSettled();
+  await installProjectionTarget(store, 'http://generated-optimistic-authority.test');
   const outbox = [];
   const boundaries = [];
   const updates = [];
@@ -1805,6 +1821,10 @@ test('resync publication cut fences an awaited optimistic rebase before successo
         clientStoreId: `generated-coordinator-${delayedOutcome}`,
       });
       await store.whenLockSettled();
+      await installProjectionTarget(
+        store,
+        'http://generated-optimistic-coordinator.test',
+      );
       const coordinator = new AuthCoordinator({
         appId: ACTIVATION.appId,
         storage: createMemoryAuthCustodyStorage(),
@@ -2042,6 +2062,10 @@ test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof
         clientStoreId: `generated-coordinator-${delayedOutcome}`,
       });
       await store.whenLockSettled();
+      await installProjectionTarget(
+        store,
+        'http://generated-optimistic-coordinator.test',
+      );
       const coordinator = new AuthCoordinator({
         appId: ACTIVATION.appId,
         storage: createMemoryAuthCustodyStorage(),

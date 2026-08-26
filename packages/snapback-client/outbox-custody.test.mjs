@@ -611,11 +611,14 @@ test('same principal on a new authority instance strands pending and failed reco
     assert.equal(record.rerecordable, true);
   }
   assert.equal((await client.outboxStatus()).stranded, 2);
-  assert.deepEqual(
-    await client.mutationStatus(pending.clientMutationId),
-    { status: 'stranded' },
+  const pendingDisposition = await client.mutationStatus(pending.clientMutationId);
+  assert.equal(pendingDisposition.status, 'stranded');
+  assert.equal(pendingDisposition.targetMatchesCurrent, false);
+  assert.equal(
+    pendingDisposition.enqueueTarget.artifactIdentity.appId,
+    'snapback.internal-configured-replay-capability',
   );
-  assert.equal(Object.isFrozen(await client.mutationStatus(pending.clientMutationId)), true);
+  assert.equal(Object.isFrozen(pendingDisposition), true);
   fixture.offlineMutations = false;
   const replay = await client.replayQueuedMutations();
   assert.equal(replay.replayed, 0);
@@ -984,6 +987,7 @@ test('unattributable queue records are privacy-deleted at fenced reconciliation'
   // reconciliation deletes them with the diagnostic count (LLP 0043 dated
   // implementation note, 2026-08-06).
   await fixture.store.outboxEnqueue({ id: 'legacy-dev-pending', function: 'writeLegacy' });
+  await client.strandedMutations();
   const status = await client.outboxStatus();
   assert.equal(status.pending, 0);
   assert.equal(status.stranded, 0);

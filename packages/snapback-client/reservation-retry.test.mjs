@@ -81,6 +81,8 @@ const stale = ({
 
 const client = (options = {}) => new SnapbackClient('https://snapback.test', {
   reservationRetryJitterMilliseconds: [0, 0],
+  rqsStore: null,
+  __outboxDrainLifecycle: false,
   ...options,
 });
 
@@ -102,6 +104,7 @@ try {
     const result = await subject.mutate('sendMessage', {
       args: { body: 'hello' },
       clientMutationId: 'client-mut-1',
+      queue: false,
     });
     assert.equal(result.result.sent, true);
     assert.equal(requests.length, 2);
@@ -145,6 +148,8 @@ try {
       authClientProtocol: 1,
       authInvalidationProtocol: 1,
       reservationRetryJitterMilliseconds: [0, 0],
+      rqsStore: null,
+      __outboxDrainLifecycle: false,
       onReservationRetryDiagnostic: (diagnostic) => {
         if (diagnostic.outcome === 'effect-free-refusal') {
           transition = subject.replaceBearerToken('bearer-B');
@@ -152,7 +157,7 @@ try {
       },
     });
     await assert.rejects(
-      subject.mutate('writeAsCapturedUser', { args: { owner: 'A' } }),
+      subject.mutate('writeAsCapturedUser', { args: { owner: 'A' }, queue: false }),
       (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
       'a retry must fail closed when its external bearer generation changes',
     );
@@ -173,7 +178,7 @@ try {
     };
     const subject = client({ reservationRetryMaxAttempts: 3 });
     await assert.rejects(
-      subject.mutate('exhausted'),
+      subject.mutate('exhausted', { queue: false }),
       (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_RESERVATION_STALE',
     );
     assert.equal(requests, 3);
@@ -216,7 +221,7 @@ try {
       return requests === 1 ? refusal : Response.json({ result: 'must-not-run' });
     };
     const subject = client();
-    await assert.rejects(subject.mutate('notRetryable'));
+    await assert.rejects(subject.mutate('notRetryable', { queue: false }));
     assert.equal(requests, 1, 'non-exact or ambiguous refusal is never retried');
     assert.deepEqual(subject.reservationRetryDiagnostics(), []);
   }

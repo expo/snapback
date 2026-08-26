@@ -44,10 +44,25 @@ const settlement = (result = { ok: true }) => Response.json({
   result,
 });
 
-const enqueue = (store, id = 'cm-drain') => store.outboxEnqueue({
+const configuredReplayTarget = (baseUrl) => ({
+  outboxRecordSchemaVersion: 2,
+  enqueueTarget: {
+    schemaVersion: 'snapback.outbox-enqueue-target.v1',
+    canonicalOrigin: new URL(baseUrl).origin,
+    targetProfileId: null,
+    artifactIdentity: {
+      kind: 'app',
+      appId: 'snapback.internal-configured-replay-capability',
+    },
+  },
+});
+
+const enqueue = (store, id = 'cm-drain', baseUrl, record = {}) => store.outboxEnqueue({
   id,
   function: 'createThing',
   args: { id },
+  ...configuredReplayTarget(baseUrl),
+  ...record,
 });
 
 const mutationCostRecord = (client, clientMutationId) => (
@@ -242,7 +257,7 @@ const anonymousAuthHandshake = Object.freeze({
 test('resync-before-replay: replay waits for the fresh authoritative barrier cut', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-barrier');
+  await enqueue(store, 'cm-barrier', 'https://drain-barrier.test');
   await installRetainedRegistration(store);
   let releaseBarrier;
   const barrier = new Promise((resolve) => { releaseBarrier = resolve; });
@@ -281,7 +296,7 @@ test('resync-before-replay: replay waits for the fresh authoritative barrier cut
 test('cold-start drain: restored pending intent drains with no fresh external event', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-cold-start');
+  await enqueue(store, 'cm-cold-start', 'https://drain-cold.test');
   let replayed = 0;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -302,13 +317,17 @@ test('cold-start drain: restored pending intent drains with no fresh external ev
 test('foreground replay enters real transport while an earlier housekeeping transport hangs', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await store.outboxEnqueue({
-    id: 'cm-held-housekeeping',
-    function: 'slowHousekeeping',
-    args: { generation: 1 },
-    dispatchLane: 'housekeeping',
-    housekeepingKey: 'slow-housekeeping',
-  });
+  await enqueue(
+    store,
+    'cm-held-housekeeping',
+    'https://drain-lane-head-of-line.test',
+    {
+      function: 'slowHousekeeping',
+      args: { generation: 1 },
+      dispatchLane: 'housekeeping',
+      housekeepingKey: 'slow-housekeeping',
+    },
+  );
   let releaseHousekeeping;
   const housekeepingHeld = new Promise((resolve) => { releaseHousekeeping = resolve; });
   let housekeepingEntered = false;
@@ -335,12 +354,16 @@ test('foreground replay enters real transport while an earlier housekeeping tran
   });
   await waitFor(() => housekeepingEntered, 'held housekeeping transport');
 
-  await store.outboxEnqueue({
-    id: 'cm-replayable-foreground',
-    function: 'saveForeground',
-    args: { value: 'user intent' },
-    dispatchLane: 'foreground',
-  });
+  await enqueue(
+    store,
+    'cm-replayable-foreground',
+    'https://drain-lane-head-of-line.test',
+    {
+      function: 'saveForeground',
+      args: { value: 'user intent' },
+      dispatchLane: 'foreground',
+    },
+  );
   const foregroundDrain = controller.drainNow();
   await waitFor(() => foregroundEntered, 'foreground transport beside held housekeeping');
   assert.equal(housekeepingEntered, true);
@@ -362,7 +385,7 @@ test('default lifecycle settles restored and newly queued work when connectivity
   const events = new FakeEventTarget();
   installGlobalEventTarget(t, events);
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-default-restored');
+  await enqueue(store, 'cm-default-restored', 'https://drain-default.test');
   let connected = false;
   const submissions = [];
   globalThis.fetch = async (url, init = {}) => {
@@ -450,7 +473,7 @@ test('default lifecycle does not replay a durable record while foreground owns i
 test('enqueue during replay waits for the dispatch cut and re-arms the default lifecycle', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-replay-snapshot');
+  await enqueue(store, 'cm-replay-snapshot', 'https://drain-level-wake.test');
   let signalReplayStarted;
   const replayStarted = new Promise((resolve) => { signalReplayStarted = resolve; });
   let releaseReplay;
@@ -507,7 +530,11 @@ test('enqueue during replay waits for the dispatch cut and re-arms the default l
 test('replay-latched enqueue survives terminal pause without an external wake', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-terminal-replay-head');
+  await enqueue(
+    store,
+    'cm-terminal-replay-head',
+    'https://drain-terminal-replay-wake.test',
+  );
   const originalMarkFailed = store.outboxMarkFailed.bind(store);
   let signalFailureMarkStarted;
   const failureMarkStarted = new Promise((resolve) => { signalFailureMarkStarted = resolve; });
@@ -611,21 +638,23 @@ test('fenced default lifecycle settles restored work after synchronize with no o
   await seed.close();
 
   const store = createDurableTestStore();
-  await store.outboxEnqueue({
-    id: 'cm-restored-custody-wake',
-    function: 'createThing',
-    args: { id: 'cm-restored-custody-wake' },
-    authorityDescriptor: anonymousAuthHandshake.authorityDescriptor,
-    principalScope: {
-      authMode: 'sessions',
-      authorizationStreamIncarnation: authHandshake.authorizationStreamIncarnation,
-      userId: null,
+  await enqueue(
+    store,
+    'cm-restored-custody-wake',
+    'https://drain-custody-wake.test',
+    {
+      authorityDescriptor: anonymousAuthHandshake.authorityDescriptor,
+      principalScope: {
+        authMode: 'sessions',
+        authorizationStreamIncarnation: authHandshake.authorizationStreamIncarnation,
+        userId: null,
+      },
+      custody: {
+        authorityEpoch: seedCapture.authorityEpoch,
+        authorityKey: seedCapture.authorityKey,
+      },
     },
-    custody: {
-      authorityEpoch: seedCapture.authorityEpoch,
-      authorityKey: seedCapture.authorityKey,
-    },
-  });
+  );
   const coordinator = new AuthCoordinator({
     appId,
     storage,
@@ -674,7 +703,11 @@ test('fenced default lifecycle settles restored work after synchronize with no o
 test('default controller quarantines an upgrade-incompatible restored intent', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-default-quarantine');
+  await enqueue(
+    store,
+    'cm-default-quarantine',
+    'https://drain-default-quarantine.test',
+  );
   let submissions = 0;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -704,7 +737,7 @@ test('default controller quarantines an upgrade-incompatible restored intent', a
 test('default controller strands a server-stale restored intent', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-default-strand');
+  await enqueue(store, 'cm-default-strand', 'https://drain-default-strand.test');
   const markStranded = store.outboxMarkStranded.bind(store);
   store.outboxMarkStranded = (clientMutationId, reason, predecessorPrincipalScope) => (
     markStranded(clientMutationId, reason, predecessorPrincipalScope ?? {
@@ -742,8 +775,16 @@ test('default controller strands a server-stale restored intent', async (t) => {
 test('default controller preserves result-gone and stops before successors', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-default-result-gone');
-  await enqueue(store, 'cm-default-result-gone-successor');
+  await enqueue(
+    store,
+    'cm-default-result-gone',
+    'https://drain-default-result-gone.test',
+  );
+  await enqueue(
+    store,
+    'cm-default-result-gone-successor',
+    'https://drain-default-result-gone.test',
+  );
   const submissions = [];
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -782,7 +823,7 @@ test('restored terminal scan is exact after detail eviction and status rereads',
   const store = createDurableTestStore();
   for (let index = 0; index < 513; index += 1) {
     const id = `cm-restored-terminal-${index}`;
-    await enqueue(store, id);
+    await enqueue(store, id, 'https://restored-terminal-costs.test');
     const consumed = await store.outboxDurablyConsume(id, {
       version: index + 1,
       changed_count: 1,
@@ -816,7 +857,7 @@ test('close tears down the default lifecycle and no replay starts afterward', as
   const events = new FakeEventTarget();
   installGlobalEventTarget(t, events);
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-close-fence');
+  await enqueue(store, 'cm-close-fence', 'https://drain-close.test');
   let releaseReadiness;
   const heldReadiness = new Promise((resolve) => { releaseReadiness = resolve; });
   let readinessRequested = false;
@@ -840,7 +881,7 @@ test('close tears down the default lifecycle and no replay starts afterward', as
   assert.equal(events.count('online'), 1);
   await client.close();
   assert.equal(events.count('online'), 0);
-  await enqueue(store, 'cm-after-close');
+  await enqueue(store, 'cm-after-close', 'https://drain-close.test');
   events.dispatch('online');
   releaseReadiness();
   await tick();
@@ -902,7 +943,7 @@ test('shared writer store has one replay engine and transfers it to the survivin
   const events = new FakeEventTarget();
   installGlobalEventTarget(t, events);
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-shared-first');
+  await enqueue(store, 'cm-shared-first', 'https://drain-shared.test');
   let connected = true;
   let readinessRequests = 0;
   const submissions = [];
@@ -972,7 +1013,7 @@ test('shared writer store has one replay engine and transfers it to the survivin
 test('transient-failure retry: connectivity replay failure retries on backoff without an event', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-transient');
+  await enqueue(store, 'cm-transient', 'https://drain-transient.test');
   const timers = new FakeTimers();
   let attempts = 0;
   globalThis.fetch = async (url, init = {}) => {
@@ -999,7 +1040,7 @@ test('transient-failure retry: connectivity replay failure retries on backoff wi
 test('no-mounted-query drain: controller resyncs retained registrations itself', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-no-mounted');
+  await enqueue(store, 'cm-no-mounted', 'https://drain-retained.test');
   await installRetainedRegistration(store, 'retainedThings');
   const order = [];
   globalThis.fetch = async (url, init = {}) => {
@@ -1031,7 +1072,7 @@ test('two-tab writer refusal + takeover: reader wakes on writer acquisition and 
   const backing = createMemoryRqsStoreBacking();
   const writerStore = createDurableTestStore({ backing });
   const followerStore = createDurableTestStore({ backing });
-  await enqueue(writerStore, 'cm-writer-settlement');
+  await enqueue(writerStore, 'cm-writer-settlement', 'https://drain-takeover.test');
   let replayed = 0;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -1061,7 +1102,7 @@ test('two-tab writer refusal + takeover: reader wakes on writer acquisition and 
   );
   assert.equal((await follower.outboxStatus()).pending, 0);
 
-  await enqueue(writerStore, 'cm-takeover');
+  await enqueue(writerStore, 'cm-takeover', 'https://drain-takeover.test');
 
   await writerStore.close();
   await waitFor(() => replayed === 2, 'writer takeover replay');
@@ -1073,7 +1114,7 @@ test('two-tab writer refusal + takeover: reader wakes on writer acquisition and 
 test('auth replacement wake: successor bearer bind wakes a paused drain without another edge', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-auth-wake');
+  await enqueue(store, 'cm-auth-wake', 'https://drain-auth.test');
   let replayed = 0;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -1109,7 +1150,7 @@ test('auth replacement wake: successor bearer bind wakes a paused drain without 
 test('terminal refusal: typed replay refusal stops that record and remains observable', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-terminal');
+  await enqueue(store, 'cm-terminal', 'https://drain-terminal.test');
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
@@ -1152,7 +1193,7 @@ test('terminal refusal: typed replay refusal stops that record and remains obser
 test('bounded backoff: repeated transient failures never schedule beyond the cap', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-bounded');
+  await enqueue(store, 'cm-bounded', 'https://drain-bounded.test');
   const timers = new FakeTimers();
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
@@ -1175,7 +1216,7 @@ test('bounded backoff: repeated transient failures never schedule beyond the cap
 test('dedup/teardown: double start shares one controller and stop removes every listener/timer', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await enqueue(store, 'cm-dedup');
+  await enqueue(store, 'cm-dedup', 'https://drain-dedup.test');
   const timers = new FakeTimers();
   let lockListeners = 0;
   const subscribeWriterLock = store.subscribeWriterLock.bind(store);

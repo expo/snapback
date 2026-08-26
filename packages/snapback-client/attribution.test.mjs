@@ -226,7 +226,7 @@ try {
   // the attribution sibling must still pass through byte-identically —
   // retention is verbatim copy, not "sanitize then keep".
   {
-    const error = await caught(() => agentClient.mutate('rejected', { args: {} }));
+    const error = await caught(() => agentClient.mutate('rejected', { args: {}, queue: false }));
     assert.equal(error.receipt.kind, 'mutation');
     assert.equal(
       error.diagnostic.message.includes(AGENT_BEARER),
@@ -241,7 +241,7 @@ try {
 
   // --- success envelopes: mutation result and live establishment ---------
   {
-    const confirmed = await agentClient.mutate('confirmed', { args: {} });
+    const confirmed = await agentClient.mutate('confirmed', { args: {}, queue: false });
     assert.equal(
       JSON.stringify(confirmed.attribution),
       JSON.stringify(JSON.parse(lastServed('/mutation/confirmed').body).attribution),
