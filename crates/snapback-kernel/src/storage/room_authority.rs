@@ -31,6 +31,7 @@ const ROOM_REAUTHORIZATION_ACTIVE: u8 = 0;
 const ROOM_REAUTHORIZATION_COMPLETE: u8 = 1;
 const ROOM_REAUTHORIZATION_MISSING: u8 = 2;
 const ROOM_REAUTHORIZATION_ABANDONED: u8 = 3;
+const ROOM_REAUTHORIZATION_SETTLING: u8 = 4;
 
 pub(super) struct AuthorizationParticipantActivation {
     // @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
@@ -817,6 +818,20 @@ impl RoomAuthorityRegistry {
                 "authorization participant has a committed dependency awaiting its deferred finalizer",
             ));
         }
+        while state.rooms.values().any(|control| {
+            control
+                .reauthorization_completion
+                .as_ref()
+                .is_some_and(|completion| {
+                    completion.disposition.load(Ordering::Acquire) == ROOM_REAUTHORIZATION_SETTLING
+                })
+        }) {
+            state = self
+                .quiescent
+                .wait(state)
+                .unwrap_or_else(PoisonError::into_inner);
+            reconcile_room_reauthorization_completions(&mut state);
+        }
         self.retired.store(true, Ordering::Release);
         for control in state.rooms.values_mut() {
             abandon_room_reauthorization_completion(control);
@@ -852,6 +867,7 @@ fn reconcile_room_reauthorization_completions(state: &mut RoomAuthorityRegistryS
         };
         match completion.disposition.load(Ordering::Acquire) {
             ROOM_REAUTHORIZATION_ACTIVE => {}
+            ROOM_REAUTHORIZATION_SETTLING => {}
             ROOM_REAUTHORIZATION_COMPLETE => {
                 control.resync = None;
                 control.reauthorization_completion = None;
@@ -1212,6 +1228,35 @@ impl AuthorizationCommitParticipant {
             .filter(|room| reserved_selector.matches(room))
             .cloned()
             .collect::<BTreeSet<_>>();
+        while affected_rooms.iter().any(|room| {
+            state.rooms.get(room).is_some_and(|control| {
+                control
+                    .reauthorization_completion
+                    .as_ref()
+                    .is_some_and(|completion| {
+                        completion.disposition.load(Ordering::Acquire)
+                            == ROOM_REAUTHORIZATION_SETTLING
+                    })
+            })
+        }) {
+            if self.registry.is_retired() {
+                return Err(interlock_retired());
+            }
+            if cancellation.is_cancelled() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_RESERVATION_CANCELLED",
+                    "auth",
+                    "authorization room reservation was cancelled before settlement completed",
+                ));
+            }
+            state = self
+                .registry
+                .quiescent
+                .wait_timeout(state, std::time::Duration::from_millis(10))
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+            reconcile_room_reauthorization_completions(&mut state);
+        }
         if affected_rooms.iter().any(|room| {
             state
                 .rooms
@@ -1570,6 +1615,9 @@ impl AuthorizationCommitParticipant {
             }
         }
         drop(durable_fence);
+        if !fence.begin_settlement() {
+            return Ok(false);
+        }
         let completion = RoomReauthorizationCompletion {
             room,
             generation,
@@ -2444,6 +2492,34 @@ struct RoomReauthorizationFence {
 }
 
 impl RoomReauthorizationFence {
+    fn begin_settlement(&self) -> bool {
+        let state = self.registry.lock();
+        let exact = !self.registry.is_retired()
+            && state.rooms.get(&self.room).is_some_and(|control| {
+                control.generation == self.generation
+                    && control.pending_tickets.is_empty()
+                    && control
+                        .resync
+                        .as_ref()
+                        .is_some_and(|resync| resync.room_authority_generation == self.generation)
+                    && control
+                        .reauthorization_completion
+                        .as_ref()
+                        .is_some_and(|completion| Arc::ptr_eq(completion, &self.completion))
+            });
+        exact
+            && self
+                .completion
+                .disposition
+                .compare_exchange(
+                    ROOM_REAUTHORIZATION_ACTIVE,
+                    ROOM_REAUTHORIZATION_SETTLING,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                )
+                .is_ok()
+    }
+
     fn finish(self, disposition: RoomReauthorizationDisposition) -> bool {
         let mut state = self.registry.lock();
         let exact = !self.registry.is_retired()
@@ -2467,7 +2543,7 @@ impl RoomReauthorizationFence {
             .completion
             .disposition
             .compare_exchange(
-                ROOM_REAUTHORIZATION_ACTIVE,
+                ROOM_REAUTHORIZATION_SETTLING,
                 terminal,
                 Ordering::AcqRel,
                 Ordering::Acquire,
@@ -2484,7 +2560,7 @@ impl RoomReauthorizationFence {
 
 impl Drop for RoomReauthorizationFence {
     fn drop(&mut self) {
-        if self
+        let active_abandoned = self
             .completion
             .disposition
             .compare_exchange(
@@ -2493,8 +2569,19 @@ impl Drop for RoomReauthorizationFence {
                 Ordering::AcqRel,
                 Ordering::Acquire,
             )
-            .is_ok()
-        {
+            .is_ok();
+        let settling_abandoned = !active_abandoned
+            && self
+                .completion
+                .disposition
+                .compare_exchange(
+                    ROOM_REAUTHORIZATION_SETTLING,
+                    ROOM_REAUTHORIZATION_ABANDONED,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                )
+                .is_ok();
+        if active_abandoned || settling_abandoned {
             self.registry.quiescent.notify_all();
         }
     }
