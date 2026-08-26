@@ -6,6 +6,13 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (exact room-reauthorization completion lock-order
+amendment: preserves the absolute `LocalSnapback` exclusion and every
+process-state-to-SQLite prohibition, while admitting the sole bounded
+`lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms -> room ->
+subscriber outbox` order needed to close the present two-store validation
+gap; cross-referenced with LLP 0059 and recorded with the as-built reverse-edge
+inventory.)
 **Revised:** 2026-08-21 (caller-boundary closure: authorization outcome lookup,
 issuer projection, and kernel settlement are checked after-Local work. The
 owner drains the complete batch after releasing Local but before reporting the
@@ -1742,13 +1749,63 @@ test-only raw state getter.
 
 The following remain unconditional:
 
-- No participant, registry, room, notifier, or outbox lock is acquired while managed/direct Local or SQLite is held.
+- No participant, registry, room, notifier, or outbox lock is acquired while
+  managed or direct `LocalSnapback` is held. The exception below is an
+  SQLite-order exception only; it never permits a `LocalSnapback` overlap.
+- No code holding participant activation/projection state, the authority
+  registry, the sync rooms map, a room, or a subscriber outbox may acquire or
+  wait for SQLite. This reverse-edge prohibition includes error, cancellation,
+  `Drop`, retirement, and recovery paths.
 - Transaction bind uses only binding comparison, `Arc::ptr_eq`, atomic revision/generation loads, selector computation over owned snapshots, predecessor comparison, and `OnceLock::set`.
 - Outbox drain acquires registry before outbox.
 - Room creation, retirement, and reauthorization use finite guards that acquire registry before sync room state.
 - Resync snapshotting releases registry before taking sync rooms or outboxes.
 - No synchronous guard crosses `.await`, network I/O, filesystem I/O, client callbacks, or app/Contract execution.
 - No general-purpose public lock accessor is introduced.
+
+The **only** permitted SQLite/process-state overlap is exact room-
+reauthorization completion, in this bounded order:
+
+```text
+ephemeral lifecycle -> SQLite IMMEDIATE -> authority registry -> rooms map
+-> room -> subscriber outbox
+```
+
+SQLite is acquired before the authority registry, and remains held through
+the durable session and membership rereads, the exact subscriber/effect-fence
+mutation and subscriber-outbox effects, and the exact obligation clear. The
+notifier wake and later routing cleanup occur only after SQLite, the registry,
+the room, and the rooms map have been released. LLP 0059 §"Prohibited
+overlap" states the same exception at the global lock-policy boundary.
+
+This overlap is necessary in the present two-store architecture. Releasing
+SQLite after the durable reread but before the in-memory subscriber effect
+would let a session or membership writer commit in that gap, so completion
+could install an authority answer that was already stale. Avoiding the overlap
+would require a shared sequencer or durable coupling honored by every relevant
+writer; neither exists. Acquiring SQLite first closes that gap without
+introducing a wait cycle, provided every reverse edge above remains forbidden.
+
+The as-built reverse-edge inventory at this amendment is:
+
+- Participant activation/projection guards and registry guards are private to
+  `storage/room_authority.rs`. Activation, admission, quiescence, observation,
+  permit/guard `Drop`, issuer projection, commit settlement, rollback, and
+  retirement paths touch only owned data, atomics, condition variables, or
+  registry state; none opens or waits for SQLite.
+- The database-reading siblings do not invert that edge.
+  `resolve_room_reauthorization` consumes owned pending/subscriber snapshots
+  and reads SQLite without a participant or registry guard. Participant
+  installation/activation reads its durable authorization snapshot before
+  calling the registry-held initialization checks. Exact completion is the
+  sole combined path and acquires `IMMEDIATE` before registry admission.
+- Sync rooms and subscriber outboxes are private to `sync/ephemeral.rs`.
+  Ordinary room acts, pending enumeration, resync synthesis, outbox admission
+  and drain, expiry/disconnect cleanup, room creation/retirement, diagnostics,
+  and notifier paths have no database handle and cannot acquire SQLite.
+  Database construction/activation and pending-resolution paths retain no
+  room or outbox guard; exact completion alone continues from SQLite into the
+  finite registry/rooms/room/outbox chain above.
 
 ### 7.2 Premark before write
 
