@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
@@ -12,18 +13,33 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 let publishCalls = 0;
 let deleteCalls = 0;
-let observedAppState = 'active';
-const appStateListeners = new Set();
-const appState = Object.freeze({
-  addEventListener(type, listener) {
-    assert.equal(type, 'change');
-    appStateListeners.add(listener);
-    return Object.freeze({ remove: () => appStateListeners.delete(listener) });
-  },
-  transition(nextState) {
-    for (const listener of appStateListeners) listener(nextState);
-  },
-});
+const entrySource = readFileSync(new URL('./index.mjs', import.meta.url), 'utf8');
+const implementationSource = readFileSync(
+  new URL('./implementation.mjs', import.meta.url),
+  'utf8',
+);
+
+assert.match(
+  entrySource,
+  /useSnapbackActivityPresence,[\s\S]*?from '\.\/implementation\.mjs';/u,
+  'the React entry must source useSnapbackActivityPresence from implementation.mjs',
+);
+for (const [path, source] of [
+  ['index.mjs', entrySource],
+  ['implementation.mjs', implementationSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /(?:from\s+|import\s*\()\s*['"]react-native(?:\/[^'"]*)?['"]/u,
+    `${path} must not import React Native lifecycle state`,
+  );
+  assert.doesNotMatch(source, /\bAppState\b/u, `${path} must not reference AppState`);
+  assert.doesNotMatch(
+    source,
+    /\.addEventListener\(\s*['"]change['"]/u,
+    `${path} must not attach a platform lifecycle change listener`,
+  );
+}
 const presenceSnapshot = Object.freeze({
   status: 'ready',
   entries: Object.freeze([]),
@@ -67,23 +83,12 @@ const typing = Object.freeze({
 
 let activity = null;
 function Probe() {
-  // @ref LLP 0257#design — the React hook is the supported activity-presence
-  // contract for a bare SnapbackProvider; Expo lifecycle wrapping is separate.
+  // React has no platform listener; Expo wrapping is a separate package.
   activity = useSnapbackActivityPresence(typing, {
     scope: { roomId: 'room-one' },
     value: () => ({ name: 'Ada' }),
     idleMs: 250,
   });
-  return null;
-}
-
-function HostAppStateProbe() {
-  React.useEffect(() => {
-    const subscription = appState.addEventListener('change', (nextState) => {
-      observedAppState = nextState;
-    });
-    return () => subscription.remove();
-  }, []);
   return null;
 }
 
@@ -93,10 +98,7 @@ await act(async () => {
   renderer = TestRenderer.create(React.createElement(
     SnapbackProvider,
     { provider },
-    React.createElement(React.Fragment, null,
-      React.createElement(Probe),
-      React.createElement(HostAppStateProbe),
-    ),
+    React.createElement(Probe),
   ));
   await flush();
 });
@@ -105,31 +107,27 @@ assert.equal(activity.active, false);
 const touchedAt = Date.now();
 const originalSetTimeout = globalThis.setTimeout;
 const originalClearTimeout = globalThis.clearTimeout;
+const originalTouchNow = Date.now;
 let idleTimer = null;
 globalThis.setTimeout = (callback, delay) => {
   idleTimer = { callback, delay, cleared: false, unref() {} };
   return idleTimer;
 };
 globalThis.clearTimeout = (timer) => { timer.cleared = true; };
+Date.now = () => touchedAt;
 try {
   act(() => activity.touch());
 } finally {
   globalThis.setTimeout = originalSetTimeout;
   globalThis.clearTimeout = originalClearTimeout;
+  Date.now = originalTouchNow;
 }
 await act(async () => { await flush(); });
 assert.equal(activity.active, true);
 assert.equal(publishCalls, 1, 'the React hook publishes under a bare SnapbackProvider');
 assert.equal(idleTimer?.delay, 250, 'touch arms only the activity deadline');
-
-await act(async () => {
-  appState.transition('background');
-  await flush();
-});
-assert.equal(observedAppState, 'background', 'the host tree observed the AppState transition');
-assert.equal(activity.active, true, 'background does not disarm the bare-provider React hook');
-assert.equal(deleteCalls, 0, 'background does not withdraw the bare-provider React hook');
-assert.equal(idleTimer.cleared, false, 'background leaves deadline-only expiry armed');
+assert.equal(deleteCalls, 0, 'touch does not withdraw before the activity deadline');
+assert.equal(idleTimer.cleared, false, 'touch leaves deadline-only expiry armed');
 
 const originalNow = Date.now;
 Date.now = () => touchedAt + 1_000;
@@ -144,10 +142,8 @@ try {
 assert.equal(activity.active, false, 'the activity deadline disarms the React hook');
 assert.equal(deleteCalls, 1, 'the activity deadline withdraws the React hook');
 
-assert.equal(appStateListeners.size, 1, 'only the host probe observes AppState');
 await act(async () => {
   renderer.unmount();
 });
-assert.equal(appStateListeners.size, 0, 'host AppState observation cleans up on unmount');
 
-console.log('activity-presence-bare-provider.test.mjs: bare-provider React hook publishes and uses deadline-only background expiry');
+console.log('activity-presence-bare-provider.test.mjs: React entry has no platform lifecycle listener; bare-provider touch publishes and expires only at its deadline');

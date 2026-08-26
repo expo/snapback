@@ -82,8 +82,8 @@ function parseSeedCases(text, errors) {
       errors.push(`${who}: "Route terms:" must come after "Expected pages:"`);
       continue;
     }
-    const requiredAt = seed.text.indexOf('Required guidance:');
-    const requiredPerPageAt = seed.text.indexOf('Required guidance per page:');
+    const requiredAt = seed.text.search(/^[ \t]+Required guidance:/mu);
+    const requiredPerPageAt = seed.text.search(/^[ \t]+Required guidance per page:/mu);
     const rejectedAt = seed.text.indexOf('Rejected guidance:');
     const exactDiagnosticAt = seed.text.indexOf('Exact diagnostic target:');
     const diagnosticDispositionAt = seed.text.indexOf('Diagnostic pin disposition:');
@@ -193,6 +193,38 @@ function parseSeedCases(text, errors) {
   return cases;
 }
 
+function checkGuidanceMarkerParsing() {
+  const errors = [];
+  const cases = parseSeedCases(`## Seed intents
+
+1. **Per-page-only fixture:** marker separation.
+   Expected pages: \`one.md\`, \`two.md\`.
+   Route terms: "fixture".
+   Required guidance per page:
+   \`one.md\`: "only page one".
+   \`two.md\`: "only page two".
+
+## End
+`, errors);
+  if (errors.length > 0) {
+    throw new Error(`check-retrieval-eval parser unit failed: ${errors.join('; ')}`);
+  }
+  const [fixture] = cases;
+  if (fixture.requiredGuidance.length !== 0) {
+    throw new Error(
+      'check-retrieval-eval parser unit failed: per-page guidance leaked into shared guidance',
+    );
+  }
+  if (
+    fixture.requiredGuidanceByPage.get('one.md')?.[0] !== 'only page one'
+    || fixture.requiredGuidanceByPage.get('two.md')?.[0] !== 'only page two'
+  ) {
+    throw new Error(
+      'check-retrieval-eval parser unit failed: per-page-only phrases were not kept page-local',
+    );
+  }
+}
+
 // A term routes to an expected page when a grep for it lands there: via the
 // capability index's Aliases column (row whose Page cell names the expected
 // page), or via the page's own title/heading/body.
@@ -225,6 +257,7 @@ const normalizeGuidance = (value) => value
   .toLowerCase();
 
 function main() {
+  checkGuidanceMarkerParsing();
   const root = repoRoot();
   const errors = [];
   const notes = [];

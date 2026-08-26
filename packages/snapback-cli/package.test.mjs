@@ -94,7 +94,11 @@ const assertStartPacketTransclusion = (agentInstructions, templateName) => {
     transcluded[2],
     canonical[1]
       .replaceAll('](./', '](/_snapback/guide/start/')
-      .replaceAll('](../', '](/_snapback/guide/'),
+      .replaceAll('](../', '](/_snapback/guide/')
+      .replaceAll(
+        /\]\(repo:packages\/snapback-cli\/templates\/[^/]+\/([^)]+)\)/gu,
+        '](./$1)',
+      ),
     `${templateName} transcluded packet must match guide/start/${templateName}.md (run scripts/check-first-read.mjs --write)`,
   );
 };

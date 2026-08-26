@@ -1159,7 +1159,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:b7ac0cb1035d78e01ef7e1a01dc100451d19ed8d7841fbdde9d866559c366df1
+reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
 ---
 
 # Retrieval eval protocol
@@ -2228,17 +2228,18 @@ platform, and generated-directory assumptions from that run.
 100. **URL-first activity presence import:** "Which package exports activity
      presence for URL-first Expo web with SnapbackProvider?"
      The run fails if it omits the paved React import, claims the Expo facade
-     expects `SnapbackExpoLifecycleContext`, or claims the facade works under a
-     bare provider.
+     expects `SnapbackExpoLifecycleContext`, presents the facade as the paved
+     bare-provider contract, or hides the shipped facade behavior and its
+     ticketed immediate-withdrawal tradeoff.
      Expected pages: `backend/familiar-profile.md`, `realtime/ephemeral-state.md`, `recipes/activity-presence.md`.
      Route terms: "URL-first activity presence", "useSnapbackActivityPresence".
      Required guidance per page:
      `backend/familiar-profile.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
-     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
+     `realtime/ephemeral-state.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "The React hook under a bare `SnapbackProvider` has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately", "The shipped facade currently also mounts under a bare `SnapbackProvider`", "That composition is not the paved contract under LLP 0310.000 Ruling 3", "immediate background withdrawal on web today".
      `recipes/activity-presence.md`: "For URL-first web under a bare `SnapbackProvider`, import `useSnapbackActivityPresence` from `@expo/snapback-react`", "Under a bare `SnapbackProvider`, the React hook has no AppState-driven background withdrawal", "typing intent expires by the presence deadline rather than being withdrawn immediately".
      Rejected guidance: "expects SnapbackExpoLifecycleContext",
-     "works under a bare provider", "works under a bare `SnapbackProvider`",
-     "The Expo facade also works under a bare `SnapbackProvider`".
+     "Use the `@expo/snapback-expo` facade under a bare `SnapbackProvider`; that is the paved choice",
+     "The Expo facade is the supported bare-provider contract".
 
 101. **Durable custody in Node and Expo Native acceptance:** "Run expo-chat
      acceptance with durable-required custody from Node or Expo Native."
@@ -24572,13 +24573,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-sync/src/ephemeral.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback-server/src/admin.rs, crates/snapback-sync/src/ephemeral.rs, crates/snapback-server/src/server.rs, crates/snapback-cli/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-react/activity-presence-bare-provider.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:14fd01ccc94236b2329cf932f611d72c1151c8d35c489f7b154af5eef65c967a
+reviewed-authorities-digest: sha256:6ccf02340e7e4eefb29e4ae5e4df0ea91919d18e798221a4c16ada0515287c90
 ---
 
 # Ephemeral realtime state
@@ -24614,6 +24615,10 @@ AppState observation is established and withdraws on backgrounding. The React
 hook under a bare `SnapbackProvider` has no AppState-driven background
 withdrawal. If the app backgrounds, typing intent expires by the presence
 deadline rather than being withdrawn immediately. Do not invent a third hook.
+The shipped facade currently also mounts under a bare `SnapbackProvider` and,
+through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
+That composition is not the paved contract under LLP 0310.000 Ruling 3 and is
+pending the RFC owner's decision in [the recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md); use it only if immediate background withdrawal on web today outweighs relying on the currently non-paved boundary.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also
@@ -75067,11 +75072,19 @@ and `details.reportedGrade`:
   is missing or invalid. The module is unavailable in Expo Go: use an Expo
   development or production build, keep the custody config plugin declared,
   run the native prebuild step, and rebuild the app.
-- `details.platform: "expo-native"` with a missing, thrown, malformed, or
-  insufficient grade is the application-client validation path. Use the
-  first-party provider-resolved native adapter whose `platformGrade()` reports
-  the admitted iOS/Android `single-runtime` tuple; do not downgrade a
-  `durable-required` policy to `memory`.
+- An explicitly injected `{ kind: "expo-native" }` application-client adapter
+  reports `details.platform: "expo-native"`: a missing or throwing
+  `platformGrade()` also reports `details.causeCode`, while a malformed or
+  insufficient result reports `details.reportedGrade`. This is the advanced
+  injected-adapter path, not the paved provider path.
+- On the paved `SnapbackExpoProvider` path, a non-qualifying
+  `platformGrade()` result is converted to
+  `{ kind: "expo-native-phase-2-evidence-required" }` before application-client
+  construction, so the durable-custody refusal reports that sentinel as
+  `details.platform` rather than `"expo-native"`. Use the first-party
+  provider-resolved native adapter whose grade matches the admitted iOS or
+  Android `single-runtime` tuple; do not downgrade a `durable-required` policy
+  to `memory`.
 
 After rebuilding, rerun the native acceptance carrier. A Node helper cannot
 prove that the native Keychain or DataStore/Keystore module is linked.

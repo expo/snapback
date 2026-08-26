@@ -118,11 +118,19 @@ and `details.reportedGrade`:
   is missing or invalid. The module is unavailable in Expo Go: use an Expo
   development or production build, keep the custody config plugin declared,
   run the native prebuild step, and rebuild the app.
-- `details.platform: "expo-native"` with a missing, thrown, malformed, or
-  insufficient grade is the application-client validation path. Use the
-  first-party provider-resolved native adapter whose `platformGrade()` reports
-  the admitted iOS/Android `single-runtime` tuple; do not downgrade a
-  `durable-required` policy to `memory`.
+- An explicitly injected `{ kind: "expo-native" }` application-client adapter
+  reports `details.platform: "expo-native"`: a missing or throwing
+  `platformGrade()` also reports `details.causeCode`, while a malformed or
+  insufficient result reports `details.reportedGrade`. This is the advanced
+  injected-adapter path, not the paved provider path.
+- On the paved `SnapbackExpoProvider` path, a non-qualifying
+  `platformGrade()` result is converted to
+  `{ kind: "expo-native-phase-2-evidence-required" }` before application-client
+  construction, so the durable-custody refusal reports that sentinel as
+  `details.platform` rather than `"expo-native"`. Use the first-party
+  provider-resolved native adapter whose grade matches the admitted iOS or
+  Android `single-runtime` tuple; do not downgrade a `durable-required` policy
+  to `memory`.
 
 After rebuilding, rerun the native acceptance carrier. A Node helper cannot
 prove that the native Keychain or DataStore/Keystore module is linked.

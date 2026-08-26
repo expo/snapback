@@ -50,10 +50,12 @@ This guide lane does not choose between the two or amend either LLP.
 The lane keeps
 [`activity-presence-bare-provider.test.mjs`](../packages/snapback-react/activity-presence-bare-provider.test.mjs)
 as the executable proof of the React-side tradeoff documented by the Guide.
-The test mounts the React hook under a bare `SnapbackProvider`, publishes on
-`touch()`, emits a simulated AppState background transition observed by the
-same React tree, and proves that the transition neither withdraws nor disarms
-the intent. It then fires the captured activity deadline and proves that the
-deadline performs the withdrawal. This proof does not decide whether the
-facade's shipped bare-provider fallback should remain supported; the owner
-decision above remains open.
+The test locks the relevant React module graph: the public entry sources the
+hook from `implementation.mjs`, and neither file imports React Native, refers
+to AppState, or attaches a platform lifecycle `change` listener. It separately
+mounts the React hook under a bare `SnapbackProvider`, proves that `touch()`
+publishes and arms the activity deadline without withdrawing, then fires that
+deadline and proves it performs the withdrawal. Retrieval case 100 is the docs
+proof that every named page teaches the background-expiry limitation. This
+proof does not decide whether the facade's shipped bare-provider fallback
+should remain supported; the owner decision above remains open.

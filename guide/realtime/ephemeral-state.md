@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:467d59bc6811ee734548d8b52952e54c738e6ff9f760720766a9a2a24261d325
+reviewed-authorities-digest: sha256:6ccf02340e7e4eefb29e4ae5e4df0ea91919d18e798221a4c16ada0515287c90
 ---
 
 # Ephemeral realtime state
@@ -49,7 +49,7 @@ deadline rather than being withdrawn immediately. Do not invent a third hook.
 The shipped facade currently also mounts under a bare `SnapbackProvider` and,
 through LLP 0257's AppState fallback, withdraws immediately on backgrounding.
 That composition is not the paved contract under LLP 0310.000 Ruling 3 and is
-pending the RFC owner's decision in [the recorded LLP 0257 conflict](../../issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md); use it only if immediate background withdrawal on web today outweighs relying on the currently non-paved boundary.
+pending the RFC owner's decision in [the recorded LLP 0257 conflict](repo:issues/20260825-ruling-3-vs-llp-0257-background-withdrawal.md); use it only if immediate background withdrawal on web today outweighs relying on the currently non-paved boundary.
 
 The messaging demo has one deliberate direct-client exception. Its interactive
 server uses dev-mode persona assertions, while the `typing` collection also
