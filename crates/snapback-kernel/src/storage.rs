@@ -92,8 +92,8 @@ pub use room_authority::{
     RealtimePublicationValidity, ResolvedRoomReauthorizationBatch,
     ResolvedRoomSubscriberReauthorization, RoomAuthorityOperationGuard, RoomAuthorityPermit,
     RoomAuthorityResync, RoomCreationAdmission, RoomReauthorizationCompletion,
-    RoomReauthorizationDisposition, RoomReauthorizationSubject, RoomReauthorizationSubscriber,
-    RoomRetirementAdmission,
+    RoomReauthorizationDisposition, RoomReauthorizationSettlementExecutor,
+    RoomReauthorizationSubject, RoomReauthorizationSubscriber, RoomRetirementAdmission,
 };
 use room_authority::{PreparedAuthorizationCommit, take_managed_authorization_reservation};
 
