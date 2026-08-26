@@ -92,16 +92,21 @@ the `controlSocket` field in `.snapback/expo-supervisor.json` or the final
 `snapback.expo-dev.v1` readiness event. Do not guess a path or signal a process
 by name.
 
-The state directory must be a same-UID real directory with no group/other
-permission bits (normally mode `0700`); the default dev loop creates or repairs
-`.snapback/` to that posture. For an explicit ready file outside the project,
-every ancestor up to a root-owned trust anchor must also be a real directory
-and either same-UID with no group/other write or a root-owned mode-`1777` sticky
-system directory. A non-sticky group/other-writable parent refuses because
-another UID could replace the state-directory name; a `/tmp`-style sticky
-parent is admitted because only the leaf owner can rename that owner-only leaf.
-The admitted leaf's device/inode is rechecked immediately before private bind
-and again before publication. The descriptor is mode `0600`, and the socket is
+The state directory must resolve to a same-UID real directory with no
+group/other permission bits (normally mode `0700`); the default dev loop creates
+or repairs `.snapback/` to that posture. For an explicit ready file outside the
+project, Snapback resolves the directory first, walks the canonical ancestor
+chain to a root-owned trust anchor, and admits only same-UID components with no
+group/other write or a root-owned mode-`1777` sticky system directory. It also
+checks the lexical spelling: a symlink still refuses unless the symlink itself
+is root-owned and resolves to a trusted or root-owned sticky system directory.
+Consequently Darwin's root-owned `/tmp` symlink to `/private/tmp` is admitted,
+the socket is bound under `/private/tmp/...`, and that canonical socket path is
+published in the descriptor. A non-root-owned symlink and a non-sticky
+group/other-writable parent still refuse. Both the lexical components and the
+canonical chain are identity-rechecked, including the admitted leaf immediately
+before private bind and again before publication. The descriptor is mode
+`0600`, and the socket is
 also requested and checked as `0600`, but Darwin may not enforce AF_UNIX inode
 mode bits. Directory search permission plus the owner-only descriptor is the
 cross-UID kernel gate. The UID repeated in command JSON is an advisory
@@ -131,8 +136,10 @@ socket verbs and packaged-stdin lifecycle mutations (`reload`, `restart`,
 `dev-fresh`, and `reload-metro`) share one serialized lane. Once
 `stop-children` is acknowledged, new work on either channel refuses with
 `SNAPBACK_DEV_CONTROL_STOPPING`; every earlier acknowledged request is allowed
-to send its result before the endpoint closes. Wait for the result before
-claiming the operation took effect. A client that reaches EOF before its
+to send its result before the endpoint closes. After that result flushes, the
+supervisor destroys the one-request connection; a client cannot retain a
+supervisor-side file descriptor by leaving its writable half open. Wait for the
+result before claiming the operation took effect. A client that reaches EOF before its
 newline, or stays incomplete for five seconds, is closed without retaining a
 half-open connection.
 

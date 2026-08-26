@@ -15,7 +15,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { createConnection } from 'node:net';
+import { createConnection, Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -526,6 +526,106 @@ async function assertIncompleteClientCloses(path, { idle = false } = {}) {
       resolveClose();
     });
   });
+}
+
+async function assertSettledClientIsDestroyed(control) {
+  const messages = [];
+  await new Promise((resolveClose, rejectClose) => {
+    const socket = new Socket({ allowHalfOpen: true });
+    let buffer = '';
+    let writeProbe = null;
+    const timeout = setTimeout(() => {
+      clearInterval(writeProbe);
+      socket.destroy();
+      rejectClose(new Error('settled control client retained its writable half after result flush'));
+    }, 2_000);
+    socket.setEncoding('utf8');
+    socket.once('connect', () => socket.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-control-command.v1',
+      requestId: 'half-open-reload',
+      verb: 'reload-metro',
+      owner: {
+        pid: control.descriptor.ownerPid,
+        uid: control.descriptor.ownerUid,
+        incarnationId: control.descriptor.ownerIncarnationId,
+      },
+      lifecycleReceipt: control.descriptor.lifecycleReceipt,
+    })}\n`));
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        const message = JSON.parse(line);
+        messages.push(message);
+        if (message.schemaVersion === 'snapback.dev-control-result.v1' && writeProbe === null) {
+          assert.equal(socket.writableEnded, false);
+          writeProbe = setInterval(() => {
+            if (!socket.destroyed) socket.write(' ');
+          }, 25);
+        }
+      }
+    });
+    socket.on('error', () => {});
+    socket.once('close', () => {
+      clearTimeout(timeout);
+      clearInterval(writeProbe);
+      resolveClose();
+    });
+    socket.connect(control.descriptor.path);
+  });
+  assert.deepEqual(
+    messages.map(({ schemaVersion }) => schemaVersion),
+    ['snapback.dev-control-ack.v1', 'snapback.dev-control-result.v1'],
+  );
+}
+
+async function assertReloadRoundTrip(control, requestId) {
+  const messages = [];
+  await new Promise((resolveClose, rejectClose) => {
+    const socket = createConnection(control.descriptor.path);
+    let buffer = '';
+    const timeout = setTimeout(() => {
+      socket.destroy();
+      rejectClose(new Error(`timed out waiting for control result ${requestId}`));
+    }, 2_000);
+    socket.setEncoding('utf8');
+    socket.once('connect', () => socket.write(`${JSON.stringify({
+      schemaVersion: 'snapback.dev-control-command.v1',
+      requestId,
+      verb: 'reload-metro',
+      owner: {
+        pid: control.descriptor.ownerPid,
+        uid: control.descriptor.ownerUid,
+        incarnationId: control.descriptor.ownerIncarnationId,
+      },
+      lifecycleReceipt: control.descriptor.lifecycleReceipt,
+    })}\n`));
+    socket.on('data', (chunk) => {
+      buffer += chunk;
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        if (!line) continue;
+        const message = JSON.parse(line);
+        messages.push(message);
+        if (message.schemaVersion === 'snapback.dev-control-result.v1') socket.end();
+      }
+    });
+    socket.once('error', rejectClose);
+    socket.once('close', () => {
+      clearTimeout(timeout);
+      resolveClose();
+    });
+  });
+  assert.deepEqual(
+    messages.map(({ schemaVersion }) => schemaVersion),
+    ['snapback.dev-control-ack.v1', 'snapback.dev-control-result.v1'],
+  );
+  assert.equal(messages[1].ok, true);
 }
 
 function stopChildrenCommand(control, requestId) {
@@ -1604,8 +1704,9 @@ try {
   console.log('writable parent state chain: coded stdin-only fallback publishes no endpoint');
 
   const externalProjectRoot = makeRoot('external-project');
-  const stickySystemRoot = realpathSync.native('/tmp');
-  const stickySystemMetadata = lstatSync(stickySystemRoot);
+  const stickySystemRoot = '/tmp';
+  const canonicalStickySystemRoot = realpathSync.native(stickySystemRoot);
+  const stickySystemMetadata = lstatSync(canonicalStickySystemRoot);
   assert.equal(stickySystemMetadata.uid, 0);
   assert.equal(stickySystemMetadata.mode & 0o1777, 0o1777);
   const nonStickyExternalParent = mkdtempSync(join(stickySystemRoot, 'sbctl-external-shared-'));
@@ -1625,7 +1726,10 @@ try {
     if (nonStickyExternalControl !== null) await nonStickyExternalControl.close();
     assert.equal(nonStickyExternalControl, null);
     assert.equal(nonStickyExternalNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
-    assert.equal(nonStickyExternalNotices[0].details.component, nonStickyExternalParent);
+    assert.equal(
+      nonStickyExternalNotices[0].details.component,
+      realpathSync.native(nonStickyExternalParent),
+    );
     assert.equal(existsSync(join(nonStickyExternalRoot, '.dc-sock')), false);
   } finally {
     rmSync(nonStickyExternalParent, { recursive: true, force: true });
@@ -1642,6 +1746,11 @@ try {
     ));
     assert.notEqual(stickyExternalControl, null);
     assert.equal(existsSync(stickyExternalControl.descriptor.path), true);
+    assert.equal(
+      stickyExternalControl.descriptor.path,
+      join(realpathSync.native(stickyExternalRoot), '.dc-sock'),
+      'the descriptor must publish the canonical socket path behind /tmp',
+    );
     await stickyExternalControl.close();
   } finally {
     rmSync(stickyExternalRoot, { recursive: true, force: true });
@@ -1658,6 +1767,16 @@ try {
   await assertIncompleteClientCloses(connectionControl.descriptor.path, { idle: true });
   await connectionControl.close();
   console.log('incomplete clients: EOF and idle deadline both release the connection');
+
+  const settledClientRoot = makeRoot('settled-client');
+  const settledClientControl = await startDevControlSocket(testOptions(
+    settledClientRoot,
+    'unit-settled-client-owner',
+  ));
+  await assertSettledClientIsDestroyed(settledClientControl);
+  await assertReloadRoundTrip(settledClientControl, 'reload-after-half-open-client');
+  await settledClientControl.close();
+  console.log('settled half-open client: server destroys the connection and keeps serving');
 
   const finRoot = makeRoot('f');
   const stopQueued = deferred();

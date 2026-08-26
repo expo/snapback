@@ -1094,7 +1094,7 @@ function assertGrepAbsent(label, files, bearers) {
 }
 
 async function runControlSocketSuite() {
-  const controlRoot = realpathSync(mkdtempSync('/tmp/sbctl-'));
+  const controlRoot = mkdtempSync('/tmp/sbctl-');
   const controlFixture = fixture('app', { sessions: true, root: controlRoot });
   const controlRange = await reserveFreeRange(8);
   try {
@@ -1472,6 +1472,12 @@ async function runControlSocketSuite() {
       false,
       'a long checkout must publish control through an external owner-only ready-file directory',
     );
+    assert.equal(
+      longStateRun.readyEvent.controlSocket.path,
+      join(realpathSync.native(longStateExternalReadyParent), '.dc-sock'),
+      'a literal /tmp ready-file spelling must publish the canonical socket path',
+    );
+    console.log('external /tmp spelling: /dev/null owner acknowledges reload-metro on the canonical socket');
     const controlRun = await runCliSupervisor(controlFixture, 'web', [
       '--port-range', `${controlRange.lo}-${controlRange.hi}`,
     ], {

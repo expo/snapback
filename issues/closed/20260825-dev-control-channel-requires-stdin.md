@@ -56,19 +56,29 @@ socket. No FIFO or client
 `recook` verb was added. The Guide classifies the artifacts as transient
 instance-local state and names the owner-only state directory plus descriptor
 as the cross-UID gate; AF_UNIX inode mode is not trusted on Darwin and the
-command's JSON UID remains advisory. A non-owner-only or symlinked state
-directory now emits `SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and keeps the
-packaged supervisor alive with stdin-only control. Bind failures and a failed
-prepublication `connect()` of the advertised path use that same fallback, so a
-state directory beyond the platform's Unix-socket path budget cannot abort the
-interactive supervisor or publish an unreachable descriptor. The short
-`.dc-sock` well-known basename stays within the `.dc-*` coordination budget;
-live or occupied endpoints remain fail-closed refusals. Explicit external
-ready-file directories validate their complete ancestor chain to a root-owned
-trust anchor: same-UID non-writable components and root-owned mode-`1777`
-sticky system directories are admitted, while a non-sticky group/other-writable
-parent refuses stdin-only. The leaf device/inode is rechecked immediately
-before private bind and before `link(2)` publication.
+command's JSON UID remains advisory. A non-owner-only state directory or a
+non-root-owned/hostile symlink emits
+`SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE` and keeps the packaged supervisor
+alive with stdin-only control. Bind failures and a failed prepublication
+`connect()` of the advertised path use that same fallback, so a state directory
+beyond the platform's Unix-socket path budget cannot abort the interactive
+supervisor or publish an unreachable descriptor. The short `.dc-sock`
+well-known basename stays within the `.dc-*` coordination budget; live or
+occupied endpoints remain fail-closed refusals. Explicit external ready-file
+directories are resolved before their canonical ancestor chain is validated to
+a root-owned trust anchor: same-UID non-writable components and root-owned
+mode-`1777` sticky system directories are admitted, while a non-sticky
+group/other-writable parent refuses stdin-only. The lexical spelling is checked
+separately and admits a symlink only when the link is root-owned and resolves to
+a trusted or root-owned sticky system directory. Thus Darwin's `/tmp` spelling
+is admitted through the root-owned `/tmp` → `/private/tmp` symlink, and the
+descriptor publishes the canonical `/private/tmp/.../.dc-sock` path;
+non-root-owned/hostile symlinks still refuse. The lexical and canonical
+component identities, including the leaf, are rechecked before private bind and
+before `link(2)` publication. After a settled result is flushed, the supervisor
+destroys the one-request connection so a client that leaves its writable half
+open cannot retain a supervisor file descriptor; the endpoint remains available
+for subsequent commands.
 
 The focused `expo-dev-loop.test.mjs --control-socket-only` regression includes
 a `--json` launch using the default control-socket posture, with stdin ignored
@@ -85,14 +95,17 @@ first implementation the suite failed with `actual undefined`, expected
 `snapback.dev-control.v1`; before the review fixes the successful overlap
 returned only the reload acknowledgement and no settled result; before the
 round-4 fix the failed-reload overlap timed out waiting for
-`stop-after-failed-reload`.
+`stop-after-failed-reload`; before the round-17 fix the literal `/tmp` external
+ready-file regression again failed with `actual undefined`, expected
+`snapback.dev-control.v1`.
 
 `expo-dev-control.test.mjs` binds a socket in a child, kills the holder with
 `SIGKILL`, and proves a relaunch reclaims the exact stale endpoint only when its
 bound owner marker matches. It separately proves missing/corrupt/mismatched
 owner-state refusal with operator-explicit recovery, live-owner and simulated
 other-UID refusal, owner-directory stdin-only degradation, EOF and idle-deadline
-cleanup, and cleanup-lease reaping after owner death. The crash before
+cleanup, settled half-open-client destruction with a subsequent successful
+command, and cleanup-lease reaping after owner death. The crash before
 `expo-supervisor.json` publication reclaims through the already-published bound
 marker. Further coverage includes a bounded-probe timeout, death while replacing
 stale `.dc-lock` through `.dc-reclaim`, death after the stale-generation claim
@@ -105,7 +118,8 @@ reserved reaper-versus-bind clone proves a live successor inode survives a
 stale reservation. A separate private-bind SIGKILL regression proves the
 pre-listen lease reaps `.d<random>` after reservation-owner death. External
 chain regressions refuse a mode-`0777` non-sticky parent without publishing an
-endpoint and admit an owner-only leaf beneath the system sticky temp directory.
+endpoint, admit the literal Darwin `/tmp` spelling through its root-owned
+symlink, and require the descriptor to publish the canonical socket path.
 Generation claims record PID/start-time owner identity; a
 dead claimant is recoverable through a next-generation atomic-link election,
 two racing successors still admit exactly one winner, and the winner removes

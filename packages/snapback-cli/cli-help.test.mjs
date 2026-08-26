@@ -55,6 +55,20 @@ assert.match(
   /owner-bound 0600 Unix endpoint at expo-supervisor\.json#controlSocket/u,
   'dev help must expose the non-TTY owner control carrier',
 );
+const genericDevControlComment = source.slice(
+  source.indexOf('// The two dev-loop control channels over stdin.'),
+  source.indexOf('export function attachDevControlChannel'),
+);
+assert.match(
+  genericDevControlComment,
+  /"verb":"status"\|"reload"\|"restart"\|"dev-fresh"/u,
+  'the generic stdin-channel comment must list the non-Expo dev verb set',
+);
+assert.doesNotMatch(
+  genericDevControlComment,
+  /reload-metro/u,
+  'the generic stdin-channel comment must not advertise the Expo-only reload-metro verb',
+);
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-cli-help-')));
 try {

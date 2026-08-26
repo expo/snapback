@@ -504,7 +504,13 @@ function flushControlResult(socket, encodedResult, timeoutMs = 1_000) {
     }, timeoutMs);
     socket.once('close', onClose);
     socket.once('error', onError);
-    socket.end(encodedResult, () => finish(true));
+    socket.end(encodedResult, () => {
+      finish(true);
+      // end() flushes the result but only half-closes the connection. A client
+      // that intentionally keeps its writable half open must not retain one
+      // supervisor FD after the one-request protocol has settled.
+      socket.destroy();
+    });
   });
 }
 
@@ -604,7 +610,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       ...(pathChain.expectedUid === undefined ? {} : { expectedUid: pathChain.expectedUid }),
       ...(pathChain.observedUid === undefined ? {} : { observedUid: pathChain.observedUid }),
       ...(pathChain.observedMode === undefined ? {} : { observedMode: pathChain.observedMode }),
-      recovery: 'choose a same-uid path with no symlink or group/other-writable components under --ready-file <path>',
+      recovery: 'choose a same-uid path under --ready-file <path> whose canonical chain has no group/other-writable components; only root-owned symlinks to trusted or sticky system directories are admitted',
     });
   }
   let stateDirectory;
