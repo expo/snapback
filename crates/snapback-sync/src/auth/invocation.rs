@@ -2746,6 +2746,16 @@ impl PreparedAuthority {
         })?;
         if let Some(installed) = self.authorization_stream_incarnation.as_deref() {
             if installed != incarnation {
+                if matches!(self.resolved, ResolvedAppAuthority::ServicePrincipal(_)) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                        "auth",
+                        "scoped agent token authority belongs to a retired authorization stream",
+                    )
+                    .with_details(serde_json::json!({
+                        "authorityDisposition": "carrier",
+                    })));
+                }
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
                     "auth",

@@ -508,7 +508,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex as StdMutex, OnceLock};
 use std::time::{Duration, Instant};
 use syn::visit::Visit;
@@ -669,6 +669,7 @@ struct ManualServerAuthClock {
     base_epoch_ms: u64,
     epoch_ms: AtomicU64,
     monotonic_origin: Instant,
+    wall_offset_ms: Option<AtomicI64>,
 }
 
 struct ToggleServerRandom {
@@ -691,11 +692,29 @@ impl ManualServerAuthClock {
             base_epoch_ms: epoch_ms,
             epoch_ms: AtomicU64::new(epoch_ms),
             monotonic_origin: Instant::now(),
+            wall_offset_ms: None,
+        }
+    }
+
+    fn wall_following(offset_ms: i64) -> Self {
+        Self {
+            base_epoch_ms: 0,
+            epoch_ms: AtomicU64::new(0),
+            monotonic_origin: Instant::now(),
+            wall_offset_ms: Some(AtomicI64::new(offset_ms)),
         }
     }
 
     fn set(&self, epoch_ms: u64) {
+        assert!(self.wall_offset_ms.is_none());
         self.epoch_ms.store(epoch_ms, Ordering::SeqCst);
+    }
+
+    fn set_offset_ms(&self, offset_ms: i64) {
+        self.wall_offset_ms
+            .as_ref()
+            .expect("wall-following auth clock")
+            .store(offset_ms, Ordering::SeqCst);
     }
 
     fn monotonic_at(&self, epoch_ms: u64) -> Instant {
@@ -1339,11 +1358,24 @@ fn already_terminal_session_errors_preserve_exact_durable_disposition() {
 
 impl AuthClock for ManualServerAuthClock {
     fn epoch_ms(&self) -> u64 {
-        self.epoch_ms.load(Ordering::SeqCst)
+        let Some(offset_ms) = self.wall_offset_ms.as_ref() else {
+            return self.epoch_ms.load(Ordering::SeqCst);
+        };
+        let now_ms = super::now_millis();
+        let offset_ms = offset_ms.load(Ordering::SeqCst);
+        if offset_ms >= 0 {
+            now_ms.saturating_add(offset_ms as u64)
+        } else {
+            now_ms.saturating_sub(offset_ms.unsigned_abs())
+        }
     }
 
     fn monotonic_now(&self) -> Instant {
-        self.monotonic_at(self.epoch_ms())
+        if self.wall_offset_ms.is_some() {
+            Instant::now()
+        } else {
+            self.monotonic_at(self.epoch_ms())
+        }
     }
 }
 
@@ -7890,7 +7922,7 @@ globalThis.__snapbackHandlers = {
 }
 
 fn caught_nested_refusal_functions(busy_loop_after_refusal: bool) -> FunctionManifest {
-    let mut functions = activation_functions('9', false);
+    let mut functions = finite_authority_matrix_functions();
     let template = functions
         .functions
         .iter()
@@ -8080,6 +8112,14 @@ async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
 async fn finite_authority_matrix_fixture_with_functions(
     functions: FunctionManifest,
 ) -> FiniteAuthorityMatrixFixture {
+    finite_authority_matrix_fixture_with_functions_and_grant_ttl(functions, 48 * 60 * 60 * 1_000)
+        .await
+}
+
+async fn finite_authority_matrix_fixture_with_functions_and_grant_ttl(
+    functions: FunctionManifest,
+    requested_grant_ttl_ms: u64,
+) -> FiniteAuthorityMatrixFixture {
     // Retained live reruns deliberately consult the host wall clock rather
     // than the injected provider clock. Keep the deterministic provider a
     // minute behind that wall clock: far enough to avoid millisecond
@@ -8165,7 +8205,7 @@ async fn finite_authority_matrix_fixture_with_functions(
         .oneshot(session_auth_http_request(
             &format!("/auth/grant-requests/{pairing_request_id}/approve"),
             serde_json::to_vec(&json!({
-                "requestedTtlMs": 48 * 60 * 60 * 1_000_u64,
+                "requestedTtlMs": requested_grant_ttl_ms,
             }))
             .unwrap(),
             &owner_bearer,
@@ -10056,12 +10096,13 @@ async fn scoped_token_handshake_and_connection_open_cannot_cross_stream_reset() 
                 .await
                 .unwrap_or_else(|_| panic!("{route:?} x {cut:?} request timed out"))
                 .unwrap_or_else(|error| panic!("{route:?} x {cut:?} task failed: {error}"));
-            assert_eq!(
-                response.status(),
-                StatusCode::UNAUTHORIZED,
-                "{route:?} x {cut:?} must not cross reset"
-            );
+            let status = response.status();
             let body = response_json(response).await;
+            assert_eq!(
+                status,
+                StatusCode::UNAUTHORIZED,
+                "{route:?} x {cut:?} must not cross reset: {body}"
+            );
             assert_eq!(
                 body["diagnostic"]["code"], "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
                 "{route:?} x {cut:?} must fail as stale scoped authority: {body}"
@@ -11229,23 +11270,35 @@ fn sender_issuance_durable_counts(
 
 #[tokio::test]
 async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
-    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
-    let prepared = |user_id: &str| {
-        InvocationGate::prepare_admitted_subjectless_authority(
-            InvocationSource::MutationSettlementAcknowledgement,
-            AuthMode::Dev,
-            ServerProfile::Test,
-            state.auth_admission_controller().admit_dev().unwrap(),
-            &WireAuthorityFields::default(),
-            ResolvedAppAuthority::DevImpersonation {
-                user_id: user_id.to_owned(),
-                roles: Vec::new(),
-                local_dev_only: true,
-            },
+    async fn prepared(state: &AppState, user_id: &str) -> PreparedAuthority {
+        let effective = super::route_registry()
+            .into_iter()
+            .find(|spec| spec.path == "/client-mutations/acknowledge")
+            .expect("registered mutation acknowledgement route")
+            .effective_for(PolicyAuthMode::Dev);
+        let body = json!({ "auth": { "user_id": user_id } });
+        let admission = state
+            .auth_admission_controller()
+            .admit_dev()
+            .expect("admit dev settlement acknowledgement");
+        super::prepare_registered_route_authority(
+            Some(InvocationSource::MutationSettlementAcknowledgement),
+            effective,
+            state,
+            Some(&admission),
+            &HeaderMap::new(),
+            Some(&body),
+            None,
+            None,
             None,
         )
-        .unwrap()
-    };
+        .await
+        .expect("prepare settlement authority through registered composition")
+        .0
+        .expect("registered settlement route prepares authority")
+    }
+
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let retained_auth = AuthInput {
         principal: None,
         session_id: None,
@@ -11256,16 +11309,8 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
         auth: retained_auth.clone(),
         ..HandlerInput::default()
     };
-    let retained_authority = prepared("settlement-owner");
-    let retained_admission = state.auth_admission_controller();
+    let retained_authority = prepared(&state, "settlement-owner").await;
     let authority_instance_id = super::with_snapback(&state.snapback, move |snapback| {
-        let incarnation = snapback
-            .remainder_auth_fixture()
-            .ensure_authorization_stream_incarnation()
-            .expect("authorization stream incarnation");
-        let retained_authority = retained_authority
-            .bind_authorization_stream(&retained_admission, incarnation.as_str().to_owned())
-            .expect("bind authorization stream");
         snapback
             .prepare_authority_descriptor(retained_authority)
             .expect("prepared authority descriptor")
@@ -11298,9 +11343,10 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     })
     .await;
 
+    let wrong_authority = prepared(&state, "different-owner").await;
     let Json(wrong) = super::acknowledge_mutations(
         State(state.snapback.clone()),
-        Extension(prepared("different-owner")),
+        Extension(wrong_authority),
         HeaderMap::new(),
         Ok(Json(MutationAcknowledgementRequest {
             auth: retained_auth.clone(),
@@ -11312,9 +11358,10 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
     .unwrap();
     assert_eq!(wrong.acknowledged, 0);
 
+    let owner_authority = prepared(&state, "settlement-owner").await;
     let Json(owner) = super::acknowledge_mutations(
         State(state.snapback.clone()),
-        Extension(prepared("settlement-owner")),
+        Extension(owner_authority),
         HeaderMap::new(),
         Ok(Json(MutationAcknowledgementRequest {
             auth: AuthInput {
@@ -15684,9 +15731,17 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
             .and_then(|value| value.to_str().ok())
             .expect("accepted grant proof returns its successor nonce")
             .to_owned();
+        let replayed_proof = sender_key.resource_proof(
+            method,
+            &canonical_uri,
+            &connection_token,
+            &nonce_five,
+            provider.now_ms() / 1_000,
+            replay_id,
+        );
         let replayed = router
             .clone()
-            .oneshot(request(Some(&proof), Body::new(PanicOnPollBody)))
+            .oneshot(request(Some(&replayed_proof), Body::new(PanicOnPollBody)))
             .await
             .expect("refuse replayed grant proof");
         assert_eq!(replayed.status(), StatusCode::UNAUTHORIZED, "{path}");
@@ -17637,6 +17692,7 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     );
 
     let live = connection_router
+        .clone()
         .oneshot(
             Request::builder()
                 .method("GET")
@@ -17757,53 +17813,46 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
         "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
     );
 
-    deployed_functions
-        .functions
-        .retain(|function| function.id != "fn:allowed");
-    with_snapback(&state.snapback, move |snapback| {
-        snapback
-            .remainder_auth_fixture()
-            .reconcile_auth_scope_bases(&deployed_functions)
-    })
-    .await
-    .unwrap();
-    let stale = router
-        .clone()
-        .oneshot(request("/query/allowed", &token))
-        .await
-        .unwrap();
-    assert_eq!(stale.status(), StatusCode::FORBIDDEN);
-    assert_eq!(
-        response_json(stale).await["diagnostic"]["code"],
-        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
-    );
-
-    let (grant_id, bound_token_id) = {
+    let (connection_grant_id, durable_grant_id) = {
         let registry = state.connections.lock();
         let record = registry.grants.get(connection_id).expect("service grant");
-        let BoundGrantAuthority::ServicePrincipal { token_id, .. } = &record.authority else {
+        let BoundGrantAuthority::ServicePrincipal { authority, .. } = &record.authority else {
             panic!("service connection retains exact token")
         };
-        (record.grant_id.clone(), token_id.clone())
+        let ResolvedAppAuthority::ServicePrincipal(subject) = authority else {
+            panic!("service connection retains scoped-token authority")
+        };
+        assert_eq!(subject.grant_id(), grant_id);
+        (record.grant_id.clone(), subject.grant_id().to_owned())
     };
     let notifier = state.ephemeral.delivery_notifier();
     let (generation, waker) = notifier
-        .register_bound(connection_id, grant_id.clone())
+        .register_bound(connection_id, connection_grant_id)
         .expect("register exact service socket");
-    let revocation = with_snapback(&state.snapback, move |snapback| {
-        snapback.remainder_auth_fixture().revoke_grant_for_user(
-            &effective_user_id,
-            &grant_id,
-            super::now_millis(),
-        )
-    })
-    .await
-    .unwrap();
-    assert_eq!(revocation.token_ids, vec![bound_token_id]);
-    state.auth_terminal_lifecycle.terminate_service_tokens(
-        &revocation.token_ids,
-        Instant::now() + Duration::from_secs(5),
+    let mut revoke_request = auth_http_request(
+        "DELETE",
+        &format!("/auth/grants/{durable_grant_id}"),
+        Vec::new(),
+        false,
+        None,
+        None,
     );
+    offer_auth_client_protocol(&mut revoke_request);
+    revoke_request.headers_mut().insert(
+        header::AUTHORIZATION,
+        HeaderValue::from_str(&format!("Bearer {owner_bearer}"))
+            .expect("owner grant-revocation bearer"),
+    );
+    let revoked = connection_router
+        .clone()
+        .oneshot(revoke_request)
+        .await
+        .unwrap();
+    let revoked_status = revoked.status();
+    if revoked_status != StatusCode::NO_CONTENT {
+        let revoked_body = response_json(revoked).await;
+        panic!("real grant revocation failed: {revoked_status} {revoked_body}");
+    }
     tokio::time::timeout(Duration::from_secs(1), waker.notified())
         .await
         .expect("grant revocation wakes the exact service socket");
@@ -17843,6 +17892,53 @@ async fn scoped_token_carrier_is_resolved_only_for_granted_current_function_scop
     })
     .await
     .expect("owned terminal cleanup purges the service subscription topology");
+
+    // Keep scope tombstoning and grant revocation independent: production
+    // correctly refuses to revoke an already-invalid grant, so mint a second
+    // real grant which will be used only for the later stale-scope check.
+    let stale_agent = register_test_agent(&connection_router, "Stale Scope Agent").await;
+    let stale_pairing_request_id = submit_agent_pairing_request(
+        &connection_router,
+        &owner_bearer,
+        &stale_agent.credential,
+        json!([{ "fn": "fn:allowed", "kind": "query" }]),
+    )
+    .await;
+    let stale_grant = approve_agent_pairing_request(
+        &connection_router,
+        &owner_bearer,
+        &stale_pairing_request_id,
+        json!({}),
+    )
+    .await;
+    let stale_issued = mint_agent_token(
+        &connection_router,
+        &stale_agent.credential,
+        json!({ "grantId": stale_grant["grantId"] }),
+    )
+    .await;
+    let stale_token = stale_issued["token"].as_str().unwrap().to_owned();
+
+    deployed_functions
+        .functions
+        .retain(|function| function.id != "fn:allowed");
+    with_snapback(&state.snapback, move |snapback| {
+        snapback
+            .remainder_auth_fixture()
+            .reconcile_auth_scope_bases(&deployed_functions)
+    })
+    .await
+    .unwrap();
+    let stale = router
+        .clone()
+        .oneshot(request("/query/allowed", &stale_token))
+        .await
+        .unwrap();
+    assert_eq!(stale.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(stale).await["diagnostic"]["code"],
+        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+    );
 
     let mut hosted = state;
     Arc::make_mut(&mut hosted.server).auth_deployment =
@@ -17933,8 +18029,11 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
         subscribed
     }
 
-    let start_ms = super::now_millis();
-    let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+    let rotation_interval_ms =
+        crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
+    let clock = Arc::new(ManualServerAuthClock::wall_following(
+        -(rotation_interval_ms as i64),
+    ));
     let fixture_clock = Arc::clone(&clock);
     let state = tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -17968,6 +18067,7 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     let grant =
         approve_agent_pairing_request(&router, &owner_bearer, &pairing_request_id, json!({})).await;
     let grant_id = grant["grantId"].as_str().unwrap().to_owned();
+    clock.set_offset_ms(0);
     let issued = mint_agent_token(&router, &agent.credential, json!({ "grantId": grant_id })).await;
     let token = issued["token"].as_str().unwrap().to_owned();
     let agent_user_id = agent.user_id;
@@ -18022,10 +18122,6 @@ async fn live_attribution_is_immutable_across_renewal_and_regenerated_after_rota
     let (registration, waker) = notifier
         .register_bound(&connection_id, bound_grant_id)
         .expect("register exact service socket");
-    clock.set(
-        start_ms
-            + crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS,
-    );
     let mut rotate = auth_http_request(
         "POST",
         "/auth/agents/rotate",
@@ -21497,7 +21593,7 @@ async fn push_registry_routes_keep_token_custody_and_logout_retirement_host_owne
 #[tokio::test]
 async fn periodic_auth_maintenance_runs_declared_push_idle_retention() {
     let retention_ms = 86_400_000;
-    let start_ms = 1_000;
+    let start_ms = super::now_millis();
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
     let state = push_registry_sessions_fixture(retention_ms, Some(Arc::clone(&clock))).await;
     let provider = state.auth_provider.clone().expect("push fixture provider");
@@ -23064,6 +23160,7 @@ async fn grant_step_up_is_domain_separated_target_bound_and_single_effect() {
         .clone();
     seat_role.name = "seatRole".to_owned();
     seat_role.id = "fn:seatRole".to_owned();
+    seat_role.authority_creating = true;
     deployed_functions.functions.push(seat_role);
     with_snapback(&state.snapback, move |snapback| {
         snapback
@@ -25131,25 +25228,16 @@ async fn registered_session_auth_routes_resolve_projection_and_publish_logout() 
 async fn successful_finite_session_use_extends_the_projection_deadline() {
     let start_ms = 1_700_000_000_000;
     let clock = Arc::new(ManualServerAuthClock::new(start_ms));
-    let mut snapback = LocalSnapback::memory().expect("manual-clock auth fixture");
-    let keyring = Arc::new(AuthKeyringStore::in_memory());
-    snapback
-        .remainder_auth_fixture()
-        .activate_catalog(keyring.as_ref(), start_ms, &OsRandom)
-        .expect("activate manual-clock auth catalog");
-    let provider = Arc::new(
-        AuthProvider::new_with_dependencies(
-            AuthProviderProfile::Test,
-            keyring,
-            Arc::new(OsRandom),
-            clock.clone(),
+    let fixture_clock = Arc::clone(&clock);
+    let state = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        sessions_activation_server_fixture_with(
+            activation_functions('2', false),
+            Some(fixture_clock),
         )
-        .expect("construct manual-clock auth provider"),
-    );
-    let state = test_app_state_from_snapback(snapback, bound_loopback_context())
-        .with_policy_auth_mode(PolicyAuthMode::Sessions)
-        .try_with_auth_provider(provider)
-        .expect("auth provider app state");
+    })
+    .await
+    .expect("construct settled manual-clock sessions fixture");
     let credential = mint_test_credential(&state, "sliding-use@example.com").await;
     let bearer = credential["token"].as_str().unwrap().to_owned();
     let coordinator = state.auth_coordinator.clone().unwrap();
@@ -35478,7 +35566,11 @@ async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant
 /// wakes every affected socket with expired/durableDelete.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout() {
-    let fixture = finite_authority_matrix_fixture().await;
+    let fixture = finite_authority_matrix_fixture_with_functions_and_grant_ttl(
+        finite_authority_matrix_functions(),
+        120_000,
+    )
+    .await;
     let grant_deadline_ms = fixture.grant_expires_at_ms;
     let (second_token, second_token_id) = mint_same_grant_sibling(&fixture).await;
     let tokens = [
@@ -35671,7 +35763,11 @@ async fn delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout() 
 /// token set is retained through commit and lifecycle propagation.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn grant_deadline_crossing_direct_bearer_expires_every_same_grant_socket() {
-    let fixture = finite_authority_matrix_fixture().await;
+    let fixture = finite_authority_matrix_fixture_with_functions_and_grant_ttl(
+        finite_authority_matrix_functions(),
+        120_000,
+    )
+    .await;
     // Retained live validation deliberately samples the host wall clock,
     // while service publications carry the injected provider clock. Keep
     // the grant live in both domains during setup, then advance the manual
