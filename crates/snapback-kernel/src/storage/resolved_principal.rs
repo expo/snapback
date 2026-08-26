@@ -264,16 +264,6 @@ impl LocalDatabase {
         if now_ms > crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP {
             return Err(invalid());
         }
-        const MAX_CALLER_FORWARD_SKEW_MS: u64 = 5 * 60 * 1_000;
-        let host_now_ms: u64 = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|_| invalid())?
-            .as_millis()
-            .try_into()
-            .map_err(|_| invalid())?;
-        if now_ms > host_now_ms.saturating_add(MAX_CALLER_FORWARD_SKEW_MS) {
-            return Err(invalid());
-        }
         let token_hash = TokenHash::from_bytes(*digest.as_bytes());
         // Authenticate the presented digest and its still-active human
         // subject before a caller-controlled sample may advance irreversible

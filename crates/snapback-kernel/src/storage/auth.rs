@@ -46,6 +46,13 @@ pub(super) const META_AUTH_RESTORE_DECLARATION_ID: &str = "auth_restore_declarat
 /// @ref LLP 0059#durable-session-clock-floor
 const META_AUTH_SESSION_CLOCK_FLOOR_MS: &str = "auth_session_clock_floor_ms";
 const MAX_SAFE_TIMESTAMP_MS: u64 = 9_007_199_254_740_991;
+/// Maximum lead accepted from any observation that can advance the absorbing
+/// auth lifetime floor. Five seconds is strictly below the shortest lifetime
+/// governed by this floor (the 60-second OAuth authorization-code TTL), so a
+/// newly issued artifact cannot expire on arrival solely from an accepted
+/// forward sample. The remaining 55 seconds is reserved for inter-host skew
+/// and scheduling delay.
+pub const AUTH_SESSION_CLOCK_MAX_FORWARD_SKEW_MS: u64 = 5_000;
 #[cfg(any(test, feature = "test-support"))]
 fn auth_activation_steps() -> usize {
     catalog_tables(CURRENT_CATALOG).count() + catalog_indexes(CURRENT_CATALOG).count() + 2
@@ -3974,6 +3981,7 @@ pub(super) fn advance_session_clock_floor_on(
     tx: &Transaction<'_>,
     observed_ms: u64,
 ) -> SnapbackResult<u64> {
+    validate_session_clock_observation(observed_ms)?;
     let current = read_session_clock_floor_on(tx)?;
     let floor = current.max(observed_ms);
     if floor != current {
@@ -3984,6 +3992,43 @@ pub(super) fn advance_session_clock_floor_on(
         )?;
     }
     Ok(floor)
+}
+
+fn validate_session_clock_observation(observed_ms: u64) -> SnapbackResult<()> {
+    if observed_ms > MAX_SAFE_TIMESTAMP_MS {
+        return Err(corrupt(
+            "auth session clock floor time is outside the portable timestamp range",
+        ));
+    }
+    let host_now_ms: u64 = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_CLOCK_SKEW_INVALID",
+                "auth",
+                "host wall clock cannot produce a valid auth lifetime observation",
+            )
+        })?
+        .as_millis()
+        .try_into()
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_CLOCK_SKEW_INVALID",
+                "auth",
+                "host wall clock cannot produce a valid auth lifetime observation",
+            )
+        })?;
+    if observed_ms > host_now_ms.saturating_add(AUTH_SESSION_CLOCK_MAX_FORWARD_SKEW_MS) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_CLOCK_SKEW_INVALID",
+            "auth",
+            "auth lifetime observation is too far ahead of the host wall clock",
+        )
+        .with_details(json!({
+            "maximumForwardSkewMs": AUTH_SESSION_CLOCK_MAX_FORWARD_SKEW_MS,
+        })));
+    }
+    Ok(())
 }
 
 fn corrupt(message: &str) -> SnapbackError {
@@ -4354,6 +4399,64 @@ mod tests {
             db.auth_session_clock_floor().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_CATALOG_CORRUPT"
         );
+    }
+
+    #[test]
+    fn every_public_auth_clock_writer_refuses_an_absorbing_future_sample() {
+        assert!(
+            AUTH_SESSION_CLOCK_MAX_FORWARD_SKEW_MS
+                < super::super::auth_integrations::OAUTH_AUTHORIZATION_CODE_TTL_MS,
+            "the forward bound must stay below the shortest auth TTL it can age"
+        );
+        let mut local = catalog_database();
+        local.advance_auth_session_clock_floor(100).unwrap();
+        local
+            .conn
+            .execute(
+                "INSERT INTO _auth_verification_codes(
+                   challenge_id, canonical_address, code_digest, key_id,
+                   attempts, max_attempts, requested_at_ms, expires_at_ms,
+                   consumed_at_ms, superseded_by
+                 ) VALUES('clock-poison-challenge', 'person@example.com', ?1,
+                          'key-1', 0, 5, 0, 1, NULL, NULL)",
+                params![vec![7_u8; 32]],
+            )
+            .unwrap();
+        let mut serving = super::super::ServingDatabase::adopt(local).unwrap();
+
+        for attack in ["advance", "gc"] {
+            let error = match attack {
+                "advance" => serving
+                    .advance_auth_session_clock_floor(MAX_SAFE_TIMESTAMP_MS)
+                    .map(|_| ()),
+                "gc" => serving.auth_gc(MAX_SAFE_TIMESTAMP_MS).map(|_| ()),
+                _ => unreachable!(),
+            }
+            .expect_err("a public floor writer cannot accept the portable maximum");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CLOCK_SKEW_INVALID");
+            assert_eq!(
+                serving
+                    .auth_database_mut()
+                    .auth_session_clock_floor()
+                    .unwrap(),
+                100,
+                "refusal cannot advance the absorbing floor"
+            );
+            assert_eq!(
+                serving
+                    .auth_database_mut()
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM _auth_verification_codes
+                         WHERE challenge_id = 'clock-poison-challenge'",
+                        [],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .unwrap(),
+                1,
+                "refused GC cannot delete live catalog state"
+            );
+        }
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
