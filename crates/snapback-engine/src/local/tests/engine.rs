@@ -28034,8 +28034,8 @@ fn guarded_snapback() -> LocalSnapback {
     snapback
 }
 
-#[tokio::test]
-async fn managed_action_staging_preserves_committed_terminal_service_loss() {
+#[test]
+fn managed_action_staging_preserves_committed_terminal_service_loss() {
     let mut snapback = guarded_snapback();
     let step = ActionStep::RunMutation {
         name: "hostInsert".to_owned(),
@@ -28114,9 +28114,9 @@ async fn managed_action_staging_preserves_committed_terminal_service_loss() {
         )
         .expect("stage managed classified service action");
 
-    let terminal = terminal
-        .acquire_gate()
-        .await
+    let terminal = tokio::runtime::Runtime::new()
+        .expect("managed action expiry runtime")
+        .block_on(terminal.acquire_gate())
         .expect("acquire the database-derived expiry gate");
     snapback
         .commit_expired_service_authority(terminal)
@@ -30771,20 +30771,17 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
 #[test]
 fn reconstructed_service_authority_refuses_a_second_engine() {
     let mut producing = guarded_snapback();
-    install_service_replay_auth(&mut producing);
+    let secrets = install_service_replay_auth(&mut producing);
+    let token = crate::auth::crypto::ScopedToken::parse(
+        secrets
+            .0
+            .get("token-a")
+            .expect("registered producer token secret"),
+    )
+    .expect("parse producer token secret");
     let durable = producing
         .auth_database_mut()
-        .resolve_retained_service_authority_carrier(
-            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
-                actor_user_id: "agent-a",
-                credential_id: "credential-a",
-                credential_generation: 1,
-                grant_id: "grant-a",
-                token_id: "token-a",
-                effective_user_id: Some("user-a"),
-            },
-            now_millis(),
-        )
+        .resolve_scoped_service_authority(&token, now_millis())
         .expect("durably resolve producing service authority");
     let registered = producing
         .service_authority_fences

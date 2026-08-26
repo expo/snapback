@@ -31719,6 +31719,11 @@ impl LocalSnapback {
         )?;
         let child_authority = authority.clone();
         let client_mutation_id = host_identity.as_ref().map(|identity| identity.id.clone());
+        // @ref LLP 0303#the-governing-principle — preserve a durable service
+        // retirement as a terminal caller cause;
+        // the plain descriptor producer intentionally erases classification
+        // for compatibility callers.
+        self.validate_prepared_service_authority_classified(&authority)?;
         let cohort = self
             .prepare_authority_descriptor(authority)
             .map_err(AuthorizedEffectReservationError::NonTerminal)?;
