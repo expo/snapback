@@ -1002,3 +1002,27 @@ symbol/lookup/onboarding/first-read/package-inventory/ref checks plus the
 code-set, crate, whitespace, and commit-count audits. These proof-transfer
 conditions, the warnings above, and the intentionally unrun Rust build/test
 battery are the only qualifications on the round-37 evidence.
+
+### Post-landing removal-guard correction (2026-08-26)
+
+After the lane landed, the removal guard was red on linear `main` history. When
+`HEAD == origin/main`, the resolver correctly fell back to the parent of the
+latest registry-changing commit. In the landed commit ordering, however, that
+parent already contained the lane's complete removal ledger while still
+containing the pre-regeneration diagnostic set. Comparing the ledger row with
+itself therefore reported all 245 justified removals as “removal justification
+was not added or revised with this change.” That revision requirement describes
+a branch delta, not a historical registry transition.
+
+The resolver now labels each selected baseline as `merge-base`, `history`, or
+`dirty`. Only a `merge-base` comparison requires a disappeared code's
+justification to be added or revised relative to the baseline ledger. A
+`history` or `dirty` comparison requires the justification to be checked in but
+accepts an unchanged historical row. Emitter-evidence validation for
+`reference-only` and `test-only` reasons, missing-justification rejection, and
+unused-justification rejection remain unconditional.
+
+Fail-first fixtures reproduce the landed ledger-commit-before-registry-commit
+ordering, retain the unchanged-row failure at a merge base, retain
+`missing checked-in removal justification` on a history baseline, and cover a
+dirty registry whose justification is already checked in.

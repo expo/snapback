@@ -23,14 +23,14 @@ function stableRegistryHistory(repoRoot, dirtyPath) {
       stdio: ['ignore', 'ignore', 'pipe'],
     });
   } catch (error) {
-    if (error.status === 1) return { baseline: 'HEAD' };
+    if (error.status === 1) return { baseline: 'HEAD', kind: 'dirty' };
     throw error;
   }
 
   try {
     const baseline = gitOutput(repoRoot, ['merge-base', 'HEAD', 'origin/main']);
     const head = gitOutput(repoRoot, ['rev-parse', 'HEAD']);
-    if (baseline !== head) return { baseline };
+    if (baseline !== head) return { baseline, kind: 'merge-base' };
   } catch {
     // Fall through to the local registry history when origin/main is absent.
   }
@@ -45,12 +45,15 @@ function stableRegistryHistory(repoRoot, dirtyPath) {
       dirtyPath,
     ]);
     if (latestRegistryCommit !== '') {
-      return { baseline: gitOutput(repoRoot, ['rev-parse', `${latestRegistryCommit}^`]) };
+      return {
+        baseline: gitOutput(repoRoot, ['rev-parse', `${latestRegistryCommit}^`]),
+        kind: 'history',
+      };
     }
   } catch {
     // A root registry commit has no earlier snapshot; use the registry itself.
   }
-  return { baseline: 'HEAD' };
+  return { baseline: 'HEAD', kind: 'history' };
 }
 
 function committedJson(repoRoot, revision, path, fallback = undefined) {
@@ -110,6 +113,7 @@ export function codeRemovalProblems(
   allowlist,
   previousAllowlist = { removals: {} },
   emitterEvidence = null,
+  baselineKind = 'merge-base',
 ) {
   const validReasons = new Set([
     'environment',
@@ -181,7 +185,8 @@ export function codeRemovalProblems(
     if (justification === undefined) {
       problems.push(`${code}: missing checked-in removal justification`);
     } else if (
-      JSON.stringify(previousAllowlist.removals?.[code]) === JSON.stringify(justification)
+      baselineKind === 'merge-base'
+      && JSON.stringify(previousAllowlist.removals?.[code]) === JSON.stringify(justification)
     ) {
       problems.push(`${code}: removal justification was not added or revised with this change`);
     }
@@ -205,7 +210,7 @@ export function registryRemovalProblems(
   classifierSources = null,
 ) {
   const allowlist = JSON.parse(readFileSync(resolve(repoRoot, allowlistPath), 'utf8'));
-  const { baseline } = stableRegistryHistory(repoRoot, registryPath);
+  const { baseline, kind } = stableRegistryHistory(repoRoot, registryPath);
   const baselineRegistry = committedJson(
     repoRoot,
     baseline,
@@ -226,5 +231,6 @@ export function registryRemovalProblems(
     allowlist,
     previousAllowlist,
     classifierSources === null ? null : diagnosticEmitterEvidence(classifierSources),
+    kind,
   );
 }

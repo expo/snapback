@@ -337,8 +337,12 @@ test('diagnostic removal guard accepts its historical ledger after HEAD lands on
         },
       },
     })}\n`);
-    git('add', '.');
-    git('commit', '-m', 'remove diagnostic with justification');
+    git('add', allowlistPath);
+    git('commit', '-m', 'record removal justification');
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'remove diagnostic from registry');
     const landedHead = git('rev-parse', 'HEAD');
     git('update-ref', 'refs/remotes/origin/main', landedHead);
     assert.equal(git('merge-base', 'HEAD', 'origin/main'), landedHead);
@@ -353,7 +357,97 @@ test('diagnostic removal guard accepts its historical ledger after HEAD lands on
   }
 });
 
-test('diagnostic removal guard compares a dirty working registry with HEAD', () => {
+test('diagnostic removal guard keeps unchanged ledger rows strict at a merge base', () => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-merge-base-ledger-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const existingJustification = {
+    reason: 'test-only',
+    detail: 'The historical emitter was compiled exclusively by #[cfg(test)].',
+  };
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      SNAPBACK_FIXTURE_MERGE_BASE_REMOVAL: {},
+    } })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: { SNAPBACK_FIXTURE_MERGE_BASE_REMOVAL: existingJustification },
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry and ledger');
+    git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD'));
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'remove diagnostic without revising justification');
+
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [
+        'SNAPBACK_FIXTURE_MERGE_BASE_REMOVAL: removal justification was not added or revised with this change',
+      ],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test('diagnostic removal guard still requires a justification on history baselines', () => {
+  const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-history-ledger-'));
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
+  const registryFile = resolve(repoRoot, registryPath);
+  const allowlistFile = resolve(repoRoot, allowlistPath);
+  const git = (...args) => execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    git('init', '-b', 'main');
+    git('config', 'user.name', 'Diagnostics Registry Test');
+    git('config', 'user.email', 'diagnostics-registry@example.invalid');
+    mkdirSync(resolve(repoRoot, 'guide/reference'), { recursive: true });
+    mkdirSync(resolve(repoRoot, 'scripts'), { recursive: true });
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
+      SNAPBACK_FIXTURE_HISTORY_MISSING_JUSTIFICATION: {},
+    } })}\n`);
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {},
+    })}\n`);
+    git('add', '.');
+    git('commit', '-m', 'baseline registry');
+
+    writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
+    git('add', registryPath);
+    git('commit', '-m', 'remove diagnostic without justification');
+    git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD'));
+
+    assert.deepEqual(
+      registryRemovalProblems(repoRoot, registryPath, allowlistPath),
+      [
+        'SNAPBACK_FIXTURE_HISTORY_MISSING_JUSTIFICATION: missing checked-in removal justification',
+      ],
+    );
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test('diagnostic removal guard accepts a checked-in justification for a dirty registry', () => {
   const repoRoot = mkdtempSync(resolve(tmpdir(), 'snapback-diagnostics-dirty-registry-'));
   const registryPath = 'guide/reference/diagnostics-registry.json';
   const allowlistPath = 'scripts/diagnostics-registry-code-removals.json';
@@ -381,17 +475,24 @@ test('diagnostic removal guard compares a dirty working registry with HEAD', () 
     writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {
       SNAPBACK_FIXTURE_DIRTY_REMOVAL: {},
     } })}\n`);
-    git('add', registryPath);
-    git('commit', '-m', 'add diagnostic');
+    writeFileSync(allowlistFile, `${JSON.stringify({
+      schemaVersion: 'snapback-diagnostics-code-removals.v1',
+      removals: {
+        SNAPBACK_FIXTURE_DIRTY_REMOVAL: {
+          reason: 'test-only',
+          detail: 'The historical emitter was compiled exclusively by #[cfg(test)].',
+        },
+      },
+    })}\n`);
+    git('add', registryPath, allowlistPath);
+    git('commit', '-m', 'add diagnostic and future removal justification');
     const landedHead = git('rev-parse', 'HEAD');
     git('update-ref', 'refs/remotes/origin/main', landedHead);
 
     writeFileSync(registryFile, `${JSON.stringify({ diagnostics: {} })}\n`);
     assert.deepEqual(
       registryRemovalProblems(repoRoot, registryPath, allowlistPath),
-      [
-        'SNAPBACK_FIXTURE_DIRTY_REMOVAL: missing checked-in removal justification',
-      ],
+      [],
     );
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
