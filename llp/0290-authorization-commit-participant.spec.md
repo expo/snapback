@@ -11,7 +11,9 @@ repair: completion callers provide neither executable code nor a disposition.
 The database-bound participant invokes its once-installed private sync owner,
 whose unsafe cross-crate implementation contract permits `COMPLETE` only after
 the real subscriber, entry, index, outbox, notifier, and pruning effects have
-run. After durable reread the exact fence transitions `ACTIVE -> SETTLING`
+run. The disposition is an opaque private-field value whose constructors are
+also unsafe trusted-bridge operations, so safe Rust cannot mint `Complete`.
+After durable reread the exact fence transitions `ACTIVE -> SETTLING`
 before the first irreversible sync mutation; affected writers and participant
 replacement wait for that finite settlement. Real-state regression witnesses
 cover the writer race and denial/removal effects, and F244 now compiles the
@@ -1770,7 +1772,9 @@ from the exact room/subscriber state and completed effects. Because kernel and
 sync are separate crates, that internal bridge is a `#[doc(hidden)]` unsafe
 trait: implementing its contract requires explicit unsafe code, so an
 ordinary safe-Rust caller cannot replace it with a no-op assertion. No
-completion call site chooses executable code or a terminal fact.
+completion call site chooses executable code or a terminal fact, and the
+opaque disposition's unsafe constructors prevent safe code from manufacturing
+that fact independently.
 
 Required lock orders:
 
@@ -2422,11 +2426,13 @@ Compile-fail fixtures must reject:
 - any `Default` participant, reservation, prepared carrier, or cancellation token;
 - any public API that returns an owned completion fence or terminal capability;
 - any completion callback or argument that supplies executable settlement code
-  or a terminal disposition. F244's marked attack is the exact no-op callback
-  returning `Complete`; it must fail at the extra callback argument. The
-  participant-bound owner receives only a borrowed, read-only decision view
-  after registry and SQLite release, and ordinary safe Rust cannot implement
-  its unsafe internal contract.
+  or a terminal disposition. F244 has two marked attacks: the callback
+  injection must fail at its extra argument, and direct construction of
+  `RoomReauthorizationDisposition::Complete` must fail because the disposition
+  has no public variant or safe constructor. Together they encode the exact
+  no-op-`Complete` composition. The participant-bound owner receives only a
+  borrowed, read-only decision view after registry and SQLite release, and
+  ordinary safe Rust cannot implement its unsafe internal contract.
 
 ## 11. Honest limitations and open proof obligations
 
