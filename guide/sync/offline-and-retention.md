@@ -475,9 +475,14 @@ pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING`. Both paths send zero
 mutation POSTs and retain the intent instead of dropping it. The receipt names
 that state as
 `outcome: { status: 'paused', reason: <diagnostic code>, retained: <count> }`;
-there is no shipped cross-origin handoff to infer from the method name. The
-predecessor can be reattached to the retained store while the ticket defines
-the authority proof, crash-safe rewrite, and upgrade-while-offline migration.
+`before` and `after` remain target-scoped disposition counts, while both
+`remaining` and `outcome.retained` are the payload-free total of all unresolved
+records still held by the store. A nonzero total therefore tells the host to
+retain the rollback store even when the candidate cannot project the paused
+cross-target record. There is no shipped cross-origin handoff to infer from the
+method name. The predecessor can be reattached to the retained store while the
+ticket defines the authority proof, crash-safe rewrite, and
+upgrade-while-offline migration.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   assert.deepEqual(receipt.outcome, {

@@ -2785,6 +2785,39 @@ test('explicit queueing fails with a typed capability error for a ledger-less ta
   assert.deepEqual(await store.outboxRecords(), []);
 });
 
+test('offline replay advertisement without a target profile is a coded queue refusal', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new InspectingSnapbackClient('https://malformed-replay-manifest.example', {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  let mutationCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: '',
+      }));
+    }
+    mutationCalls += 1;
+    throw new TypeError('malformed manifest must not authorize mutation transport');
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', { args: {}, queue: true }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED');
+      assert.equal(error.diagnostic?.details?.reason, 'target-profile-required');
+      return true;
+    },
+  );
+  assert.equal(mutationCalls, 0);
+  assert.deepEqual(await store.outboxRecords(), []);
+  await client.close();
+  await store.close();
+});
+
 test('capability inspection refuses redirects instead of borrowing another origin ledger', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -3024,6 +3057,64 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   );
   assert.equal(delivered.length, 1);
   assert.equal(delivered[0].clientMutationId, queued.clientMutationId);
+});
+
+test('replay treats a record removed before target selection as a stopped local no-op', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://record-not-local-replay.example';
+  const targetProfileId = 'record-not-local-replay-target';
+  await commitCompleteReplayCapability(store, origin, targetProfileId);
+  await store.outboxEnqueue({
+    id: 'cm-record-not-local-replay',
+    function: 'createThing',
+    ...currentOutboxTarget({ origin, targetProfileId }),
+    args: { title: 'removed before the fenced reread' },
+  });
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __offlineMutationReplayCapability: true,
+    __outboxDrainLifecycle: false,
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const outboxRecords = store.outboxRecords.bind(store);
+  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+  let hideNextRecordRead = false;
+  store.withOutboxAuthorizationDispatch = (operation, options) => (
+    withAuthorizationDispatch(async () => {
+      hideNextRecordRead = true;
+      return operation();
+    }, options)
+  );
+  store.outboxRecords = async () => {
+    if (hideNextRecordRead) {
+      hideNextRecordRead = false;
+      return [];
+    }
+    return outboxRecords();
+  };
+  let mutationPosts = 0;
+  globalThis.fetch = async () => {
+    mutationPosts += 1;
+    throw new Error('record-not-local replay must not reach transport');
+  };
+
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, remaining: replay.remaining, stopped: replay.stopped },
+    { replayed: 0, remaining: 1, stopped: false },
+  );
+  assert.equal(mutationPosts, 0);
+  assert.equal((await store.outboxRecords())[0].status, 'pending');
+  assert.equal(
+    client.outboxDiagnostics.some((entry) => (
+      entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
+      && entry.reasons?.includes('record-not-local')
+    )),
+    true,
+  );
+  await client.close();
+  await store.close();
 });
 
 test('cached enqueue preserves a typed store refusal instead of relabeling it as ledger absence', async (t) => {
@@ -6584,11 +6675,11 @@ test('checked sidecar adoption cannot bypass persisted target without target ado
     stop: candidate.__outboxLastReplayStop,
     diagnostics: candidate.outboxDiagnostics,
   }));
-  assert.equal(receipt.remaining, 0);
+  assert.equal(receipt.remaining, 1);
   assert.deepEqual(receipt.outcome, {
     status: 'paused',
     reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-    retained: 0,
+    retained: 1,
   });
   assert.deepEqual(
     receipt.before,
@@ -6646,7 +6737,7 @@ test('checked sidecar adoption names a retained legacy targetless pause', async 
     assert.deepEqual(receipt.outcome, {
       status: 'paused',
       reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISSING',
-      retained: 0,
+      retained: 1,
     });
     assert.equal(mutationPosts, 0, 'legacy targetless adoption sends zero mutation POSTs');
     assert.deepEqual(
@@ -6731,11 +6822,11 @@ test('sidecar adoption target mismatch precedes authority-instance custody recon
       afterFreshSnapshot: async () => TEST_FRESH_SNAPSHOT_BARRIER,
     });
     assert.equal(receipt.replayed, 0);
-    assert.equal(receipt.remaining, 0);
+    assert.equal(receipt.remaining, 1);
     assert.deepEqual(receipt.outcome, {
       status: 'paused',
       reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-      retained: 0,
+      retained: 1,
     });
     assert.equal(mutationPosts, 0, 'adoption sends zero POSTs for the target-A record');
     const status = await candidate.outboxStatus();
@@ -6894,11 +6985,11 @@ test('sidecar adoption keeps identity-divergent intent pending for rollback', as
     {
       replayed: 0,
       failedDelta: 0,
-      remaining: 0,
+      remaining: 1,
       outcome: {
         status: 'paused',
         reason: 'SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH',
-        retained: 0,
+        retained: 1,
       },
     },
   );

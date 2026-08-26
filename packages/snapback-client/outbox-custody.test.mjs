@@ -725,6 +725,137 @@ test('principal switch deletes every predecessor disposition before successor ob
   assert.notEqual(first.clientMutationId, second.clientMutationId);
 });
 
+test('principal switch privacy deletion survives an incomplete current target fact', async (t) => {
+  const fixture = makeFixture();
+  const { client, coordinator } = makeClient(fixture);
+  t.after(() => client.closeAuth());
+  await signIn(fixture, client);
+  const queued = await queueOffline(fixture, client, 'privateBeforeInspectionRefusal', {
+    args: { secret: 'USER_A_PRIVATE_OUTBOX_BYTES' },
+  });
+  await fixture.store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: fixture.baseUrl,
+    supported: false,
+    reason: 'inspection-refused',
+    targetProfileId: null,
+    artifactGeneration: null,
+  });
+
+  await transitionTo(fixture, coordinator, actorB(), 'negative_fact_principal_switch');
+
+  assert.deepEqual(
+    await fixture.store.outboxRecords(),
+    [],
+    'the successor authority observes no predecessor payload after an answered refusal',
+  );
+  const deletion = client.outboxDiagnostics.find((entry) => (
+    entry.code === 'SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE'
+  ));
+  assert.equal(deletion?.deleted, 1);
+  assert.equal(
+    client.outboxDiagnostics.some((entry) => (
+      entry.code === 'SNAPBACK_OUTBOX_TARGET_FENCE_REFUSED'
+      && entry.reasons?.includes('current-target-incomplete')
+      && entry.clientMutationIds?.includes(queued.clientMutationId)
+    )),
+    false,
+    'recovery incompleteness is not a reason to skip the transition privacy cut',
+  );
+});
+
+test('an unrelated shared-store client cannot borrow predecessor dispatch custody', async (t) => {
+  const fixture = makeFixture();
+  const predecessor = makeClient(fixture);
+  const successorClient = new SnapbackClient(fixture.baseUrl, {
+    authCoordinator: predecessor.coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: fixture.store,
+  });
+  successorClient.__registerInspectionAppId(fixture.appId);
+  t.after(async () => {
+    await successorClient.closeAuth();
+    await predecessor.client.closeAuth();
+  });
+  await signIn(fixture, predecessor.client);
+  const queued = await queueOffline(fixture, predecessor.client, 'privateBeforeSuccessorWipe', {
+    args: { secret: 'PREDECESSOR_DISPATCH_PRIVATE_ARGS' },
+  });
+  fixture.offlineMutations = false;
+
+  const withAuthorizationDispatch = fixture.store.withOutboxAuthorizationDispatch.bind(
+    fixture.store,
+  );
+  let dispatchRequests = 0;
+  fixture.store.withOutboxAuthorizationDispatch = (operation, options) => {
+    dispatchRequests += 1;
+    return withAuthorizationDispatch(operation, options);
+  };
+  let transportEnteredResolve;
+  const transportEntered = new Promise((resolve) => { transportEnteredResolve = resolve; });
+  let releaseTransport;
+  const transportHeld = new Promise((resolve) => { releaseTransport = resolve; });
+  fixture.beforeMutationSuccess = async () => {
+    fixture.beforeMutationSuccess = null;
+    transportEnteredResolve();
+    await transportHeld;
+  };
+  const predecessorDispatch = predecessor.client.mutate('heldPredecessorDispatch', {
+    clientMutationId: 'cm-held-predecessor-dispatch',
+    args: { value: 'hold authorization dispatch custody' },
+  });
+  predecessorDispatch.catch(() => {});
+  await transportEntered;
+  const requestsWhileHeld = dispatchRequests;
+
+  const transition = transitionTo(
+    fixture,
+    predecessor.coordinator,
+    actorB(),
+    'shared_store_successor_waits_for_predecessor_dispatch',
+  );
+  transition.catch(() => {});
+  for (let attempt = 0; attempt < 100 && dispatchRequests === requestsWhileHeld; attempt += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(
+    dispatchRequests > requestsWhileHeld,
+    true,
+    'the authority transition is waiting behind the predecessor dispatch cut',
+  );
+
+  let dispositionSettled = false;
+  let earlyDisposition = null;
+  const disposition = successorClient
+    .__optimisticMutationDisposition(queued.clientMutationId)
+    .then((value) => {
+      dispositionSettled = true;
+      earlyDisposition = value;
+      return value;
+    });
+  await new Promise((resolve) => setImmediate(resolve));
+  const settledBeforePrivacyWipe = dispositionSettled;
+  const leakedBeforePrivacyWipe = earlyDisposition;
+  releaseTransport();
+
+  await assert.rejects(
+    predecessorDispatch,
+    (error) => isSnapbackDiagnosticError(error)
+      && error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  await transition;
+  const finalDisposition = await disposition;
+  assert.equal(
+    settledBeforePrivacyWipe,
+    false,
+    `the successor borrowed the predecessor scope and read ${JSON.stringify(leakedBeforePrivacyWipe)}`,
+  );
+  assert.equal(finalDisposition.status, 'unknown');
+  assert.equal(finalDisposition.record, null);
+  assert.deepEqual(await fixture.store.outboxRecords(), []);
+});
+
 test('server authority-stale strands and continues to an ordinary failed refusal', async (t) => {
   const fixture = makeFixture();
   const { client } = makeClient(fixture);

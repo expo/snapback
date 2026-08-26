@@ -366,11 +366,14 @@ const isHousekeepingReplayEligible = (record) => record?.dispatchLane === 'house
 
 // Read-only recovery projections can be reached synchronously from optimistic
 // publication while the foreground mutation still owns this lock. Track only
-// locks acquired through the client and let those projections borrow a lease;
-// the owner's release waits for every borrower, so the read remains inside the
-// same authorization cut without making foreground mutation dispatch reentrant.
+// locks acquired through the client and let those projections borrow the exact
+// unforgeable owner lease: client identity, authority instance, and one async
+// owner token. The owner's release waits for every matching borrower, so the
+// read remains inside the same authorization cut without making foreground
+// mutation dispatch reentrant. An unrelated client sharing the store cannot
+// discover the token and must wait for the ordinary lock handoff.
 const OUTBOX_AUTHORIZATION_DISPATCH_SCOPES_REGISTRY_KEY = Symbol.for(
-  'expo.snapback-client.outbox-authorization-dispatch-scopes.v1',
+  'expo.snapback-client.outbox-authorization-dispatch-scopes.v2',
 );
 const outboxAuthorizationDispatchScopesByStore = (() => {
   const existing = globalThis[OUTBOX_AUTHORIZATION_DISPATCH_SCOPES_REGISTRY_KEY];
@@ -381,9 +384,26 @@ const outboxAuthorizationDispatchScopesByStore = (() => {
   } catch { /* module-local fallback */ }
   return created;
 })();
-const borrowOutboxAuthorizationDispatch = (store) => {
+const outboxAuthorizationDispatchOwnerLeases = new WeakSet();
+const createOutboxAuthorizationDispatchOwnerLease = (
+  client,
+  authorityInstanceId = null,
+) => {
+  const ownerLease = Object.freeze({
+    client,
+    authorityInstanceId,
+    asyncOwner: Object.freeze({}),
+  });
+  outboxAuthorizationDispatchOwnerLeases.add(ownerLease);
+  return ownerLease;
+};
+const borrowOutboxAuthorizationDispatch = (store, ownerLease) => {
+  if (ownerLease === null || ownerLease === undefined) return null;
   const scope = [...(outboxAuthorizationDispatchScopesByStore.get(store) ?? [])]
-    .find((candidate) => candidate.releaseRequested !== true);
+    .find((candidate) => (
+      candidate.releaseRequested !== true
+      && candidate.ownerLease === ownerLease
+    ));
   if (scope === undefined) return null;
   scope.borrowers += 1;
   let released = false;
@@ -397,7 +417,11 @@ const borrowOutboxAuthorizationDispatch = (store) => {
   };
 };
 
-const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
+const acquireOutboxAuthorizationDispatch = async (
+  store,
+  lane = null,
+  ownerLease = null,
+) => {
   if (typeof store?.withOutboxAuthorizationDispatch !== 'function') {
     return async () => {};
   }
@@ -415,7 +439,12 @@ const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
   }, { lane }));
   task.catch(enterReject);
   await entered;
-  const scope = { borrowers: 0, borrowersDrained: [], releaseRequested: false };
+  const scope = {
+    ownerLease,
+    borrowers: 0,
+    borrowersDrained: [],
+    releaseRequested: false,
+  };
   let scopes = outboxAuthorizationDispatchScopesByStore.get(store);
   if (scopes === undefined) {
     scopes = new Set();
@@ -435,6 +464,28 @@ const acquireOutboxAuthorizationDispatch = async (store, lane = null) => {
     releaseResolve();
     await task;
   };
+};
+const outboxOptimisticRefreshOwnerLeasesByClient = new WeakMap();
+const pushOutboxOptimisticRefreshOwnerLease = (client, ownerLease) => {
+  if (ownerLease === null || ownerLease?.client !== client) return () => {};
+  let leases = outboxOptimisticRefreshOwnerLeasesByClient.get(client);
+  if (leases === undefined) {
+    leases = [];
+    outboxOptimisticRefreshOwnerLeasesByClient.set(client, leases);
+  }
+  leases.push(ownerLease);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const index = leases.lastIndexOf(ownerLease);
+    if (index >= 0) leases.splice(index, 1);
+    if (leases.length === 0) outboxOptimisticRefreshOwnerLeasesByClient.delete(client);
+  };
+};
+const currentOutboxOptimisticRefreshOwnerLease = (client) => {
+  const leases = outboxOptimisticRefreshOwnerLeasesByClient.get(client);
+  return leases?.[leases.length - 1] ?? null;
 };
 let outboxDrainControllerCounter = 0;
 
@@ -3185,6 +3236,9 @@ const completeOfflineMutationOperationTarget = (transportTarget, fact) => {
   const normalized = normalizeOfflineMutationReplayCapabilityFact(fact);
   if (
     normalized === null
+    || normalized.supported !== true
+    || typeof normalized.targetProfileId !== 'string'
+    || normalized.targetProfileId.length === 0
     || canonicalServerOrigin(normalized.origin) !== transportTarget.origin
     || !sameOptionalLedgerIncarnation(
       transportTarget.ledgerIncarnation ?? null,
@@ -3512,12 +3566,15 @@ const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) =
   const manifest = inspection?.capabilityManifest
     ?? (Array.isArray(inspection?.supportedCapabilities) ? inspection : null);
   const targetProfileId = typeof manifest?.targetProfileId === 'string'
+    && manifest.targetProfileId.length > 0
     ? manifest.targetProfileId
     : typeof inspection?.targetProfileId === 'string'
+      && inspection.targetProfileId.length > 0
       ? inspection.targetProfileId
       : null;
-  const supported = Array.isArray(manifest?.supportedCapabilities)
+  const advertised = Array.isArray(manifest?.supportedCapabilities)
     && manifest.supportedCapabilities.includes(OFFLINE_MUTATION_REPLAY_CAPABILITY);
+  const supported = advertised && targetProfileId !== null;
   const ledgerIncarnation = typeof inspection?.ledgerIncarnation === 'string'
     && inspection.ledgerIncarnation.length > 0
     ? inspection.ledgerIncarnation
@@ -3529,7 +3586,9 @@ const offlineMutationReplayCapabilityFactFromInspection = (inspection, origin) =
     schemaVersion: OFFLINE_MUTATION_REPLAY_CAPABILITY_FACT_V1,
     origin,
     supported,
-    reason: supported ? null : 'not-advertised',
+    reason: supported
+      ? null
+      : advertised ? 'target-profile-required' : 'not-advertised',
     targetProfileId,
     artifactGeneration: artifactGenerationFromInspection(inspection),
     ...(ledgerIncarnation === null ? {} : { ledgerIncarnation }),
@@ -3556,7 +3615,14 @@ const normalizeOfflineMutationReplayCapabilityFact = (value) => {
     || value.origin.length === 0
     || typeof value.supported !== 'boolean'
     || !(value.reason === null || typeof value.reason === 'string')
-    || !(value.targetProfileId === null || typeof value.targetProfileId === 'string')
+    || !(
+      value.targetProfileId === null
+      || (typeof value.targetProfileId === 'string' && value.targetProfileId.length > 0)
+    )
+    || (
+      value.supported === true
+      && (typeof value.targetProfileId !== 'string' || value.targetProfileId.length === 0)
+    )
     || !(
       value.ledgerIncarnation === undefined
       || value.ledgerIncarnation === null
@@ -6205,9 +6271,15 @@ export class SnapbackClient {
       // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — the custody matrix runs
       //   before successor publication, including cross-principal deletion.
       const authority = this.#queueAuthorityFromSession(capture, session);
+      const authorizationDispatchOwnerLease = createOutboxAuthorizationDispatchOwnerLease(
+        this,
+        authority.authorityDescriptor.authorityInstanceId,
+      );
       const reconciled = await this.#applyQueueCustodyReconciliation(queueStore, authority, {
         validateCurrent: false,
         expectedAuthorityGeneration: transitionAuthorityGeneration,
+        authTransitionOriginCut: true,
+        authorizationDispatchOwnerLease,
       });
       if (!reconciled) {
         const error = new Error(
@@ -8142,6 +8214,14 @@ export class SnapbackClient {
       });
     }
     const evidence = factCommitted === false ? 'uncommitted' : 'fresh';
+    if (fact.supported !== true) {
+      return Object.freeze({
+        ...fact,
+        evidence,
+        inspectionRequestSequence,
+        operationTarget: transportTarget,
+      });
+    }
     if (
       fact.supported
       && expectedGeneration !== null
@@ -8798,6 +8878,7 @@ export class SnapbackClient {
       target = null,
       authorizationDispatchOwned = false,
       borrowAuthorizationDispatch = false,
+      authorizationDispatchOwnerLease = null,
       lane = 'foreground',
     },
     operation,
@@ -8807,10 +8888,14 @@ export class SnapbackClient {
       : [...new Set(clientMutationIds)];
     const borrowedRelease = authorizationDispatchOwned || !borrowAuthorizationDispatch
       ? null
-      : borrowOutboxAuthorizationDispatch(store);
+      : borrowOutboxAuthorizationDispatch(store, authorizationDispatchOwnerLease);
     const release = authorizationDispatchOwned
       ? async () => {}
-      : borrowedRelease ?? await acquireOutboxAuthorizationDispatch(store, lane);
+      : borrowedRelease ?? await acquireOutboxAuthorizationDispatch(
+          store,
+          lane,
+          authorizationDispatchOwnerLease,
+        );
     let released = false;
     const releaseAuthorizationDispatch = async () => {
       if (released) return;
@@ -8887,6 +8972,30 @@ export class SnapbackClient {
     return value;
   }
 
+  async #authTransitionOutboxRecordIds(store) {
+    const origin = canonicalServerOrigin(this.baseUrl);
+    const projectedRecords = await store.outboxRecords();
+    const quarantineTargets = typeof store.outboxQuarantinedRecordTargets === 'function'
+      ? await store.outboxQuarantinedRecordTargets()
+      : [];
+    const quarantineTargetsById = new Map(
+      quarantineTargets.map((record) => [record.id, record]),
+    );
+    return projectedRecords
+      .map((record) => (
+        record?.status === 'quarantined' && quarantineTargetsById.has(record.id)
+          ? { ...record, ...quarantineTargetsById.get(record.id) }
+          : record
+      ))
+      .filter((record) => (
+        record?.outboxRecordSchemaVersion === OUTBOX_RECORD_SCHEMA_VERSION
+        && record.enqueueTarget !== null
+        && typeof record.enqueueTarget === 'object'
+        && canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) === origin
+      ))
+      .map((record) => record.id);
+  }
+
   #targetAwareOptimisticRecordStore(store) {
     return Object.freeze({
       outboxRecords: async () => {
@@ -8954,7 +9063,10 @@ export class SnapbackClient {
     );
   }
 
-  async __optimisticMutationDisposition(clientMutationId) {
+  async __optimisticMutationDisposition(
+    clientMutationId,
+    authorizationDispatchOwnerLease = null,
+  ) {
     const ephemeral = this.__ephemeralOptimisticRecords.get(clientMutationId) ?? null;
     if (ephemeral !== null) {
       if (ephemeral.status === 'settled') {
@@ -8981,6 +9093,21 @@ export class SnapbackClient {
     let disposition = Object.freeze({ status: 'unknown', timing: mutationTiming() });
     let record = null;
     try {
+      const ownsSynchronousRefresh = (
+        authorizationDispatchOwnerLease?.client === this
+        && outboxAuthorizationDispatchOwnerLeases.has(authorizationDispatchOwnerLease)
+      );
+      if (
+        !ownsSynchronousRefresh
+        && this.authorityFence?.authorityTransitionStatus?.()?.transitionOwner
+          === 'auth-coordinator'
+      ) {
+        // A successor observer cannot race its own mandatory participant and
+        // read predecessor bytes merely because the predecessor currently
+        // owns the store lock. Join the barrier first; the exact internal
+        // refresh lease is the only path allowed to remain inside its owner.
+        await this.authSession();
+      }
       const store = this.#offlineQueueStore(false);
       if (store === null) throw new Error('SNAPBACK_OUTBOX_UNAVAILABLE');
       const selection = await this.#withTargetFencedOutboxRecords(
@@ -8988,7 +9115,8 @@ export class SnapbackClient {
         {
           api: '__optimisticMutationDisposition',
           clientMutationIds: [clientMutationId],
-          borrowAuthorizationDispatch: true,
+          borrowAuthorizationDispatch: authorizationDispatchOwnerLease !== null,
+          authorizationDispatchOwnerLease,
         },
         async ({ records, target }) => ({ record: records[0] ?? null, target }),
       );
@@ -9092,10 +9220,18 @@ export class SnapbackClient {
     return 'withheld';
   }
 
-  async #refreshOptimisticMutationViews(cause) {
-    await Promise.all([...this.__optimisticMutationViews].map(({ engine }) => (
-      engine.refresh({ cause })
-    )));
+  async #refreshOptimisticMutationViews(cause, authorizationDispatchOwnerLease = null) {
+    const releaseOwnerLease = pushOutboxOptimisticRefreshOwnerLease(
+      this,
+      authorizationDispatchOwnerLease,
+    );
+    try {
+      await Promise.all([...this.__optimisticMutationViews].map(({ engine }) => (
+        engine.refresh({ cause })
+      )));
+    } finally {
+      releaseOwnerLease();
+    }
   }
 
   async authRequestCode(email) {
@@ -11256,9 +11392,36 @@ export class SnapbackClient {
       expectedAuthorityGeneration = null,
       authorizationDispatchOwned = false,
       recordIds = null,
+      authTransitionOriginCut = false,
+      authorizationDispatchOwnerLease = null,
     } = {},
   ) {
     if (!authorizationDispatchOwned) {
+      if (authTransitionOriginCut) {
+        const releaseAuthorizationDispatch = await acquireOutboxAuthorizationDispatch(
+          store,
+          null,
+          authorizationDispatchOwnerLease,
+        );
+        try {
+          // PRINCIPAL-PRIVACY is a store-domain cut, not a recovery API.
+          // Persisted same-origin v2 identity is enough to classify records
+          // under the already-proven predecessor/successor principal matrix;
+          // a missing, negative, or generation-less current capability fact
+          // cannot leave predecessor payload for successor observation.
+          const transitionRecordIds = await this.#authTransitionOutboxRecordIds(store);
+          return await this.#applyQueueCustodyReconciliation(store, authority, {
+            validateCurrent,
+            expectedAuthorityGeneration,
+            authorizationDispatchOwned: true,
+            recordIds: transitionRecordIds,
+            authTransitionOriginCut: true,
+            authorizationDispatchOwnerLease,
+          });
+        } finally {
+          await releaseAuthorizationDispatch();
+        }
+      }
       return this.#withTargetFencedOutboxRecords(
         store,
         {
@@ -11273,6 +11436,8 @@ export class SnapbackClient {
             expectedAuthorityGeneration,
             authorizationDispatchOwned: true,
             recordIds: targetRecordIds,
+            authTransitionOriginCut,
+            authorizationDispatchOwnerLease,
           },
         ),
       );
@@ -11351,7 +11516,10 @@ export class SnapbackClient {
       });
     }
     if (result.deleted > 0 || result.stranded > 0) {
-      await this.#refreshOptimisticMutationViews('authority-custody-reconciled');
+      await this.#refreshOptimisticMutationViews(
+        'authority-custody-reconciled',
+        authorizationDispatchOwnerLease,
+      );
       this.#notifyOutboxListeners();
     }
     return result;
@@ -13523,6 +13691,10 @@ export class SnapbackClient {
       }
       if (!shouldReplayRecord(queuedRecord)) continue;
       let record = queuedRecord;
+      const authorizationDispatchOwnerLease = createOutboxAuthorizationDispatchOwnerLease(
+        this,
+        record.authorityDescriptor?.authorityInstanceId ?? null,
+      );
       let preparationFence = null;
       let replayAuthority = null;
       let authorizationDispatchRelease = null;
@@ -13540,6 +13712,7 @@ export class SnapbackClient {
           authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
             store,
             record.dispatchLane ?? 'foreground',
+            authorizationDispatchOwnerLease,
           );
         }
       };
@@ -13585,7 +13758,10 @@ export class SnapbackClient {
           },
           async ({ records }) => records[0] ?? null,
         );
-        if (targetFencedRecord === null) assertReplayRecordTargetCurrent(record);
+        if (targetFencedRecord === null) {
+          assertReplayRecordTargetCurrent(record);
+          continue;
+        }
         record = targetFencedRecord;
         // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — never transmit a
         //   record under an authority other than its enqueue authority.
@@ -13795,6 +13971,7 @@ export class SnapbackClient {
             queue: false,
             __operationTarget: replayOperationTarget,
             __authorizationDispatchOwnership: OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP,
+            __authorizationDispatchOwnerLease: authorizationDispatchOwnerLease,
             __beforeTransportDispatch: async () => {
               await ensureAuthorizationDispatch();
               // The shared-fact read precedes the dispatched stamp and runs under
@@ -13876,7 +14053,10 @@ export class SnapbackClient {
           timing: mutationTiming({ ...record, settlement: retainedSettlement }),
           committedVersion: retainedSettlement.version ?? null,
         });
-        await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
+        await this.#refreshOptimisticMutationViews(
+          'settlement-confirmed-bridge',
+          authorizationDispatchOwnerLease,
+        );
         replayed += 1;
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAYED',
@@ -14068,7 +14248,10 @@ export class SnapbackClient {
               settlement: { timing: error?.timing },
             }),
           });
-          await this.#refreshOptimisticMutationViews('authority-stale-stranded');
+          await this.#refreshOptimisticMutationViews(
+            'authority-stale-stranded',
+            authorizationDispatchOwnerLease,
+          );
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_STRANDED',
             mutation: record.function,
@@ -14119,7 +14302,10 @@ export class SnapbackClient {
                 : pendingRecord),
             });
           }
-          await this.#refreshOptimisticMutationViews('upgrade-required-quarantine');
+          await this.#refreshOptimisticMutationViews(
+            'upgrade-required-quarantine',
+            authorizationDispatchOwnerLease,
+          );
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED',
             mutation: record.function,
@@ -14168,7 +14354,10 @@ export class SnapbackClient {
           stopped = true;
           break;
         }
-        await this.#refreshOptimisticMutationViews('settlement-refused');
+        await this.#refreshOptimisticMutationViews(
+          'settlement-refused',
+          authorizationDispatchOwnerLease,
+        );
         failed += 1;
         const refusalCode = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED';
         replayStop.value = Object.freeze({
@@ -14314,7 +14503,12 @@ export class SnapbackClient {
       async ({ records }) => records.map((record) => structuredClone(record)),
     );
     const after = outboxDispositionCounts(afterRecords);
-    const retained = after.pending + after.quarantined + after.resultGone;
+    // `before`/`after` are deliberately target-scoped disposition facts. The
+    // rollback receipt is different: a host must retain the store whenever
+    // any unresolved record remains, including the cross-target record that
+    // caused this candidate to pause. Replay computes that payload-free total
+    // over the complete store after its final disposition attempt.
+    const retained = replay.remaining;
     const replayStop = replay.stopped === true ? this.__outboxLastReplayStop : null;
     const outcome = replay.stopped === true
       ? {
@@ -14377,6 +14571,9 @@ export class SnapbackClient {
     // Internal replay marks that its callback already owns the shared
     // authorization-dispatch gate through durable disposition.
     __authorizationDispatchOwnership = null,
+    // Internal exact owner token for optimistic reads reached synchronously
+    // while replay retains that gate. Arbitrary caller values match no scope.
+    __authorizationDispatchOwnerLease = null,
     // Internal facade seam: an explicit app-authored React reducer owns the
     // presentation for that call. Ordinary callers never set this.
     __generatedOptimistic = true,
@@ -14996,7 +15193,10 @@ export class SnapbackClient {
         // A delete tombstone may replace a record whose generated layer was
         // already visible through an idempotent/concurrent enqueue. Re-read
         // the durable projection before surfacing its terminal disposition.
-        await this.#refreshOptimisticMutationViews('authorization-delete-tombstone');
+        await this.#refreshOptimisticMutationViews(
+          'authorization-delete-tombstone',
+          authorizationDispatchOwnerLease,
+        );
       }
       if (stored?.status === 'settled' && stored?.settlement) {
         return generatedMutation === null
@@ -15041,6 +15241,15 @@ export class SnapbackClient {
     };
     let authorizationDispatchRelease = null;
     let authorizationDispatchSettlement = Promise.resolve();
+    const authorizationDispatchOwnerLease = (
+      __authorizationDispatchOwnership === OUTBOX_AUTHORIZATION_DISPATCH_OWNERSHIP
+      && __authorizationDispatchOwnerLease?.client === this
+    )
+      ? __authorizationDispatchOwnerLease
+      : createOutboxAuthorizationDispatchOwnerLease(
+          this,
+          body.authorityDescriptor?.authorityInstanceId ?? null,
+        );
     const releaseAuthorizationDispatch = () => {
       if (authorizationDispatchRelease === null) return authorizationDispatchSettlement;
       const release = authorizationDispatchRelease;
@@ -15212,6 +15421,7 @@ export class SnapbackClient {
               authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
                 queueStore,
                 dispatchLane,
+                authorizationDispatchOwnerLease,
               );
               if (!await revalidateQueueCapability({ retireRecord: true })) {
                 throw capabilitySupersededError();
@@ -15285,7 +15495,10 @@ export class SnapbackClient {
                 // @ref LLP 0218#41-the-dispatch-union-headless-contract — an
                 //   uncovered range relinquishes foreground dispatch as queued.
                 if (generatedPresentationEnabled) {
-                  await this.#refreshOptimisticMutationViews('generated-ir-queued');
+                  await this.#refreshOptimisticMutationViews(
+                    'generated-ir-queued',
+                    authorizationDispatchOwnerLease,
+                  );
                 }
                 return await finalizeQueuedDisposition({
                   status: 'queued',
@@ -15397,7 +15610,10 @@ export class SnapbackClient {
         }
         this.#notifyOutboxListeners();
         if (generatedPresentationEnabled) {
-          await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
+          await this.#refreshOptimisticMutationViews(
+            'generated-ir-enqueued',
+            authorizationDispatchOwnerLease,
+          );
         }
       } catch (error) {
         if (error?.offlineReplayCapabilitySuperseded === true) throw error;
@@ -15441,7 +15657,10 @@ export class SnapbackClient {
         optimisticInvocationSequence,
       );
       ephemeralOptimisticRecord = true;
-      await this.#refreshOptimisticMutationViews('generated-ir-ephemeral-admitted');
+      await this.#refreshOptimisticMutationViews(
+        'generated-ir-ephemeral-admitted',
+        authorizationDispatchOwnerLease,
+      );
     }
     if (isOfflineMutationReplayEnqueueOnlyEvidence(queueCapabilityEvidence)) {
       // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
@@ -15525,6 +15744,7 @@ export class SnapbackClient {
                 authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(
                   authorizationDispatchStore,
                   dispatchLane,
+                  authorizationDispatchOwnerLease,
                 );
                 if (!durableOnlineRecord) {
                   const status = await authorizationDispatchStore.outboxAuthorizationStatus();
@@ -15635,12 +15855,18 @@ export class SnapbackClient {
           });
           this.#notifyOutboxListeners();
           if (generatedPresentationEnabled) {
-            await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
+            await this.#refreshOptimisticMutationViews(
+              'settlement-confirmed-bridge',
+              authorizationDispatchOwnerLease,
+            );
           }
         }
         if (ephemeralOptimisticRecord) {
           this.#settleEphemeralOptimisticRecord(clientMutationId, json);
-          await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
+          await this.#refreshOptimisticMutationViews(
+            'settlement-confirmed-bridge',
+            authorizationDispatchOwnerLease,
+          );
         }
         if (
           !durableOnlineRecord
@@ -15699,7 +15925,10 @@ export class SnapbackClient {
             ? 'authorization-suspended'
             : 'authorization-stale';
           this.#notifyOutboxListeners();
-          await this.#refreshOptimisticMutationViews('authorization-suspended');
+          await this.#refreshOptimisticMutationViews(
+            'authorization-suspended',
+            authorizationDispatchOwnerLease,
+          );
           return await finalizeQueuedDisposition({
             status: 'queued',
             clientMutationId,
@@ -15903,7 +16132,10 @@ export class SnapbackClient {
                 clientMutationId,
                 reason: 'server_authority_stale_result',
               });
-              await this.#refreshOptimisticMutationViews('authority-stale-stranded');
+              await this.#refreshOptimisticMutationViews(
+                'authority-stale-stranded',
+                authorizationDispatchOwnerLease,
+              );
             }
             throw error;
           }
@@ -15943,13 +16175,19 @@ export class SnapbackClient {
               });
               this.#notifyOutboxListeners();
               if (optimisticOperation !== null) {
-                await this.#refreshOptimisticMutationViews('settlement-refused');
+                await this.#refreshOptimisticMutationViews(
+                  'settlement-refused',
+                  authorizationDispatchOwnerLease,
+                );
               }
             }
           }
           if (ephemeralOptimisticRecord) {
             this.#failEphemeralOptimisticRecord(clientMutationId, error);
-            await this.#refreshOptimisticMutationViews('settlement-refused');
+            await this.#refreshOptimisticMutationViews(
+              'settlement-refused',
+              authorizationDispatchOwnerLease,
+            );
           }
           if (
             !durableOnlineRecord
@@ -17833,20 +18071,29 @@ export class SnapbackClient {
       return reflected ? replacements : null;
     };
 
-    const settlementRetirements = async (snapshot, { authoritativeDelivery }) => {
+    const settlementRetirements = async (snapshot, {
+      authoritativeDelivery,
+      authorizationDispatchOwnerLease = null,
+    }) => {
       const retired = [];
       const idReplacements = new Map();
       for (const layer of snapshot?.layers ?? []) {
         if (layer.layerStatus !== 'bridging') continue;
         const identity = layer.clientMutationId;
-        const disposition = await client.__optimisticMutationDisposition(identity);
-        if (disposition.status === 'settled') {
-          bridgingSettlementEvidence.set(identity, Object.freeze({
-            record: disposition.record,
-            settlement: disposition.settlement,
-          }));
+        let evidence = bridgingSettlementEvidence.get(identity) ?? null;
+        if (evidence === null) {
+          const disposition = await client.__optimisticMutationDisposition(
+            identity,
+            authorizationDispatchOwnerLease,
+          );
+          if (disposition.status === 'settled') {
+            evidence = Object.freeze({
+              record: disposition.record,
+              settlement: disposition.settlement,
+            });
+            bridgingSettlementEvidence.set(identity, evidence);
+          }
         }
-        const evidence = bridgingSettlementEvidence.get(identity) ?? null;
         if (evidence === null) continue;
         const firstSeen = bridgingFirstSeenAtRevision.get(identity);
         if (firstSeen === undefined) {
@@ -17877,6 +18124,7 @@ export class SnapbackClient {
 
     const reconcileAutomaticOptimisticView = async (cause, detail, {
       authoritativeDelivery = false,
+      authorizationDispatchOwnerLease = null,
     } = {}) => {
       const view = automaticOptimisticView;
       const publicationFence = captureOptimisticPublicationFence();
@@ -17889,6 +18137,7 @@ export class SnapbackClient {
       const snapshot = view.getSnapshot();
       const retirements = await settlementRetirements(snapshot, {
         authoritativeDelivery,
+        authorizationDispatchOwnerLease,
       });
       suppressOptimisticViewNotification = true;
       try {
@@ -17931,6 +18180,8 @@ export class SnapbackClient {
           if (view !== null) {
             automaticOptimisticViewUnsubscribe = view.subscribe(() => {
               if (suppressOptimisticViewNotification || disposed) return;
+              const authorizationDispatchOwnerLease =
+                currentOutboxOptimisticRefreshOwnerLease(client);
               optimisticPresentationTail = optimisticPresentationTail
                 .then(() => reconcileAutomaticOptimisticView(
                   'generated-ir-presentation-transition',
@@ -17938,6 +18189,7 @@ export class SnapbackClient {
                     ...(lastAuthoritativeDetail ?? {}),
                     kind: 'optimistic_projection',
                   },
+                  { authorizationDispatchOwnerLease },
                 ))
                 .catch(() => {});
             });
