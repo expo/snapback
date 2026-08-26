@@ -197,6 +197,7 @@ server.listen(port, '127.0.0.1', () => {
 const stop = () => {
   generatedWatcher?.close();
   if (refreshTimer !== null) clearTimeout(refreshTimer);
+  if (process.env.SNAPBACK_EXPO_TEST_METRO_STUBBORN_FIRST === '1' && launchCount === 1) return;
   server.close(() => process.exit(0));
 };
 process.once('SIGTERM', stop);
@@ -697,6 +698,7 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
   assertConcurrentStdinSocketReload = false,
   expectControlUnavailable = false,
   failMetroReload = false,
+  stubbornMetroDuringReload = false,
 } = {}) {
   const cli = join(packageRoot, 'cli.mjs');
   const events = [];
@@ -727,6 +729,10 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
       ...(failMetroReload ? {
         SNAPBACK_EXPO_TEST_METRO_LAUNCH_COUNT_FILE: join(target.stateRoot, 'metro-launch-count'),
         SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST: '1',
+      } : {}),
+      ...(stubbornMetroDuringReload ? {
+        SNAPBACK_EXPO_TEST_METRO_LAUNCH_COUNT_FILE: join(target.stateRoot, 'metro-launch-count'),
+        SNAPBACK_EXPO_TEST_METRO_STUBBORN_FIRST: '1',
       } : {}),
     },
     stdio: [assertStdinReload || assertConcurrentStdinSocketReload ? 'pipe' : 'ignore', 'pipe', 'pipe'],
@@ -987,6 +993,15 @@ async function runCliSupervisor(target, platform = 'ios', portArgs = [], {
     )),
   ]);
   assert.deepEqual(exit, { code: 0, signal: null }, stderr || stdoutBuffer);
+  if (stubbornMetroDuringReload) {
+    assert.equal(
+      events.some((event) => event.diagnostics?.some(
+        (diagnostic) => diagnostic.code === 'SNAPBACK_EXPO_METRO_RELOAD_FAILED',
+      )),
+      false,
+      'an acknowledged stop queued during Metro SIGTERM grace must not make reload critical',
+    );
+  }
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
     && event.state === 'control-event'));
   assert(events.some((event) => event.schemaVersion === 'snapback.expo-dev.v1'
@@ -1136,7 +1151,7 @@ async function runControlSocketSuite() {
     const ignoredStdinRange = await reserveFreeRange(8);
     await runCliSupervisor(ignoredStdinFixture, 'web', [
       '--port-range', `${ignoredStdinRange.lo}-${ignoredStdinRange.hi}`,
-    ]);
+    ], { stubbornMetroDuringReload: true });
     const customReadyFixture = fixture('custom-ready-app', { sessions: true, root: controlRoot });
     const customReadyParent = join(customReadyFixture.projectRoot, 'caller-ready-state');
     mkdirSync(customReadyParent, { mode: 0o755 });
@@ -1153,6 +1168,26 @@ async function runControlSocketSuite() {
       statSync(customReadyParent).mode & 0o777,
       0o755,
       'the packaged CLI must not chmod a caller-selected ready-file parent',
+    );
+    const chainFixture = fixture('chain-app', { sessions: true, root: controlRoot });
+    mkdirSync(chainFixture.stateRoot, { recursive: true, mode: 0o700 });
+    const outsideChainRoot = join(controlRoot, 'outside-chain');
+    const outsideChainState = join(outsideChainRoot, 'state');
+    mkdirSync(outsideChainState, { recursive: true, mode: 0o755 });
+    chmodSync(outsideChainState, 0o755);
+    symlinkSync(outsideChainRoot, join(chainFixture.stateRoot, 'link'), 'dir');
+    const chainTarget = {
+      ...chainFixture,
+      readyFile: join(chainFixture.stateRoot, 'link', 'state', 'dev.ready.json'),
+    };
+    const chainRange = await reserveFreeRange(8);
+    await runCliSupervisor(chainTarget, 'web', [
+      '--port-range', `${chainRange.lo}-${chainRange.hi}`,
+    ], { expectControlUnavailable: true });
+    assert.equal(
+      statSync(outsideChainState).mode & 0o777,
+      0o755,
+      'managed-state lexical containment must not chmod through an intermediate symlink',
     );
     const longStateFixture = fixture(`long-state-${'x'.repeat(100)}`, {
       sessions: true,

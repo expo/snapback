@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1bd8c1ebe3404290c81991427f69c83d3be111469b88f1f981240e62b1f06d81
+reviewed-authorities-digest: sha256:a24deb2521267299b4c29c3380c81e577f0b9bc29a40d138efd0a733bf0310fd
 ---
 
 # Discover agent controls

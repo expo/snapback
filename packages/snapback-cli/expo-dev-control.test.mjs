@@ -651,6 +651,71 @@ try {
   assert.equal(existsSync(join(socketModeRoot, '.dc-sock')), false);
   console.log('post-bind socket mode mismatch: coded stdin-only fallback avoids other-uid claim');
 
+  const umaskRoot = makeRoot('umask');
+  const expectedUmask = process.umask();
+  let umaskAfterListenReturned = null;
+  const umaskControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(umaskRoot, 'unit-umask-owner'),
+    {
+      listenServer(boundServer, endpointPath) {
+        boundServer.listen(endpointPath);
+        queueMicrotask(() => { umaskAfterListenReturned = process.umask(); });
+      },
+    },
+  );
+  assert.equal(umaskAfterListenReturned, expectedUmask);
+  assert.equal(process.umask(), expectedUmask);
+  await umaskControl.close();
+  console.log('socket bind umask: process-global mask is restored before listen settles');
+
+  const postListenFailureRoot = makeRoot('post-listen-failure');
+  const postListenFailureNotices = [];
+  let pathLockReleasedWithBoundInode = null;
+  let serverCloseSettled = false;
+  let pathLockReleasedBeforeServerClose = null;
+  const postListenFailureControl = await expoDevTest.startDevControlSocketWithDependencies(
+    testOptions(postListenFailureRoot, 'unit-post-listen-failure-owner', {
+      onUnavailable: (diagnostic) => postListenFailureNotices.push(diagnostic),
+    }),
+    {
+      observeEndpoint(endpointPath) {
+        const observed = lstatSync(endpointPath);
+        const error = new Error('injected post-listen endpoint observation failure');
+        error.diagnostic = {
+          code: 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE',
+          message: error.message,
+          details: { path: postListenFailureRoot, endpointPath },
+        };
+        throw error;
+      },
+      async withPathLock(endpointPath, action) {
+        const result = await action();
+        pathLockReleasedBeforeServerClose = !serverCloseSettled;
+        pathLockReleasedWithBoundInode = existsSync(endpointPath);
+        return result;
+      },
+      async closeServer(boundServer) {
+        await new Promise((resolveClose) => boundServer.close(resolveClose));
+        await new Promise((resolveTurn) => setImmediate(resolveTurn));
+        serverCloseSettled = true;
+      },
+    },
+  );
+  assert.equal(postListenFailureControl, null);
+  assert.equal(postListenFailureNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(
+    pathLockReleasedBeforeServerClose,
+    false,
+    'post-listen refusal must await the server close callback before releasing the path lock',
+  );
+  assert.equal(
+    pathLockReleasedWithBoundInode,
+    false,
+    'post-listen refusal must await close and unlink the bound inode before releasing the path lock',
+  );
+  assert.equal(existsSync(join(postListenFailureRoot, '.dc-sock')), false);
+  console.log('post-listen failure: awaited server close and exact bound-inode cleanup precede lock release');
+
   let configuredProbeTimeout = null;
   const stalledProbeSocket = new EventEmitter();
   stalledProbeSocket.destroy = () => {};
@@ -1189,6 +1254,54 @@ try {
   assert.match(symlinkDirectoryNotices[0].message, /--ready-file/u);
   assert.equal(existsSync(join(symlinkDirectoryRoot, '.dc-sock')), false);
   console.log('symlinked state directory: stdin-only fallback remains live');
+
+  const intermediateSymlinkProject = makeRoot('is-p');
+  const intermediateSymlinkStateRoot = join(intermediateSymlinkProject, '.snapback');
+  mkdirSync(intermediateSymlinkStateRoot, { mode: 0o700 });
+  const intermediateSymlinkTarget = makeRoot('is-t');
+  const intermediateSymlinkTargetState = join(intermediateSymlinkTarget, 'state');
+  mkdirSync(intermediateSymlinkTargetState, { mode: 0o700 });
+  symlinkSync(intermediateSymlinkTarget, join(intermediateSymlinkStateRoot, 'link'), 'dir');
+  const intermediateSymlinkReadyRoot = join(intermediateSymlinkStateRoot, 'link', 'state');
+  const intermediateSymlinkNotices = [];
+  const intermediateSymlinkControl = await startDevControlSocket(testOptions(
+    intermediateSymlinkReadyRoot,
+    'unit-intermediate-symlink-owner',
+    {
+      pathChainRoot: intermediateSymlinkProject,
+      onUnavailable: (diagnostic) => intermediateSymlinkNotices.push(diagnostic),
+    },
+  ));
+  if (intermediateSymlinkControl !== null) await intermediateSymlinkControl.close();
+  assert.equal(intermediateSymlinkControl, null);
+  assert.equal(intermediateSymlinkNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(intermediateSymlinkNotices[0].details.component, join(intermediateSymlinkStateRoot, 'link'));
+  assert.equal(existsSync(join(intermediateSymlinkReadyRoot, '.dc-sock')), false);
+  console.log('intermediate symlink state chain: coded stdin-only fallback publishes no endpoint');
+
+  const writableParentProject = makeRoot('wp-p');
+  const writableParentStateRoot = join(writableParentProject, '.snapback');
+  mkdirSync(writableParentStateRoot, { mode: 0o700 });
+  const writableParent = join(writableParentStateRoot, 'shared');
+  mkdirSync(writableParent, { mode: 0o777 });
+  chmodSync(writableParent, 0o777);
+  const writableParentReadyRoot = join(writableParent, 'state');
+  mkdirSync(writableParentReadyRoot, { mode: 0o700 });
+  const writableParentNotices = [];
+  const writableParentControl = await startDevControlSocket(testOptions(
+    writableParentReadyRoot,
+    'unit-writable-parent-owner',
+    {
+      pathChainRoot: writableParentProject,
+      onUnavailable: (diagnostic) => writableParentNotices.push(diagnostic),
+    },
+  ));
+  if (writableParentControl !== null) await writableParentControl.close();
+  assert.equal(writableParentControl, null);
+  assert.equal(writableParentNotices[0].code, 'SNAPBACK_DEV_CONTROL_SOCKET_UNAVAILABLE');
+  assert.equal(writableParentNotices[0].details.component, writableParent);
+  assert.equal(existsSync(join(writableParentReadyRoot, '.dc-sock')), false);
+  console.log('writable parent state chain: coded stdin-only fallback publishes no endpoint');
 
   const connectionRoot = makeRoot('c');
   const connectionControl = await startDevControlSocket(testOptions(

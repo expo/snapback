@@ -128,6 +128,7 @@ import {
   CLEANUP_LEASE_DIRECTORY_ENV,
   closeCarrierCleanupLease,
   createCarrierCleanupLease,
+  inspectSecureDirectoryChain,
   spawnLeasedProcess,
   stopProcessGroup,
 } from './process-teardown.mjs';
@@ -5996,12 +5997,9 @@ export async function runDev(options = {}) {
     const controlStateRelation = relative(stateRoot, controlStateRoot);
     const snapbackManagedState = controlStateRelation === ''
       || (controlStateRelation !== '..' && !controlStateRelation.startsWith(`..${sep}`));
-    if (snapbackManagedState) {
-      const controlStateRootMetadata = lstatSync(controlStateRoot);
-      if (controlStateRootMetadata.isDirectory()
-          && !controlStateRootMetadata.isSymbolicLink()
-          && (typeof process.getuid !== 'function'
-            || controlStateRootMetadata.uid === process.getuid())) {
+    if (snapbackManagedState && typeof process.getuid === 'function') {
+      const custody = inspectSecureDirectoryChain(projectRoot, controlStateRoot, process.getuid());
+      if (custody.ok) {
         chmodSync(controlStateRoot, 0o700);
       }
     }

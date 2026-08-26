@@ -9,6 +9,7 @@ import {
   mkdtempSync,
   openSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -16,7 +17,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createConnection as createNetConnection } from 'node:net';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const CLEANUP_LEASE_DIRECTORY_ENV = 'SNAPBACK_CARRIER_CLEANUP_LEASE_DIRECTORY';
@@ -34,6 +35,145 @@ const CLEANUP_PATH_LOCK_TIMEOUT_MS = 5_000;
 const CLEANUP_PATH_MARKER_STALE_MS = 250;
 const MODULE_PATH = fileURLToPath(import.meta.url);
 const LEASED_PROCESS_STATE = new WeakMap();
+
+function pathWithin(root, path) {
+  const relation = relative(root, path);
+  return relation === '' || (relation !== '..' && !relation.startsWith(`..${sep}`));
+}
+
+// @ref LLP 0310.000#track-e--owner-bound-control-socket — the socket's
+// cross-UID pathname gate covers every project-owned directory component,
+// not only the final state directory reached after symlink traversal.
+export function inspectSecureDirectoryChain(rootPath, targetPath, ownerUid) {
+  const root = resolve(rootPath);
+  const target = resolve(targetPath);
+  if (!pathWithin(root, target)) {
+    return Object.freeze({
+      ok: false,
+      reason: 'outside-root',
+      root,
+      target,
+      component: target,
+    });
+  }
+  const relation = relative(root, target);
+  const components = [
+    root,
+    ...relation.split(sep).filter(Boolean).map((_, index, parts) => (
+      join(root, ...parts.slice(0, index + 1))
+    )),
+  ];
+  const identities = [];
+  for (const component of components) {
+    let metadata;
+    try {
+      metadata = lstatSync(component);
+    } catch (error) {
+      return Object.freeze({
+        ok: false,
+        reason: 'unreadable-component',
+        root,
+        target,
+        component,
+        cause: error?.code ?? error?.message ?? String(error),
+      });
+    }
+    if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+      return Object.freeze({
+        ok: false,
+        reason: metadata.isSymbolicLink() ? 'symlink-component' : 'non-directory-component',
+        root,
+        target,
+        component,
+      });
+    }
+    if (metadata.uid !== ownerUid) {
+      return Object.freeze({
+        ok: false,
+        reason: 'foreign-owner-component',
+        root,
+        target,
+        component,
+        expectedUid: ownerUid,
+        observedUid: metadata.uid,
+      });
+    }
+    if ((metadata.mode & 0o022) !== 0) {
+      return Object.freeze({
+        ok: false,
+        reason: 'writable-component',
+        root,
+        target,
+        component,
+        observedMode: metadata.mode & 0o777,
+      });
+    }
+    identities.push(Object.freeze({
+      path: component,
+      device: String(metadata.dev),
+      inode: String(metadata.ino),
+    }));
+  }
+  let canonicalRoot;
+  let canonicalTarget;
+  try {
+    canonicalRoot = realpathSync.native(root);
+    canonicalTarget = realpathSync.native(target);
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      reason: 'canonicalization-failed',
+      root,
+      target,
+      component: target,
+      cause: error?.code ?? error?.message ?? String(error),
+    });
+  }
+  if (!pathWithin(canonicalRoot, canonicalTarget)
+      || canonicalTarget !== resolve(canonicalRoot, relation)) {
+    return Object.freeze({
+      ok: false,
+      reason: 'canonical-traversal',
+      root,
+      target,
+      component: target,
+      canonicalRoot,
+      canonicalTarget,
+    });
+  }
+  for (const identity of identities) {
+    let metadata;
+    try {
+      metadata = lstatSync(identity.path);
+    } catch (error) {
+      return Object.freeze({
+        ok: false,
+        reason: 'component-changed',
+        root,
+        target,
+        component: identity.path,
+        cause: error?.code ?? error?.message ?? String(error),
+      });
+    }
+    if (String(metadata.dev) !== identity.device || String(metadata.ino) !== identity.inode) {
+      return Object.freeze({
+        ok: false,
+        reason: 'component-changed',
+        root,
+        target,
+        component: identity.path,
+      });
+    }
+  }
+  return Object.freeze({
+    ok: true,
+    root,
+    target,
+    canonicalRoot,
+    canonicalTarget,
+    components: Object.freeze(identities),
+  });
+}
 
 function exited(child) {
   return !child || child.exitCode != null || child.signalCode != null;

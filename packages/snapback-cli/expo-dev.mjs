@@ -34,6 +34,7 @@ import {
   activateCleanupPath,
   activateCleanupSocketPath,
   cleanupLeasedPath,
+  inspectSecureDirectoryChain,
   openCarrierCleanupLease,
   rebindCleanupPath,
   releaseCleanupResource,
@@ -545,6 +546,22 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
     ?? ((socket, payload) => socket.write(payload));
   const dispatcher = dependencies.dispatcher ?? createDevControlDispatcher(options.verbs);
   const stateDirectoryPath = dirname(path);
+  const pathChainRoot = resolve(options.pathChainRoot ?? stateDirectoryPath);
+  const pathChain = inspectSecureDirectoryChain(pathChainRoot, stateDirectoryPath, ownerUid);
+  if (!pathChain.ok) {
+    return unavailable({
+      path: stateDirectoryPath,
+      readyFile,
+      pathChainRoot,
+      reason: pathChain.reason,
+      component: pathChain.component,
+      ...(pathChain.cause === undefined ? {} : { cause: pathChain.cause }),
+      ...(pathChain.expectedUid === undefined ? {} : { expectedUid: pathChain.expectedUid }),
+      ...(pathChain.observedUid === undefined ? {} : { observedUid: pathChain.observedUid }),
+      ...(pathChain.observedMode === undefined ? {} : { observedMode: pathChain.observedMode }),
+      recovery: 'choose a same-uid path with no symlink or group/other-writable components under --ready-file <path>',
+    });
+  }
   let stateDirectory;
   try {
     stateDirectory = lstatSync(stateDirectoryPath);
@@ -577,6 +594,7 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
   let controlSocket = null;
   let cleanupResource = null;
   let endpoint = null;
+  let boundEndpoint = null;
   let descriptor = null;
   let ownerStateIdentity = null;
   let ownerStateEndpoint = null;
@@ -819,15 +837,8 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       await dependencies.beforeEndpointPublish?.({ path, ownerStatePath });
       await new Promise((resolveListen, rejectListen) => {
         const previousUmask = process.umask(0o177);
-        let umaskRestored = false;
-        const restoreUmask = () => {
-          if (umaskRestored) return;
-          umaskRestored = true;
-          process.umask(previousUmask);
-        };
         const onError = (cause) => {
           server.off('listening', onListening);
-          restoreUmask();
           if (cause?.code === 'EADDRINUSE') {
             rejectListen(diagnosticError(
               'SNAPBACK_DEV_CONTROL_FOREIGN_OWNER',
@@ -850,7 +861,6 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
         };
         const onListening = () => {
           server.off('error', onError);
-          restoreUmask();
           resolveListen();
         };
         server.once('error', onError);
@@ -859,11 +869,16 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
           // @ref LLP 0310.000#track-e--owner-bound-control-socket — direct
           // bind publishes without replacement while the shared path lock is
           // held, so a foreign endpoint can only cause a refusal.
-          server.listen(path);
+          (dependencies.listenServer ?? ((boundServer, endpointPath) => (
+            boundServer.listen(endpointPath)
+          )))(server, path);
         } catch (cause) {
           onError(cause);
+        } finally {
+          process.umask(previousUmask);
         }
       });
+      boundEndpoint = observedControlEndpoint(path);
       endpoint = observeEndpoint(path);
       dependencies.afterEndpointListen?.({ path, ownerStatePath, endpoint });
       chmodSync(path, 0o600);
@@ -947,12 +962,18 @@ async function startDevControlSocketWithDependencies(options, dependencies = {})
       }
       await dependencies.afterEndpointPublish?.({ path, descriptor });
     } catch (error) {
-      server.close();
+      await (dependencies.closeServer ?? ((boundServer) => new Promise((resolveClose) => {
+        if (!boundServer.listening) {
+          resolveClose();
+          return;
+        }
+        boundServer.close(() => resolveClose());
+      })))(server);
       releaseCleanupResource(cleanupResource);
       cleanupResource = null;
       try {
-        const current = observeEndpoint(path);
-        if (endpoint !== null && sameControlEndpoint(current, endpoint)) rmSync(path);
+        const current = observedControlEndpoint(path);
+        if (boundEndpoint !== null && sameControlEndpoint(current, boundEndpoint)) rmSync(path);
       } catch { /* absent or replaced */ }
       cleanupControlOwnerStateMarker(
         ownerStatePath,
@@ -3404,7 +3425,7 @@ export async function runExpoDev(options = {}) {
   };
   const assertStartupActive = () => {
     if (startupCriticalExit !== null) throw startupCriticalExit;
-    if (closed || controlDispatcher?.stopping === true) {
+    if (closed) {
       throw diagnosticError(
         'SNAPBACK_EXPO_DEV_STARTUP_CANCELLED',
         'the Expo supervisor began stopping before publishing readiness',
@@ -4323,6 +4344,7 @@ export async function runExpoDev(options = {}) {
     if (options.controlSocket === true) {
       controlSocketHandle = await startDevControlSocketWithDependencies({
         readyFile: dev.readyFile,
+        pathChainRoot: projectRoot,
         ownerIncarnationId: generation,
         ownerStartTime: supervisorProcessIdentity.startTime,
         startedAt,
