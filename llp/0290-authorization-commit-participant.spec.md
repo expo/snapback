@@ -6,6 +6,11 @@
 **Author:** codex `gpt-5.6-sol`, synthesizing two independent blind designs — codex
 `gpt-5.6-sol` and grok-4.6 — orchestrated by Claude (Opus 5) for Charlie Cheever  
 **Date:** 2026-08-20  
+**Revised:** 2026-08-26 (round-13 feature-seam liveness repair: the public
+`test-support` settlement observers publish reached notifications without
+blocking and wait at most one second for release. Timeout or disconnect
+abandons only the observation pause; the real settlement derives its terminal
+fact, and a late release sees a disconnected receiver and has no authority.)
 **Revised:** 2026-08-26 (round-12 pruning/retirement settlement repair: room
 pruning and generation-exhaustion retirement requested during `SETTLING` now
 defer kernel-control retirement until the exact marker publishes a terminal
@@ -1924,6 +1929,15 @@ entry, index, outbox, notifier, or pruning effect can be performed by a fence
 that is later rejected. Caller code receives no owned fence or terminal
 capability and supplies no callback or disposition.
 
+Feature-enabled test observers do not become an exception. Their reached
+notification uses an unbounded standard channel, so an observer that retains
+but never reads its receiver cannot stop settlement. Their one-shot release
+pause is capped at one second, matching the race harness's existing rendezvous
+budget. Timeout and disconnect both continue the real settlement; the
+receiver is then dropped, so a late release is disconnected and cannot change
+the derived disposition. This bound governs instrumentation only, never
+permission resolution or the product settlement deadline.
+
 #### Callback and settlement-dispatch census
 
 The round-6 audit did not infer callback safety from callee bodies. Its method
@@ -2431,6 +2445,9 @@ Additional tests must establish:
 - generation-exhaustion retirement during `SETTLING` publishes terminal
   abandonment before removing the kernel control and releases a waiting
   writer without panic or disconnected result;
+- retaining the public feature-enabled post-mutation hook's release sender
+  cannot keep `SETTLING` nonterminal: the one-second pause expires, completion
+  and a waiting writer succeed, and a late release is disconnected;
 - the exact registry→SQLite reverse schedule completes under the alarm, while
   the mutation that reacquires SQLite before the registry claim times out; the
   clean witness uses actual registry and SQLite acquisition barriers, not a

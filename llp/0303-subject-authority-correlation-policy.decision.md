@@ -6,6 +6,9 @@
 **Author:** Claude (Opus 5), commissioned by Charlie Cheever (author ruling
 2026-08-24, in session supervising LLP 0283 F-1)
 **Date:** 2026-08-24
+**Revised:** 2026-08-26 (u — terminal progress cannot be authored by the
+waiting operation's counterparty; caller-reachable pauses are bounded with an
+explicit expiry outcome)
 **Revised:** 2026-08-25 (s — Q23 owner-bound; scoped landings)
 **Related:** LLP 0283, LLP 0298, LLP 0285, LLP 0274,
 `issues/20260824-liveness-row-bucket-assignment.md`,
@@ -767,6 +770,36 @@ The corresponding implementation work is one change to the shared primitive rath
 row, tracked at `issues/20260826-allocation-identity-fails-open-across-fork.md`. Reviewers should
 raise fork only where a carrier does **not** yet carry the creator-process identity, and should cite
 this revision rather than re-deriving the argument.
+
+### (u) Who authors the terminal transition?
+
+Closing a forgery by making legitimate work wait for a terminal fact can invert the defect into
+denial. The critical question is not only who may assert the fact, but who can prevent it from ever
+being asserted. If the waiting operation's counterparty can retain, forget, or withhold the only
+terminator, that counterparty owns nontermination even when it cannot forge success.
+
+> **A wait introduced by a security fix must either terminate independently of caller-reachable
+> code, or have a hard bound and a defined outcome on expiry.**
+
+Every such wait answers three questions:
+
+1. Who authors each terminal transition, and can the waiting party's counterparty withhold it using
+   safe code under any additive feature set?
+2. If the wait is bounded, does expiry fail closed or continue a real operation, and what happens to
+   a terminal signal that arrives after expiry?
+3. Can either half of an observation protocol block — both publishing “reached” and waiting for
+   “release” count — and what ensures disconnect is terminal rather than a panic or a new wedge?
+
+For a test-only observation seam around a real settlement, expiry does not invent a product outcome:
+the seam is abandoned and the real settlement continues to its independently derived terminal fact.
+The seam's reached notification must be non-blocking. Its release wait must be finite; timeout or
+disconnect drops the receiver, and a late release loses with disconnection and cannot rewrite the
+settlement. The bound is an instrumentation policy, not an authorization timeout, and must be short
+enough that repeatedly installing the one-shot seam cannot create an unbounded denial.
+
+As elsewhere in this decision, `test-support` is not a safety boundary. Additive feature unification
+means the public enabled surface must retain these liveness properties even when used by ordinary safe
+dependent code.
 
 ## Severity context
 

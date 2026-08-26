@@ -5,6 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (round-13 feature-seam liveness repair: enabled test
+observers cannot own exact settlement progress. Reached notification is
+non-blocking; release waits at most one second, after which real settlement
+continues and any late release is disconnected.)
 **Revised:** 2026-08-26 (round-12 pruning/retirement settlement repair:
 pruning and generation-exhaustion retirement defer kernel-control removal
 while an exact room settlement is `SETTLING`. Terminal reconciliation applies
@@ -906,6 +910,11 @@ registry lock; its selector-level dependency already fences recreation, so an
 enumerated-then-retired room is a normal outcome rather than an invariant
 failure. The callback sees no fence value it can retain, and `mem::forget` of
 its borrowed decision view carries no coordination authority.
+The optional feature-enabled before/after mutation observers likewise carry no
+terminal authority: reached notification cannot block, and a one-shot release
+pause expires after one second. Expiry or disconnect abandons observation,
+continues the real derived settlement, and makes a late release lose with a
+disconnected receiver.
 
 ### Authorization-write handoff
 

@@ -619,12 +619,12 @@ fn exact_completion_fence_precedes_real_room_settlement_mutations() {
         (batch, completion)
     };
 
-    let (before_tx, before_rx) = mpsc::sync_channel(0);
+    let (before_tx, before_rx) = mpsc::channel();
     let (before_release_tx, before_release_rx) = mpsc::sync_channel(0);
     fixture
         .ephemeral
         .install_room_reauthorization_before_mutation_hook_for_test(before_tx, before_release_rx);
-    let (after_tx, after_rx) = mpsc::sync_channel(0);
+    let (after_tx, after_rx) = mpsc::channel();
     let (after_release_tx, after_release_rx) = mpsc::sync_channel(0);
     fixture
         .ephemeral

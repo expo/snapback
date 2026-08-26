@@ -2796,7 +2796,7 @@ impl EphemeralApi {
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_room_reauthorization_before_mutation_hook_for_test(
         &self,
-        reached: std::sync::mpsc::SyncSender<()>,
+        reached: std::sync::mpsc::Sender<()>,
         release: std::sync::mpsc::Receiver<()>,
     ) {
         self.store
@@ -2806,7 +2806,7 @@ impl EphemeralApi {
     #[cfg(any(test, feature = "test-support"))]
     pub fn install_room_reauthorization_after_mutation_hook_for_test(
         &self,
-        reached: std::sync::mpsc::SyncSender<()>,
+        reached: std::sync::mpsc::Sender<()>,
         release: std::sync::mpsc::Receiver<()>,
     ) {
         self.store
