@@ -11,15 +11,15 @@ use crate::auth::descriptor::{
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InstalledInvalidationIssuer, InvalidationDisposition, LiveInvalidationIssuer,
-    ObligationRegistry, PreparedScopeRetirement, QueryNamespace, ResolutionKind, ResolutionTicket,
-    ResyncObligation, RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind,
-    ScopeId, ScopeRetirement,
+    ObligationRegistry, PreparedScopeRetirement, PublishedScopeRetirement, QueryNamespace,
+    ResolutionKind, ResolutionTicket, ResyncObligation, RetryEpisode, RetryEpisodeKey,
+    RetryReservation, RetryReservationKind, ScopeId,
 };
 use crate::auth::invocation::{
     AuthorizedEffectCommitGuard, AuthorizedEffectReservation, AuthorizedEffectReservationError,
-    CallerAuthorityTerminalCause, HandlerAuthProjection, InvocationGate,
-    InvocationSource, PreparedAuthority, PreparedEffectApproverAttribution, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields,
+    CallerAuthorityTerminalCause, HandlerAuthProjection, InvocationGate, InvocationSource,
+    PreparedAuthority, PreparedEffectApproverAttribution, PreparedInvocation, ResolvedAppAuthority,
+    RetainedLiveAuthority, WireAuthorityFields,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -4338,7 +4338,7 @@ impl LocalInvalidationState {
     fn commit_scope_retirement(
         &mut self,
         prepared: PreparedScopeRetirement,
-    ) -> SnapbackResult<Option<ScopeRetirement>> {
+    ) -> SnapbackResult<Option<PublishedScopeRetirement>> {
         self.obligations
             .commit_scope_retirement_authenticated(prepared)
     }

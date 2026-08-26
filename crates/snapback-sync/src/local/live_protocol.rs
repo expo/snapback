@@ -1,5 +1,5 @@
 use crate::auth::invalidation::{
-    AuthorizationInvalidationProjection, QueryNamespace, ScopeId, ScopeRetirement,
+    AuthorizationInvalidationProjection, PublishedScopeRetirement, QueryNamespace, ScopeId,
 };
 use crate::auth::invocation::FunctionAttribution;
 use crate::live_wire::{Receipt, ResumeFromToken, ResumeWire};
@@ -63,7 +63,7 @@ pub struct LiveSubscribeRequest {
     pub expected_generation: Option<ArtifactGeneration>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
     /// Server-derived active sessions artifact identity. Absent on dev, even
@@ -150,7 +150,7 @@ pub struct LiveSubscribeOutput {
         rename = "scopeRetirements",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub scope_retirements: Vec<ScopeRetirement>,
+    pub scope_retirements: Vec<PublishedScopeRetirement>,
     /// Server-derived attribution for the authority that established this
     /// subscription (LLP 0055 §Audit): present exactly when a service
     /// principal resolved, absent otherwise. It is immutable subscription
@@ -186,7 +186,7 @@ pub struct LiveResumeInput {
     pub recorded_permission_epochs: BTreeMap<String, u64>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveResumeOutput {
     pub subscription_id: String,
     pub mode: String,
@@ -214,7 +214,7 @@ pub struct LiveResumeOutput {
         rename = "scopeRetirements",
         skip_serializing_if = "Vec::is_empty"
     )]
-    pub scope_retirements: Vec<ScopeRetirement>,
+    pub scope_retirements: Vec<PublishedScopeRetirement>,
     /// The establishment attribution block, carried unchanged across
     /// renew/resubscribe (see [`LiveSubscribeOutput::attribution`]). Derived
     /// from the subscription's retained establishment authority, never from
@@ -245,7 +245,7 @@ pub struct LiveUnsubscribeInput {
     pub auth: AuthInput,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveUnsubscribeOutput {
     pub subscription_id: String,
     pub disposed: bool,
@@ -258,7 +258,7 @@ pub struct LiveUnsubscribeOutput {
         rename = "scopeRetirement",
         skip_serializing_if = "Option::is_none"
     )]
-    pub scope_retirement: Option<ScopeRetirement>,
+    pub scope_retirement: Option<PublishedScopeRetirement>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

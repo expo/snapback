@@ -211,6 +211,27 @@ pub struct ScopeRetirement {
     pub mac: String,
 }
 
+/// Opaque evidence that a scope-retirement proof was released by the same
+/// registry mutation that removed the covered live scope. The inner wire
+/// record remains cloneable/deserializable for protocol inspection, but only
+/// a successful registry commit can wrap it for a server publication.
+///
+/// @ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability —
+/// every client-visible retirement consumer requires this effect-bound
+/// carrier, so reconstructing the public wire record does not recreate the
+/// publication capability.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(transparent)]
+pub struct PublishedScopeRetirement(ScopeRetirement);
+
+impl std::ops::Deref for PublishedScopeRetirement {
+    type Target = ScopeRetirement;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// Server-authenticated proof that every live scope issued by an older boot in
 /// the same authorization incarnation is extinct. It cannot release retained
 /// bytes by itself; a current fresh snapshot must still satisfy their witness.
@@ -1968,14 +1989,14 @@ impl ObligationRegistry {
     pub fn commit_scope_retirement_authenticated(
         &mut self,
         prepared: PreparedScopeRetirement,
-    ) -> SnapbackResult<Option<ScopeRetirement>> {
+    ) -> SnapbackResult<Option<PublishedScopeRetirement>> {
         self.require_prepared_scope_retirement(&prepared)?;
         let actual = self.retire_scope(&prepared.scope_id)?;
         assert_eq!(
             actual, prepared.candidate,
             "validated live scope retirement frontier changed during commit"
         );
-        Ok(prepared.retirement)
+        Ok(prepared.retirement.map(PublishedScopeRetirement))
     }
 
     pub fn retire_connection(

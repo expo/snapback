@@ -142,6 +142,12 @@ path = "src/attacks/f220.rs"
 name = "f082"
 path = "src/attacks/f082.rs"
 
+# Reviewer composition for F082: keep source-visible even while OPEN so a
+# spelling-only closure cannot hide the field-rebuild/resume-output route.
+[[bin]]
+name = "f082-rebuild-resume-publication"
+path = "src/attacks/f082_rebuild_resume_publication.rs"
+
 [[bin]]
 name = "f129"
 path = "src/attacks/f129.rs"
