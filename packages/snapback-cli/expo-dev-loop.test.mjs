@@ -498,7 +498,16 @@ function fixture(name, { sessions, root = scratchRoot, expoAtProjectRoot = false
   const projectRoot = join(root, name);
   const backendRoot = join(projectRoot, 'snapback');
   const expoRoot = expoAtProjectRoot ? projectRoot : join(projectRoot, 'app');
-  mkdirSync(projectRoot, { recursive: true });
+  // Create the project root at an explicit non-group-writable mode. Without it
+  // the mode comes from the ambient umask, and a host running the common Linux
+  // default of 002 gets a 0775 project root — which
+  // `inspectSecureDirectoryChain` correctly refuses as a `writable-component`,
+  // so `runDev` declines to tighten the state directory and the control-socket
+  // suite's tightening assertion fails for a reason that has nothing to do with
+  // the behaviour under test. Cases that deliberately want a loose tree chmod it
+  // themselves after this call.
+  mkdirSync(projectRoot, { recursive: true, mode: 0o755 });
+  chmodSync(projectRoot, 0o755);
   // The copied fixture's generated modules import workspace packages such as
   // @expo/snapback-client. Once they live under this scratch project, Node can
   // resolve those bare imports only through a project-local node_modules.
