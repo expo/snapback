@@ -1,4 +1,5 @@
 use super::*;
+use snapback_harness::controlled_assets::ControlledAssetStore;
 
 fn filter_telemetry_events_for_test(
     rows: Vec<crate::telemetry_query::TelemetryEventV1>,
@@ -6704,8 +6705,7 @@ fn asset_test_intent() -> crate::manifest::AssetUploadIntentDefinition {
     }
 }
 
-fn asset_test_snapback() -> LocalSnapback {
-    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+fn load_asset_test_snapback(mut snapback: LocalSnapback) -> LocalSnapback {
     let diagnostics = snapback.load_functions(FunctionManifest {
         asset_upload_intents: vec![asset_test_intent()],
         ..FunctionManifest::default()
@@ -6719,33 +6719,41 @@ fn asset_test_snapback() -> LocalSnapback {
     snapback
 }
 
+fn asset_test_snapback() -> LocalSnapback {
+    load_asset_test_snapback(LocalSnapback::memory().expect("memory snapback"))
+}
+
+fn asset_test_snapback_with_controlled_store() -> (LocalSnapback, Arc<ControlledAssetStore>) {
+    let store = ControlledAssetStore::new().expect("controlled asset store");
+    let snapback = LocalSnapback::memory_with_controlled_asset_store(store.clone())
+        .expect("memory snapback with controlled asset store");
+    (load_asset_test_snapback(snapback), store)
+}
+
 fn asset_double_finalize_put_tickets(
     snapback: &mut LocalSnapback,
     authority: &PreparedAuthority,
     attempt_id: &str,
-    store: Arc<dyn crate::assets_store::AssetStore>,
 ) -> (Box<FinalizePutTicketV1>, Box<FinalizePutTicketV1>) {
     let request = crate::assets::AssetFinalizeRequestV1 {
         attempt_id: attempt_id.to_owned(),
         lifecycle_generation: 1,
         declared_digest: None,
     };
-    let mut first_ticket = match snapback
+    let first_ticket = match snapback
         .asset_attempt_finalize_preflight(authority, request.clone())
         .expect("first finalizer preflight")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    let mut second_ticket = match snapback
+    let second_ticket = match snapback
         .asset_attempt_finalize_preflight(authority, request)
         .expect("second finalizer preflight")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    first_ticket.replace_store_for_test(store.clone());
-    second_ticket.replace_store_for_test(store);
     let first_preparation = first_ticket.prepare().expect("first finalizer prepare");
     let second_preparation = second_ticket.prepare().expect("second finalizer prepare");
     let first_put = match snapback
@@ -6768,379 +6776,6 @@ fn asset_double_finalize_put_tickets(
         "two preflighted finalizers share one publication lease domain",
     );
     (first_put, second_put)
-}
-
-/// Test-store gate for the canonical copy only. The first copy announces that
-/// it entered the store and waits for an explicit release; every other store
-/// operation delegates immediately. This makes the Phase B interleaving
-/// deterministic without production sleeps or timing assumptions.
-struct BlockFirstCanonicalCopyStore {
-    inner: Arc<dyn crate::assets_store::AssetStore>,
-    entered: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
-    release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
-}
-
-impl crate::assets_store::AssetStore for BlockFirstCanonicalCopyStore {
-    fn kind(&self) -> &'static str {
-        self.inner.kind()
-    }
-
-    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
-        self.inner.append_staging(key, offset, chunk)
-    }
-
-    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.write_canonical(key, bytes)
-    }
-
-    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.put_blob_idempotent(key, bytes)
-    }
-
-    fn copy_from_staging(
-        &self,
-        source: crate::assets_store::AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
-        let entered = self.entered.lock().expect("copy gate lock").take();
-        if let Some(entered) = entered {
-            entered.send(()).expect("announce blocked canonical copy");
-            self.release
-                .lock()
-                .expect("copy release lock")
-                .recv()
-                .expect("release blocked canonical copy");
-        }
-        self.inner.copy_from_staging(source, blob_key)
-    }
-
-    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
-        self.inner.read(object)
-    }
-
-    fn read_chunk(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-        offset: u64,
-        max_len: usize,
-    ) -> SnapbackResult<Vec<u8>> {
-        self.inner.read_chunk(object, offset, max_len)
-    }
-
-    fn hash(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
-        self.inner.hash(object)
-    }
-
-    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
-        self.inner.exists(object)
-    }
-
-    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
-        self.inner.len(object)
-    }
-
-    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_blob(key)
-    }
-
-    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_staging_pair(key)
-    }
-
-    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
-        self.inner.list_staging_keys()
-    }
-
-    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
-        self.inner.copy_blob(from, to)
-    }
-
-    fn wipe_all(&self) -> SnapbackResult<()> {
-        self.inner.wipe_all()
-    }
-}
-
-/// Test-store gate after a width ticket's blob PUT but before its verifying
-/// hash. The production runner can therefore race the exact external-effect
-/// window without sleeps or an S3 fixture.
-struct BlockFirstBlobHashStore {
-    inner: Arc<dyn crate::assets_store::AssetStore>,
-    entered: std::sync::Mutex<Option<std::sync::mpsc::Sender<()>>>,
-    release: std::sync::Mutex<std::sync::mpsc::Receiver<()>>,
-}
-
-impl crate::assets_store::AssetStore for BlockFirstBlobHashStore {
-    fn kind(&self) -> &'static str {
-        self.inner.kind()
-    }
-
-    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
-        self.inner.append_staging(key, offset, chunk)
-    }
-
-    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.write_canonical(key, bytes)
-    }
-
-    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.put_blob_idempotent(key, bytes)
-    }
-
-    fn copy_from_staging(
-        &self,
-        source: crate::assets_store::AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
-        self.inner.copy_from_staging(source, blob_key)
-    }
-
-    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
-        self.inner.read(object)
-    }
-
-    fn read_chunk(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-        offset: u64,
-        max_len: usize,
-    ) -> SnapbackResult<Vec<u8>> {
-        self.inner.read_chunk(object, offset, max_len)
-    }
-
-    fn hash(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
-        if matches!(object, crate::assets_store::AssetObjectRef::Blob(_)) {
-            let entered = self.entered.lock().expect("hash gate lock").take();
-            if let Some(entered) = entered {
-                entered.send(()).expect("announce blocked blob hash");
-                self.release
-                    .lock()
-                    .expect("hash release lock")
-                    .recv()
-                    .expect("release blocked blob hash");
-            }
-        }
-        self.inner.hash(object)
-    }
-
-    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
-        self.inner.exists(object)
-    }
-
-    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
-        self.inner.len(object)
-    }
-
-    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_blob(key)
-    }
-
-    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_staging_pair(key)
-    }
-
-    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
-        self.inner.list_staging_keys()
-    }
-
-    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
-        self.inner.copy_blob(from, to)
-    }
-
-    fn wipe_all(&self) -> SnapbackResult<()> {
-        self.inner.wipe_all()
-    }
-}
-
-/// Test-only source substitution for a width prepare ticket. The wrapper
-/// replaces its primary blob read with caller-selected valid image bytes and
-/// delegates every later store operation. This lets a stale plan carry a
-/// genuinely different immutable rendition digest without widening the
-/// production ticket surface.
-struct ReplaceWidthSourceReadStore {
-    inner: Arc<dyn crate::assets_store::AssetStore>,
-    replacement: Vec<u8>,
-}
-
-impl crate::assets_store::AssetStore for ReplaceWidthSourceReadStore {
-    fn kind(&self) -> &'static str {
-        self.inner.kind()
-    }
-
-    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
-        self.inner.append_staging(key, offset, chunk)
-    }
-
-    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.write_canonical(key, bytes)
-    }
-
-    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.put_blob_idempotent(key, bytes)
-    }
-
-    fn copy_from_staging(
-        &self,
-        source: crate::assets_store::AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
-        self.inner.copy_from_staging(source, blob_key)
-    }
-
-    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
-        if matches!(object, crate::assets_store::AssetObjectRef::Blob(_)) {
-            return Ok(self.replacement.clone());
-        }
-        self.inner.read(object)
-    }
-
-    fn read_chunk(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-        offset: u64,
-        max_len: usize,
-    ) -> SnapbackResult<Vec<u8>> {
-        self.inner.read_chunk(object, offset, max_len)
-    }
-
-    fn hash(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
-        self.inner.hash(object)
-    }
-
-    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
-        self.inner.exists(object)
-    }
-
-    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
-        self.inner.len(object)
-    }
-
-    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_blob(key)
-    }
-
-    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_staging_pair(key)
-    }
-
-    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
-        self.inner.list_staging_keys()
-    }
-
-    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
-        self.inner.copy_blob(from, to)
-    }
-
-    fn wipe_all(&self) -> SnapbackResult<()> {
-        self.inner.wipe_all()
-    }
-}
-
-/// Publication-store script used by the lease regressions. It can block the
-/// first width PUT before the remote effect serializes and can falsify one
-/// blob read-back without changing the stored bytes.
-struct ScriptedPublicationStore {
-    inner: Arc<dyn crate::assets_store::AssetStore>,
-    blocked_put:
-        std::sync::Mutex<Option<(std::sync::mpsc::Sender<()>, std::sync::mpsc::Receiver<()>)>>,
-    corrupt_blob_hash_call: Option<u64>,
-    blob_hash_calls: std::sync::atomic::AtomicU64,
-}
-
-impl crate::assets_store::AssetStore for ScriptedPublicationStore {
-    fn kind(&self) -> &'static str {
-        self.inner.kind()
-    }
-
-    fn append_staging(&self, key: &str, offset: u64, chunk: &[u8]) -> SnapbackResult<()> {
-        self.inner.append_staging(key, offset, chunk)
-    }
-
-    fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        self.inner.write_canonical(key, bytes)
-    }
-
-    fn put_blob_idempotent(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
-        if let Some((entered, release)) = self.blocked_put.lock().expect("put script lock").take() {
-            entered.send(()).expect("announce blocked publication PUT");
-            release.recv().expect("release blocked publication PUT");
-        }
-        self.inner.put_blob_idempotent(key, bytes)
-    }
-
-    fn copy_from_staging(
-        &self,
-        source: crate::assets_store::AssetObjectRef<'_>,
-        blob_key: &str,
-    ) -> SnapbackResult<()> {
-        self.inner.copy_from_staging(source, blob_key)
-    }
-
-    fn read(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Vec<u8>> {
-        self.inner.read(object)
-    }
-
-    fn read_chunk(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-        offset: u64,
-        max_len: usize,
-    ) -> SnapbackResult<Vec<u8>> {
-        self.inner.read_chunk(object, offset, max_len)
-    }
-
-    fn hash(
-        &self,
-        object: crate::assets_store::AssetObjectRef<'_>,
-    ) -> SnapbackResult<crate::assets_store::AssetObjectDigest> {
-        let mut digest = self.inner.hash(object)?;
-        if matches!(object, crate::assets_store::AssetObjectRef::Blob(_)) {
-            let call = self
-                .blob_hash_calls
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                + 1;
-            if self.corrupt_blob_hash_call == Some(call) {
-                digest.digest = "0".repeat(64);
-            }
-        }
-        Ok(digest)
-    }
-
-    fn exists(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<bool> {
-        self.inner.exists(object)
-    }
-
-    fn len(&self, object: crate::assets_store::AssetObjectRef<'_>) -> SnapbackResult<Option<u64>> {
-        self.inner.len(object)
-    }
-
-    fn delete_blob(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_blob(key)
-    }
-
-    fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
-        self.inner.delete_staging_pair(key)
-    }
-
-    fn list_staging_keys(&self) -> SnapbackResult<Vec<String>> {
-        self.inner.list_staging_keys()
-    }
-
-    fn copy_blob(&self, from: &str, to: &str) -> SnapbackResult<()> {
-        self.inner.copy_blob(from, to)
-    }
-
-    fn wipe_all(&self) -> SnapbackResult<()> {
-        self.inner.wipe_all()
-    }
 }
 
 #[test]
@@ -11707,7 +11342,7 @@ fn asset_finalize_double_preflight_commits_one_winner_and_one_idempotent_retry()
 
 #[test]
 fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_converges() {
-    let mut snapback = asset_test_snapback();
+    let (mut snapback, controlled_store) = asset_test_snapback_with_controlled_store();
     let created = asset_upload(&mut snapback, "user_a", b"slow-canonical-put", true);
     let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
     let request = crate::assets::AssetFinalizeRequestV1 {
@@ -11715,14 +11350,14 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
         lifecycle_generation: 1,
         declared_digest: None,
     };
-    let mut first_ticket = match snapback
+    let first_ticket = match snapback
         .asset_attempt_finalize_preflight(&authority, request.clone())
         .expect("first preflight proceeds")
     {
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    let mut second_ticket = match snapback
+    let second_ticket = match snapback
         .asset_attempt_finalize_preflight(&authority, request)
         .expect("second preflight proceeds")
     {
@@ -11734,14 +11369,9 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
 
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let gated_store: Arc<dyn crate::assets_store::AssetStore> =
-        Arc::new(BlockFirstCanonicalCopyStore {
-            inner: first_ticket.store_for_test(),
-            entered: std::sync::Mutex::new(Some(entered_tx)),
-            release: std::sync::Mutex::new(release_rx),
-        });
-    first_ticket.replace_store_for_test(gated_store.clone());
-    second_ticket.replace_store_for_test(gated_store);
+    controlled_store
+        .block_next_copy_from_staging(entered_tx, release_rx)
+        .expect("arm the controlled canonical-copy gate");
 
     let first_put = match snapback
         .asset_attempt_finalize_plan(&authority, first_ticket, first_preparation)
@@ -11826,22 +11456,15 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
 
 #[test]
 fn asset_finalize_canonical_verification_failure_cannot_delete_sibling_commit_blob() {
-    let mut snapback = asset_test_snapback();
+    let (mut snapback, controlled_store) = asset_test_snapback_with_controlled_store();
     let created = asset_upload(&mut snapback, "user_a", b"shared-canonical-verify", true);
     let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-    let inner = snapback.asset_store_obj().expect("finalizer store");
-    let scripted: Arc<dyn crate::assets_store::AssetStore> = Arc::new(ScriptedPublicationStore {
-        inner: inner.clone(),
-        blocked_put: std::sync::Mutex::new(None),
-        corrupt_blob_hash_call: Some(2),
-        blob_hash_calls: std::sync::atomic::AtomicU64::new(0),
-    });
-    let (first_put, second_put) = asset_double_finalize_put_tickets(
-        &mut snapback,
-        &authority,
-        &created.task.attempt_id,
-        scripted,
-    );
+    let inner = controlled_store.backing_store();
+    controlled_store
+        .corrupt_nth_blob_hash(2)
+        .expect("arm the second canonical read-back corruption");
+    let (first_put, second_put) =
+        asset_double_finalize_put_tickets(&mut snapback, &authority, &created.task.attempt_id);
     let planned_key = first_put.publication_for_test().planned_key.clone();
 
     let first_commit = first_put.put().expect("first finalizer verifies P");
@@ -11879,7 +11502,7 @@ fn asset_finalize_canonical_verification_failure_cannot_delete_sibling_commit_bl
 
 #[test]
 fn asset_finalize_required_verification_failure_cannot_delete_sibling_commit_blob() {
-    let mut snapback = asset_variant_snapback(
+    let (mut snapback, controlled_store) = asset_variant_snapback_with_controlled_store(
         crate::manifest::AssetLocationPolicy::Strip,
         vec![crate::manifest::AssetImageVariant {
             key: "thumb".to_owned(),
@@ -11890,23 +11513,14 @@ fn asset_finalize_required_verification_failure_cannot_delete_sibling_commit_blo
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
     let created = asset_upload(&mut snapback, "user_a", &fixture, true);
     let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
-    let inner = snapback
-        .asset_store_obj()
-        .expect("required-rendition store");
-    let scripted: Arc<dyn crate::assets_store::AssetStore> = Arc::new(ScriptedPublicationStore {
-        inner: inner.clone(),
-        blocked_put: std::sync::Mutex::new(None),
-        // Each finalizer verifies primary then required: falsify the second
-        // finalizer's required read-back while leaving the bytes unchanged.
-        corrupt_blob_hash_call: Some(4),
-        blob_hash_calls: std::sync::atomic::AtomicU64::new(0),
-    });
-    let (first_put, second_put) = asset_double_finalize_put_tickets(
-        &mut snapback,
-        &authority,
-        &created.task.attempt_id,
-        scripted,
-    );
+    let inner = controlled_store.backing_store();
+    // Each finalizer verifies primary then required: falsify the second
+    // finalizer's required read-back while leaving the bytes unchanged.
+    controlled_store
+        .corrupt_nth_blob_hash(4)
+        .expect("arm the second required read-back corruption");
+    let (first_put, second_put) =
+        asset_double_finalize_put_tickets(&mut snapback, &authority, &created.task.attempt_id);
     let required_key = snapback
         .db
         .asset_maintenance()
@@ -11950,7 +11564,7 @@ fn asset_finalize_required_verification_failure_cannot_delete_sibling_commit_blo
 
 #[test]
 fn asset_finalize_dedup_cleanup_waits_for_shared_publication_sibling() {
-    let mut snapback = asset_test_snapback();
+    let (mut snapback, controlled_store) = asset_test_snapback_with_controlled_store();
     let bytes = b"dedup-shared-finalizer-key";
     let existing = asset_upload(&mut snapback, "user_a", bytes, true);
     asset_finalize(&mut snapback, "user_a", &existing.task.attempt_id, None)
@@ -11960,18 +11574,12 @@ fn asset_finalize_dedup_cleanup_waits_for_shared_publication_sibling() {
     let authority = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let inner = snapback.asset_store_obj().expect("dedup finalizer store");
-    let gated: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstCanonicalCopyStore {
-        inner: inner.clone(),
-        entered: std::sync::Mutex::new(Some(entered_tx)),
-        release: std::sync::Mutex::new(release_rx),
-    });
-    let (late_put, winning_put) = asset_double_finalize_put_tickets(
-        &mut snapback,
-        &authority,
-        &created.task.attempt_id,
-        gated,
-    );
+    let inner = controlled_store.backing_store();
+    controlled_store
+        .block_next_copy_from_staging(entered_tx, release_rx)
+        .expect("arm the late canonical-copy gate");
+    let (late_put, winning_put) =
+        asset_double_finalize_put_tickets(&mut snapback, &authority, &created.task.attempt_id);
     let publication_id = late_put.publication_for_test().publication_id.clone();
     let planned_key = late_put.publication_for_test().planned_key.clone();
 
@@ -12855,11 +12463,11 @@ fn asset_image_intent_with_variants(
     intent
 }
 
-fn asset_variant_snapback(
+fn load_asset_variant_snapback(
+    mut snapback: LocalSnapback,
     location: crate::manifest::AssetLocationPolicy,
     variants: Vec<crate::manifest::AssetImageVariant>,
 ) -> LocalSnapback {
-    let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback.set_asset_image_finalization_override(true);
     let diagnostics = snapback.load_functions(FunctionManifest {
         asset_upload_intents: vec![asset_image_intent_with_variants(
@@ -12876,6 +12484,30 @@ fn asset_variant_snapback(
         "variant intent manifest must load: {diagnostics:?}"
     );
     snapback
+}
+
+fn asset_variant_snapback(
+    location: crate::manifest::AssetLocationPolicy,
+    variants: Vec<crate::manifest::AssetImageVariant>,
+) -> LocalSnapback {
+    load_asset_variant_snapback(
+        LocalSnapback::memory().expect("memory snapback"),
+        location,
+        variants,
+    )
+}
+
+fn asset_variant_snapback_with_controlled_store(
+    location: crate::manifest::AssetLocationPolicy,
+    variants: Vec<crate::manifest::AssetImageVariant>,
+) -> (LocalSnapback, Arc<ControlledAssetStore>) {
+    let store = ControlledAssetStore::new().expect("controlled asset store");
+    let snapback = LocalSnapback::memory_with_controlled_asset_store(store.clone())
+        .expect("memory snapback with controlled asset store");
+    (
+        load_asset_variant_snapback(snapback, location, variants),
+        store,
+    )
 }
 
 fn asset_image_snapback(
@@ -13960,8 +13592,10 @@ fn asset_gc_retains_condemned_publication_until_last_width_put_resolves() {
 
 #[test]
 fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
-    let mut snapback =
-        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let (mut snapback, controlled_store) = asset_variant_snapback_with_controlled_store(
+        crate::manifest::AssetLocationPolicy::Strip,
+        Vec::new(),
+    );
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
     let created = asset_upload(&mut snapback, "user_a", &fixture, true);
     asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
@@ -13979,7 +13613,7 @@ fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let mut stale_prepare = match snapback
+    let stale_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("stale width preflight")
     {
@@ -13990,12 +13624,6 @@ fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
 
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
-        inner: stale_prepare.store_for_test(),
-        entered: std::sync::Mutex::new(Some(entered_tx)),
-        release: std::sync::Mutex::new(release_rx),
-    });
-    stale_prepare.replace_store_for_test(gated_store);
     let stale_plan = stale_prepare.prepare().expect("render stale width");
 
     let first_effect = authority
@@ -14024,6 +13652,9 @@ fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
     // C completes its object PUT and pauses before verifying it. Replace the
     // bytes with a deterministic torn object so the earlier planned-record
     // cleanup arm would delete and condemn P if it ignored C's active lease.
+    controlled_store
+        .block_next_blob_hash(entered_tx, release_rx)
+        .expect("arm the stale width verification gate");
     let stale_put_thread = std::thread::spawn(move || stale_put.put());
     entered_rx
         .recv()
@@ -14080,8 +13711,10 @@ fn asset_publication_maintain_retains_torn_plan_during_active_width_put() {
 
 #[test]
 fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
-    let mut snapback =
-        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let (mut snapback, controlled_store) = asset_variant_snapback_with_controlled_store(
+        crate::manifest::AssetLocationPolicy::Strip,
+        Vec::new(),
+    );
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
     let created = asset_upload(&mut snapback, "user_a", &fixture, true);
     asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
@@ -14092,7 +13725,7 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
     // Both first-width requests preflight and render before w128 exists. C's
     // conditional PUT enters the remote seam and crosses its lease deadline;
     // B then joins the same still-planned P under a fresh lease.
-    let mut late_prepare = match snapback
+    let late_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("late first-width preflight")
     {
@@ -14108,14 +13741,7 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
     };
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let inner = late_prepare.store_for_test();
-    let blocked: Arc<dyn crate::assets_store::AssetStore> = Arc::new(ScriptedPublicationStore {
-        inner: inner.clone(),
-        blocked_put: std::sync::Mutex::new(Some((entered_tx, release_rx))),
-        corrupt_blob_hash_call: None,
-        blob_hash_calls: std::sync::atomic::AtomicU64::new(0),
-    });
-    late_prepare.replace_store_for_test(blocked);
+    let inner = controlled_store.backing_store();
     let late_plan = late_prepare.prepare().expect("render late width");
     let winner_plan = winner_prepare.prepare().expect("render winner width");
     let late_effect = authority
@@ -14126,6 +13752,9 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
         .expect("commit shared width plan P");
     let publication_id = late_put.publication_for_test().publication_id.clone();
     let planned_key = late_put.publication_for_test().planned_key.clone();
+    controlled_store
+        .block_next_blob_put(entered_tx, release_rx)
+        .expect("arm the late width PUT gate");
     let late_thread = std::thread::spawn(move || late_put.put());
     entered_rx
         .recv()
@@ -14185,8 +13814,10 @@ fn asset_expired_width_put_cannot_delete_sibling_committed_publication_blob() {
 
 #[test]
 fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
-    let mut snapback =
-        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let (mut snapback, controlled_store) = asset_variant_snapback_with_controlled_store(
+        crate::manifest::AssetLocationPolicy::Strip,
+        Vec::new(),
+    );
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
     let created = asset_upload(&mut snapback, "user_a", &fixture, true);
     asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
@@ -14205,15 +13836,9 @@ fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
     };
     let first_plan = preflight().prepare().expect("render first width");
     let second_plan = preflight().prepare().expect("render second width");
-    let mut third_prepare = preflight();
+    let third_prepare = preflight();
     let (entered_tx, entered_rx) = std::sync::mpsc::channel();
     let (release_tx, release_rx) = std::sync::mpsc::channel();
-    let gated_store: Arc<dyn crate::assets_store::AssetStore> = Arc::new(BlockFirstBlobHashStore {
-        inner: third_prepare.store_for_test(),
-        entered: std::sync::Mutex::new(Some(entered_tx)),
-        release: std::sync::Mutex::new(release_rx),
-    });
-    third_prepare.replace_store_for_test(gated_store);
     let third_plan = third_prepare.prepare().expect("render third width");
 
     let first_effect = authority
@@ -14261,6 +13886,9 @@ fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
     // C has completed the idempotent PUT and is blocked immediately before
     // hash verification. This is the S3 412/delete/hash race in deterministic
     // form. The production runner must retry rather than delete P.
+    controlled_store
+        .block_next_blob_hash(entered_tx, release_rx)
+        .expect("arm the runner-race width verification gate");
     let third_put_thread = std::thread::spawn(move || third_put.put());
     entered_rx
         .recv()
@@ -14350,8 +13978,10 @@ fn asset_runner_retains_active_width_put_then_bounded_expiry_reclaims_it() {
 
 #[test]
 fn asset_stale_divergent_width_plan_cannot_converge_before_tight_quota() {
-    let mut snapback =
-        asset_variant_snapback(crate::manifest::AssetLocationPolicy::Strip, Vec::new());
+    let (mut snapback, controlled_store) = asset_variant_snapback_with_controlled_store(
+        crate::manifest::AssetLocationPolicy::Strip,
+        Vec::new(),
+    );
     let fixture = crate::assets_image::fixtures::plain_jpeg(200, 150);
     let created = asset_upload(&mut snapback, "user_a", &fixture, true);
     asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
@@ -14375,19 +14005,19 @@ fn asset_stale_divergent_width_plan_cannot_converge_before_tight_quota() {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let mut second_prepare = match snapback
+    let second_prepare = match snapback
         .asset_width_preflight(&asset_id, 100)
         .expect("second tight-quota preflight")
     {
         AssetWidthPreflightV1::Proceed(ticket) => ticket,
         AssetWidthPreflightV1::AlreadyReady(_) => panic!("width is not materialized yet"),
     };
-    let real_store = second_prepare.store_for_test();
-    second_prepare.replace_store_for_test(Arc::new(ReplaceWidthSourceReadStore {
-        inner: real_store,
-        replacement: crate::assets_image::fixtures::plain_jpeg_quality(200, 150, 35),
-    }));
     let first_plan = first_prepare.prepare().expect("render first width");
+    controlled_store
+        .substitute_next_blob_read(crate::assets_image::fixtures::plain_jpeg_quality(
+            200, 150, 35,
+        ))
+        .expect("arm the divergent width source substitution");
     let second_plan = second_prepare.prepare().expect("render second width");
     assert_ne!(
         first_plan.digest(),

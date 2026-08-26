@@ -196,6 +196,15 @@ owns that distinct exit condition.
 **Engine-test execution caveat (2026-08-25):** the epoch-gate delivery test
 compiles clean but cannot yet execute — the engine lib-test target is red
 on main from inherited seam-helper debt
-(`issues/20260825-engine-lib-test-target-red-seam-helpers.md`). The
+(`issues/closed/20260825-engine-lib-test-target-red-seam-helpers.md`). The
 coalescer unit test and the packed two-client legs carry the executable
 proof until that clears.
+
+**Engine-test first execution (2026-08-26):** the seam-helper debt is resolved
+without restoring the removed test backdoors. The production-wrapper epoch
+gate executed for the first time and passed verbatim:
+
+```text
+test local::engine::tests::engine::engine_authorization_snapshot_path_discards_predecessor_after_installed_fence ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 606 filtered out; finished in 1.33s
+```

@@ -1517,6 +1517,10 @@ enum ElevationRootProvenance {
 /// Immutable result of mode, policy, wire-field, and credential preparation.
 #[derive(Clone, Debug)]
 pub struct PreparedAuthority {
+    /// Exact, non-forgeable identity for this prepared-authority lineage.
+    /// Clones and permitted inherited-source refinements preserve it; a fresh
+    /// preparation, including another session in the same engine, does not.
+    preparation_identity: snapback_kernel::process_bound_identity::ProcessBoundIdentity,
     admission: AdmissionLease,
     active_mode: AuthMode,
     profile: ServerProfile,
@@ -1933,6 +1937,26 @@ impl Drop for AuthorizedEffectCommitGuard<'_> {
 }
 
 impl AuthorizedEffectReservation {
+    /// Require the sink's separately retained prepared authority to be the
+    /// exact lineage that minted this reservation. Controller and durable
+    /// stream equality are intentionally insufficient: two sessions resolved
+    /// by one engine share both.
+    ///
+    /// @ref LLP 0303#corollary--the-artifact-must-carry-provenance-not-just-type
+    /// — the reservation carries a private, current-process-aware identity
+    ///   and the durable sink verifies that exact producer.
+    #[doc(hidden)]
+    pub fn require_prepared_authority(&self, authority: &PreparedAuthority) -> SnapbackResult<()> {
+        if self.authority.preparation_identity != authority.preparation_identity {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "authorized-effect reservation belongs to a different prepared authority",
+            ));
+        }
+        Ok(())
+    }
+
     #[cfg(any(test, feature = "test-support"))]
     #[doc(hidden)]
     pub fn identity_for_test(&self) -> u64 {
@@ -3514,6 +3538,8 @@ impl InvocationGate {
             _ => None,
         };
         Ok(PreparedAuthority {
+            preparation_identity:
+                snapback_kernel::process_bound_identity::ProcessBoundIdentity::new(),
             admission,
             active_mode,
             profile,

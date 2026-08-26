@@ -1697,7 +1697,7 @@ fn push_batch_fixture() -> (LocalSnapback, AdmissionController, String) {
             .expect("register push target token");
     }
     let controller = synchronize_sessions(&snapback);
-    let authority = system_authority(&controller);
+    let authority = snapback.prepare_cron_system_authority_for_test();
     let request = PushSendRequestV1 {
         to: PushAudienceReferenceV1 {
             audience: "empty".to_owned(),
@@ -1864,7 +1864,7 @@ fn push_reservation_refuses_retired_epoch_without_a_durable_intent() {
         .activate_push_registry_for_test(declaration.clone())
         .expect("activate push registry");
     let controller = synchronize_sessions(&snapback);
-    let authority = system_authority(&controller);
+    let authority = snapback.prepare_cron_system_authority_for_test();
     let request = PushSendRequestV1 {
         to: PushAudienceReferenceV1 {
             audience: "empty".to_owned(),
@@ -1893,7 +1893,7 @@ fn push_reservation_refuses_retired_epoch_without_a_durable_intent() {
     };
 
     assert_retired_refusal(&error, &fired);
-    let fresh_authority = system_authority(&controller);
+    let fresh_authority = snapback.prepare_cron_system_authority_for_test();
     let commit_observed =
         observe_guard_through_next_commit(AdmissionEffectSite::PushReservation, controller);
     let (retry, _) = snapback

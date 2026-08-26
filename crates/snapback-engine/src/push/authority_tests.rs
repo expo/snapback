@@ -1,13 +1,9 @@
 use super::fake_expo::{FakeExpo, FakeExpoStep};
 use super::*;
-use crate::auth::invocation::{
-    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
-};
-use crate::contract_types::ServerProfile;
+use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::SnapbackError;
 use crate::ids::{self, Kind};
-use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
-use crate::storage::{DbRead, LocalDatabase, ServingDatabase};
+use crate::manifest::{MembershipManifest, MembershipScope, TableManifest};
 use serde_json::{Map, Value, json};
 use snapback_kernel::push::test_support::PushAuthorizationTestFixture;
 use std::collections::BTreeMap;
@@ -18,7 +14,7 @@ trait PreparedPushRegistryTestExt {
         &mut self,
         declaration: &PushSeamDeclarationV1,
         schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> PreparedAuthority,
+        authority: impl FnOnce(&mut crate::local::LocalSnapback) -> PreparedAuthority,
         trigger_mode: PushTriggerModeV1,
         deferred_grant: Option<&PushDeferredGrantV1>,
         request: &PushSendRequestV1,
@@ -31,13 +27,13 @@ impl PreparedPushRegistryTestExt for crate::local::LocalSnapback {
         &mut self,
         declaration: &PushSeamDeclarationV1,
         schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> PreparedAuthority,
+        authority: impl FnOnce(&mut crate::local::LocalSnapback) -> PreparedAuthority,
         trigger_mode: PushTriggerModeV1,
         deferred_grant: Option<&PushDeferredGrantV1>,
         request: &PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<ReservedPushAttemptV1> {
-        let authority = authority();
+        let authority = authority(self);
         self.reserve_push_send_with_schema_for_test(
             &authority,
             declaration,
@@ -227,8 +223,10 @@ fn acceptance_request(audience: &str, event_id: &str, dedupe_key: &str) -> PushS
     }
 }
 
-fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthority {
-    let mut snapback = crate::local::LocalSnapback::memory().expect("push authority fixture");
+fn session_authority(
+    snapback: &mut crate::local::LocalSnapback,
+    user_id: &str,
+) -> crate::auth::invocation::PreparedAuthority {
     snapback.prepare_resolved_session_for_test(
         InvocationSource::HttpAction,
         user_id,
@@ -239,27 +237,24 @@ fn session_authority(user_id: &str) -> crate::auth::invocation::PreparedAuthorit
     )
 }
 
-fn system_authority() -> crate::auth::invocation::PreparedAuthority {
-    InvocationGate::prepare_admitted_subjectless_authority(
-        InvocationSource::Cron,
-        AuthMode::Sessions,
-        ServerProfile::Test,
-        crate::auth::admission::AdmissionLease::unmanaged(1, 1),
-        &WireAuthorityFields::default(),
-        ResolvedAppAuthority::System,
-        None,
-    )
-    .expect("prepared system authority")
+fn system_authority(
+    snapback: &mut crate::local::LocalSnapback,
+) -> crate::auth::invocation::PreparedAuthority {
+    snapback.prepare_cron_system_authority_for_test()
 }
 
 #[test]
 fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
-    let mut db = LocalDatabase::memory().expect("database");
-    db.push_registry()
+    let mut snapback = crate::local::LocalSnapback::memory().expect("database");
+    snapback
+        .auth_database_mut()
+        .push_registry()
         .activate_current_auth_catalog()
         .expect("auth catalog");
     let declaration = system_ledger_declaration();
-    db.push_registry()
+    snapback
+        .auth_database_mut()
+        .push_registry()
         .activate_push_registry_for_test(declaration.clone())
         .expect("push ledger");
     let intent_id = ids::mint_time_ordered(Kind::PushIntent);
@@ -271,7 +266,9 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
         "principalIds": [principal_id],
     }))
     .unwrap();
-    db.push_registry()
+    snapback
+        .auth_database_mut()
+        .push_registry()
         .seed_ledger_projection_for_test(
             &declaration,
             &intent_id,
@@ -282,17 +279,11 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
         )
         .expect("ledger fixture");
 
-    let system = system_authority();
-    let db = ServingDatabase::adopt(db).expect("test database mints one serving owner");
-    let (rows, dependency) = read_ledger_projection_for_prepared(
-        &db,
-        &DbRead::Live(&db),
-        &declaration,
-        db.schema(),
-        &system,
-        &intent_id,
-    )
-    .expect("system ledger read");
+    let schema = snapback.auth_database_mut().schema().clone();
+    let system = system_authority(&mut snapback);
+    let (rows, dependency) = snapback
+        .read_push_ledger_projection_for_test(&system, &declaration, &schema, &intent_id)
+        .expect("system ledger read");
     assert!(dependency.is_none());
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].message_id.as_deref(), Some(message_id.as_str()));
@@ -302,21 +293,233 @@ fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
     assert!(!wire.contains("payload-secret"));
     assert!(!wire.contains("token-secret"));
     assert!(!wire.contains("dedupe-secret"));
+    drop(system);
 
-    let user = session_authority(&principal_id);
+    let user = session_authority(&mut snapback, &principal_id);
     assert_eq!(
-        read_ledger_projection_for_prepared(
-            &db,
-            &DbRead::Live(&db),
-            &declaration,
-            db.schema(),
-            &user,
-            &intent_id,
-        )
-        .expect_err("system audience is not session-readable")
-        .diagnostic
-        .code,
+        snapback
+            .read_push_ledger_projection_for_test(&user, &declaration, &schema, &intent_id)
+            .expect_err("system audience is not session-readable")
+            .diagnostic
+            .code,
         "SNAPBACK_AUTH_PERMISSION_DENIED",
+    );
+}
+
+#[test]
+fn push_reservation_refuses_authority_from_different_engine() {
+    let declaration = send_declaration();
+    let schema = push_acceptance_schema(declaration.clone());
+    let mut target = crate::local::LocalSnapback::memory().expect("target engine");
+    target
+        .auth_database_mut()
+        .push_registry()
+        .activate_current_auth_catalog()
+        .expect("target auth catalog");
+    target
+        .auth_database_mut()
+        .push_registry()
+        .activate_push_registry_for_test(declaration.clone())
+        .expect("target push ledger");
+
+    let mut foreign = crate::local::LocalSnapback::memory().expect("foreign engine");
+    let foreign_authority = system_authority(&mut foreign);
+    let error = match target.reserve_send(
+        &declaration,
+        &schema,
+        |_| foreign_authority,
+        PushTriggerModeV1::System,
+        None,
+        &acceptance_request("guests", "event-cross-engine", "cross-engine"),
+        100,
+    ) {
+        Ok(_) => panic!("foreign engine authority must not commit through target engine"),
+        Err(error) => error,
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+}
+
+#[test]
+fn immediate_push_reservation_refuses_authority_from_different_engine() {
+    let principal = ids::mint(Kind::User).expect("immediate push principal");
+    let mut declaration = declaration("test", 86_400_000);
+    declaration.audiences.insert(
+        "members".into(),
+        PushAudienceDeclarationV1 {
+            resolve: PushAudienceResolverV1::Membership {
+                declaration: "app_members".into(),
+                resource_arg: None,
+                roles: vec!["sender".into()],
+            },
+            authorize: PushAudienceAuthorizeV1::Membership {
+                declaration: "app_members".into(),
+                resource_arg: None,
+                roles: vec!["sender".into()],
+            },
+        },
+    );
+    declaration.ledger = Some(PushLedgerDeclarationV1 {
+        retention_ms: 2_592_000_000,
+    });
+    let mut schema = app_membership_schema();
+    schema.push_seam = Some(declaration.clone());
+
+    let mut target = crate::local::LocalSnapback::memory().expect("target engine");
+    target
+        .auth_database_mut()
+        .push_registry()
+        .activate_current_auth_catalog()
+        .expect("target auth catalog");
+    target
+        .auth_database_mut()
+        .push_registry()
+        .activate_push_registry_for_test(declaration.clone())
+        .expect("target push ledger");
+    target
+        .auth_database_mut()
+        .push_registry()
+        .install_immediate_sender_for_test(schema, &principal)
+        .expect("target immediate sender");
+    let target_authority = session_authority(&mut target, &principal);
+    let target_effect = target_authority
+        .reserve_authorized_effect("target-owned immediate push reservation")
+        .expect("reserve target-owned immediate push effect");
+
+    let mut foreign = crate::local::LocalSnapback::memory().expect("foreign engine");
+    let foreign_authority = session_authority(&mut foreign, &principal);
+    let request = PushSendRequestV1 {
+        to: PushAudienceReferenceV1 {
+            audience: "members".into(),
+            args: Map::new(),
+        },
+        title: "cross-engine immediate push".into(),
+        body: "must not persist".into(),
+        data: None,
+        dedupe_key: "cross-engine-immediate".into(),
+        redrive_ambiguous: false,
+    };
+    let error = match target.reserve_push_send_with_authorized_effect(
+        &foreign_authority,
+        PushTriggerModeV1::Immediate,
+        None,
+        &request,
+        100,
+        target_effect,
+    ) {
+        Ok(_) => panic!("foreign engine authority must not commit through target engine"),
+        Err(error) => error,
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+}
+
+#[test]
+fn immediate_push_reservation_refuses_different_session_from_same_engine() {
+    let principal_a = ids::mint(Kind::User).expect("authorized immediate push principal");
+    let principal_b = ids::mint(Kind::User).expect("reservation-only principal");
+    let mut declaration = declaration("test", 86_400_000);
+    declaration.audiences.insert(
+        "members".into(),
+        PushAudienceDeclarationV1 {
+            resolve: PushAudienceResolverV1::Membership {
+                declaration: "app_members".into(),
+                resource_arg: None,
+                roles: vec!["sender".into()],
+            },
+            authorize: PushAudienceAuthorizeV1::Membership {
+                declaration: "app_members".into(),
+                resource_arg: None,
+                roles: vec!["sender".into()],
+            },
+        },
+    );
+    declaration.ledger = Some(PushLedgerDeclarationV1 {
+        retention_ms: 2_592_000_000,
+    });
+    let mut schema = app_membership_schema();
+    schema.push_seam = Some(declaration.clone());
+
+    let mut snapback = crate::local::LocalSnapback::memory().expect("same-engine database");
+    snapback
+        .auth_database_mut()
+        .push_registry()
+        .activate_current_auth_catalog()
+        .expect("same-engine auth catalog");
+    snapback
+        .auth_database_mut()
+        .push_registry()
+        .activate_push_registry_for_test(declaration.clone())
+        .expect("same-engine push ledger");
+    snapback
+        .auth_database_mut()
+        .push_registry()
+        .install_immediate_sender_for_test(schema.clone(), &principal_a)
+        .expect("principal A immediate sender membership");
+
+    let authority_a = session_authority(&mut snapback, &principal_a);
+    let authority_b = session_authority(&mut snapback, &principal_b);
+    let reservation_b = authority_b
+        .reserve_authorized_effect("same-engine principal B push reservation")
+        .expect("reserve principal B authorized effect");
+    let request = PushSendRequestV1 {
+        to: PushAudienceReferenceV1 {
+            audience: "members".into(),
+            args: Map::new(),
+        },
+        title: "same-engine authority correlation".into(),
+        body: "must not persist under mismatched authority".into(),
+        data: None,
+        dedupe_key: "same-engine-different-session".into(),
+        redrive_ambiguous: false,
+    };
+
+    let error = match snapback.reserve_push_send_with_authorized_effect(
+        &authority_a,
+        PushTriggerModeV1::Immediate,
+        None,
+        &request,
+        100,
+        reservation_b,
+    ) {
+        Ok(attempt) => {
+            let durable_state = snapback
+                .auth_database_mut()
+                .push_registry()
+                .intent_state(&attempt.0.response.intent_id)
+                .expect("read back the mismatched durable intent");
+            assert_eq!(durable_state, attempt.0.response.state);
+            panic!(
+                "authority A committed durable intent {} with principal B's reservation; durable readback state {durable_state}",
+                attempt.0.response.intent_id
+            );
+        }
+        Err(error) => error,
+    };
+    assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+
+    let reservation_a = authority_a
+        .reserve_authorized_effect("same-engine principal A retry reservation")
+        .expect("reserve principal A authorized effect");
+    let (retry, _) = snapback
+        .reserve_push_send_with_authorized_effect(
+            &authority_a,
+            PushTriggerModeV1::Immediate,
+            None,
+            &request,
+            101,
+            reservation_a,
+        )
+        .expect("the correctly correlated retry commits");
+    assert!(
+        !retry.response.deduplicated,
+        "a deduplicated retry proves the mismatched pair committed a durable intent"
+    );
+    assert_eq!(
+        snapback
+            .auth_database_mut()
+            .push_registry()
+            .intent_state(&retry.response.intent_id)
+            .expect("read back the correctly correlated durable intent"),
+        retry.response.state,
     );
 }
 
@@ -534,7 +737,7 @@ fn fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorizati
     let authorization_error = match snapback.reserve_send(
         &declaration,
         &schema,
-        || session_authority(&unauthorized),
+        |target| session_authority(target, &unauthorized),
         PushTriggerModeV1::Immediate,
         None,
         &unauthorized_request,
@@ -679,7 +882,8 @@ fn deferred_grant_binds_request_and_revalidates_producer_membership() {
         to: request.to.clone(),
         dedupe_key: request.dedupe_key.clone(),
     };
-    let authority = system_authority();
+    let mut authority_owner = crate::local::LocalSnapback::memory().expect("authority owner");
+    let authority = system_authority(&mut authority_owner);
     authorize_send_for_prepared(
         &fixture,
         &schema,
@@ -752,7 +956,8 @@ fn explicit_principals_and_membership_authorize_consume_their_declared_argument_
         .grant_app_sender(&sender)
         .expect("sender membership");
     let schema = app_membership_schema();
-    let authority = session_authority(&sender);
+    let mut authority_owner = crate::local::LocalSnapback::memory().expect("authority owner");
+    let authority = session_authority(&mut authority_owner, &sender);
     authorize_send_for_prepared(
         &fixture,
         &schema,

@@ -153,3 +153,26 @@ The root cause stands exactly as recorded: `AuthorizedEffectReservation` retains
 `PreparedAuthority` and exposes no accessor and no comparison API, so the correlation is
 unexpressible rather than merely omitted. The three confirmed live defects stand. The direction
 stands. Only the headline number, the raw-guard mechanism, and the completeness claim were wrong.
+
+## Scoped disposition — 2026-08-26 push seam round 3
+
+The immediate push reservation route supplied another live counterexample to the same root
+cause: two separately prepared session authorities from one `LocalSnapback` share its admission
+controller and durable authorization stream, so authority A could supply the push principal while
+authority B supplied the live `AuthorizedEffectReservation`. All engine-ownership checks passed
+and A's durable intent committed under B's reservation.
+
+The round-3 amendment adds an exact, process-bound prepared-authority lineage identity and makes
+the reservation compare its retained lineage with the authority presented by the sink. Immediate
+push reservation, authorized-effect batch claim, and authorized-effect transmitting-marker paths
+perform that comparison before their durable cut. A same-engine, two-session regression verifies
+that `{authority A, reservation B}` refuses and leaves no durable intent; a correctly correlated
+retry is non-deduplicated and is read back from the durable registry.
+
+This is a **scoped push-seam closure**, not a resolution of this ticket. The audit still finds the
+pre-existing independent pair at non-push engine sinks including capability links, agent
+invitation/pairing, ask spend, client mutation acknowledgement, staged mutations, and multiple
+asset state/receipt paths. Several post-I/O asset sinks retain a preparation ticket plus a later
+reservation without a `PreparedAuthority` parameter; those need an exact ticket-to-reservation
+lineage or a derived authority, not a mechanical application of the push check. Keep those rows
+open under the mandatory-correlation design and its inventories.

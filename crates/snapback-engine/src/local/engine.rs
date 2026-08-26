@@ -7731,6 +7731,7 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<Option<crate::push::PushBatchClaimV1>> {
         authority.validate_admission("push batch claim")?;
+        authorized_effect.require_prepared_authority(authority)?;
         self.db
             .push_registry()
             .claim_batch_guarded(batch_id, now_ms, || {
@@ -7764,6 +7765,7 @@ impl LocalSnapback {
         authorized_effect: AuthorizedEffectReservation,
     ) -> SnapbackResult<()> {
         authority.validate_admission("push batch transmitting marker")?;
+        authorized_effect.require_prepared_authority(authority)?;
         self.db
             .push_registry()
             .mark_batch_transmitting_guarded(claim, now_ms, || {
@@ -8565,7 +8567,6 @@ impl LocalSnapback {
         crate::push::ReservedPushAttemptV1,
         crate::push::PushSeamDeclarationV1,
     )> {
-        authority.validate_admission("push durable reservation")?;
         let schema = self.db.schema().clone();
         let declaration = schema.push_seam.clone().ok_or_else(|| {
             SnapbackError::error(
@@ -8600,7 +8601,8 @@ impl LocalSnapback {
         crate::push::ReservedPushAttemptV1,
         crate::push::PushSeamDeclarationV1,
     )> {
-        authority.validate_admission("push durable reservation")?;
+        self.require_current_authority_owner(authority, "push durable reservation")?;
+        authorized_effect.require_prepared_authority(authority)?;
         if trigger_mode != crate::push::PushTriggerModeV1::Immediate {
             return Err(SnapbackError::error(
                 "SNAPBACK_PUSH_AUTHORITY_INVALID",
@@ -8644,6 +8646,7 @@ impl LocalSnapback {
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
+        self.require_current_authority_owner(authority, "push durable reservation")?;
         let push_authority = crate::push::admitted_push_storage_authority(&self.db, authority);
         #[cfg(test)]
         run_before_admission_effect_guard_hook(AdmissionEffectSite::PushReservation);
@@ -8675,7 +8678,6 @@ impl LocalSnapback {
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
-        authority.validate_admission("push durable reservation")?;
         self.reserve_push_send_with_schema(
             authority,
             declaration,
@@ -8684,6 +8686,28 @@ impl LocalSnapback {
             deferred_grant,
             request,
             now_ms,
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn read_push_ledger_projection_for_test(
+        &mut self,
+        authority: &PreparedAuthority,
+        declaration: &crate::push::PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        intent_id: &str,
+    ) -> SnapbackResult<(
+        Vec<crate::push::PushLedgerRowV1>,
+        Option<crate::storage::CapturedReadDependency>,
+    )> {
+        self.require_current_authority_owner(authority, "push ledger projection")?;
+        crate::push::read_ledger_projection_for_prepared(
+            &self.db,
+            &crate::storage::DbRead::Live(&self.db),
+            declaration,
+            schema,
+            authority,
+            intent_id,
         )
     }
 
@@ -9596,6 +9620,34 @@ impl LocalSnapback {
         ))
     }
 
+    /// Keep a prepared authority bound to the consuming engine for its whole
+    /// lifetime. A valid lease from a sibling engine is not authority to commit
+    /// through this engine's database.
+    ///
+    /// @ref LLP 0303#derivation-is-a-lifetime-property-not-a-constructor-event — the consuming engine rechecks admission and stream ownership.
+    fn require_current_authority_owner(
+        &self,
+        authority: &PreparedAuthority,
+        effect: &'static str,
+    ) -> SnapbackResult<()> {
+        self.require_owned_authority_admission(authority.admission_lease())?;
+        authority.validate_admission(effect)?;
+        let durable = self.db.authorization_stream_incarnation()?;
+        match authority.authorization_stream_incarnation() {
+            Some(installed) if installed == durable.as_str() => Ok(()),
+            Some(_) => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authority belongs to another authorization stream",
+            )),
+            None => Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "prepared authority has no installed authorization stream",
+            )),
+        }
+    }
+
     /// Install this engine's stream at a legitimate authority producer. The
     /// descriptor root deliberately refuses omissions and foreign streams.
     ///
@@ -9873,6 +9925,34 @@ impl LocalSnapback {
             None,
         )?;
         self.install_authorization_stream(authority)
+    }
+
+    /// Prepare cron system authority from this engine's real admission and
+    /// authorization-stream graph. The fixture accepts no caller-supplied
+    /// lease, epoch, or stream identity.
+    ///
+    /// @ref LLP 0303#the-governing-principle — tests derive authority from
+    ///   the owner instead of pairing a subject with an independently minted
+    ///   admission lease.
+    #[cfg(test)]
+    pub(crate) fn prepare_cron_system_authority_for_test(&mut self) -> PreparedAuthority {
+        let admission = self
+            .admission
+            .admit()
+            .expect("admit unit-test cron system authority");
+        let active_mode = admission
+            .active_mode()
+            .expect("unit-test engine admissions are controller-managed");
+        self.prepare_resolved_authority(
+            InvocationSource::Cron,
+            active_mode,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::System,
+            1,
+        )
+        .expect("prepare unit-test cron system authority")
     }
 
     /// Unit-test session fixture that still traverses protected catalog,
