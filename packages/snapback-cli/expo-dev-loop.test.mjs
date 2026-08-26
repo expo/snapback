@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { webcrypto } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import {
   cpSync,
   existsSync,
@@ -21,6 +21,7 @@ import {
 } from 'node:http';
 import { createConnection, createServer as createNetServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -571,6 +572,26 @@ async function requestSupervisedMint(exchangeOrigin, admittedOrigin, bootstrap =
   );
   assert.equal(response.status, 200);
   return response.json();
+}
+
+function authSessionCount(databasePath) {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    return Number(database.prepare('SELECT COUNT(*) AS count FROM "_auth_sessions"').get().count);
+  } finally {
+    database.close();
+  }
+}
+
+function authSessionUserForBearer(databasePath, bearer) {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    return database.prepare(
+      'SELECT user_id AS userId FROM "_auth_sessions" WHERE token_hash = ?',
+    ).get(createHash('sha256').update(bearer).digest())?.userId ?? null;
+  } finally {
+    database.close();
+  }
 }
 
 function listenerOrigin({ host, port }) {
@@ -1483,13 +1504,6 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
   assert.equal(supervisor.inspection().authorityMintCount, 2);
 
-  const mintedExchange = await requestSupervisedMint(
-    supervisor.exchangeOrigin,
-    supervisor.metroOrigin,
-  );
-  const firstBearer = mintedExchange.authority.token;
-  assert.match(firstBearer, /^sbs_/u);
-  assert.equal(JSON.stringify(mintedExchange.binding).includes(firstBearer), false);
   const postMintPlainExchange = await (
     await fetch(`${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`)
   ).json();
@@ -1513,8 +1527,24 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
   const api = generated.default;
   const appState = appStateHarness();
+  const authorityExchangeBearers = [];
+  const supervisedFetch = async (input, init) => {
+    const response = await fetch(input, init);
+    if (
+      input === `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`
+      && init?.method === 'POST'
+      && response.ok
+    ) {
+      const exchange = await response.clone().json();
+      if (exchange.authority?.status === 'ready') {
+        authorityExchangeBearers.push(exchange.authority.token);
+      }
+    }
+    return response;
+  };
   const supervisedEnvironment = createSupervisedExpoEnvironment({
     exchangeOrigin: supervisor.exchangeOrigin,
+    fetch: supervisedFetch,
     appState,
     runtimePlatform: 'web',
     clientOptions: {
@@ -1546,6 +1576,10 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(ready.authority.authMode, 'sessions');
   assert.equal(appState.count(), 1);
   const firstUserId = ready.authority.userId;
+  assert.equal(authorityExchangeBearers.length, 1);
+  const firstBearer = authorityExchangeBearers[0];
+  assert.match(firstBearer, /^sbs_/u);
+  assert.equal(authSessionUserForBearer(settled.database, firstBearer), firstUserId);
   const provider = boot.reactProvider();
   assert(provider, 'ready Expo boot must project the canonical React provider');
 
@@ -1727,17 +1761,31 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   );
 
   const replacementBootStart = bootStates.length;
+  const replacementMintCount = supervisor.inspection().authorityMintCount;
+  const replacementSessionCount = authSessionCount(settled.database);
   assert.equal(await supervisor.replaceAuthority('second@expo-e1.test'), 'ready');
-  const secondExchange = await requestSupervisedMint(
-    supervisor.exchangeOrigin,
-    supervisor.metroOrigin,
-  );
-  const secondBearer = secondExchange.authority.token;
-  assert.match(secondBearer, /^sbs_/u);
-  assert.notEqual(secondBearer, firstBearer);
   const replaced = await boot.refreshAuthority();
   assert.equal(replaced.status, 'ready');
   assert.notEqual(replaced.authority.userId, firstUserId);
+  assert.equal(
+    supervisor.inspection().authorityMintCount,
+    replacementMintCount + 1,
+    'one authority replacement mints exactly one server session',
+  );
+  assert.equal(
+    authSessionCount(settled.database),
+    replacementSessionCount + 1,
+    'one authority replacement creates exactly one server-side session row',
+  );
+  assert.equal(authorityExchangeBearers.length, 2);
+  const secondBearer = authorityExchangeBearers[1];
+  assert.match(secondBearer, /^sbs_/u);
+  assert.notEqual(secondBearer, firstBearer);
+  assert.equal(
+    authSessionUserForBearer(settled.database, secondBearer),
+    replaced.authority.userId,
+    'the exact pending replacement bearer crosses the provider refresh',
+  );
   assert(
     bootStates.slice(replacementBootStart).some(
       (state) => state.status === 'starting' && state.stage === 'authority',

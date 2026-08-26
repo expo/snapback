@@ -681,7 +681,7 @@ export function createSnapbackExpoBoot(options = {}) {
         // @ref LLP 0262#d2-carriers-per-shipped-topology — supervised native
         // stays sessions-first; web adoption is opt-in regardless of custody kind.
         const shouldAdoptSupervisedSession = adoptSupervisedSession
-          ?? (await awaitBoundary(resolveExpoRuntimePosture(environment))) === 'native';
+          ?? (await awaitBoundary(resolveExpoRuntimePosture(environment, platform))) === 'native';
         applicationClientAdoptsSupervisedSession = shouldAdoptSupervisedSession;
         // @ref LLP 0151#resolved-provider-entry — Adapters resolve once, here,
         // from the declaration plus the supervisor's credential-free shared-auth
@@ -1275,14 +1275,15 @@ export function isSnapbackExpoBootDiagnostic(error) {
     || error?.diagnostic?.schemaVersion === 'snapback.client-diagnostic.v1';
 }
 
-async function resolveExpoRuntimePosture(environment) {
+async function resolveExpoRuntimePosture(environment, platform) {
+  // An explicit platform resolver outranks and therefore bypasses native OS seams.
+  if (typeof environment.resolveAppClientPlatform === 'function') {
+    return ['browser', 'expo-web'].includes(platform?.kind) ? 'web' : 'native';
+  }
   const operatingSystem = await resolveNativeOperatingSystem(environment);
   if (operatingSystem === 'web') return 'web';
   if (operatingSystem !== 'unknown') return 'native';
   if (globalThis.navigator?.product === 'ReactNative') return 'native';
-  if (
-    typeof globalThis.navigator === 'object'
-    && typeof globalThis.document === 'object'
-  ) return 'web';
+  if (typeof globalThis.navigator === 'object' && typeof globalThis.document === 'object') return 'web';
   return 'native';
 }

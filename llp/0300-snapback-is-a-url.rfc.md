@@ -289,9 +289,10 @@ ordinary session is minted only when a client explicitly requests adoption,
 and `SnapbackExpoProvider`/`createSnapbackExpoBoot` do so only when
 `adoptSupervisedSession: true` is supplied (an explicit refresh or operator
 replacement remains explicit too). The default first-party provider therefore
-reaches anonymous ready and exposes guest/password entry. Signing out an
-adopted supervised session stays at that anonymous owner; it does not
-implicitly re-adopt or turn the ended session into a provider failure.
+reaches anonymous ready and exposes guest/password entry on web; native keeps
+default-on supervised adoption. Signing out an adopted supervised session
+stays at that anonymous owner; it does not implicitly re-adopt or turn the
+ended session into a provider failure.
 
 This closes the one-mint-shared-by-every-tab class on both canonical and
 supervised web paths by construction, while preserving explicit one-session

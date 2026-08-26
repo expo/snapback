@@ -2327,7 +2327,7 @@ export async function runExpoDev(options = {}) {
   let metroFront = null;
   let metroPlaceholder = null;
   let forwarding = null;
-  let authority = Object.freeze({ status: 'unavailable' });
+  let authority = Object.freeze({ status: 'unavailable' }), pendingAuthority = null;
   let authorityRequested = false;
   let authorityMintCount = 0;
   let authorityEmail = options.email ?? DEFAULT_EMAIL;
@@ -2402,7 +2402,7 @@ export async function runExpoDev(options = {}) {
       checkoutRegistry?.invalidate();
       checkoutRegistry = null;
       checkoutNonce = null;
-      authority = null;
+      authority = pendingAuthority = null;
       if (abortListener !== null) abortSignal?.removeEventListener('abort', abortListener);
       abortListener = null;
       emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
@@ -2710,7 +2710,7 @@ export async function runExpoDev(options = {}) {
     checkoutRegistry = createDevIdentityCheckoutRegistry({
       getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
     });
-    const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
+    const mintAndSwapAuthority = (email, { emitReplacement = true, pending = false } = {}) => {
       authorityEmail = email;
       authorityRequested = true;
       let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
@@ -2736,17 +2736,17 @@ export async function runExpoDev(options = {}) {
             : authority,
         });
       }
+      if (pending) pendingAuthority = authority;
       return authority.status;
     };
     // @ref LLP 0300#p4--the-dev-session-becomes-explicit — binding admission
     // never invokes the mint on web or native; application adoption requests
     // the first ordinary session on demand.
-    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — every explicit
-    // web adoption or refresh receives a fresh session, while the first mint
-    // is not misreported as an authority replacement.
+    // @ref LLP 0310.000#track-b--url-visible-mint-not-stolen — an operator
+    // replacement is a one-shot response; other explicit adoptions mint fresh.
     requestSupervisedAuthority = () => {
-      const emitReplacement = authorityRequested;
-      mintAndSwapAuthority(authorityEmail, { emitReplacement });
+      if (pendingAuthority !== null) [authority, pendingAuthority] = [pendingAuthority, null];
+      else mintAndSwapAuthority(authorityEmail, { emitReplacement: authorityRequested });
       return authority;
     };
     // @ref LLP 0262#d2-carriers-per-shipped-topology — native remains
@@ -2866,7 +2866,7 @@ export async function runExpoDev(options = {}) {
             timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
           });
           emit({ ok: true, state: 'listeners-verified', listeners });
-          if (authorityRequested) mintAndSwapAuthority(authorityEmail);
+          if (authorityRequested) mintAndSwapAuthority(authorityEmail, { pending: true });
           else authority = Object.freeze({ status: 'unavailable' });
           if (shouldLaunchExpoNativeCheckout(route, options)) {
             checkoutNonce = checkoutRegistry.issue({
@@ -3278,7 +3278,7 @@ export async function runExpoDev(options = {}) {
         if (closed) {
           throw diagnosticError('SNAPBACK_EXPO_SUPERVISOR_CLOSED', 'the Expo supervisor is closed');
         }
-        return mintAndSwapAuthority(email);
+        return mintAndSwapAuthority(email, { pending: true });
       },
       inspection() {
         return Object.freeze({

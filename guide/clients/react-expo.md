@@ -391,11 +391,11 @@ The supervised web loop does not mint at startup, and the provider does not
 adopt a supervised session by default. It reaches anonymous `ready`, where
 ordinary password signup/sign-in uses the injected backend URL. Pass
 `adoptSupervisedSession` only when a test explicitly wants the on-demand
-supervised mint. That mint is one session for the supervised origin, so every
-browser context that explicitly adopts it becomes the same principal; a
-two-user proof should instead use ordinary password entry with separate
-custody per context. `snapback auth dev-session` likewise remains an explicit
-operator tool, never a template-consumed app session.
+supervised mint. Explicit browser adopters receive separate sessions for the
+same default principal, so signing out one tab does not expire another; a
+two-user proof should instead use ordinary password entry with separate custody
+per context. `snapback auth dev-session` likewise remains an explicit operator
+tool, never a template-consumed app session.
 
 From an Expo app whose backend is the conventional `snapback/` child, select
 the supervised carrier explicitly (iOS remains the default when the platform
@@ -533,7 +533,7 @@ carrier.
 The on-demand mint inherits the native `auth.mintSession` precondition: the
 app must already be settled and available in Sessions mode. The fixture does
 this in its [schema](repo:demos/expo-golden-path-fixture/snapback/schema.mjs).
-Without that precondition, default boot still reaches anonymous `ready`; an
+Without that precondition, default web boot still reaches anonymous `ready`; an
 explicit `adoptSupervisedSession` request reports `authority-required` with
 the native diagnostic. See [Sessions and principals](../auth/sessions-and-principals.md)
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
