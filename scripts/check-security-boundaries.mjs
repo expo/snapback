@@ -292,6 +292,26 @@ function validateSeedWitnessCoverage(privilegeFindings, attacks) {
     .map((seed) => `publicly obtainable seed type has no attack witness: ${seed}`);
 }
 
+// @ref LLP 0313#9-mechanical-gate — rustdoc JSON is unavailable on the
+// pinned compiler, so the private evidence and writer-custody shape is parsed
+// with syn and its owning crate is resolved from Cargo metadata.
+export function validateAuthorityTransitionCore(root = DEFAULT_ROOT) {
+  const metadata = runCargoMetadata(resolve(root, 'Cargo.toml'));
+  const kernel = workspacePackages(metadata).find(({ name }) => name === 'snapback-kernel');
+  if (!kernel) {
+    throw new GateInfrastructureError('cargo metadata did not return snapback-kernel');
+  }
+  const audit = runAst([
+    'authority-transition',
+    '--crate-root', dirname(kernel.manifest_path),
+  ]);
+  return {
+    ...audit,
+    errors: audit.violations.map(({ file, line, kind, detail }) =>
+      `authority-transition ${kind} at ${file}:${line}: ${detail}`),
+  };
+}
+
 export function auditSecurityBoundaries(
   root = DEFAULT_ROOT,
   fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries'),
@@ -299,9 +319,11 @@ export function auditSecurityBoundaries(
   const started = process.hrtime.bigint();
   const attacks = loadAttacks(fixtureRoot);
   const privilegeScan = auditPrivilegeSurface(root);
+  const authorityTransition = validateAuthorityTransitionCore(root);
   const inventoryErrors = [
     ...validateFixtureInventory(root, fixtureRoot, attacks, privilegeScan.findings),
     ...validateSeedWitnessCoverage(privilegeScan.findings, attacks),
+    ...authorityTransition.errors,
   ];
   // An attack whose featureSets name an undeclared crate cannot be run: cargo rejects the
   // invocation itself, and because that throws, every later attack goes unevaluated and the
@@ -318,10 +340,15 @@ export function auditSecurityBoundaries(
   }
   const outcomes = runnable.flatMap((attack) => runAttack({ attack, fixtureRoot }));
   const durationMs = Number(process.hrtime.bigint() - started) / 1_000_000;
-  return { attacks, inventoryErrors, outcomes, durationMs };
+  return { attacks, authorityTransition, inventoryErrors, outcomes, durationMs };
 }
 
 function printResult(result) {
+  if (result.authorityTransition.errors.length === 0) {
+    process.stdout.write(
+      `[security-boundary] PASS authority-transition-shape: ${result.authorityTransition.evidenceLiterals} evidence literal, ${result.authorityTransition.writerFiles} writer source file(s)\n`,
+    );
+  }
   for (const error of result.inventoryErrors) {
     process.stderr.write(`[security-boundary] RED inventory: ${error}\n`);
   }

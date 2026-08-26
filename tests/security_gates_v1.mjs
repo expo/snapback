@@ -20,11 +20,55 @@ import {
 import {
   loadAttacks,
   runAttack,
+  validateAuthorityTransitionCore,
   validateFixtureInventory,
 } from '../scripts/check-security-boundaries.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const fixtureRoot = resolve(root, 'tests/fixtures/security-boundaries');
+
+test('authority-transition evidence and writer custody match the private core contract', () => {
+  const audit = validateAuthorityTransitionCore(root);
+  assert.deepEqual(audit.violations, []);
+  assert.equal(audit.evidenceLiterals, 1);
+  assert(audit.writerFiles >= 8);
+});
+
+test('authority-transition syn gate rejects visibility and SQL-custody regressions', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-authority-transition-shape-'));
+  const crateRoot = join(scratch, 'snapback-kernel');
+  const sourceRoot = join(crateRoot, 'src');
+  try {
+    mkdirSync(join(sourceRoot, 'storage'), { recursive: true });
+    cpSync(
+      resolve(root, 'crates/snapback-kernel/src/storage/authority_transition'),
+      join(sourceRoot, 'storage/authority_transition'),
+      { recursive: true },
+    );
+    cpSync(resolve(root, 'crates/snapback-kernel/src/storage.rs'), join(sourceRoot, 'storage.rs'));
+
+    const core = join(sourceRoot, 'storage/authority_transition/core/mod.rs');
+    const evidence = join(sourceRoot, 'storage/authority_transition/core/evidence.rs');
+    writeFileSync(
+      core,
+      readFileSync(core, 'utf8').replace(
+        'struct KernelVerifiedEvidence',
+        'pub(crate) struct KernelVerifiedEvidence',
+      ),
+    );
+    writeFileSync(
+      evidence,
+      `${readFileSync(evidence, 'utf8')}\nconst ESCAPED_SQL: &str = "INSERT INTO _auth_users(id) VALUES('forged')";\n`,
+    );
+
+    const audit = runAst(['authority-transition', '--crate-root', crateRoot]);
+    const kinds = new Set(audit.violations.map(({ kind }) => kind));
+    assert(kinds.has('evidence-visibility'));
+    assert(kinds.has('protected-sql-custody'));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
 
 function inertGuideFixture() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-inert-guide-'));
