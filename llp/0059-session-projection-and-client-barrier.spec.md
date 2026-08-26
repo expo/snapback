@@ -5,6 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
+**Revised:** 2026-08-26 (round-7 structural closure: exact completion releases
+subscriber outbox, room, and rooms-map guards before obligation settlement
+drops SQLite, eliminating SQLite execution beneath those guards.)
 **Revised:** 2026-08-26 (round-6 lock-order correction: exact room
 reauthorization completion moved to a take-once SQLite owner outside managed
 `LocalSnapback`; arbitrary outbox/notifier handoff and classification callbacks
@@ -835,9 +838,10 @@ app-state construction and owned beside, not inside, the managed
 for `IMMEDIATE`; it holds no registry, rooms, room, outbox, notifier, or global
 Local guard during that wait. After SQLite is acquired it remains held through
 the durable session and membership rereads, the exact subscriber/effect-fence
-mutation and subscriber-outbox effects, and the exact obligation clear. The
-notifier wake and later routing cleanup occur after all of those guards and
-SQLite are released. A persistent SQLite writer can therefore delay the
+mutation and subscriber-outbox effects. All outbox, room, and rooms-map guards
+release before exact obligation clear drops the transaction, so no SQLite
+operation runs under those guards. The notifier wake and later routing cleanup
+occur after SQLite and the registry are released. A persistent SQLite writer can therefore delay the
 completion owner and lifecycle-exclusive maintenance, but cannot pin every
 managed Local operation. An ordinary authorization write can still pin Local
 while its own `IMMEDIATE` acquisition waits; that is the transaction-bind path,
