@@ -170,6 +170,17 @@ export interface RqsResumeStore {
    * watch primitive are polled only while pending work awaits writer custody. */
   subscribeWriterLock?(listener: (writer: boolean) => void): () => void;
   outboxEmpty(): Promise<boolean>;
+  /** Reserve one durable shared ordering slot before target inspection. */
+  beginOfflineMutationReplayCapabilityObservation(): Promise<
+    false | Readonly<Record<string, unknown>>
+  >;
+  /** Read the current target-bound replay-capability fact shared by clients. */
+  readOfflineMutationReplayCapabilityFact(): Promise<Readonly<Record<string, unknown>>>;
+  /** Compare and commit an answered target-capability observation. */
+  commitOfflineMutationReplayCapabilityFact(
+    fact: Readonly<Record<string, unknown>>,
+    observation?: false | Readonly<Record<string, unknown>> | null,
+  ): Promise<false | Readonly<Record<string, unknown>>>;
   outboxAuthorizationStatus(): Promise<Readonly<{
     authorityGeneration: number;
     generation: number;
@@ -203,6 +214,13 @@ export interface RqsResumeStore {
     expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
   ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+  /** Payload-free enqueue-target evidence for target-fenced quarantine
+   * observation and re-entry. */
+  outboxQuarantinedRecordTargets(): Promise<readonly Readonly<{
+    id: string;
+    outboxRecordSchemaVersion?: number;
+    enqueueTarget?: Readonly<Record<string, unknown>>;
+  }>[]>;
   outboxMarkStranded(
     id: string,
     reason: string,
@@ -259,6 +277,7 @@ export interface RqsResumeStore {
   }>>;
   outboxReenterQuarantined?(
     expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
+    recordIds?: readonly string[] | null,
   ): Promise<false | Readonly<{
     count: number;
     clientMutationIds: readonly string[];

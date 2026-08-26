@@ -18,6 +18,7 @@ import {
   outboxAuthorizationStatus,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  quarantinedOutboxRecordTargets,
   unresolvedOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
@@ -901,6 +902,9 @@ export async function createSqliteRqsResumeStore({
       ));
     },
     outboxRecords() { return serialized(async () => clone(allOutboxRecords(await readOutbox()))); },
+    outboxQuarantinedRecordTargets() {
+      return serialized(async () => clone(quarantinedOutboxRecordTargets(await readOutbox())));
+    },
     outboxSettle(id, expectedAuthorizationFence = null) {
       return mutateOutbox('outbox-settle', (state) => (
         outboxOps.settle(state, id, expectedAuthorizationFence)
@@ -1000,9 +1004,9 @@ export async function createSqliteRqsResumeStore({
         )
       ));
     },
-    outboxReenterQuarantined(expectedAuthorizationFence = null) {
+    outboxReenterQuarantined(expectedAuthorizationFence = null, recordIds = null) {
       return mutateOutbox('outbox-reenter-quarantined', (state) => (
-        outboxOps.reenterQuarantined(state, expectedAuthorizationFence)
+        outboxOps.reenterQuarantined(state, expectedAuthorizationFence, recordIds)
       ));
     },
     outboxMarkResultGone(id, resultGone, expectedAuthorizationFence = null) {

@@ -146,6 +146,14 @@ export declare const allOutboxRecords: (
   state: OutboxState
 ) => Array<StoredOutboxRecord | OutboxQuarantineTombstone>;
 
+export declare const quarantinedOutboxRecordTargets: (
+  state: OutboxState
+) => Array<Readonly<{
+  id: string;
+  outboxRecordSchemaVersion?: number;
+  enqueueTarget?: Readonly<Record<string, unknown>>;
+}>>;
+
 export declare const pendingAcknowledgementsFor: (
   state: OutboxState,
   userId: string,

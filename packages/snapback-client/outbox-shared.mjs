@@ -1983,13 +1983,25 @@ export const outboxOps = {
   /// Explicit successor-admission cut. Payloads and replay identities are
   /// unchanged; only quarantined records re-enter the ordered pending lane.
   /// Compatibility classification/transformation is a generated-facts
-  /// follow-on, so this first cut deliberately re-enters the whole quarantine.
-  reenterQuarantined(state, expectedAuthorizationFence = null) {
+  /// follow-on. A null id set retains the store-level whole-quarantine
+  /// primitive; public clients pass their already target-fenced record ids.
+  reenterQuarantined(state, expectedAuthorizationFence = null, recordIds = null) {
     requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
+    if (
+      recordIds !== null
+      && (
+        !Array.isArray(recordIds)
+        || recordIds.some((id) => typeof id !== 'string' || id.length === 0)
+      )
+    ) {
+      throw new TypeError('reenterQuarantined recordIds must be null or a string array');
+    }
+    const selectedIds = recordIds === null ? null : new Set(recordIds);
     const records = { ...state.records };
     const ids = [];
     for (const existing of Object.values(records).sort(outboxOrder)) {
       if (existing.status !== 'quarantined') continue;
+      if (selectedIds !== null && !selectedIds.has(existing.id)) continue;
       const {
         quarantine: _quarantine,
         effectProvenance: _effectProvenance,
@@ -2328,6 +2340,18 @@ export const unresolvedOutboxRecords = (state) => Object.values(state.records)
 export const allOutboxRecords = (state) => Object.values(state.records)
   .sort(outboxOrder)
   .map((record) => record.status === 'quarantined' ? quarantineTombstone(record) : record);
+
+/// Payload-free target evidence for quarantined records. Public record
+/// projections remain redacted tombstones; target-fenced client recovery uses
+/// this narrower store view without gaining access to the retained intent.
+export const quarantinedOutboxRecordTargets = (state) => Object.values(state.records)
+  .filter((record) => record.status === 'quarantined')
+  .sort(outboxOrder)
+  .map((record) => ({
+    id: record.id,
+    outboxRecordSchemaVersion: record.outboxRecordSchemaVersion,
+    enqueueTarget: record.enqueueTarget,
+  }));
 
 /// Pending acknowledgements for one auth identity: only records matching the
 /// current userId are exposed/sent (LLP 0043: returning to the prior user can

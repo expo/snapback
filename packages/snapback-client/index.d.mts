@@ -2149,8 +2149,9 @@ export class SnapbackClient {
   }): Promise<OutboxAdoptionReceipt>;
   /** Payload-free tombstones for upgrade-incompatible queued intents. */
   quarantinedMutations(): Promise<readonly QuarantinedMutationTombstone[]>;
-  /** Explicitly return the whole quarantine to pending after successor
-   * artifact admission. This first cut does no per-intent transformation. */
+  /** Explicitly return the current target's quarantine to pending after
+   * successor artifact admission. This first cut does no per-intent
+   * transformation. */
   reenterQuarantinedMutations(): Promise<QuarantinedMutationReentryOutcome>;
   /** Current-principal, full-byte intents stranded by an authority change. */
   strandedMutations(): Promise<readonly StrandedMutation[]>;

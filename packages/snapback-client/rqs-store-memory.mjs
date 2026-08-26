@@ -17,6 +17,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  quarantinedOutboxRecordTargets,
   unresolvedOutboxRecords,
 } from './outbox-shared.mjs';
 import {
@@ -621,6 +622,11 @@ export function createMemoryRqsResumeStore({
       return structuredClone(allOutboxRecords(state.outbox));
     },
 
+    async outboxQuarantinedRecordTargets() {
+      requireOpen();
+      return structuredClone(quarantinedOutboxRecordTargets(state.outbox));
+    },
+
     async outboxSettle(id, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
       const applied = outboxOps.settle(state.outbox, id, expectedAuthorizationFence);
@@ -747,11 +753,12 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
-    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
+    async outboxReenterQuarantined(expectedAuthorizationFence = null, recordIds = null) {
       if (!requireWriter()) return false;
       const applied = outboxOps.reenterQuarantined(
         state.outbox,
         expectedAuthorizationFence,
+        recordIds,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);

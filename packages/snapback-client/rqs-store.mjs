@@ -25,6 +25,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  quarantinedOutboxRecordTargets,
   unresolvedOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
@@ -1392,6 +1393,10 @@ export function createIndexedDbRqsResumeStore({
       return outboxRead(allOutboxRecords, () => []);
     },
 
+    async outboxQuarantinedRecordTargets() {
+      return outboxRead(quarantinedOutboxRecordTargets, () => []);
+    },
+
     async outboxSettle(id, expectedAuthorizationFence = null) {
       return outboxWrite((state) => outboxOps.settle(state, id, expectedAuthorizationFence));
     },
@@ -1502,10 +1507,11 @@ export function createIndexedDbRqsResumeStore({
       ));
     },
 
-    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
+    async outboxReenterQuarantined(expectedAuthorizationFence = null, recordIds = null) {
       return outboxWrite((state) => outboxOps.reenterQuarantined(
         state,
         expectedAuthorizationFence,
+        recordIds,
       ));
     },
 

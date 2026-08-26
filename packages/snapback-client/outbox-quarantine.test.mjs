@@ -20,12 +20,31 @@ class SnapbackClient extends InspectingSnapbackClient {
 }
 
 const originalFetch = globalThis.fetch;
+const QUARANTINE_ORIGIN = 'http://127.0.0.1:9';
+const QUARANTINE_GENERATION = Object.freeze({
+  schemaVersion: 'snapback.v1',
+  appId: 'outbox-quarantine-test',
+  schemaHash: `sha256:${'a'.repeat(64)}`,
+  bundleHash: `sha256:${'b'.repeat(64)}`,
+  inputsHash: `sha256:${'c'.repeat(64)}`,
+});
 
 const createDurableTestStore = () => {
   const store = createMemoryRqsResumeStore();
   store.durability = () => ({ implementation: 'memory-test-double', durable: true });
   return store;
 };
+
+const establishQuarantineTarget = (store) => (
+  store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: QUARANTINE_ORIGIN,
+    supported: true,
+    reason: null,
+    targetProfileId: 'outbox-quarantine-target',
+    artifactGeneration: QUARANTINE_GENERATION,
+  })
+);
 
 const queueQuarantineFixture = async (client) => {
   globalThis.fetch = async () => { throw new TypeError('offline'); };
@@ -50,7 +69,8 @@ const queueQuarantineFixture = async (client) => {
 test('upgrade-required replay quarantines every pending intent as a redacted tombstone', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  await establishQuarantineTarget(store);
+  const client = new SnapbackClient(QUARANTINE_ORIGIN, { rqsStore: store });
   const queued = await queueQuarantineFixture(client);
 
   let submissions = 0;
@@ -124,7 +144,8 @@ test('upgrade-required replay quarantines every pending intent as a redacted tom
 test('explicit successor re-entry restores pending payloads and drains each identity once', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  await establishQuarantineTarget(store);
+  const client = new SnapbackClient(QUARANTINE_ORIGIN, { rqsStore: store });
   const queued = await queueQuarantineFixture(client);
 
   globalThis.fetch = async () => Response.json({

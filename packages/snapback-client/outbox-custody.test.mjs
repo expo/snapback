@@ -743,6 +743,21 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
+  const generatedGeneration = {
+    schemaVersion: 'snapback.v1',
+    appId: fixture.appId,
+    schemaHash: 'schema-generation-bound-stranded',
+    bundleHash: 'bundle-generation-bound-stranded',
+    inputsHash: 'inputs-generation-bound-stranded',
+  };
+  await fixture.store.commitOfflineMutationReplayCapabilityFact({
+    schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+    origin: fixture.baseUrl,
+    supported: true,
+    reason: null,
+    targetProfileId: 'outbox-custody-recovery-target',
+    artifactGeneration: generatedGeneration,
+  });
   await signIn(fixture, client);
   const queued = await queueOffline(fixture, client, 'recoverIntent', {
     args: { value: 'recover-me' },
@@ -762,13 +777,6 @@ test('stranded recovery reads, discards, and rerecords as a new current intent',
     args: { value: 'recover-again' },
     settlementIdentity: { old: 'must-not-cross-authority' },
   });
-  const generatedGeneration = {
-    schemaVersion: 'snapback.v1',
-    appId: fixture.appId,
-    schemaHash: 'schema-generation-bound-stranded',
-    bundleHash: 'bundle-generation-bound-stranded',
-    inputsHash: 'inputs-generation-bound-stranded',
-  };
   const generated = await queueOffline(fixture, client, {
     artifactKind: 'functionReference',
     kind: 'Mutation',
@@ -978,7 +986,7 @@ test('stranding a valid near-limit record cannot wedge an authority transition',
 
 test('unattributable queue records are privacy-deleted at fenced reconciliation', async (t) => {
   const fixture = makeFixture();
-  const { client } = makeClient(fixture);
+  const { client, coordinator } = makeClient(fixture);
   t.after(() => client.closeAuth());
   await signIn(fixture, client);
   // Dev-era / foreign-writer bytes: no captured descriptor, principal scope,
@@ -987,7 +995,7 @@ test('unattributable queue records are privacy-deleted at fenced reconciliation'
   // reconciliation deletes them with the diagnostic count (LLP 0043 dated
   // implementation note, 2026-08-06).
   await fixture.store.outboxEnqueue({ id: 'legacy-dev-pending', function: 'writeLegacy' });
-  await client.strandedMutations();
+  await transitionTo(fixture, coordinator, actorA2(), 'unattributable_privacy_delete');
   const status = await client.outboxStatus();
   assert.equal(status.pending, 0);
   assert.equal(status.stranded, 0);

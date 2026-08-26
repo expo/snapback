@@ -967,10 +967,14 @@ POST therefore leaves the same identity for replay. Positive capability facts
 whose IndexedDB compare-and-swap did not commit are classified as
 `uncommitted` and take the same enqueue-only, zero-POST path as cached facts.
 
-Standalone acknowledgement now establishes target eligibility before custody
-reconciliation and limits that reconciliation to the eligible record ids. A
-target-B client therefore cannot strand, privacy-delete, or acknowledge a
-target-A record under B's authority.
+Standalone acknowledgement establishes target eligibility before custody
+reconciliation and limits that reconciliation to eligible record ids. The
+same target-first rule now covers stranded read/discard/re-record, quarantine
+re-entry, and both mutation authority-unsettled recovery handlers;
+`strandedMutations()` performs no reconciliation. Through those named client
+APIs, a target-B client cannot strand, privacy-delete, re-enter, re-record,
+discard, or acknowledge a target-A record under B's authority. This makes no
+broader claim about arbitrary direct store operations.
 
 Cross-target and legacy targetless adoption remain unimplemented. The checked
 sidecar API returns a typed retained pause naming

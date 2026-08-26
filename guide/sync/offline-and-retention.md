@@ -451,6 +451,14 @@ Injection lets the candidate inspect the same pending bytes; it does not grant
 authority to rewrite their persisted enqueue target. Do not generalize it to
 arbitrary servers: the default isolation rule is a safety boundary.
 
+The shared-store foreign-target fence is specific to the public client paths
+that inspect durable records: checked adoption and replay, standalone and
+piggyback acknowledgement, stranded read/discard/re-record, quarantine
+re-entry, and the mutation authority-unsettled recovery handlers. Each filters
+record ids through the complete persisted target before any custody write;
+`strandedMutations()` is read-only. This is not a claim that arbitrary direct
+store calls infer or enforce target adoption.
+
 After candidate nonce attestation, construct the fresh client with the
 candidate URL and shared store, complete an application-owned full-snapshot
 barrier, then call `adoptQueuedMutations`. The checked API requires the captured

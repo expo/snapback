@@ -10402,6 +10402,12 @@ export class SnapbackClient {
   } = {}) {
     const store = this.#offlineQueueStore();
     const acknowledgementTransportTarget = pinOfflineMutationTransportTarget(this.baseUrl);
+    let acknowledgementCapability = null;
+    if (store && clientMutationIds.length > 0) {
+      acknowledgementCapability = await this.#offlineMutationReplayCapabilityFact({
+        operationTarget: acknowledgementTransportTarget,
+      });
+    }
     let authorizationDispatchRelease = null;
     let acknowledgementFence = null;
     let selectedClientMutationIds = [...clientMutationIds];
@@ -10419,11 +10425,15 @@ export class SnapbackClient {
         const recordsBeforeCustodyById = new Map(
           recordsBeforeCustody.map((record) => [record.id, record]),
         );
-        const currentFact = await this.#currentOfflineMutationReplayCapabilityFact(
-          acknowledgementTransportTarget,
-        );
-        const completeTarget = currentFact?.supported === true
-          ? completeOfflineMutationOperationTarget(acknowledgementTransportTarget, currentFact)
+        const capabilityCurrent = acknowledgementCapability?.supported === true
+          && !isOfflineMutationReplayEnqueueOnlyEvidence(acknowledgementCapability.evidence)
+          && await this.#isOfflineMutationReplayCapabilityFactCurrent(
+            acknowledgementCapability,
+            acknowledgementCapability.inspectionRequestSequence,
+            acknowledgementCapability.operationTarget,
+          );
+        const completeTarget = capabilityCurrent
+          ? acknowledgementCapability.operationTarget
           : null;
         const currentTarget = completeTarget ?? acknowledgementTransportTarget;
         const knownAppId = currentTarget.artifactGeneration?.appId
@@ -10585,7 +10595,7 @@ export class SnapbackClient {
       return fail('SNAPBACK_OFFLINE_QUEUE_DISABLED', 'offlineQueue is disabled for this client');
     }
     const store = this.rqsStore;
-    const capable = store
+    const outboxCapable = store
       && typeof store.outboxEnqueue === 'function'
       && typeof store.outboxPending === 'function'
       && typeof store.outboxPrepareSubmission === 'function'
@@ -10598,6 +10608,18 @@ export class SnapbackClient {
       && typeof store.outboxReconcileCustodyRecords === 'function'
       && typeof store.outboxDiscardStranded === 'function'
       && typeof store.wipeForAuthorityTransition === 'function';
+    const capabilityEvidenceCapable = store
+      && typeof store.beginOfflineMutationReplayCapabilityObservation === 'function'
+      && typeof store.readOfflineMutationReplayCapabilityFact === 'function'
+      && typeof store.commitOfflineMutationReplayCapabilityFact === 'function';
+    if (outboxCapable && !capabilityEvidenceCapable) {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_CAPABILITY_STORE_INCAPABLE: the configured durable outbox store lacks shared capability reservation/read/commit methods',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_CAPABILITY_STORE_INCAPABLE';
+      throw error;
+    }
+    const capable = outboxCapable && capabilityEvidenceCapable;
     if (!capable) {
       return fail(
         'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
@@ -11446,8 +11468,20 @@ export class SnapbackClient {
   async quarantinedMutations() {
     const store = this.#offlineQueueStore();
     if (!store) return [];
+    if (typeof store.outboxQuarantinedRecordTargets !== 'function') {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot target-fence quarantined mutations',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+      throw error;
+    }
+    const target = await this.#outboxProjectionTarget(store);
+    const targetIds = new Set((await store.outboxQuarantinedRecordTargets())
+      .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
+      .map((record) => record.id));
     return (await store.outboxRecords())
       .filter((record) => record?.status === 'quarantined')
+      .filter((record) => targetIds.has(record.id))
       .map((record) => Object.freeze({
         format: OUTBOX_QUARANTINE_TOMBSTONE_FORMAT,
         status: 'quarantined',
@@ -11468,11 +11502,11 @@ export class SnapbackClient {
 
   /// Explicit first-cut successor admission. The application calls this only
   /// after its successor artifacts have loaded/reconnected successfully. This
-  /// moves the whole quarantine back to pending without transforming payloads;
-  /// per-intent generated-fact classification is a named follow-on.
+  /// moves the current target's quarantine back to pending without
+  /// transforming payloads; per-intent generated-fact classification is a
+  /// named follow-on.
   async reenterQuarantinedMutations() {
     const store = this.#offlineQueueStore(true);
-    await this.#reconcileQueueCustody(store, { required: true });
     if (typeof store.outboxReenterQuarantined !== 'function') {
       const error = new Error(
         'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot re-enter quarantined mutations',
@@ -11480,13 +11514,34 @@ export class SnapbackClient {
       error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
       throw error;
     }
+    if (typeof store.outboxQuarantinedRecordTargets !== 'function') {
+      const error = new Error(
+        'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE: store cannot target-fence quarantined mutations',
+      );
+      error.code = 'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE';
+      throw error;
+    }
     const release = await acquireOutboxAuthorizationDispatch(store);
     let result;
     try {
+      const target = await this.#outboxProjectionTarget(store);
+      const recordIds = (await store.outboxQuarantinedRecordTargets())
+        .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
+        .map((record) => record.id);
+      if (recordIds.length > 0) {
+        await this.#reconcileQueueCustody(store, {
+          required: true,
+          authorizationDispatchOwned: true,
+          recordIds,
+        });
+      }
       const expectedAuthorizationFence = outboxAuthorizationFenceFrom(
         await store.outboxAuthorizationStatus(),
       );
-      result = await store.outboxReenterQuarantined(expectedAuthorizationFence);
+      result = await store.outboxReenterQuarantined(
+        expectedAuthorizationFence,
+        recordIds,
+      );
     } finally {
       await release();
     }
@@ -11510,16 +11565,17 @@ export class SnapbackClient {
     });
   }
 
-  async #currentStrandedCustody(store) {
-    const custody = await this.#reconcileQueueCustody(store, { required: true });
-    if (custody.authority === null) {
+  async #currentStrandedAuthority() {
+    if (this.authTerminalStatus().terminated === true) throw staleAuthorityError();
+    const authority = await this.#captureQueueAuthority();
+    if (authority === null) {
       const error = new Error(
         'SNAPBACK_OUTBOX_STRANDED_AUTHORITY_REQUIRED: stranded recovery requires settled session custody',
       );
       error.code = 'SNAPBACK_OUTBOX_STRANDED_AUTHORITY_REQUIRED';
       throw error;
     }
-    return custody.authority;
+    return authority;
   }
 
   /// Full-byte, rerecordable intents owned by the currently re-attested
@@ -11527,11 +11583,13 @@ export class SnapbackClient {
   /// because no credential, sender, or lease field is copied into the queue.
   async strandedMutations() {
     const store = this.#offlineQueueStore(true);
-    const authority = await this.#currentStrandedCustody(store);
+    const authority = await this.#currentStrandedAuthority();
+    const target = await this.#outboxProjectionTarget(store);
     return (await store.outboxRecords())
       .filter((record) => (
         record?.status === 'stranded'
         && record.rerecordable === true
+        && outboxRecordMatchesProjectionTarget(record, target)
         && samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
       ))
       .map((record) => freezeDeep(structuredClone({
@@ -11570,10 +11628,20 @@ export class SnapbackClient {
       throw new TypeError('discardStrandedMutations requires an array of client mutation ids');
     }
     const store = this.#offlineQueueStore(true);
-    const authority = await this.#currentStrandedCustody(store);
+    const authority = await this.#currentStrandedAuthority();
     const release = await acquireOutboxAuthorizationDispatch(store);
     let result;
     try {
+      const target = await this.#outboxProjectionTarget(store);
+      const requestedIds = new Set(clientMutationIds);
+      const selectedIds = (await store.outboxRecords())
+        .filter((record) => requestedIds.has(record?.id))
+        .filter((record) => record?.status === 'stranded' && record.rerecordable === true)
+        .filter((record) => outboxRecordMatchesProjectionTarget(record, target))
+        .filter((record) => (
+          samePrincipalScope(record.predecessorPrincipalScope, authority.principalScope)
+        ))
+        .map((record) => record.id);
       const discardFence = outboxAuthorizationFenceFrom(
         await store.outboxAuthorizationStatus(),
       );
@@ -11581,7 +11649,7 @@ export class SnapbackClient {
         throw staleAuthorityError();
       }
       result = await store.outboxDiscardStranded(
-        [...new Set(clientMutationIds)],
+        selectedIds,
         authority.principalScope,
         discardFence,
       );
@@ -11612,11 +11680,13 @@ export class SnapbackClient {
       throw new TypeError('reRecordStrandedMutation options must be an object');
     }
     const store = this.#offlineQueueStore(true);
-    const authority = await this.#currentStrandedCustody(store);
+    const authority = await this.#currentStrandedAuthority();
+    const target = await this.#outboxProjectionTarget(store);
     const record = (await store.outboxRecords()).find((candidate) => (
       candidate?.id === clientMutationId
       && candidate.status === 'stranded'
       && candidate.rerecordable === true
+      && outboxRecordMatchesProjectionTarget(candidate, target)
       && samePrincipalScope(candidate.predecessorPrincipalScope, authority.principalScope)
     ));
     if (!record) {
@@ -11662,6 +11732,18 @@ export class SnapbackClient {
     try {
       const release = await acquireOutboxAuthorizationDispatch(store);
       try {
+        const currentTarget = await this.#outboxProjectionTarget(store);
+        const currentPredecessor = (await store.outboxRecords()).find((candidate) => (
+          candidate?.id === clientMutationId
+          && candidate.status === 'stranded'
+          && candidate.rerecordable === true
+          && outboxRecordMatchesProjectionTarget(candidate, currentTarget)
+          && samePrincipalScope(
+            candidate.predecessorPrincipalScope,
+            authority.principalScope,
+          )
+        ));
+        if (currentPredecessor === undefined) throw staleAuthorityError();
         const discardFence = outboxAuthorizationFenceFrom(
           await store.outboxAuthorizationStatus(),
         );
@@ -14856,7 +14938,19 @@ export class SnapbackClient {
                 }, { retireRecord: true });
               }
               if (isAuthorityFenceUnsettledError(error)) {
-                await this.#reconcileQueueCustody(queueStore);
+                const knownAppId = operationTarget.artifactGeneration?.appId
+                  ?? this.__inspectionAppId
+                  ?? (this.__offlineMutationReplayCapability === null
+                    ? null
+                    : INTERNAL_CONFIGURED_REPLAY_APP_ID);
+                const recordIds = outboxRecordMatchesAcknowledgementTarget(
+                  stored,
+                  operationTarget,
+                  knownAppId,
+                ) ? [stored.id] : [];
+                if (recordIds.length > 0) {
+                  await this.#reconcileQueueCustody(queueStore, { recordIds });
+                }
                 throw error;
               }
               const markedFailed = await queueStore.outboxMarkFailed(stored.id, {
@@ -15376,7 +15470,19 @@ export class SnapbackClient {
             }
           }
           if (durableOnlineRecord && isAuthorityFenceUnsettledError(error)) {
-            await this.#reconcileQueueCustody(queueStore);
+            const knownAppId = operationTarget.artifactGeneration?.appId
+              ?? this.__inspectionAppId
+              ?? (this.__offlineMutationReplayCapability === null
+                ? null
+                : INTERNAL_CONFIGURED_REPLAY_APP_ID);
+            const recordIds = outboxRecordMatchesAcknowledgementTarget(
+              durableOnlineStoredRecord,
+              operationTarget,
+              knownAppId,
+            ) ? [clientMutationId] : [];
+            if (recordIds.length > 0) {
+              await this.#reconcileQueueCustody(queueStore, { recordIds });
+            }
             throw error;
           }
           if (durableOnlineRecord && isServerAuthorityStaleResult(error)) {

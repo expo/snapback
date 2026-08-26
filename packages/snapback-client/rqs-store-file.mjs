@@ -66,6 +66,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  quarantinedOutboxRecordTargets,
   unresolvedOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
@@ -1314,6 +1315,11 @@ export function createFileRqsResumeStore({
       return serialized(() => outboxRead(allOutboxRecords, () => []));
     },
 
+    async outboxQuarantinedRecordTargets() {
+      requireOpen();
+      return serialized(() => outboxRead(quarantinedOutboxRecordTargets, () => []));
+    },
+
     async outboxSettle(id, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -1437,10 +1443,14 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
-    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
+    async outboxReenterQuarantined(expectedAuthorizationFence = null, recordIds = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.reenterQuarantined(outbox, expectedAuthorizationFence),
+        (outbox) => outboxOps.reenterQuarantined(
+          outbox,
+          expectedAuthorizationFence,
+          recordIds,
+        ),
       )).result);
     },
 
