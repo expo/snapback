@@ -918,6 +918,7 @@ pub struct AuthorizationCommitParticipant {
     registry: Arc<RoomAuthorityRegistry>,
     registry_generation: u64,
     activation: Arc<AuthorizationParticipantActivation>,
+    room_reauthorization_settler: OnceLock<Arc<dyn RoomReauthorizationSettlementExecutor>>,
 }
 
 impl AuthorizationCommitParticipant {
@@ -932,7 +933,29 @@ impl AuthorizationCommitParticipant {
             registry,
             registry_generation,
             activation,
+            room_reauthorization_settler: OnceLock::new(),
         }
+    }
+
+    /// Install the sync-owned settlement implementation before this
+    /// participant is bound to its database. Completion later invokes only
+    /// this participant-bound implementation; callers cannot substitute code
+    /// or a terminal disposition at the completion call site.
+    #[doc(hidden)]
+    pub fn install_room_reauthorization_settler(
+        &self,
+        settler: Arc<dyn RoomReauthorizationSettlementExecutor>,
+    ) -> SnapbackResult<()> {
+        if self.activation.state() != ACTIVATION_PENDING {
+            return Err(participant_state_error(
+                "room reauthorization settlement must be installed before participant binding",
+            ));
+        }
+        self.room_reauthorization_settler.set(settler).map_err(|_| {
+            participant_state_error(
+                "room reauthorization settlement was already installed for this participant",
+            )
+        })
     }
 
     pub(super) fn binding(&self) -> &DatabaseBinding {
@@ -1429,47 +1452,35 @@ impl AuthorizationCommitParticipant {
         })
     }
 
-    /// Consume a database-derived batch and run its completion work inside one
-    /// closed operation when it belongs to this exact registry and generation.
-    /// The callback receives only a borrowed, read-only view. The completion
-    /// fence itself never crosses this call, and a conflicting writer or
-    /// participant replacement may invalidate it after installing its own
-    /// fail-closed cut rather than wait for callback return or `Drop`.
-    ///
-    /// SQLite is always dropped before the callback runs. A late callback
-    /// result settles only if its exact fence is still active; otherwise the
-    /// level-triggered obligation remains pending for a fresh resolution.
+    /// Consume a database-derived batch and run the participant-bound sync
+    /// settlement when it belongs to this exact registry and generation.
+    /// Completion callers provide neither executable code nor a terminal
+    /// disposition. SQLite is released before the fixed settlement executor
+    /// runs, and the private fence never crosses this call.
     ///
     /// @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it —
     /// a resolved batch is only a cache; completion revalidates its session
     /// and membership facts at the guarded effect.
-    pub fn run_room_reauthorization_completion<T>(
+    pub fn run_room_reauthorization_completion(
         &self,
         database: &super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         self.run_room_reauthorization_completion_on(
             &database.binding(),
             &database.db.conn,
             database.db.schema(),
             batch,
-            finish,
         )
     }
 
     /// Run the same exact completion cut on the take-once database lane
     /// owned outside managed `LocalSnapback`.
-    pub fn run_room_reauthorization_completion_off_local<T>(
+    pub fn run_room_reauthorization_completion_off_local(
         &self,
         database: &super::RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         let schema = database
             .schema
             .read()
@@ -1480,20 +1491,16 @@ impl AuthorizationCommitParticipant {
             &database.conn,
             &schema,
             batch,
-            finish,
         )
     }
 
-    fn run_room_reauthorization_completion_on<T>(
+    fn run_room_reauthorization_completion_on(
         &self,
         database_binding: &DatabaseBinding,
         connection: &Connection,
         schema: &SchemaManifest,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         if crate::exec_guard::local_snapback_write_scope_active() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN",
@@ -1504,7 +1511,7 @@ impl AuthorizationCommitParticipant {
         if !Arc::ptr_eq(&self.registry, &batch.root)
             || !batch.root.binding_matches(database_binding)
         {
-            return Ok(None);
+            return Ok(false);
         }
         let ResolvedRoomReauthorizationBatch {
             root: _,
@@ -1542,7 +1549,7 @@ impl AuthorizationCommitParticipant {
         // abandons the fence because the transaction is declared second.
         let fence = match self.begin_room_reauthorization_fence(&room, generation) {
             Ok(fence) => fence,
-            Err(_) => return Ok(None),
+            Err(_) => return Ok(false),
         };
         let durable_fence = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
         for resolution in &resolutions {
@@ -1559,7 +1566,7 @@ impl AuthorizationCommitParticipant {
             if current != resolution.authorized_auth {
                 drop(durable_fence);
                 drop(fence);
-                return Ok(None);
+                return Ok(false);
             }
         }
         drop(durable_fence);
@@ -1568,12 +1575,13 @@ impl AuthorizationCommitParticipant {
             generation,
             resolutions,
         };
-        let (disposition, result) = finish(&completion)?;
-        if fence.finish(disposition) {
-            Ok(Some(result))
-        } else {
-            Ok(None)
-        }
+        let settler = self.room_reauthorization_settler.get().ok_or_else(|| {
+            projection_unavailable(
+                "room reauthorization settlement is absent from the database-bound participant",
+            )
+        })?;
+        let disposition = settler.settle(&completion)?;
+        Ok(fence.finish(disposition))
     }
 }
 
@@ -1682,28 +1690,22 @@ impl NonAuthorizingRoomAuthority {
         self.participant.begin_room_retirement_admission(room)
     }
 
-    pub fn run_room_reauthorization_completion<T>(
+    pub fn run_room_reauthorization_completion(
         &self,
         database: &super::ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         self.participant
-            .run_room_reauthorization_completion(database, batch, finish)
+            .run_room_reauthorization_completion(database, batch)
     }
 
-    pub fn run_room_reauthorization_completion_off_local<T>(
+    pub fn run_room_reauthorization_completion_off_local(
         &self,
         database: &super::RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         self.participant
-            .run_room_reauthorization_completion_off_local(database, batch, finish)
+            .run_room_reauthorization_completion_off_local(database, batch)
     }
 }
 
@@ -2519,6 +2521,20 @@ impl RoomReauthorizationCompletion {
     pub fn resolutions(&self) -> &[ResolvedRoomSubscriberReauthorization] {
         &self.resolutions
     }
+}
+
+/// Participant-bound implementation of the sync-owned room settlement.
+///
+/// The implementation is installed exactly once before database binding and
+/// is never accepted from a completion caller. Its disposition therefore
+/// describes the result of the installed settlement operation rather than a
+/// claim supplied alongside one completion attempt.
+#[doc(hidden)]
+pub trait RoomReauthorizationSettlementExecutor: Send + Sync {
+    fn settle(
+        &self,
+        completion: &RoomReauthorizationCompletion,
+    ) -> SnapbackResult<RoomReauthorizationDisposition>;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

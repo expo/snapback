@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, MutexGuard, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, MutexGuard, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,7 +16,8 @@ use crate::storage::{
     AuthorizationOutboxAdmission, AuthorizationReservationCancellation, AuthorizationVersion,
     NonAuthorizingRoomAuthority, OutboxFrameDisposition, RealtimePublicationValidity,
     RoomAuthorityOperationGuard, RoomCreationAdmission, RoomReauthorizationCompletion,
-    RoomReauthorizationDatabase, RoomReauthorizationDisposition, RoomReauthorizationSubject,
+    RoomReauthorizationDatabase, RoomReauthorizationDisposition,
+    RoomReauthorizationSettlementExecutor, RoomReauthorizationSubject,
     RoomReauthorizationSubscriber, RoomRetirementAdmission, ServingDatabase,
 };
 pub use crate::storage::{
@@ -3377,38 +3378,32 @@ impl RoomAuthority {
         }
     }
 
-    fn run_room_reauthorization_completion<T>(
+    fn run_room_reauthorization_completion(
         &self,
         database: &ServingDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         match self {
             Self::Bound(participant) => {
-                participant.run_room_reauthorization_completion(database, batch, finish)
+                participant.run_room_reauthorization_completion(database, batch)
             }
             Self::Unbound(authority) => {
-                authority.run_room_reauthorization_completion(database, batch, finish)
+                authority.run_room_reauthorization_completion(database, batch)
             }
         }
     }
 
-    fn run_room_reauthorization_completion_off_local<T>(
+    fn run_room_reauthorization_completion_off_local(
         &self,
         database: &RoomReauthorizationDatabase,
         batch: ResolvedRoomReauthorizationBatch,
-        finish: impl FnOnce(
-            &RoomReauthorizationCompletion,
-        ) -> SnapbackResult<(RoomReauthorizationDisposition, T)>,
-    ) -> SnapbackResult<Option<T>> {
+    ) -> SnapbackResult<bool> {
         match self {
             Self::Bound(participant) => {
-                participant.run_room_reauthorization_completion_off_local(database, batch, finish)
+                participant.run_room_reauthorization_completion_off_local(database, batch)
             }
             Self::Unbound(authority) => {
-                authority.run_room_reauthorization_completion_off_local(database, batch, finish)
+                authority.run_room_reauthorization_completion_off_local(database, batch)
             }
         }
     }
@@ -3517,6 +3512,26 @@ struct EphemeralShared {
     authorization_issuer: StdMutex<Option<crate::auth::invalidation::InstalledInvalidationIssuer>>,
 }
 
+struct SyncRoomReauthorizationSettlementExecutor {
+    shared: Weak<EphemeralShared>,
+}
+
+impl RoomReauthorizationSettlementExecutor for SyncRoomReauthorizationSettlementExecutor {
+    fn settle(
+        &self,
+        completion: &RoomReauthorizationCompletion,
+    ) -> SnapbackResult<RoomReauthorizationDisposition> {
+        let shared = self.shared.upgrade().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "room reauthorization settlement owner was dropped",
+            )
+        })?;
+        LocalEphemeralBackend { shared }.finish_room_reauthorization_completion(completion)
+    }
+}
+
 /// The local-memory implementation of the LLP 0013 `EphemeralBackend`
 /// contract: an internally synchronized, cheaply cloneable room authority.
 /// This type's public API *is* the backend boundary — nothing outside this
@@ -3607,8 +3622,17 @@ impl LocalEphemeralBackend {
         limits: EphemeralStoreLimits,
         room_authority: RoomAuthority,
     ) -> Self {
-        Self {
-            shared: Arc::new(EphemeralShared {
+        let shared = Arc::new_cyclic(|weak| {
+            if let RoomAuthority::Bound(participant) = &room_authority {
+                participant
+                    .install_room_reauthorization_settler(Arc::new(
+                        SyncRoomReauthorizationSettlementExecutor {
+                            shared: weak.clone(),
+                        },
+                    ))
+                    .expect("fresh database participant accepts its one sync settlement owner");
+            }
+            EphemeralShared {
                 lifecycle: RwLock::new(()),
                 #[cfg(test)]
                 definition_swap_hook: StdMutex::new(None),
@@ -3627,8 +3651,9 @@ impl LocalEphemeralBackend {
                 delivery: Arc::new(DeliveryNotifier::default()),
                 room_authority,
                 authorization_issuer: StdMutex::new(None),
-            }),
-        }
+            }
+        });
+        Self { shared }
     }
 
     pub fn authorization_expectation_view_for_install(
@@ -3961,13 +3986,9 @@ impl LocalEphemeralBackend {
         // Lifecycle also serializes terminal revocation with definition/reset
         // so neither clears the other's marker.
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        Ok(self
-            .shared
+        self.shared
             .room_authority
-            .run_room_reauthorization_completion(database, batch, |completion| {
-                self.finish_room_reauthorization_completion(completion)
-            })?
-            .unwrap_or(false))
+            .run_room_reauthorization_completion(database, batch)
     }
 
     /// Complete on the take-once database lane owned outside managed Local.
@@ -3980,25 +4001,21 @@ impl LocalEphemeralBackend {
     ) -> SnapbackResult<bool> {
         require_room_reauthorization_outside_local()?;
         let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
-        Ok(self
-            .shared
+        self.shared
             .room_authority
-            .run_room_reauthorization_completion_off_local(database, batch, |completion| {
-                self.finish_room_reauthorization_completion(completion)
-            })?
-            .unwrap_or(false))
+            .run_room_reauthorization_completion_off_local(database, batch)
     }
 
     fn finish_room_reauthorization_completion(
         &self,
         completion: &RoomReauthorizationCompletion,
-    ) -> SnapbackResult<(RoomReauthorizationDisposition, bool)> {
+    ) -> SnapbackResult<RoomReauthorizationDisposition> {
         let room_id = completion.room().clone();
         let room_authority_generation = completion.generation();
         let resolutions = completion.resolutions();
         let rooms = lock(&self.shared.rooms);
         let Some(room_arc) = rooms.get(&room_id).cloned() else {
-            return Ok((RoomReauthorizationDisposition::Missing, true));
+            return Ok(RoomReauthorizationDisposition::Missing);
         };
         let mut room = lock(&room_arc);
         let expected = room
@@ -4022,7 +4039,7 @@ impl LocalEphemeralBackend {
             // permission checks ran. Keep the level-triggered obligation
             // pending so maintenance resolves the replacement's exact fence;
             // never apply the predecessor's result to it.
-            return Ok((RoomReauthorizationDisposition::Abandoned, false));
+            return Ok(RoomReauthorizationDisposition::Abandoned);
         }
 
         let denied = resolutions
@@ -4209,7 +4226,7 @@ impl LocalEphemeralBackend {
             .delivery
             .wake_many(&wakees.into_iter().collect::<Vec<_>>());
         self.prune_room_if_empty(&room_id);
-        Ok((RoomReauthorizationDisposition::Complete, true))
+        Ok(RoomReauthorizationDisposition::Complete)
     }
 
     fn record_queue_push(&self, result: QueuePush) {
