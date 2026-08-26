@@ -314,6 +314,7 @@ export interface SnapbackExpoEnvironmentV1 {
     binding: AppBindingV1;
     signal: AbortSignal;
     rqsStore?: unknown;
+    adoptSupervisedSession?: boolean;
   }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;
   /** Supervised carrier handoff used only by the first-party app owner. */
   resolveSupervisedAuthority?(input: Readonly<{
@@ -411,7 +412,8 @@ export function createSnapbackExpoBoot(options: Readonly<{
    * default; pending/unqualified target rows resolve to the reported volatile
    * fallback rather than a durable carrier. */
   rqsStore?: RqsStore | null;
-  /** Explicitly request and adopt the supervisor's on-demand development session. */
+  /** Supervised session adoption defaults to `false` on web and `true` on
+   * native; an explicit `true` or `false` overrides the platform default. */
   adoptSupervisedSession?: boolean;
   createProvider?: (
     binding: PreparedReactBinding,
@@ -452,7 +454,8 @@ export function SnapbackExpoProvider(props: Readonly<{
    * default; pending/unqualified target rows resolve to the reported volatile
    * fallback rather than a durable carrier. */
   rqsStore?: RqsStore | null;
-  /** Explicitly request and adopt the supervisor's on-demand development session. */
+  /** Supervised session adoption defaults to `false` on web and `true` on
+   * native; an explicit `true` or `false` overrides the platform default. */
   adoptSupervisedSession?: boolean;
   fallback?: any | ((state: ExpoBootState) => any);
   children?: any;

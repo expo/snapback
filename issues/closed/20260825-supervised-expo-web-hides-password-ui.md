@@ -61,8 +61,10 @@ Implemented LLP 0310.000 Track B (in review).
   leaking an unused predecessor. The checkout regression also proves that the
   native nonce is stripped from Metro and every `EXPO_PUBLIC_*` value.
 - LLP 0300 P4, the Familiar profile page, the React Expo guide, and the
-  `expo-chat` start packet now describe this posture. Generated diagnostics,
-  symbol, manifest, flat-guide, and first-read projections were refreshed.
+  `expo-chat` start packet now describe this posture. Emitting sites moved in
+  this lane; the diagnostics, symbol, manifest, flat-guide, and first-read
+  projection chain is regenerated at integration rather than claimed current
+  at this branch HEAD.
 
 The regression was demonstrated before the fix. The URL checkout assertion
 failed with:
@@ -92,12 +94,14 @@ AssertionError [ERR_ASSERTION]
 - 'ready'
 ```
 
-The complete real-server `expo-dev-loop` file now passes with the supplied
+The complete real-server `expo-dev-loop` file passed with the supplied
 qualified binary, including anonymous password signup/sign-in, explicit mint
 adoption, safe sign-out, remint after revocation, ordinary-route bearer
 secrecy, URL/control-plane separation, generated-graph freshness, and strict
-cleanup. The focused bootstrap, provider, supervised-environment, identity
-checkout, guide, and inventory checks pass as well. The initial branch failed
-`ref-check` because its base omitted LLP 0310/0310.000; the byte-identical
-documents and current links were imported from `origin/main`, after which the
-reference check passed.
+cleanup. Focused bootstrap, provider, supervised-environment, and identity
+checkout checks also passed in the lane. Emitting sites moved, so this branch
+does not claim that generated projections are current or that
+`check-inventories` / `check-guide` pass at HEAD; integration regenerates the
+projection chain. The initial branch failed `ref-check` because its base
+omitted LLP 0310/0310.000; the byte-identical documents and current links were
+imported from `origin/main`, after which the reference check passed.
