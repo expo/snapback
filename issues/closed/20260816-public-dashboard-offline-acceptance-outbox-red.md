@@ -690,3 +690,76 @@ preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 94
 warnings`; its sole red is the deliberately stale diagnostics projection. The
 diagnostics registry JSON, diagnostics Markdown, and generated diagnostic-code
 union were not regenerated and remain byte-identical to round-14 HEAD.
+
+### Round-18 review closure (2026-08-25)
+
+The post-round-15 client work adds four bounded pieces without broadening the
+acceptance claim. First, `ledgerIncarnation` is additive client plumbing: when
+an inspection supplies a non-empty value, the capability fact and v2 enqueue
+target persist it and replay/projection compare it. Either-side absence remains
+fail-open, so the open public-inspect ticket still owns real reset coverage; the
+public server used below does not prove reset-incarnation fencing.
+
+Second, capability replacement and mutation dispatch use the store's shared
+authorization-dispatch serialization cut. Third, optimistic and settlement
+projection now requires a persisted enqueue target plus the client's complete
+current profile/artifact generation; targetless legacy records, cross-origin
+records, replaced apps, and the same app at a different generation remain in
+store custody but do not project as current. `subscribeMutation()` compares the
+complete observable disposition, so a capability replacement that changes
+`targetMatchesCurrent` is published even while durable status remains
+`pending`.
+
+Finally, an answered negative inspection is authoritative to its observing
+client even when shared-store replacement returns `false`. The local negative
+override is retained, `queue: 'auto'` rejects with
+`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED`, and the bound-client
+regressions prove zero mutation POSTs and zero new outbox records. A prior
+positive is reusable only after a genuine no-response connectivity failure and
+only for enqueue-only custody, never for an online mutation POST or replay.
+
+The required answered-negative regression failed before the implementation:
+
+```text
+✖ a rejected answered-negative capability commit fails bound mutation admission closed (18.305083ms)
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+AssertionError [ERR_ASSERTION]: Missing expected rejection.
+```
+
+At implementation commit
+`7df109ff588a0671431dd4594f5f14917eb7a71e`, the focused outbox suite reports:
+
+```text
+ℹ tests 141
+ℹ suites 0
+ℹ pass 141
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1604.034208
+```
+
+The generated-mutation, generated-optimistic, custody, and drain compatibility
+run reports `tests 64`, `pass 64`, `fail 0`; its strict TypeScript fixture
+command also exits zero. The package-wide script does not receive a green
+claim: it stops on the repeatable, out-of-scope
+`pre-subscribe durable-buffer overflow fails closed to one fresh snapshot
+[web/indexeddb]` RQS assertion (`tests 30`, `pass 29`, `fail 1` in that file).
+That path is outside this outbox delta.
+
+Both required public-dashboard witnesses were rerun at the same implementation
+commit and report these verbatim summaries:
+
+```text
+PASS public-dashboard / offline-local-first (JS arm) — 9/9
+PASS public-dashboard / headless — 6/6
+```
+
+Both machine-readable reports contain `cleanupErrors: []` and
+`cleanupErrorCount: 0`. They used the explicitly requested binary stamped at
+`a97e75286f098066931701df515fe7a812961798`, so both also reported the expected
+checkout/binary stamp mismatch; these runs prove the named JS-arm behavior,
+not a same-commit server-binary qualification.

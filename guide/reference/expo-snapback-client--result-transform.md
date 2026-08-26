@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:ceb9b55a7dea2bb72a0c69d3a49be6b4e1967e875457
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:d34441c172c680ea0515fea9d2d00daab71d6b9bdf3d89d183b5651217dbff50`.
+`sha256:1764ff067e3ff4509fade3b2c315762a7483c4e88777666ac811025105224611`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
