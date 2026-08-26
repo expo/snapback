@@ -1,6 +1,6 @@
 # Privilege scanner residual evasions
 
-**Status:** Open
+**Status:** Open — residuals 1 and 2 closed 2026-08-26; 3 and 4 remain
 **Systems:** Security/authorization, Build, Verification, Rust core
 **Date:** 2026-08-19
 **Related:** LLP 0284 §3.7, LLP 0283 F-2
@@ -116,3 +116,46 @@ additional spelling rules do not close these residuals. A stable expansion or
 rustdoc/type-analysis interface may replace several rows together, but the
 gate must continue to state that it is a ratchet rather than a proof unless a
 separately reviewed completeness argument exists.
+
+
+## Residuals 1 and 2 closed — 2026-08-26 (`dec78e0f5`)
+
+**Residual 1, cross-crate symbol graph: closed.** The Node driver now derives local normal-dependency
+identity from `cargo metadata`, includes excluded bridge packages under the audited root when their
+graph leads back to a workspace package, scans dependencies before dependents, and passes canonical
+seed aliases into each dependent syn scan. The ticket's exact shape — an out-of-workspace dependency
+exporting the seed only as `Root`, and a workspace crate containing only
+`pub use opaque_bridge::Root as Facade;` — is now independently rejected as a `KernelCommitAuthority`
+re-export.
+
+**Residual 2, trait and impl forms: closed for the demonstrated shapes.** The Rust scanner resolves
+local private trait return contracts and local supertrait inheritance to a fixpoint. All three of the
+ticket's literal shapes now produce independent findings: the `Project`/`Wrapper<T>` generic
+projection, the boxed private-path `GivesHandle` return, and the public
+`PublicHandle: hidden::GivesHandle` supertrait.
+
+**Fail-first was recorded for both**, in the right order: the probe crates were added *first* and the
+focused tests exited 1 — for residual 2, with none of the three required items present in the output —
+before the scanner changes, then passed after.
+
+**No false positives.** Product-tree comparison held at **103 inherited findings before residual 1,
+103 after residual 1, and 103 after residual 2**. No legitimate workspace item was newly rejected.
+That result is not luck: the generic substitution rule is deliberately bounded, requiring a normal
+`rusqlite` dependency, a public wrapper field exposing the generic parameter, a local public projecting
+trait, *and* a local impl mapping the projection back to that parameter. A narrower rule that misses a
+shape is preferable to one that rejects legitimate code, because the latter gets switched off.
+
+Scanner suite 28/28 on the rebased tree. The lane's originally-reported inherited reds were artefacts
+of a stale base predating the `agent_random_source` repair and cleared on rebase.
+
+**Landing note, stated honestly:** this landed on the lane's recorded fail-first and false-positive
+evidence plus an independent 28/28 suite run by the orchestrator. It did **not** receive a separate
+adversarial review, on the grounds that it is instrument code rather than product code and the
+false-positive risk — the thing that would matter — was measured workspace-wide.
+
+## What remains
+
+**Residual 3 (macro expansion synthesis)** and **residual 4 (authority-discriminator indirection and
+body-flow taint)** are unchanged and were deliberately out of scope. Both are genuinely beyond a
+syntactic scanner on the pinned `rustc 1.97.0`, where rustdoc JSON is unavailable. The honest-limits
+statement in LLP 0284 §3.7 remains the authority for what this gate does and does not prove.
