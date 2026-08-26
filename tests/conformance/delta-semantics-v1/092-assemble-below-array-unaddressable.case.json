@@ -70,15 +70,49 @@
         }
       }
     ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "old"
+          }
+        ]
+      },
+      "many": {
+        "p1": []
+      },
+      "nestedOne": {}
+    },
     "postResult": [
       {
         "_id": "p1",
-        "title": "old"
+        "title": "old",
+        "children": []
       }
     ],
     "orderedRootKeys": [
       "p1"
-    ]
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      },
+      {
+        "nodeId": "many",
+        "label": "complete"
+      },
+      {
+        "nodeId": "nestedOne",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
   },
   "readTranscript": [],
   "expected": {

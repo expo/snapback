@@ -4,7 +4,8 @@
   "coverage": [
     "admit",
     "membership",
-    "parent-arm"
+    "parent-arm",
+    "read-maintain"
   ],
   "operator": {
     "form": "admit",

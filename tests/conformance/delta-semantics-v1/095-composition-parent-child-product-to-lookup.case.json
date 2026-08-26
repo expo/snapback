@@ -1,0 +1,239 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "composition-parent-child-product-to-lookup",
+  "coverage": [
+    "composition",
+    "product",
+    "both-change"
+  ],
+  "operator": {
+    "form": "composition",
+    "nodes": [
+      {
+        "nodeId": "parent-admit",
+        "operator": {
+          "form": "admit",
+          "config": {
+            "visibility": {
+              "kind": "public-read"
+            },
+            "filters": [],
+            "grain": "complete-scope",
+            "rankOrder": [
+              {
+                "field": "rank",
+                "direction": "asc"
+              }
+            ],
+            "probeRelation": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "changes",
+            "source": "external",
+            "input": "parents"
+          }
+        ]
+      },
+      {
+        "nodeId": "child-admit",
+        "operator": {
+          "form": "admit",
+          "config": {
+            "visibility": {
+              "kind": "public-read"
+            },
+            "filters": [],
+            "grain": "complete-scope",
+            "rankOrder": [
+              {
+                "field": "rank",
+                "direction": "asc"
+              }
+            ],
+            "probeRelation": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "changes",
+            "source": "external",
+            "input": "children"
+          }
+        ]
+      },
+      {
+        "nodeId": "lookup",
+        "operator": {
+          "form": "keyed-lookup",
+          "config": {
+            "index": "child.by_join",
+            "parentJoinFields": [
+              "join"
+            ],
+            "childJoinFields": [
+              "join"
+            ],
+            "presence": "optional",
+            "projectionFields": [
+              "name"
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "parent",
+            "source": "upstream",
+            "nodeId": "parent-admit"
+          },
+          {
+            "name": "child",
+            "source": "upstream",
+            "nodeId": "child-admit"
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "parent-admit": {
+      "retained": {
+        "p1": {
+          "_id": "p1",
+          "join": "j1"
+        }
+      }
+    },
+    "child-admit": {
+      "retained": {}
+    },
+    "lookup": {
+      "scopes": {
+        "p1": {
+          "lookupKey": [
+            "j1"
+          ],
+          "childKey": "c1",
+          "found": true,
+          "rowVersion": 1
+        }
+      },
+      "children": {
+        "c1": {
+          "_id": "c1",
+          "_version": 1,
+          "join": "j1",
+          "name": "old"
+        }
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "parents": {
+      "changes": [
+        {
+          "rowKey": "p1",
+          "op": "update",
+          "postImage": {
+            "_id": "p1",
+            "join": null
+          }
+        }
+      ]
+    },
+    "children": {
+      "changes": [
+        {
+          "rowKey": "c2",
+          "op": "insert",
+          "postImage": {
+            "_id": "c2",
+            "_version": 2,
+            "join": "j1",
+            "name": "batch-row"
+          }
+        }
+      ]
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "parent-admit": {
+        "entries": [
+          {
+            "rowKey": "p1",
+            "op": "update",
+            "postImage": {
+              "_id": "p1",
+              "join": null
+            },
+            "admit": "stay-in",
+            "rankKeys": [
+              null
+            ]
+          }
+        ]
+      },
+      "child-admit": {
+        "entries": [
+          {
+            "rowKey": "c2",
+            "op": "insert",
+            "postImage": {
+              "_id": "c2",
+              "_version": 2,
+              "join": "j1",
+              "name": "batch-row"
+            },
+            "admit": "enter",
+            "rankKeys": [
+              null
+            ]
+          }
+        ]
+      },
+      "lookup": {
+        "ops": [
+          {
+            "kind": "presence",
+            "scope": "p1"
+          }
+        ]
+      }
+    },
+    "nextState": {
+      "parent-admit": {
+        "retained": {
+          "p1": {
+            "_id": "p1",
+            "join": null
+          }
+        }
+      },
+      "child-admit": {
+        "retained": {
+          "c2": {
+            "_id": "c2",
+            "_version": 2,
+            "join": "j1",
+            "name": "batch-row"
+          }
+        }
+      },
+      "lookup": {
+        "scopes": {
+          "p1": {
+            "lookupKey": null,
+            "childKey": null,
+            "found": false,
+            "rowVersion": null
+          }
+        },
+        "children": {}
+      }
+    }
+  }
+}

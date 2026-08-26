@@ -44,7 +44,7 @@
     {
       "name": "admit-null-actual-never-eq",
       "path": "005-admit-null-actual-never-eq.case.json",
-      "sha256": "sha256:40f7f71a67f00770286dfd2436e6dbd5bf9f8a07e0205bb0aa3b55cd32adcdf3",
+      "sha256": "sha256:b64c682b8c9858fa0ced9369a6d579fc92682924f032b978f02be17d21ddfdb6",
       "coverage": [
         "admit",
         "three-valued"
@@ -147,11 +147,12 @@
     {
       "name": "admit-membership-rekey-probed",
       "path": "016-admit-membership-rekey-probed.case.json",
-      "sha256": "sha256:42e2b90043fe154aface7d00c1f06b1b56187806842ee83a93bc988fda62b7ec",
+      "sha256": "sha256:dc3829c9195d7fa02ddbcf9290c5f7fcbebb36bfd68a6a8b5d87e053246a6a7d",
       "coverage": [
         "admit",
         "membership",
-        "parent-arm"
+        "parent-arm",
+        "read-maintain"
       ]
     },
     {
@@ -226,9 +227,10 @@
     {
       "name": "window-interval-clips-candidate",
       "path": "025-window-interval-clips-candidate.case.json",
-      "sha256": "sha256:2376b4caaa9d3d63af022cb87edce2ea941a1ceb9936e0443fe26189d720e8b2",
+      "sha256": "sha256:d08a4c5c1e4907772a37e25cdd10236e85dd6662b32ed016037bd315c0875f9f",
       "coverage": [
-        "window"
+        "window",
+        "numeric-precision"
       ]
     },
     {
@@ -396,25 +398,26 @@
     {
       "name": "window-empty-incomplete-tail-from-start",
       "path": "044-window-empty-incomplete-tail-from-start.case.json",
-      "sha256": "sha256:e2b10e6f527ea6b3453d0d488b964fbd8bfb16642a8cabfe3d1b013d93fbd15e",
+      "sha256": "sha256:28147aea73b29f2c097fe4ea79904ba0f1b9c3600409754580a8866a9cb76f8d",
       "coverage": [
         "window",
+        "finite-interval",
         "read-maintain"
       ]
     },
     {
-      "name": "window-backward-tail-competition",
-      "path": "045-window-backward-tail-competition.case.json",
-      "sha256": "sha256:0d578d6049ab35a73776ce1cb40dede75923f1acc5ca10ded3a720eff7ed131a",
+      "name": "window-backward-boundary-change",
+      "path": "045-window-backward-boundary-change.case.json",
+      "sha256": "sha256:355713ceb123168b7bbb2e4d65702f6ae689921764a7cb109bd67e3addbdaacf",
       "coverage": [
         "window",
-        "read-maintain"
+        "backward"
       ]
     },
     {
       "name": "lookup-child-patch",
       "path": "046-lookup-child-patch.case.json",
-      "sha256": "sha256:70e801d65b1ccda5a29e094eb3a49c090069d40907fad11b1f127876fd68fe2b",
+      "sha256": "sha256:ba40fc1d98ddfda95ea90889ab152773c7e0b4b8bd58523814fa6437b746866a",
       "coverage": [
         "lookup",
         "presence"
@@ -423,7 +426,7 @@
     {
       "name": "lookup-optional-found-to-missing",
       "path": "047-lookup-optional-found-to-missing.case.json",
-      "sha256": "sha256:2cdb96fa12fd1414c445d9bab2bdee55ed004075c8195d3e1cb3cb150586b29d",
+      "sha256": "sha256:de3899f736d8b9944cedf105c32592596ffed8dcdfeb651297fb5f2a75765463",
       "coverage": [
         "lookup",
         "presence"
@@ -432,7 +435,7 @@
     {
       "name": "lookup-optional-missing-to-found",
       "path": "048-lookup-optional-missing-to-found.case.json",
-      "sha256": "sha256:4f18218a065196c224732a10ca4c5e39003ea702398f3189fd0baccfb1104948",
+      "sha256": "sha256:786544cd5e5cc729bcc082c6bc412ff35f337e81edc61cb13f06eac1e80cfbca",
       "coverage": [
         "lookup",
         "presence"
@@ -441,7 +444,7 @@
     {
       "name": "lookup-required-found-to-missing",
       "path": "049-lookup-required-found-to-missing.case.json",
-      "sha256": "sha256:b6bf930ed4c5b28b17c81808b718f9764ed741133e4969879ce0f5561c26d2e1",
+      "sha256": "sha256:5e1670416387fbc1c82814781d9f028bd53931bb7349a8572e035450456e41c3",
       "coverage": [
         "lookup",
         "presence",
@@ -480,7 +483,7 @@
     {
       "name": "lookup-rekey-prior-to-fill",
       "path": "053-lookup-rekey-prior-to-fill.case.json",
-      "sha256": "sha256:0eaf9597a93f5c053136231a4c094b96c0364c75770ab6965fcd98a6413a0e32",
+      "sha256": "sha256:8965bb5f38e3098d060467363354cfd65e5c70424d4736e0f58bad73f6cf3e51",
       "coverage": [
         "lookup",
         "rekey",
@@ -490,7 +493,7 @@
     {
       "name": "lookup-existing-found-second-row-unique",
       "path": "054-lookup-existing-found-second-row-unique.case.json",
-      "sha256": "sha256:62f3d6bbbd0accaf556a75636c0bc0654af582c4633fb5d803fb8e3909317533",
+      "sha256": "sha256:0425c28af8172e397661930d0c18729a6728a472f6b58c7ffea557d44bde803f",
       "coverage": [
         "lookup",
         "fallback"
@@ -509,7 +512,7 @@
     {
       "name": "lookup-both-change-parent-first-skip",
       "path": "056-lookup-both-change-parent-first-skip.case.json",
-      "sha256": "sha256:6e4850791cda3de9de375534b5daeb3adb5cf039909206c650e44da9809f2de3",
+      "sha256": "sha256:aa808d119feb28f7c9b71103f59bc69a5d3563a0d4f864d1347f95d1da73e4dd",
       "coverage": [
         "lookup",
         "both-change",
@@ -527,25 +530,26 @@
     {
       "name": "lookup-scope-death-no-read",
       "path": "058-lookup-scope-death-no-read.case.json",
-      "sha256": "sha256:ccb811a08a1671dc84b94f3581f37e0402319cd9856ca3248500d0cd206bd414",
+      "sha256": "sha256:1ca9668e5112844041f4a832a2305ae12851443e06cc28c91f0827b4d3bb94b3",
       "coverage": [
         "lookup",
         "parent-arm"
       ]
     },
     {
-      "name": "lookup-child-rekey-old-leaves-new-arrives",
-      "path": "059-lookup-child-rekey-old-leaves-new-arrives.case.json",
-      "sha256": "sha256:358c5b94ad97df2ef0b6e986f51c592ba83993f7fab42a4e69c4344a0fbbaf15",
+      "name": "lookup-delete-insert-same-key-net-found",
+      "path": "059-lookup-delete-insert-same-key-net-found.case.json",
+      "sha256": "sha256:0b97f030386818946d75b7dbad1ccd3a2575c5e59fff8413bd03c234f5f2632c",
       "coverage": [
         "lookup",
-        "rekey"
+        "whole-batch",
+        "presence"
       ]
     },
     {
       "name": "per-parent-birth-fill-emitted",
       "path": "060-per-parent-birth-fill-emitted.case.json",
-      "sha256": "sha256:57f20e06644c0ab1958b7e0e3a0f323122782b34ed2a18065dfb617242cd7d00",
+      "sha256": "sha256:7ae92635cc7249c1fdb3ba8bae43245f659e3574800584996b8fb3d1804c9b56",
       "coverage": [
         "per-parent-window",
         "scope-fill",
@@ -564,7 +568,7 @@
     {
       "name": "per-parent-rekey-prior-to-fill",
       "path": "062-per-parent-rekey-prior-to-fill.case.json",
-      "sha256": "sha256:5577b7ba232675d95e678e137718d43836948c8622220c51ad3043bf78b26850",
+      "sha256": "sha256:2f6cba9bd1d74041cfc8096560316edfb1a672d46ce323235c24715a8b6b5d8e",
       "coverage": [
         "per-parent-window",
         "rekey",
@@ -622,7 +626,7 @@
     {
       "name": "per-parent-zero-take-rekey",
       "path": "068-per-parent-zero-take-rekey.case.json",
-      "sha256": "sha256:dbfa87d828128070394ffc3ab82921cafaae8245de1dfc9786569e46b5cbbe61",
+      "sha256": "sha256:9e53b077691a5823a2a7b23f30f87691a77885ad1ba880957d1f62a60b80cd1a",
       "coverage": [
         "per-parent-window",
         "rekey"
@@ -631,7 +635,7 @@
     {
       "name": "per-parent-both-change-parent-first-skip",
       "path": "069-per-parent-both-change-parent-first-skip.case.json",
-      "sha256": "sha256:48bad90746a31be4fc2e0162ab039ed3357af0267407965603d59d155b2b74ec",
+      "sha256": "sha256:cfcd0d1d7e5e80355c12e06ab045fbdda91d3cf7c81dfd60115c7df9806df327",
       "coverage": [
         "per-parent-window",
         "both-change",
@@ -667,7 +671,7 @@
     {
       "name": "support-through-zero-to-one-probed",
       "path": "073-support-through-zero-to-one-probed.case.json",
-      "sha256": "sha256:995da8f84331795016efcf43199fab6f6c47861f131c2ff276d012a843084803",
+      "sha256": "sha256:11ebcdec3fbf8369e113a06d23e11d7e5fa35acd7876e4e911e5028f6ce00172",
       "coverage": [
         "support",
         "read-maintain"
@@ -676,9 +680,10 @@
     {
       "name": "support-all-mode-element-transition",
       "path": "074-support-all-mode-element-transition.case.json",
-      "sha256": "sha256:7928c2652551c5bc1a1b158dbac8332a4c0e0e8745c4aef5277521b70ecd2854",
+      "sha256": "sha256:f41ef4e391cf342ad4c6f900dd0f7666e04b22cbf0302024a632cccdcf3a4d2c",
       "coverage": [
         "support",
+        "all-and",
         "read-maintain"
       ]
     },
@@ -715,7 +720,7 @@
     {
       "name": "support-scope-attribution-unresolved",
       "path": "078-support-scope-attribution-unresolved.case.json",
-      "sha256": "sha256:7b54dd9a03fd3bc26dea92404bff82b0f9b02789f3c73b2b2ae37f476c2dff92",
+      "sha256": "sha256:50e52cd27d107510a603e4a4b5d992076704e81fb55651bdedcc9b3411bab46c",
       "coverage": [
         "support",
         "fallback"
@@ -733,7 +738,7 @@
     {
       "name": "support-through-target-change",
       "path": "080-support-through-target-change.case.json",
-      "sha256": "sha256:4b09406e23d0fc410c6a7187c48bd9be57a6ebe9c2339275e4ce3224a208c333",
+      "sha256": "sha256:cafee76bf727d3c03f42b0fedb4ae76889d2f79846221ea64c866005ad0d2d09",
       "coverage": [
         "support",
         "read-maintain"
@@ -742,7 +747,7 @@
     {
       "name": "lift-zero-to-one-admits-unretained",
       "path": "081-lift-zero-to-one-admits-unretained.case.json",
-      "sha256": "sha256:32032828a6053389926d930a87562d24ab740b74647318959da241c23fda0a6b",
+      "sha256": "sha256:e5250af2931845489f84aa8f723be7ebaecc05124024cee39cb3bfa904b2ff21",
       "coverage": [
         "membership-lift",
         "read-maintain"
@@ -776,7 +781,7 @@
     {
       "name": "principal-target-child-patch",
       "path": "085-principal-target-child-patch.case.json",
-      "sha256": "sha256:66693dbbe0b350ea872aac02d80548bc95297d434c4a3c7dcadb5e1001e35359",
+      "sha256": "sha256:06e251c171c7cc9c29ae06e2ccaf04c8d95817ca482ddb2819defaf8a54eadd5",
       "coverage": [
         "principal"
       ]
@@ -784,7 +789,7 @@
     {
       "name": "principal-binding-then-target",
       "path": "086-principal-binding-then-target.case.json",
-      "sha256": "sha256:e5810f4e0ab592b1ae125ead19263070bb7a90d26f9b9afcdac463f01bb0de69",
+      "sha256": "sha256:03f5cdea7e08fb744aedea1a7dc598b8905603457ca5d20ed8c9e8f01b6ca2bf",
       "coverage": [
         "principal",
         "both-change"
@@ -793,7 +798,7 @@
     {
       "name": "principal-digest-cannot-rekey",
       "path": "087-principal-digest-cannot-rekey.case.json",
-      "sha256": "sha256:d9f2e1dfef316d838c48c980ce7df15caed8f1702a1a91a9b1f4af6727818f86",
+      "sha256": "sha256:39bc2ee097ff7c00e0c02518a394ba83522d5e88bc35f593678a10f5bbd85a16",
       "coverage": [
         "principal",
         "fallback"
@@ -802,7 +807,7 @@
     {
       "name": "assemble-projection-scoped-patch",
       "path": "088-assemble-projection-scoped-patch.case.json",
-      "sha256": "sha256:47f1cb19a573c84de1326f0958953acd3068fbbfd0f17ee0e4bb801e1d785d40",
+      "sha256": "sha256:400efaaa477b4c8ccb4b1d072b9ec5694d7455f0ef587bbb824974bd8c36b84b",
       "coverage": [
         "assemble"
       ]
@@ -810,7 +815,7 @@
     {
       "name": "assemble-root-splice-add",
       "path": "089-assemble-root-splice-add.case.json",
-      "sha256": "sha256:5037a9e1023bada890ca583bb2dafa06e8bb7c915fa355f1739bc9c0e6f0ebef",
+      "sha256": "sha256:e333f880d075ffa8ea1c15cf3fa809504115e2fe8db18d1583fc1a09b0b77dda",
       "coverage": [
         "assemble"
       ]
@@ -818,7 +823,7 @@
     {
       "name": "assemble-to-one-presence",
       "path": "090-assemble-to-one-presence.case.json",
-      "sha256": "sha256:7e5b7f3726d69e08353fadf37ec39f020970cee2814e708b7429bc5e7dec4511",
+      "sha256": "sha256:d009505796783b48f4ac5659fbe92f8ae94e311656109843d832617d4df4c04e",
       "coverage": [
         "assemble",
         "presence"
@@ -827,7 +832,7 @@
     {
       "name": "assemble-exists-bit",
       "path": "091-assemble-exists-bit.case.json",
-      "sha256": "sha256:08c2e47316da2bd888db50032342451fe6dabfc8e30fb44c42f49ed7f16e3902",
+      "sha256": "sha256:1c6bf1fb473425fa4e29133c5b3813775d70c7681daf7a646c1af52e16e66955",
       "coverage": [
         "assemble",
         "support"
@@ -836,7 +841,7 @@
     {
       "name": "assemble-below-array-unaddressable",
       "path": "092-assemble-below-array-unaddressable.case.json",
-      "sha256": "sha256:05959e85337021d127211ad72511a7e02bd849f0539a71fabf7bca55612c6536",
+      "sha256": "sha256:6909abbd27ed2540ac15e9e0dd91a4dcdd02e961e6bf8a763db95af54c979fc9",
       "coverage": [
         "assemble",
         "fallback"
@@ -845,40 +850,64 @@
     {
       "name": "assemble-ancestor-birth-absorbs-descendant",
       "path": "093-assemble-ancestor-birth-absorbs-descendant.case.json",
-      "sha256": "sha256:fb11952dfce8666439d3e0aa145cf1864704cd93a82c37d09e1e29556e421550",
+      "sha256": "sha256:baa4f9f457fb9dcc4ce9fc73517e53e58d6d70e43bf852b0978dd7ac620b0084",
       "coverage": [
         "assemble",
         "ancestor-absorption"
       ]
     },
     {
-      "name": "assemble-to-many-direct-root-addressable",
-      "path": "094-assemble-to-many-direct-root-addressable.case.json",
-      "sha256": "sha256:76977f50aea15facb6d391cd69f4d5ea6379bf2b01499e9d66a00b89c6324c53",
+      "name": "assemble-to-many-two-removals-application-positions",
+      "path": "094-assemble-to-many-two-removals-application-positions.case.json",
+      "sha256": "sha256:cfbbea767a059f66277166993fa49db4fbdee57f9f269e0d593e090249332470",
       "coverage": [
-        "assemble"
+        "assemble",
+        "application-position"
       ]
     },
     {
-      "name": "composition-admit-to-window",
-      "path": "095-composition-admit-to-window.case.json",
-      "sha256": "sha256:37252c48b749bf2ec5d6d43cc5c3508344ae99090cc22291e8a1f1570437327c",
+      "name": "composition-parent-child-product-to-lookup",
+      "path": "095-composition-parent-child-product-to-lookup.case.json",
+      "sha256": "sha256:75d433ac6db1e0aca9f0ada8469b612a110d0a6f0c4041423bab9587888c5636",
       "coverage": [
-        "composition"
+        "composition",
+        "product",
+        "both-change"
       ]
     },
     {
       "name": "composition-fallback-aborts-frame",
       "path": "096-composition-fallback-aborts-frame.case.json",
-      "sha256": "sha256:9f34858352e4e0ff5bcfb8e5dcb9c2211065a0c1748c6f3a58cbaace6d8aac62",
+      "sha256": "sha256:b17246d4e2757d9c63907bfffbbc5c23d6e8a4c088e685caf564eb79d718ee5f",
       "coverage": [
         "composition",
         "fallback"
       ]
     },
     {
+      "name": "composition-lift-enters-window-same-step",
+      "path": "097-composition-lift-enters-window-same-step.case.json",
+      "sha256": "sha256:c7dcc3620e1939569c79f5d81937ebbcf769f01ad5f4750893210f1ea352e32c",
+      "coverage": [
+        "composition",
+        "membership-lift",
+        "read-maintain"
+      ]
+    },
+    {
+      "name": "admit-membership-rekey-probed-empty-transcript",
+      "path": "098-admit-membership-rekey-probed-empty-transcript.case.json",
+      "sha256": "sha256:c6739c5db683e9257fb0a9dbba3f4a25646328f6f781b42fa2f7b8ee46ff8005",
+      "coverage": [
+        "admit",
+        "membership",
+        "parent-arm",
+        "fallback"
+      ]
+    },
+    {
       "name": "window-incomplete-underfill-tail-exhausted-empty-transcript",
-      "path": "097-window-incomplete-underfill-tail-exhausted-empty-transcript.case.json",
+      "path": "099-window-incomplete-underfill-tail-exhausted-empty-transcript.case.json",
       "sha256": "sha256:c67ef4ca893407b69051e2159eabf4d5610616174db06727046103cb6c67e4fa",
       "coverage": [
         "window",
@@ -887,7 +916,7 @@
     },
     {
       "name": "window-tail-competition-known-mask-empty-transcript",
-      "path": "098-window-tail-competition-known-mask-empty-transcript.case.json",
+      "path": "100-window-tail-competition-known-mask-empty-transcript.case.json",
       "sha256": "sha256:171c7c4b12b05a11ff3f19caf03969bc369359544a2b58e6b3258c9b8b2a5faa",
       "coverage": [
         "window",
@@ -896,7 +925,7 @@
     },
     {
       "name": "window-tail-authenticated-exhausted-true-empty-transcript",
-      "path": "099-window-tail-authenticated-exhausted-true-empty-transcript.case.json",
+      "path": "101-window-tail-authenticated-exhausted-true-empty-transcript.case.json",
       "sha256": "sha256:f1e9d956e6a8307365a3ef53d54b9402763b4bb9e8388c80801564a1bd6dbfe0",
       "coverage": [
         "window",
@@ -905,7 +934,7 @@
     },
     {
       "name": "window-tail-authenticated-exhausted-false-empty-transcript",
-      "path": "100-window-tail-authenticated-exhausted-false-empty-transcript.case.json",
+      "path": "102-window-tail-authenticated-exhausted-false-empty-transcript.case.json",
       "sha256": "sha256:23f3f15e0856ce1bba4965f133982f0a71dd055a40925ab1864247082f256ef1",
       "coverage": [
         "window",
@@ -914,7 +943,7 @@
     },
     {
       "name": "window-label-reproof-to-complete-empty-transcript",
-      "path": "101-window-label-reproof-to-complete-empty-transcript.case.json",
+      "path": "103-window-label-reproof-to-complete-empty-transcript.case.json",
       "sha256": "sha256:08b8994475139be4f87b3f5a60677ec9dfd460701b99d79b3b5658a83f6aa9e5",
       "coverage": [
         "window",
@@ -924,7 +953,7 @@
     },
     {
       "name": "window-label-reproof-stays-incomplete-empty-transcript",
-      "path": "102-window-label-reproof-stays-incomplete-empty-transcript.case.json",
+      "path": "104-window-label-reproof-stays-incomplete-empty-transcript.case.json",
       "sha256": "sha256:b452c38a4c9917988d21be64b0ddcdf9708e8f80e746f24badb405d34f2a34ee",
       "coverage": [
         "window",
@@ -934,25 +963,17 @@
     },
     {
       "name": "window-empty-incomplete-tail-from-start-empty-transcript",
-      "path": "103-window-empty-incomplete-tail-from-start-empty-transcript.case.json",
-      "sha256": "sha256:a94fdb4701f6e6e826d18ba219a9afc4adb22b2568de011ec1cef2341debb543",
+      "path": "105-window-empty-incomplete-tail-from-start-empty-transcript.case.json",
+      "sha256": "sha256:d5998ed6ac119b6b1b2b4a32f1f7d39f3a15fa17b717be5a81bc01d4ea55d417",
       "coverage": [
         "window",
-        "fallback"
-      ]
-    },
-    {
-      "name": "window-backward-tail-competition-empty-transcript",
-      "path": "104-window-backward-tail-competition-empty-transcript.case.json",
-      "sha256": "sha256:09b1f46150c240d390e68a66bd0241b9d13f22624dce7bafc0bc528c5e2c2fb5",
-      "coverage": [
-        "window",
+        "finite-interval",
         "fallback"
       ]
     },
     {
       "name": "lookup-birth-fill-emitted-empty-transcript",
-      "path": "105-lookup-birth-fill-emitted-empty-transcript.case.json",
+      "path": "106-lookup-birth-fill-emitted-empty-transcript.case.json",
       "sha256": "sha256:a30678acd982e6d4c23d4cf54ad07af9871f9aeff8f1994d738946af9ec5c462",
       "coverage": [
         "lookup",
@@ -962,8 +983,8 @@
     },
     {
       "name": "lookup-rekey-prior-to-fill-empty-transcript",
-      "path": "106-lookup-rekey-prior-to-fill-empty-transcript.case.json",
-      "sha256": "sha256:0f754ffd22bd1bc8c07d8b02e7d77c8352942fc88ba0386665dceac902623f1e",
+      "path": "107-lookup-rekey-prior-to-fill-empty-transcript.case.json",
+      "sha256": "sha256:a008ff04b0ce8a6e9b8e54cebc3422e48aa26e931641ff9821ba2b0b85545c97",
       "coverage": [
         "lookup",
         "rekey",
@@ -972,8 +993,8 @@
     },
     {
       "name": "lookup-both-change-parent-first-skip-empty-transcript",
-      "path": "107-lookup-both-change-parent-first-skip-empty-transcript.case.json",
-      "sha256": "sha256:9802611a23a40531f741f1e0fbcd07ab1581fd4205724ab8e492155e780f930d",
+      "path": "108-lookup-both-change-parent-first-skip-empty-transcript.case.json",
+      "sha256": "sha256:b3b36aed8b19c60e41664d79fce8ce418880553df595da1786209c08f716729c",
       "coverage": [
         "lookup",
         "both-change",
@@ -982,7 +1003,7 @@
     },
     {
       "name": "per-parent-birth-fill-emitted-empty-transcript",
-      "path": "108-per-parent-birth-fill-emitted-empty-transcript.case.json",
+      "path": "109-per-parent-birth-fill-emitted-empty-transcript.case.json",
       "sha256": "sha256:936297314fe13982a97eb75cf01501095f915d8ac0c76562a3f117a52f508e79",
       "coverage": [
         "per-parent-window",
@@ -992,7 +1013,7 @@
     },
     {
       "name": "per-parent-rekey-prior-to-fill-empty-transcript",
-      "path": "109-per-parent-rekey-prior-to-fill-empty-transcript.case.json",
+      "path": "110-per-parent-rekey-prior-to-fill-empty-transcript.case.json",
       "sha256": "sha256:b69cfb8d9529ebfb883f79ed24fa2d6fdcf1ffb7ad7d8b87c4433683500d5a0b",
       "coverage": [
         "per-parent-window",
@@ -1002,7 +1023,7 @@
     },
     {
       "name": "per-parent-both-change-parent-first-skip-empty-transcript",
-      "path": "110-per-parent-both-change-parent-first-skip-empty-transcript.case.json",
+      "path": "111-per-parent-both-change-parent-first-skip-empty-transcript.case.json",
       "sha256": "sha256:578fd7419dd5e044632b574ecefe1ac5907c5dbd18c44b7e94f9a57ed0048e63",
       "coverage": [
         "per-parent-window",
@@ -1012,7 +1033,7 @@
     },
     {
       "name": "support-direct-one-to-zero-reprobe-empty-transcript",
-      "path": "111-support-direct-one-to-zero-reprobe-empty-transcript.case.json",
+      "path": "112-support-direct-one-to-zero-reprobe-empty-transcript.case.json",
       "sha256": "sha256:6a9ec9e683b78d61bbffaa3163657c32d33809fdf190f3cd9cff47273f044d6c",
       "coverage": [
         "support",
@@ -1021,7 +1042,7 @@
     },
     {
       "name": "support-one-to-one-delete-empty-transcript",
-      "path": "112-support-one-to-one-delete-empty-transcript.case.json",
+      "path": "113-support-one-to-one-delete-empty-transcript.case.json",
       "sha256": "sha256:f477db5b99f1fba2d77e03db87f1254e6c76ea2da36a86d42b3a582cb366aac5",
       "coverage": [
         "support",
@@ -1030,8 +1051,8 @@
     },
     {
       "name": "support-through-zero-to-one-probed-empty-transcript",
-      "path": "113-support-through-zero-to-one-probed-empty-transcript.case.json",
-      "sha256": "sha256:bcc9b60fe0a6a116b0831ecc8dbb817d8d4735654a95c387a6d2c901d96e2775",
+      "path": "114-support-through-zero-to-one-probed-empty-transcript.case.json",
+      "sha256": "sha256:96d5b52cfc67fceb0c25e29d16dc8afb0541b45fff5a6bc53ac4e7018f802eb5",
       "coverage": [
         "support",
         "fallback"
@@ -1039,16 +1060,17 @@
     },
     {
       "name": "support-all-mode-element-transition-empty-transcript",
-      "path": "114-support-all-mode-element-transition-empty-transcript.case.json",
-      "sha256": "sha256:03c7872e544de2b911da42215e9a29b5d20a6f74af68ecbeda2a2233d74efdb7",
+      "path": "115-support-all-mode-element-transition-empty-transcript.case.json",
+      "sha256": "sha256:57e35f330817abcc60993e56f4b8d4128a34fb4f2f35cf01f5ae7fd10744a301",
       "coverage": [
         "support",
+        "all-and",
         "fallback"
       ]
     },
     {
       "name": "support-parent-birth-establishes-bit-empty-transcript",
-      "path": "115-support-parent-birth-establishes-bit-empty-transcript.case.json",
+      "path": "116-support-parent-birth-establishes-bit-empty-transcript.case.json",
       "sha256": "sha256:d85ff188650bf54ff39318389d010cb4715ed03cb6ef95c374fa46e18f03a8d5",
       "coverage": [
         "support",
@@ -1058,7 +1080,7 @@
     },
     {
       "name": "support-parent-rekey-establishes-bit-empty-transcript",
-      "path": "116-support-parent-rekey-establishes-bit-empty-transcript.case.json",
+      "path": "117-support-parent-rekey-establishes-bit-empty-transcript.case.json",
       "sha256": "sha256:32ab5b0f4533dd2f943b4313c46ecff770580a715443d565cd74e82ea2217bb2",
       "coverage": [
         "support",
@@ -1069,8 +1091,8 @@
     },
     {
       "name": "support-through-target-change-empty-transcript",
-      "path": "117-support-through-target-change-empty-transcript.case.json",
-      "sha256": "sha256:038dd9143eb6f789515f0aff9572b03a2378702557d171399b5a0bde94b1ad23",
+      "path": "118-support-through-target-change-empty-transcript.case.json",
+      "sha256": "sha256:487a18d9d03ac34af06be0127f670aef1e443362b34ce8bcf8a5261c75cf629f",
       "coverage": [
         "support",
         "fallback"
@@ -1078,9 +1100,19 @@
     },
     {
       "name": "lift-zero-to-one-admits-unretained-empty-transcript",
-      "path": "118-lift-zero-to-one-admits-unretained-empty-transcript.case.json",
+      "path": "119-lift-zero-to-one-admits-unretained-empty-transcript.case.json",
       "sha256": "sha256:51cd3c619a80fbabd60573dbde0c382a99c22e40b2efe28d8486fbb902997b3e",
       "coverage": [
+        "membership-lift",
+        "fallback"
+      ]
+    },
+    {
+      "name": "composition-lift-enters-window-same-step-empty-transcript",
+      "path": "120-composition-lift-enters-window-same-step-empty-transcript.case.json",
+      "sha256": "sha256:ab534f43ecdcad496c93e3ce02541f3bafe5167b47653c74455d1c635a8e2040",
+      "coverage": [
+        "composition",
         "membership-lift",
         "fallback"
       ]

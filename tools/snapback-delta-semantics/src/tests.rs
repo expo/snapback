@@ -156,3 +156,22 @@ fn fallback_reason_set_is_exact_and_closed() {
         "wire-unaddressable"
     );
 }
+
+#[test]
+#[should_panic(expected = "malformed E3 state in delta-semantics case")]
+fn malformed_carrier_is_a_runner_error_not_a_semantics_verdict() {
+    let operator: Operator = serde_json::from_value(json!({
+        "form":"window",
+        "config":{
+            "windowId":"w","order":[{"field":"rank","direction":"asc"}],
+            "take":1,"projectionFields":["rank"]
+        }
+    }))
+    .unwrap();
+    let _ = evaluate_operator(
+        &operator,
+        json!({"notAWindowState": true}),
+        json!({"entries": []}),
+        &ReadTranscript::default(),
+    );
+}

@@ -30,12 +30,13 @@
         ],
         "childKey": "c1",
         "found": true,
-        "rowVersion": null
+        "rowVersion": 1
       }
     },
     "children": {
       "c1": {
         "_id": "c1",
+        "_version": 1,
         "join": "j1",
         "name": "old"
       }

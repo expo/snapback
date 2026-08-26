@@ -29,12 +29,13 @@
         ],
         "childKey": "c1",
         "found": true,
-        "rowVersion": null
+        "rowVersion": 1
       }
     },
     "children": {
       "c1": {
         "_id": "c1",
+        "_version": 1,
         "join": "j1",
         "name": "old"
       }
@@ -52,6 +53,7 @@
           "admit": "stay-in",
           "postImage": {
             "_id": "c1",
+            "_version": 2,
             "join": "j1",
             "name": "new",
             "secret": "hidden"
@@ -84,12 +86,13 @@
           ],
           "childKey": "c1",
           "found": true,
-          "rowVersion": null
+          "rowVersion": 2
         }
       },
       "children": {
         "c1": {
           "_id": "c1",
+          "_version": 2,
           "join": "j1",
           "name": "new",
           "secret": "hidden"

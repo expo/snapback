@@ -2,11 +2,18 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 pub type Row = BTreeMap<String, Value>;
 pub type ScopeId = String;
+
+fn deserialize_present_value<'de, D>(deserializer: D) -> Result<Option<Value>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Value::deserialize(deserializer).map(Some)
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -354,9 +361,17 @@ impl WindowState {
 pub struct Filter {
     pub field: String,
     pub op: FilterOp,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub argument: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_present_value",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub literal: Option<Value>,
 }
 
@@ -471,7 +486,7 @@ pub struct LookupScopeState {
     pub lookup_key: Option<Vec<Value>>,
     pub child_key: Option<String>,
     pub found: bool,
-    pub row_version: Option<String>,
+    pub row_version: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -595,6 +610,8 @@ pub struct SupportConfig {
     pub mode: SupportMode,
     pub parent_join_fields: Vec<String>,
     pub support_join_fields: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub through_target_field: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -602,6 +619,10 @@ pub struct SupportConfig {
 pub struct SupportScopeState {
     pub join_key: Vec<Value>,
     pub bit: bool,
+    /// Complete retained through-row -> target-row evidence for this scope.
+    /// `None` means target-side scope attribution is not proven.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub through_targets: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -749,9 +770,35 @@ pub struct AssembleState {
 pub struct AssembleInput {
     #[serde(default)]
     pub events: Vec<AssemblyEvent>,
-    pub post_result: Value,
+    /// Per-node post-state operator outputs. E8 derives the nested result from
+    /// these carrier values and the closed projection configuration.
+    pub next_node_outputs: BTreeMap<String, BTreeMap<ScopeId, Value>>,
+    /// Optional corpus assertion only; it is never adopted as evaluator state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_result: Option<Value>,
     #[serde(default)]
     pub ordered_root_keys: Vec<String>,
+    pub node_completeness: Vec<NodeCompletenessLabel>,
+    /// Opaque identity/proof data carried through unchanged. E8 does not
+    /// interpret this tuple as semantic evidence.
+    pub proof_tuple: Value,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum GraphCompletenessLabel {
+    Unknown,
+    Complete,
+    Prefix,
+    Window,
+    Refused,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NodeCompletenessLabel {
+    pub node_id: String,
+    pub label: GraphCompletenessLabel,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -777,13 +824,17 @@ pub struct WireOp {
     pub row: Option<Value>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WireFrame {
     #[serde(default)]
     pub ops: Vec<WireOp>,
     #[serde(default)]
     pub ordered_root_keys: Vec<String>,
+    pub node_completeness: Vec<NodeCompletenessLabel>,
+    pub graph_completeness: GraphCompletenessLabel,
+    /// Opaque identity/proof data copied byte-for-byte from the form input.
+    pub proof_tuple: Value,
     pub result_digest: String,
 }
 
@@ -811,8 +862,20 @@ pub enum Operator {
 pub struct CompositionNode {
     pub node_id: String,
     pub operator: Box<Operator>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub input_from: Option<String>,
+    #[serde(default)]
+    pub inputs: Vec<CompositionInputArm>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(
+    tag = "source",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum CompositionInputArm {
+    Upstream { name: String, node_id: String },
+    External { name: String, input: String },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

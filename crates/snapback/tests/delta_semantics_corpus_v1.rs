@@ -63,6 +63,11 @@ fn delta_semantics_v1_corpus_is_exact_deterministic_and_closed() {
     assert_eq!(manifest.corpus, CORPUS);
     assert_eq!(manifest.corpus_format_version, 1);
     assert_eq!(manifest.evaluator_identity, EVALUATOR);
+    let loaded_schema_path = "tests/conformance/delta-semantics-v1/case.schema.json";
+    assert_eq!(
+        manifest.case_schema_path, loaded_schema_path,
+        "manifest caseSchemaPath must name the schema loaded by this runner"
+    );
 
     let schema: Value = serde_json::from_str(
         &std::fs::read_to_string(directory.join("case.schema.json"))

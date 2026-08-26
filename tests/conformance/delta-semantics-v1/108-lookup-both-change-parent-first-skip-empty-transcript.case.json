@@ -1,9 +1,10 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "lookup-child-rekey-old-leaves-new-arrives",
+  "name": "lookup-both-change-parent-first-skip-empty-transcript",
   "coverage": [
     "lookup",
-    "rekey"
+    "both-change",
+    "fallback"
   ],
   "operator": {
     "form": "keyed-lookup",
@@ -29,12 +30,13 @@
         ],
         "childKey": "c1",
         "found": true,
-        "rowVersion": null
+        "rowVersion": 1
       }
     },
     "children": {
       "c1": {
         "_id": "c1",
+        "_version": 1,
         "join": "j1",
         "name": "old"
       }
@@ -42,18 +44,30 @@
   },
   "foldedChangeBatch": {
     "parent": {
-      "entries": []
+      "entries": [
+        {
+          "rowKey": "p1",
+          "op": "update",
+          "admit": "stay-in",
+          "postImage": {
+            "_id": "p1",
+            "join": "j2"
+          },
+          "rankKeys": []
+        }
+      ]
     },
     "child": {
       "entries": [
         {
-          "rowKey": "c1",
-          "op": "update",
-          "admit": "stay-in",
+          "rowKey": "c3",
+          "op": "insert",
+          "admit": "enter",
           "postImage": {
-            "_id": "c1",
+            "_id": "c3",
+            "_version": 3,
             "join": "j2",
-            "name": "moved"
+            "name": "batch-row"
           },
           "rankKeys": []
         }
@@ -62,27 +76,7 @@
   },
   "readTranscript": [],
   "expected": {
-    "verdict": "Maintain",
-    "deltaOut": {
-      "ops": [
-        {
-          "kind": "presence",
-          "scope": "p1"
-        }
-      ]
-    },
-    "nextState": {
-      "scopes": {
-        "p1": {
-          "lookupKey": [
-            "j1"
-          ],
-          "childKey": null,
-          "found": false,
-          "rowVersion": null
-        }
-      },
-      "children": {}
-    }
+    "verdict": "Fallback",
+    "reason": "rekey-unread"
   }
 }

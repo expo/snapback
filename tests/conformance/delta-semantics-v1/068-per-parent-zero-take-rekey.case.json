@@ -38,49 +38,12 @@
           "j1"
         ],
         "window": {
-          "rows": [
-            {
-              "rowKey": "c1",
-              "rankKeys": {
-                "values": [
-                  1
-                ],
-                "rowKey": "c1"
-              },
-              "row": {
-                "_id": "c1",
-                "rank": 1
-              }
-            },
-            {
-              "rowKey": "c2",
-              "rankKeys": {
-                "values": [
-                  2
-                ],
-                "rowKey": "c2"
-              },
-              "row": {
-                "_id": "c2",
-                "rank": 2
-              }
-            }
-          ],
-          "boundary": {
-            "values": [
-              2
-            ],
-            "rowKey": "c2"
-          },
-          "resultCount": 2,
-          "complete": true,
-          "label": "complete",
-          "continuation": {
-            "values": [
-              2
-            ],
-            "rowKey": "c2"
-          }
+          "rows": [],
+          "boundary": null,
+          "resultCount": 0,
+          "complete": false,
+          "label": "zero-take-unproved",
+          "continuation": null
         }
       }
     }
@@ -106,34 +69,7 @@
   "expected": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": [
-        {
-          "scope": "p1",
-          "op": {
-            "op": "splice-out",
-            "sortKey": {
-              "values": [
-                1
-              ],
-              "rowKey": "c1"
-            },
-            "rowKey": "c1"
-          }
-        },
-        {
-          "scope": "p1",
-          "op": {
-            "op": "splice-out",
-            "sortKey": {
-              "values": [
-                2
-              ],
-              "rowKey": "c2"
-            },
-            "rowKey": "c2"
-          }
-        }
-      ]
+      "ops": []
     },
     "nextState": {
       "scopes": {

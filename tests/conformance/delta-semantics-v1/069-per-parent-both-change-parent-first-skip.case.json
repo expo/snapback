@@ -128,7 +128,7 @@
         "keyPrefix": [
           "j2"
         ],
-        "bound": 4
+        "bound": 2
       },
       "response": {
         "kind": "range",

@@ -3,6 +3,7 @@
   "name": "support-all-mode-element-transition",
   "coverage": [
     "support",
+    "all-and",
     "read-maintain"
   ],
   "operator": {
@@ -32,6 +33,12 @@
           "j1"
         ],
         "bit": false
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
+        "bit": false
       }
     }
   },
@@ -48,6 +55,16 @@
           "postImage": {
             "_id": "m1",
             "join": "j1"
+          },
+          "rankKeys": []
+        },
+        {
+          "rowKey": "m2",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m2",
+            "join": "j2"
           },
           "rankKeys": []
         }
@@ -83,9 +100,37 @@
       },
       "response": {
         "kind": "probe",
+        "rows": []
+      }
+    },
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "edge",
+        "scope": "p2",
+        "element": "a"
+      },
+      "response": {
+        "kind": "probe",
         "rows": [
           {
-            "_id": "support-p1-b"
+            "_id": "support-p2-a"
+          }
+        ]
+      }
+    },
+    {
+      "request": {
+        "kind": "probe",
+        "edge": "edge",
+        "scope": "p2",
+        "element": "b"
+      },
+      "response": {
+        "kind": "probe",
+        "rows": [
+          {
+            "_id": "support-p2-b"
           }
         ]
       }
@@ -96,7 +141,7 @@
     "deltaOut": {
       "transitions": [
         {
-          "scope": "p1",
+          "scope": "p2",
           "transition": "zero-to-one"
         }
       ]
@@ -106,6 +151,12 @@
         "p1": {
           "joinKey": [
             "j1"
+          ],
+          "bit": false
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
           ],
           "bit": true
         }

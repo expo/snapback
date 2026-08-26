@@ -3,6 +3,7 @@
   "name": "support-all-mode-element-transition-empty-transcript",
   "coverage": [
     "support",
+    "all-and",
     "fallback"
   ],
   "operator": {
@@ -32,6 +33,12 @@
           "j1"
         ],
         "bit": false
+      },
+      "p2": {
+        "joinKey": [
+          "j2"
+        ],
+        "bit": false
       }
     }
   },
@@ -48,6 +55,16 @@
           "postImage": {
             "_id": "m1",
             "join": "j1"
+          },
+          "rankKeys": []
+        },
+        {
+          "rowKey": "m2",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m2",
+            "join": "j2"
           },
           "rankKeys": []
         }

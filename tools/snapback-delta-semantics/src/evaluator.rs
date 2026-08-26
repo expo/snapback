@@ -31,8 +31,9 @@ fn dynamic<Delta: Serialize, State: Serialize>(
     }
 }
 
-fn parse<T: DeserializeOwned>(value: Value) -> Result<T, FallbackReason> {
-    serde_json::from_value(value).map_err(|_| FallbackReason::PredicateUnanalyzable)
+fn parse<T: DeserializeOwned>(value: Value, carrier: &str) -> T {
+    serde_json::from_value(value)
+        .unwrap_or_else(|error| panic!("malformed {carrier} in delta-semantics case: {error}"))
 }
 
 fn render(verdict: DynamicVerdict) -> Value {
@@ -79,48 +80,58 @@ fn evaluate_dynamic(
     input: Value,
     reads: &ReadTranscript,
 ) -> DynamicVerdict {
-    let parsed = match operator {
-        Operator::Admit { config } => parse::<AdmitState>(state).and_then(|state| {
-            parse::<AdmitInput>(input)
-                .map(|input| dynamic(evaluate_admit(config, state, input, reads)))
-        }),
-        Operator::Window { config } => parse::<WindowState>(state).and_then(|state| {
-            parse::<DeltaZBatch>(input)
-                .map(|input| dynamic(evaluate_window(config, state, input, reads)))
-        }),
-        Operator::KeyedLookup { config } => parse::<LookupState>(state).and_then(|state| {
-            parse::<LookupInput>(input)
-                .map(|input| dynamic(evaluate_lookup(config, state, input, reads)))
-        }),
-        Operator::PerParentWindow { config } => {
-            parse::<PerParentWindowState>(state).and_then(|state| {
-                parse::<PerParentWindowInput>(input)
-                    .map(|input| dynamic(evaluate_per_parent_window(config, state, input, reads)))
-            })
-        }
-        Operator::SupportSemiJoin { config } => parse::<SupportState>(state).and_then(|state| {
-            parse::<SupportInput>(input)
-                .map(|input| dynamic(evaluate_support(config, state, input, reads)))
-        }),
-        Operator::MembershipLift { config } => {
-            parse::<MembershipLiftState>(state).and_then(|state| {
-                parse::<MembershipLiftInput>(input)
-                    .map(|input| dynamic(evaluate_membership_lift(config, state, input, reads)))
-            })
-        }
-        Operator::PrincipalBind { config } => parse::<PrincipalState>(state).and_then(|state| {
-            parse::<PrincipalInput>(input)
-                .map(|input| dynamic(evaluate_principal(config, state, input, reads)))
-        }),
-        Operator::Assemble { config } => parse::<AssembleState>(state).and_then(|state| {
-            parse::<AssembleInput>(input)
-                .map(|input| dynamic(evaluate_assemble(config, state, input)))
-        }),
+    match operator {
+        Operator::Admit { config } => dynamic(evaluate_admit(
+            config,
+            parse(state, "E0 state"),
+            parse(input, "E0 input"),
+            reads,
+        )),
+        Operator::Window { config } => dynamic(evaluate_window(
+            config,
+            parse(state, "E3 state"),
+            parse(input, "E3 input"),
+            reads,
+        )),
+        Operator::KeyedLookup { config } => dynamic(evaluate_lookup(
+            config,
+            parse(state, "E4 state"),
+            parse(input, "E4 input"),
+            reads,
+        )),
+        Operator::PerParentWindow { config } => dynamic(evaluate_per_parent_window(
+            config,
+            parse(state, "E5 state"),
+            parse(input, "E5 input"),
+            reads,
+        )),
+        Operator::SupportSemiJoin { config } => dynamic(evaluate_support(
+            config,
+            parse(state, "E6 state"),
+            parse(input, "E6 input"),
+            reads,
+        )),
+        Operator::MembershipLift { config } => dynamic(evaluate_membership_lift(
+            config,
+            parse(state, "membership-lift state"),
+            parse(input, "membership-lift input"),
+            reads,
+        )),
+        Operator::PrincipalBind { config } => dynamic(evaluate_principal(
+            config,
+            parse(state, "E7 state"),
+            parse(input, "E7 input"),
+            reads,
+        )),
+        Operator::Assemble { config } => dynamic(evaluate_assemble(
+            config,
+            parse(state, "E8 state"),
+            parse(input, "E8 input"),
+        )),
         Operator::Composition { nodes } => {
-            Ok(dynamic(evaluate_composition(nodes, state, input, reads)))
+            dynamic(evaluate_composition(nodes, state, input, reads))
         }
-    };
-    parsed.unwrap_or_else(DynamicVerdict::Fallback)
+    }
 }
 
 /// Fold a raw application batch per row key in first-seen order.
@@ -241,13 +252,34 @@ fn scalar_cmp(left: &Value, right: &Value) -> Option<Ordering> {
         (Null, _) => Some(Ordering::Greater),
         (_, Null) => Some(Ordering::Less),
         (Bool(a), Bool(b)) => Some(a.cmp(b)),
-        (Number(a), Number(b)) => a.as_f64()?.partial_cmp(&b.as_f64()?),
+        (Number(a), Number(b)) => {
+            if let (Some(a), Some(b)) = (integer_value(a), integer_value(b)) {
+                Some(a.cmp(&b))
+            } else {
+                a.as_f64()?.partial_cmp(&b.as_f64()?)
+            }
+        }
         (String(a), String(b)) => Some(a.as_bytes().cmp(b.as_bytes())),
         (Bool(_), Number(_) | String(_)) => Some(Ordering::Less),
         (Number(_), Bool(_)) => Some(Ordering::Greater),
         (Number(_), String(_)) => Some(Ordering::Less),
         (String(_), Bool(_) | Number(_)) => Some(Ordering::Greater),
         _ => None,
+    }
+}
+
+fn integer_value(number: &serde_json::Number) -> Option<i128> {
+    number
+        .as_i64()
+        .map(i128::from)
+        .or_else(|| number.as_u64().map(i128::from))
+}
+
+fn scalar_equal(left: &Value, right: &Value) -> bool {
+    if left.is_number() && right.is_number() {
+        scalar_cmp(left, right) == Some(Ordering::Equal)
+    } else {
+        left == right
     }
 }
 
@@ -272,7 +304,7 @@ fn filter_matches(row: &Row, filter: &Filter) -> Result<bool, FallbackReason> {
         return Ok(false);
     }
     match filter.op {
-        FilterOp::Eq => Ok(!expected.is_null() && actual == expected),
+        FilterOp::Eq => Ok(!expected.is_null() && scalar_equal(actual, expected)),
         FilterOp::In => {
             let values = expected
                 .as_array()
@@ -282,7 +314,7 @@ fn filter_matches(row: &Row, filter: &Filter) -> Result<bool, FallbackReason> {
             }
             Ok(values
                 .iter()
-                .any(|value| !value.is_null() && value == actual))
+                .any(|value| !value.is_null() && scalar_equal(actual, value)))
         }
         FilterOp::Lt | FilterOp::Lte | FilterOp::Gt | FilterOp::Gte => {
             if expected.is_null() || !canonical_scalar(expected) {
@@ -562,6 +594,21 @@ fn sorted_rows(config: &WindowConfig, map: &BTreeMap<String, RankedRow>) -> Vec<
     rows
 }
 
+fn empty_window_origin(config: &WindowConfig) -> Option<RankKey> {
+    match config.order.first().map(|field| field.direction) {
+        Some(Direction::Desc) => config
+            .interval
+            .upper
+            .as_ref()
+            .map(|bound| bound.key.clone()),
+        _ => config
+            .interval
+            .lower
+            .as_ref()
+            .map(|bound| bound.key.clone()),
+    }
+}
+
 fn project_diff(old: &Row, new: &Row, fields: &BTreeSet<String>) -> Row {
     fields
         .iter()
@@ -705,7 +752,13 @@ pub fn evaluate_window(
         }
     }
 
-    let b_old = state.boundary.clone();
+    let b_old = state.boundary.clone().or_else(|| {
+        state
+            .rows
+            .is_empty()
+            .then(|| empty_window_origin(config))
+            .flatten()
+    });
     let mut all_rows = sorted_rows(config, &working);
     let mut selected = all_rows
         .iter()
@@ -886,6 +939,10 @@ fn set_lookup_scope(
     row: Option<Row>,
 ) {
     let child_key = row.as_ref().and_then(row_key);
+    let row_version = row
+        .as_ref()
+        .and_then(|row| row.get("_version"))
+        .and_then(Value::as_u64);
     if let (Some(child_key), Some(row)) = (&child_key, row) {
         state.children.insert(child_key.clone(), row);
     }
@@ -895,7 +952,7 @@ fn set_lookup_scope(
             lookup_key: key,
             child_key: child_key.clone(),
             found: child_key.is_some(),
-            row_version: None,
+            row_version,
         },
     );
 }
@@ -992,91 +1049,68 @@ pub fn evaluate_lookup(
         }
     }
 
-    for child in &input.child.entries {
-        let previous = state.children.get(&child.row_key);
-        let old_join = previous.and_then(|row| field_values(row, &config.child_join_fields));
-        let new_join = child
-            .post_image
-            .as_ref()
-            .and_then(|row| field_values(row, &config.child_join_fields));
-        let join_changed = previous.is_some() && old_join != new_join;
-        if join_changed || child.admit == Admission::Leave {
-            let affected = next
-                .scopes
-                .iter()
-                .filter(|(scope, value)| {
-                    !skipped.contains(*scope)
-                        && value.child_key.as_deref() == Some(child.row_key.as_str())
-                })
-                .map(|(scope, _)| scope.clone())
-                .collect::<Vec<_>>();
-            for scope in affected {
-                if config.presence == Presence::Required {
-                    return FormVerdict::fallback(FallbackReason::RefusalTransition);
-                }
-                ops.push(LookupDeltaOp::Presence {
-                    scope: scope.clone(),
-                    child_key: None,
-                    value: None,
-                });
-                if let Some(scope_state) = next.scopes.get_mut(&scope) {
-                    scope_state.child_key = None;
-                    scope_state.found = false;
-                }
-            }
-            next.children.remove(&child.row_key);
+    // Classify child presence from the whole folded batch. Intermediate
+    // departures are not presence transitions when another admitted child is
+    // present at the same unique key at the post-cut.
+    let surviving_scopes = next
+        .scopes
+        .keys()
+        .filter(|scope| !skipped.contains(*scope))
+        .cloned()
+        .collect::<Vec<_>>();
+    for scope in surviving_scopes {
+        let scope_state = next
+            .scopes
+            .get(&scope)
+            .cloned()
+            .expect("surviving lookup scope exists");
+        let old_row = retained_scope_row(&next, &scope).cloned();
+        let mut candidates = BTreeMap::<String, Row>::new();
+        if let Some(row) = old_row.clone()
+            && let Some(key) = row_key(&row)
+        {
+            candidates.insert(key, row);
         }
-
-        if matches!(child.admit, Admission::Enter | Admission::StayIn) {
-            let Some(row) = child.post_image.as_ref() else {
-                return FormVerdict::fallback(FallbackReason::MissingImage);
-            };
-            let Some(join) = new_join else {
-                return FormVerdict::fallback(FallbackReason::PredicateUnanalyzable);
-            };
-            let scopes = next
-                .scopes
-                .iter()
-                .filter(|(scope, value)| {
-                    !skipped.contains(*scope) && value.lookup_key.as_ref() == Some(&join)
-                })
-                .map(|(scope, value)| (scope.clone(), value.clone()))
-                .collect::<Vec<_>>();
-            for (scope, scope_state) in scopes {
-                if scope_state.found && scope_state.child_key.as_deref() != Some(&child.row_key) {
-                    return FormVerdict::fallback(FallbackReason::UniqueViolation);
-                }
-                if scope_state.found {
-                    let old = next
-                        .children
-                        .get(&child.row_key)
-                        .cloned()
-                        .unwrap_or_default();
-                    let fields = project_diff(&old, row, &config.projection_fields);
-                    if !fields.is_empty() {
-                        ops.push(LookupDeltaOp::Patch {
-                            scope: scope.clone(),
-                            child_key: child.row_key.clone(),
-                            fields,
-                        });
-                    }
-                } else {
-                    if config.presence == Presence::Required {
-                        return FormVerdict::fallback(FallbackReason::RefusalTransition);
-                    }
-                    ops.push(LookupDeltaOp::Presence {
-                        scope: scope.clone(),
-                        child_key: Some(child.row_key.clone()),
-                        value: Some(projected_row(row, &config.projection_fields)),
-                    });
-                    if let Some(scope_state) = next.scopes.get_mut(&scope) {
-                        scope_state.found = true;
-                        scope_state.child_key = Some(child.row_key.clone());
-                    }
-                }
+        for child in &input.child.entries {
+            if child.admit == Admission::StayOut {
+                continue;
             }
-            next.children.insert(child.row_key.clone(), row.clone());
+            let post_join = match child.post_image.as_ref() {
+                Some(row) => match field_values(row, &config.child_join_fields) {
+                    Some(key) => Some(key),
+                    None => return FormVerdict::fallback(FallbackReason::PredicateUnanalyzable),
+                },
+                None => None,
+            };
+            if candidates.contains_key(&child.row_key)
+                && (child.admit == Admission::Leave
+                    || post_join.as_ref() != scope_state.lookup_key.as_ref())
+            {
+                candidates.remove(&child.row_key);
+            }
+            if matches!(child.admit, Admission::Enter | Admission::StayIn)
+                && post_join.as_ref() == scope_state.lookup_key.as_ref()
+            {
+                let Some(row) = child.post_image.as_ref() else {
+                    return FormVerdict::fallback(FallbackReason::MissingImage);
+                };
+                candidates.insert(child.row_key.clone(), row.clone());
+            }
         }
+        if candidates.len() > 1 {
+            return FormVerdict::fallback(FallbackReason::UniqueViolation);
+        }
+        let new_row = candidates.into_values().next();
+        if lookup_required_transition(config.presence, old_row.is_some(), new_row.is_some()) {
+            return FormVerdict::fallback(FallbackReason::RefusalTransition);
+        }
+        ops.extend(lookup_fill_diff(
+            config,
+            &scope,
+            old_row.as_ref(),
+            new_row.as_ref(),
+        ));
+        set_lookup_scope(&mut next, &scope, scope_state.lookup_key, new_row);
     }
 
     let live_children = next
@@ -1172,7 +1206,7 @@ pub fn evaluate_per_parent_window(
                     let request = ReadRequest::Range {
                         index: config.index.clone(),
                         key_prefix: key.clone().expect("non-null key reads"),
-                        bound: config.max_children_per_parent,
+                        bound: config.window.take,
                     };
                     let (rows, exhausted) = match reads.response(&request) {
                         Some(ReadResponse::Range { rows, exhausted }) => (rows, *exhausted),
@@ -1225,7 +1259,7 @@ pub fn evaluate_per_parent_window(
                     let request = ReadRequest::Range {
                         index: config.index.clone(),
                         key_prefix: key.clone().expect("non-null key reads"),
-                        bound: config.max_children_per_parent,
+                        bound: config.window.take,
                     };
                     let (rows, exhausted) = match reads.response(&request) {
                         Some(ReadResponse::Range { rows, exhausted }) => (rows, *exhausted),
@@ -1236,11 +1270,15 @@ pub fn evaluate_per_parent_window(
                         Err(reason) => return FormVerdict::fallback(reason),
                     }
                 };
-                for op in window_diff(&config.window, &old_window.rows, &fill.rows).ops {
-                    ops.push(ScopedSeqOp {
-                        scope: scope.to_owned(),
-                        op,
-                    });
+                // E3 fixes a zero-take window to empty. E5 re-keying the
+                // scope therefore reads and emits nothing as well.
+                if config.window.take != 0 {
+                    for op in window_diff(&config.window, &old_window.rows, &fill.rows).ops {
+                        ops.push(ScopedSeqOp {
+                            scope: scope.to_owned(),
+                            op,
+                        });
+                    }
                 }
                 next.scopes.insert(
                     scope.to_owned(),
@@ -1305,19 +1343,69 @@ fn probe_bit(
     }
 }
 
+fn through_targets_from_rows(
+    config: &SupportConfig,
+    rows: &[Row],
+) -> Result<BTreeMap<String, String>, FallbackReason> {
+    let field = config
+        .through_target_field
+        .as_ref()
+        .ok_or(FallbackReason::ScopeUnresolved)?;
+    rows.iter()
+        .map(|row| {
+            let edge_key = row_key(row).ok_or(FallbackReason::ScopeUnresolved)?;
+            let target_key = row
+                .get(field)
+                .and_then(resource_scope)
+                .ok_or(FallbackReason::ScopeUnresolved)?;
+            Ok((edge_key, target_key))
+        })
+        .collect()
+}
+
 fn establish_support(
     config: &SupportConfig,
     scope: &str,
     reads: &ReadTranscript,
-) -> Result<bool, FallbackReason> {
+) -> Result<(bool, Option<BTreeMap<String, String>>), FallbackReason> {
     match &config.mode {
-        SupportMode::Exists => probe_bit(config, scope, None, reads),
+        SupportMode::Exists => {
+            let request = ReadRequest::Probe {
+                edge: config.edge.clone(),
+                scope: scope.to_owned(),
+                element: None,
+            };
+            let rows = match reads.response(&request) {
+                Some(ReadResponse::Probe { rows }) => rows,
+                _ => return Err(FallbackReason::SupportUnproved),
+            };
+            let targets = if config.edge_kind == SupportEdgeKind::Through {
+                Some(through_targets_from_rows(config, rows)?)
+            } else {
+                None
+            };
+            Ok((!rows.is_empty(), targets))
+        }
         SupportMode::All { elements } => {
             let mut result = true;
+            let mut targets = (config.edge_kind == SupportEdgeKind::Through)
+                .then(BTreeMap::<String, String>::new);
             for element in elements {
-                result &= probe_bit(config, scope, Some(element), reads)?;
+                let request = ReadRequest::Probe {
+                    edge: config.edge.clone(),
+                    scope: scope.to_owned(),
+                    element: Some(element.clone()),
+                };
+                let rows = match reads.response(&request) {
+                    Some(ReadResponse::Probe { rows }) => rows,
+                    _ => return Err(FallbackReason::SupportUnproved),
+                };
+                result &= !rows.is_empty();
+                if let Some(targets) = &mut targets {
+                    targets.extend(through_targets_from_rows(config, rows)?);
+                }
             }
-            Ok(result)
+            Ok((result, targets))
         }
     }
 }
@@ -1366,12 +1454,18 @@ pub fn evaluate_support(
                     Some(key) => key,
                     None => return FormVerdict::fallback(FallbackReason::ScopeUnresolved),
                 };
-                let bit = match establish_support(config, scope, reads) {
-                    Ok(bit) => bit,
+                let (bit, through_targets) = match establish_support(config, scope, reads) {
+                    Ok(established) => established,
                     Err(reason) => return FormVerdict::fallback(reason),
                 };
-                next.scopes
-                    .insert(scope.to_owned(), SupportScopeState { join_key, bit });
+                next.scopes.insert(
+                    scope.to_owned(),
+                    SupportScopeState {
+                        join_key,
+                        bit,
+                        through_targets,
+                    },
+                );
                 transitions.push(BitTransition {
                     scope: scope.to_owned(),
                     element: None,
@@ -1393,8 +1487,8 @@ pub fn evaluate_support(
                 };
                 if state.scopes.get(scope).map(|scope| &scope.join_key) != Some(&join_key) {
                     let old = state.scopes.get(scope).is_some_and(|scope| scope.bit);
-                    let bit = match establish_support(config, scope, reads) {
-                        Ok(bit) => bit,
+                    let (bit, through_targets) = match establish_support(config, scope, reads) {
+                        Ok(established) => established,
                         Err(reason) => return FormVerdict::fallback(reason),
                     };
                     if old != bit {
@@ -1404,8 +1498,14 @@ pub fn evaluate_support(
                             transition: transition(old, bit),
                         });
                     }
-                    next.scopes
-                        .insert(scope.to_owned(), SupportScopeState { join_key, bit });
+                    next.scopes.insert(
+                        scope.to_owned(),
+                        SupportScopeState {
+                            join_key,
+                            bit,
+                            through_targets,
+                        },
+                    );
                     skipped.insert(scope.to_owned());
                 }
             }
@@ -1413,48 +1513,143 @@ pub fn evaluate_support(
         }
     }
 
-    let changes = input
+    // A retained through row may change only its target identity without
+    // changing support membership. Refresh that attribution evidence, but do
+    // not probe: only Enter/Leave can change the existence/all bit.
+    if config.edge_kind == SupportEdgeKind::Through {
+        for entry in input
+            .support
+            .entries
+            .iter()
+            .filter(|entry| entry.admit == Admission::StayIn)
+        {
+            let join_key = match support_join_key(config, entry) {
+                Ok(key) => key,
+                Err(reason) => return FormVerdict::fallback(reason),
+            };
+            let Some(row) = entry.post_image.as_ref() else {
+                return FormVerdict::fallback(FallbackReason::MissingImage);
+            };
+            let Some(field) = config.through_target_field.as_ref() else {
+                return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+            };
+            let Some(target) = row.get(field).and_then(resource_scope) else {
+                return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+            };
+            for (scope, scope_state) in &mut next.scopes {
+                if skipped.contains(scope) || scope_state.join_key != join_key {
+                    continue;
+                }
+                let Some(evidence) = scope_state.through_targets.as_mut() else {
+                    return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                };
+                if !evidence.contains_key(&entry.row_key) {
+                    return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                }
+                evidence.insert(entry.row_key.clone(), target.clone());
+            }
+        }
+    }
+
+    let mut by_scope = BTreeMap::<String, Vec<&DeltaZEntry>>::new();
+    for entry in input
         .support
         .entries
         .iter()
-        .chain(input.target.entries.iter())
-        .collect::<Vec<_>>();
-    let mut by_scope = BTreeMap::<String, Vec<&DeltaZEntry>>::new();
-    for entry in changes {
+        .filter(|entry| matches!(entry.admit, Admission::Enter | Admission::Leave))
+    {
         let join_key = match support_join_key(config, entry) {
             Ok(key) => key,
             Err(reason) => return FormVerdict::fallback(reason),
         };
-        for (scope, scope_state) in &next.scopes {
-            if !skipped.contains(scope) && scope_state.join_key == join_key {
-                by_scope.entry(scope.clone()).or_default().push(entry);
+        let affected = next
+            .scopes
+            .iter()
+            .filter(|(scope, scope_state)| {
+                !skipped.contains(*scope) && scope_state.join_key == join_key
+            })
+            .map(|(scope, _)| scope.clone())
+            .collect::<Vec<_>>();
+        for scope in affected {
+            if config.edge_kind == SupportEdgeKind::Through {
+                let Some(evidence) = next
+                    .scopes
+                    .get_mut(&scope)
+                    .and_then(|scope| scope.through_targets.as_mut())
+                else {
+                    return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                };
+                match entry.admit {
+                    Admission::Enter => {
+                        let Some(row) = entry.post_image.as_ref() else {
+                            return FormVerdict::fallback(FallbackReason::MissingImage);
+                        };
+                        let Some(field) = config.through_target_field.as_ref() else {
+                            return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                        };
+                        let Some(target) = row.get(field).and_then(resource_scope) else {
+                            return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                        };
+                        evidence.insert(entry.row_key.clone(), target);
+                    }
+                    Admission::Leave => {
+                        if evidence.remove(&entry.row_key).is_none() {
+                            return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                        }
+                    }
+                    Admission::StayIn | Admission::StayOut => unreachable!(),
+                }
+            }
+            by_scope.entry(scope).or_default().push(entry);
+        }
+    }
+    if config.edge_kind == SupportEdgeKind::Through {
+        for entry in input
+            .target
+            .entries
+            .iter()
+            .filter(|entry| matches!(entry.admit, Admission::Enter | Admission::Leave))
+        {
+            for (scope, scope_state) in &next.scopes {
+                if skipped.contains(scope) {
+                    continue;
+                }
+                let Some(evidence) = scope_state.through_targets.as_ref() else {
+                    return FormVerdict::fallback(FallbackReason::ScopeUnresolved);
+                };
+                if evidence.values().any(|target| target == &entry.row_key) {
+                    by_scope.entry(scope.clone()).or_default().push(entry);
+                }
             }
         }
     }
     for (scope, changes) in by_scope {
         let old = next.scopes.get(&scope).is_some_and(|scope| scope.bit);
-        let new = match &config.mode {
+        let (new, refreshed_targets) = match &config.mode {
             SupportMode::All { .. } => match establish_support(config, &scope, reads) {
-                Ok(bit) => bit,
+                Ok(established) => established,
                 Err(reason) => return FormVerdict::fallback(reason),
             },
             SupportMode::Exists => {
                 let has_enter = changes.iter().any(|entry| entry.admit == Admission::Enter);
                 let has_leave = changes.iter().any(|entry| entry.admit == Admission::Leave);
                 if config.edge_kind == SupportEdgeKind::Direct && has_enter {
-                    true
-                } else if has_leave || has_enter || config.edge_kind == SupportEdgeKind::Through {
+                    (true, None)
+                } else if has_leave || has_enter {
                     match probe_bit(config, &scope, None, reads) {
-                        Ok(bit) => bit,
+                        Ok(bit) => (bit, None),
                         Err(reason) => return FormVerdict::fallback(reason),
                     }
                 } else {
-                    old
+                    (old, None)
                 }
             }
         };
         if let Some(scope_state) = next.scopes.get_mut(&scope) {
             scope_state.bit = new;
+            if let Some(refreshed_targets) = refreshed_targets {
+                scope_state.through_targets = Some(refreshed_targets);
+            }
         }
         if old != new {
             transitions.push(BitTransition {
@@ -1513,7 +1708,10 @@ pub fn evaluate_membership_lift(
                     };
                     entries.push(DeltaZEntry {
                         row_key: key.clone(),
-                        op: ChangeOp::Update,
+                        // LLP 0309.000 E6's "ordinary enters" clause: rows
+                        // admitted by the lift are new to the consuming
+                        // relation, so the synthesized ΔZ tag is `insert`.
+                        op: ChangeOp::Insert,
                         post_image: Some(row.clone()),
                         admit,
                         rank_keys: Vec::new(),
@@ -1690,11 +1888,12 @@ type AbsorptionToken = (String, String);
 fn absorption_tokens(
     config: &AssembleConfig,
     state: &AssembleState,
-    input: &AssembleInput,
+    derived_result: &Value,
+    events: &[AssemblyEvent],
 ) -> Result<(BTreeSet<AbsorptionToken>, BTreeSet<AbsorptionToken>), FallbackReason> {
     let mut births = BTreeSet::new();
     let mut deaths = BTreeSet::new();
-    for event in &input.events {
+    for event in events {
         match event {
             AssemblyEvent::RootSeq { node_id, delta } => {
                 for op in &delta.ops {
@@ -1724,8 +1923,7 @@ fn absorption_tokens(
                     };
                     if value.is_some() {
                         let key = child_key.clone().or_else(|| {
-                            let context =
-                                scope_context(config, &input.post_result, node_id, scope)?;
+                            let context = scope_context(config, derived_result, node_id, scope)?;
                             value_row_key(context.parent.get(node.result_field.as_deref()?)?)
                         });
                         if let Some(key) = key {
@@ -1765,7 +1963,7 @@ fn absorption_tokens(
 fn scope_is_absorbed(
     config: &AssembleConfig,
     state: &AssembleState,
-    input: &AssembleInput,
+    derived_result: &Value,
     node_id: &str,
     scope: &str,
     births: &BTreeSet<AbsorptionToken>,
@@ -1778,7 +1976,7 @@ fn scope_is_absorbed(
     {
         return true;
     }
-    scope_context(config, &input.post_result, node_id, scope)
+    scope_context(config, derived_result, node_id, scope)
         .or_else(|| scope_context(config, &state.result, node_id, scope))
         .is_some_and(|context| context.ancestor_scopes.iter().any(token_present))
 }
@@ -1803,6 +2001,191 @@ fn result_digest(value: &Value) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
 
+fn assemble_row_from_outputs(
+    config: &AssembleConfig,
+    outputs: &BTreeMap<String, BTreeMap<ScopeId, Value>>,
+    node_id: &str,
+    raw: &Value,
+) -> Result<Value, FallbackReason> {
+    let node = assembly_node(config, node_id).ok_or(FallbackReason::WireUnaddressable)?;
+    let raw_object = raw.as_object().ok_or(FallbackReason::WireUnaddressable)?;
+    let scope = value_row_key(raw).ok_or(FallbackReason::WireUnaddressable)?;
+    let mut assembled = Map::new();
+    for field in &node.projection_fields {
+        if let Some(value) = raw_object.get(field) {
+            assembled.insert(field.clone(), value.clone());
+        }
+    }
+    for child in config
+        .nodes
+        .iter()
+        .filter(|child| child.parent.as_deref() == Some(node_id))
+    {
+        let field = child
+            .result_field
+            .as_ref()
+            .ok_or(FallbackReason::WireUnaddressable)?;
+        let value = outputs
+            .get(&child.node_id)
+            .and_then(|scopes| scopes.get(&scope))
+            .ok_or(FallbackReason::WireUnaddressable)?;
+        let value = match child.kind {
+            AssemblyNodeKind::ToOne => {
+                if value.is_null() {
+                    Value::Null
+                } else {
+                    assemble_row_from_outputs(config, outputs, &child.node_id, value)?
+                }
+            }
+            AssemblyNodeKind::ToMany => Value::Array(
+                value
+                    .as_array()
+                    .ok_or(FallbackReason::WireUnaddressable)?
+                    .iter()
+                    .map(|row| assemble_row_from_outputs(config, outputs, &child.node_id, row))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            AssemblyNodeKind::Exists => value.clone(),
+            AssemblyNodeKind::Root => return Err(FallbackReason::WireUnaddressable),
+        };
+        assembled.insert(field.clone(), value);
+    }
+    Ok(Value::Object(assembled))
+}
+
+fn derive_assembled_result(
+    config: &AssembleConfig,
+    input: &AssembleInput,
+) -> Result<Value, FallbackReason> {
+    let root_rows = input
+        .next_node_outputs
+        .get(&config.root_node_id)
+        .and_then(|outputs| outputs.get("$root"))
+        .and_then(Value::as_array)
+        .ok_or(FallbackReason::WireUnaddressable)?;
+    Ok(Value::Array(
+        root_rows
+            .iter()
+            .map(|row| {
+                assemble_row_from_outputs(
+                    config,
+                    &input.next_node_outputs,
+                    &config.root_node_id,
+                    row,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+    ))
+}
+
+fn ordered_keys(result: &Value) -> Result<Vec<String>, FallbackReason> {
+    result
+        .as_array()
+        .ok_or(FallbackReason::WireUnaddressable)?
+        .iter()
+        .map(|row| value_row_key(row).ok_or(FallbackReason::WireUnaddressable))
+        .collect()
+}
+
+fn compose_graph_completeness(labels: &[NodeCompletenessLabel]) -> GraphCompletenessLabel {
+    if labels
+        .iter()
+        .any(|node| node.label == GraphCompletenessLabel::Refused)
+    {
+        return GraphCompletenessLabel::Refused;
+    }
+    if labels
+        .iter()
+        .any(|node| node.label == GraphCompletenessLabel::Unknown)
+    {
+        return GraphCompletenessLabel::Unknown;
+    }
+    if labels
+        .iter()
+        .all(|node| node.label == GraphCompletenessLabel::Complete)
+    {
+        return GraphCompletenessLabel::Complete;
+    }
+    let partial = labels
+        .iter()
+        .filter(|node| node.label != GraphCompletenessLabel::Complete)
+        .map(|node| node.label)
+        .collect::<BTreeSet<_>>();
+    if partial == BTreeSet::from([GraphCompletenessLabel::Window]) {
+        GraphCompletenessLabel::Window
+    } else if partial == BTreeSet::from([GraphCompletenessLabel::Prefix]) {
+        GraphCompletenessLabel::Prefix
+    } else {
+        GraphCompletenessLabel::Unknown
+    }
+}
+
+fn validate_node_completeness(
+    config: &AssembleConfig,
+    labels: &[NodeCompletenessLabel],
+) -> Result<(), FallbackReason> {
+    let expected = config
+        .nodes
+        .iter()
+        .map(|node| node.node_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let actual = labels
+        .iter()
+        .map(|node| node.node_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if expected == actual && actual.len() == labels.len() {
+        Ok(())
+    } else {
+        Err(FallbackReason::WireUnaddressable)
+    }
+}
+
+fn merge_patch(value: &mut Value, patch: &Row) -> Result<(), FallbackReason> {
+    let object = value
+        .as_object_mut()
+        .ok_or(FallbackReason::WireUnaddressable)?;
+    object.extend(
+        patch
+            .iter()
+            .map(|(field, value)| (field.clone(), value.clone())),
+    );
+    Ok(())
+}
+
+fn parent_value_mut<'a>(
+    config: &AssembleConfig,
+    result: &'a mut Value,
+    node_id: &str,
+    scope: &str,
+) -> Option<&'a mut Value> {
+    let context = scope_context(config, result, node_id, scope)?;
+    let root_position = context.root_position;
+    let mut chain = Vec::new();
+    let mut current = assembly_node(config, node_id)?.parent.as_deref()?;
+    while current != config.root_node_id {
+        let node = assembly_node(config, current)?;
+        chain.push(node.result_field.clone()?);
+        current = node.parent.as_deref()?;
+    }
+    chain.reverse();
+    let mut value = result.as_array_mut()?.get_mut(root_position)?;
+    for field in chain {
+        value = value.get_mut(&field)?;
+    }
+    Some(value)
+}
+
+fn desired_insert_position(current: &[String], desired: &[String], key: &str) -> usize {
+    let desired_index = desired
+        .iter()
+        .position(|candidate| candidate == key)
+        .unwrap_or(desired.len());
+    desired[..desired_index.min(desired.len())]
+        .iter()
+        .filter(|candidate| current.contains(candidate))
+        .count()
+}
+
 // @ref LLP 0309.000#e8--assemble-closed-projection — lowering is projection
 // scoped, addressability checked, digest-exact, and ancestor births absorb fills.
 pub fn evaluate_assemble(
@@ -1810,9 +2193,33 @@ pub fn evaluate_assemble(
     state: AssembleState,
     input: AssembleInput,
 ) -> FormVerdict<WireFrame, AssembleState> {
+    let derived_result = match derive_assembled_result(config, &input) {
+        Ok(result) => result,
+        Err(reason) => return FormVerdict::fallback(reason),
+    };
+    if let Some(asserted) = &input.post_result {
+        assert_eq!(
+            asserted, &derived_result,
+            "E8 postResult assertion differs from the result derived from child outputs"
+        );
+    }
+    let derived_root_order = match ordered_keys(&derived_result) {
+        Ok(keys) => keys,
+        Err(reason) => return FormVerdict::fallback(reason),
+    };
+    assert_eq!(
+        input.ordered_root_keys, derived_root_order,
+        "E8 orderedRootKeys assertion differs from the derived root order"
+    );
+    if let Err(reason) = validate_node_completeness(config, &input.node_completeness) {
+        return FormVerdict::fallback(reason);
+    }
+    let graph_completeness = compose_graph_completeness(&input.node_completeness);
+
     let mut ops = Vec::new();
     let mut root_order = state.ordered_root_keys.clone();
-    let (births, deaths) = match absorption_tokens(config, &state, &input) {
+    let mut working_result = state.result.clone();
+    let (births, deaths) = match absorption_tokens(config, &state, &derived_result, &input.events) {
         Ok(tokens) => tokens,
         Err(reason) => return FormVerdict::fallback(reason),
     };
@@ -1839,6 +2246,10 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
                             root_order.remove(position);
+                            let Some(rows) = working_result.as_array_mut() else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            rows.remove(position);
                             ops.push(WireOp {
                                 op: WireOpKind::Remove,
                                 node_id: node_id.clone(),
@@ -1852,16 +2263,16 @@ pub fn evaluate_assemble(
                             let Some(key) = row_key(row) else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
-                            let position = input
-                                .ordered_root_keys
-                                .iter()
-                                .position(|candidate| candidate == &key)
-                                .unwrap_or(root_order.len())
-                                .min(root_order.len());
+                            let position =
+                                desired_insert_position(&root_order, &derived_root_order, &key);
                             root_order.insert(position, key.clone());
-                            let Some((_, assembled)) = result_item(&input.post_result, &key) else {
+                            let Some((_, assembled)) = result_item(&derived_result, &key) else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
+                            let Some(rows) = working_result.as_array_mut() else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            rows.insert(position, assembled.clone());
                             ops.push(WireOp {
                                 op: WireOpKind::Add,
                                 node_id: node_id.clone(),
@@ -1872,14 +2283,27 @@ pub fn evaluate_assemble(
                             });
                         }
                         SeqOp::Patch { row_key, post, .. } => {
-                            let position = root_order.iter().position(|key| key == row_key);
+                            let Some(position) = root_order.iter().position(|key| key == row_key)
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let patch = projected_row(post, &node.projection_fields);
+                            let Some(row) = working_result
+                                .as_array_mut()
+                                .and_then(|rows| rows.get_mut(position))
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            if let Err(reason) = merge_patch(row, &patch) {
+                                return FormVerdict::fallback(reason);
+                            }
                             ops.push(WireOp {
                                 op: WireOpKind::Update,
                                 node_id: node_id.clone(),
                                 root_key: Some(row_key.clone()),
                                 key: Some(row_key.clone()),
-                                position,
-                                row: Some(row_value(projected_row(post, &node.projection_fields))),
+                                position: Some(position),
+                                row: Some(row_value(patch)),
                             });
                         }
                     }
@@ -1894,7 +2318,13 @@ pub fn evaluate_assemble(
                             fields,
                         } => {
                             if scope_is_absorbed(
-                                config, &state, &input, node_id, scope, &births, &deaths,
+                                config,
+                                &state,
+                                &derived_result,
+                                node_id,
+                                scope,
+                                &births,
+                                &deaths,
                             ) {
                                 continue;
                             }
@@ -1902,25 +2332,43 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             }
                             let Some(context) =
-                                scope_context(config, &input.post_result, node_id, scope)
+                                scope_context(config, &working_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
+                            let root_key = context.root_key;
+                            let root_position = context.root_position;
+                            let Some(field) = node.result_field.as_deref() else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let Some(child) =
+                                parent_value_mut(config, &mut working_result, node_id, scope)
+                                    .and_then(|parent| parent.get_mut(field))
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let patch = projected_row(fields, &node.projection_fields);
+                            if let Err(reason) = merge_patch(child, &patch) {
+                                return FormVerdict::fallback(reason);
+                            }
                             ops.push(WireOp {
                                 op: WireOpKind::Update,
                                 node_id: node_id.clone(),
-                                root_key: Some(context.root_key),
+                                root_key: Some(root_key),
                                 key: Some(child_key.clone()),
-                                position: Some(context.root_position),
-                                row: Some(row_value(projected_row(
-                                    fields,
-                                    &node.projection_fields,
-                                ))),
+                                position: Some(root_position),
+                                row: Some(row_value(patch)),
                             });
                         }
                         LookupDeltaOp::Presence { scope, value, .. } => {
                             if scope_is_absorbed(
-                                config, &state, &input, node_id, scope, &births, &deaths,
+                                config,
+                                &state,
+                                &derived_result,
+                                node_id,
+                                scope,
+                                &births,
+                                &deaths,
                             ) {
                                 continue;
                             }
@@ -1928,7 +2376,7 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             }
                             let Some(context) =
-                                scope_context(config, &input.post_result, node_id, scope)
+                                scope_context(config, &working_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
@@ -1938,7 +2386,14 @@ pub fn evaluate_assemble(
                                         FallbackReason::WireUnaddressable,
                                     );
                                 };
-                                let Some(value) = context.parent.get(field) else {
+                                let Some(derived_context) =
+                                    scope_context(config, &derived_result, node_id, scope)
+                                else {
+                                    return FormVerdict::fallback(
+                                        FallbackReason::WireUnaddressable,
+                                    );
+                                };
+                                let Some(value) = derived_context.parent.get(field) else {
                                     return FormVerdict::fallback(
                                         FallbackReason::WireUnaddressable,
                                     );
@@ -1947,12 +2402,26 @@ pub fn evaluate_assemble(
                             } else {
                                 Value::Null
                             };
+                            let root_key = context.root_key;
+                            let root_position = context.root_position;
+                            let Some(field) = node.result_field.as_deref() else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let Some(parent) =
+                                parent_value_mut(config, &mut working_result, node_id, scope)
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let Some(parent) = parent.as_object_mut() else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            parent.insert(field.to_owned(), assembled.clone());
                             ops.push(WireOp {
                                 op: WireOpKind::Update,
                                 node_id: node_id.clone(),
-                                root_key: Some(context.root_key),
+                                root_key: Some(root_key),
                                 key: Some(scope.clone()),
-                                position: Some(context.root_position),
+                                position: Some(root_position),
                                 row: Some(assembled),
                             });
                         }
@@ -1960,7 +2429,15 @@ pub fn evaluate_assemble(
                 }
             }
             AssemblyEvent::ToMany { scope, delta, .. } => {
-                if scope_is_absorbed(config, &state, &input, node_id, scope, &births, &deaths) {
+                if scope_is_absorbed(
+                    config,
+                    &state,
+                    &derived_result,
+                    node_id,
+                    scope,
+                    &births,
+                    &deaths,
+                ) {
                     continue;
                 }
                 if !addressable(config, node_id) {
@@ -1976,19 +2453,47 @@ pub fn evaluate_assemble(
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
                             let Some(context) =
-                                scope_context(config, &input.post_result, node_id, scope)
+                                scope_context(config, &working_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
-                            let Some((position, assembled)) =
-                                child_item(context.parent, result_field, &key)
+                            let Some(derived_context) =
+                                scope_context(config, &derived_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
+                            let Some((_, assembled)) =
+                                child_item(derived_context.parent, result_field, &key)
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let root_key = context.root_key;
+                            let Some(children) =
+                                parent_value_mut(config, &mut working_result, node_id, scope)
+                                    .and_then(|parent| parent.get_mut(result_field))
+                                    .and_then(Value::as_array_mut)
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            let current_keys = children
+                                .iter()
+                                .filter_map(value_row_key)
+                                .collect::<Vec<_>>();
+                            let desired_keys = derived_context
+                                .parent
+                                .get(result_field)
+                                .and_then(Value::as_array)
+                                .into_iter()
+                                .flatten()
+                                .filter_map(value_row_key)
+                                .collect::<Vec<_>>();
+                            let position =
+                                desired_insert_position(&current_keys, &desired_keys, &key);
+                            children.insert(position, assembled.clone());
                             ops.push(WireOp {
                                 op: WireOpKind::Add,
                                 node_id: node_id.clone(),
-                                root_key: Some(context.root_key),
+                                root_key: Some(root_key),
                                 key: Some(key),
                                 position: Some(position),
                                 row: Some(assembled.clone()),
@@ -1996,7 +2501,7 @@ pub fn evaluate_assemble(
                         }
                         SeqOp::SpliceOut { row_key, .. } => {
                             let Some(context) =
-                                scope_context(config, &state.result, node_id, scope)
+                                scope_context(config, &working_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
@@ -2005,10 +2510,19 @@ pub fn evaluate_assemble(
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
+                            let root_key = context.root_key;
+                            let Some(children) =
+                                parent_value_mut(config, &mut working_result, node_id, scope)
+                                    .and_then(|parent| parent.get_mut(result_field))
+                                    .and_then(Value::as_array_mut)
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            children.remove(position);
                             ops.push(WireOp {
                                 op: WireOpKind::Remove,
                                 node_id: node_id.clone(),
-                                root_key: Some(context.root_key),
+                                root_key: Some(root_key),
                                 key: Some(row_key.clone()),
                                 position: Some(position),
                                 row: None,
@@ -2016,7 +2530,7 @@ pub fn evaluate_assemble(
                         }
                         SeqOp::Patch { row_key, post, .. } => {
                             let Some(context) =
-                                scope_context(config, &input.post_result, node_id, scope)
+                                scope_context(config, &working_result, node_id, scope)
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
@@ -2025,13 +2539,26 @@ pub fn evaluate_assemble(
                             else {
                                 return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                             };
+                            let root_key = context.root_key;
+                            let patch = projected_row(post, &node.projection_fields);
+                            let Some(child) =
+                                parent_value_mut(config, &mut working_result, node_id, scope)
+                                    .and_then(|parent| parent.get_mut(result_field))
+                                    .and_then(Value::as_array_mut)
+                                    .and_then(|children| children.get_mut(position))
+                            else {
+                                return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                            };
+                            if let Err(reason) = merge_patch(child, &patch) {
+                                return FormVerdict::fallback(reason);
+                            }
                             ops.push(WireOp {
                                 op: WireOpKind::Update,
                                 node_id: node_id.clone(),
-                                root_key: Some(context.root_key),
+                                root_key: Some(root_key),
                                 key: Some(row_key.clone()),
                                 position: Some(position),
-                                row: Some(row_value(projected_row(post, &node.projection_fields))),
+                                row: Some(row_value(patch)),
                             });
                         }
                     }
@@ -2045,46 +2572,75 @@ pub fn evaluate_assemble(
                     .unwrap_or_else(|| node_id.clone());
                 for bit in &delta.transitions {
                     if scope_is_absorbed(
-                        config, &state, &input, node_id, &bit.scope, &births, &deaths,
+                        config,
+                        &state,
+                        &derived_result,
+                        node_id,
+                        &bit.scope,
+                        &births,
+                        &deaths,
                     ) {
                         continue;
                     }
                     if !addressable(config, node_id) {
                         return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                     }
-                    let Some(context) =
-                        scope_context(config, &input.post_result, node_id, &bit.scope)
+                    let Some(context) = scope_context(config, &working_result, node_id, &bit.scope)
                     else {
                         return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                     };
-                    let Some(value) = context.parent.get(&projected_name).cloned() else {
+                    let Some(derived_context) =
+                        scope_context(config, &derived_result, node_id, &bit.scope)
+                    else {
                         return FormVerdict::fallback(FallbackReason::WireUnaddressable);
                     };
+                    let Some(value) = derived_context.parent.get(&projected_name).cloned() else {
+                        return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                    };
+                    let root_key = context.root_key;
+                    let root_position = context.root_position;
+                    let Some(parent) =
+                        parent_value_mut(config, &mut working_result, node_id, &bit.scope)
+                    else {
+                        return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                    };
+                    let Some(parent) = parent.as_object_mut() else {
+                        return FormVerdict::fallback(FallbackReason::WireUnaddressable);
+                    };
+                    parent.insert(projected_name.clone(), value.clone());
                     ops.push(WireOp {
                         op: WireOpKind::Update,
                         node_id: node_id.clone(),
-                        root_key: Some(context.root_key),
+                        root_key: Some(root_key),
                         key: Some(bit.scope.clone()),
-                        position: Some(context.root_position),
+                        position: Some(root_position),
                         row: Some(json!({ projected_name.clone(): value })),
                     });
                 }
             }
         }
     }
-    if root_order != input.ordered_root_keys {
-        return FormVerdict::fallback(FallbackReason::WireUnaddressable);
-    }
-    let digest = result_digest(&input.post_result);
+    assert_eq!(
+        working_result, derived_result,
+        "E8 applying its own ordered wire lowering must equal child-output assembly"
+    );
+    assert_eq!(
+        root_order, derived_root_order,
+        "E8 applied root order must equal child-output assembly"
+    );
+    let digest = result_digest(&derived_result);
     FormVerdict::Maintain {
         delta_out: WireFrame {
             ops,
-            ordered_root_keys: input.ordered_root_keys.clone(),
+            ordered_root_keys: derived_root_order.clone(),
+            node_completeness: input.node_completeness.clone(),
+            graph_completeness,
+            proof_tuple: input.proof_tuple.clone(),
             result_digest: digest,
         },
         next_state: AssembleState {
-            result: input.post_result,
-            ordered_root_keys: input.ordered_root_keys,
+            result: derived_result,
+            ordered_root_keys: derived_root_order,
         },
     }
 }
@@ -2116,26 +2672,74 @@ fn evaluate_composition_dynamic(
     reads: &ReadTranscript,
 ) -> DynamicVerdict {
     let Some(states) = state.as_object() else {
-        return DynamicVerdict::Fallback(FallbackReason::PredicateUnanalyzable);
+        panic!("malformed composition state: expected object");
     };
     let Some(inputs) = input.as_object() else {
-        return DynamicVerdict::Fallback(FallbackReason::PredicateUnanalyzable);
+        panic!("malformed composition input: expected external-input object");
     };
     let mut outputs = Map::new();
     let mut next_states = Map::new();
     for node in nodes {
         let Some(node_state) = states.get(&node.node_id).cloned() else {
-            return DynamicVerdict::Fallback(FallbackReason::PredicateUnanalyzable);
+            panic!("malformed composition state: missing node {}", node.node_id);
         };
-        let node_input = match &node.input_from {
-            Some(source) => match outputs.get(source) {
-                Some(output) => output.clone(),
-                None => return DynamicVerdict::Fallback(FallbackReason::PredicateUnanalyzable),
-            },
-            None => match inputs.get(&node.node_id) {
-                Some(input) => input.clone(),
-                None => return DynamicVerdict::Fallback(FallbackReason::PredicateUnanalyzable),
-            },
+        if node.inputs.is_empty() {
+            panic!(
+                "malformed composition node {}: no named inputs",
+                node.node_id
+            );
+        }
+        let mut named = Map::new();
+        for arm in &node.inputs {
+            let (name, value) = match arm {
+                CompositionInputArm::Upstream { name, node_id } => (
+                    name,
+                    outputs
+                        .get(node_id)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "malformed composition node {}: upstream {} has no prior output",
+                                node.node_id, node_id
+                            )
+                        })
+                        .clone(),
+                ),
+                CompositionInputArm::External { name, input } => (
+                    name,
+                    inputs
+                        .get(input)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "malformed composition node {}: external input {} is absent",
+                                node.node_id, input
+                            )
+                        })
+                        .clone(),
+                ),
+            };
+            if named.insert(name.clone(), value).is_some() {
+                panic!(
+                    "malformed composition node {}: duplicate arm {}",
+                    node.node_id, name
+                );
+            }
+        }
+        let node_input = match node.operator.as_ref() {
+            Operator::Window { .. } | Operator::Assemble { .. } | Operator::Composition { .. } => {
+                if named.len() != 1 {
+                    panic!(
+                        "malformed unary composition node {}: expected one named arm",
+                        node.node_id
+                    );
+                }
+                named.into_values().next().expect("one unary arm")
+            }
+            Operator::Admit { .. }
+            | Operator::KeyedLookup { .. }
+            | Operator::PerParentWindow { .. }
+            | Operator::SupportSemiJoin { .. }
+            | Operator::MembershipLift { .. }
+            | Operator::PrincipalBind { .. } => Value::Object(named),
         };
         match evaluate_dynamic(&node.operator, node_state, node_input, reads) {
             DynamicVerdict::Maintain {

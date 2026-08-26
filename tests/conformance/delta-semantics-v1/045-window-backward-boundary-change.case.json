@@ -1,9 +1,9 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "window-backward-tail-competition",
+  "name": "window-backward-boundary-change",
   "coverage": [
     "window",
-    "read-maintain"
+    "backward"
   ],
   "operator": {
     "form": "window",
@@ -59,8 +59,8 @@
       "rowKey": "b"
     },
     "resultCount": 2,
-    "complete": false,
-    "label": "incomplete",
+    "complete": true,
+    "label": "complete",
     "continuation": {
       "values": [
         2
@@ -90,32 +90,7 @@
       }
     ]
   },
-  "readTranscript": [
-    {
-      "request": {
-        "kind": "tail",
-        "window": "root",
-        "boundary": {
-          "values": [
-            2
-          ],
-          "rowKey": "b"
-        },
-        "k": 1,
-        "labelOnly": false
-      },
-      "response": {
-        "kind": "tail",
-        "rows": [
-          {
-            "_id": "x",
-            "rank": 1.5
-          }
-        ],
-        "exhausted": true
-      }
-    }
-  ],
+  "readTranscript": [],
   "expected": {
     "verdict": "Maintain",
     "deltaOut": {
@@ -134,13 +109,13 @@
           "op": "splice-in",
           "sortKey": {
             "values": [
-              1.5
+              1
             ],
-            "rowKey": "x"
+            "rowKey": "a"
           },
           "row": {
-            "_id": "x",
-            "rank": 1.5
+            "_id": "a",
+            "rank": 1
           }
         }
       ]
@@ -161,33 +136,33 @@
           }
         },
         {
-          "rowKey": "x",
+          "rowKey": "a",
           "rankKeys": {
             "values": [
-              1.5
+              1
             ],
-            "rowKey": "x"
+            "rowKey": "a"
           },
           "row": {
-            "_id": "x",
-            "rank": 1.5
+            "_id": "a",
+            "rank": 1
           }
         }
       ],
       "boundary": {
         "values": [
-          1.5
+          1
         ],
-        "rowKey": "x"
+        "rowKey": "a"
       },
       "resultCount": 2,
-      "complete": false,
-      "label": "incomplete",
+      "complete": true,
+      "label": "complete",
       "continuation": {
         "values": [
-          1.5
+          1
         ],
-        "rowKey": "x"
+        "rowKey": "a"
       }
     }
   }

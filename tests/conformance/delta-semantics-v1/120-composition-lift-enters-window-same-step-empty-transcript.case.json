@@ -1,0 +1,153 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "composition-lift-enters-window-same-step-empty-transcript",
+  "coverage": [
+    "composition",
+    "membership-lift",
+    "fallback"
+  ],
+  "operator": {
+    "form": "composition",
+    "nodes": [
+      {
+        "nodeId": "support",
+        "operator": {
+          "form": "support-semi-join",
+          "config": {
+            "edge": "edge",
+            "edgeKind": "direct",
+            "mode": {
+              "kind": "exists"
+            },
+            "parentJoinFields": [
+              "join"
+            ],
+            "supportJoinFields": [
+              "join"
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "parent",
+            "source": "external",
+            "input": "empty"
+          },
+          {
+            "name": "support",
+            "source": "external",
+            "input": "supportRows"
+          },
+          {
+            "name": "target",
+            "source": "external",
+            "input": "empty"
+          }
+        ]
+      },
+      {
+        "nodeId": "lift",
+        "operator": {
+          "form": "membership-lift",
+          "config": {
+            "index": "carrier.by_room",
+            "supportField": "roomId",
+            "bound": 4,
+            "windowedUnprojected": false
+          }
+        },
+        "inputs": [
+          {
+            "name": "bits",
+            "source": "upstream",
+            "nodeId": "support"
+          },
+          {
+            "name": "supportValues",
+            "source": "external",
+            "input": "supportValues"
+          }
+        ]
+      },
+      {
+        "nodeId": "window",
+        "operator": {
+          "form": "window",
+          "config": {
+            "windowId": "root",
+            "order": [
+              {
+                "field": "rank",
+                "direction": "asc"
+              }
+            ],
+            "interval": {},
+            "take": 2,
+            "projectionFields": [
+              "rank",
+              "title"
+            ]
+          }
+        },
+        "inputs": [
+          {
+            "name": "input",
+            "source": "upstream",
+            "nodeId": "lift"
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "support": {
+      "scopes": {
+        "r1": {
+          "joinKey": [
+            "j1"
+          ],
+          "bit": false
+        }
+      }
+    },
+    "lift": {
+      "retained": {},
+      "survivingAnyOf": []
+    },
+    "window": {
+      "rows": [],
+      "boundary": null,
+      "resultCount": 0,
+      "complete": true,
+      "label": "complete",
+      "continuation": null
+    }
+  },
+  "foldedChangeBatch": {
+    "empty": {
+      "entries": []
+    },
+    "supportRows": {
+      "entries": [
+        {
+          "rowKey": "m1",
+          "op": "insert",
+          "admit": "enter",
+          "postImage": {
+            "_id": "m1",
+            "join": "j1"
+          },
+          "rankKeys": []
+        }
+      ]
+    },
+    "supportValues": {
+      "r1": "r1"
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
+  }
+}

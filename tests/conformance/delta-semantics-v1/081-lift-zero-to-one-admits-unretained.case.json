@@ -60,7 +60,7 @@
       "entries": [
         {
           "rowKey": "a",
-          "op": "update",
+          "op": "insert",
           "postImage": {
             "_id": "a",
             "rank": 1,

@@ -48,7 +48,25 @@
   },
   "readTranscript": [],
   "expected": {
-    "verdict": "Fallback",
-    "reason": "predicate-unanalyzable"
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": null
+          },
+          "admit": "stay-out",
+          "rankKeys": [
+            null
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {}
+    }
   }
 }

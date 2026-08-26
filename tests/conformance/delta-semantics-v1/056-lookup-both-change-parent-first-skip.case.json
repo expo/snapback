@@ -30,12 +30,13 @@
         ],
         "childKey": "c1",
         "found": true,
-        "rowVersion": null
+        "rowVersion": 1
       }
     },
     "children": {
       "c1": {
         "_id": "c1",
+        "_version": 1,
         "join": "j1",
         "name": "old"
       }
@@ -59,13 +60,14 @@
     "child": {
       "entries": [
         {
-          "rowKey": "c2",
+          "rowKey": "c3",
           "op": "insert",
           "admit": "enter",
           "postImage": {
-            "_id": "c2",
+            "_id": "c3",
+            "_version": 3,
             "join": "j2",
-            "name": "two"
+            "name": "batch-row"
           },
           "rankKeys": []
         }
@@ -85,8 +87,9 @@
         "kind": "point",
         "row": {
           "_id": "c2",
+          "_version": 2,
           "join": "j2",
-          "name": "two"
+          "name": "fill-row"
         }
       }
     }
@@ -100,7 +103,7 @@
           "scope": "p1",
           "childKey": "c2",
           "value": {
-            "name": "two"
+            "name": "fill-row"
           }
         }
       ]
@@ -113,14 +116,15 @@
           ],
           "childKey": "c2",
           "found": true,
-          "rowVersion": null
+          "rowVersion": 2
         }
       },
       "children": {
         "c2": {
           "_id": "c2",
+          "_version": 2,
           "join": "j2",
-          "name": "two"
+          "name": "fill-row"
         }
       }
     }

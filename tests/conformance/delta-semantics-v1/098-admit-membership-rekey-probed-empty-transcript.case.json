@@ -1,0 +1,66 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "admit-membership-rekey-probed-empty-transcript",
+  "coverage": [
+    "admit",
+    "membership",
+    "parent-arm",
+    "fallback"
+  ],
+  "operator": {
+    "form": "admit",
+    "config": {
+      "visibility": {
+        "kind": "membership",
+        "arm": "member",
+        "resourceField": "roomId",
+        "roles": null,
+        "edge": "membership"
+      },
+      "filters": [],
+      "grain": "complete-scope",
+      "rankOrder": [
+        {
+          "field": "rank",
+          "direction": "asc"
+        }
+      ],
+      "probeRelation": false
+    }
+  },
+  "initialState": {
+    "retained": {
+      "a": {
+        "_id": "a",
+        "rank": 1,
+        "roomId": "r1"
+      }
+    }
+  },
+  "foldedChangeBatch": {
+    "changes": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "update",
+          "postImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r2"
+          },
+          "preImage": {
+            "_id": "a",
+            "rank": 1,
+            "roomId": "r1"
+          }
+        }
+      ]
+    },
+    "supportBits": {}
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Fallback",
+    "reason": "support-unproved"
+  }
+}

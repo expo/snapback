@@ -60,7 +60,7 @@
         "keyPrefix": [
           "j1"
         ],
-        "bound": 4
+        "bound": 2
       },
       "response": {
         "kind": "range",

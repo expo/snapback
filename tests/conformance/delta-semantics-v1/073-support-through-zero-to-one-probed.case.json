@@ -18,7 +18,8 @@
       ],
       "supportJoinFields": [
         "join"
-      ]
+      ],
+      "throughTargetField": "targetId"
     }
   },
   "initialState": {
@@ -27,7 +28,8 @@
         "joinKey": [
           "j1"
         ],
-        "bit": false
+        "bit": false,
+        "throughTargets": {}
       }
     }
   },
@@ -43,7 +45,8 @@
           "admit": "enter",
           "postImage": {
             "_id": "through1",
-            "join": "j1"
+            "join": "j1",
+            "targetId": "t1"
           },
           "rankKeys": []
         }
@@ -86,7 +89,10 @@
           "joinKey": [
             "j1"
           ],
-          "bit": true
+          "bit": true,
+          "throughTargets": {
+            "through1": "t1"
+          }
         }
       }
     }

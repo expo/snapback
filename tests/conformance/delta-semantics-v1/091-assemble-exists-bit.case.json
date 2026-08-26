@@ -57,6 +57,19 @@
         }
       }
     ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "old"
+          }
+        ]
+      },
+      "exists": {
+        "p1": true
+      }
+    },
     "postResult": [
       {
         "_id": "p1",
@@ -66,7 +79,22 @@
     ],
     "orderedRootKeys": [
       "p1"
-    ]
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      },
+      {
+        "nodeId": "exists",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
   },
   "readTranscript": [],
   "expected": {
@@ -87,6 +115,22 @@
       "orderedRootKeys": [
         "p1"
       ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "exists",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
       "resultDigest": "sha256:24b4e11c3e33bbf957d1358a1746e3d446410e964b06ff65882b3f2f8d1ceda5"
     },
     "nextState": {

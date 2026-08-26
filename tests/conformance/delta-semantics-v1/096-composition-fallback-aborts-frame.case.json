@@ -27,7 +27,13 @@
             "probeRelation": false
           }
         },
-        "inputFrom": null
+        "inputs": [
+          {
+            "name": "changes",
+            "source": "external",
+            "input": "rows"
+          }
+        ]
       },
       {
         "nodeId": "window",
@@ -49,7 +55,13 @@
             ]
           }
         },
-        "inputFrom": "admit"
+        "inputs": [
+          {
+            "name": "input",
+            "source": "upstream",
+            "nodeId": "admit"
+          }
+        ]
       }
     ]
   },
@@ -67,22 +79,19 @@
     }
   },
   "foldedChangeBatch": {
-    "admit": {
-      "changes": {
-        "changes": [
-          {
-            "rowKey": "a",
-            "op": "insert",
-            "postImage": {
-              "_id": "a",
-              "rank": [
-                1
-              ]
-            }
+    "rows": {
+      "changes": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": [
+              1
+            ]
           }
-        ]
-      },
-      "supportBits": {}
+        }
+      ]
     }
   },
   "readTranscript": [],

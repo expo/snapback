@@ -1,0 +1,181 @@
+{
+  "format": "snapback.delta-semantics.case.v1",
+  "name": "assemble-to-many-two-removals-application-positions",
+  "coverage": [
+    "assemble",
+    "application-position"
+  ],
+  "operator": {
+    "form": "assemble",
+    "config": {
+      "rootNodeId": "root",
+      "nodes": [
+        {
+          "nodeId": "root",
+          "parent": null,
+          "kind": "root",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        },
+        {
+          "nodeId": "many",
+          "parent": "root",
+          "kind": "to-many",
+          "resultField": "children",
+          "projectionFields": [
+            "_id",
+            "title"
+          ]
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "result": [
+      {
+        "_id": "p1",
+        "title": "old",
+        "children": [
+          {
+            "_id": "c1",
+            "title": "one"
+          },
+          {
+            "_id": "c2",
+            "title": "two"
+          }
+        ]
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ]
+  },
+  "foldedChangeBatch": {
+    "events": [
+      {
+        "kind": "to-many",
+        "nodeId": "many",
+        "scope": "p1",
+        "delta": {
+          "ops": [
+            {
+              "op": "splice-out",
+              "sortKey": {
+                "values": [
+                  1
+                ],
+                "rowKey": "c1"
+              },
+              "rowKey": "c1"
+            },
+            {
+              "op": "splice-out",
+              "sortKey": {
+                "values": [
+                  2
+                ],
+                "rowKey": "c2"
+              },
+              "rowKey": "c2"
+            }
+          ]
+        }
+      }
+    ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "old"
+          }
+        ]
+      },
+      "many": {
+        "p1": []
+      }
+    },
+    "postResult": [
+      {
+        "_id": "p1",
+        "title": "old",
+        "children": []
+      }
+    ],
+    "orderedRootKeys": [
+      "p1"
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      },
+      {
+        "nodeId": "many",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
+  },
+  "readTranscript": [],
+  "expected": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "ops": [
+        {
+          "op": "remove",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c1",
+          "position": 0
+        },
+        {
+          "op": "remove",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c2",
+          "position": 0
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:a0085a6a0781a87d7032e60505fe322e48d2d6c35a0428659bc900cdaf388dbc"
+    },
+    "nextState": {
+      "result": [
+        {
+          "_id": "p1",
+          "title": "old",
+          "children": []
+        }
+      ],
+      "orderedRootKeys": [
+        "p1"
+      ]
+    }
+  }
+}

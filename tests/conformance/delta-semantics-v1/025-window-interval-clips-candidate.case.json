@@ -2,7 +2,8 @@
   "format": "snapback.delta-semantics.case.v1",
   "name": "window-interval-clips-candidate",
   "coverage": [
-    "window"
+    "window",
+    "numeric-precision"
   ],
   "operator": {
     "form": "window",
@@ -18,14 +19,14 @@
         "upper": {
           "key": {
             "values": [
-              2
+              9007199254740992
             ],
-            "rowKey": "b"
+            "rowKey": "zzzz"
           },
           "inclusive": true
         }
       },
-      "take": 2,
+      "take": 1,
       "projectionFields": [
         "rank",
         "title"
@@ -35,60 +36,47 @@
   "initialState": {
     "rows": [
       {
-        "rowKey": "a",
+        "rowKey": "z",
         "rankKeys": {
           "values": [
-            1
+            9007199254740992
           ],
-          "rowKey": "a"
+          "rowKey": "z"
         },
         "row": {
-          "_id": "a",
-          "rank": 1
-        }
-      },
-      {
-        "rowKey": "b",
-        "rankKeys": {
-          "values": [
-            2
-          ],
-          "rowKey": "b"
-        },
-        "row": {
-          "_id": "b",
-          "rank": 2
+          "_id": "z",
+          "rank": 9007199254740992
         }
       }
     ],
     "boundary": {
       "values": [
-        2
+        9007199254740992
       ],
-      "rowKey": "b"
+      "rowKey": "z"
     },
-    "resultCount": 2,
+    "resultCount": 1,
     "complete": true,
     "label": "complete",
     "continuation": {
       "values": [
-        2
+        9007199254740992
       ],
-      "rowKey": "b"
+      "rowKey": "z"
     }
   },
   "foldedChangeBatch": {
     "entries": [
       {
-        "rowKey": "c",
+        "rowKey": "a",
         "op": "insert",
         "admit": "enter",
         "postImage": {
-          "_id": "c",
-          "rank": 3
+          "_id": "a",
+          "rank": 9007199254740993
         },
         "rankKeys": [
-          3
+          9007199254740993
         ]
       }
     ]
@@ -102,46 +90,33 @@
     "nextState": {
       "rows": [
         {
-          "rowKey": "a",
+          "rowKey": "z",
           "rankKeys": {
             "values": [
-              1
+              9007199254740992
             ],
-            "rowKey": "a"
+            "rowKey": "z"
           },
           "row": {
-            "_id": "a",
-            "rank": 1
-          }
-        },
-        {
-          "rowKey": "b",
-          "rankKeys": {
-            "values": [
-              2
-            ],
-            "rowKey": "b"
-          },
-          "row": {
-            "_id": "b",
-            "rank": 2
+            "_id": "z",
+            "rank": 9007199254740992
           }
         }
       ],
       "boundary": {
         "values": [
-          2
+          9007199254740992
         ],
-        "rowKey": "b"
+        "rowKey": "z"
       },
-      "resultCount": 2,
+      "resultCount": 1,
       "complete": true,
       "label": "complete",
       "continuation": {
         "values": [
-          2
+          9007199254740992
         ],
-        "rowKey": "b"
+        "rowKey": "z"
       }
     }
   }

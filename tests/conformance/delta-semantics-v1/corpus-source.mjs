@@ -13,6 +13,10 @@ import { fileURLToPath } from 'node:url';
 
 const DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const FORMAT = 'snapback.delta-semantics.case.v1';
+const EXACT_INTEGER_PREFIX = '__SNAPBACK_EXACT_INTEGER__:';
+function exactInteger(value) {
+  return JSON.rawJSON(String(value));
+}
 
 const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "admit-public-insert": {
@@ -111,8 +115,26 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     }
   },
   "admit-null-actual-never-eq": {
-    "verdict": "Fallback",
-    "reason": "predicate-unanalyzable"
+    "verdict": "Maintain",
+    "deltaOut": {
+      "entries": [
+        {
+          "rowKey": "a",
+          "op": "insert",
+          "postImage": {
+            "_id": "a",
+            "rank": null
+          },
+          "admit": "stay-out",
+          "rankKeys": [
+            null
+          ]
+        }
+      ]
+    },
+    "nextState": {
+      "retained": {}
+    }
   },
   "admit-in-null-element-with-match": {
     "verdict": "Maintain",
@@ -764,46 +786,33 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "nextState": {
       "rows": [
         {
-          "rowKey": "a",
+          "rowKey": "z",
           "rankKeys": {
             "values": [
-              1
+              exactInteger("9007199254740992")
             ],
-            "rowKey": "a"
+            "rowKey": "z"
           },
           "row": {
-            "_id": "a",
-            "rank": 1
-          }
-        },
-        {
-          "rowKey": "b",
-          "rankKeys": {
-            "values": [
-              2
-            ],
-            "rowKey": "b"
-          },
-          "row": {
-            "_id": "b",
-            "rank": 2
+            "_id": "z",
+            "rank": exactInteger("9007199254740992")
           }
         }
       ],
       "boundary": {
         "values": [
-          2
+          exactInteger("9007199254740992")
         ],
-        "rowKey": "b"
+        "rowKey": "z"
       },
-      "resultCount": 2,
+      "resultCount": 1,
       "complete": true,
       "label": "complete",
       "continuation": {
         "values": [
-          2
+          exactInteger("9007199254740992")
         ],
-        "rowKey": "b"
+        "rowKey": "z"
       }
     }
   },
@@ -1570,26 +1579,26 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              1
+              11
             ],
             "rowKey": "a"
           },
           "row": {
             "_id": "a",
-            "rank": 1
+            "rank": 11
           }
         },
         {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              2
+              12
             ],
             "rowKey": "b"
           },
           "row": {
             "_id": "b",
-            "rank": 2
+            "rank": 12
           }
         }
       ]
@@ -1600,47 +1609,47 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "rowKey": "a",
           "rankKeys": {
             "values": [
-              1
+              11
             ],
             "rowKey": "a"
           },
           "row": {
             "_id": "a",
-            "rank": 1
+            "rank": 11
           }
         },
         {
           "rowKey": "b",
           "rankKeys": {
             "values": [
-              2
+              12
             ],
             "rowKey": "b"
           },
           "row": {
             "_id": "b",
-            "rank": 2
+            "rank": 12
           }
         }
       ],
       "boundary": {
         "values": [
-          2
+          12
         ],
         "rowKey": "b"
       },
       "resultCount": 2,
-      "complete": true,
-      "label": "complete",
+      "complete": false,
+      "label": "incomplete",
       "continuation": {
         "values": [
-          2
+          12
         ],
         "rowKey": "b"
       }
     }
   },
-  "window-backward-tail-competition": {
+  "window-backward-boundary-change": {
     "verdict": "Maintain",
     "deltaOut": {
       "ops": [
@@ -1658,13 +1667,13 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              1.5
+              1
             ],
-            "rowKey": "x"
+            "rowKey": "a"
           },
           "row": {
-            "_id": "x",
-            "rank": 1.5
+            "_id": "a",
+            "rank": 1
           }
         }
       ]
@@ -1685,33 +1694,33 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           }
         },
         {
-          "rowKey": "x",
+          "rowKey": "a",
           "rankKeys": {
             "values": [
-              1.5
+              1
             ],
-            "rowKey": "x"
+            "rowKey": "a"
           },
           "row": {
-            "_id": "x",
-            "rank": 1.5
+            "_id": "a",
+            "rank": 1
           }
         }
       ],
       "boundary": {
         "values": [
-          1.5
+          1
         ],
-        "rowKey": "x"
+        "rowKey": "a"
       },
       "resultCount": 2,
-      "complete": false,
-      "label": "incomplete",
+      "complete": true,
+      "label": "complete",
       "continuation": {
         "values": [
-          1.5
+          1
         ],
-        "rowKey": "x"
+        "rowKey": "a"
       }
     }
   },
@@ -1737,12 +1746,13 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           ],
           "childKey": "c1",
           "found": true,
-          "rowVersion": null
+          "rowVersion": 2
         }
       },
       "children": {
         "c1": {
           "_id": "c1",
+          "_version": 2,
           "join": "j1",
           "name": "new",
           "secret": "hidden"
@@ -1796,12 +1806,13 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           ],
           "childKey": "c1",
           "found": true,
-          "rowVersion": null
+          "rowVersion": 5
         }
       },
       "children": {
         "c1": {
           "_id": "c1",
+          "_version": 5,
           "join": "j1",
           "name": "new"
         }
@@ -1918,7 +1929,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "scope": "p1",
           "childKey": "c2",
           "value": {
-            "name": "two"
+            "name": "fill-row"
           }
         }
       ]
@@ -1931,14 +1942,15 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           ],
           "childKey": "c2",
           "found": true,
-          "rowVersion": null
+          "rowVersion": 2
         }
       },
       "children": {
         "c2": {
           "_id": "c2",
+          "_version": 2,
           "join": "j2",
-          "name": "two"
+          "name": "fill-row"
         }
       }
     }
@@ -1972,13 +1984,17 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "children": {}
     }
   },
-  "lookup-child-rekey-old-leaves-new-arrives": {
+  "lookup-delete-insert-same-key-net-found": {
     "verdict": "Maintain",
     "deltaOut": {
       "ops": [
         {
           "kind": "presence",
-          "scope": "p1"
+          "scope": "p1",
+          "childKey": "c2",
+          "value": {
+            "name": "replacement"
+          }
         }
       ]
     },
@@ -1988,12 +2004,19 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "lookupKey": [
             "j1"
           ],
-          "childKey": null,
-          "found": false,
-          "rowVersion": null
+          "childKey": "c2",
+          "found": true,
+          "rowVersion": 2
         }
       },
-      "children": {}
+      "children": {
+        "c2": {
+          "_id": "c2",
+          "_version": 2,
+          "join": "j1",
+          "name": "replacement"
+        }
+      }
     }
   },
   "per-parent-birth-fill-emitted": {
@@ -2286,34 +2309,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "per-parent-zero-take-rekey": {
     "verdict": "Maintain",
     "deltaOut": {
-      "ops": [
-        {
-          "scope": "p1",
-          "op": {
-            "op": "splice-out",
-            "sortKey": {
-              "values": [
-                1
-              ],
-              "rowKey": "c1"
-            },
-            "rowKey": "c1"
-          }
-        },
-        {
-          "scope": "p1",
-          "op": {
-            "op": "splice-out",
-            "sortKey": {
-              "values": [
-                2
-              ],
-              "rowKey": "c2"
-            },
-            "rowKey": "c2"
-          }
-        }
-      ]
+      "ops": []
     },
     "nextState": {
       "scopes": {
@@ -2497,7 +2493,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "joinKey": [
             "j1"
           ],
-          "bit": true
+          "bit": true,
+          "throughTargets": {
+            "through1": "t1"
+          }
         }
       }
     }
@@ -2507,7 +2506,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "deltaOut": {
       "transitions": [
         {
-          "scope": "p1",
+          "scope": "p2",
           "transition": "zero-to-one"
         }
       ]
@@ -2517,6 +2516,12 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
         "p1": {
           "joinKey": [
             "j1"
+          ],
+          "bit": false
+        },
+        "p2": {
+          "joinKey": [
+            "j2"
           ],
           "bit": true
         }
@@ -2610,7 +2615,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "joinKey": [
             "j1"
           ],
-          "bit": false
+          "bit": false,
+          "throughTargets": {
+            "through1": "t1"
+          }
         }
       }
     }
@@ -2621,7 +2629,7 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "entries": [
         {
           "rowKey": "a",
-          "op": "update",
+          "op": "insert",
           "postImage": {
             "_id": "a",
             "rank": 1,
@@ -2827,6 +2835,18 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "orderedRootKeys": [
         "p1"
       ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "window"
+        }
+      ],
+      "graphCompleteness": "window",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
       "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
     },
     "nextState": {
@@ -2852,26 +2872,32 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
           "position": 0,
           "row": {
             "_id": "p1",
-            "title": "new",
-            "child": {
-              "name": "assembled"
-            }
+            "title": "new"
           }
         }
       ],
       "orderedRootKeys": [
         "p1"
       ],
-      "resultDigest": "sha256:8cc79c6b8ffe23ce67ea8d7a336e6d92ef096225d0c1a67b18c72ea139e0014f"
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "new",
-          "child": {
-            "name": "assembled"
-          }
+          "title": "new"
         }
       ],
       "orderedRootKeys": [
@@ -2897,6 +2923,22 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "orderedRootKeys": [
         "p1"
       ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "one",
+          "label": "unknown"
+        }
+      ],
+      "graphCompleteness": "unknown",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
       "resultDigest": "sha256:4fd139b23420dce177de78466789d97857f9d35f75ed725be274669596d01dfc"
     },
     "nextState": {
@@ -2932,6 +2974,22 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       "orderedRootKeys": [
         "p1"
       ],
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "exists",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
       "resultDigest": "sha256:24b4e11c3e33bbf957d1358a1746e3d446410e964b06ff65882b3f2f8d1ceda5"
     },
     "nextState": {
@@ -2976,13 +3034,30 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
         "p1",
         "p2"
       ],
-      "resultDigest": "sha256:1c5ad2f3964bf1a50920e8e94e0f1e354af0e4fa4e52e858d0f04288470267c4"
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:62110f91b67fb7a0a105780cf3209c06d52876c60bf63ae4770cac155b17ff19"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "old"
+          "title": "old",
+          "children": []
         },
         {
           "_id": "p2",
@@ -3001,38 +3076,52 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       ]
     }
   },
-  "assemble-to-many-direct-root-addressable": {
+  "assemble-to-many-two-removals-application-positions": {
     "verdict": "Maintain",
     "deltaOut": {
       "ops": [
         {
-          "op": "add",
+          "op": "remove",
           "nodeId": "many",
           "rootKey": "p1",
           "key": "c1",
-          "position": 0,
-          "row": {
-            "_id": "c1",
-            "title": "child"
-          }
+          "position": 0
+        },
+        {
+          "op": "remove",
+          "nodeId": "many",
+          "rootKey": "p1",
+          "key": "c2",
+          "position": 0
         }
       ],
       "orderedRootKeys": [
         "p1"
       ],
-      "resultDigest": "sha256:df1c90bb50477d266dd4298c22988193edfa2b84c14e9fd6a25d9407b9a80dee"
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:a0085a6a0781a87d7032e60505fe322e48d2d6c35a0428659bc900cdaf388dbc"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
           "title": "old",
-          "children": [
-            {
-              "_id": "c1",
-              "title": "child"
-            }
-          ]
+          "children": []
         }
       ],
       "orderedRootKeys": [
@@ -3040,22 +3129,111 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       ]
     }
   },
-  "composition-admit-to-window": {
+  "composition-parent-child-product-to-lookup": {
     "verdict": "Maintain",
     "deltaOut": {
-      "admit": {
+      "parent-admit": {
+        "entries": [
+          {
+            "rowKey": "p1",
+            "op": "update",
+            "postImage": {
+              "_id": "p1",
+              "join": null
+            },
+            "admit": "stay-in",
+            "rankKeys": [
+              null
+            ]
+          }
+        ]
+      },
+      "child-admit": {
+        "entries": [
+          {
+            "rowKey": "c2",
+            "op": "insert",
+            "postImage": {
+              "_id": "c2",
+              "_version": 2,
+              "join": "j1",
+              "name": "batch-row"
+            },
+            "admit": "enter",
+            "rankKeys": [
+              null
+            ]
+          }
+        ]
+      },
+      "lookup": {
+        "ops": [
+          {
+            "kind": "presence",
+            "scope": "p1"
+          }
+        ]
+      }
+    },
+    "nextState": {
+      "parent-admit": {
+        "retained": {
+          "p1": {
+            "_id": "p1",
+            "join": null
+          }
+        }
+      },
+      "child-admit": {
+        "retained": {
+          "c2": {
+            "_id": "c2",
+            "_version": 2,
+            "join": "j1",
+            "name": "batch-row"
+          }
+        }
+      },
+      "lookup": {
+        "scopes": {
+          "p1": {
+            "lookupKey": null,
+            "childKey": null,
+            "found": false,
+            "rowVersion": null
+          }
+        },
+        "children": {}
+      }
+    }
+  },
+  "composition-fallback-aborts-frame": {
+    "verdict": "Fallback",
+    "reason": "rank-undecidable"
+  },
+  "composition-lift-enters-window-same-step": {
+    "verdict": "Maintain",
+    "deltaOut": {
+      "support": {
+        "transitions": [
+          {
+            "scope": "r1",
+            "transition": "zero-to-one"
+          }
+        ]
+      },
+      "lift": {
         "entries": [
           {
             "rowKey": "a",
             "op": "insert",
             "postImage": {
               "_id": "a",
-              "rank": 1
+              "rank": 1,
+              "roomId": "r1"
             },
             "admit": "enter",
-            "rankKeys": [
-              1
-            ]
+            "rankKeys": []
           }
         ]
       },
@@ -3071,20 +3249,33 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             },
             "row": {
               "_id": "a",
-              "rank": 1
+              "rank": 1,
+              "roomId": "r1"
             }
           }
         ]
       }
     },
     "nextState": {
-      "admit": {
+      "support": {
+        "scopes": {
+          "r1": {
+            "joinKey": [
+              "j1"
+            ],
+            "bit": true
+          }
+        }
+      },
+      "lift": {
         "retained": {
           "a": {
             "_id": "a",
-            "rank": 1
+            "rank": 1,
+            "roomId": "r1"
           }
-        }
+        },
+        "survivingAnyOf": []
       },
       "window": {
         "rows": [
@@ -3098,7 +3289,8 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
             },
             "row": {
               "_id": "a",
-              "rank": 1
+              "rank": 1,
+              "roomId": "r1"
             }
           }
         ],
@@ -3120,9 +3312,9 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
       }
     }
   },
-  "composition-fallback-aborts-frame": {
+  "admit-membership-rekey-probed-empty-transcript": {
     "verdict": "Fallback",
-    "reason": "rank-undecidable"
+    "reason": "support-unproved"
   },
   "window-incomplete-underfill-tail-exhausted-empty-transcript": {
     "verdict": "Fallback",
@@ -3149,10 +3341,6 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
     "reason": "completeness-indeterminate"
   },
   "window-empty-incomplete-tail-from-start-empty-transcript": {
-    "verdict": "Fallback",
-    "reason": "boundary-displacement"
-  },
-  "window-backward-tail-competition-empty-transcript": {
     "verdict": "Fallback",
     "reason": "boundary-displacement"
   },
@@ -3211,6 +3399,10 @@ const EXPECTED_SOURCE = /* EXPECTED_SOURCE_START */ {
   "lift-zero-to-one-admits-unretained-empty-transcript": {
     "verdict": "Fallback",
     "reason": "scope-unresolved"
+  },
+  "composition-lift-enters-window-same-step-empty-transcript": {
+    "verdict": "Fallback",
+    "reason": "scope-unresolved"
   }
 } /* EXPECTED_SOURCE_END */;
 
@@ -3266,8 +3458,8 @@ const lookup = (overrides = {}) => ({
   },
 });
 const lookupState = (scopes = {}, children = {}) => ({ scopes, children });
-const lookupScope = (lookupKey, childKey, found = childKey !== null) => ({
-  lookupKey, childKey, found, rowVersion: null,
+const lookupScope = (lookupKey, childKey, found = childKey !== null, rowVersion = null) => ({
+  lookupKey, childKey, found, rowVersion,
 });
 const e5 = (overrides = {}) => ({
   form: 'per-parent-window', config: {
@@ -3282,7 +3474,9 @@ const support = (overrides = {}) => ({
   },
 });
 const supportState = (scopes) => ({ scopes });
-const supportScope = (joinKey, bit) => ({ joinKey, bit });
+const supportScope = (joinKey, bit, throughTargets) => ({
+  joinKey, bit, ...(throughTargets === undefined ? {} : { throughTargets }),
+});
 
 const authored = [];
 const add = (name, coverage, operator, initialState, foldedChangeBatch, readTranscript = []) => {
@@ -3356,7 +3550,7 @@ add('admit-membership-unlisted-role-denied', ['admit', 'membership', 'roles'], p
   changes: { changes: [{ rowKey: 'a', op: 'insert', postImage: row('a', 1, { roomId: 'r1' }) }] },
   supportBits: { member: { a: { role: 'reader', pending: false } } },
 });
-add('admit-membership-rekey-probed', ['admit', 'membership', 'parent-arm'], publicAdmit({
+add('admit-membership-rekey-probed', ['admit', 'membership', 'parent-arm', 'read-maintain'], publicAdmit({
   visibility: { kind: 'membership', arm: 'member', resourceField: 'roomId', roles: null, edge: 'membership' },
 }), { retained: { a: row('a', 1, { roomId: 'r1' }) } }, {
   changes: { changes: [{ rowKey: 'a', op: 'update', postImage: row('a', 1, { roomId: 'r2' }), preImage: row('a', 1, { roomId: 'r1' }) }] }, supportBits: {},
@@ -3396,9 +3590,14 @@ add('window-incomplete-underfill-tail-exhausted', ['window', 'read-maintain'], w
 add('window-backward-order', ['window'], window({ order: [{ field: 'rank', direction: 'desc' }] }), windowState([['c', 3], ['b', 2]], true), {
   entries: [dz('d', 'insert', 'enter', row('d', 4), [4])],
 });
-add('window-interval-clips-candidate', ['window'], window({
-  interval: { upper: { key: rankKey('b', 2), inclusive: true } },
-}), windowState([['a', 1], ['b', 2]], true), { entries: [dz('c', 'insert', 'enter', row('c', 3), [3])] });
+const exactLow = exactInteger('9007199254740992');
+const exactHigh = exactInteger('9007199254740993');
+add('window-interval-clips-candidate', ['window', 'numeric-precision'], window({
+  take: 1,
+  interval: { upper: { key: rankKey('zzzz', exactLow), inclusive: true } },
+}), windowState([['z', exactLow]], true), {
+  entries: [dz('a', 'insert', 'enter', row('a', exactHigh), [exactHigh])],
+});
 add('window-take-zero', ['window'], window({ take: 0 }), windowState([], false), {
   entries: [dz('a', 'insert', 'enter', row('a', 1), [1])],
 });
@@ -3454,24 +3653,28 @@ add('window-admitted-missing-post-image', ['window', 'fallback'], window(), wind
 add('window-complete-unretained-delete-noop', ['window', 'completeness'], window(), windowState([['a', 1], ['b', 2]], true), {
   entries: [dz('x', 'delete', 'stay-out')],
 });
-add('window-empty-incomplete-tail-from-start', ['window', 'read-maintain'], window(), windowState([], false), { entries: [] }, [
-  tail('root', null, 2, [row('a', 1), row('b', 2)], true),
+add('window-empty-incomplete-tail-from-start', ['window', 'finite-interval', 'read-maintain'], window({
+  interval: { lower: { key: rankKey('interval-start', 10), inclusive: true } },
+}), windowState([], false), { entries: [dz('c', 'insert', 'enter', row('c', 15), [15])] }, [
+  tail('root', rankKey('interval-start', 10), 2, [row('a', 11), row('b', 12)], true),
 ]);
-add('window-backward-tail-competition', ['window', 'read-maintain'], window({ order: [{ field: 'rank', direction: 'desc' }] }), {
-  ...windowState([['c', 3], ['b', 2]], false),
-}, { entries: [dz('c', 'delete', 'leave'), dz('a', 'insert', 'enter', row('a', 1), [1])] }, [
-  tail('root', rankKey('b', 2), 1, [row('x', 1.5)], true),
-]);
+add('window-backward-boundary-change', ['window', 'backward'], window({ order: [{ field: 'rank', direction: 'desc' }] }),
+  windowState([['c', 3], ['b', 2]], true), {
+    entries: [dz('c', 'delete', 'leave'), dz('a', 'insert', 'enter', row('a', 1), [1])],
+  });
 
 // E4 unique keyed lookup and presence cases.
-const foundState = lookupState({ p1: lookupScope(['j1'], 'c1') }, { c1: { _id: 'c1', join: 'j1', name: 'old' } });
+const foundState = lookupState(
+  { p1: lookupScope(['j1'], 'c1', true, 1) },
+  { c1: { _id: 'c1', _version: 1, join: 'j1', name: 'old' } },
+);
 const missingState = lookupState({ p1: lookupScope(['j1'], null, false) }, {});
 add('lookup-child-patch', ['lookup', 'presence'], lookup(), clone(foundState), { parent: { entries: [] }, child: { entries: [
-  dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j1', name: 'new', secret: 'hidden' }),
+  dz('c1', 'update', 'stay-in', { _id: 'c1', _version: 2, join: 'j1', name: 'new', secret: 'hidden' }),
 ] } });
 add('lookup-optional-found-to-missing', ['lookup', 'presence'], lookup(), clone(foundState), { parent: { entries: [] }, child: { entries: [dz('c1', 'delete', 'leave')] } });
 add('lookup-optional-missing-to-found', ['lookup', 'presence'], lookup(), clone(missingState), { parent: { entries: [] }, child: { entries: [
-  dz('c1', 'insert', 'enter', { _id: 'c1', join: 'j1', name: 'new' }),
+  dz('c1', 'insert', 'enter', { _id: 'c1', _version: 5, join: 'j1', name: 'new' }),
 ] } });
 add('lookup-required-found-to-missing', ['lookup', 'presence', 'fallback'], lookup({ presence: 'required' }), clone(foundState), {
   parent: { entries: [] }, child: { entries: [dz('c1', 'delete', 'leave')] },
@@ -3499,29 +3702,32 @@ add('lookup-two-enters-empty-unique', ['lookup', 'fallback', 'batch-fold'], look
 });
 add('lookup-both-change-parent-first-skip', ['lookup', 'both-change', 'read-maintain'], lookup(), clone(foundState), {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] },
-  child: { entries: [dz('c2', 'insert', 'enter', { _id: 'c2', join: 'j2', name: 'two' })] },
-}, [point('child.by_join', ['j2'], { _id: 'c2', join: 'j2', name: 'two' })]);
+  child: { entries: [dz('c3', 'insert', 'enter', { _id: 'c3', _version: 3, join: 'j2', name: 'batch-row' })] },
+}, [point('child.by_join', ['j2'], { _id: 'c2', _version: 2, join: 'j2', name: 'fill-row' })]);
 add('lookup-inadmitted-child-does-not-attach', ['lookup'], lookup(), clone(missingState), {
   parent: { entries: [] }, child: { entries: [dz('c1', 'insert', 'stay-out', { _id: 'c1', join: 'j1', name: 'hidden' })] },
 });
 add('lookup-scope-death-no-read', ['lookup', 'parent-arm'], lookup(), clone(foundState), {
   parent: { entries: [dz('p1', 'delete', 'leave')] }, child: { entries: [] },
 });
-add('lookup-child-rekey-old-leaves-new-arrives', ['lookup', 'rekey'], lookup(), clone(foundState), {
-  parent: { entries: [] }, child: { entries: [dz('c1', 'update', 'stay-in', { _id: 'c1', join: 'j2', name: 'moved' })] },
+add('lookup-delete-insert-same-key-net-found', ['lookup', 'whole-batch', 'presence'], lookup({ presence: 'required' }), clone(foundState), {
+  parent: { entries: [] }, child: { entries: [
+    dz('c1', 'delete', 'leave'),
+    dz('c2', 'insert', 'enter', { _id: 'c2', _version: 2, join: 'j1', name: 'replacement' }),
+  ] },
 });
 
 // E5 bounded per-parent windows.
 add('per-parent-birth-fill-emitted', ['per-parent-window', 'scope-fill', 'read-maintain'], e5(), { scopes: {} }, {
   parent: { entries: [parent('p1', 'enter', 'j1')] }, childByScope: {},
-}, [range('child.by_parent', ['j1'], 4, [row('c1', 1), row('c2', 2)])]);
+}, [range('child.by_parent', ['j1'], 2, [row('c1', 1), row('c2', 2)])]);
 add('per-parent-birth-null-key-skips-read', ['per-parent-window', 'scope-fill'], e5(), { scopes: {} }, {
   parent: { entries: [dz('p1', 'insert', 'enter', { _id: 'p1', join: null })] }, childByScope: {},
 });
 const e5State = { scopes: { p1: { lookupKey: ['j1'], window: windowState([['c1', 1], ['c2', 2]], true) } } };
 add('per-parent-rekey-prior-to-fill', ['per-parent-window', 'rekey', 'read-maintain'], e5(), clone(e5State), {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] }, childByScope: {},
-}, [range('child.by_parent', ['j2'], 4, [row('c3', 3)])]);
+}, [range('child.by_parent', ['j2'], 2, [row('c3', 3)])]);
 add('per-parent-rekey-to-null-skips-read', ['per-parent-window', 'rekey'], e5(), clone(e5State), {
   parent: { entries: [parent('p1', 'stay-in', null)] }, childByScope: {},
 });
@@ -3535,13 +3741,19 @@ for (const transition of ['birth', 'death', 'rekey']) {
 add('per-parent-zero-take-birth', ['per-parent-window', 'scope-fill'], e5({ window: window({ windowId: 'children', take: 0 }).config }), { scopes: {} }, {
   parent: { entries: [parent('p1', 'enter', 'j1')] }, childByScope: {},
 });
-add('per-parent-zero-take-rekey', ['per-parent-window', 'rekey'], e5({ window: window({ windowId: 'children', take: 0 }).config }), clone(e5State), {
+const zeroTakeWindowState = {
+  rows: [], boundary: null, resultCount: 0, complete: false,
+  label: 'zero-take-unproved', continuation: null,
+};
+add('per-parent-zero-take-rekey', ['per-parent-window', 'rekey'], e5({ window: window({ windowId: 'children', take: 0 }).config }), {
+  scopes: { p1: { lookupKey: ['j1'], window: clone(zeroTakeWindowState) } },
+}, {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] }, childByScope: {},
 });
 add('per-parent-both-change-parent-first-skip', ['per-parent-window', 'both-change', 'read-maintain'], e5(), clone(e5State), {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] },
   childByScope: { p1: { entries: [dz('c3', 'insert', 'enter', row('c3', 3), [3])] } },
-}, [range('child.by_parent', ['j2'], 4, [row('c3', 3)])]);
+}, [range('child.by_parent', ['j2'], 2, [row('c3', 3)])]);
 
 // E6 support transitions and parent arms.
 const supportFalse = supportState({ p1: supportScope(['j1'], false) });
@@ -3555,13 +3767,21 @@ add('support-direct-one-to-zero-reprobe', ['support', 'read-maintain'], support(
 add('support-one-to-one-delete', ['support', 'read-maintain'], support(), clone(supportTrue), {
   parent: { entries: [] }, support: { entries: [dz('m1', 'delete', 'leave', undefined, ['j1'])] }, target: { entries: [] },
 }, [probe('edge', 'p1', true)]);
-add('support-through-zero-to-one-probed', ['support', 'read-maintain'], support({ edgeKind: 'through' }), clone(supportFalse), {
-  parent: { entries: [] }, support: { entries: [dz('through1', 'insert', 'enter', { _id: 'through1', join: 'j1' })] }, target: { entries: [] },
+add('support-through-zero-to-one-probed', ['support', 'read-maintain'], support({ edgeKind: 'through', throughTargetField: 'targetId' }),
+  supportState({ p1: supportScope(['j1'], false, {}) }), {
+  parent: { entries: [] }, support: { entries: [dz('through1', 'insert', 'enter', { _id: 'through1', join: 'j1', targetId: 't1' })] }, target: { entries: [] },
 }, [probe('edge', 'p1', true)]);
 const allSupport = support({ mode: { kind: 'all', elements: ['a', 'b'] } });
-add('support-all-mode-element-transition', ['support', 'read-maintain'], allSupport, clone(supportFalse), {
-  parent: { entries: [] }, support: { entries: [dz('m1', 'insert', 'enter', { _id: 'm1', join: 'j1' })] }, target: { entries: [] },
-}, [probe('edge', 'p1', true, 'a'), probe('edge', 'p1', true, 'b')]);
+add('support-all-mode-element-transition', ['support', 'all-and', 'read-maintain'], allSupport,
+  supportState({ p1: supportScope(['j1'], false), p2: supportScope(['j2'], false) }), {
+  parent: { entries: [] }, support: { entries: [
+    dz('m1', 'insert', 'enter', { _id: 'm1', join: 'j1' }),
+    dz('m2', 'insert', 'enter', { _id: 'm2', join: 'j2' }),
+  ] }, target: { entries: [] },
+}, [
+  probe('edge', 'p1', true, 'a'), probe('edge', 'p1', false, 'b'),
+  probe('edge', 'p2', true, 'a'), probe('edge', 'p2', true, 'b'),
+]);
 add('support-same-scope-delete-insert-fold', ['support', 'batch-fold'], support(), clone(supportTrue), {
   parent: { entries: [] }, support: { entries: [
     dz('m1', 'delete', 'leave', undefined, ['j1']), dz('m2', 'insert', 'enter', { _id: 'm2', join: 'j1' }),
@@ -3573,14 +3793,15 @@ add('support-parent-birth-establishes-bit', ['support', 'parent-arm', 'read-main
 add('support-parent-rekey-establishes-bit', ['support', 'parent-arm', 'rekey', 'read-maintain'], support(), clone(supportTrue), {
   parent: { entries: [parent('p1', 'stay-in', 'j2')] }, support: { entries: [] }, target: { entries: [] },
 }, [probe('edge', 'p1', false)]);
-add('support-scope-attribution-unresolved', ['support', 'fallback'], support(), clone(supportTrue), {
-  parent: { entries: [] }, support: { entries: [dz('m1', 'delete', 'leave')] }, target: { entries: [] },
+add('support-scope-attribution-unresolved', ['support', 'fallback'], support({ edgeKind: 'through', throughTargetField: 'targetId' }), clone(supportTrue), {
+  parent: { entries: [] }, support: { entries: [] }, target: { entries: [dz('t1', 'delete', 'leave')] },
 });
 add('support-parent-death-destroys-bit', ['support', 'parent-arm'], support(), clone(supportTrue), {
   parent: { entries: [dz('p1', 'delete', 'leave')] }, support: { entries: [] }, target: { entries: [] },
 });
-add('support-through-target-change', ['support', 'read-maintain'], support({ edgeKind: 'through' }), clone(supportTrue), {
-  parent: { entries: [] }, support: { entries: [] }, target: { entries: [dz('t1', 'delete', 'leave', undefined, ['j1'])] },
+add('support-through-target-change', ['support', 'read-maintain'], support({ edgeKind: 'through', throughTargetField: 'targetId' }),
+  supportState({ p1: supportScope(['j1'], true, { through1: 't1' }) }), {
+  parent: { entries: [] }, support: { entries: [] }, target: { entries: [dz('t1', 'delete', 'leave')] },
 }, [probe('edge', 'p1', false)]);
 
 // E6 membership lift.
@@ -3623,60 +3844,153 @@ const oneNode = { nodeId: 'one', parent: 'root', kind: 'to-one', resultField: 'c
 const manyNode = { nodeId: 'many', parent: 'root', kind: 'to-many', resultField: 'children', projectionFields: ['_id', 'title'] };
 const existsNode = { nodeId: 'exists', parent: 'root', kind: 'exists', resultField: 'hasAny', projectionFields: ['hasAny'] };
 const assembleState = { result: [{ _id: 'p1', title: 'old' }], orderedRootKeys: ['p1'] };
-add('assemble-projection-scoped-patch', ['assemble'], assemble([rootNode]), clone(assembleState), {
-  events: [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new', secret: 'hidden' } }] } }],
-  postResult: [{ _id: 'p1', title: 'new' }], orderedRootKeys: ['p1'],
+const assemblyInput = (nodes, events, nextNodeOutputs, postResult, labels = {}) => ({
+  events,
+  nextNodeOutputs,
+  postResult,
+  orderedRootKeys: postResult.map(({ _id }) => _id),
+  nodeCompleteness: nodes.map(({ nodeId }) => ({ nodeId, label: labels[nodeId] ?? 'complete' })),
+  proofTuple: { materialization: 'm1', authority: 'public', evaluationCut: 7 },
 });
-// serde field names inside enum variants are snake_case; the next normalization fixes authored convenience.
-authored.at(-1).foldedChangeBatch.events[0].delta.ops[0] = { op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new', secret: 'hidden' } };
+add('assemble-projection-scoped-patch', ['assemble'], assemble([rootNode]), clone(assembleState), {
+  ...assemblyInput(
+    [rootNode],
+    [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'patch', sortKey: rankKey('p1', 1), rowKey: 'p1', post: { title: 'new', secret: 'hidden' } }] } }],
+    { root: { $root: [{ _id: 'p1', title: 'new', secret: 'hidden' }] } },
+    [{ _id: 'p1', title: 'new' }],
+    { root: 'window' },
+  ),
+});
 add('assemble-root-splice-add', ['assemble'], assemble([rootNode]), { result: [], orderedRootKeys: [] }, {
-  events: [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('p1', 1), row: { _id: 'p1', title: 'new', secret: 'hidden' } }] } }],
-  postResult: [{ _id: 'p1', title: 'new', child: { name: 'assembled' } }], orderedRootKeys: ['p1'],
+  ...assemblyInput(
+    [rootNode],
+    [{ kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('p1', 1), row: { _id: 'p1', title: 'new', secret: 'hidden' } }] } }],
+    { root: { $root: [{ _id: 'p1', title: 'new', secret: 'hidden' }] } },
+    [{ _id: 'p1', title: 'new' }],
+  ),
 });
 add('assemble-to-one-presence', ['assemble', 'presence'], assemble([rootNode, oneNode]), clone(assembleState), {
-  events: [{ kind: 'to-one', nodeId: 'one', delta: { ops: [{ kind: 'presence', scope: 'p1', childKey: 'c1', value: { name: 'child' } }] } }],
-  postResult: [{ _id: 'p1', title: 'old', child: { name: 'child' } }], orderedRootKeys: ['p1'],
+  ...assemblyInput(
+    [rootNode, oneNode],
+    [{ kind: 'to-one', nodeId: 'one', delta: { ops: [{ kind: 'presence', scope: 'p1', childKey: 'c1', value: { name: 'child' } }] } }],
+    {
+      root: { $root: [{ _id: 'p1', title: 'old' }] },
+      one: { p1: { _id: 'c1', name: 'child' } },
+    },
+    [{ _id: 'p1', title: 'old', child: { name: 'child' } }],
+    { one: 'unknown' },
+  ),
 });
 add('assemble-exists-bit', ['assemble', 'support'], assemble([rootNode, existsNode]), clone(assembleState), {
-  events: [{ kind: 'exists', nodeId: 'exists', delta: { transitions: [{ scope: 'p1', transition: 'zero-to-one' }] } }],
-  postResult: [{ _id: 'p1', title: 'old', hasAny: true }], orderedRootKeys: ['p1'],
+  ...assemblyInput(
+    [rootNode, existsNode],
+    [{ kind: 'exists', nodeId: 'exists', delta: { transitions: [{ scope: 'p1', transition: 'zero-to-one' }] } }],
+    {
+      root: { $root: [{ _id: 'p1', title: 'old' }] },
+      exists: { p1: true },
+    },
+    [{ _id: 'p1', title: 'old', hasAny: true }],
+  ),
 });
 const nestedOne = { nodeId: 'nestedOne', parent: 'many', kind: 'to-one', projectionFields: ['name'] };
 add('assemble-below-array-unaddressable', ['assemble', 'fallback'], assemble([rootNode, manyNode, nestedOne]), clone(assembleState), {
-  events: [{ kind: 'to-one', nodeId: 'nestedOne', delta: { ops: [{ kind: 'presence', scope: 'c1', childKey: 'x', value: { name: 'x' } }] } }],
-  postResult: clone(assembleState.result), orderedRootKeys: ['p1'],
+  ...assemblyInput(
+    [rootNode, manyNode, nestedOne],
+    [{ kind: 'to-one', nodeId: 'nestedOne', delta: { ops: [{ kind: 'presence', scope: 'c1', childKey: 'x', value: { name: 'x' } }] } }],
+    {
+      root: { $root: [{ _id: 'p1', title: 'old' }] },
+      many: { p1: [] },
+      nestedOne: {},
+    },
+    [{ _id: 'p1', title: 'old', children: [] }],
+  ),
 });
-add('assemble-ancestor-birth-absorbs-descendant', ['assemble', 'ancestor-absorption'], assemble([rootNode, manyNode]), clone(assembleState), {
-  events: [
-    { kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('p2', 2), row: { _id: 'p2', title: 'new' } }] } },
-    { kind: 'to-many', nodeId: 'many', scope: 'p2', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('c1', 1), row: { _id: 'c1', title: 'child' } }] } },
-  ],
-  postResult: [
-    { _id: 'p1', title: 'old' },
-    { _id: 'p2', title: 'new', children: [{ _id: 'c1', title: 'child' }] },
-  ],
-  orderedRootKeys: ['p1', 'p2'],
+const parentWithEmptyChildren = {
+  result: [{ _id: 'p1', title: 'old', children: [] }], orderedRootKeys: ['p1'],
+};
+add('assemble-ancestor-birth-absorbs-descendant', ['assemble', 'ancestor-absorption'], assemble([rootNode, manyNode]), clone(parentWithEmptyChildren), {
+  ...assemblyInput(
+    [rootNode, manyNode],
+    [
+      { kind: 'root-seq', nodeId: 'root', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('p2', 2), row: { _id: 'p2', title: 'new' } }] } },
+      { kind: 'to-many', nodeId: 'many', scope: 'p2', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('c1', 1), row: { _id: 'c1', title: 'child' } }] } },
+    ],
+    {
+      root: { $root: [{ _id: 'p1', title: 'old' }, { _id: 'p2', title: 'new' }] },
+      many: { p1: [], p2: [{ _id: 'c1', title: 'child' }] },
+    },
+    [
+      { _id: 'p1', title: 'old', children: [] },
+      { _id: 'p2', title: 'new', children: [{ _id: 'c1', title: 'child' }] },
+    ],
+  ),
 });
-add('assemble-to-many-direct-root-addressable', ['assemble'], assemble([rootNode, manyNode]), clone(assembleState), {
-  events: [{ kind: 'to-many', nodeId: 'many', scope: 'p1', delta: { ops: [{ op: 'splice-in', sortKey: rankKey('c1', 1), row: { _id: 'c1', title: 'child' } }] } }],
-  postResult: [{ _id: 'p1', title: 'old', children: [{ _id: 'c1', title: 'child' }] }], orderedRootKeys: ['p1'],
+const twoChildrenState = {
+  result: [{ _id: 'p1', title: 'old', children: [
+    { _id: 'c1', title: 'one' }, { _id: 'c2', title: 'two' },
+  ] }],
+  orderedRootKeys: ['p1'],
+};
+add('assemble-to-many-two-removals-application-positions', ['assemble', 'application-position'], assemble([rootNode, manyNode]), clone(twoChildrenState), {
+  ...assemblyInput(
+    [rootNode, manyNode],
+    [{ kind: 'to-many', nodeId: 'many', scope: 'p1', delta: { ops: [
+      { op: 'splice-out', sortKey: rankKey('c1', 1), rowKey: 'c1' },
+      { op: 'splice-out', sortKey: rankKey('c2', 2), rowKey: 'c2' },
+    ] } }],
+    {
+      root: { $root: [{ _id: 'p1', title: 'old' }] },
+      many: { p1: [] },
+    },
+    [{ _id: 'p1', title: 'old', children: [] }],
+  ),
 });
 
 // Whole-graph dataflow and atomic fallback.
-const composition = { form: 'composition', nodes: [
-  { nodeId: 'admit', operator: publicAdmit(), inputFrom: null },
-  { nodeId: 'window', operator: window(), inputFrom: 'admit' },
+const externalArm = (name, input) => ({ name, source: 'external', input });
+const upstreamArm = (name, nodeId) => ({ name, source: 'upstream', nodeId });
+const unaryComposition = { form: 'composition', nodes: [
+  { nodeId: 'admit', operator: publicAdmit(), inputs: [externalArm('changes', 'rows')] },
+  { nodeId: 'window', operator: window(), inputs: [upstreamArm('input', 'admit')] },
 ] };
-add('composition-admit-to-window', ['composition'], composition, {
+const lookupComposition = { form: 'composition', nodes: [
+  { nodeId: 'parent-admit', operator: publicAdmit(), inputs: [externalArm('changes', 'parents')] },
+  { nodeId: 'child-admit', operator: publicAdmit(), inputs: [externalArm('changes', 'children')] },
+  { nodeId: 'lookup', operator: lookup(), inputs: [
+    upstreamArm('parent', 'parent-admit'), upstreamArm('child', 'child-admit'),
+  ] },
+] };
+add('composition-parent-child-product-to-lookup', ['composition', 'product', 'both-change'], lookupComposition, {
+  'parent-admit': { retained: { p1: { _id: 'p1', join: 'j1' } } },
+  'child-admit': { retained: {} },
+  lookup: clone(foundState),
+}, {
+  parents: { changes: [{ rowKey: 'p1', op: 'update', postImage: { _id: 'p1', join: null } }] },
+  children: { changes: [{ rowKey: 'c2', op: 'insert', postImage: { _id: 'c2', _version: 2, join: 'j1', name: 'batch-row' } }] },
+});
+add('composition-fallback-aborts-frame', ['composition', 'fallback'], unaryComposition, {
   admit: { retained: {} }, window: windowState([], true),
 }, {
-  admit: { changes: { changes: [{ rowKey: 'a', op: 'insert', postImage: row('a', 1) }] }, supportBits: {} },
+  rows: { changes: [{ rowKey: 'a', op: 'insert', postImage: row('a', [1]) }] },
 });
-add('composition-fallback-aborts-frame', ['composition', 'fallback'], composition, {
-  admit: { retained: {} }, window: windowState([], true),
+const liftComposition = { form: 'composition', nodes: [
+  { nodeId: 'support', operator: support(), inputs: [
+    externalArm('parent', 'empty'), externalArm('support', 'supportRows'), externalArm('target', 'empty'),
+  ] },
+  { nodeId: 'lift', operator: lift(), inputs: [
+    upstreamArm('bits', 'support'), externalArm('supportValues', 'supportValues'),
+  ] },
+  { nodeId: 'window', operator: window(), inputs: [upstreamArm('input', 'lift')] },
+] };
+add('composition-lift-enters-window-same-step', ['composition', 'membership-lift', 'read-maintain'], liftComposition, {
+  support: supportState({ r1: supportScope(['j1'], false) }),
+  lift: { retained: {}, survivingAnyOf: [] },
+  window: windowState([], true),
 }, {
-  admit: { changes: { changes: [{ rowKey: 'a', op: 'insert', postImage: row('a', [1]) }] }, supportBits: {} },
-});
+  empty: { entries: [] },
+  supportRows: { entries: [dz('m1', 'insert', 'enter', { _id: 'm1', join: 'j1' })] },
+  supportValues: { r1: 'r1' },
+}, [range('carrier.by_room', ['r1'], 4, [{ _id: 'a', roomId: 'r1', rank: 1 }])]);
 
 // Every maintain vector whose proof consumes R has an exact empty-transcript
 // twin. The reference form must return that rule's domain reason, never a
@@ -3723,15 +4037,25 @@ const mode = process.argv[2] ?? '--check';
 if (mode === '--adopt-frozen-expectations') {
   const frozen = Object.fromEntries(readdirSync(DIRECTORY)
     .filter((name) => name.endsWith('.case.json')).sort()
-    .map((name) => JSON.parse(readFileSync(join(DIRECTORY, name), 'utf8')))
+    .map((name) => JSON.parse(readFileSync(join(DIRECTORY, name), 'utf8'), (key, value, context) => {
+      if (typeof value === 'number' && Number.isInteger(value) && !Number.isSafeInteger(value)) {
+        return `${EXACT_INTEGER_PREFIX}${context.source}`;
+      }
+      return value;
+    }))
     .map((value) => [value.name, value.expected]));
   if (Object.keys(frozen).length !== authored.length) throw new Error('cannot adopt an incomplete frozen corpus');
   const sourcePath = fileURLToPath(import.meta.url);
   const source = readFileSync(sourcePath, 'utf8');
-  const replacement = `/* EXPECTED_SOURCE_START */ ${JSON.stringify(frozen, null, 2)} /* EXPECTED_SOURCE_END */`;
-  const next = source.replace(/\/\* EXPECTED_SOURCE_START \*\/[\s\S]*?\/\* EXPECTED_SOURCE_END \*\//, replacement);
-  if (next === source) throw new Error('expected-source marker not found');
-  writeFileSync(sourcePath, next);
+  const serialized = JSON.stringify(frozen, null, 2).replace(
+    new RegExp(`"${EXACT_INTEGER_PREFIX}(-?\\d+)"`, 'g'),
+    'exactInteger("$1")',
+  );
+  const replacement = `/* EXPECTED_SOURCE_START */ ${serialized} /* EXPECTED_SOURCE_END */`;
+  const expectedSourcePattern = /\/\* EXPECTED_SOURCE_START \*\/[\s\S]*?\/\* EXPECTED_SOURCE_END \*\//;
+  if (!expectedSourcePattern.test(source)) throw new Error('expected-source marker not found');
+  const next = source.replace(expectedSourcePattern, replacement);
+  if (next !== source) writeFileSync(sourcePath, next);
   console.log(`adopted ${Object.keys(frozen).length} frozen expectations`);
   process.exit(0);
 }

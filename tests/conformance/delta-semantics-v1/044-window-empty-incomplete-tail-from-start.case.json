@@ -3,6 +3,7 @@
   "name": "window-empty-incomplete-tail-from-start",
   "coverage": [
     "window",
+    "finite-interval",
     "read-maintain"
   ],
   "operator": {
@@ -15,7 +16,17 @@
           "direction": "asc"
         }
       ],
-      "interval": {},
+      "interval": {
+        "lower": {
+          "key": {
+            "values": [
+              10
+            ],
+            "rowKey": "interval-start"
+          },
+          "inclusive": true
+        }
+      },
       "take": 2,
       "projectionFields": [
         "rank",
@@ -32,13 +43,32 @@
     "continuation": null
   },
   "foldedChangeBatch": {
-    "entries": []
+    "entries": [
+      {
+        "rowKey": "c",
+        "op": "insert",
+        "admit": "enter",
+        "postImage": {
+          "_id": "c",
+          "rank": 15
+        },
+        "rankKeys": [
+          15
+        ]
+      }
+    ]
   },
   "readTranscript": [
     {
       "request": {
         "kind": "tail",
         "window": "root",
+        "boundary": {
+          "values": [
+            10
+          ],
+          "rowKey": "interval-start"
+        },
         "k": 2,
         "labelOnly": false
       },
@@ -47,11 +77,11 @@
         "rows": [
           {
             "_id": "a",
-            "rank": 1
+            "rank": 11
           },
           {
             "_id": "b",
-            "rank": 2
+            "rank": 12
           }
         ],
         "exhausted": true
@@ -66,26 +96,26 @@
           "op": "splice-in",
           "sortKey": {
             "values": [
-              1
+              11
             ],
             "rowKey": "a"
           },
           "row": {
             "_id": "a",
-            "rank": 1
+            "rank": 11
           }
         },
         {
           "op": "splice-in",
           "sortKey": {
             "values": [
-              2
+              12
             ],
             "rowKey": "b"
           },
           "row": {
             "_id": "b",
-            "rank": 2
+            "rank": 12
           }
         }
       ]
@@ -96,41 +126,41 @@
           "rowKey": "a",
           "rankKeys": {
             "values": [
-              1
+              11
             ],
             "rowKey": "a"
           },
           "row": {
             "_id": "a",
-            "rank": 1
+            "rank": 11
           }
         },
         {
           "rowKey": "b",
           "rankKeys": {
             "values": [
-              2
+              12
             ],
             "rowKey": "b"
           },
           "row": {
             "_id": "b",
-            "rank": 2
+            "rank": 12
           }
         }
       ],
       "boundary": {
         "values": [
-          2
+          12
         ],
         "rowKey": "b"
       },
       "resultCount": 2,
-      "complete": true,
-      "label": "complete",
+      "complete": false,
+      "label": "incomplete",
       "continuation": {
         "values": [
-          2
+          12
         ],
         "rowKey": "b"
       }

@@ -50,18 +50,37 @@
         }
       }
     ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "new",
+            "secret": "hidden"
+          }
+        ]
+      }
+    },
     "postResult": [
       {
         "_id": "p1",
-        "title": "new",
-        "child": {
-          "name": "assembled"
-        }
+        "title": "new"
       }
     ],
     "orderedRootKeys": [
       "p1"
-    ]
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
   },
   "readTranscript": [],
   "expected": {
@@ -75,26 +94,32 @@
           "position": 0,
           "row": {
             "_id": "p1",
-            "title": "new",
-            "child": {
-              "name": "assembled"
-            }
+            "title": "new"
           }
         }
       ],
       "orderedRootKeys": [
         "p1"
       ],
-      "resultDigest": "sha256:8cc79c6b8ffe23ce67ea8d7a336e6d92ef096225d0c1a67b18c72ea139e0014f"
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:1e7f4f831e1822fe6f24deb7a46171e684a2ae772649c386ebc7977da7c296b3"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "new",
-          "child": {
-            "name": "assembled"
-          }
+          "title": "new"
         }
       ],
       "orderedRootKeys": [

@@ -9,7 +9,7 @@
     "form": "support-semi-join",
     "config": {
       "edge": "edge",
-      "edgeKind": "direct",
+      "edgeKind": "through",
       "mode": {
         "kind": "exists"
       },
@@ -18,7 +18,8 @@
       ],
       "supportJoinFields": [
         "join"
-      ]
+      ],
+      "throughTargetField": "targetId"
     }
   },
   "initialState": {
@@ -36,17 +37,17 @@
       "entries": []
     },
     "support": {
+      "entries": []
+    },
+    "target": {
       "entries": [
         {
-          "rowKey": "m1",
+          "rowKey": "t1",
           "op": "delete",
           "admit": "leave",
           "rankKeys": []
         }
       ]
-    },
-    "target": {
-      "entries": []
     }
   },
   "readTranscript": [],

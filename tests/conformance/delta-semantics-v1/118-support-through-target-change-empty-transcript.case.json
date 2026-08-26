@@ -1,6 +1,6 @@
 {
   "format": "snapback.delta-semantics.case.v1",
-  "name": "support-through-zero-to-one-probed-empty-transcript",
+  "name": "support-through-target-change-empty-transcript",
   "coverage": [
     "support",
     "fallback"
@@ -18,7 +18,8 @@
       ],
       "supportJoinFields": [
         "join"
-      ]
+      ],
+      "throughTargetField": "targetId"
     }
   },
   "initialState": {
@@ -27,7 +28,10 @@
         "joinKey": [
           "j1"
         ],
-        "bit": false
+        "bit": true,
+        "throughTargets": {
+          "through1": "t1"
+        }
       }
     }
   },
@@ -36,21 +40,17 @@
       "entries": []
     },
     "support": {
+      "entries": []
+    },
+    "target": {
       "entries": [
         {
-          "rowKey": "through1",
-          "op": "insert",
-          "admit": "enter",
-          "postImage": {
-            "_id": "through1",
-            "join": "j1"
-          },
+          "rowKey": "t1",
+          "op": "delete",
+          "admit": "leave",
           "rankKeys": []
         }
       ]
-    },
-    "target": {
-      "entries": []
     }
   },
   "readTranscript": [],

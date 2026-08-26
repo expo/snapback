@@ -36,7 +36,8 @@
     "result": [
       {
         "_id": "p1",
-        "title": "old"
+        "title": "old",
+        "children": []
       }
     ],
     "orderedRootKeys": [
@@ -89,10 +90,34 @@
         }
       }
     ],
+    "nextNodeOutputs": {
+      "root": {
+        "$root": [
+          {
+            "_id": "p1",
+            "title": "old"
+          },
+          {
+            "_id": "p2",
+            "title": "new"
+          }
+        ]
+      },
+      "many": {
+        "p1": [],
+        "p2": [
+          {
+            "_id": "c1",
+            "title": "child"
+          }
+        ]
+      }
+    },
     "postResult": [
       {
         "_id": "p1",
-        "title": "old"
+        "title": "old",
+        "children": []
       },
       {
         "_id": "p2",
@@ -108,7 +133,22 @@
     "orderedRootKeys": [
       "p1",
       "p2"
-    ]
+    ],
+    "nodeCompleteness": [
+      {
+        "nodeId": "root",
+        "label": "complete"
+      },
+      {
+        "nodeId": "many",
+        "label": "complete"
+      }
+    ],
+    "proofTuple": {
+      "materialization": "m1",
+      "authority": "public",
+      "evaluationCut": 7
+    }
   },
   "readTranscript": [],
   "expected": {
@@ -136,13 +176,30 @@
         "p1",
         "p2"
       ],
-      "resultDigest": "sha256:1c5ad2f3964bf1a50920e8e94e0f1e354af0e4fa4e52e858d0f04288470267c4"
+      "nodeCompleteness": [
+        {
+          "nodeId": "root",
+          "label": "complete"
+        },
+        {
+          "nodeId": "many",
+          "label": "complete"
+        }
+      ],
+      "graphCompleteness": "complete",
+      "proofTuple": {
+        "materialization": "m1",
+        "authority": "public",
+        "evaluationCut": 7
+      },
+      "resultDigest": "sha256:62110f91b67fb7a0a105780cf3209c06d52876c60bf63ae4770cac155b17ff19"
     },
     "nextState": {
       "result": [
         {
           "_id": "p1",
-          "title": "old"
+          "title": "old",
+          "children": []
         },
         {
           "_id": "p2",
