@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:03fdbcd138ebad01170f92bc3ef30df7cc3dd9231509673c60ed14084a6a2bb6"
+    "sourceDigest": "sha256:c7ae3e59d8444df278c0e6060789aec6ef7fb1b1f2e17e0cf9975f4fe6042d69"
   },
   "limits": {
     "lookupBytes": 16384
@@ -21809,17 +21809,17 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1373,
+          "line": 1452,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3652,
+          "line": 3743,
           "column": 14
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 7546,
+          "line": 7547,
           "column": 14
         }
       ],
@@ -21839,12 +21839,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2895,
+          "line": 2986,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3384,
+          "line": 3475,
           "column": 48
         }
       ],
@@ -21904,7 +21904,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9602,
+          "line": 9603,
           "column": 14
         }
       ],
@@ -22246,27 +22246,27 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1086,
+          "line": 1152,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2859,
+          "line": 2950,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3143,
+          "line": 3234,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3232,
+          "line": 3323,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3764,
+          "line": 3921,
           "column": 14
         },
         {
@@ -24278,27 +24278,27 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2871,
+          "line": 2962,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3171,
+          "line": 3262,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3196,
+          "line": 3287,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3487,
+          "line": 3578,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3589,
+          "line": 3680,
           "column": 14
         }
       ],
@@ -24313,12 +24313,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 764,
+          "line": 789,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3859,
+          "line": 4016,
           "column": 14
         }
       ],
@@ -24363,7 +24363,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2887,
+          "line": 2978,
           "column": 10
         }
       ],
@@ -24398,7 +24398,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2866,
+          "line": 2957,
           "column": 27
         }
       ],
@@ -24423,17 +24423,17 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2879,
+          "line": 2970,
           "column": 10
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3257,
+          "line": 3348,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3828,
+          "line": 3985,
           "column": 14
         }
       ],
@@ -26040,52 +26040,52 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 224,
+          "line": 228,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2854,
+          "line": 2945,
           "column": 27
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3047,
+          "line": 3138,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3071,
+          "line": 3162,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3107,
+          "line": 3198,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3123,
+          "line": 3214,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3293,
+          "line": 3384,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3701,
+          "line": 3858,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3719,
+          "line": 3876,
           "column": 14
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3728,
+          "line": 3885,
           "column": 14
         },
         {
@@ -26320,17 +26320,17 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9576,
+          "line": 9577,
           "column": 14
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9593,
+          "line": 9594,
           "column": 14
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9610,
+          "line": 9611,
           "column": 14
         }
       ],
@@ -28405,7 +28405,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1140,
+          "line": 1206,
           "column": 22
         },
         {
@@ -28415,7 +28415,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 9808,
+          "line": 9809,
           "column": 44
         },
         {
@@ -28490,12 +28490,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 2844,
+          "line": 2935,
           "column": 27
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 3422,
+          "line": 3513,
           "column": 44
         },
         {
@@ -42328,7 +42328,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 8386,
+          "line": 8387,
           "column": 14
         }
       ],
@@ -48396,12 +48396,12 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1078,
+          "line": 1144,
           "column": 18
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1104,
+          "line": 1170,
           "column": 18
         },
         {
@@ -48416,7 +48416,7 @@
         },
         {
           "file": "crates/snapback-sync/src/ephemeral.rs",
-          "line": 8479,
+          "line": 8480,
           "column": 18
         },
         {
@@ -48486,12 +48486,12 @@
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 490,
+          "line": 494,
           "column": 30
         },
         {
           "file": "crates/snapback-kernel/src/storage/room_authority.rs",
-          "line": 1405,
+          "line": 1484,
           "column": 30
         },
         {

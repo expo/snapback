@@ -31426,7 +31426,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-integration-template-forbidden"></a>`SNAPBACK_AUTH_INTEGRATION_TEMPLATE_FORBIDDEN` | auth | 403 | — | `crates/snapback-kernel/src/storage/auth_integrations.rs:410` | 3 |
 | <a id="diagnostic-snapback-auth-integration-unavailable"></a>`SNAPBACK_AUTH_INTEGRATION_UNAVAILABLE` | auth | 403 | — | `crates/snapback-kernel/src/storage/auth_integrations.rs:1410` | 7 |
 | <a id="diagnostic-snapback-auth-integration-unknown"></a>`SNAPBACK_AUTH_INTEGRATION_UNKNOWN` | auth | 404 | — | `crates/snapback-kernel/src/storage/auth_integrations.rs:1383` | 2 |
-| <a id="diagnostic-snapback-auth-interlock-local-scope-forbidden"></a>`SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` | auth | — | — | `crates/snapback-kernel/src/storage/room_authority.rs:1373` | 3 |
+| <a id="diagnostic-snapback-auth-interlock-local-scope-forbidden"></a>`SNAPBACK_AUTH_INTERLOCK_LOCAL_SCOPE_FORBIDDEN` | auth | — | — | `crates/snapback-kernel/src/storage/room_authority.rs:1452` | 3 |
 | <a id="diagnostic-snapback-auth-interlock-retired"></a>`SNAPBACK_AUTH_INTERLOCK_RETIRED` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2701` | 3 |
 | <a id="diagnostic-snapback-auth-invalidation-ack-before-commit"></a>`SNAPBACK_AUTH_INVALIDATION_ACK_BEFORE_COMMIT` | auth | 400 | — | `crates/snapback-auth/src/auth/invalidation.rs:1656` | 2 |
 | <a id="diagnostic-snapback-auth-invalidation-authority-generation-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_AUTHORITY_GENERATION_EXHAUSTED` | auth | — | — | `packages/snapback-client/outbox-shared.mjs:667` | 1 |
@@ -31490,7 +31490,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-participant-already-taken"></a>`SNAPBACK_AUTH_PARTICIPANT_ALREADY_TAKEN` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2434` | 1 |
 | <a id="diagnostic-snapback-auth-participant-async-sync-phase"></a>`SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:3523` | 1 |
 | <a id="diagnostic-snapback-auth-participant-database-mismatch"></a>`SNAPBACK_AUTH_PARTICIPANT_DATABASE_MISMATCH` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2660` | 6 |
-| <a id="diagnostic-snapback-auth-participant-dependency-pending"></a>`SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING` | auth | 500 | — | `crates/snapback-kernel/src/storage/room_authority.rs:764` | 2 |
+| <a id="diagnostic-snapback-auth-participant-dependency-pending"></a>`SNAPBACK_AUTH_PARTICIPANT_DEPENDENCY_PENDING` | auth | 500 | — | `crates/snapback-kernel/src/storage/room_authority.rs:789` | 2 |
 | <a id="diagnostic-snapback-auth-participant-dropped"></a>`SNAPBACK_AUTH_PARTICIPANT_DROPPED` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2473` | 2 |
 | <a id="diagnostic-snapback-auth-participant-generation-mismatch"></a>`SNAPBACK_AUTH_PARTICIPANT_GENERATION_MISMATCH` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2487` | 3 |
 | <a id="diagnostic-snapback-auth-participant-not-pending"></a>`SNAPBACK_AUTH_PARTICIPANT_NOT_PENDING` | auth | 500 | — | `crates/snapback-kernel/src/storage.rs:2466` | 5 |
@@ -31577,7 +31577,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-rescue-invalid"></a>`SNAPBACK_AUTH_RESCUE_INVALID` | auth | 400 | — | `crates/snapback-kernel/src/auth/rescue.rs:428` | 6 |
 | <a id="diagnostic-snapback-auth-rescue-managed-state-unsupported"></a>`SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` | auth | 400 | — | `crates/snapback-kernel/src/storage/auth_rescue.rs:403` | 3 |
 | <a id="diagnostic-snapback-auth-rescue-schema-unsupported"></a>`SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` | auth | 400 | — | `crates/snapback-kernel/src/storage/auth_rescue.rs:1022` | 6 |
-| <a id="diagnostic-snapback-auth-reservation-cancelled"></a>`SNAPBACK_AUTH_RESERVATION_CANCELLED` | auth | 503 | — | `crates/snapback-kernel/src/storage/room_authority.rs:1140` | 4 |
+| <a id="diagnostic-snapback-auth-reservation-cancelled"></a>`SNAPBACK_AUTH_RESERVATION_CANCELLED` | auth | 503 | — | `crates/snapback-kernel/src/storage/room_authority.rs:1206` | 4 |
 | <a id="diagnostic-snapback-auth-reservation-retry-exhausted"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED` | auth | — | — | `packages/snapback-client/index.mjs:13835` | 1 |
 | <a id="diagnostic-snapback-auth-reservation-retry-scheduled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED` | auth | — | — | `packages/snapback-client/index.mjs:13845` | 1 |
 | <a id="diagnostic-snapback-auth-reservation-retry-settled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED` | auth | — | — | `packages/snapback-client/index.mjs:13530` | 1 |
@@ -32323,7 +32323,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ephemeral-entry-not-found"></a>`SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND` | server | 404 | — | `crates/snapback-server/src/server/api_error.rs:595` | 2 |
 | <a id="diagnostic-snapback-ephemeral-expiry-protocol-mismatch"></a>`SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH` | client | 400 | — | `crates/snapback-server/src/server.rs:8048` | 4 |
 | <a id="diagnostic-snapback-ephemeral-expiry-unsupported"></a>`SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED` | client | 400 | — | `crates/snapback-server/src/server.rs:9307` | 10 |
-| <a id="diagnostic-snapback-ephemeral-generation-exhausted"></a>`SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED` | server | 503 | — | `crates/snapback-kernel/src/storage/room_authority.rs:1078` | 6 |
+| <a id="diagnostic-snapback-ephemeral-generation-exhausted"></a>`SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED` | server | 503 | — | `crates/snapback-kernel/src/storage/room_authority.rs:1144` | 6 |
 | <a id="diagnostic-snapback-ephemeral-incompatible-collection-definition"></a>`SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION` | server | 409 | — | `crates/snapback-engine/src/local/auth_room_kick_acceptance.rs:807` | 6 |
 | <a id="diagnostic-snapback-ephemeral-invalid-scope"></a>`SNAPBACK_EPHEMERAL_INVALID_SCOPE` | server | 400 | — | `crates/snapback-engine/src/local/engine.rs:29303` | 6 |
 | <a id="diagnostic-snapback-ephemeral-invalid-ttl"></a>`SNAPBACK_EPHEMERAL_INVALID_TTL` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:1218` | 2 |
