@@ -82,7 +82,11 @@ const providers = [];
 // zero-check run — previously a pre-check failure here exited "PASS — 0/0".
 await runAcceptance(suite, async () => {
   // --- Egress ENABLED runtime, deprecated env blob supplied ---
-  const on = await startApi({ SNAPBACK_OUTBOUND_ACTIONS: '1', SNAPBACK_ACTION_SECRETS: SECRETS });
+  const on = await startApi({
+    SNAPBACK_OUTBOUND_ACTIONS: '1',
+    SNAPBACK_OUTBOUND_LOOPBACK: '1',
+    SNAPBACK_ACTION_SECRETS: SECRETS,
+  });
   servers.push(on);
   const dbOn = new SnapbackClient(on.baseUrl, on.clientOptions);
   await dbOn.loadSchema(schema);
