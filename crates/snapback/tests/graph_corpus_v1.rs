@@ -29,10 +29,10 @@ use snapback_engine::graph_evaluator::{
 };
 use snapback_engine::test_support::{
     apply_graph_delta_to_result_for_test, configure_graph_corpus_scheduler,
-    configure_graph_measurement_scheduler, graph_corpus_authorization_frames,
-    graph_corpus_memo_entries, invoke_graph_corpus_mutation, measure_graph_serving_groups,
-    refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits, subscribe_graph_corpus_case,
-    subscribe_graph_corpus_partition_case,
+    configure_graph_measurement_scheduler, drain_graph_corpus_stream,
+    graph_corpus_authorization_frames, graph_corpus_memo_entries, invoke_graph_corpus_mutation,
+    measure_graph_serving_groups, refresh_graph_corpus_scheduler, set_graph_corpus_memo_limits,
+    subscribe_graph_corpus_case, subscribe_graph_corpus_partition_case,
 };
 use snapback_kernel::storage::{ChangeOp, ChangedRow};
 use snapback_sync::graph_captured_read::{
@@ -59,6 +59,8 @@ const SERVED_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observati
 const MEMO_OBSERVATIONS_FILE: &str = "tests/conformance/graph/served-observations.g3-a.v1.json";
 const GRAPH_CORPUS_AUTHORIZATION_INCARNATION: &str = "01890f3c-9d5b-7000-8000-000000000001";
 const GRAPH_CORPUS_DATA_VERSION_STREAM: &str = "01890f3c-9d5b-7000-8000-000000000002";
+const GRAPH_CORPUS_ORDINARY_PRINCIPAL: &str = "usr_00000000000000000000000000";
+const GRAPH_CORPUS_CREW_PRINCIPAL: &str = "usr_00000000000000000000000001";
 const GRAPH_CORPUS_AUTHORITY_TABLE: &str = "graphSchedulerAuthority";
 const GRAPH_CORPUS_AUTHORITY_ROW: &str = "graph_scheduler_authority";
 const GRAPH_CORPUS_AUTHORITY_MUTATION: &str = "graphCorpusAuthorityTransition";
@@ -1143,11 +1145,23 @@ fn corpus_authority(corpus: &Value, principal: &str) -> GraphEvaluationAuthority
     }
 }
 
+fn graph_corpus_dev_mutation_input(args: Value) -> HandlerInput {
+    HandlerInput {
+        args,
+        auth: AuthInput {
+            principal: Some(GRAPH_CORPUS_ORDINARY_PRINCIPAL.to_owned()),
+            user_id: Some(GRAPH_CORPUS_ORDINARY_PRINCIPAL.to_owned()),
+            ..AuthInput::default()
+        },
+        ..HandlerInput::default()
+    }
+}
+
 fn corpus_invocation_principal(call: &Value) -> &str {
     call["partition"]["class3"]["principalDataScope"]["userId"]
         .as_str()
         .or_else(|| call["corpusAuthorityPrincipal"].as_str())
-        .unwrap_or("principal_ordinary")
+        .unwrap_or(GRAPH_CORPUS_ORDINARY_PRINCIPAL)
 }
 
 fn evaluation_request(
@@ -1497,7 +1511,7 @@ fn graph_match_replay_commits(corpus: &Value) -> Vec<(String, Vec<ChangedRow>)> 
         .as_array()
         .unwrap()
         .iter()
-        .find(|fact| fact["principal"] == "principal_ordinary")
+        .find(|fact| fact["principal"] == GRAPH_CORPUS_ORDINARY_PRINCIPAL)
         .unwrap()["userID"]
         .as_str()
         .unwrap();
@@ -2128,7 +2142,7 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
     );
     let principal = before["partition"]["class3"]["principalDataScope"]["userId"]
         .as_str()
-        .unwrap_or("principal_ordinary");
+        .unwrap_or(GRAPH_CORPUS_ORDINARY_PRINCIPAL);
     let authority = corpus_authority(corpus, principal);
     snapback.install_graph_serving_authority_context_for_test(
         &name,
@@ -2231,11 +2245,15 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
         },
     )
     .expect("commit exact scheduler corpus transition");
+    // The authorization obligation is the fail-closed publication that the
+    // mutation must enqueue before returning. Capture it before the scheduler
+    // restoration can coalesce the successor snapshot into the same outbox.
+    let mut frame_strings = drain_graph_corpus_stream(&snapback, &connection_id);
     assert!(
         snapback.flush_pending_live_fanout(),
         "the served scheduler must execute the fenced restoration",
     );
-    let mut frame_strings = snapback.drain_live_stream(&connection_id);
+    frame_strings.extend(drain_graph_corpus_stream(&snapback, &connection_id));
     frame_strings.extend(
         graph_corpus_authorization_frames(&mut snapback, &connection_id)
             .expect("project scheduler authorization frames"),
@@ -2276,7 +2294,14 @@ fn execute_served_scheduler_case(corpus: &Value, case: &Value) -> Value {
         .iter()
         .filter(|entry| entry["kind"] == "delivery")
         .collect::<Vec<_>>();
-    assert!(!fences.is_empty(), "at least one authority fence frame");
+    assert!(
+        !fences.is_empty(),
+        "at least one authority fence frame; frames={frames:#?}; diagnostics={:#?}",
+        snapback
+            .inspect_core()
+            .expect("inspect scheduler diagnostics")
+            .recent_diagnostics,
+    );
     assert_eq!(
         deliveries.len(),
         1,
@@ -3951,18 +3976,15 @@ fn served_root_window_ledger(snapback: &LocalSnapback, subscription_id: &str) ->
 }
 
 fn patch_issue_summary_title(snapback: &mut LocalSnapback, value: &str) {
-    invoke_graph_corpus_mutation(
-        snapback,
-        GRAPH_CORPUS_PATCH_ISSUE,
-        HandlerInput {
-            args: json!({
+    snapback
+        .invoke_mutation(
+            GRAPH_CORPUS_PATCH_ISSUE,
+            graph_corpus_dev_mutation_input(json!({
                 "rowID":"issue_ded0c2976675c34f4756035d",
                 "value":value,
-            }),
-            ..HandlerInput::default()
-        },
-    )
-    .expect("commit issueSummary title update");
+            })),
+        )
+        .expect("commit issueSummary title update");
 }
 
 fn execute_graph_delta_case_with_failure(
@@ -4060,15 +4082,12 @@ fn execute_graph_delta_case_with_failure(
         .graph_serving_observation_for_test(&established.subscription_id)
         .expect("graph delta predecessor observation");
     assert!(snapback.drain_live_stream(&connection_id).is_empty());
-    invoke_graph_corpus_mutation(
-        &mut snapback,
-        case["mutation"].as_str().expect("delta mutation"),
-        HandlerInput {
-            args: case["args"].clone(),
-            ..HandlerInput::default()
-        },
-    )
-    .unwrap_or_else(|error| panic!("commit graph delta case {query}: {error:?}"));
+    snapback
+        .invoke_mutation(
+            case["mutation"].as_str().expect("delta mutation"),
+            graph_corpus_dev_mutation_input(case["args"].clone()),
+        )
+        .unwrap_or_else(|error| panic!("commit graph delta case {query}: {error:?}"));
     let frames = snapback
         .drain_live_stream(&connection_id)
         .into_iter()
@@ -6287,8 +6306,11 @@ fn allow_deny_cases_are_oracle_frozen_and_structurally_executable() {
         "executable allowDeny case",
     );
     assert_eq!(case["query"], "listIssueByID");
-    assert_eq!(case["principals"]["allowed"], "principal_crew");
-    assert_eq!(case["principals"]["denied"], "principal_ordinary");
+    assert_eq!(case["principals"]["allowed"], GRAPH_CORPUS_CREW_PRINCIPAL);
+    assert_eq!(
+        case["principals"]["denied"],
+        GRAPH_CORPUS_ORDINARY_PRINCIPAL
+    );
     let carrier: GraphQueryCarrierV1 =
         serde_json::from_value(case["plan"].clone()).expect("allowDeny carrier");
     let allowed = &case["invocations"]["allowed"];
@@ -8874,15 +8896,12 @@ fn filter_order_matrix_executes_evaluator_and_served_replacement_paths() {
             }
             assert!(snapback.drain_live_stream(&connection_id).is_empty());
 
-            invoke_graph_corpus_mutation(
-                &mut snapback,
-                mutation["mutation"].as_str().expect("matrix mutation name"),
-                HandlerInput {
-                    args: mutation["args"].clone(),
-                    ..HandlerInput::default()
-                },
-            )
-            .unwrap_or_else(|error| panic!("mutate {context}: {error:?}"));
+            snapback
+                .invoke_mutation(
+                    mutation["mutation"].as_str().expect("matrix mutation name"),
+                    graph_corpus_dev_mutation_input(mutation["args"].clone()),
+                )
+                .unwrap_or_else(|error| panic!("mutate {context}: {error:?}"));
             let _ = snapback.flush_pending_live_fanout();
             let frames = snapback
                 .drain_live_stream(&connection_id)
@@ -8896,7 +8915,7 @@ fn filter_order_matrix_executes_evaluator_and_served_replacement_paths() {
             );
             assert_eq!(
                 frames[0]["kind"], mutation["servedDisposition"],
-                "{context} served replacement disposition",
+                "{context} served replacement disposition: {frames:#?}",
             );
             let expected_after_rows: Vec<Value> = serde_json::from_str(
                 mutation["result"]["resultBytes"]
@@ -9328,17 +9347,14 @@ fn execute_two_way_sequence(
                     .is_empty(),
                 "{step_id} replacement establishment has no asynchronous frame",
             );
-            invoke_graph_corpus_mutation(
-                &mut replacement_served,
-                replacement["mutation"]
-                    .as_str()
-                    .expect("two-way live mutation"),
-                HandlerInput {
-                    args: replacement["args"].clone(),
-                    ..HandlerInput::default()
-                },
-            )
-            .unwrap_or_else(|error| panic!("mutate {step_id}: {error:?}"));
+            replacement_served
+                .invoke_mutation(
+                    replacement["mutation"]
+                        .as_str()
+                        .expect("two-way live mutation"),
+                    graph_corpus_dev_mutation_input(replacement["args"].clone()),
+                )
+                .unwrap_or_else(|error| panic!("mutate {step_id}: {error:?}"));
             let _ = replacement_served.flush_pending_live_fanout();
             let frames = replacement_served
                 .drain_live_stream(&replacement_connection_id)

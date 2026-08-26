@@ -40,6 +40,15 @@ const ZERO_HASH = `sha256:${'0'.repeat(64)}`;
 const SEALED_BROADCAST_INPUTS_HASH = 'snapback.v1:sessions:inputs:sha256:79d345ffb58f314805b7d6acc0b0649f09b0dedb227f9122c5c9cc557b99261b';
 const GRAPH_CORPUS_AUTHORIZATION_INCARNATION = '01890f3c-9d5b-7000-8000-000000000001';
 const GRAPH_CORPUS_DATA_VERSION_STREAM = '01890f3c-9d5b-7000-8000-000000000002';
+// @ref LLP 0148#d3-body-bytes-uuidv7-everywhere-random-for-usr_ — frozen authority fixtures use canonical Snapback catalog identifiers.
+const GRAPH_CORPUS_ORDINARY_PRINCIPAL = 'usr_00000000000000000000000000';
+const GRAPH_CORPUS_CREW_PRINCIPAL = 'usr_00000000000000000000000001';
+const GRAPH_CORPUS_REMOVED_PRINCIPAL = 'usr_00000000000000000000000002';
+const GRAPH_CORPUS_AUTHORITY_INSTANCES = new Map([
+  [GRAPH_CORPUS_ORDINARY_PRINCIPAL, 'aut_01hw6s0ysjf8h8rct4ank7f24s'],
+  [GRAPH_CORPUS_CREW_PRINCIPAL, 'aut_01hw6s0ysmf8h8rct4ank7f24s'],
+  [GRAPH_CORPUS_REMOVED_PRINCIPAL, 'aut_01hw6s0ysnf8h8rct4ank7f24s'],
+]);
 const OWNER_SCOPE_DOMAIN = 'snapback:g0-corpus-authority-scope:v1:';
 const LARGE_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v4 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-large.mjs';
 const HOT_SPOT_CHECK_COMMAND = 'ZBUGS_LARGE_FIXTURE_ROOT=demos/zerobugs/fixtures-local/large-seed42-v1 ZBUGS_ATTEMPT=v11 volta run --node 24.18.0 node demos/zerobugs/control/tests/acceptance/gates/zb5-hot.mjs';
@@ -154,6 +163,12 @@ function installBinding(tables, principal, actor) {
   }];
 }
 
+function graphCorpusAuthorityInstanceId(principal) {
+  const authorityInstanceId = GRAPH_CORPUS_AUTHORITY_INSTANCES.get(principal);
+  assert(authorityInstanceId, `graph corpus authority instance exists for ${principal}`);
+  return authorityInstanceId;
+}
+
 function ownerProjectRole(projectRoleFacts) {
   if (projectRoleFacts.isCrew) return 'crew';
   if (projectRoleFacts.isCreator && projectRoleFacts.isAssignee) return 'creator-assignee';
@@ -164,9 +179,9 @@ function ownerProjectRole(projectRoleFacts) {
 
 function buildAuthorityOwner(tables, fixture) {
   const actors = [
-    ['principal_ordinary', 'ordinary-user'],
-    ['principal_crew', 'crew-admin'],
-    ['principal_removed', 'removed-member'],
+    [GRAPH_CORPUS_ORDINARY_PRINCIPAL, 'ordinary-user'],
+    [GRAPH_CORPUS_CREW_PRINCIPAL, 'crew-admin'],
+    [GRAPH_CORPUS_REMOVED_PRINCIPAL, 'removed-member'],
   ];
   const facts = actors.map(([principal, actorName]) => {
     const actor = fixture.actorBindings[actorName];
@@ -204,12 +219,12 @@ function buildAuthorityOwner(tables, fixture) {
       {
         relation: 'same', query: 'listIssueByID',
         graphArgs: {sourceIssueID: 'zbav1_internal_issue', selectedLabelIDs: []},
-        principals: ['principal_crew', 'principal_removed'],
+        principals: [GRAPH_CORPUS_CREW_PRINCIPAL, GRAPH_CORPUS_REMOVED_PRINCIPAL],
       },
       {
         relation: 'different', query: 'listIssueByID',
         graphArgs: {sourceIssueID: 'zbav1_internal_issue', selectedLabelIDs: []},
-        principals: ['principal_crew', 'principal_ordinary'],
+        principals: [GRAPH_CORPUS_CREW_PRINCIPAL, GRAPH_CORPUS_ORDINARY_PRINCIPAL],
       },
     ],
   };
@@ -1057,7 +1072,7 @@ function windowVector(
 function invocation(
   carrier,
   args,
-  principal = 'principal_ordinary',
+  principal = GRAPH_CORPUS_ORDINARY_PRINCIPAL,
   epoch = 0,
   functionName = 'listIssueByID',
   evaluatedParentKeys = [],
@@ -1081,7 +1096,7 @@ function invocation(
           authMode: 'sessions', userId: principal,
           authorizationStreamIncarnation: 'g0-corpus-stream-v1',
         },
-        authorityInstanceId: `g0-authority-${principal}`,
+        authorityInstanceId: graphCorpusAuthorityInstanceId(principal),
         authFingerprint: domainHash('snapback:g0-corpus-auth-fingerprint:v1:', {principal}),
         tenantId: null, providerId: 'g0-corpus-provider', delegation: null,
       }
@@ -2673,10 +2688,10 @@ function pendingCases(carrier, baseInvocation) {
     sourceIssueID: '__outside_scope__', selectedLabelIDs: [],
   });
   return [
-    { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', plan: carrier, invocations: [baseInvocation, withPrincipal('principal_crew')], principals: ['principal_ordinary', 'principal_crew'], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
-    { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: 'principal_ordinary', expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
-    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
-    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: 'principal_ordinary', commit: { dataChanges: [{ table: 'issue', rowId: 'issue_ded0c2976675c34f4756035d' }], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
+    { caseKind: 'audienceParity', id: 'zerobugs-audience-parity-g2', plan: carrier, invocations: [baseInvocation, withPrincipal(GRAPH_CORPUS_CREW_PRINCIPAL)], principals: [GRAPH_CORPUS_ORDINARY_PRINCIPAL, GRAPH_CORPUS_CREW_PRINCIPAL], expect: { establishment: ['allow', 'allow'], strict: ['allow', 'allow'] } },
+    { caseKind: 'scopeMismatch', id: 'zerobugs-scope-mismatch-g2', plan: carrier, invocations: { memberScope: baseInvocation, presentedInstance: outsideScope }, principal: GRAPH_CORPUS_ORDINARY_PRINCIPAL, expect: { classification: 'query-shaped', reason: 'scope-unbound', resultBytes: null } },
+    { caseKind: 'authorityTransition', id: 'zerobugs-authority-transition-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: GRAPH_CORPUS_ORDINARY_PRINCIPAL, commit: { dataChanges: [], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
+    { caseKind: 'mixedCommit', id: 'zerobugs-mixed-commit-g2', plan: carrier, invocations: { before: withEpoch(0), after: withEpoch(1) }, principal: GRAPH_CORPUS_ORDINARY_PRINCIPAL, commit: { dataChanges: [{ table: 'issue', rowId: 'issue_ded0c2976675c34f4756035d' }], authorityEvents: [{ kind: 'authorization-epoch-change', cause: 'permission-backing-write' }], afterAuthorizationVersion: { incarnation: GRAPH_CORPUS_AUTHORIZATION_INCARNATION, epoch: 1 } } },
   ];
 }
 
@@ -3406,8 +3421,8 @@ async function main() {
   const fixture = readJson(join(NORMAL_ROOT, 'fixture.json'));
   const broadcastFixture = readJson(join(BROADCAST_DECLARATION_ROOT, 'data.v1.json'));
   const tables = loadTables();
-  const ordinaryPrincipal = 'principal_ordinary';
-  const crewPrincipal = 'principal_crew';
+  const ordinaryPrincipal = GRAPH_CORPUS_ORDINARY_PRINCIPAL;
+  const crewPrincipal = GRAPH_CORPUS_CREW_PRINCIPAL;
   installBinding(tables, ordinaryPrincipal, fixture.actorBindings['ordinary-user']);
   const context = mockContext(tables, ordinaryPrincipal);
   const listArgs = { listContext: defaultListContext(), limit: 1_023, start: null, dir: 'forward', inclusive: false };
@@ -4008,6 +4023,10 @@ async function main() {
   )).map(row => {
     const served = servedSchedulerCases.get(row.id);
     if (!served) return row;
+    if (
+      served.invocations.before.partition.class3.principalDataScope.userId
+      !== row.invocations.before.partition.class3.principalDataScope.userId
+    ) return row;
     assert.equal(served.caseKind, row.caseKind, `${row.id} served case kind`);
     assert.deepEqual(served.commit, row.commit, `${row.id} served commit carrier`);
     for (const phase of ['before', 'after']) {

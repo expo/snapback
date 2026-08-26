@@ -22,8 +22,8 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 436163,
-          "dependencyBytes": 2754464,
-          "groupStateBytes": 6296772
+          "dependencyBytes": 2754488,
+          "groupStateBytes": 6296880
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -38,8 +38,8 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 6479,
-          "dependencyBytes": 9647,
-          "groupStateBytes": 35537
+          "dependencyBytes": 9671,
+          "groupStateBytes": 35645
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -55,7 +55,7 @@
           "groupOrdinal": 0,
           "resultBytes": 168014,
           "dependencyBytes": 1301411,
-          "groupStateBytes": 2951912
+          "groupStateBytes": 2951928
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -70,12 +70,12 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 20261,
-          "dependencyBytes": 16672,
-          "groupStateBytes": 64381
+          "dependencyBytes": 16720,
+          "groupStateBytes": 64537
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
     }
   ],
-  "contentDigest": "sha256:e407fe9db7dabd5f239aec998de0cc49e25e0b924d5375a31c44148d2f3c19cf"
+  "contentDigest": "sha256:b712d3464c4a7752db1e72a48724ba809546a38faf55a010d2d0c60dc837f518"
 }

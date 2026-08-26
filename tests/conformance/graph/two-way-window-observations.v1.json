@@ -30,7 +30,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -63,7 +63,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -107,7 +107,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -159,7 +159,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -217,7 +217,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -261,7 +261,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -309,14 +309,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-                "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+                "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -368,14 +368,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-          "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+          "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:195598491a4f9df347f32d77d5081fccf5558aa1fada9031cb958bcc7892ab3e",
-            "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+            "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -541,7 +541,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -575,7 +575,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -619,7 +619,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -671,7 +671,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -729,7 +729,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -773,7 +773,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -821,14 +821,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-                "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+                "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -880,14 +880,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-          "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+          "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:2092a8e62ffe874419282caf2508b065ac92d6fd895d665eea98cb6be3e758ce",
-            "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+            "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -1053,7 +1053,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -1086,7 +1086,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -1130,7 +1130,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -1182,7 +1182,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -1240,7 +1240,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -1284,7 +1284,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -1332,14 +1332,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-                "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+                "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -1391,14 +1391,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-          "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+          "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:bdf5ea3f8e94db975be1da23ea74499b538adf0d2a33c5b7d0cbae06b500d09d",
-            "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+            "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -1564,7 +1564,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -1598,7 +1598,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -1642,7 +1642,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -1694,7 +1694,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -1752,7 +1752,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -1796,7 +1796,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -1844,14 +1844,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-              "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+              "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-                "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+                "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -1903,14 +1903,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-          "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+          "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:dbdbea8246a509233223fdcf69498c43a2525ce30dee99748e34bd166ab3f385",
-            "partitionHash": "sha256:ffeef45a14f0022058de4c348e0dee7b2484196e1f13699201e8df3da1a6770a",
+            "partitionHash": "sha256:a528f932cc5256672a8ae551a1b9f587d40fb1c904137ab73bd9a26acfbaf730",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -2076,7 +2076,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -2109,7 +2109,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -2153,7 +2153,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -2205,7 +2205,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -2263,7 +2263,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -2307,7 +2307,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -2355,14 +2355,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -2414,14 +2414,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:73272f7f65acf4be27621bc76c2c162f6ac3e9109139af60cc36c64f8d91ee13",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -2587,7 +2587,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -2621,7 +2621,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -2665,7 +2665,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -2717,7 +2717,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -2775,7 +2775,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -2819,7 +2819,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -2867,14 +2867,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -2926,14 +2926,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:4f69181a648a36b68edd5bf9175f6674933dd4ddb2a2380ef0909c57892954fe",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -3099,7 +3099,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -3132,7 +3132,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -3176,7 +3176,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -3228,7 +3228,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -3286,7 +3286,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -3330,7 +3330,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -3378,14 +3378,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -3437,14 +3437,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:dbe73db39c2f946f5d8cf4d7e9de1ccaaca5ab5396673e7082243a518e5c22af",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -4121,7 +4121,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -4155,7 +4155,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -4199,7 +4199,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -4251,7 +4251,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -4309,7 +4309,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -4353,7 +4353,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -4401,14 +4401,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -4460,14 +4460,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:8936ab3040ded325e8c9f48ed50c74098b93d28c9fac8bc7c33a26e91edbd122",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -4633,7 +4633,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -4666,7 +4666,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -4710,7 +4710,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -4762,7 +4762,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -4834,7 +4834,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -4878,7 +4878,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -4926,14 +4926,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-                "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+                "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -4985,14 +4985,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-          "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+          "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:9aaca0ea110c475a5b141afbdcd2ea7657d5e5e8bc9a08d46350438eed978be4",
-            "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+            "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -5158,7 +5158,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -5192,7 +5192,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -5236,7 +5236,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -5288,7 +5288,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -5332,7 +5332,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -5376,7 +5376,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -5424,14 +5424,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-                "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+                "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -5483,14 +5483,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-          "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+          "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:55642374a53d2b457b163a0aca861e6b6643fe8dcb6b62bc3d97ba5c80f115c5",
-            "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+            "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -5656,7 +5656,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -5689,7 +5689,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -5733,7 +5733,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -5785,7 +5785,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -5843,7 +5843,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -5887,7 +5887,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -5935,14 +5935,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-                "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+                "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -5994,14 +5994,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-          "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+          "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:77e28c415dc7f7d34e6b6be16e53dd5ca7c25ce0c2f5ea6ec30414f966745f93",
-            "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+            "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -6167,7 +6167,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -6201,7 +6201,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -6245,7 +6245,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -6297,7 +6297,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -6355,7 +6355,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -6399,7 +6399,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -6447,14 +6447,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-              "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+              "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-                "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+                "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -6506,14 +6506,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-          "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+          "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:8f80bc5ca6da7a48918a7f5d4016998e7d5d3e99b97630604c47f221745a274a",
-            "partitionHash": "sha256:40ba4c49c416f15cd26a5b64c4cd8c558a6cef69e343019162a6ea7242456e76",
+            "partitionHash": "sha256:b7248ee860cedd34e072dcc5e38acde7e7f17aa8e81c7e6c9ede00c5a7bb4cbc",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -6679,7 +6679,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -6712,7 +6712,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -6756,7 +6756,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -6808,7 +6808,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -6866,7 +6866,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -6910,7 +6910,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -6958,14 +6958,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-                "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+                "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -7017,14 +7017,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-          "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+          "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:1a4ef6b1d084a425114235de878fc7b3d97e17d0cf8bb898a3829c2a4895bbda",
-            "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+            "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -7190,7 +7190,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -7224,7 +7224,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -7268,7 +7268,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -7320,7 +7320,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -7378,7 +7378,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -7422,7 +7422,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -7470,14 +7470,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-                "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+                "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -7529,14 +7529,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-          "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+          "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:c4ab244acdbdcab9c281b5a62c33929fe7f98cc51b7e8f621d0a782f6fa117dd",
-            "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+            "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -7702,7 +7702,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -7735,7 +7735,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -7779,7 +7779,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -7831,7 +7831,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -7903,7 +7903,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -7947,7 +7947,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -7995,14 +7995,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-                "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+                "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -8054,14 +8054,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-          "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+          "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:c8985bc83fa9f7564854c4caae87f65caca635b138c7ef0421261ab1bab6b922",
-            "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+            "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -8227,7 +8227,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -8261,7 +8261,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -8305,7 +8305,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -8357,7 +8357,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -8401,7 +8401,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -8445,7 +8445,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -8493,14 +8493,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-              "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+              "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-                "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+                "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -8552,14 +8552,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-          "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+          "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:50bed7f7320fcf7f9fb56092e2a7676c1082f4f799a7406416bf4472ce800a6a",
-            "partitionHash": "sha256:72619c43439fbad7b4e1eaab0033439e46af4fb768682c333712cb4be4296b5c",
+            "partitionHash": "sha256:28c86fd16337e03dc1ff4baaa1b08657207feb375d48d7cb01d871ce92e049fa",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -8725,7 +8725,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -8758,7 +8758,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -8802,7 +8802,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -8854,7 +8854,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -8919,7 +8919,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -8963,7 +8963,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -9011,14 +9011,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-                "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+                "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -9070,14 +9070,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-          "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+          "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:a7fc817fa4311ea85b7d0f3942c443110f3227c67937507c40d94fed3c7c2f39",
-            "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+            "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -9243,7 +9243,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -9277,7 +9277,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -9321,7 +9321,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -9373,7 +9373,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -9424,7 +9424,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -9468,7 +9468,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -9516,14 +9516,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-                "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+                "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -9575,14 +9575,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-          "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+          "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:f0ed1c1bef341d7a839e31c94815349dfcf5f540fbbd67271fed4afd8a6efeb5",
-            "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+            "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -9748,7 +9748,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -9781,7 +9781,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -9825,7 +9825,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -9877,7 +9877,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -9942,7 +9942,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -9986,7 +9986,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -10034,14 +10034,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-                "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+                "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -10093,14 +10093,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-          "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+          "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:53a7eb7e0465ab7578e0177e8cfe6372cc1627f1af66dacf7e5ec06cd06fd780",
-            "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+            "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -10266,7 +10266,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -10300,7 +10300,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -10344,7 +10344,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -10396,7 +10396,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -10447,7 +10447,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -10491,7 +10491,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -10539,14 +10539,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-              "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+              "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-                "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+                "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -10598,14 +10598,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-          "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+          "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:dca2ad4cf64b5c8863c06f02bff8be0cc3f8dc13fd49d3ae6166323915f2a6f1",
-            "partitionHash": "sha256:5dbc2f2feef9ebab250d2a318f30342a82979463fcbde7547eb0eef472ec9596",
+            "partitionHash": "sha256:efd830d355da4ce9c867958c6b36f83f94da1577117b0f5b6973a388c5f6b93f",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -10771,7 +10771,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -10804,7 +10804,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -10848,7 +10848,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -10900,7 +10900,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -10965,7 +10965,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -11009,7 +11009,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -11057,14 +11057,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-                "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+                "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -11116,14 +11116,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-          "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+          "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:12033e42c994a84151d9ec9a61d24d9f2bb1df92d84efa293eac8893fa9288e1",
-            "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+            "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -11289,7 +11289,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -11323,7 +11323,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -11367,7 +11367,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -11419,7 +11419,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -11470,7 +11470,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -11514,7 +11514,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -11562,14 +11562,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-                "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+                "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -11621,14 +11621,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-          "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+          "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:98141bdae381f2d4f4c554dad4922952c804c0ef092763c240ebf7183f76d19c",
-            "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+            "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -11794,7 +11794,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -11827,7 +11827,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -11871,7 +11871,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -11923,7 +11923,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -11988,7 +11988,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -12032,7 +12032,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -12080,14 +12080,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-                "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+                "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -12139,14 +12139,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-          "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+          "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:5b2797ec5deea8237fc065f957016c7d9b17da6d7e60c5eb4373f6fb73f85535",
-            "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+            "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -12312,7 +12312,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -12346,7 +12346,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -12390,7 +12390,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -12442,7 +12442,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -12493,7 +12493,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -12537,7 +12537,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -12585,14 +12585,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-              "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+              "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-                "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+                "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -12644,14 +12644,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-          "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+          "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:8ffd2ebbdecdd6cf26405d3dd3e47a214ec58848ecdabe117ae257757d10083f",
-            "partitionHash": "sha256:4666e138a891d38a2a2e2f140dbbeea44393cdb28239bc7e9ee954b377ecff51",
+            "partitionHash": "sha256:54b313492a880610b6e9d417a13cb67539804d1db59344bbf8c605dca1adb712",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -12819,7 +12819,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -12862,7 +12862,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -12920,7 +12920,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -12990,7 +12990,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -13062,7 +13062,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -13120,7 +13120,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -13184,14 +13184,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -13243,14 +13243,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:8e6e0c244aedd12094eaa162a519427ceccd2f1e28e183265460363581490d6a",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -13416,7 +13416,7 @@
             "proofClass": "named-window",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -13459,7 +13459,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -13503,7 +13503,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -13555,7 +13555,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -13599,7 +13599,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -13643,7 +13643,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -13691,14 +13691,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-              "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+              "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-                "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+                "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -13750,14 +13750,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-          "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+          "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:2639c5c37e0d2a3deccd33f0b08eb0a341f745c9a80e7cfe3337e61dbceeefa1",
-            "partitionHash": "sha256:974863cca4343ccf6dca1f87348f7c71983252906b0963e682935363be84f8e8",
+            "partitionHash": "sha256:89df1aa2c197c362fa0170f1d10eed148c53befe9cc2db66bf5ccde6e9b66773",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -13925,7 +13925,7 @@
             "proofClass": "whole-source",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -13950,7 +13950,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14008,7 +14008,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -14078,7 +14078,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14171,7 +14171,7 @@
             "proofClass": "complete-membership",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "exists-semi-join",
@@ -14229,7 +14229,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -14293,14 +14293,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-              "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+              "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "complete",
               "composition": {
                 "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-                "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+                "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -14350,14 +14350,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-          "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+          "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "complete",
           "proofClass": "all-complete",
           "proof": {
             "materializationHash": "sha256:af5c17b7e7e1968a19ee44dee0f8b4235fd8beb6a99f03d6612b50fe60572af2",
-            "partitionHash": "sha256:07ff8e68d3710e88ffef60e5f950101af4cc95c0f49fab98d878bb58e28791ff",
+            "partitionHash": "sha256:de829da8ecbd49189e9b3477299a33448e400e811f6db46e52074050cb5a71e5",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -14522,7 +14522,7 @@
             "proofClass": "whole-source",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -14547,7 +14547,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14570,7 +14570,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -14611,7 +14611,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14634,7 +14634,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -14659,7 +14659,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14689,7 +14689,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -14713,7 +14713,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -14736,7 +14736,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -14760,14 +14760,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-                "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+                "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -14837,14 +14837,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-          "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+          "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:76e3da142c506f8f581251c6ee09e6f6d785a79bf5c618d6ecf8d2f3cf59ff12",
-            "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+            "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -15049,7 +15049,7 @@
             "proofClass": "whole-source",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -15074,7 +15074,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15097,7 +15097,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -15139,7 +15139,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15162,7 +15162,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -15187,7 +15187,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15217,7 +15217,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -15241,7 +15241,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15264,7 +15264,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -15288,14 +15288,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-                "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+                "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -15365,14 +15365,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-          "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+          "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:914091d55a505812557dd654feb6033a3bee3495e5760f0c410d3914e8b53b41",
-            "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+            "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -15577,7 +15577,7 @@
             "proofClass": "whole-source",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -15602,7 +15602,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15625,7 +15625,7 @@
             "proofClass": "ordered-prefix",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -15666,7 +15666,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15689,7 +15689,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -15714,7 +15714,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15744,7 +15744,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -15768,7 +15768,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -15791,7 +15791,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -15815,14 +15815,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "prefix",
               "composition": {
                 "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-                "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+                "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -15892,14 +15892,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-          "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+          "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "prefix",
           "proofClass": "ordered-prefix",
           "proof": {
             "materializationHash": "sha256:da0ecf4d03dfc5f0aa8a330ba9ea8e777b65458eb3c37a59171753ac38630f6b",
-            "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+            "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -16104,7 +16104,7 @@
             "proofClass": "whole-source",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "root-window",
@@ -16129,7 +16129,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -16152,7 +16152,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -16194,7 +16194,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -16217,7 +16217,7 @@
             "proofClass": "parent-ranges",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "bounded-to-many",
@@ -16242,7 +16242,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -16272,7 +16272,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -16296,7 +16296,7 @@
             "proofClass": "unique-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "equality-to-one",
@@ -16319,7 +16319,7 @@
             "proofClass": "principal-point",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "principal-bound",
@@ -16343,14 +16343,14 @@
             "proofClass": "projection-composition",
             "proof": {
               "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-              "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+              "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
               "authorizationVersion": "snapshot-bound",
               "evaluationCut": "snapshot-bound",
               "kind": "closed-projection",
               "label": "window",
               "composition": {
                 "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-                "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+                "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
                 "authorizationVersion": "snapshot-bound",
                 "evaluationCut": "snapshot-bound",
                 "kind": "graph-composition",
@@ -16420,14 +16420,14 @@
         ],
         "graphCompleteness": {
           "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-          "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+          "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
           "authorizationVersion": "snapshot-bound",
           "evaluationCut": "snapshot-bound",
           "label": "window",
           "proofClass": "named-window",
           "proof": {
             "materializationHash": "sha256:ae9187054ba9f544272c370369c2e245d7a2d0f2aa7cd8631df6062c8d504999",
-            "partitionHash": "sha256:8446530672dd2985b0b4e7d399383991840f68f33351ab5a8d92afe039e29881",
+            "partitionHash": "sha256:955c7ef3c51f17cc044c6036a9ab1fb0fe7a21265ed690c7d7d5896450960dc0",
             "authorizationVersion": "snapshot-bound",
             "evaluationCut": "snapshot-bound",
             "kind": "graph-composition",
@@ -16615,5 +16615,5 @@
       "servedExactParity": true
     }
   ],
-  "contentDigest": "sha256:9286f384cd0234b716f03ddd4ab26f97db6f33a553f190e7ad863fcc46aa6d09"
+  "contentDigest": "sha256:db689bee2ef52697352a92e628e8d992bfb0a3d6c6e0e44d65284c9d4ede0ea7"
 }

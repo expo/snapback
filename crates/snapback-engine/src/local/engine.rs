@@ -13471,20 +13471,42 @@ impl LocalSnapback {
         ))
     }
 
+    // @ref LLP 0148#d3-body-bytes-uuidv7-everywhere-random-for-usr_ — graph corpus catalog fixtures use the production kind-prefix encoder.
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_catalog_id_for_test(kind: crate::ids::Kind, discriminator: u8) -> String {
+        let mut body = [
+            0x01, 0x8f, 0x0d, 0x90, 0x7b, 0x30, 0x7a, 0x22, 0x8c, 0x33, 0x44, 0x55, 0x66, 0x77,
+            0x88, 0x99,
+        ];
+        body[5] = discriminator;
+        crate::ids::format_id(kind, &body)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    fn graph_corpus_principal_id_for_test() -> String {
+        crate::ids::format_id(crate::ids::Kind::User, &[0; 16])
+    }
+
+    // @ref LLP 0303#the-governing-principle — the scheduler's catalog facts, resolved session, and connection fence share one canonical authority tuple.
     #[cfg(any(test, feature = "test-support"))]
     pub(crate) fn configure_graph_corpus_scheduler_for_test(
         &mut self,
         authorization: crate::storage::AuthorizationVersion,
         data_version_stream: &str,
     ) -> SnapbackResult<AuthorizationInvalidationConnection> {
+        let principal_id = Self::graph_corpus_principal_id_for_test();
+        let identity_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Identity, 0x30);
+        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x31);
+        let authority_instance_id =
+            Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::AuthorityInstance, 0x32);
         {
             let database = self.auth_database_mut();
             database.activate_current_auth_catalog()?;
             database.auth_catalog().insert_email_session_for_test(
-                "principal_ordinary",
-                "graph-corpus-identity",
-                "graph-corpus-session",
-                "graph-corpus-authority",
+                &principal_id,
+                &identity_id,
+                &session_id,
+                &authority_instance_id,
                 "graph-corpus@example.invalid",
                 &[0x47; 32],
                 1,
@@ -13527,9 +13549,11 @@ impl LocalSnapback {
             ));
         }
         let connection =
-            binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::anonymous(
+            binding.prepare_connection(crate::ephemeral::ConnectionEffectFence::session(
                 authorization.incarnation.clone(),
                 "graph-corpus-grant",
+                session_id,
+                1,
             ))?;
         if connection.version_stream() != data_version_stream {
             return Err(SnapbackError::error(
@@ -13565,15 +13589,17 @@ impl LocalSnapback {
         source: InvocationSource,
         alternate_instance: bool,
     ) -> SnapbackResult<PreparedAuthority> {
+        let principal_id = Self::graph_corpus_principal_id_for_test();
+        let session_id = Self::graph_corpus_catalog_id_for_test(crate::ids::Kind::Session, 0x31);
+        let authority_instance_id = Self::graph_corpus_catalog_id_for_test(
+            crate::ids::Kind::AuthorityInstance,
+            if alternate_instance { 0x33 } else { 0x32 },
+        );
         Ok(self.prepare_resolved_session_fixture(
             source,
-            "principal_ordinary",
-            "graph-corpus-session",
-            if alternate_instance {
-                "graph-corpus-authority-alt"
-            } else {
-                "graph-corpus-authority"
-            },
+            &principal_id,
+            &session_id,
+            &authority_instance_id,
             1,
             4_000_000_000_000,
         ))
@@ -13640,6 +13666,26 @@ impl LocalSnapback {
                     .map(|frame| String::from_utf8_lossy(&frame.payload).into_owned())
                     .collect()
             })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub(crate) fn drain_graph_corpus_stream_for_test(&self, connection_id: &str) -> Vec<String> {
+        let Some(effect_fence) = self
+            .subscriptions
+            .values()
+            .find(|subscription| subscription.connection_id == connection_id)
+            .and_then(|subscription| subscription.effect_fence.as_ref())
+        else {
+            return Vec::new();
+        };
+        self.ephemeral
+            .drain_outbox_for_send_bound(connection_id, effect_fence)
+            .into_iter()
+            .filter_map(|admitted| {
+                let (envelope, _publication) = admitted.into_parts();
+                live_stream_text(envelope)
+            })
+            .collect()
     }
 
     #[cfg(any(test, feature = "test-support"))]

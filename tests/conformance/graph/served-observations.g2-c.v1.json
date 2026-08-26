@@ -456,8 +456,8 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 436163,
-          "dependencyBytes": 2754464,
-          "groupStateBytes": 6296772
+          "dependencyBytes": 2754488,
+          "groupStateBytes": 6296880
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -472,8 +472,8 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 6479,
-          "dependencyBytes": 9647,
-          "groupStateBytes": 35537
+          "dependencyBytes": 9671,
+          "groupStateBytes": 35645
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -489,7 +489,7 @@
           "groupOrdinal": 0,
           "resultBytes": 168014,
           "dependencyBytes": 1301411,
-          "groupStateBytes": 2951912
+          "groupStateBytes": 2951928
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -504,8 +504,8 @@
         {
           "groupOrdinal": 0,
           "resultBytes": 20261,
-          "dependencyBytes": 16672,
-          "groupStateBytes": 64381
+          "dependencyBytes": 16720,
+          "groupStateBytes": 64537
         }
       ],
       "measurementSource": "served-retained-live-evaluation-memo"
@@ -551,27 +551,27 @@
           "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g2-corpus",
+            "appId": "zerobugs-graph-g0-corpus",
             "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
-            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-            "targetProfileId": "local-dev-sqlite-ibex",
-            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "function": {
               "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v0",
-              "appId": "zerobugs-graph-g2-corpus",
-              "id": "fn:listIssueByID",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-bf830986268a6dfb",
               "name": "listIssueByID",
               "kind": "LiveQuery",
-              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
               "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
               "expectedGeneration": {
-                "schemaVersion": "snapback.v0",
-                "appId": "zerobugs-graph-g2-corpus",
-                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
               }
             },
             "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
@@ -621,13 +621,13 @@
               "format": "snapback.authority-partition.v1",
               "principalDataScope": {
                 "authMode": "sessions",
-                "userId": "principal_ordinary",
+                "userId": "usr_00000000000000000000000000",
                 "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
               },
-              "authorityInstanceId": "graph-corpus-authority",
-              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
               "tenantId": null,
-              "providerId": "email-code",
+              "providerId": "g0-corpus-provider",
               "delegation": null
             }
           },
@@ -672,27 +672,27 @@
           "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g2-corpus",
+            "appId": "zerobugs-graph-g0-corpus",
             "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
-            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-            "targetProfileId": "local-dev-sqlite-ibex",
-            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "function": {
               "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v0",
-              "appId": "zerobugs-graph-g2-corpus",
-              "id": "fn:listIssueByID",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-bf830986268a6dfb",
               "name": "listIssueByID",
               "kind": "LiveQuery",
-              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
               "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
               "expectedGeneration": {
-                "schemaVersion": "snapback.v0",
-                "appId": "zerobugs-graph-g2-corpus",
-                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
               }
             },
             "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
@@ -742,13 +742,13 @@
               "format": "snapback.authority-partition.v1",
               "principalDataScope": {
                 "authMode": "sessions",
-                "userId": "principal_ordinary",
+                "userId": "usr_00000000000000000000000000",
                 "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
               },
-              "authorityInstanceId": "graph-corpus-authority",
-              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
               "tenantId": null,
-              "providerId": "email-code",
+              "providerId": "g0-corpus-provider",
               "delegation": null
             }
           },
@@ -830,27 +830,27 @@
           "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g2-corpus",
+            "appId": "zerobugs-graph-g0-corpus",
             "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
-            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-            "targetProfileId": "local-dev-sqlite-ibex",
-            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "function": {
               "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v0",
-              "appId": "zerobugs-graph-g2-corpus",
-              "id": "fn:listIssueByID",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-bf830986268a6dfb",
               "name": "listIssueByID",
               "kind": "LiveQuery",
-              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
               "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
               "expectedGeneration": {
-                "schemaVersion": "snapback.v0",
-                "appId": "zerobugs-graph-g2-corpus",
-                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
               }
             },
             "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
@@ -900,13 +900,13 @@
               "format": "snapback.authority-partition.v1",
               "principalDataScope": {
                 "authMode": "sessions",
-                "userId": "principal_ordinary",
+                "userId": "usr_00000000000000000000000000",
                 "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
               },
-              "authorityInstanceId": "graph-corpus-authority",
-              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
               "tenantId": null,
-              "providerId": "email-code",
+              "providerId": "g0-corpus-provider",
               "delegation": null
             }
           },
@@ -951,27 +951,27 @@
           "advancedNodeId": "n0",
           "materialization": {
             "format": "snapback.graph-materialization.v1",
-            "appId": "zerobugs-graph-g2-corpus",
+            "appId": "zerobugs-graph-g0-corpus",
             "databaseId": "01890f3c-9d5b-7000-8000-000000000002",
-            "deploymentId": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-            "targetProfileId": "local-dev-sqlite-ibex",
-            "activationHash": "sha256:31ff85c3ec0ee4466ee46dbcfa16a662b54df3a279491c20808a2d36413855f5",
+            "deploymentId": "g0-stage-b",
+            "targetProfileId": "local",
+            "activationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "function": {
               "artifactKind": "functionReference",
-              "schemaVersion": "snapback.v0",
-              "appId": "zerobugs-graph-g2-corpus",
-              "id": "fn:listIssueByID",
+              "schemaVersion": "snapback.v1",
+              "appId": "zerobugs-graph-g0-corpus",
+              "id": "graph-bf830986268a6dfb",
               "name": "listIssueByID",
               "kind": "LiveQuery",
-              "implementationHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-              "argsContractHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "implementationHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "argsContractHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
               "resultContractHash": "sha256:6856097586d412076f1a8e57d952eccb84782dff3abe0be554da0361bdceda58",
               "expectedGeneration": {
-                "schemaVersion": "snapback.v0",
-                "appId": "zerobugs-graph-g2-corpus",
-                "schemaHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-                "bundleHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
-                "inputsHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                "schemaVersion": "snapback.v1",
+                "appId": "zerobugs-graph-g0-corpus",
+                "schemaHash": "corpus-schema-v1",
+                "bundleHash": "corpus-bundle-v1",
+                "inputsHash": "corpus-inputs-v1"
               }
             },
             "graphInstanceHash": "sha256:7dac1bdf75d160dc4a9eafc0dfef90db186824b674db296ee07abb815d3e6b7a"
@@ -1021,13 +1021,13 @@
               "format": "snapback.authority-partition.v1",
               "principalDataScope": {
                 "authMode": "sessions",
-                "userId": "principal_ordinary",
+                "userId": "usr_00000000000000000000000000",
                 "authorizationStreamIncarnation": "01890f3c-9d5b-7000-8000-000000000001"
               },
-              "authorityInstanceId": "graph-corpus-authority",
-              "authFingerprint": "sha256:1a162f2ca25cb8e1c59ba53148e502831a48f35fec4e6b7cfb41b9e6e810ad38",
+              "authorityInstanceId": "aut_01hw6s0ysjf8h8rct4ank7f24s",
+              "authFingerprint": "sha256:e870f8b0efbb5f688ec585fb5a79fea7caa277e6044275c96168ec25a8d6f30c",
               "tenantId": null,
-              "providerId": "email-code",
+              "providerId": "g0-corpus-provider",
               "delegation": null
             }
           },
@@ -1076,5 +1076,5 @@
       ]
     }
   ],
-  "contentDigest": "sha256:2fd8b9be8da62f7314bec99edcab143077122a0be48cbf01ab99292047204e9b"
+  "contentDigest": "sha256:217effa1f85fe45cf523b467f5b9f619d0f80822951da10b6d21b6b19ebef621"
 }

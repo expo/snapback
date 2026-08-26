@@ -814,6 +814,12 @@ pub fn graph_corpus_authorization_frames(
     snapback.graph_corpus_authorization_frames_for_test(connection_id)
 }
 
+/// Drain the corpus connection through its retained sessions-mode effect
+/// fence, matching the guarded transport path used by production serving.
+pub fn drain_graph_corpus_stream(snapback: &LocalSnapback, connection_id: &str) -> Vec<String> {
+    snapback.drain_graph_corpus_stream_for_test(connection_id)
+}
+
 /// Refresh every served graph through the production memo/group path and
 /// return measurements read from the retained memo entries themselves.
 pub fn measure_graph_serving_groups(
