@@ -1486,7 +1486,12 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
-    async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
+    async outboxPendingAcknowledgements(
+      userId = null,
+      limit = 64,
+      authorityDescriptor = null,
+      enqueueTarget = undefined,
+    ) {
       requireOpen();
       return serialized(() => outboxRead(
         (outbox) => pendingAcknowledgementsFor(
@@ -1494,6 +1499,7 @@ export function createFileRqsResumeStore({
           userId,
           limit,
           authorityDescriptor,
+          enqueueTarget,
         ),
         () => [],
       ));
@@ -1511,6 +1517,7 @@ export function createFileRqsResumeStore({
       userId = undefined,
       authorityDescriptor = undefined,
       expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
     ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -1520,6 +1527,7 @@ export function createFileRqsResumeStore({
           userId,
           authorityDescriptor,
           expectedAuthorizationFence,
+          enqueueTarget,
         ),
       )).result);
     },

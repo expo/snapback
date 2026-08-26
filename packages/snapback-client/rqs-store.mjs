@@ -1541,9 +1541,20 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
-    async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
+    async outboxPendingAcknowledgements(
+      userId = null,
+      limit = 64,
+      authorityDescriptor = null,
+      enqueueTarget = undefined,
+    ) {
       return outboxRead(
-        (state) => pendingAcknowledgementsFor(state, userId, limit, authorityDescriptor),
+        (state) => pendingAcknowledgementsFor(
+          state,
+          userId,
+          limit,
+          authorityDescriptor,
+          enqueueTarget,
+        ),
         () => [],
       );
     },
@@ -1559,6 +1570,7 @@ export function createIndexedDbRqsResumeStore({
       userId = undefined,
       authorityDescriptor = undefined,
       expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
     ) {
       return outboxWrite(
         (state) => outboxOps.confirmAcks(
@@ -1567,6 +1579,7 @@ export function createIndexedDbRqsResumeStore({
           userId,
           authorityDescriptor,
           expectedAuthorizationFence,
+          enqueueTarget,
         ),
       );
     },

@@ -223,6 +223,28 @@ const normalizeOutboxEnqueueTarget = (value) => {
   };
 };
 
+const sameOutboxEnqueueTarget = (left, right) => {
+  const normalizedLeft = normalizeOutboxEnqueueTarget(left);
+  const normalizedRight = normalizeOutboxEnqueueTarget(right);
+  return normalizedLeft !== null
+    && normalizedRight !== null
+    && canonicalizeClientValueV1(normalizedLeft) === canonicalizeClientValueV1(normalizedRight);
+};
+
+const acknowledgementEnqueueTarget = (state, acknowledgement) => (
+  normalizeOutboxEnqueueTarget(
+    acknowledgement?.enqueueTarget ?? state.records[acknowledgement?.id]?.enqueueTarget,
+  )
+);
+
+const acknowledgementTargetMatches = (state, acknowledgement, enqueueTarget) => (
+  enqueueTarget === undefined
+  || sameOutboxEnqueueTarget(
+    acknowledgementEnqueueTarget(state, acknowledgement),
+    enqueueTarget,
+  )
+);
+
 export const outboxNotWriterError = () => outboxError(
   'SNAPBACK_OUTBOX_NOT_WRITER',
   'this context does not hold single-writer ownership of the client store; '
@@ -2041,6 +2063,7 @@ export const outboxOps = {
   recordAck(state, id, userId, authorityDescriptor = null, ready = true) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };
     if (state.acks.length >= OUTBOX_MAX_PENDING_ACKS) throw outboxAckFullError();
+    const enqueueTarget = normalizeOutboxEnqueueTarget(state.records[id]?.enqueueTarget);
     const acks = [...state.acks, {
       id,
       userId: stringOrNull(userId),
@@ -2050,6 +2073,7 @@ export const outboxOps = {
           ?? state.records[id]?.authorityDescriptor,
       ),
       ready,
+      ...(enqueueTarget === null ? {} : { enqueueTarget }),
     }];
     return { state: { ...state, acks }, result: true };
   },
@@ -2071,7 +2095,14 @@ export const outboxOps = {
     // A successful mutation response proves its piggyback ACK stage too.
     // Retire those obligations in this same transaction so an ACK-full store
     // can make room without a crash gap before retaining the new settlement.
-    const afterConfirmed = outboxOps.confirmAcks(state, confirmedAcknowledgements).state;
+    const afterConfirmed = outboxOps.confirmAcks(
+      state,
+      confirmedAcknowledgements,
+      undefined,
+      undefined,
+      null,
+      beforeConfirmed.enqueueTarget,
+    ).state;
     const existing = afterConfirmed.records[id];
     if (existing.status === 'settled') return { state: afterConfirmed, result: existing };
     if (existing.status !== 'pending') return { state, result: false };
@@ -2230,6 +2261,7 @@ export const outboxOps = {
     userId = undefined,
     authorityDescriptor = undefined,
     expectedAuthorizationFence = null,
+    enqueueTarget = undefined,
   ) {
     requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
     const requested = new Set(ids);
@@ -2237,6 +2269,7 @@ export const outboxOps = {
       .filter((ack) => (
         requested.has(ack.id)
         && acknowledgementMatches(ack, userId, authorityDescriptor)
+        && acknowledgementTargetMatches(state, ack, enqueueTarget)
       ))
       .map((ack) => ack.id));
     if (!confirmed.size) return { state, result: 0 };
@@ -2280,9 +2313,11 @@ export const pendingAcknowledgementsFor = (
   userId,
   limit,
   authorityDescriptor = null,
+  enqueueTarget = undefined,
 ) => state.acks
   .filter((ack) => (
     acknowledgementMatches(ack, userId ?? null, authorityDescriptor)
+    && acknowledgementTargetMatches(state, ack, enqueueTarget)
     && ack.ready === true
   ))
   .slice(0, limit)

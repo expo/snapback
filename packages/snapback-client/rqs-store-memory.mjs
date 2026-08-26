@@ -799,9 +799,20 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
-    async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
+    async outboxPendingAcknowledgements(
+      userId = null,
+      limit = 64,
+      authorityDescriptor = null,
+      enqueueTarget = undefined,
+    ) {
       requireOpen();
-      return pendingAcknowledgementsFor(state.outbox, userId, limit, authorityDescriptor);
+      return pendingAcknowledgementsFor(
+        state.outbox,
+        userId,
+        limit,
+        authorityDescriptor,
+        enqueueTarget,
+      );
     },
 
     async outboxMarkAcknowledgementsReady(ids, userId = undefined, authorityDescriptor = undefined) {
@@ -816,6 +827,7 @@ export function createMemoryRqsResumeStore({
       userId = undefined,
       authorityDescriptor = undefined,
       expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
     ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.confirmAcks(
@@ -824,6 +836,7 @@ export function createMemoryRqsResumeStore({
         userId,
         authorityDescriptor,
         expectedAuthorizationFence,
+        enqueueTarget,
       );
       state.outbox = applied.state;
       return applied.result;

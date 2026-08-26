@@ -3291,6 +3291,20 @@ const offlineMutationReplayTargetBindingError = (record, replayTarget, knownAppI
   );
 };
 
+const outboxRecordMatchesAcknowledgementTarget = (record, target, knownAppId) => {
+  if (
+    record?.outboxRecordSchemaVersion !== OUTBOX_RECORD_SCHEMA_VERSION
+    || record?.enqueueTarget == null
+  ) return true;
+  if (canonicalServerOrigin(record.enqueueTarget.canonicalOrigin) !== target.origin) return false;
+  // A v2 obligation needs the same complete target fact that minted its
+  // enqueue identity. Origin equality alone cannot distinguish profiles or
+  // ledger incarnations hosted behind one URL, so retain it when that fact is
+  // absent instead of risking foreign GC.
+  if (target.targetProfileId === null || target.artifactGeneration === null) return false;
+  return offlineMutationReplayTargetBindingError(record, target, knownAppId) === null;
+};
+
 // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 — retained
 //   presentation is target-bound observation, but it never reconciles or
 //   rewrites predecessor custody merely because a different app opened it.
@@ -10357,56 +10371,110 @@ export class SnapbackClient {
     authorityCapture = null,
   } = {}) {
     const store = this.#offlineQueueStore();
+    const acknowledgementTransportTarget = pinOfflineMutationTransportTarget(this.baseUrl);
     let authorizationDispatchRelease = null;
     let acknowledgementFence = null;
+    let selectedClientMutationIds = [...clientMutationIds];
+    let acknowledgementConfirmationGroups = [];
     const releaseAuthorizationDispatch = async () => {
       const release = authorizationDispatchRelease;
       authorizationDispatchRelease = null;
       await release?.();
     };
     let resolvedAuthorityDescriptor = authorityDescriptor;
-    if (!resolvedAuthorityDescriptor && store && clientMutationIds.length > 0) {
+    if (store && clientMutationIds.length > 0) {
       await this.#reconcileQueueCustody(store, { required: true });
-      const selected = (await store.outboxRecords())
-        .filter((record) => clientMutationIds.includes(record.id));
-      const descriptors = new Map(selected
-        .map((record) => record.settlementAuthorityDescriptor
-          ?? record.settlement?.authorityDescriptor
-          ?? null)
-        .filter(Boolean)
-        .map((record) => [
-          record.authorityInstanceId,
-          record,
-        ]));
-      if (selected.some((record) => !(
-        record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor
-      ))) {
-        const error = new Error(
-          'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN: retained settlement has no authority descriptor',
+      authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(store);
+      try {
+        const status = await store.outboxAuthorizationStatus();
+        if (status?.suspended === true) {
+          const error = new Error(
+            'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: mutation acknowledgement waits for authorization proof',
+          );
+          error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
+          throw error;
+        }
+        acknowledgementFence = outboxAuthorizationFenceFrom(status);
+        const records = await store.outboxRecords();
+        const recordsById = new Map(records.map((record) => [record.id, record]));
+        const currentFact = await this.#currentOfflineMutationReplayCapabilityFact(
+          acknowledgementTransportTarget,
         );
-        error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN';
+        const completeTarget = currentFact?.supported === true
+          ? completeOfflineMutationOperationTarget(acknowledgementTransportTarget, currentFact)
+          : null;
+        const currentTarget = completeTarget ?? acknowledgementTransportTarget;
+        const knownAppId = currentTarget.artifactGeneration?.appId
+          ?? this.__inspectionAppId
+          ?? (this.__offlineMutationReplayCapability === null
+            ? null
+            : INTERNAL_CONFIGURED_REPLAY_APP_ID);
+        selectedClientMutationIds = clientMutationIds.filter((id) => {
+          const record = recordsById.get(id);
+          return record === undefined
+            || outboxRecordMatchesAcknowledgementTarget(record, currentTarget, knownAppId);
+        });
+        const selectedIds = new Set(selectedClientMutationIds);
+        const selected = records.filter((record) => selectedIds.has(record.id));
+        const groups = new Map();
+        for (const record of selected) {
+          const enqueueTarget = record?.enqueueTarget ?? undefined;
+          const key = enqueueTarget === undefined
+            ? 'legacy'
+            : canonicalizeClientValueV1(enqueueTarget);
+          const group = groups.get(key) ?? { ids: [], enqueueTarget };
+          group.ids.push(record.id);
+          groups.set(key, group);
+        }
+        acknowledgementConfirmationGroups = [...groups.values()];
+        if (selectedClientMutationIds.length === 0) {
+          await releaseAuthorizationDispatch();
+          return Object.freeze({ acknowledged: 0 });
+        }
+        if (!resolvedAuthorityDescriptor) {
+          const descriptors = new Map(selected
+            .map((record) => record.settlementAuthorityDescriptor
+              ?? record.settlement?.authorityDescriptor
+              ?? null)
+            .filter(Boolean)
+            .map((record) => [
+              record.authorityInstanceId,
+              record,
+            ]));
+          if (selected.some((record) => !(
+            record.settlementAuthorityDescriptor ?? record.settlement?.authorityDescriptor
+          ))) {
+            const error = new Error(
+              'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN: retained settlement has no authority descriptor',
+            );
+            error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN';
+            throw error;
+          }
+          if (descriptors.size > 1) {
+            const error = new Error(
+              'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED: acknowledge one authority cohort per request',
+            );
+            error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED';
+            throw error;
+          }
+          resolvedAuthorityDescriptor = descriptors.values().next().value ?? null;
+        }
+      } catch (error) {
+        await releaseAuthorizationDispatch();
         throw error;
       }
-      if (descriptors.size > 1) {
-        const error = new Error(
-          'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED: acknowledge one authority cohort per request',
-        );
-        error.code = 'SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED';
-        throw error;
-      }
-      resolvedAuthorityDescriptor = descriptors.values().next().value ?? null;
-    }
-    const body = {
-      auth: SnapbackClient.auth(userId),
-      clientMutationIds,
-    };
-    if (resolvedAuthorityDescriptor) {
-      body.authorityDescriptor = requireAuthorityDescriptor(
-        resolvedAuthorityDescriptor,
-        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
-      );
     }
     try {
+      const body = {
+        auth: SnapbackClient.auth(userId),
+        clientMutationIds: selectedClientMutationIds,
+      };
+      if (resolvedAuthorityDescriptor) {
+        body.authorityDescriptor = requireAuthorityDescriptor(
+          resolvedAuthorityDescriptor,
+          'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+        );
+      }
       const response = await this.#req(
         'POST',
         '/client-mutations/acknowledge',
@@ -10414,34 +10482,25 @@ export class SnapbackClient {
         undefined,
         {
           expectedAuthorityCapture: authorityCapture,
-          beforeTransportDispatch: async () => {
-            if (!store || clientMutationIds.length === 0) return;
-            if (authorizationDispatchRelease !== null) return;
-            authorizationDispatchRelease = await acquireOutboxAuthorizationDispatch(store);
-            const status = await store.outboxAuthorizationStatus();
-            if (status?.suspended === true) {
-              const error = new Error(
-                'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED: mutation acknowledgement waits for authorization proof',
-              );
-              error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED';
-              throw error;
-            }
-            acknowledgementFence = outboxAuthorizationFenceFrom(status);
-          },
           onTransportFailure: async (error) => {
             if (requestFailureReentersAuthorityTransport(error)) {
               await releaseAuthorizationDispatch();
             }
           },
+          transportBaseUrl: acknowledgementTransportTarget.baseUrl,
+          pinnedOperationTarget: acknowledgementTransportTarget,
         },
       );
-      if (store && clientMutationIds.length > 0) {
-        await store.outboxConfirmAcknowledgements(
-          clientMutationIds,
-          typeof userId === 'string' ? userId : null,
-          body.authorityDescriptor ?? null,
-          acknowledgementFence,
-        );
+      if (store && selectedClientMutationIds.length > 0) {
+        for (const group of acknowledgementConfirmationGroups) {
+          await store.outboxConfirmAcknowledgements(
+            group.ids,
+            typeof userId === 'string' ? userId : null,
+            body.authorityDescriptor ?? null,
+            acknowledgementFence,
+            group.enqueueTarget,
+          );
+        }
       }
       return response;
     } finally {
@@ -13962,8 +14021,7 @@ export class SnapbackClient {
           operationTarget,
         });
         if (capability.supported !== true) {
-          if (capability.evidence === 'configured') queue = false;
-          else throw offlineQueueSettlementLedgerError(capability);
+          queue = false;
         }
       } else if (queue === 'auto') {
         queue = false;
@@ -14117,9 +14175,16 @@ export class SnapbackClient {
         if (queueCapabilityEvidence === 'cached' && clientMutationId === null) {
           clientMutationId = createClientMutationId();
         }
+      } else {
+        // Automatic mode on a ledger-less or inspection-unavailable target is
+        // an ordinary online-only write. Clear all operation-local queue
+        // authority so no record or ambiguous-response fallback can be minted.
+        queue = false;
+        queueCapabilityVerified = false;
+        queueCapabilityEvidence = null;
+        queueCapabilityFact = null;
+        queueCapabilityRequestSequence = null;
       }
-      else if (capability.evidence === 'configured') queue = false;
-      else throw offlineQueueSettlementLedgerError(capability);
     }
     let generatedMutation = null;
     let generatedComposedStore = null;
@@ -14302,6 +14367,16 @@ export class SnapbackClient {
     // may not acknowledge its own current id.
     let sentAcknowledgements = [];
     let sentAcknowledgementFence = null;
+    const sentAcknowledgementTarget = queueStore === null
+      ? null
+      : offlineMutationOutboxEnqueueTarget(
+          operationTarget,
+          generation,
+          this.__inspectionAppId
+            ?? (this.__offlineMutationReplayCapability === null
+              ? null
+              : INTERNAL_CONFIGURED_REPLAY_APP_ID),
+        );
     if (
       queueStore
       && body.authorityDescriptor
@@ -14315,6 +14390,7 @@ export class SnapbackClient {
             typeof userId === 'string' ? userId : null,
             64,
             body.authorityDescriptor ?? null,
+            sentAcknowledgementTarget,
           )).filter((id) => id !== clientMutationId);
         }
       } catch {
@@ -14333,6 +14409,7 @@ export class SnapbackClient {
           undefined,
           undefined,
           sentAcknowledgementFence,
+          sentAcknowledgementTarget,
         );
       } catch { /* retained obligations are retried on a later mutation */ }
     };
@@ -14358,16 +14435,18 @@ export class SnapbackClient {
       );
       if (presentationTarget !== null) operationTarget = presentationTarget;
     }
-    const durableOutboxEnqueueTarget = queueStore || generatedPresentationEnabled
-      ? offlineMutationOutboxEnqueueTarget(
-        operationTarget,
-        generation,
-        this.__inspectionAppId
-          ?? (this.__offlineMutationReplayCapability === null
-            ? null
-            : INTERNAL_CONFIGURED_REPLAY_APP_ID),
-      )
-      : null;
+    const durableOutboxEnqueueTarget = sentAcknowledgementTarget ?? (
+      generatedPresentationEnabled
+        ? offlineMutationOutboxEnqueueTarget(
+            operationTarget,
+            generation,
+            this.__inspectionAppId
+              ?? (this.__offlineMutationReplayCapability === null
+                ? null
+                : INTERNAL_CONFIGURED_REPLAY_APP_ID),
+          )
+        : null
+    );
     let durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,

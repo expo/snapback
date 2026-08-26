@@ -424,7 +424,12 @@ registrations.
 
 ```js source=packages/snapback-client/outbox-store.test.mjs
   // Offline: fetch refuses at the transport (TypeError, like undici).
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    throw new TypeError('fetch failed');
+  };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
   assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');

@@ -1018,8 +1018,19 @@ export async function createSqliteRqsResumeStore({
     outboxRecordAcknowledgement(id, userId = null, descriptor = null) {
       return mutateOutbox('outbox-record-ack', (state) => outboxOps.recordAck(state, id, userId, descriptor));
     },
-    outboxPendingAcknowledgements(userId = null, limit = 64, descriptor = null) {
-      return serialized(async () => pendingAcknowledgementsFor(await readOutbox(), userId, limit, descriptor));
+    outboxPendingAcknowledgements(
+      userId = null,
+      limit = 64,
+      descriptor = null,
+      enqueueTarget = undefined,
+    ) {
+      return serialized(async () => pendingAcknowledgementsFor(
+        await readOutbox(),
+        userId,
+        limit,
+        descriptor,
+        enqueueTarget,
+      ));
     },
     outboxMarkAcknowledgementsReady(ids, userId = undefined, descriptor = undefined) {
       return mutateOutbox('outbox-acks-ready', (state) => outboxOps.markAcksReady(state, ids, userId, descriptor));
@@ -1029,6 +1040,7 @@ export async function createSqliteRqsResumeStore({
       userId = undefined,
       descriptor = undefined,
       expectedAuthorizationFence = null,
+      enqueueTarget = undefined,
     ) {
       return mutateOutbox('outbox-acks-confirmed', (state) => (
         outboxOps.confirmAcks(
@@ -1037,6 +1049,7 @@ export async function createSqliteRqsResumeStore({
           userId,
           descriptor,
           expectedAuthorizationFence,
+          enqueueTarget,
         )
       ));
     },

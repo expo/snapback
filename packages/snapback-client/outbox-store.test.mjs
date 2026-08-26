@@ -1068,6 +1068,28 @@ test('ACK pressure refuses settlement publication without losing pending intent'
   assert.equal(advanced.acks.some((ack) => ack.id === 'cm-pressure'), true);
 });
 
+test('settlement ACK obligations persist the record enqueue target', () => {
+  const target = currentOutboxTarget({ origin: 'https://ack-target-a.example' });
+  const pending = outboxOps.enqueue(
+    emptyOutboxState(),
+    {
+      id: 'cm-targeted-ack',
+      function: 'createThing',
+      ...target,
+    },
+    1,
+  ).state;
+  const settled = outboxOps.durablyConsume(
+    pending,
+    'cm-targeted-ack',
+    { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+    2,
+  ).state;
+
+  assert.deepEqual(settled.acks[0].enqueueTarget, target.enqueueTarget);
+});
+
 test('ACK custody is scoped by authority instance as well as user', async () => {
   const first = {
     descriptorVersion: 1,
@@ -2292,7 +2314,7 @@ test('volatile store never claims the durable settlement-publication path', asyn
   assert.equal((await store.outboxRecords()).length, 0, 'auto mode never queues into memory');
 });
 
-test("queue:'auto' fails ledger-less admission closed and cached-evidence non-writers fail without POST", async (t) => {
+test("queue:'auto' uses online-only dispatch for a ledger-less target and cached-evidence non-writers fail without POST", async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('https://ledgerless.example', { rqsStore: store });
@@ -2307,16 +2329,18 @@ test("queue:'auto' fails ledger-less admission closed and cached-evidence non-wr
       }));
     }
     mutationCalls += 1;
-    throw new TypeError('ambiguous transport loss');
+    return Response.json({ result: { acceptedOnlineOnly: true }, version: 1 });
   };
 
-  await assert.rejects(
-    () => client.mutate('createThing', { args: { title: 'committed-or-not' } }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+  const onlineOnly = await client.mutate(
+    'createThing',
+    { args: { title: 'committed-or-not' } },
   );
-  assert.equal(mutationCalls, 0, 'an answered capability gap permits no mutation POST');
+  assert.equal(onlineOnly.status, 'settled');
+  assert.deepEqual(onlineOnly.result, { acceptedOnlineOnly: true });
+  assert.equal(mutationCalls, 1, 'an answered capability gap permits one online-only POST');
   assert.equal(inspectCalls, 1, 'the target manifest is checked before durable fallback');
-  assert.deepEqual(await store.outboxRecords(), [], 'ambiguous delivery is never enqueued');
+  assert.deepEqual(await store.outboxRecords(), [], 'the online-only delivery is never enqueued');
 
   const backing = createMemoryRqsStoreBacking();
   const writerStore = createDurableTestStore({ backing });
@@ -2901,7 +2925,7 @@ test('migrated retained live query discovers on reconnect, publicly settles, the
   await migratedStore.close();
 });
 
-test('a new default client fails closed without an established app binding', async (t) => {
+test('a new default client stays online-only without an established app binding', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const directory = mkdtempSync(join(tmpdir(), 'snapback-capability-product-relaunch-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -2941,10 +2965,10 @@ test('a new default client fails closed without an established app binding', asy
         args: { title: 'cold-client-cached-capability' },
         clientMutationId: 'cm-product-relaunch-cached-capability',
       }),
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
     );
     assert.equal(inspectCalls, 1, 'the successor still attempts one fresh capability probe');
-    assert.equal(mutationPosts, 0, 'an unbound successor permits no mutation POST');
+    assert.equal(mutationPosts, 1, 'an unbound successor makes one online-only mutation POST');
     assert.deepEqual(
       (await second.rqsStore.outboxPending()).map((record) => record.id),
       [],
@@ -2960,7 +2984,7 @@ test('a new default client fails closed without an established app binding', asy
   }
 });
 
-test('broker-unavailable peer negative stays fail-closed before and after IndexedDB writer handoff', async (t) => {
+test('broker-unavailable peer negative stays online-only before and after IndexedDB writer handoff', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const indexedDB = new IDBFactory();
   const lockManager = createContendedLockManager();
@@ -3019,12 +3043,12 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'must-not-use-process-positive' },
       clientMutationId: 'cm-peer-negative',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
   assert.equal(
     mutationCalls,
-    0,
-    'the bound follower answered negative permits no mutation POST',
+    1,
+    'the bound follower answered negative permits one online-only mutation POST',
   );
   assert.deepEqual(await writerStore.outboxRecords(), [], 'the bound follower queues no durable intent');
 
@@ -3051,12 +3075,12 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'must-remain-negative-after-handoff' },
       clientMutationId: 'cm-peer-negative-handoff',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
   assert.equal(
     mutationCalls,
-    0,
-    'writer takeover does not resurrect the predecessor cached positive',
+    1,
+    'writer takeover keeps the mutation online-only instead of resurrecting cached support',
   );
   assert.deepEqual(await followerStore.outboxRecords(), [], 'handoff still queues nothing');
 
@@ -3078,12 +3102,12 @@ test('broker-unavailable peer negative stays fail-closed before and after Indexe
       args: { title: 'new-context-must-observe-takeover-negative' },
       clientMutationId: 'cm-peer-negative-new-context',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
   assert.equal(
     newcomerMutationCalls,
-    0,
-    'a new bound client uses the durable negative without a mutation POST',
+    1,
+    'a new bound client uses the durable negative for one online-only mutation POST',
   );
   assert.deepEqual(
     await newcomerStore.outboxRecords(),
@@ -3392,7 +3416,7 @@ test('repointing a client drops a local negative override from the previous orig
   await store.close();
 });
 
-test('a rejected answered-negative capability commit fails bound mutation admission closed', async (t) => {
+test('a rejected answered-negative capability commit keeps bound mutation admission online-only', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://rejected-capability-commit.example';
@@ -3413,33 +3437,47 @@ test('a rejected answered-negative capability commit fails bound mutation admiss
   });
   client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
   let mutationPosts = 0;
+  let inspectionMode = 'answered-negative';
   globalThis.fetch = async (url) => {
     const path = new URL(url).pathname;
     if (path === '/inspect') {
+      if (inspectionMode === 'transport-lost') {
+        throw new TypeError('follow-up capability inspection lost transport');
+      }
       return Response.json(offlineReplayInspection({
         supported: false,
         targetProfileId: 'cloudflare-do-sqlite-v8',
       }));
     }
     mutationPosts += 1;
-    throw new TypeError('mutation transport must not run after the answered negative');
+    return Response.json({ result: { acceptedOnlineOnly: mutationPosts }, version: mutationPosts });
   };
 
   try {
-    await assert.rejects(
-      () => client.mutate('createThing', {
-        args: { title: 'answered negative wins locally' },
-        clientMutationId: 'cm-rejected-answered-negative',
-      }),
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
-    );
-    assert.equal(mutationPosts, 0, 'the answered negative permits no mutation POST');
+    const answeredNegative = await client.mutate('createThing', {
+      args: { title: 'answered negative wins locally' },
+      clientMutationId: 'cm-rejected-answered-negative',
+    });
+    assert.equal(answeredNegative.status, 'settled');
+    assert.equal(mutationPosts, 1, 'the answered negative permits one online-only mutation POST');
     assert.deepEqual(await store.outboxRecords(), [], 'the answered negative queues no intent');
     assert.equal(
       (await store.readOfflineMutationReplayCapabilityFact()).supported,
       true,
       'the rejected shared commit leaves the predecessor bytes unchanged',
     );
+    inspectionMode = 'transport-lost';
+    const localOverride = await client.mutate('createThing', {
+      args: { title: 'local negative still wins' },
+      clientMutationId: 'cm-rejected-answered-negative-follow-up',
+    });
+    assert.equal(localOverride.status, 'settled');
+    assert.equal(
+      mutationPosts,
+      2,
+      'the local negative override keeps a later no-response probe online-only',
+    );
+    assert.deepEqual(await store.outboxRecords(), [], 'the shared predecessor positive is never queued');
   } finally {
     store.commitOfflineMutationReplayCapabilityFact = commitCapabilityFact;
     await client.close();
@@ -3502,9 +3540,9 @@ test('an answered negative overrides cached support before durable replacement s
     await negativeInspection;
     await assert.rejects(
       () => mutation,
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
     );
-    assert.equal(mutationCalls, 0, 'the parallel mutation remains fail-closed before transport');
+    assert.equal(mutationCalls, 1, 'the parallel mutation dispatches online-only after replacement');
     assert.deepEqual(await store.outboxRecords(), [], 'the predecessor positive queues nothing');
   } finally {
     releaseNegativeCommit();
@@ -3564,9 +3602,9 @@ test('a delayed positive capability commit cannot overtake a later answered nega
       args: { title: 'ledger-less-target' },
       clientMutationId: 'cm-inverse-inspection-race',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
-  assert.equal(mutationPosts, 0, 'the ledger-less target receives no mutation POST');
+  assert.equal(mutationPosts, 1, 'the ledger-less target receives one online-only mutation POST');
   assert.equal(
     (await store.readOfflineMutationReplayCapabilityFact()).supported,
     false,
@@ -3630,9 +3668,9 @@ test('a delayed earlier inspect response cannot resurrect a later answered negat
       args: { title: 'must-not-resurrect' },
       clientMutationId: 'cm-dispatch-ordered-negative',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
-  assert.equal(mutationPosts, 0, 'the negative target gets no mutation POST');
+  assert.equal(mutationPosts, 1, 'the negative target gets one online-only mutation POST');
   assert.deepEqual(await store.outboxRecords(), [], 'the delayed positive queues nothing');
   await client.close();
   await store.close();
@@ -3814,9 +3852,9 @@ const exerciseCrossClientCapabilityOrdering = async ({
         args: { title: `${label}-negative-stays-closed` },
         clientMutationId: `cm-${label}-negative-stays-closed`,
       }),
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
     );
-    assert.equal(offlineMutationPosts, 0, `${label}: stale positive licenses no POST or enqueue`);
+    assert.equal(offlineMutationPosts, 1, `${label}: stale positive licenses no enqueue, only an online POST`);
     assert.deepEqual(
       await writerStore.outboxPending(),
       [],
@@ -5343,7 +5381,7 @@ test('operation-range transport loss revalidates capability before queued relinq
   }
 });
 
-test('durable negative capability refuses housekeeping enqueue during an auth transition', async (t) => {
+test('durable negative capability leaves housekeeping online-only during an auth transition', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://auth-transition-housekeeping-capability.example';
@@ -5400,8 +5438,8 @@ test('durable negative capability refuses housekeeping enqueue during an auth tr
     );
     assert.equal(
       outcome.error?.code,
-      'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
-      'queue:auto fails closed when the shared target fact is negative',
+      'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+      'queue:auto degrades to online-only before the authority barrier refuses dispatch',
     );
     assert.equal(mutationPosts, 0, 'the refused housekeeping write issues no mutation POST');
     assert.deepEqual(
@@ -5590,7 +5628,7 @@ test('a 502 lifecycle answer is in-flight deduplication only and a later read re
   await store.close();
 });
 
-test('automatic enqueue never reuses a positive fact from another canonical origin', async (t) => {
+test('automatic mode never reuses a positive fact from another canonical origin', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const firstOrigin = new InspectingSnapbackClient('http://127.0.0.1:4400', {
@@ -5607,14 +5645,19 @@ test('automatic enqueue never reuses a positive fact from another canonical orig
     rqsStore: store,
     __outboxDrainLifecycle: false,
   });
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('fetch failed');
+  };
   await assert.rejects(
     () => otherOrigin.mutate('createThing', {
       args: { title: 'wrong-origin' },
       clientMutationId: 'cm-wrong-origin',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
+  assert.equal(mutationPosts, 1, 'the mismatched origin falls back to one online-only POST');
   assert.deepEqual(await store.outboxRecords(), [], 'origin mismatch invalidates cached support');
   await store.close();
 });
@@ -5690,7 +5733,7 @@ test('replay never reuses cached settlement-ledger evidence after transport loss
   assert.equal((await store.outboxPending()).length, 1);
 });
 
-test('automatic enqueue rejects cached support bound to a different app generation', async (t) => {
+test('automatic mode stays online-only when cached support names a different app generation', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('http://127.0.0.1:4400', {
@@ -5718,15 +5761,20 @@ test('automatic enqueue rejects cached support bound to a different app generati
     },
     argumentSchema: TEST_CREATE_THING_ARGUMENT_SCHEMA,
   };
-  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname.startsWith('/mutation/')) mutationPosts += 1;
+    throw new TypeError('fetch failed');
+  };
   await assert.rejects(
     () => client.mutate(successorMutation, { args: { title: 'wrong-generation' } }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
+  assert.equal(mutationPosts, 1, 'generation mismatch permits one online-only POST');
   assert.deepEqual(await store.outboxRecords(), [], 'identity mismatch invalidates cached support');
 });
 
-test('automatic string-named enqueue refuses cached support from a replaced same-origin app', async (t) => {
+test('automatic string-named mutation stays online-only for a replaced same-origin app', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const origin = 'https://cached-same-origin-app-replacement.example';
@@ -5759,10 +5807,10 @@ test('automatic string-named enqueue refuses cached support from a replaced same
         args: { title: 'belongs to app B' },
         clientMutationId: 'cm-cached-same-origin-app-replacement',
       }),
-      (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+      (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
     );
     assert.equal(inspectCalls, 1, 'automatic admission still attempts a fresh capability probe');
-    assert.equal(mutationPosts, 0, 'mismatched cached evidence permits no mutation POST');
+    assert.equal(mutationPosts, 1, 'mismatched cached evidence permits one online-only POST');
     assert.deepEqual(
       await store.outboxRecords(),
       [],
@@ -5774,7 +5822,7 @@ test('automatic string-named enqueue refuses cached support from a replaced same
   }
 });
 
-test('automatic string-named enqueue refuses identity-free cached manifest support', async (t) => {
+test('automatic string-named mutation stays online-only with identity-free cached manifest support', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new InspectingSnapbackClient('https://direct-manifest.example', {
@@ -5805,10 +5853,10 @@ test('automatic string-named enqueue refuses identity-free cached manifest suppo
       args: { title: 'origin-bound' },
       clientMutationId: 'cm-direct-manifest',
     }),
-    (error) => error?.code === 'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED',
+    (error) => isSnapbackDiagnosticError(error) && error.cause instanceof TypeError,
   );
   assert.equal(inspectCalls, 1, 'the automatic enqueue still performs its fresh re-probe');
-  assert.equal(mutationCalls, 0, 'identity-free cached evidence permits no mutation POST');
+  assert.equal(mutationCalls, 1, 'identity-free cached evidence permits one online-only POST');
   assert.deepEqual(
     (await store.outboxPending()).map((record) => record.id),
     [],
@@ -7511,6 +7559,123 @@ test('standalone ACK confirms only its exact authority cohort', async (t) => {
   });
   assert.deepEqual(await store.outboxRecords(), []);
   assert.deepEqual(bodies[1].authorityDescriptor, first);
+});
+
+test('standalone ACK never crosses the persisted enqueue target after client repoint', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const originA = 'https://standalone-ack-target-a.example';
+  const originB = 'https://standalone-ack-target-b.example';
+  const store = createDurableTestStore();
+  const clientMutationId = 'cm-standalone-ack-target-a';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    ...currentOutboxTarget({ origin: originA }),
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  await store.outboxDurablyConsume(
+    clientMutationId,
+    { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+  );
+  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(init.body) });
+    return Response.json({ acknowledged: 0 });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  t.after(async () => {
+    await client.close();
+    await store.close();
+  });
+
+  assert.deepEqual(
+    await client.acknowledgeMutations({ clientMutationIds: [clientMutationId] }),
+    { acknowledged: 0 },
+  );
+  assert.deepEqual(requests, [], 'target B receives no standalone ACK for target A');
+  assert.equal(
+    (await store.outboxRecords()).find((record) => record.id === clientMutationId)?.status,
+    'settled',
+    'target A recovery state survives the foreign standalone ACK attempt',
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [clientMutationId],
+    'target A keeps its local ACK obligation',
+  );
+});
+
+test('piggyback ACK never crosses the persisted enqueue target after client repoint', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const originA = 'https://piggyback-ack-target-a.example';
+  const originB = 'https://piggyback-ack-target-b.example';
+  const store = createDurableTestStore();
+  const clientMutationId = 'cm-piggyback-ack-target-a';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    ...currentOutboxTarget({ origin: originA }),
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  await store.outboxDurablyConsume(
+    clientMutationId,
+    { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+  );
+  await store.outboxMarkAcknowledgementsReady([clientMutationId]);
+  const mutationBodies = [];
+  globalThis.fetch = async (url, init) => {
+    if (new URL(url).pathname === '/inspect') {
+      return Response.json(offlineReplayInspection({
+        supported: true,
+        targetProfileId: 'target-b-ledger',
+      }));
+    }
+    const body = JSON.parse(init.body);
+    mutationBodies.push(body);
+    return Response.json({
+      result: { acceptedByTargetB: true },
+      version: 1,
+      authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+    });
+  };
+  const client = new InspectingSnapbackClient(originB, {
+    rqsStore: store,
+    __offlineMutationReplayCapability: null,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  t.after(async () => {
+    await client.close();
+    await store.close();
+  });
+
+  const outcome = await client.mutate('createThing', {
+    args: { title: 'target B write' },
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  assert.equal(outcome.status, 'settled');
+  assert.equal(mutationBodies.length, 1);
+  assert.equal(
+    mutationBodies[0].acknowledgedClientMutationIds,
+    undefined,
+    'target B mutation carries no target A ACK',
+  );
+  assert.equal(
+    (await store.outboxRecords()).find((record) => record.id === clientMutationId)?.status,
+    'settled',
+    'target A recovery state survives the foreign piggyback opportunity',
+  );
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [clientMutationId],
+    'target A keeps its local ACK obligation',
+  );
 });
 
 test('explicit-id server refusal is failed locally and never acknowledged', async (t) => {
