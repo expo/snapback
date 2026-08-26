@@ -3216,8 +3216,11 @@ const externalBearerPredecessorFencedError = () => new Error(
 const OFFLINE_MUTATION_REPLAY_CAPABILITY = 'offline_mutation_replay';
 const OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED =
   'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED';
+const OUTBOX_REPLAY_INSPECTION_UNAVAILABLE =
+  'SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE';
 const OFFLINE_MUTATION_REPLAY_CAPABILITY_FACT_V1 =
   'snapback.offline-mutation-replay-capability-fact.v1';
+const RQS_OUTBOX_CAPABILITIES_V1 = 'snapback.rqs-outbox-capabilities.v1';
 const OUTBOX_RECORD_SCHEMA_VERSION = 2;
 const OUTBOX_ENQUEUE_TARGET_SCHEMA_VERSION = 'snapback.outbox-enqueue-target.v1';
 
@@ -3729,6 +3732,26 @@ const offlineQueueSettlementLedgerError = ({
   });
   return error;
 };
+
+const outboxReplayInspectionUnavailableError = (cause, clientMutationId) => diagnosticError(
+  OUTBOX_REPLAY_INSPECTION_UNAVAILABLE,
+  'the target answered the final replay inspection without a usable capability manifest; replay remains pending',
+  {
+    reason: 'answered-pre-post-inspection-failure',
+    clientMutationId,
+    causeCode: cause?.diagnostic?.code ?? cause?.code ?? null,
+    status: Number.isSafeInteger(cause?.status) ? cause.status : null,
+    retryable: true,
+    retryStrategy: 'retry-after-target-recovers',
+  },
+  {
+    cause,
+    retryable: true,
+    retryStrategy: 'retry-after-target-recovers',
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  },
+);
 
 export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE =
   'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
@@ -11013,6 +11036,24 @@ export class SnapbackClient {
             'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
           );
         }
+        // The fresh inspect precedes lock acquisition. A peer can commit an
+        // answered same-target negative in that gap, so the transport cut must
+        // consume the shared fact again while the authorization-dispatch lock
+        // excludes any subsequent replacement through fetch invocation.
+        const currentAcknowledgementCapability = normalizeOfflineMutationReplayCapabilityFact(
+          await store.readOfflineMutationReplayCapabilityFact(),
+        );
+        if (
+          currentAcknowledgementCapability?.supported !== true
+          || !samePositiveOfflineMutationReplayAuthority(
+            acknowledgementCapability,
+            currentAcknowledgementCapability,
+          )
+          || !offlineMutationOperationTargetMatchesFact(
+            acknowledgementTarget,
+            currentAcknowledgementCapability,
+          )
+        ) return Object.freeze({ acknowledged: 0 });
         const response = await this.#req(
           'POST',
           '/client-mutations/acknowledge',
@@ -11560,6 +11601,30 @@ export class SnapbackClient {
         quarantined: 0,
         quarantinedIds: [],
       };
+    }
+    if (
+      legacyPolicy?.disposition === 'quarantine'
+      && (
+        store.outboxCapabilities?.schemaVersion !== RQS_OUTBOX_CAPABILITIES_V1
+        || store.outboxCapabilities?.supportsLegacyQuarantine !== true
+      )
+    ) {
+      const error = new Error(
+        'SNAPBACK_OUTBOX_LEGACY_QUARANTINE_UNSUPPORTED: the injected store does not declare versioned legacy-quarantine support',
+      );
+      error.code = 'SNAPBACK_OUTBOX_LEGACY_QUARANTINE_UNSUPPORTED';
+      error.diagnostic = Object.freeze({
+        schemaVersion: 'snapback.client-diagnostic.v1',
+        code: error.code,
+        severity: 'error',
+        subsystem: 'outbox',
+        message: 'the injected store cannot prove that predecessor intent will be quarantined instead of deleted',
+        details: Object.freeze({
+          requiredCapability: RQS_OUTBOX_CAPABILITIES_V1,
+          supportsLegacyQuarantine: true,
+        }),
+      });
+      throw error;
     }
     let beforeRecords = [];
     try { beforeRecords = await store.outboxRecords(); } catch { /* transition remains authoritative */ }
@@ -14121,11 +14186,17 @@ export class SnapbackClient {
               // The constructor boolean is an internal store-mechanics test
               // seam with no served `/inspect` target. Production clients
               // always leave it null and perform the real final observation.
-              const immediateCapability = this.__offlineMutationReplayCapability === null
-                ? await this.#inspectOfflineMutationReplayTargetWithoutCommit(
+              let immediateCapability = null;
+              if (this.__offlineMutationReplayCapability === null) {
+                try {
+                  immediateCapability = await this.#inspectOfflineMutationReplayTargetWithoutCommit(
                     replayOperationTarget,
-                  )
-                : null;
+                  );
+                } catch (error) {
+                  if (isConnectivityFailureError(error)) throw error;
+                  throw outboxReplayInspectionUnavailableError(error, record.id);
+                }
+              }
               const immediateTarget = immediateCapability === null
                 ? replayOperationTarget
                 : completeOfflineMutationOperationTarget(
@@ -14337,6 +14408,24 @@ export class SnapbackClient {
           replayStop.value = Object.freeze({
             kind: 'paused',
             reason: 'replay-paused:capability-superseded',
+          });
+          stopped = true;
+          break;
+        }
+        if (error?.code === OUTBOX_REPLAY_INSPECTION_UNAVAILABLE) {
+          this.#recordOutboxDiagnostic({
+            code: error.code,
+            mutation: record.function,
+            clientMutationId: record.id,
+            reason: error?.diagnostic?.details?.reason
+              ?? 'answered-pre-post-inspection-failure',
+            retryable: true,
+          });
+          replayStop.value = Object.freeze({
+            kind: 'paused',
+            code: error.code,
+            reason: 'replay-paused:pre-post-inspection-unavailable',
+            retryable: true,
           });
           stopped = true;
           break;

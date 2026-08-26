@@ -5423,6 +5423,67 @@ test('string-named replay carries its persisted generation across an inspect-to-
   }
 });
 
+test('answered pre-POST inspection failure pauses the pending queue without failing records', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const origin = 'https://replay-pre-post-inspection-answered-error.example';
+  const targetProfileId = 'replay-pre-post-inspection-answered-error-target';
+  const clientMutationIds = [
+    'cm-replay-pre-post-inspection-answered-error-one',
+    'cm-replay-pre-post-inspection-answered-error-two',
+  ];
+  for (const [index, id] of clientMutationIds.entries()) {
+    await store.outboxEnqueue({
+      id,
+      function: 'createThing',
+      args: { title: `pending record ${index + 1}` },
+      ...currentOutboxTarget({ origin, targetProfileId }),
+    });
+  }
+  let inspectionRequests = 0;
+  let mutationPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      inspectionRequests += 1;
+      if (inspectionRequests === 1) {
+        return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+      }
+      return Response.json({
+        diagnostic: { code: 'HTTP_502', message: 'persistent proxy failure' },
+      }, { status: 502 });
+    }
+    mutationPosts += 1;
+    return Response.json({ result: { mustNotRun: true }, version: 1 });
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  try {
+    const replay = await client.replayQueuedMutations();
+    assert.equal(replay.replayed, 0, 'the answered pre-POST failure settles no record');
+    assert.equal(replay.failed, 0, 'the answered pre-POST failure is retriable, not terminal');
+    assert.equal(replay.stopped, true, 'the first answered pre-POST failure pauses the lane');
+    assert.equal(replay.remaining, 2, 'every pending record remains recoverable');
+    assert.equal(inspectionRequests, 2, 'replay stops after the first pre-POST inspect failure');
+    assert.equal(mutationPosts, 0, 'the answered pre-POST failure sends no mutation POST');
+    assert.deepEqual(
+      (await store.outboxRecords()).map((record) => ({ id: record.id, status: record.status })),
+      clientMutationIds.map((id) => ({ id, status: 'pending' })),
+      'a persistent answered failure cannot walk the pending queue into failed state',
+    );
+    assert.equal(
+      client.outboxDiagnostics.at(-1)?.code,
+      'SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE',
+    );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
 const exerciseTargetAwareOptimisticProjection = async ({
   enqueueOrigin,
   projectionOrigin,
@@ -8858,6 +8919,72 @@ test('standalone ACK refreshes same-origin generation evidence before custody or
       'settled',
       'the predecessor recovery record survives the same-origin successor probe',
     );
+  } finally {
+    await client.close();
+    await store.close();
+  }
+});
+
+test('standalone ACK rechecks a same-target positive after acquiring authorization dispatch', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const origin = 'https://standalone-ack-peer-negative.example';
+  const targetProfileId = 'standalone-ack-peer-negative-target';
+  const store = createDurableTestStore();
+  const clientMutationId = 'cm-standalone-ack-peer-negative';
+  await store.outboxEnqueue({
+    id: clientMutationId,
+    function: 'createThing',
+    ...currentOutboxTarget({ origin, targetProfileId }),
+    authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR,
+  });
+  await store.outboxDurablyConsume(
+    clientMutationId,
+    { result: { ok: true }, authorityDescriptor: TEST_AUTHORITY_DESCRIPTOR },
+    null,
+  );
+  await store.outboxMarkAcknowledgementsReady(
+    [clientMutationId], undefined, undefined, null,
+    (await store.outboxRecords())[0].enqueueTarget,
+  );
+  let acknowledgementPosts = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
+      return Response.json(offlineReplayInspection({ supported: true, targetProfileId }));
+    }
+    acknowledgementPosts += 1;
+    return Response.json({ acknowledged: 1 });
+  };
+  const client = new InspectingSnapbackClient(origin, {
+    rqsStore: store,
+    __outboxDrainLifecycle: false,
+  });
+  client.__registerInspectionAppId(TEST_ARTIFACT_GENERATION.appId);
+  const withAuthorizationDispatch = store.withOutboxAuthorizationDispatch.bind(store);
+  let negativeCommitted = false;
+  store.withOutboxAuthorizationDispatch = async (operation, options = undefined) => {
+    if (options?.lane === 'foreground' && !negativeCommitted) {
+      negativeCommitted = true;
+      const observation = await store.beginOfflineMutationReplayCapabilityObservation();
+      await store.commitOfflineMutationReplayCapabilityFact({
+        schemaVersion: 'snapback.offline-mutation-replay-capability-fact.v1',
+        origin,
+        supported: false,
+        reason: 'answered-negative-before-ack-dispatch',
+        targetProfileId,
+        artifactGeneration: TEST_ARTIFACT_GENERATION,
+      }, observation);
+    }
+    return withAuthorizationDispatch(operation, options);
+  };
+  try {
+    assert.deepEqual(
+      await client.acknowledgeMutations({ clientMutationIds: [clientMutationId] }),
+      { acknowledged: 0 },
+    );
+    assert.equal(negativeCommitted, true, 'the peer negative wins before ACK lock entry');
+    assert.equal(acknowledgementPosts, 0, 'a same-target negative licenses no ACK POST');
+    assert.equal((await store.outboxRecords())[0].status, 'settled');
   } finally {
     await client.close();
     await store.close();

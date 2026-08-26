@@ -155,8 +155,32 @@ export interface RqsMaterializationTransactionView {
   storeMeta: RqsStoreMetaV3;
 }
 
+export interface RqsOutboxCapabilitiesV1 {
+  readonly schemaVersion: 'snapback.rqs-outbox-capabilities.v1';
+  /** The record-scoped custody method consumes `legacyPolicy: quarantine`
+   * and returns quarantine counts without deleting predecessor intent. */
+  readonly supportsLegacyQuarantine: true;
+}
+
+export interface RqsLegacyCustodyPolicy {
+  readonly disposition: 'delete' | 'quarantine';
+  readonly predecessorPrincipalScope: Readonly<Record<string, unknown>> | null;
+}
+
+export interface RqsCustodyReconciliationResult {
+  readonly deleted: number;
+  readonly deletedIds: readonly string[];
+  readonly stranded: number;
+  readonly strandedIds: readonly string[];
+  readonly quarantined: number;
+  readonly quarantinedIds: readonly string[];
+}
+
 /** The store contract shared by the web/IndexedDB and native/file arms. */
 export interface RqsResumeStore {
+  /** Versioned destructive-transition capability. Injected stores lacking
+   * this exact flag are refused before legacy predecessor bytes can change. */
+  readonly outboxCapabilities: RqsOutboxCapabilitiesV1;
   isWriter(): boolean;
   whenLockSettled(): Promise<void>;
   /** Shared authorization-dispatch gate. Lane dispatches exclude their own
@@ -241,24 +265,15 @@ export interface RqsResumeStore {
     authorityDescriptor: Readonly<Record<string, unknown>>,
     custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
     expectedAuthorityGeneration: number,
-  ): Promise<false | Readonly<{
-    deleted: number;
-    deletedIds: readonly string[];
-    stranded: number;
-    strandedIds: readonly string[];
-  }>>;
+  ): Promise<false | Readonly<RqsCustodyReconciliationResult>>;
   outboxReconcileCustodyRecords(
     recordIds: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,
     authorityDescriptor: Readonly<Record<string, unknown>>,
     custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
     expectedAuthorityGeneration: number,
-  ): Promise<false | Readonly<{
-    deleted: number;
-    deletedIds: readonly string[];
-    stranded: number;
-    strandedIds: readonly string[];
-  }>>;
+    legacyPolicy?: Readonly<RqsLegacyCustodyPolicy> | null,
+  ): Promise<false | Readonly<RqsCustodyReconciliationResult>>;
   outboxDiscardStranded(
     ids: readonly string[],
     principalScope: Readonly<Record<string, unknown>>,

@@ -1257,6 +1257,56 @@ test('shared injected store quarantines foreign-origin targetless bytes on princ
   );
 });
 
+test('legacy-quarantine-incapable injected store refuses principal switch without deleting intent', async (t) => {
+  const underlying = createDurableTestStore();
+  const injectedStore = Object.create(underlying);
+  Object.defineProperty(injectedStore, 'outboxCapabilities', { value: undefined });
+  injectedStore.outboxReconcileCustodyRecords = async (
+    recordIds,
+    principalScope,
+    authorityDescriptor,
+    custody,
+    expectedAuthorityGeneration,
+  ) => underlying.outboxReconcileCustodyRecords(
+    recordIds,
+    principalScope,
+    authorityDescriptor,
+    custody,
+    expectedAuthorityGeneration,
+  );
+  const fixture = makeFixture({ store: injectedStore });
+  const { client, coordinator } = makeClient(fixture);
+  t.after(() => client.closeAuth());
+  await signIn(fixture, client);
+  await injectedStore.outboxEnqueue({
+    id: 'legacy-quarantine-incapable-pending',
+    function: 'writeLegacy',
+    args: { secret: 'MUST_SURVIVE_INCAPABLE_STORE_REFUSAL' },
+  });
+
+  await assert.rejects(
+    () => transitionTo(fixture, coordinator, actorB(), 'legacy_quarantine_store_incapable'),
+    (error) => (
+      error?.code === 'SNAPBACK_AUTH_TRANSITION_FAILED'
+      && error?.diagnostic?.details?.causeCode
+        === 'SNAPBACK_OUTBOX_LEGACY_QUARANTINE_UNSUPPORTED'
+    ),
+  );
+  assert.deepEqual(
+    (await injectedStore.outboxRecords()).map((record) => ({
+      id: record.id,
+      status: record.status,
+      args: record.args,
+    })),
+    [{
+      id: 'legacy-quarantine-incapable-pending',
+      status: 'pending',
+      args: { secret: 'MUST_SURVIVE_INCAPABLE_STORE_REFUSAL' },
+    }],
+    'a store that cannot prove quarantine support retains predecessor intent byte-for-byte',
+  );
+});
+
 test('recorded single-origin default store deletes targetless bytes on principal switch', async (t) => {
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture, { defaultStore: true });

@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:0d2206b9e85ec7a34d383f1554133c504a35d182fc17
 
 # Generated API reference
 
-One build-bound projection of 1457 public symbols (606 runtime values and 851 explicit type-only symbols).
-Registry source identity: `sha256:941c9cc6653c39b21214766b5c8cd03b5a43f4c4c8e266eb7bd4dd6807141744`.
+One build-bound projection of 1460 public symbols (606 runtime values and 854 explicit type-only symbols).
+Registry source identity: `sha256:3527e49203e6afdb7b1cee4c7605fd370376d2a1b1f3a5055afad78c5c1968ca`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -63,7 +63,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/rqs`](./expo-snapback-client--rqs.md) | 29 | 24 | 5 |
 | [`@expo/snapback-client/rqs-preload`](./expo-snapback-client--rqs-preload.md) | 11 | 5 | 6 |
 | [`@expo/snapback-client/rqs-registered`](./expo-snapback-client--rqs-registered.md) | 15 | 5 | 10 |
-| [`@expo/snapback-client/rqs-store`](./expo-snapback-client--rqs-store.md) | 24 | 14 | 10 |
+| [`@expo/snapback-client/rqs-store`](./expo-snapback-client--rqs-store.md) | 27 | 14 | 13 |
 | [`@expo/snapback-client/rqs-store-default`](./expo-snapback-client--rqs-store-default.md) | 14 | 7 | 7 |
 | [`@expo/snapback-client/rqs-store-expo`](./expo-snapback-client--rqs-store-expo.md) | 7 | 3 | 4 |
 | [`@expo/snapback-client/rqs-store-file`](./expo-snapback-client--rqs-store-file.md) | 12 | 11 | 1 |

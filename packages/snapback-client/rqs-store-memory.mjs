@@ -38,6 +38,11 @@ import {
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
+const OUTBOX_CAPABILITIES = Object.freeze({
+  schemaVersion: 'snapback.rqs-outbox-capabilities.v1',
+  supportsLegacyQuarantine: true,
+});
+
 export function createMemoryRqsResumeStore({
   now = () => Date.now(),
   maxBytes = RQS_STORE_MAX_BYTES,
@@ -215,6 +220,8 @@ export function createMemoryRqsResumeStore({
   ]));
 
   return {
+    outboxCapabilities: OUTBOX_CAPABILITIES,
+
     /// One process-local backing mirrors the durable carriers' single-writer
     /// domain while remaining honestly volatile across process restart.
     isWriter() {

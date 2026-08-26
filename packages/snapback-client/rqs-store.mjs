@@ -47,6 +47,11 @@ export const RQS_STORE_MAX_ENTRIES = 256;
 export const RQS_TOKEN_MAX_BYTES = 1024;
 export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES = 64 * 1024;
 
+const OUTBOX_CAPABILITIES = Object.freeze({
+  schemaVersion: 'snapback.rqs-outbox-capabilities.v1',
+  supportsLegacyQuarantine: true,
+});
+
 const OUTBOX_NORMALIZATION_REQUEST = 'snapback.outbox-normalization-request.v1';
 const OUTBOX_NORMALIZATION_OUTCOME = 'snapback.outbox-normalization-outcome.v1';
 const OFFLINE_REPLAY_CAPABILITY_REQUEST =
@@ -1180,6 +1185,8 @@ export function createIndexedDbRqsResumeStore({
   };
 
   return {
+    outboxCapabilities: OUTBOX_CAPABILITIES,
+
     isWriter() {
       return writer && !closed;
     },

@@ -42,6 +42,11 @@ import {
 export const EXPO_SQLITE_STORE_SCHEMA_VERSION = 1;
 export const EXPO_SQLITE_STORE_PROFILE = 'durable-fragments-v1';
 
+const OUTBOX_CAPABILITIES = Object.freeze({
+  schemaVersion: 'snapback.rqs-outbox-capabilities.v1',
+  supportsLegacyQuarantine: true,
+});
+
 const TABLES = Object.freeze([
   'store_meta',
   'entries',
@@ -566,6 +571,8 @@ export async function createSqliteRqsResumeStore({
   );
 
   const store = {
+    outboxCapabilities: OUTBOX_CAPABILITIES,
+
     isWriter() { return !closed; },
     whenLockSettled() { return Promise.resolve(); },
     withOutboxAuthorizationDispatch(operation, options = undefined) {

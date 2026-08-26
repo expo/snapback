@@ -81,6 +81,11 @@ import {
   wipeStoreMeta,
 } from './rqs-store-meta.mjs';
 
+const OUTBOX_CAPABILITIES = Object.freeze({
+  schemaVersion: 'snapback.rqs-outbox-capabilities.v1',
+  supportsLegacyQuarantine: true,
+});
+
 // v1 held `{ format, entries }`; v2 added outbox + the optional React binding
 // receipt. v3 adds LLP 0166's three resident sections and storeMeta. Each
 // migration is one-way and publishes through the existing temp+rename cut.
@@ -1107,6 +1112,8 @@ export function createFileRqsResumeStore({
   };
 
   return {
+    outboxCapabilities: OUTBOX_CAPABILITIES,
+
     isWriter() {
       return writer && !closed;
     },

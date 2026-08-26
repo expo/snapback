@@ -5,6 +5,15 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-26 (round-27 dispatch/error/contract correction: a final
+pre-POST inspection that receives an HTTP error or redirect pauses replay with
+`SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`, retains the current record and
+every successor pending, and remains explicitly retriable. Standalone ACK
+re-reads and requires the shared positive target fact under the
+authorization-dispatch lock immediately before POST. The injected-store type
+now carries the sixth record-scoped legacy policy, quarantine result fields,
+and a versioned `supportsLegacyQuarantine: true` capability; an incapable
+store refuses before predecessor bytes can be deleted.)
 **Revised:** 2026-08-26 (round-26 generation/privacy correction: string-named
 replay sends the complete served generation persisted at enqueue and rechecks
 the served generation immediately before POST. Sessions servers additionally
@@ -543,7 +552,12 @@ for this amendment.
 For the final comparison, replay re-inspects the served target immediately
 before the mutation POST and compares it with the persisted generation. A
 difference pauses with `SNAPBACK_OUTBOX_REPLAY_TARGET_MISMATCH` before the
-dispatch stamp or POST. This narrows, but cannot atomically close, the
+dispatch stamp or POST. An answered 4xx, 5xx, redirect, or other answered
+inspection failure at this final cut pauses with the retriable
+`SNAPBACK_OUTBOX_REPLAY_INSPECTION_UNAVAILABLE`; it never enters the server
+mutation-refusal branch, never marks the current record failed, and stops
+before visiting successors. A transport loss remains the existing transient
+connectivity pause. This narrows, but cannot atomically close, the
 inspection-to-POST deployment window. Sessions-mode servers enforce the
 carried `expectedGeneration` against the manifest pair selected for the
 invocation. v0-dev servers currently tolerate that additive field and do not
@@ -609,7 +623,14 @@ injected store, a provenance record that observed multiple origins, or absent/
 unproven provenance must retain legacy bytes in a durable quarantine stamped
 to the predecessor principal. Successor principals cannot project, replay,
 ACK, recover, or adopt that quarantine; the explicit adoption protocol owns
-its eventual user-authorized disposition. The transition emits a coded
+its eventual user-authorized disposition. A structurally injected store must
+declare the exact versioned `outboxCapabilities` value
+`{ schemaVersion: "snapback.rqs-outbox-capabilities.v1",
+supportsLegacyQuarantine: true }`, accept the record-scoped method's sixth
+`legacyPolicy` argument, and return `quarantined` plus `quarantinedIds`.
+Without that capability the client refuses the transition with
+`SNAPBACK_OUTBOX_LEGACY_QUARANTINE_UNSUPPORTED` as the recorded cause and does
+not call the destructive reconciliation method. The transition emits a coded
 deletion or quarantine diagnostic accordingly. A foreign schema-v2 record
 whose persisted canonical origin does not match the transition origin remains
 outside this privacy cut.
