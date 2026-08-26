@@ -301,19 +301,19 @@ projection regeneration. Its captured output is:
     "codes": 3541,
     "sourceFiles": 626,
     "emittingSites": 9286,
-    "receivedSites": 382,
+    "receivedSites": 378,
     "reservedSites": 11,
     "httpClassified": 1704,
     "guideAnchored": 431,
-    "environmentVariables": 186,
-    "environmentSites": 364
+    "environmentVariables": 188,
+    "environmentSites": 366
   },
   "environmentKinds": {
     "read": 259,
     "mention": 35,
     "declaration": 14,
     "remove": 9,
-    "write": 24,
+    "write": 26,
     "table-entry": 8,
     "indirect-read": 15
   },
@@ -333,7 +333,7 @@ projection regeneration. Its captured output is:
 }
 ```
 
-### Round-25 final verification
+### Round-27 final verification
 
 The final candidate tree was verified immediately before its local-only commit;
 no source or generated projection changed between these results and the commit.
@@ -341,10 +341,10 @@ The command summaries were:
 
 ```text
 node --test scripts/generate-diagnostics-registry.test.mjs
-tests 30; pass 30; fail 0
+tests 33; pass 33; fail 0
 
 node scripts/generate-diagnostics-registry.mjs --check
-[diagnostics-registry] ok — 3541 codes, 9286 emitting sites, 382 received sites, 11 reserved sites, 186 environment variables, 364 environment sites, 1704 HTTP-classified
+[diagnostics-registry] ok — 3541 codes, 9286 emitting sites, 378 received sites, 11 reserved sites, 188 environment variables, 366 environment sites, 1704 HTTP-classified
 
 node scripts/generate-symbol-registry.mjs --check
 [symbol-registry] ok — 56 modules, 1455 symbols, runtime parity exact
@@ -352,29 +352,20 @@ node scripts/generate-symbol-registry.mjs --check
 node packages/snapback-cli/reference-lookup.test.mjs
 reference-lookup.test.mjs: exact diagnostic/environment/dual-role/member, bounded symbol/module, identity, and fallback pass
 
-node packages/snapback-cli/reference-lookup-reserved-code.test.mjs
-reference-lookup-reserved-code.test.mjs: reserved sites retain their non-emitting label
-
-node --test packages/snapback-hosted-supervisor/target-onboarding.test.mjs
-tests 1; pass 1; fail 0
-
-node --test packages/snapback-app-cli/*.test.mjs
-tests 11; pass 11; fail 0
-
 node scripts/check-inventories.mjs
 [check-inventories] PASS: 357 package tests; 32 scripts tests; 31 demos/31 catalog entries; 487 publication leaves; 157 guide pages/1872 snippets
 
 node scripts/check-first-read.mjs
 [first-read] ok — 5 profiles checked
 
+node scripts/check-guide.mjs
+[guide-check] ok — 22 passed, 0 failed, 0 skipped, 0 preconditions; 157 pages, 1872 snippets, 174 routes + 51 host-ops joined, 100 warnings
+
 ./ref-check --verbose
-ref-check: ok — 311 LLP docs, 7213 refs in 15516 files, 0 errors, 0 unchecked
+ref-check: ok — 311 LLP docs, 7871 refs in 16052 files, 0 errors, 0 unchecked
 
 git diff --check
 (no output; exit 0)
-
-invariant grep
-target-onboarding.mjs exports exactly the same seven names as merge-base; no added export lines; six Tigris role codes present in SnapbackDiagnosticCode; zero occurrences of the hyphenated control-state code
 ```
 
 ### Round-26 review closure
@@ -393,19 +384,27 @@ emission. The private Tigris test seam now pins both the unknown-role refusal an
 the partial-credential throw's exact read from
 `TARGET_TIGRIS_PARTIAL_CREDENTIAL_CODES[role]`.
 
-The final count table from this tree is:
+Round 27 extends shell environment classification to command-position
+assignments. Prefix assignments, `export NAME=value`, and
+`env NAME=value command` are writes; quoted strings and comments remain
+non-sites. The production All Aboard build therefore adds
+`SNAPBACK_ALL_ABOARD_API` and `SNAPBACK_ALL_ABOARD_TARGET_PROFILE` to the
+environment registry and `SnapbackEnvironmentVariable` without changing the
+diagnostic population.
 
-| Count | Round 25 | Round 26 |
+The final count table from the round-27 tree is:
+
+| Count | Round 26 | Round 27 |
 | --- | ---: | ---: |
 | Codes | 3,541 | 3,541 |
 | Source files | 626 | 626 |
 | Emitting sites | 9,286 | 9,286 |
-| Received sites | 382 | 378 |
+| Received sites | 378 | 378 |
 | Reserved sites | 11 | 11 |
 | HTTP-classified | 1,704 | 1,704 |
 | Guide-anchored | 431 | 431 |
-| Environment variables | 186 | 186 |
-| Environment sites | 364 | 364 |
+| Environment variables | 186 | 188 |
+| Environment sites | 364 | 366 |
 
 The complete Guide check passed. Its verbatim terminal summary was:
 

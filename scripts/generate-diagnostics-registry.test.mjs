@@ -409,6 +409,26 @@ test('shell classifier retains operator emissions and environment reads only', (
   );
 });
 
+test('shell classifier recognizes environment assignment writes only in command syntax', () => {
+  const fixture = [
+    'SNAPBACK_FIXTURE_SHELL_PREFIX=value command',
+    'export SNAPBACK_FIXTURE_SHELL_EXPORT=value',
+    'env SNAPBACK_FIXTURE_SHELL_ENV=value command',
+    'echo "SNAPBACK_FIXTURE_SHELL_QUOTED=value"',
+    '# SNAPBACK_FIXTURE_SHELL_COMMENTED=value command',
+  ].join('\n');
+
+  assert.deepEqual(
+    environmentVariableSites(fixture, { shell: true })
+      .map(({ match, kind }) => ({ name: match[0], kind })),
+    [
+      { name: 'SNAPBACK_FIXTURE_SHELL_PREFIX', kind: 'write' },
+      { name: 'SNAPBACK_FIXTURE_SHELL_EXPORT', kind: 'write' },
+      { name: 'SNAPBACK_FIXTURE_SHELL_ENV', kind: 'write' },
+    ],
+  );
+});
+
 test('leading diagnostic tokens emit only from proven print and log arguments', () => {
   const rustFixture = [
     'println!("SNAPBACK_FIXTURE_PRINTLN field={field}");',
@@ -1077,6 +1097,22 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   const environmentType = diagnosticTypes.slice(
     diagnosticTypes.indexOf('export type SnapbackEnvironmentVariable ='),
   );
+  for (const name of [
+    'SNAPBACK_ALL_ABOARD_API',
+    'SNAPBACK_ALL_ABOARD_TARGET_PROFILE',
+  ]) {
+    assert.ok(
+      registry.environment[name]?.sites.some((site) => (
+        site.file === 'targets/cloudflare/deploy.sh' && site.kind === 'write'
+      )),
+      `${name} must retain its deploy.sh prefix-assignment write`,
+    );
+    assert.match(
+      environmentType,
+      new RegExp(`^  (?:\\| )?'${name}'$`, 'mu'),
+      `${name} must remain in SnapbackEnvironmentVariable`,
+    );
+  }
   for (const name of proseOnlyEnvironmentNames) {
     assert.equal(registry.diagnostics[name], undefined, `${name} is not a diagnostic`);
     assert.ok(registry.environment[name], `${name} remains environment vocabulary`);

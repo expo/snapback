@@ -1289,6 +1289,25 @@ function shellEnvironmentSiteKind(source, offset, code, literals) {
   if (literal !== null && source[literal.contentStart - 1] === "'") return null;
   const before = source.slice(Math.max(0, offset - 2), offset);
   const after = source.slice(offset + code.length);
+  if (/^\+?=/u.test(after) && literal === null) {
+    const line = lineBounds(source, offset);
+    const maskedPrefix = source.slice(line.start, offset).split('');
+    for (const range of literals.ranges) {
+      const start = Math.max(line.start, range.contentStart - 1);
+      const end = Math.min(offset, range.end + 1);
+      for (let index = start; index < end; index += 1) {
+        maskedPrefix[index - line.start] = 'x';
+      }
+    }
+    const commandPrefix = maskedPrefix.join('').replace(
+      /^.*(?:&&|\|\||[;|])/u,
+      '',
+    );
+    if (
+      /^\s*(?:\(\s*)?(?:(?:export|env)(?:\s+-\S+)*\s+)?(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*$/u
+        .test(commandPrefix)
+    ) return 'write';
+  }
   if (before.endsWith('${') && /^(?:\}|[:#%/?+=-])/u.test(after)) return 'read';
   if (before.endsWith('$') && !/[\\$]\$$/u.test(before)) return 'read';
   return null;
