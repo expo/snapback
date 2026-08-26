@@ -42763,7 +42763,7 @@ async fn bounded_commit_capsule_rejects_committed_decoy_rows() {
     };
     assert_eq!(
         error.diagnostic.details["causeCode"],
-        "SNAPBACK_COMMIT_RECONCILIATION_WITNESS_MISMATCH"
+        "SNAPBACK_COMMIT_INTENDED_ROWS_ABSENT"
     );
     assert_eq!(error.diagnostic.details["effectMayHaveCommitted"], true);
     assert!(!database.facts(&intent).await.exact_intended_rows);
