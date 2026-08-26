@@ -44,6 +44,12 @@ F272's dependent binary called
 committed publication ID in both cells. It used neither an engine graph nor a
 route reservation.
 
+The source-visible compile boundary spellings also compile in every permitted
+fixture closure: `[]`, each of `snapback-auth/test-support`,
+`snapback-engine/test-support`, and `snapback-sync/test-support` alone, and
+their union. Neither fixture declares the forbidden `snapback-server` or
+`snapback-activation` test-support paths.
+
 The ownership hypothesis was also executed. Changing
 `AssetAttemptsProofLocalExt` to `pub(crate)` made `snapback-engine` fail with
 `E0603` at the trait import and `E0624` at the crate-private kernel methods,
