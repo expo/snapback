@@ -1517,7 +1517,8 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   // This E1 fixture exercises the legacy supervised authority projection and
   // its live/query/presence lifecycle. First-party application-auth bootstrap
   // has its own dedicated suite; keep that newer opt-in from changing this
-  // carrier witness's public ready-state shape.
+  // carrier witness's public ready-state shape, and opt in explicitly because
+  // the legacy web default is now the separately proven anonymous/no-mint path.
   delete app.authBootstrap;
   app.capabilities.required = app.capabilities.required.filter(
     (capability) => capability !== 'auth.application-bootstrap.v1',
@@ -1568,7 +1569,12 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     },
   });
   const bootStates = [];
-  const boot = createSnapbackExpoBoot({ app, environment, now: () => settledNow });
+  const boot = createSnapbackExpoBoot({
+    app,
+    environment,
+    adoptSupervisedSession: true,
+    now: () => settledNow,
+  });
   const offBoot = boot.subscribe(() => bootStates.push(boot.getSnapshot()));
   const ready = await boot.start();
   assert.equal(ready.status, 'ready', JSON.stringify(ready));
