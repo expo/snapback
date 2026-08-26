@@ -16,8 +16,8 @@ assert.equal(SNAPSHOT_BATCH_SUMMED_TAKE_CEILING, 1_024);
 // identities. Its literals are parity-locked here instead, exactly like the
 // Rust enforcement sites below.
 const rustSources = [
-  ['manifest', fileURLToPath(new URL('../../crates/snapback/src/manifest.rs', import.meta.url))],
-  ['storage', fileURLToPath(new URL('../../crates/snapback/src/storage.rs', import.meta.url))],
+  ['manifest', fileURLToPath(new URL('../../crates/snapback-types/src/manifest/types.rs', import.meta.url))],
+  ['storage', fileURLToPath(new URL('../../crates/snapback-kernel/src/storage.rs', import.meta.url))],
   ['define', fileURLToPath(new URL('../snapback-codegen/define.mjs', import.meta.url))],
 ];
 const presentSources = rustSources.filter(([, path]) => existsSync(path));
@@ -47,21 +47,21 @@ if (presentSources.length === 0) {
     /plan\.take\s*>\s*(1_?024)\b/gu,
     2,
     RELATIONAL_TAKE_CEILING,
-    'crates/snapback/src/manifest.rs relational and bounded-children take ceilings',
+    'crates/snapback-types/src/manifest/types.rs relational and bounded-children take ceilings',
   );
   assertLiterals(
     sources.storage,
     /plan\.take\s*>\s*(1_?024)\b/gu,
     1,
     RELATIONAL_TAKE_CEILING,
-    'crates/snapback/src/storage.rs relational take ceiling',
+    'crates/snapback-kernel/src/storage.rs relational take ceiling',
   );
   assertLiterals(
     sources.manifest,
     /total_take\s*>\s*(1_?024)\b/gu,
     2,
     SNAPSHOT_BATCH_SUMMED_TAKE_CEILING,
-    'crates/snapback/src/manifest.rs snapshot-batch summed take ceilings',
+    'crates/snapback-types/src/manifest/types.rs snapshot-batch summed take ceilings',
   );
   assertLiterals(
     sources.define,
