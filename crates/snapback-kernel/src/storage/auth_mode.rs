@@ -266,7 +266,7 @@ fn commit_mode_transaction<T>(
     predecessor: &AuthModeSnapshot,
     track_data_marker: bool,
     interlock: super::AuthorizationInterlockState,
-    commit_authority_identity: &std::sync::Arc<()>,
+    commit_authority_identity: &super::ProcessBoundIdentity,
     transaction_body: impl FnOnce(
         &Transaction<'_>,
     ) -> SnapbackResult<(

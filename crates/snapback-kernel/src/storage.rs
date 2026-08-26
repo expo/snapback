@@ -18,6 +18,7 @@ use crate::manifest::{
     is_user_identifier, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
+use crate::process_bound_identity::ProcessBoundIdentity;
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
     Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
@@ -820,8 +821,10 @@ pub fn app_writes_are_authorization_event(schema: &SchemaManifest, changes: &[Ch
 ///
 /// @ref LLP 0285#1-what-closed-means-here — a public carrier is acceptable
 /// only when it confers no unverified fact assertion.
+/// @ref LLP 0303#t-allocation-identity-fails-open-across-fork-and-the-ruling-belongs-here
+/// — the binding's only equality path includes the current-process check.
 #[derive(Clone)]
-pub struct DatabaseBinding(Arc<()>);
+pub struct DatabaseBinding(ProcessBoundIdentity);
 
 /// Opaque proof that one telemetry caller key was resolved by the same
 /// serving database graph as the invocation that will consume it. The value
@@ -877,21 +880,17 @@ impl AsRef<DatabaseBinding> for DatabaseBinding {
 }
 
 impl DatabaseBinding {
-    pub(crate) fn identity(&self) -> &Arc<()> {
-        &self.0
-    }
-
     pub(crate) fn matches(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+        self.0 == other.0
     }
 
     pub(super) fn isolated() -> Self {
-        Self(Arc::new(()))
+        Self(ProcessBoundIdentity::new())
     }
 
     #[cfg(test)]
     pub(crate) fn isolated_for_test() -> Self {
-        Self(Arc::new(()))
+        Self(ProcessBoundIdentity::new())
     }
 }
 
@@ -1097,10 +1096,6 @@ pub(crate) struct KernelCommitAuthority {
 }
 
 impl KernelCommitAuthority {
-    pub(crate) fn identity(&self) -> &Arc<()> {
-        self.binding.identity()
-    }
-
     pub(crate) fn binding(&self) -> DatabaseBinding {
         self.binding.clone()
     }
@@ -1175,7 +1170,7 @@ fn commit_with_authorization_interlock(
     predecessor: Option<AuthorizationVersion>,
     min_commit_version: u64,
     authorization_interlock: AuthorizationInterlockState,
-    database_identity: &Arc<()>,
+    database_identity: &ProcessBoundIdentity,
 ) -> SnapbackResult<()> {
     let prepared = prepare_authorization_commit_interlock(
         witness,
@@ -1206,7 +1201,7 @@ fn prepare_authorization_commit_interlock(
     witness: &AuthorizationCommitWitness,
     impact: AuthorizationCommitImpact<'_>,
     authorization_interlock: &AuthorizationInterlockState,
-    database_identity: &Arc<()>,
+    database_identity: &ProcessBoundIdentity,
     durable_predecessor: Option<&AuthorizationVersion>,
 ) -> SnapbackResult<Option<PreparedAuthorizationCommit>> {
     if !witness.event {
@@ -1725,7 +1720,7 @@ pub struct LocalDatabase {
     conn: Connection,
     /// Process-unique identity for opaque commit carriers. A carrier minted
     /// for another database is never authority for this connection.
-    commit_authority_identity: Arc<()>,
+    commit_authority_identity: ProcessBoundIdentity,
     /// Stable across independent opens of the same file, so a second handle
     /// cannot claim a parallel serving authority while the first graph lives.
     commit_authority_key: String,
@@ -3347,7 +3342,7 @@ impl LocalDatabase {
     pub fn memory() -> SnapbackResult<Self> {
         let conn = Connection::open_in_memory()?;
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
-        let commit_authority_identity = Arc::new(());
+        let commit_authority_identity = ProcessBoundIdentity::new();
         let service_authority_fences =
             crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
                 commit_authority_identity.clone(),
@@ -3420,7 +3415,7 @@ impl LocalDatabase {
         if let Some(manifest) = &stored_schema {
             validate_schema(manifest)?;
         }
-        let commit_authority_identity = Arc::new(());
+        let commit_authority_identity = ProcessBoundIdentity::new();
         let service_authority_fences =
             crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
                 commit_authority_identity.clone(),
@@ -3668,7 +3663,7 @@ impl LocalDatabase {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        let commit_authority_identity = Arc::new(());
+        let commit_authority_identity = ProcessBoundIdentity::new();
         let service_authority_fences =
             crate::auth::service_fence::ServiceAuthorityFenceRegistry::new(DatabaseBinding(
                 commit_authority_identity.clone(),
@@ -3773,7 +3768,7 @@ impl LocalDatabase {
                 "test database handle does not belong to the claimed commit-authority graph",
             ));
         }
-        self.commit_authority_identity = authority.identity().clone();
+        self.commit_authority_identity = authority.binding.0.clone();
         self.commit_authority_claimed = true;
         Ok(())
     }
@@ -3799,9 +3794,10 @@ impl LocalDatabase {
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::BranchRegistry)?;
+        let database_binding = self.binding();
         crate::fork_promotion_bench::prepare_promotion_contention_reservation_in(
             &mut self.conn,
-            self.commit_authority_identity.clone(),
+            database_binding,
             canonical_stream_id,
             workers,
             issued_at_ms,
@@ -3848,7 +3844,7 @@ impl LocalDatabase {
         let _writer_token = self
             .writer_authority
             .enter(write_authority::LocalWriterLaneV1::BranchRegistry)?;
-        reservation.activate_in(&self.conn, &self.commit_authority_identity, now_ms)
+        reservation.activate_in(&self.conn, &self.binding(), now_ms)
     }
 
     /// Read-only verification for the dated contention recorder.

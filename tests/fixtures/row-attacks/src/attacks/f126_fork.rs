@@ -3,6 +3,8 @@ use snapback_kernel::process_bound_identity::ProcessBoundIdentity;
 #[cfg(unix)]
 use snapback_kernel::storage::LocalDatabase;
 use snapback_row_attack_fixtures::report_observation;
+#[cfg(unix)]
+use std::path::Path;
 
 #[cfg(unix)]
 const ATTACK_ACCEPTED: i32 = 42;
@@ -11,6 +13,17 @@ const PRIMITIVE_FAILED_OPEN: i32 = 43;
 
 #[cfg(unix)]
 fn main() -> Result<(), String> {
+    let mut arguments = std::env::args_os();
+    let _executable = arguments.next();
+    if arguments.next().as_deref() == Some(std::ffi::OsStr::new("--restart-child")) {
+        let path = arguments
+            .next()
+            .ok_or_else(|| "restart child did not receive a database path".to_owned())?;
+        return verify_restart_child(Path::new(&path));
+    }
+
+    verify_reopen_and_restart()?;
+
     let database = LocalDatabase::memory().map_err(|error| format!("setup database: {error:?}"))?;
     let inherited = database.binding();
     if inherited != database.binding() {
@@ -72,6 +85,55 @@ fn main() -> Result<(), String> {
         code => return Err(format!("child returned unexpected attack status {code}")),
     };
     report_observation("F126", result);
+    Ok(())
+}
+
+#[cfg(unix)]
+fn verify_reopen_and_restart() -> Result<(), String> {
+    let directory = tempfile::tempdir().map_err(|error| format!("reopen tempdir: {error}"))?;
+    let path = directory.path().join("fork-identity.sqlite3");
+
+    let first = LocalDatabase::open(&path).map_err(|error| format!("first open: {error:?}"))?;
+    let first_binding = first.binding();
+    if first_binding != first.binding() {
+        return Err("first open refused a legitimate same-process binding clone".to_owned());
+    }
+    drop(first);
+
+    let reopened = LocalDatabase::open(&path).map_err(|error| format!("reopen: {error:?}"))?;
+    let reopened_binding = reopened.binding();
+    if reopened_binding != reopened.binding() {
+        return Err("reopen refused its legitimate same-process binding clone".to_owned());
+    }
+    if first_binding == reopened_binding {
+        return Err("database reopen retained the predecessor allocation identity".to_owned());
+    }
+    drop(reopened);
+
+    let output = std::process::Command::new(
+        std::env::current_exe().map_err(|error| format!("restart executable: {error}"))?,
+    )
+    .arg("--restart-child")
+    .arg(&path)
+    .output()
+    .map_err(|error| format!("restart child: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "restart child failed during setup: status={} stderr={}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn verify_restart_child(path: &Path) -> Result<(), String> {
+    let restarted = LocalDatabase::open(path).map_err(|error| format!("restart open: {error:?}"))?;
+    let binding = restarted.binding();
+    if binding != restarted.binding() {
+        return Err("restart refused its legitimate same-process binding clone".to_owned());
+    }
     Ok(())
 }
 

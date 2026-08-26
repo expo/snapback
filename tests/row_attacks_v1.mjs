@@ -56,7 +56,7 @@ test('row-attack ledger carries the 30 measured rows and both feature cells', ()
       F220: 'CLOSED',
       F082: 'CLOSED',
       F129: 'CLOSED',
-      F126: 'OPEN',
+      F126: 'CLOSED',
     },
   );
   assert.ok(

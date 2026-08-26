@@ -161,7 +161,7 @@ fn source() -> anyhow::Result<Connection> {
 }
 
 pub struct PromotionContentionReservation {
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     ticket: PromotionAdmissionTicketV1,
 }
 
@@ -173,7 +173,7 @@ pub struct PromotionContentionPolicy {
 
 pub(crate) fn prepare_promotion_contention_reservation_in(
     connection: &mut Connection,
-    database_identity: std::sync::Arc<()>,
+    database_binding: crate::storage::DatabaseBinding,
     canonical_stream_id: &str,
     workers: usize,
     issued_at_ms: i64,
@@ -206,7 +206,7 @@ pub(crate) fn prepare_promotion_contention_reservation_in(
         ],
     )?;
     Ok(PromotionContentionReservation {
-        database_identity,
+        database_binding,
         ticket,
     })
 }
@@ -215,10 +215,10 @@ impl PromotionContentionReservation {
     pub(crate) fn activate_in(
         self,
         connection: &Connection,
-        database_identity: &std::sync::Arc<()>,
+        database_binding: &crate::storage::DatabaseBinding,
         now_ms: i64,
     ) -> SnapbackResult<PromotionContentionPolicy> {
-        if !std::sync::Arc::ptr_eq(&self.database_identity, database_identity) {
+        if self.database_binding != *database_binding {
             return Err(crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_KERNEL_COMMIT_AUTHORITY_INVALID",
                 "storage",
