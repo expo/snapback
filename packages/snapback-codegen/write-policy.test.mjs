@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR,
+  AUTHORITY_TABLE_WRITE_REPAIR_CLASS,
   buildWritePolicyChecks,
   deriveWritePosture,
   scanGenericWriteSites,
@@ -747,7 +749,13 @@ test('authority tables refuse before their row-policy kind', () => {
       }) },
       functions: [fn], sourceFunctions: [fn], err: errorSink,
     }),
-    ({ code }) => code === 'SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE',
+    ({ code, details }) => {
+      assert.equal(code, 'SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE');
+      assert.equal(details.repairClass, AUTHORITY_TABLE_WRITE_REPAIR_CLASS);
+      assert.equal(details.guideAnchor, AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR);
+      assert.match(details.repair, /generated transition operations/u);
+      return true;
+    },
   );
 });
 

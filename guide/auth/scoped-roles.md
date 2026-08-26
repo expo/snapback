@@ -4,13 +4,13 @@ id: auth.scoped-roles
 order: 5
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1, authority.custom.coarse-global, authority.inspection.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback-server/src/admin.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-kernel/src/membership_rules.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-kernel/src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, crates/snapback/tests/membership_principal_addressed_v0.rs]
-examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/custom-authorization.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0200-live-evaluation-scheduling-and-settlement.spec.md, llp/0240-application-authority-profiles.rfc.md, llp/0274-explicit-write-authority-postures.spec.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/write-policy.mjs, crates/snapback-server/src/admin.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-kernel/src/membership_rules.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-kernel/src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, crates/snapback/tests/membership_principal_addressed_v0.rs, tests/acceptance/familiar-removed-member-live-cutoff.mjs]
+examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/custom-authorization.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, tests/acceptance/familiar-removed-member-live-cutoff.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:fa6f20093e85881242d40167887408a823b2bc4e9ad9e76dc000450ed31b44ed
+reviewed: 2026-08-25
+reviewed-authorities-digest: sha256:780bb9188d0955c89abf025ee2ea4cb21aeb08e760bce76b3e78efd19fffafc7
 ---
 
 # Scoped roles and memberships
@@ -636,6 +636,86 @@ setup flow that creates several membership-backed resources still uses
 separately authorized mutations with application-visible setup state or stable
 business keys for idempotence. Do not catch the batch refusal and pretend an
 earlier command committed.
+
+<!-- since: 0.1.28 unreleased -->
+> **Unreleased.** This authoring repair route and retained-history live-cutoff
+> witness are newer than the latest published packages (`0.1.27`). Build from
+> source until `0.1.28` is published.
+
+## Keep pre-removal history without live delivery
+
+Search vocabulary: removed member; already-open subscription; post-removal
+message; live cutoff; retain pre-removal history; Familiar group roster.
+
+An ordinary `public-read` + `sync()` roster is public application data. Patching
+an `active` boolean or `removedAt` timestamp on it is a data commit, not an
+authorization event. A query may rerun and shrink, but that commit does not
+install LLP 0200's fail-closed revocation fence. A second membership query,
+`BroadcastChannel`, local-storage signal, or browser-clock comparison cannot
+turn it into one. In particular, an already-open subscription must not depend
+on cross-subscription delivery order to learn that its caller was removed.
+
+Use the generated membership authority surface for the fence. If removal
+should also erase all old history, the generated `api.<profile>.remove`
+operation is the simpler terminal path: the caller no longer passes membership
+admission and the live result blanks. If a former member should retain rows
+from before removal, keep a non-delivery `former` role in the active role
+vocabulary and pair it with an ordinary persisted access-window row:
+
+```ts fragment reason="application table names and history fields vary; the complete generated Familiar witness is tests/acceptance/familiar-removed-member-live-cutoff.mjs"
+.membership({
+  roles: ['owner', 'member', 'former'],
+  transitions: [
+    { op: 'setRole', by: ['owner'], target: 'other', from: ['member'], to: ['former'] },
+  ],
+  // principal/resource/role/bootstrap/lastHolder/provenance omitted here
+})
+.authorityProfile({
+  name: 'roomMemberships',
+  hierarchy: { owner: ['member', 'former'], member: [], former: [] },
+  roster: { visible: ['userId', 'role'] },
+});
+```
+
+`former` is an active membership role in Snapback's vocabulary, even when the
+product calls the person “removed.” That lets a retained-history query use
+`memberOf(resource)` admission for every active role. The handler reads an
+ordinary access-window row for the caller and returns only messages at or
+before its persisted `cutoffAt`. The send mutation instead uses
+`hasRole(resource, 'member')`, whose hierarchy excludes `former`. Do not expose
+an unfiltered query or table-sync path that admits the `former` role.
+
+The removal flow has an intentional order:
+
+1. Patch the ordinary access-window row with a server timestamp and await that
+   mutation's successful settlement.
+2. Call and await the generated `api.<profile>.changeRole` transition from
+   `member` to `former`.
+3. Only after that transition settles, allow later message sends.
+
+The second commit advances the global authorization epoch. Every already-open
+Sessions subscription crosses the delivery-time authority gate: pre-transition
+frames cannot deliver, the client observes `authorization_quarantine`, and the
+restored handler result may retain only the pre-cutoff rows. A message committed
+immediately after the role-transition settlement is on the post-removal side of
+the regression contract; the application does not wait for a resnapshot or a
+browser signal before sending it.
+
+The two-step form fails closed for disclosure: if the cutoff patch fails, do
+not issue the role transition; if the later transition fails, the cutoff may
+take effect early and can be retried or repaired. The current generated
+surface does not atomically compose an arbitrary ordinary cutoff write with a
+principal-addressed profile transition. If the product requires that stronger
+all-or-nothing availability property, treat it as a separate authoring-surface
+requirement rather than replacing the authorization fence with client timing.
+
+Do not convert a hand-written roster to `permissionBacking()` while retaining
+generic `ctx.db` writers. Authority tables deliberately refuse generic writes
+with `SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE`; the diagnostic routes
+here with repair class `use-generated-membership-authority-operation`. Move the
+authority relation to `.membership()`/`.authorityProfile()` and use its
+generated transition operations. Keep the retained-history cutoff in an
+ordinary table.
 
 ## Remove another principal with `removePrincipal` (explicit opt-in)
 

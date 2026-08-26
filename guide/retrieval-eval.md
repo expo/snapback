@@ -1107,6 +1107,24 @@ platform, and generated-directory assumptions from that run.
      Exact diagnostic target: `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` ->
      `/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable`.
 
+Case 98 absorbs the 2026-08-25 Familiar capstone's removed-member live-cutoff
+gap. It requires both the authorization fence and retained-history semantics;
+blanking all history is not an equivalent answer.
+
+98. **Removed member live cutoff with retained history:** "Keep old group
+    messages visible after removing a member, but stop that already-open
+    Familiar subscription from seeing every post-removal message." The run
+    fails if it recommends a public-sync roster plus `removedAt`, coordinates
+    separate hooks or browser clocks, applies `permissionBacking()` while
+    retaining generic writers, or removes all old history instead of preserving
+    the requested cutoff.
+    Expected pages: `auth/scoped-roles.md`, `backend/familiar-profile.md`.
+    Route terms: "removed member", "already-open subscription", "post-removal message", "live cutoff", "retain pre-removal history".
+    Required guidance: "data commit, not an authorization event",
+    "use-generated-membership-authority-operation",
+    "Only after that transition settles, allow later message sends",
+    "message committed immediately after the role-transition settlement".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

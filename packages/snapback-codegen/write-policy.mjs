@@ -17,6 +17,10 @@ export const WRITE_POSTURE_MIGRATION_WARNING =
   'SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING';
 export const WRITE_POSTURE_MIGRATION_REPAIR_CLASS =
   'declare-explicit-write-authority';
+export const AUTHORITY_TABLE_WRITE_REPAIR_CLASS =
+  'use-generated-membership-authority-operation';
+export const AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR =
+  '/_snapback/guide/auth/scoped-roles.md#keep-pre-removal-history-without-live-delivery';
 
 const WRITE_FORMS = Object.freeze(['insert', 'insert-each', 'patch', 'delete', 'delete-where']);
 const JS_WRITE_FORMS = Object.freeze(['insert', 'patch', 'delete']);
@@ -776,7 +780,14 @@ function validateExactSite({
   if (authorityClass !== 'ordinary') {
     refusal(err, 'SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE', fn.name,
       `generic ${site.writeForm} cannot target authority table ${site.table}`,
-      { table: site.table, writeForm: site.writeForm, authorityTableClass: authorityClass }, row);
+      {
+        table: site.table,
+        writeForm: site.writeForm,
+        authorityTableClass: authorityClass,
+        repairClass: AUTHORITY_TABLE_WRITE_REPAIR_CLASS,
+        guideAnchor: AUTHORITY_TABLE_WRITE_GUIDE_ANCHOR,
+        repair: 'Use membership() with an authorityProfile() and its generated transition operations; keep retained-history cutoff data in an ordinary table.',
+      }, row);
     return;
   }
   if (!table.visibility) {

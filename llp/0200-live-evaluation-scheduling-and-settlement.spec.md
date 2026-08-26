@@ -5,7 +5,8 @@
 **Systems:** Live queries, Performance, Auth, Storage, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-08
-**Revised:** 2026-08-09 (§6d dated note: Phase 4 landed and the §5
+**Revised:** 2026-08-25 (§2.4 declaration-boundary clarification; previously
+2026-08-09, when §6d recorded Phase 4 landing and the §5
 four-phase program is COMPLETE — quarantine entry/exit observable on
 the inspect surface, the §2.6 recovery rule test-pinned with
 unresolved-quarantine data/watermark suppression, coalesce counters
@@ -254,6 +255,37 @@ authorization-invalidation vocabulary**, not implementer judgment:
   must **transfer** that obligation to the superseding frame; it is
   discharged only by a revision-bound ACK of a delivery that subsumes the
   shrink, or by authenticated retirement — never by elision alone.
+
+#### Dated clarification — 2026-08-25: the fence is declaration-bound
+
+The Familiar capstone removed a member by patching an `active` field on an
+ordinary `public-read` + `sync()` roster. That shape exposed an ambiguity in
+the served authoring story, not a new inferred-authority rule. The classifier
+above is closed over declared authorization facts: table names, handler reads,
+an `active`/`removedAt` convention, or a result that happens to shrink do not
+turn an ordinary data commit into an authority transition. Those commits stay
+on the data-driven resolution lane.
+
+A membership/profile transition does create the fence. Its authorization epoch
+advances in commit order, so a later data commit cannot deliver a frame under
+the predecessor epoch even when quarantine/restoration callbacks have not yet
+reached the client. This is the declaration-bound meaning of “subsequent” for
+revocation: a write committed after the generated transition settles is on the
+post-transition side of the delivery gate; no resnapshot, separate membership
+subscription, or browser signal is part of the security condition.
+
+When a removed principal must retain pre-removal history, the paved composition
+is a transition from the delivery role to a non-delivery active role plus an
+ordinary persisted cutoff. The application records the cutoff first, then
+awaits the generated role transition, then admits later sends. Restoration may
+therefore return the pre-cutoff rows without admitting later rows. Generated
+`remove` remains the simpler path when history should blank entirely.
+
+Declaring a hand-written roster `permissionBacking()` does not license its old
+generic writers. LLP 0274's refusal remains load-bearing: authority tables use
+declaration-owned/generated transition operations, while the companion cutoff
+stays ordinary application data. The authoring guide and codegen repair route
+must make that boundary discoverable.
 
 ### 2.5 Cancellation, fairness, and bounded staleness
 
@@ -763,3 +795,8 @@ any change to the one-authority-per-app storage contract (LLP 0007/0128).
   state, and a minimal Phase-1 landing (§2.5, §5); overload degrade
   restated honestly — semantic conversion, teardown as the true capacity
   escape, fail-closed scoped to shrink/resnapshot guarantees (§2.5).
+- **v0.5 (2026-08-25, UNREVIEWED).** Clarified that LLP 0200 fences only
+  declared authority transitions: ordinary roster conventions remain data
+  events. Bound later commits to the transition's delivery-time epoch gate and
+  recorded the generated former-role plus ordinary-cutoff composition for
+  retaining pre-removal history without post-removal delivery (§2.4).
