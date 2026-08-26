@@ -204,15 +204,34 @@ try {
     lookupBudgetBytes: 2_500,
   });
   assert.equal(pagedDualRoleSecond.match, 'diagnostic-environment-slice');
-  assert.deepEqual(ownerKinds(pagedDualRoleSecond), ['diagnostic', 'environment']);
+  assert.deepEqual(ownerKinds(pagedDualRoleSecond), ['environment']);
   assert.equal(pagedDualRoleSecond.truncation.nextSlice, null);
   assert.ok(Buffer.byteLength(JSON.stringify(pagedDualRoleSecond)) <= 2_500);
   assert.deepEqual(
-    new Set([
-      ...pagedDualRole.environment.sites,
-      ...pagedDualRoleSecond.environment.sites,
-    ].map(({ file }) => file)),
-    new Set(sites('environment', 25).map(({ file }) => file)),
+    [pagedDualRole, pagedDualRoleSecond]
+      .flatMap((page) => page.diagnostic.sites),
+    sites('diagnostic', 1),
+  );
+  assert.deepEqual(
+    [pagedDualRole, pagedDualRoleSecond]
+      .flatMap((page) => page.environment.sites),
+    sites('environment', 25),
+  );
+
+  const pagedDualRoleOutOfRange = lookupGuideReference(
+    [syntheticName, '--slice', '99'],
+    {
+      projectRoot: syntheticRoot,
+      includeDiagnosticSites: true,
+      lookupBudgetBytes: 2_500,
+    },
+  );
+  assert.equal(pagedDualRoleOutOfRange.match, 'diagnostic-environment-slice');
+  assert.deepEqual(pagedDualRoleOutOfRange.diagnostic.sites, []);
+  assert.deepEqual(pagedDualRoleOutOfRange.environment.sites, []);
+  assert.equal(pagedDualRoleOutOfRange.truncation.nextSlice, null);
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(pagedDualRoleOutOfRange)) <= 2_500,
   );
 } finally {
   rmSync(syntheticRoot, { recursive: true, force: true });

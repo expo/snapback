@@ -997,8 +997,8 @@ function codeOffset(offset, literals) {
 function rustDeclarationBrace(source, start, kind, literals) {
   const tail = source.slice(start);
   const declaration = kind === 'module'
-    ? tail.match(/^(?:\s*#\[[^\]]+\])*\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+[A-Za-z_][A-Za-z0-9_]*\s*/u)
-    : tail.match(/^(?:\s*#\[[^\]]+\])*\s*(?:(?:pub(?:\([^)]*\))?|async|unsafe|extern(?:\s+"[^"]+")?)\s+)*fn\s+[A-Za-z_][A-Za-z0-9_]*\b/u);
+    ? tail.match(/^(?:(?:\s*#\[[^\]]+\])|(?:\s*\/\/[^\r\n]*(?:\r?\n|$)))*\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+[A-Za-z_][A-Za-z0-9_]*\s*/u)
+    : tail.match(/^(?:(?:\s*#\[[^\]]+\])|(?:\s*\/\/[^\r\n]*(?:\r?\n|$)))*\s*(?:(?:pub(?:\([^)]*\))?|async|unsafe|extern(?:\s+"[^"]+")?)\s+)*fn\s+[A-Za-z_][A-Za-z0-9_]*\b/u);
   if (declaration === null) return null;
   let parenDepth = 0;
   let bracketDepth = 0;
@@ -1010,6 +1010,35 @@ function rustDeclarationBrace(source, start, kind, literals) {
     else if (source[index] === ']') bracketDepth = Math.max(0, bracketDepth - 1);
     else if (source[index] === '{' && parenDepth === 0 && bracketDepth === 0) return index;
     else if (source[index] === ';' && parenDepth === 0 && bracketDepth === 0) return null;
+  }
+  return null;
+}
+
+function rustAttributedRegionEnd(source, start, literals, delimiterCloses) {
+  for (const kind of ['module', 'function']) {
+    const open = rustDeclarationBrace(source, start, kind, literals);
+    const close = open === null ? undefined : delimiterCloses.get(open);
+    if (close !== undefined) return close + 1;
+  }
+
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  for (let index = start; index < source.length; index += 1) {
+    if (!codeOffset(index, literals)) continue;
+    if (source[index] === '(') parenDepth += 1;
+    else if (source[index] === ')') parenDepth = Math.max(0, parenDepth - 1);
+    else if (source[index] === '[') bracketDepth += 1;
+    else if (source[index] === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+    else if (source[index] === '{' && parenDepth === 0 && bracketDepth === 0) {
+      const close = delimiterCloses.get(index);
+      return close === undefined ? null : close + 1;
+    } else if (
+      (source[index] === ';' || source[index] === ',')
+      && parenDepth === 0
+      && bracketDepth === 0
+    ) {
+      return index + 1;
+    }
   }
   return null;
 }
@@ -1028,17 +1057,14 @@ export function rustProductionSource(source) {
     const marker = attribute.index + attribute[0].indexOf('#');
     if (!codeOffset(marker, literals)) continue;
     if (ranges.some((range) => range.start <= marker && marker < range.end)) continue;
-    const kind = attribute[1].startsWith('cfg') ? 'module' : 'function';
-    const open = rustDeclarationBrace(
+    const end = rustAttributedRegionEnd(
       source,
       attribute.index + attribute[0].length,
-      kind,
       literals,
+      delimiterCloses,
     );
-    if (open === null) continue;
-    const close = delimiterCloses.get(open);
-    if (close === undefined) continue;
-    ranges.push({ start: attribute.index, end: close + 1 });
+    if (end === null) continue;
+    ranges.push({ start: attribute.index, end });
   }
   if (ranges.length === 0) return source;
   ranges.sort((left, right) => left.start - right.start);
@@ -1117,18 +1143,23 @@ function isExplicitDiagnosticCodePosition(source, offset) {
   );
 }
 
-function isRustDiagnosticPrintPosition(source, offset) {
+function isDiagnosticPrintPosition(source, offset) {
   const before = source.slice(Math.max(0, offset - 512), offset);
-  return /\b(?:(?:e?println)!|(?:tracing|log)::[a-z_][a-z0-9_]*!)\s*\([^;{}]*(?:r#*)?"$/su.test(before);
+  return (
+    /\b(?:e?println)!\s*\(\s*(?:r#*)?"$/su.test(before)
+    || /\b(?:tracing|log)::[a-z_][a-z0-9_]*!\s*\(\s*(?:r#*)?"$/su.test(before)
+    || /\bconsole\.(?:error|warn)\s*\(\s*["'`]$/su.test(before)
+  );
 }
 
 function isLeadingDiagnosticCodePosition(source, match, literals) {
   const literal = literals.byContentStart.get(match.index);
   if (literal === undefined) return false;
   const end = match.index + match[0].length;
-  if (literal.end !== end && source[end] !== ':') return false;
+  const printPosition = isDiagnosticPrintPosition(source, match.index);
+  if (literal.end !== end && source[end] !== ':' && !printPosition) return false;
   return isExplicitDiagnosticCodePosition(source, match.index)
-    || isRustDiagnosticPrintPosition(source, match.index);
+    || printPosition;
 }
 
 function isGeneratedSourceDiagnosticPosition(source, match, literals) {

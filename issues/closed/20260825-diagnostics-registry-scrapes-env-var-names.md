@@ -91,6 +91,23 @@ including `SNAPBACK_ACCEPTED_SOCKET_LIMIT`, `SNAPBACK_GRAPH_EXEC_DISABLED`,
 `SNAPBACK_VERIFY_PROFILE_TIMEOUT`, and
 `SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE`.
 
+Round 20 admits a leading diagnostic followed by space-separated fields only
+when it is the proven first argument of Rust `println!`/`eprintln!`,
+`tracing::*`/`log::*`, JavaScript `console.error`/`console.warn`, or the
+existing shell emission operators. The generated projection pins
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` at
+`crates/snapback-kernel/src/live_matcher.rs:215`, while
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` remains environment-only and ordinary
+`throw new Error('CODE is required…')` prose remains non-emitting.
+
+The Rust test-region mask now skips intervening `//`/`///` comments and covers
+`#[cfg(test)]` functions, statements, blocks, fields, and match arms. Its
+comma/semicolon/block terminators are fixture-pinned so the next production
+site is never swallowed. Six test-only codes and ten test-only emitting sites
+leave the production projection. Combined diagnostic/environment pagination
+no longer reinserts an absent owner's first site; exact concatenated coverage
+and empty out-of-range slices are both asserted.
+
 Package manifests now contribute shipped `.swift` and `.kt` sources, and
 the local-proof selection rule covers both extensions. Existing native custody
 emitters are pinned to their real files:
@@ -129,13 +146,13 @@ projection regeneration. Its captured output is:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3539,
+    "codes": 3533,
     "sourceFiles": 642,
-    "emittingSites": 9216,
+    "emittingSites": 9207,
     "receivedSites": 339,
     "reservedSites": 9,
-    "httpClassified": 1709,
-    "guideAnchored": 427,
+    "httpClassified": 1704,
+    "guideAnchored": 426,
     "environmentVariables": 185,
     "environmentSites": 368
   },
@@ -149,9 +166,9 @@ projection regeneration. Its captured output is:
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 238,
+    "total": 244,
     "environment": 140,
-    "other": 98
+    "other": 104
   },
   "retypedBack": [
     "SNAPBACK_APP_BINDING_EXPIRED"

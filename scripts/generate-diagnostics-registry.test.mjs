@@ -58,6 +58,7 @@ test('diagnostic source classifier excludes environment reads per site and retai
   assert.deepEqual(
     [...diagnosticCodeMatches(fixture, sourceOptions)].map((match) => match[0]),
     [
+      'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
       'SNAPBACK_FIXTURE_JS_EMITTED',
       'SNAPBACK_FIXTURE_JS_URL_EMITTED',
       'SNAPBACK_FIXTURE_JS_MESSAGE_OWNER',
@@ -66,6 +67,9 @@ test('diagnostic source classifier excludes environment reads per site and retai
       'SNAPBACK_FIXTURE_SQL_STORED_EMISSION',
       'SNAPBACK_FIXTURE_ESCAPED_POISON',
       'SNAPBACK_FIXTURE_WARNING_PREFIX',
+      'SNAPBACK_FIXTURE_PRINTLN',
+      'SNAPBACK_FIXTURE_TRACING',
+      'SNAPBACK_FIXTURE_LOG',
       'SNAPBACK_FIXTURE_MARKED_EMISSION',
       'SNAPBACK_FIXTURE_SYNTHETIC_DYNAMIC',
       'SNAPBACK_FIXTURE_DUAL_ROLE',
@@ -277,12 +281,8 @@ test('diagnostic source classifier excludes environment reads per site and retai
     'SNAPBACK_FIXTURE_RUST_PREFIX',
     'SNAPBACK_FIXTURE_RUST_CONTAINS',
     'SNAPBACK_FIXTURE_SINGLETON_METADATA_REFERENCE',
-    'SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
     'SNAPBACK_FIXTURE_LEADING_ERROR_CODE',
     'SNAPBACK_FIXTURE_PUBLICATION_PORT',
-    'SNAPBACK_FIXTURE_PRINTLN',
-    'SNAPBACK_FIXTURE_TRACING',
-    'SNAPBACK_FIXTURE_LOG',
   ]);
   assert.deepEqual(
     diagnosticSourceSites(fixture, sourceOptions)
@@ -383,7 +383,7 @@ test('shell classifier retains operator emissions and environment reads only', (
     'token="$SNAPBACK_FIXTURE_SHELL_TOKEN"',
     "literal='$SNAPBACK_FIXTURE_SHELL_LITERAL'",
     'deploy_fail SNAPBACK_FIXTURE_SHELL_DEPLOY_FAILED 2 "failed"',
-    'echo "SNAPBACK_FIXTURE_SHELL_ECHO_FAILED: failed" >&2',
+    'echo "SNAPBACK_FIXTURE_SHELL_ECHO_FAILED field=value" >&2',
     "printf '%s\\n' SNAPBACK_FIXTURE_SHELL_PRINTF_FAILED >&2",
     'value="SNAPBACK_FIXTURE_SHELL_REFERENCE"',
     '# echo SNAPBACK_FIXTURE_SHELL_COMMENTED_FAILED',
@@ -408,8 +408,54 @@ test('shell classifier retains operator emissions and environment reads only', (
   );
 });
 
+test('leading diagnostic tokens emit only from proven print and log arguments', () => {
+  const rustFixture = [
+    'println!("SNAPBACK_FIXTURE_PRINTLN field={field}");',
+    'eprintln!("SNAPBACK_FIXTURE_EPRINTLN field={field}");',
+    'tracing::warn!("SNAPBACK_FIXTURE_TRACING field={field}");',
+    'log::error!("SNAPBACK_FIXTURE_LOG field={field}");',
+  ].join('\n');
+  assert.deepEqual(
+    diagnosticSourceSites(rustFixture, { ordinaryMultiline: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_PRINTLN', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_EPRINTLN', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_TRACING', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_LOG', kind: 'emission' },
+    ],
+  );
+
+  const javascriptFixture = [
+    "console.error('SNAPBACK_FIXTURE_CONSOLE_ERROR field=%s', field);",
+    "console.warn('SNAPBACK_FIXTURE_CONSOLE_WARN field=%s', field);",
+    "console.error(prefix, 'SNAPBACK_FIXTURE_CONSOLE_SECOND_ARGUMENT field=%s');",
+    "throw new Error('SNAPBACK_FIXTURE_PRINT_PROSE_ENV is required to continue');",
+    'process.env.SNAPBACK_FIXTURE_PRINT_PROSE_ENV;',
+  ].join('\n');
+  assert.deepEqual(
+    diagnosticSourceSites(javascriptFixture, { javascript: true })
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [
+      { code: 'SNAPBACK_FIXTURE_CONSOLE_ERROR', kind: 'emission' },
+      { code: 'SNAPBACK_FIXTURE_CONSOLE_WARN', kind: 'emission' },
+    ],
+  );
+  assert.deepEqual(
+    environmentVariableSites(javascriptFixture, { javascript: true })
+      .filter(({ match }) => match[0] === 'SNAPBACK_FIXTURE_PRINT_PROSE_ENV')
+      .map(({ kind }) => kind),
+    ['mention', 'read'],
+  );
+});
+
 test('Rust production classification excludes inline test-gated regions', () => {
   const fixture = [
+    'struct FixtureFields {',
+    '    #[cfg(test)]',
+    '    test_only: bool,',
+    '    production: bool,',
+    '}',
     'pub fn production() {',
     '    let _ = std::env::var("SNAPBACK_FIXTURE_PRODUCTION_ENV");',
     '}',
@@ -425,8 +471,29 @@ test('Rust production classification excludes inline test-gated regions', () => 
     '    }',
     '}',
     '#[test]',
+    '// @ref LLP 0053#acceptance — comments may separate the attribute and item.',
+    '/// The production classifier must skip this doc comment too.',
     'fn top_level_test() {',
     '    let _ = std::env::var("SNAPBACK_FIXTURE_TOP_LEVEL_TEST_ENV");',
+    '}',
+    '#[cfg(test)]',
+    '// A cfg(test) function is test-only even though it is not a module.',
+    'fn cfg_test_function() {',
+    '    panic!("SNAPBACK_FIXTURE_CFG_TEST_FUNCTION_FAILURE");',
+    '}',
+    'pub fn cfg_gated_statements() {',
+    '    #[cfg(test)]',
+    '    let fail_rebind = true;',
+    '    #[cfg(test)]',
+    '    if fail_rebind {',
+    '        panic!("SNAPBACK_FIXTURE_CFG_TEST_STATEMENT_FAILURE");',
+    '    }',
+    '    match "production" {',
+    '        #[cfg(test)]',
+    '        "test" => panic!("SNAPBACK_FIXTURE_CFG_TEST_ARM_FAILURE"),',
+    '        _ => panic!("SNAPBACK_FIXTURE_AFTER_CFG_PRODUCTION_FAILURE"),',
+    '    }',
+    '    let _ = std::env::var("SNAPBACK_FIXTURE_AFTER_CFG_ENV");',
     '}',
   ].join('\n');
   const options = { ordinaryMultiline: true, excludeRustTestRegions: true };
@@ -434,9 +501,16 @@ test('Rust production classification excludes inline test-gated regions', () => 
   assert.deepEqual(
     environmentVariableSites(fixture, options)
       .map(({ match, kind }) => ({ name: match[0], kind })),
-    [{ name: 'SNAPBACK_FIXTURE_PRODUCTION_ENV', kind: 'read' }],
+    [
+      { name: 'SNAPBACK_FIXTURE_PRODUCTION_ENV', kind: 'read' },
+      { name: 'SNAPBACK_FIXTURE_AFTER_CFG_ENV', kind: 'read' },
+    ],
   );
-  assert.deepEqual(diagnosticSourceSites(fixture, options), []);
+  assert.deepEqual(
+    diagnosticSourceSites(fixture, options)
+      .map(({ match, kind }) => ({ code: match[0], kind })),
+    [{ code: 'SNAPBACK_FIXTURE_AFTER_CFG_PRODUCTION_FAILURE', kind: 'emission' }],
+  );
 });
 
 test('Rust match-arm references scan an entire brace-bounded or-pattern', () => {
@@ -569,7 +643,14 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     .SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH.sites.filter(
       (site) => site.file === 'crates/snapback-kernel/src/live_matcher.rs',
     );
-  assert.deepEqual(demandMismatchSites, []);
+  assert.deepEqual(
+    demandMismatchSites.map(({ file, line, kind }) => ({ file, line, kind })),
+    [{
+      file: 'crates/snapback-kernel/src/live_matcher.rs',
+      line: 215,
+      kind: undefined,
+    }],
+  );
   assert.ok(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH);
   assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
   assert.ok(registry.environment.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE);

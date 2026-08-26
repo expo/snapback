@@ -123,8 +123,8 @@ const environmentExample = 'SNAPBACK_FIXTURE_EXAMPLE_ENV=/absolute/path';
 const publicationPort = process.env.SNAPBACK_FIXTURE_PUBLICATION_PORT;
 throw new Error('SNAPBACK_FIXTURE_PUBLICATION_PORT must be configured');
 
-// Generated JavaScript, stored SQL, and delimiter-bound log prefixes still
-// create real diagnostic records. Whitespace-delimited log prose does not.
+// Generated JavaScript, stored SQL, and proven print/log arguments still
+// create real diagnostic records, including space-delimited fields.
 const generatedJavaScript = `
   export function invoke() {
     throw new Error('SNAPBACK_FIXTURE_GENERATED_JS_EMISSION');

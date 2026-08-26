@@ -82,6 +82,26 @@ explicit code-bearing emitters, including `SNAPBACK_ACCEPTED_SOCKET_LIMIT`,
 `SNAPBACK_GRAPH_EXEC_DISABLED`, `SNAPBACK_VERIFY_PROFILE_TIMEOUT`, and
 `SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE`.
 
+Round 20 restores leading `SNAPBACK_*` tokens followed by space-separated
+fields when the literal is the proven first argument of Rust
+`println!`/`eprintln!`, `tracing::*`/`log::*`, or JavaScript
+`console.error`/`console.warn`. The generated-registry regression pins
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH` at
+`crates/snapback-kernel/src/live_matcher.rs:215`; the adjacent
+`SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE` read remains environment-only, and the
+round-19 `throw new Error('CODE is required…')` prose boundary remains closed.
+Shell `deploy_fail` and print operators retain their existing proven-emission
+classification without converting known environment assignments into codes.
+
+The Rust production mask now crosses `//` and `///` comments between a test
+attribute and its item, masks `#[cfg(test)]` functions, semicolon-terminated
+statements, block statements, fields, and match arms, and stops at the exact
+comma/semicolon/block boundary so following production code stays visible.
+This removes six test-only codes and ten test-only emitting sites. Combined
+diagnostic/environment lookup pagination now slices the merged site stream
+without reinserting either owner's first site: concatenated slices cover each
+site exactly once, and an out-of-range slice is empty.
+
 Round 18 also bounds Rust `matches!(...)` reference detection to the macro's
 matched closing parenthesis. Five real emitters that follow completed macros
 are restored: `SNAPBACK_ADMIN_LAN_TARGET_INVALID` at
@@ -148,8 +168,8 @@ diagnostic registry and `SnapbackDiagnosticCode`, while remaining present in
 the environment registry and `SnapbackEnvironmentVariable`.
 
 The final comparison with merge-base
-`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 238 removed diagnostic
-names: 140 are now environment variables and 98 are other non-emitting
+`e370bb8f789007cffae1f4d80c4feabdedc81cb5` finds 244 removed diagnostic
+names: 140 are now environment variables and 104 are other non-emitting
 vocabulary. The earlier 141-name environment claim was audited in full. Only
 `SNAPBACK_APP_BINDING_EXPIRED` has whole-string code-bearing emitters and was
 re-typed back as a diagnostic. A delimiter-aware re-audit of the remaining 140
@@ -232,13 +252,13 @@ Captured output:
 {
   "mergeBase": "e370bb8f789007cffae1f4d80c4feabdedc81cb5",
   "counts": {
-    "codes": 3539,
+    "codes": 3533,
     "sourceFiles": 642,
-    "emittingSites": 9216,
+    "emittingSites": 9207,
     "receivedSites": 339,
     "reservedSites": 9,
-    "httpClassified": 1709,
-    "guideAnchored": 427,
+    "httpClassified": 1704,
+    "guideAnchored": 426,
     "environmentVariables": 185,
     "environmentSites": 368
   },
@@ -252,9 +272,9 @@ Captured output:
     "indirect-read": 15
   },
   "mergeBaseRemovals": {
-    "total": 238,
+    "total": 244,
     "environment": 140,
-    "other": 98
+    "other": 104
   },
   "retypedBack": [
     "SNAPBACK_APP_BINDING_EXPIRED"
