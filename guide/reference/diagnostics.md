@@ -2853,13 +2853,13 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-push-redrive-not-ambiguous"></a>`SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS` | server | 409 | — | `crates/snapback-kernel/src/push.rs:1417` | 3 |
 | <a id="diagnostic-snapback-push-redrive-raced"></a>`SNAPBACK_PUSH_REDRIVE_RACED` | server | 409 | — | `crates/snapback-kernel/src/push.rs:1466` | 2 |
 | <a id="diagnostic-snapback-push-redrive-refused"></a>`SNAPBACK_PUSH_REDRIVE_REFUSED` | server | 400 | — | `crates/snapback-kernel/src/push.rs:1340` | 2 |
-| <a id="diagnostic-snapback-push-registry-corrupt"></a>`SNAPBACK_PUSH_REGISTRY_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/push.rs:3375` | 6 |
+| <a id="diagnostic-snapback-push-registry-corrupt"></a>`SNAPBACK_PUSH_REGISTRY_CORRUPT` | server | 500 | — | `crates/snapback-kernel/src/push.rs:3471` | 6 |
 | <a id="diagnostic-snapback-push-registry-response-invalid"></a>`SNAPBACK_PUSH_REGISTRY_RESPONSE_INVALID` | client | — | — | `packages/snapback-client/push-registry.mjs:54` | 1 |
 | <a id="diagnostic-snapback-push-seam-auth-required"></a>`SNAPBACK_PUSH_SEAM_AUTH_REQUIRED` | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:496` | 2 |
 | <a id="diagnostic-snapback-push-seam-not-declared"></a>`SNAPBACK_PUSH_SEAM_NOT_DECLARED` | server | 400 | — | `crates/snapback-engine/src/local/engine.rs:7796` | 5 |
 | <a id="diagnostic-snapback-push-send-failed"></a>`SNAPBACK_PUSH_SEND_FAILED` | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:4993` | 2 |
-| <a id="diagnostic-snapback-push-send-invalid"></a>`SNAPBACK_PUSH_SEND_INVALID` | server | 400 | [guide](../backend/expo-push.md#send-to-a-declared-audience) | `crates/snapback-engine/src/push/authority_tests.rs:801` | 4 |
-| <a id="diagnostic-snapback-push-send-unavailable"></a>`SNAPBACK_PUSH_SEND_UNAVAILABLE` | server | 503 | — | `crates/snapback-kernel/src/push.rs:3019` | 2 |
+| <a id="diagnostic-snapback-push-send-invalid"></a>`SNAPBACK_PUSH_SEND_INVALID` | server | 400 | [guide](../backend/expo-push.md#send-to-a-declared-audience) | `crates/snapback-engine/src/push/authority_tests.rs:785` | 4 |
+| <a id="diagnostic-snapback-push-send-unavailable"></a>`SNAPBACK_PUSH_SEND_UNAVAILABLE` | server | 503 | — | `crates/snapback-kernel/src/push.rs:3115` | 2 |
 | <a id="diagnostic-snapback-push-send-unsupported"></a>`SNAPBACK_PUSH_SEND_UNSUPPORTED` | server | 503 | — | `crates/snapback-engine/src/runtime/host_glue.rs:401` | 2 |
 | <a id="diagnostic-snapback-push-session-required"></a>`SNAPBACK_PUSH_SESSION_REQUIRED` | server | 401 | — | `crates/snapback-engine/src/local/engine.rs:7766` | 5 |
 | <a id="diagnostic-snapback-push-session-stale"></a>`SNAPBACK_PUSH_SESSION_STALE` | server | 401 | — | `crates/snapback-kernel/src/push.rs:3064` | 4 |

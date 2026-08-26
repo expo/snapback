@@ -24916,27 +24916,27 @@
         },
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 310,
+          "line": 314,
           "column": 10
         },
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 539,
+          "line": 543,
           "column": 10
         },
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 707,
+          "line": 704,
           "column": 10
         },
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 727,
+          "line": 722,
           "column": 10
         },
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 826,
+          "line": 810,
           "column": 10
         },
         {
@@ -79920,7 +79920,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3375,
+          "line": 3471,
           "column": 27
         },
         {
@@ -80050,7 +80050,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/push/authority_tests.rs",
-          "line": 801,
+          "line": 785,
           "column": 10
         },
         {
@@ -80060,7 +80060,7 @@
         },
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3015,
+          "line": 3111,
           "column": 27
         },
         {
@@ -80082,7 +80082,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3019,
+          "line": 3115,
           "column": 27
         },
         {
@@ -80157,7 +80157,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3064,
+          "line": 3160,
           "column": 14
         },
         {
@@ -80187,7 +80187,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3371,
+          "line": 3467,
           "column": 27
         },
         {
@@ -80227,7 +80227,7 @@
       "sites": [
         {
           "file": "crates/snapback-kernel/src/push.rs",
-          "line": 3083,
+          "line": 3179,
           "column": 14
         },
         {
