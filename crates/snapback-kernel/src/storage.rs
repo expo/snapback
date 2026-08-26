@@ -3904,7 +3904,7 @@ impl LocalDatabase {
     /// carriers for this database. The durable catalog-creation origin is the
     /// root: an uninitialized runtime field is never permission to install a
     /// caller-authored provider. Repeating the exact binding is idempotent.
-    // @ref LLP 0303#the-root-boundary-not-another-wrapper — runtime installation derives from the catalog-creation root and cannot create it.
+    // @ref LLP 0303#v-the-root-boundary-not-another-wrapper — runtime installation derives from the catalog-creation root and cannot create it.
     pub fn bind_auth_step_up_provider(
         &mut self,
         binding: crate::auth::keyring::AuthProviderStepUpBinding,
