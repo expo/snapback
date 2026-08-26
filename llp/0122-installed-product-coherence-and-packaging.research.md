@@ -175,7 +175,7 @@ feeling like a product:
 - `@snapback/client/online` is a published export with no TypeScript
   declaration; external builds fail with TS7016. Found independently in
   three apps (Todo, Diary 0027; Chat, Diary 0028; Linear, Diary 0029), and
-  tracked in `issues/20260729-external-package-lifecycle-gaps.md`.
+  tracked in `issues/closed/20260729-external-package-lifecycle-gaps.md`.
   Spot-checked 2026-07-30: still unfixed on current main —
   `packages/snapback-client/package.json` maps `"./online": "./online.mjs"`
   with no `types` condition and no `online.d.mts` exists (five subpaths
@@ -613,7 +613,7 @@ boundary, and required amendments to owning LLPs.
 
 Whichever shape wins, some fixes are option-independent and already
 ticketed: a `types` condition and declaration for every public export
-(`issues/20260729-external-package-lifecycle-gaps.md`); `snapback stop`
+(`issues/closed/20260729-external-package-lifecycle-gaps.md`); `snapback stop`
 retiring every sidecar it created or returning a typed cleanup plan; secure
 refusals naming the failed inode predicate; and rewriting the guide's first
 hour in the installed dialect (adjacent to LLP 0115 CV-13). These are small,

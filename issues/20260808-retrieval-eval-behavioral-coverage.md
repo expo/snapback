@@ -9,6 +9,11 @@
 **Date:** 2026-08-08
 **Related:** LLP 0061, LLP 0184, LLP 0186, LLP 0187
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. Extra transcripts exist (`guide/eval-runs/2026-08-10`, `2026-08-21`) but there is still no case/digest/model registry or cadence. Static checker + disclaimer remain in `guide/retrieval-eval.md`.
+
 ## Summary
 
 The retrieval corpus now defines 21 strong, failure-oriented seed intents. The

@@ -12,6 +12,11 @@
 **Last observed:** `784babd50de1f9f66ac3f9b155a8105f2886e6ac`
 **Related:** LLP 0232 D-1/D-2; `issues/20260811-record-inventory-summary.md`
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for the D-2 record shape. The 2026-08-04 registry/checker mismatch is **fixed**: policy now names the 2026-08-06 pair. Remaining: `carrier-exit.2026-08-06.v1.json` still serializes start/end time, revision, `dirty: true`, and long `dirtyPaths`. Operational red with signature `sha256:81911ec32efdaf71…` is `issues/20260824-battery-local-store-carrier-receipt-81911ec32efdaf71.md`.
+
 ## Problem
 
 The registry says this gate owns the 2026-08-04 carrier/bundle pair, but

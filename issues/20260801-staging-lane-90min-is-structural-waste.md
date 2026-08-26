@@ -1,6 +1,6 @@
 # qualified-package-staging takes ~90 min for one program; ~15 is achievable
 
-**Status:** Open
+**Status:** Open — 90-minute serial assemble is historical; Linux/Hermes remainder
 **Impact:** 4
 **Urgency:** 2
 **Ease:** 3
@@ -11,6 +11,11 @@
 **Date:** 2026-08-01
 **Related:** LLP 0041, issues/20260731-sd6-scope-migration-and-rebuild.md
 **Marker:** release-lane
+
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open, but the 90-minute serial assemble is **historical**. `.eas/workflows/qualified-package-staging.yml` now builds linux/darwin in parallel with two-pass store qualification; last recorded wall ~18m. Remaining work is the Linux-runtime/Hermes portion of the ~15-minute target, not serial package assembly. See also `issues/20260803-linux-hermes-release-carrier-gap.md`.
 
 ## Execution checkpoint — 2026-08-01
 

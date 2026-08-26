@@ -10,6 +10,11 @@
 **Related:** `issues/20260808-linux-runtime-icu-dynamic-link-portability.md`,
 LLP 0041 (§Linux runtime self-containment — 2026-08-08)
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. Related ICU/libcurl consumer fix closed in `issues/closed/20260808-linux-runtime-icu-dynamic-link-portability.md`. This ticket is the remaining `.gnu.version_r` / `GLIBC_*` floor. Also cited by `issues/20260821-f3-npm-closure-linux-artifact-blocker.md`.
+
 ## Finding
 
 The ICU/libcurl fix makes the published Linux runtime self-contained against

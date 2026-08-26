@@ -22,6 +22,11 @@ D7 afterthought.
 
 - **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for the host-invoked writer, not the missing guide page. `guide/auth/app-identity-binding.md` exists. `verifiedProvisioningCompiled` is still false. LLP 0272 is Accepted; the writer is deferred.
+
 ## Partial resolution — 2026-08-08 (guide page landed; platform ask remains)
 
 **The docs ask is done.** New page

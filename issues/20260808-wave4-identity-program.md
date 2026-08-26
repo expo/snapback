@@ -8,6 +8,11 @@
 tokens), LLP 0011 (guest claiming), LLP 0036 (grant model), LLP 0104
 (shadow metering), LLP 0189 (verification cadence and claim gating)
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. Program of record is **LLP 0212 Accepted**. Drop 0198/0199 as live owners. LLP 0213/0214/0215 files are still Draft. Remaining 0212 work is wave 2d (shared email/SMS) and wave 3 (OIDC/passkeys).
+
 ## Kickoff decisions
 
 **1. Generated-domain passkeys tier — RULED 2026-08-08: preview-only

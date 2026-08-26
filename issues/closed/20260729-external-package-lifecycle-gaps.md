@@ -1,6 +1,6 @@
 # Make the external package and lifecycle path self-contained
 
-**Status:** Open  
+**Status:** Closed
 **Area:** Package publication, client declarations, installed runtime lifecycle  
 **Found by:** LLP 0102 final Snapback confirmation  
 **Date:** 2026-07-29  
@@ -106,3 +106,23 @@ Of the three bullets the 2026-08-01 sweep left open:
   explicit Volta binding from fresh-host preparation is Linux
   runtime-packaging work that cannot be exercised from a macOS lane; this
   is now the ticket's only remaining scope.
+
+## Resolution
+
+Closed 2026-08-26 (July/early-August leftover sweep) as **absorbed**.
+
+All six original bullets have landed or moved:
+
+1. `@snapback/client/online` types — landed (see 2026-08-01 note).
+2. Packaged readiness/identity helper —
+   `issues/closed/20260801-0137-g1-guide-gap-packaged-runtime-readiness-receipt.md`.
+3. `.secret-read-root` teardown — landed.
+4. Linux *consumer* ICU/curl self-containment —
+   `issues/closed/20260808-linux-runtime-icu-dynamic-link-portability.md`
+   (0.1.18). Builder-side residuals live in
+   `issues/20260810-linux-runtime-glibc-symbol-version-baseline.md` and
+   `issues/20260803-linux-hermes-release-carrier-gap.md`.
+5. Inode-predicate refusals — landed (2026-08-01 narrowing).
+6. Public registry publication — 0.1.7 onward; newest closure 0.1.27.
+
+Do not reopen this umbrella. Follow the two remaining Linux-builder tickets.

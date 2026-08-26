@@ -6,6 +6,11 @@ A batch of low-severity, individually-verified robustness papercuts surfaced by
 the full-repo review. Grouped to keep the tracker manageable; each is
 independently fixable.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. One original item looks fixed (audit `roots()`-in-loop). Remaining from this sweep: MCP mutation gate dropped on catalog miss; corrupt manifest is raw `JSON.parse`; `generatedAtMillis` still `Number(...)`; Vite buffers whole body; verify scratch `.snapback-verify-`; drift-runner hardcoded source; `bash -lc` in `scripts/verify-local-proof`; maturity fallback silent `HEAD^..HEAD`; Fly `Number(timestamp) || 0`; Windows `SNAPBACK_CONTROL_STORE_UNSAFE`.
+
 ## snapback-cli / control
 - Inconsistent exit-code propagation across `deploy status`/`apply`/`rollback`/
   `target add` (index.mjs:4031-4058, 3731) — scripts may read failed results as

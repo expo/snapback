@@ -6,6 +6,11 @@
 **Date:** 2026-08-12
 **Related:** LLP 0249 D1; `packages/snapback-codegen/contract-emitter.mjs:181`; `packages/snapback-codegen/index.mjs:12452`; `packages/snapback-codegen/index.mjs:12573`
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for D1 grammar. The 2026-08-15 nested-`runtime` ruling is recorded, but `ACTION_SPEC_FIELDS` still has no `runtime`/`effects` and unknown keys still `SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN`. Keep until the grammar and tests land.
+
 ## Problem
 
 LLP 0249's example puts `effects:` on `defineAction`, but Snapback already uses

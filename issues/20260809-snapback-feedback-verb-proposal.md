@@ -7,6 +7,11 @@ under `llp/reviews/0207-*`)
 grading loop is the consumer — this ticket is an amendment proposal to
 that document's owner, not commissioned work.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as **implementation**. Accepted into LLP 0193 Phase 4. No `feedback` verb in `packages/snapback-cli` or `crates/snapback-cli`.
+
 ## Proposal
 
 A `snapback feedback "<text>"` verb usable from any installed closure

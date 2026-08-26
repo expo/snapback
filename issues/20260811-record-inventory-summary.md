@@ -14,6 +14,11 @@ backstop, diagnostic, and release economics. Under LLP 0232's
 optimistic-landing amendment, none of its incomplete rows is an ambient
 ordinary-landing blocker; the scheduled backstop owns ordinary drift verdicts.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. Completion condition unmet (control-catalog + both local-store NEEDS-WORK; no ten-cold/ten-warm D-2 bench). The carrier-receipt table row is stale (registry now names 2026-08-06, not 2026-08-04). Current D-1 stand-ins: `issues/20260824-battery-local-store-carrier-receipt-81911ec32efdaf71.md` and `issues/20260825-battery-local-store-publication-3daaf301d85d6913.md`. Guide row correctly points at `issues/closed/20260811-record-inventory-guide.md`.
+
 ## Scope and method
 
 This is the complete inventory of the 18 `driftProneGates` registered in

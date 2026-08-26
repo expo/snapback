@@ -5,6 +5,11 @@
 Three areas whose product risk is high relative to their current black-box test
 presence.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for B/C. **A landed:** `tests/conformance/js-live-wire-fixtures-v1.mjs`. B: no tests/-tree fork-promotion binary (kernel unit coverage only). C: `fake_expo` still engine-local. Paths after the crate split need refresh when this is picked up.
+
 ## A) No JS consumer of the shared wire-fixture corpus
 
 `schemas/live.wire-fixtures.v1.json` is replayed by Rust and Swift

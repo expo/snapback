@@ -5,6 +5,11 @@
 **Opened:** 2026-07-28
 **Authorities:** LLP 0111, LLP 0113
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0111 and LLP 0113 are **Accepted**. `hosted-control.mjs` availability is still `disabled` / `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. Criteria 1–6 remain unmet.
+
 ## Problem
 
 The generated `AdapterLifecycleRequestV2`/`AdapterLifecycleResponseV2` carrier

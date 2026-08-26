@@ -18,6 +18,11 @@ nothing publishes publicly — D1 (publish at all / where), D2
 decisions and get surfaced with the staged result. Output: a
 generator + staged artifact + a decision memo for D1-D4.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for D2/D3 current-closure. LLP 0195 is Accepted. D1 is live (`website/` → snapback.expo.app). In-repo D3 snapshots exist at `website/public/v/0.1.19/` + `/latest/` aliases; `guide/published-closure.json` is **0.1.27**, so the snapshot lags. No `snapback-examples` repo. `snapback feedback` is designed (LLP 0193) but not in `packages/snapback-cli`.
+
 ## D1–D4 author decision memo
 
 No decision below is taken by this execution. The recommendations describe

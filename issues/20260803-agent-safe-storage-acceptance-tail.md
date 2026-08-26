@@ -68,6 +68,11 @@ absolute process did not run. The production range path now returns to the
 pinned pre-profile per-call preparation boundary for a fix-forward successor;
 the measurement contract and every `Missing` state remain unchanged.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0162/0163/0164/0165 are **Accepted**; this tail still owns rows 1–14 as Partial and every `agent_safe_*` capability as Missing. Last dated performance note remains the a0852be range-read p95 miss. This did **not** move into the F-1 / LLP 0303 / LLP 0313 kernel-authorization program.
+
 ## Remaining acceptance work
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |

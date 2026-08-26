@@ -1,6 +1,6 @@
 # main red: 4 lib tests fail at evening main (s5_d10 pair, capability-maturity grammar, served-http refusals)
 
-**Status:** Open
+**Status:** Closed
 **Systems:** Server, Manifest, Testing
 **Date:** 2026-08-10
 **Detected during:** lane J (LLP 0093 wire identity) full-lib verification; reproduced on pristine origin/main
@@ -40,3 +40,24 @@ for the sibling package-level signature. The 2026-08-15 rehearsal-capture
 stack-overflow abort that used to hide part of the suite is fixed
 (`ab825e299`), so the full suite reaches its summary on default stacks —
 these five are the complete red set, not a lower bound.
+
+## Resolution
+
+Closed 2026-08-26 (July/early-August leftover sweep) as **superseded**.
+
+The 2026-08-10 four-test snapshot, and the 2026-08-15 five-test restatement,
+have been split into later owners:
+
+- `s5_d10` inventory drift:
+  `issues/20260823-diagnostic-inventory-scan-lost-scope-after-carve.md`
+  (supersedes `issues/20260821-elevated-read-trace-stale-exclusion.md`).
+- `served_http_refusals`:
+  `issues/20260824-route-policy-and-refusals-main-reds.md`.
+- `capability_maturity` grammar:
+  `issues/closed/20260811-main-lib-reds-capability-maturity-auth-rescue-overflow.md`
+  and MediaRef sibling
+  `issues/closed/20260815-codegen-pretest-media-ref-capability-unsupported.md`.
+- Earlier unclassified-codes instance:
+  `issues/closed/20260809-s5d10-rehearsal-codes-unclassified-main-red.md`.
+
+The 2026-08-15 “complete red set of five” claim in this ticket is stale.

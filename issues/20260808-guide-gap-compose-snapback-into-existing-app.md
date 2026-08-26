@@ -4,6 +4,11 @@
 **Opened:** 2026-08-08 · **Severity:** P2 · **Area:** CLI / templates / React and Expo integration
 **Related:** LLP 0181, LLP 0196, Diary 0063 G4
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for **published** qualification. `snapback init` now exists in-tree (`SNAPBACK_INIT_*`). The capability index still marks `clients.compose-existing-app` design-only / “no backend-only initializer,” which contradicts in-tree `init`. Guide still documents the sibling-scaffold workaround (`guide/clients/react-expo.md`).
+
 ## Problem
 
 `snapback new` creates a complete project, but there is no backend-only

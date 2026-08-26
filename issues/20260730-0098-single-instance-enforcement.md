@@ -30,6 +30,11 @@ Scope:
 Out of scope: the drill deployment (keeps its documented posture and bounded
 deploy downtime), and any change to the §5 health-withdrawal path.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0098 remains Draft (D3). The profile enum is in `crates/snapback-activation/src/deploy.rs`, not `crates/snapback/src/deploy.rs`. No Machines-count admission check. Work stays latent until a production `globallyFenced` profile exists.
+
 ## Triage freshness note (2026-08-01 sweep)
 
 Still valid and agent-executable (D3 was already Charlie's

@@ -21,6 +21,11 @@ control-plane approval. Not required for Step 5 (local SQLite is the
 admission profile); unblocks when a hosted target is selected under 0072.
 Status Deferred in spirit — kept Open with this boundary recorded. L-sized.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0099 is **Accepted** (2026-08-03); the container-VM executor profile is still not in any advertised manifest until G3. G1 is unmet: Fly still refuses lifecycle with `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`. DO executor remains the explicit second profile, parked behind Cloudflare qualifying under LLP 0072.
+
 ## Decision package (2026-07-26)
 
 Scoped read-only against the corpus at origin/main (6aa857a8). The facts:

@@ -2,6 +2,11 @@
 
 **Opened:** 2026-08-08 · **Severity:** P1 (product-shaped: correct but unusable under hot load) · **Owner seam:** D2 (incremental deltas / bounded re-evaluation) + D4 (stream lifecycle) per the LLP 0183 review round; evidence anchor for acceptance.v2 margins
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as the measurement/publication tail. G3 is no longer “uncommissioned”: G3-A and G3 rung 1 have landed on LLP 0209. Remainder is the measurement tail plus capability publication, not commissioning G3.
+
 ## Measured
 
 `snapback-control-hot.zb5.v10.json` (immutable receipt): with six streaming

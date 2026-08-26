@@ -18,6 +18,11 @@ issues/20260808-stored-literal-union-enums.md.
 
 - **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as the unshipped schema-owner amendment. Coordinating Decision closed into LLP 0226 (`issues/closed/20260808-identity-architecture-decision.md`). `v.serial` is still absent from `packages/snapback-codegen/define.mjs`.
+
 ## Disposition 2026-08-08 — NOT implemented; author-gated. Ticket stays open.
 
 Orientation found this ticket is already governed, twice over, and building a

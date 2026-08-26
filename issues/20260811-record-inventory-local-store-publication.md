@@ -12,6 +12,11 @@
 **Last observed:** `ddbd581eb77b7cb468b9b5764422b3a178438278`
 **Related:** LLP 0232 D-2; LLP 0189 D-4; `issues/20260811-record-inventory-summary.md`
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for the calendar-locator D-2 ask. Signature `sha256:1da031ef…` **closed** (`issues/closed/20260824-battery-local-store-publication-1da031ef72fa44cf.md`). Current D-1 red is `issues/20260825-battery-local-store-publication-3daaf301d85d6913.md`. Policy triggers still name 2026-08-04 receipts while refresh/conformance/Rust use 2026-08-06.
+
 ## Problem
 
 The carrier and anchor themselves are content-addressed, but the command that

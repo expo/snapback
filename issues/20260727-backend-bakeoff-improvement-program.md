@@ -19,6 +19,11 @@ remaining gaps range from documentation-sized fixes to new storage and hosted
 runtime capabilities. This program closes the real gaps without duplicating
 existing programs or weakening Snapback's capability honesty.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as the hosted-residual index. Relation/activity closed 2026-08-03 (`issues/closed/20260727-relation-and-activity-patterns.md`; LLP 0110 Accepted). Live residuals are `issues/20260726-0072-fly-adapter-remaining-surface.md`, `issues/20260727-hosted-ephemeral-parity.md`, and `issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md`. Newest published closure at sweep time is **0.1.27**, not 0.1.1/0.1.24.
+
 ## Classification
 
 | Comparison item | Current classification | Owning ticket or disposition |

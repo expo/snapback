@@ -26,3 +26,8 @@ a production challenge-delivery path. The Phase-0 §Status ledger in
 LLP 0105 names this dependency; receipts under
 `demos/eas-phase0/receipts/`. Fixing this ticket is the substrate
 critical path for the EAS-hosted lane, not just the mobile story.
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. `guide/auth/native-apps.md` and `guide/clients/react-expo.md` remain `targets: [local]` (reviewed 2026-08-25). The 0.1.7 pin in the title is a filing snapshot; the hosted Expo sessions/native-auth path is still missing on current published closures.
+

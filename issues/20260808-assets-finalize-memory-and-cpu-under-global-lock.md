@@ -2,6 +2,11 @@
 
 **Opened:** 2026-08-08 · **Severity:** P2 (one large upload stalls the entire instance; ~2× RSS spikes) · **Area:** assets / local store
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for S3 copy + CPU outside the writer lock. Local FS now streams (`crates/snapback-services/src/assets_store.rs`). S3 has no `copy_from_staging` override; the trait default still `read`→`Vec`→`put` (`crates/snapback-kernel/src/assets_store.rs`).
+
 ## What
 
 `crates/snapback/src/local.rs:10105-10145, 10192-10196, 10341, 10401`; `crates/snapback/src/assets_store.rs:59`

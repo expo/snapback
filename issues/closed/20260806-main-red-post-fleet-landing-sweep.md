@@ -1,6 +1,6 @@
 # Main-red follow-ups after the Fleet landing sweep
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -104,3 +104,22 @@ qualifying frozen-record drift gate; then re-issue the receipt once. Future
 unrelated landings must not rotate it. "One final tracked source tree" and
 "the intended landed commit and its exact readiness-qualified server" are
 superseded by this form; the binary/readiness binding itself is unchanged.
+
+## Resolution
+
+Closed 2026-08-26 (July/early-August leftover sweep) as **superseded**.
+
+The three owner actions in this 2026-08-06 snapshot are no longer this
+ticket:
+
+- Fleet Observatory Move-1 receipt binding is the D-1 battery ticket
+  `issues/20260824-battery-fleet-observatory-move1-receipt-f2bb1be0e1acd58d.md`
+  (also F-3 bucket-B item 7 in `issues/20260820-f3-bucket-b-pre-existing-reds.md`).
+- Metrology E2 closed via
+  `issues/closed/20260806-commands-profile-blocks-all-metrology-writers.md` and
+  `issues/closed/20260806-client-bundle-metrology-red-on-main.md`.
+- App CLI served-journey / DEV-arm protocol is later restated by
+  `issues/20260815-app-cli-auth-route-inventory-drift.md` and the F-3
+  visibility-policy item, not by this sweep note.
+
+Do not reopen this umbrella; follow the current tickets.

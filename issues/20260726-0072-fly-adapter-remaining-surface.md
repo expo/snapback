@@ -64,6 +64,11 @@ producing and pinning an actual Linux release-closure receipt through it,
 and the adapter-verification half of `control-plane.runtime-artifact`,
 remain open below.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open — this remains the product-receipt owner. LLP 0111 and LLP 0099 being **Accepted** does not close any of this ticket's buckets. `inspectAdmin` still refuses; all `snapback hosted lifecycle` verbs still `SNAPBACK_HOSTED_LIFECYCLE_CARRIER_INCOMPLETE`.
+
 ## Bucket (b) — code exists, needs remote wiring
 
 - **`inspectAdmin` sourcing**: the driver refuses in-protocol; it needs the

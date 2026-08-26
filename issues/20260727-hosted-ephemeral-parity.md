@@ -16,6 +16,11 @@ the capability is local-only. `ephemeralHostedAdapter` is honestly false and
 LLP 0026's target-neutral conformance and hosted adapter phases remain open.
 Hosted auth admission does not change the runtime's ephemeral target facts.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0111 is **Accepted** (plan text). `ephemeralHostedAdapter` is still `false` on local-dev and Cloudflare manifests. Remaining gate is the remote restart/republish corpus plus `issues/20260728-hosted-lifecycle-carrier-and-custody-gap.md`, not 0111 review.
+
 ## Design gate
 
 Amend LLP 0026 to decide whether the sticky single-instance container/VM

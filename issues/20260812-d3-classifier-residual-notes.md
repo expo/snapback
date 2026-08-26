@@ -24,3 +24,8 @@ rates or durability at the margin):
 4. Narrow corroboration residual: a pushed submodule-pointer bump whose init
    failure normalizes identically to an unrelated baseline init failure can
    still corroborate as INFRASTRUCTURE; bounded by the two-hour backstop.
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. Residual 1 is **partially fixed**: `normalizeFailureText` now maps `(?:/private)?/tmp/…` (`scripts/drift-prone-gates.mjs`). Unlabeled numbers are still not stripped. Residuals 2–4 unchanged (schema-version quarantine, parent-dir fsync, submodule corroboration).
+

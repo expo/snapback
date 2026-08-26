@@ -23,6 +23,11 @@ test). The remaining accepted scope is stacked on work not yet on `main`:
 
 LLP 0246 stays **Accepted** (not Implemented) until these land.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for rollouts 3–6. The “0237 not yet on main” blocker is gone: LLP 0237 is **Accepted** and `backend.handler-runtime-profile` is shipped. Remaining: multi-file `.ts` helper custody, generated editor tsconfig (ruled **gitignored** 2026-08-15), contextual types, dual-target 0237 corpus, published-package Clique/CRUD TS-only rerun. LLP 0246 stays Accepted, not Implemented.
+
 ## Update (2026-08-15)
 
 Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):

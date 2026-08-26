@@ -1,6 +1,6 @@
 # LLP 0163 public operation-identity carrier and coverage activation
 
-**Status:** Open
+**Status:** Open — carrier landed; publication/activation/row-13 remain
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
 **Updated:** 2026-08-06 (landed a0852be row-13 paired failure preserved; range-read p95 crossed the unchanged faster-side equivalence edge, absolute did not run, per-call range preparation is restored for a fix-forward successor, and Draft/Missing remain unchanged); 2026-08-05 (C32 stopped before qualifying dual review completed or performance; two newer mainline cuts were merged normally and C33 is prospective; Draft/Missing unchanged); 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
@@ -22,6 +22,11 @@ host identities, and row-13 measurement; LLP 0165 retains the global journal-
 completeness choke point and LLP 0162 retains row-completion authority)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
+
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for publication/activation/row-13, not for “no carrier.” LLP 0163 is **Accepted** (2026-08-06). The carrier is in tree (`schemas/operation.identity-range-*.json`, `POST /client-mutations/identity-range`, `operationIssuance`). Capability rows remain Missing (`operating.agent-safe-storage`). Point remainder proofs at `issues/20260803-agent-safe-storage-acceptance-tail.md`.
 
 ## Author ruling — landing discipline for dual-READY cuts (2026-08-06)
 

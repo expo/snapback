@@ -9,6 +9,11 @@ LLP 0081 (owns migration semantics; D-class rows conform code TO it,
 A-class rows require dated amendments to it BEFORE semantics move),
 LLP 0158 (G7/G7′ dependency), LLP 0093 (OQ3's protocol half)
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as the remaining 0160 ledger. Struck since filing: G1/G2/G6/G11. LLP 0160 table records **OQ6 ruled 2026-08-03** (tombstone-and-re-entry + dated 0081 amendment), so G4′b is no longer blocked on that question. G7/G7′ still blocked on LLP 0081 §7. Remaining live rows: G3′, G5, G9a+G10+G12+G13+G16, G14, G15, G8, G4′a.
+
 ## Structure
 
 Work the §5 ledger in the doc's own suggested order, as tranches:

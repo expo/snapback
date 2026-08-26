@@ -21,6 +21,11 @@ application refusal, declare it" in dev mode.
 
 - **Claim released 2026-08-08:** the sweep (session dc26442d) landed what it could and recorded the remainder above/below; the open remainder is unclaimed and free for any session to pick up.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for asks 2–3 only. Ask 1 (guide teaching) landed 2026-08-08. No codegen bare-throw advisory; `SNAPBACK_HANDLER_FAILED` client copy still does not hint “declare it.” `issues/closed/20260822-declared-refusal-client-code-preservation.md` is a sibling (client `appCode` preservation), not this ticket.
+
 ## Partial resolution — 2026-08-08 (ask 1 landed; asks 2 and 3 remain)
 
 **Ask (1), the guide teaching, is done.** `guide/backend/mutations.md` now

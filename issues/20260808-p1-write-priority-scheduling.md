@@ -21,6 +21,11 @@ Also unmeasured: fence-applied p95 (H-1) — the hot inventory fires no
 authority transitions mid-burst; the requalification arm needs a
 revocation/grant mutation added to the inventory to sample fence latency.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for H-1 only. Write-priority scheduling itself landed (2026-08-09 refresh). Remainder is in-flight eval-turn cost at N≥3 observers. The pointer `issues/20260809-mutate-stage-turn-cost-bisect.md` is **missing** (not in `issues/` or `issues/closed/`).
+
 ## Refresh (2026-08-09, Lane B of the LLP 0200 program)
 
 **Write priority is implemented and landed** (LLP 0200 §6b): pending

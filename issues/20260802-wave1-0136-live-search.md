@@ -28,6 +28,11 @@ admission for auth-scoped subscriptions and the ceiling behavior); the
 campfire demo's "design-only" nonclaim flipped honestly; capability id
 registered; dated implementation-record amendment + 0115 CV-11 row updated.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0136 remains Accepted, not Implemented. The 0166-impl-program hold **fired** (that program closed 2026-08-03). `live_full_text_search_v1` is still Experimental / GAP on all targets; `guide/backend/text-search.md` still `SNAPBACK_CAPABILITY_UNSUPPORTED`. Child `issues/20260825-llp0209-d6-search-membership-certificates.md` is separate.
+
 ## Coordination log
 
 - **2026-08-02 — owner folds taken by corpus hygiene.** The

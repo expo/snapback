@@ -6,6 +6,11 @@ under `llp/reviews/0207-*`)
 **Proposed owner:** LLP 0156 (minimal error tracking) — this ticket is a
 scope proposal to that document's owner, not commissioned work.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as **implementation**. Author-accepted; LLP 0156 E1.5 amendment exists. `error_evidence_bundles` does not appear in Rust/SQL product code.
+
 ## Proposal
 
 On runtime failure, mint a sanitized, identity-bound **local evidence

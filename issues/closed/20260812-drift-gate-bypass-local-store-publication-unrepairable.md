@@ -1,6 +1,6 @@
 # Drift-gate bypass: local-store-publication cannot be repaired because its own regeneration path is blocked
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 2
@@ -94,3 +94,17 @@ separate owner's debt instead of presenting itself as the available repair.
 that dated pathnames should not be part of this control plane. This incident is
 the concrete cost of that design: the calendar-shaped coupling is what makes one
 lane's small `crates/snapback/src/` edit depend on another lane's unrelated receipt being fresh.
+
+## Resolution
+
+Closed 2026-08-26 (July/early-August leftover sweep) as **superseded**.
+
+This was a 2026-08-12 landing incident with failure signature
+`sha256:3daaf301d85d6913…`. The same signature is the open D-1 ticket
+`issues/20260825-battery-local-store-publication-3daaf301d85d6913.md`.
+The underlying custody-model defect remains
+`issues/20260811-record-inventory-local-store-publication.md`.
+Related remint blocker:
+`issues/20260816-0214-persistent-store-receipt-remint-blocked-secret.md`.
+
+The bypass itself is historical; do not track a second copy of the signature.

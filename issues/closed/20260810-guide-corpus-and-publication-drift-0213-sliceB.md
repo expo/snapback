@@ -1,5 +1,6 @@
 # Pre-existing guide-corpus + publication drift blocks a clean 0213 slice-B push
 
+**Status:** Closed
 **Opened:** 2026-08-10
 **Area:** drift-gates / guide corpus / local-store-publication / generated demo artifacts
 **Severity:** low (tracked; the landed feature is verified green)
@@ -47,3 +48,17 @@ Clear the pre-existing demo/contract/composition artifact debt (owning
 sessions), then run `generate-guide-manifest.mjs` to refresh MCP-resource shas
 and `finalize-local-persistent-store-publication` to refresh the carrier;
 close this ticket and any backstop tickets it references.
+
+## Resolution
+
+Closed 2026-08-26 (July/early-August leftover sweep) as **done / superseded**.
+
+The named missing leaf
+`demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json`
+is now in tree. The todo-v2 / kanban activation debt closed in
+`issues/closed/20260810-todo-v2-remote-service-stale-and-kanban-activation-stale.md`.
+Later guide/publication reds are owned by D-1 tickets
+(`issues/20260826-battery-guide-d74b7ca53e6e9454.md`,
+`issues/20260826-main-drift-guide-29f9b9cb2b3651f0.md`,
+`issues/20260825-battery-local-store-publication-3daaf301d85d6913.md`),
+not by this 0213 slice-B landing note.

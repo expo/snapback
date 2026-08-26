@@ -12,6 +12,11 @@ LLP 0063 Step 6 remains blocked on accepted semantics and executable
 hosted witnesses. `STEP6.CHAT`, `STEP6.DOCUMENTS`, and `STEP6.COMMERCE` remain
 pending.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0073 is Implemented; LLP 0100 is Accepted. **LLP 0070 is Review** after dual-family READY artifacts (`llp/reviews/0070-*.{fable,codex}.md`) — remaining work there is author ratification, not another independent loop. LLP 0068/0069/0071/0072 are still Draft with only author-side GPT reviews. STEP6.CHAT / DOCUMENTS / COMMERCE remain pending.
+
 ## Context
 
 On 2026-07-26, GPT/Codex author-side critical passes were retained for Draft

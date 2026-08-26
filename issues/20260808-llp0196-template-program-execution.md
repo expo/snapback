@@ -21,6 +21,11 @@ running), plus the template's remaining diary-0069 gaps. T1
 (crud-dashboard) / T2 (media-feed) / T4 (carrier kits) / T5 (freshness
 gates) follow in later lanes under this same program ticket.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for external qualification. T0–T5 **code** is present (five templates with `prove`, `carrier-kit`, `scripts/template-staged-qualification.mjs`, `template-registry-canary.mjs`). This ticket is no longer an uncommitted-sandbox claim; remainder is live `prove` / first blocking staged qualification / live registry canary.
+
 ## Execution log — 2026-08-08, lane-0196-templates
 
 ### T3 — proof by default

@@ -11,6 +11,11 @@ the plan's own rule ("If the Exact Native surface is not ready when the
 sweep completes, Track C records an honest program GAP and remains a
 separate successor gate"). The sweep report is not delayed.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. `demos/improvement-sweep/arms/a1-exact-graduation/gap-record.json` is still `not-ready`. Successor conditions unmet (no `a1-{ios,android}` receipts, no membership/JS-handler native codegen). The “0.1.7-era authority pin” wording is stale versus published 0.1.27; do not reopen Track C on a pin bump alone.
+
 ## What exists (and is real)
 
 - `exact-native/ios` and `exact-native/android` **Parity receipts exist for

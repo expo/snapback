@@ -21,6 +21,11 @@ succeeds). **Blocked:** LLP 0089 must exist and pass review first (it is being
 drafted under this batch); hosted half additionally waits on LLP 0087 Phase 2
 prerequisites. L-sized; needs its own docket entry when unblocked.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open. LLP 0089 exists (`llp/0089-agent-provisioning-surface.rfc.md`) and remains **Draft** with no `llp/reviews/0089-*`. There is still no from-nothing `provisioning.v0` surface. LLP 0184 is host-ops on a running server, not this gate. CLI lives in `crates/snapback-cli/`, not `crates/snapback/src/cli.rs`. Hosted half still follows LLP 0105 / Universe as implementation authority after 0089 review.
+
 ## Triage freshness note (2026-08-01 sweep)
 
 Still valid; text updated: LLP 0089 now EXISTS

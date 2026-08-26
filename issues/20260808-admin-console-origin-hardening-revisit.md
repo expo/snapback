@@ -10,6 +10,11 @@ master token transits only as a same-origin header and the legacy localStorage
 token key is actively deleted. Two accepted tradeoffs are worth a tracked
 revisit before the hosted/non-loopback posture widens.
 
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open as documented P3 tradeoffs. Paths after the crate split: credential in `crates/snapback-server/src/admin/setup.html`; loopback reads without token in `crates/snapback-server/src/admin.rs` `evaluate_access`; CORS still reflects `loopback_origin`. No `__Host-` cookie. C (the original third item) has landed.
+
 ## A) Derived admin bearer lives in localStorage on an origin shared with the app
 
 `crates/snapback/src/admin/setup.html:90, 219, 244-249`. The server serves the app at `/` and

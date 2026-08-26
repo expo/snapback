@@ -84,3 +84,8 @@ review/acceptance disposition.
 `73232029d`, `4627f9d95`, `40e76924c`). The D4-side (LLP 0200) sits at
 Review since 2026-08-09. Both commissioned Specs are now at Review; this
 ticket waits only on the author's acceptance disposition of the two Specs.
+
+## Triage (2026-08-26 leftover sweep)
+
+Still open for **author acceptance**. LLP 0200 and LLP 0209 are **Review** (not Draft). Implementation has continued (0209 G0 exit 2026-08-23; later G2/G3 landings). Measurement tail remains `issues/20260808-live-query-reevaluation-cost-at-scale.md`.
+

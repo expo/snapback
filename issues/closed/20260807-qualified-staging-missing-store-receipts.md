@@ -1,6 +1,6 @@
 # Qualified staging omitted packaged-store qualification receipts
 
-**Status:** Open — fix implemented; staged flip evidence pending
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 4
@@ -91,3 +91,15 @@ shipped receipt deliberately removed:
   qualification-mode marker). The published registry path does not exhibit
   this defect. A bare-binary boot without the CLI's env forwarding does not
   load the sibling receipt — that is the designed loader seam, not a defect.
+
+## Close-out
+
+Closed 2026-08-26 (July/early-August leftover sweep). The two-pass
+qualified-staging assembly is in `.eas/workflows/qualified-package-staging.yml`
+(`qualified-staging-store-qualification.mjs` per platform, then Restage
+qualified). `scripts/qualified-staging-ledger-check.mjs` is fail-closed.
+The full qualified ceremony plus `latest` promotion is recorded at
+`tests/acceptance/publication/promotion-receipt-0.1.18.json`; newest
+published closure at sweep time is 0.1.27. The original
+`SNAPBACK_CAPABILITY_UNSUPPORTED` / missing
+`bin/packaged-store-qualification.receipt.json` defect is gone.
