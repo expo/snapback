@@ -601,6 +601,10 @@
       "reason": "environment",
       "detail": "SNAPBACK_PASSWORD is a configuration/environment name with no proven diagnostic emission site."
     },
+    "SNAPBACK_PROCESS_GROUP_STOP_": {
+      "reason": "prefix",
+      "detail": "SNAPBACK_PROCESS_GROUP_STOP_ is the incomplete static portion of a template-literal diagnostic family; process-teardown.mjs appends AMBIGUOUS or DISCHARGED at runtime."
+    },
     "SNAPBACK_PROFILE": {
       "reason": "environment",
       "detail": "SNAPBACK_PROFILE is a configuration/environment name with no proven diagnostic emission site."
