@@ -246,6 +246,7 @@ deliberately delayed, uniform, empty response, so it cannot be used to probe
 which bearers are live.
 
 ## Recover from stale authorization results
+<!-- diagnostic-primary: SNAPBACK_AUTH_STALE_RESULT -->
 
 `SNAPBACK_AUTH_STALE_RESULT` has two operation families. Search vocabulary:
 stale auth result.

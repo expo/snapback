@@ -1,8 +1,8 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:9690d040f0eaa78f59ec97720494770e2d7165c275c39d2c7ac88f3d1117a6c2 -->
-This is the whole first read (LLP 0259 Rung A). Use edit targets; open one page
+<!-- start-packet:begin expo-chat digest=sha256:af9867db08843095cde9958942c17f6c6db0a8c10bc81addd2ca37a265a74be7 -->
+This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
 
@@ -10,7 +10,7 @@ only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (backend + `.env.local`) plus
-`bun run dev:client` in another terminal → `bun run prove`.
+`bun run dev:client` separately → `bun run prove`.
 `dev:supervised` is optional; it never launches a device or simulator — use
 Expo Go, a dev client, or `expo run:ios|android`.
 
@@ -70,7 +70,7 @@ only `generated/`.
   `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
   [`expo-web` + `fake-indexeddb` acceptance helper](/_snapback/guide/testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
   under “Recover when durable auth custody is unavailable.”
-- **Security caveat — client-supplied `senderId` is only a demo convenience.**
+- **Security caveat — client-supplied `senderId` is a demo convenience, never a boundary.**
   The **TEST PERSONA** control passes its id as `senderId`/`userId`. In real
   apps, derive the sender server-side from `ctx.auth.userId`, drop the
   argument, and keep personas display-only.

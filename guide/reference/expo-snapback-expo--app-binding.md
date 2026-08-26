@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:efdf5bb528ce87b5c9c292862b206265c1711ba4eba9
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:020fae83887019d90f99d657e3530f6b6352705c7e6ba5dea60ff00a39bc2ff6`.
+`sha256:22c57a57e023df3bee26855c34b8408d141c0ab0ef1cfb1338059e5c1d5089d1`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 

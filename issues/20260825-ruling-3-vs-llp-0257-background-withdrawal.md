@@ -49,8 +49,10 @@ This guide lane does not choose between the two or amend either LLP.
 
 The lane keeps
 [`activity-presence-react-characterization.test.mjs`](../packages/snapback-react/activity-presence-react-characterization.test.mjs)
-as React-side characterization evidence, not as a regression test for this
-conflict ticket. The test locks the relevant React module graph: the public
+as explicitly non-gating React-side characterization evidence, not as a
+regression test for this conflict ticket; it is intentionally absent from the
+package test command and gating package-test inventory. The file characterizes
+the relevant React module graph: the public
 entry sources the hook from `implementation.mjs`, and a recursive local-import
 walk from that module proves that no reachable React-side file imports React
 Native, refers to AppState, or attaches a platform lifecycle `change` listener.

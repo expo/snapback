@@ -461,7 +461,7 @@ run drift-prone-gate-fixtures --requires generated-artifacts -- node --test test
 # @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
 # keep released, unreleased, stale-fence, banner, and record failures executable.
 run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
-run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs
+run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs scripts/generate-diagnostics-registry.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run guide --requires generated-artifacts -- node scripts/check-guide.mjs

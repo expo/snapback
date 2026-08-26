@@ -38,8 +38,10 @@ fallback and links the conflict ticket.
 
 Retrieval case 100 and its required-guidance phrases are the proof for this
 ticket. The renamed `activity-presence-react-characterization.test.mjs` is
-React-side characterization evidence, not a regression test for this ticket:
-it walks local imports from `implementation.mjs`, characterizes the React
+explicitly non-gating React-side characterization evidence, not a regression
+test for this ticket; it is intentionally absent from the package test command
+and gating package-test inventory. The file walks local imports from
+`implementation.mjs`, characterizes the React
 module graph's lack of AppState integration, and separately demonstrates
 deadline-only withdrawal under a bare provider. The generation-fence product
 change was not implemented or tested in this lane.

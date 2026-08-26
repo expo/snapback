@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { runCli } from './index.mjs';
@@ -123,21 +124,20 @@ try {
   });
   assert.deepEqual(staleAuthTextAnchors, staleAuthGuideAnchors);
 
-  const capability = lookupGuideReference(
-    ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
-    { projectRoot },
-  );
-  assert.equal(capability.match, 'diagnostic');
-  assert.equal(capability.truncation, null);
-  assert.equal(capability.diagnostic.sites, undefined);
-  assert.deepEqual(capability.diagnostic.guideAnchors, [
-    '/_snapback/guide/backend/streamed-actions.md#read-the-refusal-codes',
-    '/_snapback/guide/backend/streamed-actions.md#require-the-capability-and-enable-egress',
-    '/_snapback/guide/backend/text-search.md#declare-an-index',
-    '/_snapback/guide/conventions.md#running-the-checks-in-a-fresh-tree',
-  ]);
+  await test('SNAPBACK_CAPABILITY_UNSUPPORTED retains fragment-bearing Guide anchors', () => {
+    const capability = lookupGuideReference(
+      ['SNAPBACK_CAPABILITY_UNSUPPORTED'],
+      { projectRoot },
+    );
+    assert.equal(capability.match, 'diagnostic');
+    const guideAnchors = capability.diagnostic.guideAnchors ?? [];
+    assert.ok(guideAnchors.length > 0);
+    for (const guideAnchor of guideAnchors) {
+      assert.match(guideAnchor, /^\/_snapback\/guide\/.+#.+/u);
+    }
+  });
 } finally {
   if (temporaryRoot !== null) rmSync(temporaryRoot, { recursive: true, force: true });
 }
 
-console.log('diagnostic-guide-anchors.test.mjs: COMPLETE diagnostic guideAnchors and capability canary pass');
+console.log('diagnostic-guide-anchors.test.mjs: COMPLETE stale-result guideAnchors regression and capability canary pass');

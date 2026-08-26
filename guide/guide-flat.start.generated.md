@@ -257,7 +257,7 @@ reviewed-authorities-digest: sha256:560723c3d50af032b129a79451faf7bf891f34dc3de8
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This is the whole first read (LLP 0259 Rung A). Use edit targets; open one page
+This is the first read (LLP 0259 Rung A). Use edit targets; open one page
 only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 `snapback guide <query>`.
 
@@ -265,7 +265,7 @@ only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
 
 Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 → `bun run generate` → `bun run dev` (backend + `.env.local`) plus
-`bun run dev:client` in another terminal → `bun run prove`.
+`bun run dev:client` separately → `bun run prove`.
 `dev:supervised` is optional; it never launches a device or simulator — use
 Expo Go, a dev client, or `expo run:ios|android`.
 
@@ -325,7 +325,7 @@ only `generated/`.
   `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
   [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
   under “Recover when durable auth custody is unavailable.”
-- **Security caveat — client-supplied `senderId` is only a demo convenience.**
+- **Security caveat — client-supplied `senderId` is a demo convenience, never a boundary.**
   The **TEST PERSONA** control passes its id as `senderId`/`userId`. In real
   apps, derive the sender server-side from `ctx.auth.userId`, drop the
   argument, and keep personas display-only.

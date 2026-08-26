@@ -253,8 +253,10 @@ export const PACKAGE_TEST_INVENTORIES = [
     testDir: '.',
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
-    expectedFiles: [
+    nonGatingFiles: [
       'activity-presence-react-characterization.test.mjs',
+    ],
+    expectedFiles: [
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
@@ -573,14 +575,17 @@ export function auditInventory({ root = ROOT, inventory }) {
     .sort();
 
   const expected = [...inventory.expectedFiles].sort();
+  const nonGating = [...(inventory.nonGatingFiles ?? [])].sort();
+  const gated = discovered.filter((path) => !nonGating.includes(path));
   return {
     id: inventory.id,
-    count: discovered.length,
-    files: discovered,
-    unexpectedOnDisk: multisetDifference(discovered, expected),
-    missingOnDisk: multisetDifference(expected, discovered),
-    undeclaredInScripts: multisetDifference(discovered, declared),
-    missingFromDiskButDeclared: multisetDifference(declared, discovered),
+    count: gated.length,
+    files: gated,
+    nonGatingFiles: nonGating,
+    unexpectedOnDisk: multisetDifference(discovered, [...expected, ...nonGating]),
+    missingOnDisk: multisetDifference([...expected, ...nonGating], discovered),
+    undeclaredInScripts: multisetDifference(gated, declared),
+    missingFromDiskButDeclared: multisetDifference(declared, gated),
   };
 }
 
@@ -605,7 +610,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 358,
+  expectedTotal = 357,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1145,6 +1150,11 @@ export function checkPackageTestInventories(options = {}) {
 // activity-presence behavior under a bare React provider. The test records the
 // observed behavior; it does not promote the Expo facade fallback to a
 // maintained public contract.
+// 357 -> 358 (2026-08-25, guide-gap round-2/round-13 repairs): @expo/snapback-cli
+// gains the independently runnable complete diagnostic-anchor regression.
+// @expo/snapback-react's activity-presence characterization remains retained
+// as explicit non-gating evidence; it is absent from the package test command
+// and canonical gating total because it does not prove a behavioral contract.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding
