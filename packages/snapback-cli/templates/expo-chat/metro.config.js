@@ -10,4 +10,15 @@ if (!config.resolver.assetExts.includes('wasm')) {
   config.resolver.assetExts.push('wasm');
 }
 
+// @ref issues/20260827-snapback-expo-metro-generations-watcher-crash.md —
+// Snapback codegen writes and then atomically removes transient files under
+// `.snapback/generations/.tmp-*`. Metro's file watcher races that churn, throws
+// ENOENT, and exits the supervised Expo dev loop (SNAPBACK_EXPO_METRO_EXITED).
+// Keep Metro from crawling the transient codegen workspace so the dev loop
+// survives `snapback generate` / schema successors.
+const snapbackGenerations = /[\\/]\.snapback[\\/]generations[\\/]/;
+config.resolver.blockList = config.resolver.blockList
+  ? [].concat(config.resolver.blockList, snapbackGenerations)
+  : snapbackGenerations;
+
 module.exports = config;
