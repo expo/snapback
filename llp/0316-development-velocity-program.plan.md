@@ -7,6 +7,7 @@
 **Date:** 2026-08-27
 **Revised:** 2026-08-27 (Phase 4 implemented and measured, including the
 literal Git-ref transition and the controlling server edit loops;
+Phase 8's frozen-record census and regeneration-candidate ratchet adopted;
 Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change) and its cargo-nextest tail is
@@ -675,6 +676,46 @@ its owning LLP, why a diff gate is preferable to regeneration-in-CI. Existing
 ones with a drift-ticket rate above one per week are candidates for
 regeneration-in-CI.
 
+**Decided and measured 2026-08-27.** The custody-based census at this landing
+contains **864** tracked generated artifacts with no overlap: **495** files
+under the 36 roots registered by `scripts/generated-artifact-policy.mjs`,
+**295** files under `schemas/`, **9** files under
+`targets/cloudflare/generated/`, and the Guide gate's **65** explicit record
+paths. This is an authority census, not a filename heuristic: an unregistered
+path merely containing `generated` is not silently treated as governed.
+
+For the inclusive 2026-07-29 through 2026-08-27 window, filenames under
+`issues/` and `issues/closed/` containing `drift`, `stale`, or `inherited`
+number **115**: **41 open** and **74 closed**. The narrower automated
+`main-drift-*` record set contains **32** tickets: **21 open** and **11
+closed**. One client-bundle observation says explicitly that it no longer
+reproduces and is excluded from the content-drift rate. The highest remaining
+determinate per-gate totals are four each for `client-bundle-metrology`,
+`path-migration-stragglers`, and `sequence-allocation-publication`; then three
+each for `deployment-identity`, `guide`, and
+`relation-activity-publication`. No existing surface therefore crosses the
+ratchet in this window.
+
+The adopted rule is:
+
+1. Every new committed generated artifact names its owning LLP and explains
+   why same-change diff verification is preferable to regeneration in CI.
+   Missing rationale blocks addition of the artifact; inherited ambient red
+   does not substitute for that decision.
+2. An existing artifact surface with **five or more determinate normalized
+   drift/stale tickets in a rolling 30-day window** becomes a
+   regeneration-in-CI candidate. Nondeterministic, infrastructure, and
+   explicitly non-reproducing observations do not count toward this content
+   threshold; they retain their own repair routing.
+3. Crossing the threshold files one repository ticket owned by the surface's
+   LLP. That ticket evaluates regeneration cost, reviewability, publication
+   and offline constraints, and either migrates the artifact or records a
+   time-bounded exception. This LLP does not bundle the migrations.
+
+The threshold is the concrete form of “above roughly one ticket per week”:
+four tickets in 30 days remain below it; five cross it. Because today's
+maximum is four, this decision landing creates no migration ticket.
+
 ## Non-goals
 
 - A rewrite, a `snapback2`, or a second frozen-main flag day.
@@ -700,6 +741,7 @@ regeneration-in-CI.
 | Phase 7B2 — action-watchdog carve | closed, nothing kept | **17.21 → 20.46 s** | **16.31 → 19.16 s**; fresh unit **46.22 → 59.47 s** | — | unchanged (**0.3–0.5 s**) | all clock metrics regressed; 541-line Rust move discarded before full failing-suite proof |
 | Phase 7B3 — route-assembly carve | closed, nothing kept | **17.21 → 18.32 s** | **16.31 → 18.75 s**; fresh unit **46.22 → 51.67 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 113.53 s; all controlling clocks regressed; 1,131-line Rust move discarded before full failing-suite proof |
 | Phase 7B4 — auth/operator-control carve | closed, nothing kept; Phase 7 closed partial | **17.21 → 16.58 s** | **16.31 → 16.93 s**; fresh unit **46.22 → 56.30 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 125.91 s; warm unit 6.48 → 6.49 s; server-test acceptance failed; 405-line move discarded before full failing-suite proof |
+| Phase 8 — frozen-record ratchet | this landing | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | **864** governed generated artifacts; 30-day filename census **115** tickets (**41 open / 74 closed**); automated `main-drift-*` subset **32** (**21 / 11**); no determinate surface reached the **≥5 in 30 days** candidate threshold. |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
@@ -728,5 +770,6 @@ nothing to land; Phase 5's consolidation and cargo-nextest tail landed the same
 day. Phase 7 Stage A landed next and reduced the server test unit without yet
 removing it from the critical path. Phase 4's Guide-edit, literal Git-ref, and
 controlling server-edit acceptance measurements are proven in this landing.
-Next program work is Phase 8 and the Phase 6 precondition. Phase 6 itself is a
-decision, not code, and can be taken at any time.
+Phase 8's frozen-record ratchet is adopted in its own decision landing. The
+only remaining program work is Phase 6 precondition 3; restoring the `push:`
+trigger remains the author's separate precondition 5 decision.
