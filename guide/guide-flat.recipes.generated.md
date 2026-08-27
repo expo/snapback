@@ -4274,13 +4274,13 @@ id: recipes.time-windowed-live-reads
 order: 14
 audience: agent-first
 capabilities: [realtime.live-queries, auth.sessions]
-authorities: [llp/0053-authorization-invalidation.rfc.md, packages/snapback-codegen/guide-time-windowed-live-reads.test.mjs, tests/fixtures/guide-time-windowed-live-reads/schema.mjs, tests/fixtures/guide-time-windowed-live-reads/functions.mjs, tests/fixtures/guide-time-windowed-live-reads/time-windowed-live-reads.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0264-table-write-policy.spec.md, packages/snapback-codegen/guide-time-windowed-live-reads.test.mjs, tests/fixtures/guide-time-windowed-live-reads/schema.mjs, tests/fixtures/guide-time-windowed-live-reads/functions.mjs, tests/fixtures/guide-time-windowed-live-reads/time-windowed-live-reads.mjs]
 examples: [tests/fixtures/guide-time-windowed-live-reads]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-27
-reviewed-authorities-digest: sha256:172b65305dfabdcbeeb8909dc6e9fc3c19e84ea32160aa2cdd6d5e909cb81520
+reviewed-authorities-digest: sha256:8f5a52c9b4ca52eb46cf6827a6685be9b8444cecc4b5bd9e07cb5b1c961454cf
 ---
 
 # Recipe: time-windowed live reads
@@ -4323,6 +4323,7 @@ export default defineSchema({
     createdAt: v.integer(),
   })
     .visibility({ kind: 'owner', field: 'ownerId' })
+    .index('by_owner_and_created_at', ['ownerId', 'createdAt'])
     .sync(),
   typingLeases: defineTable({
     ownerId: v.principal(),
@@ -4330,6 +4331,7 @@ export default defineSchema({
     expiresAt: v.integer(),
   })
     .visibility({ kind: 'owner', field: 'ownerId' })
+    .index('by_owner_and_expires_at', ['ownerId', 'expiresAt'])
     .index('by_owner_and_typer', ['ownerId', 'typerLabel'], { unique: true })
     .sync(),
 });
@@ -4339,6 +4341,9 @@ The generated function argument contract uses an ordinary `v.integer()` for
 `clockMs` and another product input such as `windowMs` or `soonWithinMs`.
 Snapback does not yet provide a trusted or quantized clock argument type, so
 validate or fix the product interval server-side if callers must not choose it.
+The composite indexes bind the server-derived owner first and the stored time
+second, so each read can scan its owner's exact time range instead of sampling
+the table.
 
 ## Read “trending in the last hour”
 
@@ -4354,6 +4359,8 @@ import {
 
 // @ref LLP 0053#the-authorization-event-universe-closed — Protected reads pin
 // clock input; mutations materialize server time as database facts.
+// @ref LLP 0004#ctxdb-contract — Window predicates belong in an indexed query
+// range, before collection, so an unrelated prefix cannot hide matches.
 export const eventsVisibleAtPinnedClock = defineJsLiveQuery({
   args: { clockMs: v.integer(), windowMs: v.integer() },
   result: results.documents('events'),
@@ -4361,19 +4368,37 @@ export const eventsVisibleAtPinnedClock = defineJsLiveQuery({
   reads: ['events'],
   handler: async (ctx, args) => {
     const cutoffMs = args.clockMs - args.windowMs;
-    const rows = await ctx.db.query('events').take(1_024).collect();
-    return rows.filter((row) => (
-      row.createdAt >= cutoffMs && row.createdAt <= args.clockMs
-    ));
+    return ctx.db.query('events')
+      .withIndex('by_owner_and_created_at')
+      .eq('ownerId', ctx.auth.userId)
+      .gte('createdAt', cutoffMs)
+      .lte('createdAt', args.clockMs)
+      .collect();
   },
 });
 ```
+
+The lower and upper event boundaries are inclusive: `createdAt >= cutoffMs`
+and `createdAt <= clockMs`. This range scan returns the complete matching
+window regardless of how many older or future rows the table contains. It has
+no result-size cap that can silently change the window. If the matching range
+itself reaches Snapback's 1,024-row implicit collection ceiling, the invocation
+refuses with `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` instead of returning a
+truncated result; narrow or page that product surface explicitly.
+
+Do not fetch `.take(1_024)` from the table and filter the timestamps afterward.
+That fetch is only an arbitrary natural- or index-order prefix. Once the table
+grows, qualifying rows can sit beyond the prefix — recent insertion-ordered
+events commonly do — and the handler will silently return an incomplete or
+empty window.
 
 Stamp `createdAt` on the server when the row is written. A mutation or action
 may sample `ctx.runtime.now()` because that time becomes durable data rather
 than a mutable input to protected live visibility:
 
 ```js source=tests/fixtures/guide-time-windowed-live-reads/functions.mjs
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — The owner policy derives
+// ownerId from ctx.auth; accepting or supplying an owner value is forbidden.
 export const insertServerTimedEvent = defineJsMutation({
   args: { label: v.string() },
   result: results.value(v.id('events')),
@@ -4423,18 +4448,28 @@ export const typingLeasesExpiringSoon = defineJsLiveQuery({
   reads: ['typingLeases'],
   handler: async (ctx, args) => {
     const soonHorizonMs = args.clockMs + args.soonWithinMs;
-    const rows = await ctx.db.query('typingLeases').take(1_024).collect();
-    return rows.filter((row) => (
-      row.expiresAt > args.clockMs && row.expiresAt <= soonHorizonMs
-    ));
+    return ctx.db.query('typingLeases')
+      .withIndex('by_owner_and_expires_at')
+      .eq('ownerId', ctx.auth.userId)
+      .gt('expiresAt', args.clockMs)
+      .lte('expiresAt', soonHorizonMs)
+      .collect();
   },
 });
 ```
+
+The lease's lower boundary is exclusive and its upper boundary is inclusive:
+an already-expired `expiresAt === clockMs` lease is absent, while
+`expiresAt === clockMs + soonWithinMs` is present. As with events, filtering
+inside the owner/time index range makes total table size irrelevant and makes
+an oversized matching range refuse rather than truncate.
 
 Renew the lease through a server mutation so the deadline is a captured row
 fact. Do not accept `expiresAt` itself from the client:
 
 ```js source=tests/fixtures/guide-time-windowed-live-reads/functions.mjs
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — The owner policy derives
+// ownerId for a new lease and the unique lookup stays inside that owner.
 export const renewTypingLease = defineJsMutation({
   args: { typerLabel: v.string() },
   result: results.value(v.id('typingLeases')),
@@ -4516,6 +4551,8 @@ feature-design question rather than a reason to weaken the determinism guard.
   unchecked bag to the handler.
 - Do not accept a client-authored `createdAt` or `expiresAt` when the row time
   is meant to be server-authored.
+- Do not collect or `take` an arbitrary table prefix and then apply the time
+  predicate in JavaScript. Range-filter through an owner/time index first.
 - Do not use the client clock as an authorization boundary; preserve owner or
   membership visibility independently.
 - Do not claim that live push advances the pinned clock or ages rows out when

@@ -1,7 +1,8 @@
 # check-guide red: "generated API cold signatures" expects `VerifyProfile[]` that `verify.d.mts` never declares (inherited)
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-27
+**Resolved:** 2026-08-27
 **Systems:** Guide, CLI, Verification
 
 ## Problem
@@ -39,3 +40,13 @@ declaration change was left out of that landing.
 
 Owner: the ws-devloop lane that landed cbf4fc7fa; any landing touching
 `verify.d.mts` may absorb it.
+
+## Resolution
+
+Restored the cold-signature assertion to the API that actually ships: the
+inline `VerifyConfig.profiles` array with its `run(context)` contract. Removed
+lookups for the nonexistent `VerifyProfile` and `VerifyCommandProfile`
+exports. This greens the generated-reference check without claiming the open
+CLI-entrypoint acceptance design in
+`issues/20260825-scaffold-verify-config-cli-entrypoint-mismatch.md` is
+implemented.

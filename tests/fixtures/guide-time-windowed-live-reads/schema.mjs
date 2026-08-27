@@ -11,6 +11,7 @@ export default defineSchema({
     createdAt: v.integer(),
   })
     .visibility({ kind: 'owner', field: 'ownerId' })
+    .index('by_owner_and_created_at', ['ownerId', 'createdAt'])
     .sync(),
   typingLeases: defineTable({
     ownerId: v.principal(),
@@ -18,6 +19,7 @@ export default defineSchema({
     expiresAt: v.integer(),
   })
     .visibility({ kind: 'owner', field: 'ownerId' })
+    .index('by_owner_and_expires_at', ['ownerId', 'expiresAt'])
     .index('by_owner_and_typer', ['ownerId', 'typerLabel'], { unique: true })
     .sync(),
 });

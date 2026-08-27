@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a5fa3d3c6402050143c71bfa37e12f496b4be24c3c47ba09ab1b2607af491524"
+    "sourceDigest": "sha256:3210bf51cff9dd06f1f8a657c8787f6fa992c3ce3d1d645948704aeded798218"
   },
   "limits": {
     "lookupBytes": 16384
@@ -68455,7 +68455,8 @@
       "httpStatusClass": "4xx",
       "guideAnchor": "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
       "guideAnchors": [
-        "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally"
+        "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
+        "/_snapback/guide/recipes/time-windowed-live-reads.md#read-trending-in-the-last-hour"
       ]
     },
     "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED": {
