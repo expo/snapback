@@ -13,12 +13,12 @@
 **Battery gate:** `fork-parallel-dispositions`
 **Failure signature:** `sha256:03f88bfebb6bf18feb1e105cbde624462bdccd230cb4500062c4bdbef0896477`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last processed run:** `local.20260827T104322Z.04da2f52bd6f`
+**Last observed run:** `local.20260827T191659Z.cf68cae13934`
+**Last processed run:** `local.20260827T191659Z.cf68cae13934`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `cf68cae139349e56a221efac827ac435fc09be73`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node demos/todo/tests/acceptance/fork-parallel-dispositions.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

@@ -10,12 +10,12 @@
 **Battery gate:** `snapback-react-package`
 **Failure signature:** `sha256:bee10b294202c93f40bb4ac52be39c239ce6e41e0cc10138d8a768f350f20f55`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last processed run:** `local.20260827T104322Z.04da2f52bd6f`
+**Last observed run:** `local.20260827T191659Z.cf68cae13934`
+**Last processed run:** `local.20260827T191659Z.cf68cae13934`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `cf68cae139349e56a221efac827ac435fc09be73`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ bun run --cwd packages/snapback-react test
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
