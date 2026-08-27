@@ -47,6 +47,7 @@ import {
   readDeclarationSuggestionFile,
   resolveDeclarationSuggestionTarget,
   suggestDeclarations,
+  validateGenerateOptions,
 } from '@expo/snapback-codegen';
 import {
   AuthCoordinator,
@@ -3726,10 +3727,21 @@ async function generateAppThroughNode(backendDirectory, {
 }
 
 export async function generateApp(backendDirectory, options = {}) {
-  const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
-  const appBindingMode = options.appBindingMode ?? 'development';
-  const outputRoot = options.outputRoot;
-  const check = options.check === true;
+  const optionValidation = validateGenerateOptions(options);
+  const normalizedOptions = optionValidation.ok ? optionValidation.options : {};
+  const targetProfile = normalizedOptions.targetProfile ?? 'local-dev-sqlite-ibex';
+  const appBindingMode = normalizedOptions.appBindingMode ?? 'development';
+  const outputRoot = normalizedOptions.outputRoot;
+  const check = normalizedOptions.check === true;
+  if (!optionValidation.ok) {
+    return {
+      schemaVersion: 'snapback.generate.v1',
+      ...optionValidation,
+      targetProfile,
+      appBindingMode,
+      check,
+    };
+  }
   // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
   // under Node 24's permission model when a Bun-hosted Vite process owns the
   // canonical dev lifecycle; Bun is only the supervisor of the Node child.

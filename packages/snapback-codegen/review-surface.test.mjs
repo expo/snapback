@@ -201,6 +201,18 @@ try {
   assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(reviewBytes), 'identical review manifests are byte-identical');
   assert(Buffer.from(JSON.stringify(second.summary)).equals(summaryBytes), 'identical summaries are byte-identical');
 
+  const presentUndefinedOutputRoot = await generate(backend, { outputRoot: undefined });
+  assert.equal(
+    presentUndefinedOutputRoot.ok,
+    true,
+    JSON.stringify(presentUndefinedOutputRoot.diagnostics),
+  );
+  assert.equal(
+    presentUndefinedOutputRoot.outDir,
+    second.outDir,
+    'a present undefined outputRoot is the same as an absent outputRoot',
+  );
+
   const sourceGenerationPointer = join(project, '.snapback', 'generations', 'latest-emitted.json');
   const sourceGenerationBytes = readFileSync(sourceGenerationPointer);
   const isolatedOutputRoot = join(project, 'release-output');
@@ -227,6 +239,53 @@ try {
   verifyGeneratedGraph(isolated.outDir);
 
   const authoredGeneratedSentinel = join(second.outDir, '.output-root-overlap-sentinel');
+  const authoredLockPath = join(backend, '.generated.regenerate.lock');
+  const assertOutputRootBoundaryRefusal = async (options, label) => {
+    writeFileSync(authoredGeneratedSentinel, `${label}: authored generated surface must survive refusal\n`);
+    assert.equal(existsSync(authoredLockPath), false, `${label}: authored lock starts absent`);
+    const refused = await generate(backend, options);
+    assert.equal(refused.ok, false, `${label}: invalid outputRoot must refuse`);
+    assert.equal(
+      refused.diagnostics[0]?.code,
+      'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+      `${label}: refusal must occur at the generate boundary`,
+    );
+    assert.equal(
+      existsSync(authoredGeneratedSentinel),
+      true,
+      `${label}: refusal must preserve the authored generated sentinel`,
+    );
+    assert.equal(
+      existsSync(authoredLockPath),
+      false,
+      `${label}: refusal must not acquire the authored lock`,
+    );
+    rmSync(authoredGeneratedSentinel);
+  };
+  await assertOutputRootBoundaryRefusal(
+    { outputRoot() {} },
+    'method-valued outputRoot',
+  );
+  await assertOutputRootBoundaryRefusal(
+    { outputRoot: Symbol('x') },
+    'symbol-valued outputRoot',
+  );
+
+  for (const [label, erasedOptions] of [
+    ['method-valued targetProfile', { targetProfile() {} }],
+    ['symbol-valued appBindingMode', { appBindingMode: Symbol('x') }],
+    ['method-valued check', { check() {} }],
+    ['function-valued unknown option', { futureOption() {} }],
+  ]) {
+    const refused = await generate(join(project, 'missing-backend'), erasedOptions);
+    assert.equal(refused.ok, false, `${label}: erased option value must refuse`);
+    assert.equal(
+      refused.diagnostics[0]?.code,
+      'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+      `${label}: complete option validation must run before backend resolution`,
+    );
+  }
+
   writeFileSync(authoredGeneratedSentinel, 'authored generated surface must survive refusal\n');
   const overlappingProgrammatic = await generate(backend, { outputRoot: project });
   assert.equal(overlappingProgrammatic.ok, false);
@@ -270,7 +329,7 @@ try {
   assert.equal(
     relativeProgrammatic.outDir,
     join(canonicalProject, 'relative-api-output', 'snapback', 'generated'),
-    'a relative programmatic output root resolves against the caller cwd',
+    'a genuinely disjoint string outputRoot succeeds and resolves against the caller cwd',
   );
   verifyGeneratedGraph(relativeProgrammatic.outDir);
 
@@ -432,4 +491,4 @@ try {
   rmSync(project, { recursive: true, force: true });
 }
 
-console.log('codegen review surface: cold cache, tamper, legacy, custody, failure atomicity, and summaries verified');
+console.log('codegen review surface: option-boundary sentinel/lock refusals, undefined omission, disjoint publication, cold cache, tamper, legacy, custody, failure atomicity, and summaries verified');

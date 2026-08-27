@@ -472,6 +472,16 @@ export interface GenerateSuccess {
 
 export type GenerateResult = GenerateFailure | GenerateSuccess;
 
+export type GenerateOptionsValidationResult =
+  | Readonly<{ ok: true; options: GenerateOptions }>
+  | GenerateFailure;
+
+/**
+ * Validates and normalizes the complete closed option record before it crosses
+ * a worker serialization boundary. Known `undefined` properties are omitted.
+ */
+export function validateGenerateOptions(options?: unknown): GenerateOptionsValidationResult;
+
 /** The closed trusted activation root carrying a v1 or v2 activation identity. */
 export interface TrustedCompositionActivationV1 {
   format: 'snapback.trusted-composition-activation.v1';

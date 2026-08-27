@@ -802,6 +802,58 @@ console.log(JSON.stringify({
   assert.match(todoAgentInstructions, /snapback-authoring/u);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const generatedBackend = join(project, 'snapback');
+  const generatedSentinel = join(generated.outDir, '.generate-app-output-root-sentinel');
+  const generatedLock = join(generatedBackend, '.generated.regenerate.lock');
+  for (const [label, invalidOptions] of [
+    ['method-valued outputRoot', { outputRoot() {} }],
+    ['symbol-valued outputRoot', { outputRoot: Symbol('x') }],
+  ]) {
+    writeFileSync(generatedSentinel, `${label}: authored generated surface must survive refusal\n`);
+    assert.equal(existsSync(generatedLock), false, `${label}: authored lock starts absent`);
+    const refused = await generateApp(generatedBackend, invalidOptions);
+    assert.equal(refused.ok, false, `${label}: generateApp must refuse`);
+    assert.equal(
+      refused.diagnostics[0]?.code,
+      'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+      `${label}: generateApp must refuse at its own boundary`,
+    );
+    assert.equal(
+      existsSync(generatedSentinel),
+      true,
+      `${label}: generateApp refusal must preserve the authored generated sentinel`,
+    );
+    assert.equal(
+      existsSync(generatedLock),
+      false,
+      `${label}: generateApp refusal must not acquire the authored lock`,
+    );
+    rmSync(generatedSentinel);
+  }
+  const absentGenerateAppOutputRoot = await generateApp(generatedBackend, {});
+  assert.equal(absentGenerateAppOutputRoot.ok, true, JSON.stringify(absentGenerateAppOutputRoot.diagnostics));
+  assert.equal(absentGenerateAppOutputRoot.outDir, generated.outDir);
+  const undefinedGenerateAppOutputRoot = await generateApp(
+    generatedBackend,
+    { outputRoot: undefined },
+  );
+  assert.equal(undefinedGenerateAppOutputRoot.ok, true, JSON.stringify(undefinedGenerateAppOutputRoot.diagnostics));
+  assert.equal(
+    undefinedGenerateAppOutputRoot.outDir,
+    generated.outDir,
+    'generateApp treats a present undefined outputRoot as omitted',
+  );
+  const disjointGenerateAppRoot = join(root, 'todo-contract-release-output');
+  const disjointGenerateApp = await generateApp(
+    generatedBackend,
+    { outputRoot: disjointGenerateAppRoot },
+  );
+  assert.equal(disjointGenerateApp.ok, true, JSON.stringify(disjointGenerateApp.diagnostics));
+  assert.equal(
+    disjointGenerateApp.outDir,
+    join(disjointGenerateAppRoot, 'snapback', 'generated'),
+    'generateApp accepts a genuinely disjoint string outputRoot',
+  );
   const todoStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
     cwd: project,
     encoding: 'utf8',

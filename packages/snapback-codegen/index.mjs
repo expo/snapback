@@ -2059,9 +2059,126 @@ function validateArtifactAgainstSchema(schemaFile, instance, expected) {
 
 // Public API calls run generation in a fresh process because native ESM caches
 // transitive module URLs; resolve caller-owned paths before the REPO_ROOT worker.
+const GENERATE_OPTION_KEYS = Object.freeze([
+  'targetProfile',
+  'appBindingMode',
+  'outputRoot',
+  'check',
+]);
+const GENERATE_OPTION_KEY_SET = new Set(GENERATE_OPTION_KEYS);
+
+function generateOptionFailure(code, message, details = {}) {
+  return {
+    ok: false,
+    diagnostics: [{
+      code,
+      severity: 'error',
+      subsystem: 'codegen',
+      message,
+      ...details,
+    }],
+  };
+}
+
+function generateOptionValueKind(value) {
+  if (value === null) return 'null';
+  if (typeof value !== 'object') return typeof value;
+  try {
+    return Array.isArray(value) ? 'array' : 'object';
+  } catch {
+    return 'uninspectable-object';
+  }
+}
+
+// @ref LLP 0010#generated-artifacts — validate and normalize the complete
+// closed option record before a worker serialization boundary can erase or
+// rewrite a caller-supplied value.
+export function validateGenerateOptions(options = {}) {
+  if (options === undefined) options = {};
+  if (options === null || typeof options !== 'object') {
+    return generateOptionFailure(
+      'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+      'codegen options must be an object when supplied',
+      { option: 'options', valueKind: generateOptionValueKind(options) },
+    );
+  }
+
+  let descriptors;
+  let ownKeys;
+  try {
+    descriptors = Object.getOwnPropertyDescriptors(options);
+    ownKeys = Reflect.ownKeys(descriptors);
+  } catch (error) {
+    return generateOptionFailure(
+      'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+      'codegen options could not be inspected as a closed object',
+      { option: 'options', cause: error instanceof Error ? error.message : String(error) },
+    );
+  }
+
+  for (const key of ownKeys) {
+    if (typeof key !== 'string' || !GENERATE_OPTION_KEY_SET.has(key)) {
+      return generateOptionFailure(
+        'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+        `unsupported codegen option ${typeof key === 'symbol' ? String(key) : JSON.stringify(key)}`,
+        { option: typeof key === 'symbol' ? String(key) : key },
+      );
+    }
+  }
+
+  const normalized = {};
+  for (const key of GENERATE_OPTION_KEYS) {
+    const descriptor = descriptors[key];
+    if (descriptor === undefined) continue;
+    let value;
+    try {
+      value = Object.hasOwn(descriptor, 'value')
+        ? descriptor.value
+        : Reflect.get(options, key);
+    } catch (error) {
+      const code = key === 'outputRoot'
+        ? 'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID'
+        : 'CODEGEN_TARGET_PROFILE_UNSUPPORTED';
+      return generateOptionFailure(
+        code,
+        `${key} could not be read before worker serialization`,
+        { option: key, cause: error instanceof Error ? error.message : String(error) },
+      );
+    }
+    if (value === undefined) continue;
+
+    const accepted = key === 'targetProfile'
+      ? typeof value === 'string' && TARGET_PROFILES.has(value)
+      : key === 'appBindingMode'
+        ? [APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE].includes(value)
+        : key === 'outputRoot'
+          ? typeof value === 'string' && value.length > 0
+          : typeof value === 'boolean';
+    if (!accepted) {
+      const code = key === 'outputRoot'
+        ? 'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID'
+        : 'CODEGEN_TARGET_PROFILE_UNSUPPORTED';
+      const message = key === 'outputRoot'
+        ? 'outputRoot must be a non-empty path when supplied'
+        : `unsupported codegen option value for ${key}`;
+      return generateOptionFailure(
+        code,
+        message,
+        { option: key, valueKind: generateOptionValueKind(value) },
+      );
+    }
+    normalized[key] = value;
+  }
+  return { ok: true, options: normalized };
+}
+
 export async function generate(backendDir, options = {}) {
+  const optionValidation = validateGenerateOptions(options);
+  if (!optionValidation.ok) return optionValidation;
   const resolvedBackendDir = resolve(backendDir);
-  const resolvedOptions = typeof options?.outputRoot === 'string' && options.outputRoot.length > 0 ? { ...options, outputRoot: resolve(options.outputRoot) } : options;
+  const resolvedOptions = Object.hasOwn(optionValidation.options, 'outputRoot')
+    ? { ...optionValidation.options, outputRoot: resolve(optionValidation.options.outputRoot) }
+    : optionValidation.options;
   return new Promise((resolveResult) => {
     const child = fork(fileURLToPath(new URL('./generate-worker.mjs', import.meta.url)), [resolvedBackendDir, JSON.stringify(resolvedOptions)], {
       // The cache-busting worker is a deterministic tool boundary. Caller
@@ -2146,6 +2263,9 @@ function pathsOverlap(left, right) {
 }
 
 export async function generateInProcess(backendDir, options = {}, testHooks = undefined) {
+  const optionValidation = validateGenerateOptions(options);
+  if (!optionValidation.ok) return optionValidation;
+  options = optionValidation.options;
   const diagnostics = [];
   // Non-blocking info diagnostics carried into the generated function
   // manifest (today: the MUTATION_OUTGREW_IR tier-ladder declarations).

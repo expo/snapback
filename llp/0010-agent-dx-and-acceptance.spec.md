@@ -5,6 +5,10 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-27 (programmatic generation boundaries now validate and
+normalize their complete closed primitive option record before worker
+serialization; known `undefined` optionals remain omitted, while unsupported
+values and shapes refuse before authored publication or lock acquisition).
 **Revised:** 2026-08-27 (codegen now prospectively canonicalizes the derived
 publication backend and refuses authored-backend overlap before creating or
 replacing output; relative, absolute, traversal, case-folded, and symlinked
@@ -523,6 +527,14 @@ the freshness signal behind "what generated artifacts changed."
 
 Programmatic generation may supply an explicit **publication root** when the
 consumer needs an isolated materialization, notably for release construction.
+Before crossing a worker serialization boundary, each public programmatic
+entry point validates and normalizes a closed option record. The only admitted
+own properties resolve to a supported target profile, a supported
+application-binding mode, a non-empty string publication root, or a boolean
+check flag; a recognized property whose value is `undefined` is normalized as
+omitted. Unknown or symbol keys and every other present value refuse at the
+caller's boundary, before JSON could erase or rewrite the request and before
+codegen can acquire a publication lock.
 The override mirrors the ordinary project shape beneath that root: generated
 files stay under the backend-named directory, while the content-addressed cache
 and immutable generation envelopes stay under the root's `.snapback/` state.
