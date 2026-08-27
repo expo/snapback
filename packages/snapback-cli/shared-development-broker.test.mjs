@@ -385,8 +385,8 @@ test('a supervised web client origin is admitted exactly, and nothing else is', 
     assert.equal(refused.status, 400);
     assert.equal(refused.headers.get('access-control-allow-origin'), webOrigin);
 
-    // An origin the supervisor never derived gets no projection at all, so the
-    // browser blocks it; the route still refuses on its own terms.
+    // An origin the supervisor never derived gets no projection at all, and
+    // the route refuses it before doing any work.
     for (const foreign of ['http://127.0.0.1:9999', 'https://evil.example', 'http://localhost:8082']) {
       const blocked = await fetch(`${server.origin}/v1/shared/start`, {
         method: 'OPTIONS',
@@ -396,8 +396,27 @@ test('a supervised web client origin is admitted exactly, and nothing else is', 
       assert.notEqual(blocked.status, 204, foreign);
     }
 
-    // An `exp://` return target is not an origin a browser can send, so it
-    // never becomes an admitted one.
+    // CORS does not stop a foreign page from sending a simple request; it only
+    // hides the response. A text/plain POST therefore has to fail before body
+    // parsing and transaction creation, not merely omit the response header.
+    const foreignPost = await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'POST',
+      headers: { origin: 'https://evil.example', 'content-type': 'text/plain' },
+      body: JSON.stringify({
+        appId: APP_ID,
+        provider: 'apple',
+        returnTo: `http://127.0.0.1:${METRO_PORT}/auth/shared`,
+        codeChallenge: 'x'.repeat(43),
+      }),
+    });
+    assert.equal(foreignPost.status, 400);
+    assert.equal(foreignPost.headers.get('access-control-allow-origin'), null);
+    assert.equal(
+      (await foreignPost.json()).diagnostic.details.reason,
+      'origin-not-allowlisted',
+    );
+
+    // An `exp://` return target is not an admitted browser origin.
     const deepLinkOrigin = await fetch(`${server.origin}/v1/shared/start`, {
       method: 'OPTIONS',
       headers: { origin: 'exp://127.0.0.1:8081', 'access-control-request-method': 'POST' },

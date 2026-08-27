@@ -97,8 +97,9 @@ every existing check because all of them stub the browser.
 its admitted browser origins from the http(s) half of the return-target
 allowlist it is already constructed with, answers the preflight with 204, and
 echoes the exact origin on `start`/`redeem` and on their refusals. An origin the
-supervisor did not derive still gets nothing, and requests with no `Origin`
-(native, and the acceptance harness) are untouched.
+supervisor did not derive is refused before body parsing or transaction work
+and gets no CORS projection, including for CORS-simple POSTs; requests with no
+`Origin` (native, and the acceptance harness) are untouched.
 
 **2. The authorization page's own CSP blocked the completion.** With CORS fixed,
 the popup opened and consent posted, but the page never navigated. `form-action`
@@ -128,9 +129,9 @@ same principal, which is the app-scoped rehearsal identity behaving as designed.
 
 Regression tests assert the headers rather than a round trip, because a Node
 round trip passes either way: `shared-development-broker.test.mjs` covers the
-preflight, the echoed origin, the refused foreign origins, and the `form-action`
-contents; `shared-browser-adapter.test.mjs` covers the completion call and its
-absence off web.
+preflight, the echoed origin, the effect-free foreign simple-POST refusal, and
+the `form-action` contents; `shared-browser-adapter.test.mjs` covers the
+completion call and its absence off web.
 
 Related: `issues/20260826-supervised-web-signout-wedges-next-boot.md`, found
 while repeating this flow.

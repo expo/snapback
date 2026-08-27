@@ -251,9 +251,14 @@ export function createSharedDevelopmentBroker({
     }
   }));
 
-  function admittedBrowserOrigin(request) {
+  function presentedBrowserOrigin(request) {
     const origin = request?.headers?.origin;
-    return typeof origin === 'string' && browserOrigins.has(origin) ? origin : null;
+    return typeof origin === 'string' ? origin : null;
+  }
+
+  function admittedBrowserOrigin(request) {
+    const origin = presentedBrowserOrigin(request);
+    return origin !== null && browserOrigins.has(origin) ? origin : null;
   }
 
   function corsHeaders(origin) {
@@ -297,7 +302,22 @@ export function createSharedDevelopmentBroker({
     // supervisor itself derived; the HTML route is same-origin by construction.
     if (pathname === SHARED_DEVELOPMENT_AUTH_ROUTES.start
       || pathname === SHARED_DEVELOPMENT_AUTH_ROUTES.redeem) {
+      const presentedOrigin = presentedBrowserOrigin(request);
       const origin = admittedBrowserOrigin(request);
+      // CORS hides an unadmitted response; it does not prevent a foreign page
+      // from sending a simple request. Refuse any present-but-unadmitted
+      // Origin before reading the body or creating/redeeming a transaction.
+      // Originless native and server-side clients retain their existing path.
+      if (presentedOrigin !== null && origin === null) {
+        sendRefusal(
+          response,
+          refuse(
+            'origin-not-allowlisted',
+            'shared development auth request origin is not allowlisted',
+          ),
+        );
+        return true;
+      }
       // A JSON body makes the browser preflight before it will send the call.
       if (request.method === 'OPTIONS' && origin !== null) {
         response.writeHead(204, {

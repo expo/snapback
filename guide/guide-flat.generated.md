@@ -32029,7 +32029,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-auth-session-invalid"></a>`SNAPBACK_AUTH_SESSION_INVALID` | emitted, received | auth | 401 | — | `crates/snapback-kernel/src/storage/auth_identity.rs:2653` | 4 |
 | <a id="diagnostic-snapback-auth-session-revoked"></a>`SNAPBACK_AUTH_SESSION_REVOKED` | received | auth | — | — | `packages/snapback-client/index.mjs:2236` | 2 |
 | <a id="diagnostic-snapback-auth-session-token-carrier-invalid"></a>`SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID` | emitted | auth | — | — | `crates/snapback-cli/src/cli.rs:4512` | 6 |
-| <a id="diagnostic-snapback-auth-shared-development-refused"></a>`SNAPBACK_AUTH_SHARED_DEVELOPMENT_REFUSED` | declaration, emitted | auth | — | — | `packages/snapback-cli/shared-development-broker.mjs:282` | 4 |
+| <a id="diagnostic-snapback-auth-shared-development-refused"></a>`SNAPBACK_AUTH_SHARED_DEVELOPMENT_REFUSED` | declaration, emitted | auth | — | — | `packages/snapback-cli/shared-development-broker.mjs:287` | 4 |
 | <a id="diagnostic-snapback-auth-source-untrusted"></a>`SNAPBACK_AUTH_SOURCE_UNTRUSTED` | emitted | auth | 503 | — | `crates/snapback-auth/src/auth/effective_source.rs:29` | 1 |
 | <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | emitted | auth | 400 | [guide](../auth/sessions-and-principals.md#recover-from-stale-authorization-results) | `crates/snapback-kernel/src/operation_ledger.rs:2648` | 8 |
 | <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | emitted | auth | 503 | [guide](../backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch) | `crates/snapback-cli/src/cli.rs:66` | 12 |
