@@ -30,6 +30,10 @@ const USER = '018f0d90-7b12-7a22-8c33-445566778899';
 const SESSION = '018f0d90-7b13-7a22-8c33-445566778899';
 const AUTHORITY = '018f0d90-7b14-7a22-8c33-445566778899';
 const digest = (character) => `sha256:${character.repeat(64)}`;
+const fetchDispatchFailure = (message = 'backend unreachable') => Object.assign(
+  new TypeError(message),
+  { fetchDispatchFailed: true },
+);
 
 const concat = (...parts) => {
   const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
@@ -465,9 +469,9 @@ test('single-table connected prove arm atomically adopts legacy bytes and discar
     rqsStore: retainedStore,
     offlineQueue: false,
   });
-  offline.authSession = async () => { throw new TypeError('backend unreachable'); };
+  offline.authSession = async () => { throw fetchDispatchFailure(); };
   offline.unsubscribeLive = async () => ({ disposed: true });
-  offline.subscribeLive = async () => { throw new TypeError('backend unreachable'); };
+  offline.subscribeLive = async () => { throw fetchDispatchFailure(); };
   const retainedUpdates = [];
   const retained = await offline.liveQuery(fixture.ref, {
     connectionId: 'single-table-retained-pending',
@@ -617,9 +621,9 @@ test('protected generated liveQuery keeps explicit lease-backed retention and re
     rqsStore: secondStore,
     offlineQueue: false,
   });
-  second.authSession = async () => { throw new TypeError('backend unreachable'); };
+  second.authSession = async () => { throw fetchDispatchFailure(); };
   second.unsubscribeLive = async () => ({ disposed: true });
-  second.subscribeLive = async () => { throw new TypeError('backend unreachable'); };
+  second.subscribeLive = async () => { throw fetchDispatchFailure(); };
   const updates = [];
   const retained = await second.liveQuery(fixture.ref, {
     connectionId: 'bridge-connection-relaunch',

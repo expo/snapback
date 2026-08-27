@@ -17,6 +17,7 @@ import {
 const PLANTED_ADMIN_TOKEN = 'sbadm_planted_engine_token_do_not_transmit';
 const previousAdminToken = process.env.SNAPBACK_ADMIN_TOKEN;
 process.env.SNAPBACK_ADMIN_TOKEN = PLANTED_ADMIN_TOKEN;
+const previousRqsDirectory = process.env.SNAPBACK_CLIENT_RQS_DIR;
 
 const calls = [];
 let created = false;
@@ -120,6 +121,10 @@ const server = createServer(async (request, response) => {
 });
 
 const directory = await mkdtemp(join(tmpdir(), 'snapback-app-cli-'));
+// Exercise the default durable-store path without inheriting another local
+// client's writer lease or capability facts. The bounded rm retry only covers
+// the query-triggered capability commit that may still be settling at teardown.
+process.env.SNAPBACK_CLIENT_RQS_DIR = join(directory, 'rqs');
 try {
   await writeFile(join(directory, 'artifacts.json'), JSON.stringify({
     artifactKind: 'artifactIndex',
@@ -167,9 +172,18 @@ try {
   assert.deepEqual(result.subscribed.snapshot.rows, [{ id: 'todo-1' }]);
   assert.deepEqual(result.verified.rows, [{ id: 'todo-1' }]);
   assert.equal(JSON.stringify(result).includes('sbagt_scoped_test_token'), false);
+  // @ref LLP 0043#target-settlement-ledger-capability-gate-2026-08-12 —
+  // queue:'auto' must freshly inspect the target's replay capability before
+  // mutation dispatch. Persisted evidence is only the transport-unavailable
+  // enqueue fallback, so this probe deliberately precedes the first mutation
+  // instead of trusting a boot cache. This mock serves no /inspect route, so
+  // the probe answers 404: a rule-(b) durable negative that drops queue:'auto'
+  // to online-only. The journey still succeeds and the assertion still fails
+  // if the probe stops being issued, but no target identity is learned here.
   assert.deepEqual(calls.map(({ path }) => path), [
     '/auth/agents/pair',
     '/auth/agents/token',
+    '/inspect',
     '/auth/session',
     '/mutation/createTodo',
     '/auth/session',
@@ -292,7 +306,9 @@ try {
   console.log('package.test.mjs: generated selectors preserve all four nominal reference kinds');
 } finally {
   await new Promise((resolve) => server.close(resolve));
-  await rm(directory, { recursive: true, force: true });
+  await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   if (previousAdminToken === undefined) delete process.env.SNAPBACK_ADMIN_TOKEN;
   else process.env.SNAPBACK_ADMIN_TOKEN = previousAdminToken;
+  if (previousRqsDirectory === undefined) delete process.env.SNAPBACK_CLIENT_RQS_DIR;
+  else process.env.SNAPBACK_CLIENT_RQS_DIR = previousRqsDirectory;
 }
