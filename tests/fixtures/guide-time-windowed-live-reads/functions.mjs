@@ -25,6 +25,26 @@ export const eventsVisibleAtPinnedClock = defineJsLiveQuery({
   },
 });
 
+// @ref LLP 0004#ctxdb-contract — The explicit prefix is intentional only
+// after the owner/window range and newest-first order define its meaning.
+export const mostRecentEventsVisibleAtPinnedClock = defineJsLiveQuery({
+  args: { clockMs: v.integer(), windowMs: v.integer(), limit: v.integer() },
+  result: results.documents('events'),
+  auth: 'authenticated',
+  reads: ['events'],
+  handler: async (ctx, args) => {
+    const cutoffMs = args.clockMs - args.windowMs;
+    return ctx.db.query('events')
+      .withIndex('by_owner_and_created_at')
+      .eq('ownerId', ctx.auth.userId)
+      .gte('createdAt', cutoffMs)
+      .lte('createdAt', args.clockMs)
+      .order('createdAt', 'desc')
+      .take(args.limit)
+      .collect();
+  },
+});
+
 // @ref LLP 0264#d3-owner-inserts-are-host-stamped — The owner policy derives
 // ownerId from ctx.auth; accepting or supplying an owner value is forbidden.
 export const insertServerTimedEvent = defineJsMutation({

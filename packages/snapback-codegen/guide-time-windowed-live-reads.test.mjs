@@ -62,6 +62,7 @@ function createHandlerHarness() {
         table,
         index: null,
         filters: [],
+        order: [],
         take: null,
       };
       const builder = {
@@ -90,6 +91,14 @@ function createHandlerHarness() {
           state.filters.push({ op: 'lte', field, value });
           return builder;
         },
+        order(field, direction) {
+          assert(
+            ['asc', 'desc'].includes(direction),
+            `unsupported query direction ${direction}`,
+          );
+          state.order.push({ field, direction });
+          return builder;
+        },
         take(limit) {
           state.take = limit;
           return builder;
@@ -107,6 +116,7 @@ function createHandlerHarness() {
           table,
           index: state.index,
           filters: state.filters.map((filter) => ({ ...filter })),
+          order: state.order.map((entry) => ({ ...entry })),
           take: state.take,
           first,
         });
@@ -120,12 +130,17 @@ function createHandlerHarness() {
             if (op === 'lte') return row[field] <= value;
             assert.fail(`unsupported query operation ${op}`);
           }));
-        if (state.index) {
-          const fields = indexFields[table][state.index];
+        const order = state.order.length > 0
+          ? state.order
+          : state.index
+            ? indexFields[table][state.index].map((field) => ({ field, direction: 'asc' }))
+            : [];
+        if (order.length > 0) {
           selected = selected.toSorted((left, right) => {
-            for (const field of fields) {
-              if (left[field] < right[field]) return -1;
-              if (left[field] > right[field]) return 1;
+            for (const { field, direction } of order) {
+              const sign = direction === 'desc' ? -1 : 1;
+              if (left[field] < right[field]) return -1 * sign;
+              if (left[field] > right[field]) return sign;
             }
             return left._id.localeCompare(right._id);
           });
@@ -133,7 +148,9 @@ function createHandlerHarness() {
         if (first) return selected[0] ?? null;
         if (state.take !== null) return selected.slice(0, state.take);
         if (selected.length >= 1_024) {
-          throw new Error('SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED');
+          const error = new Error('SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED');
+          error.code = 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED';
+          throw error;
         }
         return selected;
       }
@@ -227,6 +244,15 @@ try {
     ['clockMs', 'windowMs'],
     'the pasted recipe emits the load-pinned clock argument contract',
   );
+  const pagedQuery = manifest.functions.find(
+    (entry) => entry.name === 'mostRecentEventsVisibleAtPinnedClock',
+  );
+  assert(pagedQuery, 'bounded trending recipe query is emitted');
+  assert.deepEqual(
+    pagedQuery.argsContract.fields.map((field) => field.name),
+    ['clockMs', 'windowMs', 'limit'],
+    'the bounded recipe emits its pinned clock, window, and deliberate limit',
+  );
   const typingQuery = manifest.functions.find((entry) => entry.name === 'typingLeasesExpiringSoon');
   assert(typingQuery, 'typing-lease recipe query is emitted');
   assert.deepEqual(
@@ -237,6 +263,7 @@ try {
 
   const authored = await import(`${pathToFileURL(join(recipeDir, 'functions.mjs')).href}?runtime`);
   const eventQueryHandler = authored.eventsVisibleAtPinnedClock.js.inlineHandler;
+  const pagedEventQueryHandler = authored.mostRecentEventsVisibleAtPinnedClock.js.inlineHandler;
   const eventMutationHandler = authored.insertServerTimedEvent.js.inlineHandler;
   const leaseQueryHandler = authored.typingLeasesExpiringSoon.js.inlineHandler;
   const leaseMutationHandler = authored.renewTypingLease.js.inlineHandler;
@@ -281,6 +308,7 @@ try {
       { op: 'gte', field: 'createdAt', value: cutoffMs },
       { op: 'lte', field: 'createdAt', value: clockMs },
     ],
+    order: [],
     take: null,
     first: false,
   }, 'event handler range-filters through the owner/time index before collection');
@@ -290,6 +318,52 @@ try {
   );
   assert.deepEqual(labels(bobEvents, 'label'), ['bob-event-inside'],
     'a different owner sees only their event window');
+
+  const busyHarness = createHandlerHarness();
+  for (let index = 0; index < 1_025; index += 1) {
+    await eventMutationHandler(busyHarness.context(alice, cutoffMs + index), {
+      label: `busy-window-${index}`,
+    });
+  }
+  await assert.rejects(
+    eventQueryHandler(
+      busyHarness.context(alice, clockMs),
+      { clockMs, windowMs: HOUR_MS },
+    ),
+    (error) => error.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED',
+    'an unpaged window with more than 1,024 matching rows must refuse loudly',
+  );
+  busyHarness.traces.length = 0;
+  const mostRecentEvents = await pagedEventQueryHandler(
+    busyHarness.context(alice, clockMs),
+    { clockMs, windowMs: HOUR_MS, limit: 7 },
+  );
+  assert.equal(mostRecentEvents.length, 7, 'the bounded page returns exactly its limit');
+  assert.deepEqual(
+    mostRecentEvents.map((row) => row.label),
+    [
+      'busy-window-1024',
+      'busy-window-1023',
+      'busy-window-1022',
+      'busy-window-1021',
+      'busy-window-1020',
+      'busy-window-1019',
+      'busy-window-1018',
+    ],
+    'the bounded page returns the newest matching events first',
+  );
+  assert.deepEqual(busyHarness.traces.at(-1), {
+    table: 'events',
+    index: 'by_owner_and_created_at',
+    filters: [
+      { op: 'eq', field: 'ownerId', value: alice },
+      { op: 'gte', field: 'createdAt', value: cutoffMs },
+      { op: 'lte', field: 'createdAt', value: clockMs },
+    ],
+    order: [{ field: 'createdAt', direction: 'desc' }],
+    take: 7,
+    first: false,
+  }, 'the bounded page range-filters before newest-first ordering and take');
 
   for (let index = 0; index < 1_025; index += 1) {
     await leaseMutationHandler(harness.context(alice, clockMs - 10_000), {
@@ -343,6 +417,7 @@ try {
       { op: 'gt', field: 'expiresAt', value: clockMs },
       { op: 'lte', field: 'expiresAt', value: clockMs + SOON_MS },
     ],
+    order: [],
     take: null,
     first: false,
   }, 'lease handler range-filters through the owner/expiry index before collection');
@@ -384,4 +459,4 @@ try {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
 
-console.log('guide-time-windowed-live-reads.test.mjs: guard, indexed windows, boundaries, renewal, scale, and owner isolation pass');
+console.log('guide-time-windowed-live-reads.test.mjs: guard, indexed windows, refusal, paging, boundaries, renewal, scale, and owner isolation pass');

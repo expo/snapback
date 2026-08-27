@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:3210bf51cff9dd06f1f8a657c8787f6fa992c3ce3d1d645948704aeded798218"
+    "sourceDigest": "sha256:74bb57fe6a6bf4de18a2e50023ebd79cac3a9edc786c53118c035ea901631170"
   },
   "limits": {
     "lookupBytes": 16384
@@ -68456,7 +68456,8 @@
       "guideAnchor": "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
       "guideAnchors": [
         "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
-        "/_snapback/guide/recipes/time-windowed-live-reads.md#read-trending-in-the-last-hour"
+        "/_snapback/guide/recipes/time-windowed-live-reads.md#read-trending-in-the-last-hour",
+        "/_snapback/guide/recipes/time-windowed-live-reads.md#read-typing-leases-that-are-expiring-soon"
       ]
     },
     "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED": {

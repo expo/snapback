@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-27
-reviewed-authorities-digest: sha256:8f5a52c9b4ca52eb46cf6827a6685be9b8444cecc4b5bd9e07cb5b1c961454cf
+reviewed-authorities-digest: sha256:78e85af15fe6d156c94bdb6b6d4f138a40acdea9beaea5e871d870994f71baaa
 ---
 
 # Recipe: time-windowed live reads
@@ -114,13 +114,47 @@ window regardless of how many older or future rows the table contains. It has
 no result-size cap that can silently change the window. If the matching range
 itself reaches Snapback's 1,024-row implicit collection ceiling, the invocation
 refuses with `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` instead of returning a
-truncated result; narrow or page that product surface explicitly.
+truncated result. A busy fixed window such as “the last hour” may need an
+intentional bounded page instead of a narrower window:
+
+```js source=tests/fixtures/guide-time-windowed-live-reads/functions.mjs
+// @ref LLP 0004#ctxdb-contract — The explicit prefix is intentional only
+// after the owner/window range and newest-first order define its meaning.
+export const mostRecentEventsVisibleAtPinnedClock = defineJsLiveQuery({
+  args: { clockMs: v.integer(), windowMs: v.integer(), limit: v.integer() },
+  result: results.documents('events'),
+  auth: 'authenticated',
+  reads: ['events'],
+  handler: async (ctx, args) => {
+    const cutoffMs = args.clockMs - args.windowMs;
+    return ctx.db.query('events')
+      .withIndex('by_owner_and_created_at')
+      .eq('ownerId', ctx.auth.userId)
+      .gte('createdAt', cutoffMs)
+      .lte('createdAt', args.clockMs)
+      .order('createdAt', 'desc')
+      .take(args.limit)
+      .collect();
+  },
+});
+```
+
+This returns the most-recent `limit` events **in the window**, newest first.
+The `take` is a deliberate size cap, not a window filter: it omits older
+matching events beyond the requested page, but it never lets rows outside the
+window consume an arbitrary prefix and hide matches. To page older in-window
+events, keep the original `cutoffMs`, carry the oldest returned timestamp as an
+exclusive `beforeMs` cursor, and lower the upper range bound to
+`Math.min(args.clockMs, args.beforeMs - 1)` before applying the same order and
+limit. If timestamps can tie at a page boundary, use a stable indexed
+tie-breaker in the cursor as well rather than skipping equal-time rows.
 
 Do not fetch `.take(1_024)` from the table and filter the timestamps afterward.
 That fetch is only an arbitrary natural- or index-order prefix. Once the table
 grows, qualifying rows can sit beyond the prefix — recent insertion-ordered
 events commonly do — and the handler will silently return an incomplete or
-empty window.
+empty window. The bounded query above is different precisely because its index
+range predicate comes first and `.take(args.limit)` bounds only those matches.
 
 Stamp `createdAt` on the server when the row is written. A mutation or action
 may sample `ctx.runtime.now()` because that time becomes durable data rather
@@ -192,7 +226,8 @@ The lease's lower boundary is exclusive and its upper boundary is inclusive:
 an already-expired `expiresAt === clockMs` lease is absent, while
 `expiresAt === clockMs + soonWithinMs` is present. As with events, filtering
 inside the owner/time index range makes total table size irrelevant and makes
-an oversized matching range refuse rather than truncate.
+an oversized matching range refuse with
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` rather than truncate.
 
 Renew the lease through a server mutation so the deadline is a captured row
 fact. Do not accept `expiresAt` itself from the client:
