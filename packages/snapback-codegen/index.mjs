@@ -2103,6 +2103,23 @@ export function validateGenerateOptions(options = {}) {
     );
   }
 
+  // Only a plain record is a closed option record. A prototype-bearing object
+  // (a class instance, or anything with an accessor on its prototype) can carry
+  // a real `outputRoot` that own-property inspection cannot see, and an
+  // unnoticed option is indistinguishable from an absent one — which selects
+  // the authored backend as the publication root. Refuse the shape rather than
+  // silently discarding what the caller supplied.
+  // @ref LLP 0010#generated-artifacts — the option boundary is closed, so an
+  // unsupported shape refuses instead of degrading to authored-tree output.
+  const optionsPrototype = Object.getPrototypeOf(options);
+  if (optionsPrototype !== Object.prototype && optionsPrototype !== null) {
+    return generateOptionFailure(
+      'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+      'codegen options must be a plain object; a prototype-bearing object can hide inherited options',
+      { option: 'options', valueKind: 'prototype-bearing-object' },
+    );
+  }
+
   let descriptors;
   let ownKeys;
   try {
