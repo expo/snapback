@@ -227,10 +227,13 @@ mod authoring_suggestion_tests {
 
     #[test]
     fn unknown_schema_field_names_only_typed_fields_from_the_served_table() {
-        let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../../../demos/todo/snapback/generated/schema.manifest.json"
-        ))
-        .expect("parse served schema fixture");
+        let source = crate::read_generated_demo_fixture(
+            "src/storage",
+            "../../../../demos/todo/snapback/generated/schema.manifest.json",
+            "todo",
+        );
+        let schema: SchemaManifest =
+            serde_json::from_str(&source).expect("parse served schema fixture");
         let table = schema.table("todos").expect("served todos table");
         let error = ensure_field(table, "titel").expect_err("unknown schema field");
         assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_FIELD");
@@ -17404,14 +17407,22 @@ pub(crate) mod membership_write_tests {
         for (name, source) in [
             (
                 "rbac",
-                include_str!("../../../../demos/rbac/snapback/generated/schema.manifest.json"),
+                crate::read_generated_demo_fixture(
+                    "src/storage",
+                    "../../../../demos/rbac/snapback/generated/schema.manifest.json",
+                    "rbac",
+                ),
             ),
             (
                 "team-chat",
-                include_str!("../../../../demos/team-chat/snapback/generated/schema.manifest.json"),
+                crate::read_generated_demo_fixture(
+                    "src/storage",
+                    "../../../../demos/team-chat/snapback/generated/schema.manifest.json",
+                    "team-chat",
+                ),
             ),
         ] {
-            let schema: SchemaManifest = serde_json::from_str(source)
+            let schema: SchemaManifest = serde_json::from_str(&source)
                 .unwrap_or_else(|error| panic!("{name} generated manifest parses: {error}"));
             assert!(
                 schema
@@ -21234,10 +21245,13 @@ pub(crate) mod membership_write_tests {
             SeedArtifactV1, SeedEnsureResultV1, SeedResetOperationV1, artifact_digest,
         };
 
-        let manifest: SchemaManifest = serde_json::from_str(include_str!(
-            "../../../../demos/todo/snapback/generated/schema.manifest.json"
-        ))
-        .expect("todo generated schema");
+        let source = crate::read_generated_demo_fixture(
+            "src/storage",
+            "../../../../demos/todo/snapback/generated/schema.manifest.json",
+            "todo",
+        );
+        let manifest: SchemaManifest =
+            serde_json::from_str(&source).expect("todo generated schema");
         let mut db = LocalDatabase::memory().expect("memory database");
         db.schema_seed()
             .apply_schema(manifest)

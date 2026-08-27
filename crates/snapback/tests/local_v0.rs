@@ -23,6 +23,22 @@ use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
+// @ref LLP 0316#phase-2--test-currency — generated, gitignored demo fixtures
+// stay runtime preconditions of the tests that consume them, not crate inputs.
+fn read_generated_demo_fixture(relative_path: &str, demo_name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join(relative_path);
+    std::fs::read_to_string(&path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read generated demo fixture at {}: {error}\n\
+             run from the repository root: node packages/snapback-codegen/index.mjs demos/{demo_name}/snapback\n\
+             generated demo outputs are gitignored; this test reads them at run time so a missing fixture fails only this test instead of breaking the crate's compilation (LLP 0316 Phase 2)",
+            path.display()
+        )
+    })
+}
+
 #[test]
 fn local_sqlite_host_plan_runs_todo_live_query_and_mutation() {
     let mut snapback = configured_snapback();
@@ -2542,12 +2558,14 @@ fn ensure_ephemeral_collections_rejects_mismatch_without_clearing_room() {
 
 #[test]
 fn generated_v0_artifacts_round_trip_through_runtime_structs() {
-    const GENERATED_SCHEMA: &str =
-        include_str!("../../../demos/todo/snapback/generated/schema.manifest.json");
+    let generated_schema = read_generated_demo_fixture(
+        "../../../demos/todo/snapback/generated/schema.manifest.json",
+        "todo",
+    );
     let committed_schema: Value =
-        serde_json::from_str(GENERATED_SCHEMA).expect("committed schema artifact parses");
+        serde_json::from_str(&generated_schema).expect("committed schema artifact parses");
     let schema: SchemaManifest =
-        serde_json::from_str(GENERATED_SCHEMA).expect("generated schema manifest parses");
+        serde_json::from_str(&generated_schema).expect("generated schema manifest parses");
     assert_eq!(schema.artifact_kind, "schemaManifest");
     assert_eq!(schema.schema_version, "snapback.v0");
     let committed_schema_hash = committed_schema["schemaHash"]
@@ -2564,12 +2582,14 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(schema_value["artifactKind"], "schemaManifest");
     assert_eq!(schema_value["schemaHash"], committed_schema["schemaHash"]);
 
-    const GENERATED_FUNCTIONS: &str =
-        include_str!("../../../demos/todo/snapback/generated/functions.manifest.json");
+    let generated_functions = read_generated_demo_fixture(
+        "../../../demos/todo/snapback/generated/functions.manifest.json",
+        "todo",
+    );
     let committed_functions: Value =
-        serde_json::from_str(GENERATED_FUNCTIONS).expect("committed function artifact parses");
+        serde_json::from_str(&generated_functions).expect("committed function artifact parses");
     let functions: FunctionManifest =
-        serde_json::from_str(GENERATED_FUNCTIONS).expect("generated function manifest parses");
+        serde_json::from_str(&generated_functions).expect("generated function manifest parses");
     assert_eq!(functions.artifact_kind, "functionManifest");
     assert_eq!(functions.schema_version, "snapback.v0");
     let committed_bundle_hash = committed_functions["bundleHash"]

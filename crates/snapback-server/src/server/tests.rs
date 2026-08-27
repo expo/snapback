@@ -25,6 +25,22 @@ use crate::storage::auth_rescue::{
     AuthCollisionFixtureTableForTest, install_auth_collision_fixtures_for_test,
 };
 
+// @ref LLP 0316#phase-2--test-currency — generated, gitignored demo fixtures
+// stay runtime preconditions of the tests that consume them, not crate inputs.
+fn read_generated_demo_fixture(relative_path: &str, demo_name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/server")
+        .join(relative_path);
+    std::fs::read_to_string(&path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read generated demo fixture at {}: {error}\n\
+             run from the repository root: node packages/snapback-codegen/index.mjs demos/{demo_name}/snapback\n\
+             generated demo outputs are gitignored; this test reads them at run time so a missing fixture fails only this test instead of breaking the crate's compilation (LLP 0316 Phase 2)",
+            path.display()
+        )
+    })
+}
+
 fn filter_telemetry_events_for_test(
     rows: Vec<crate::telemetry_query::TelemetryEventV1>,
     kind: Option<&str>,
@@ -14037,17 +14053,21 @@ async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
 #[tokio::test]
 async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
-        let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../../../demos/todo/snapback/generated/schema.manifest.json"
-        ))
-        .expect("parse served suggestion schema");
+        let schema_source = read_generated_demo_fixture(
+            "../../../../demos/todo/snapback/generated/schema.manifest.json",
+            "todo",
+        );
+        let schema: SchemaManifest =
+            serde_json::from_str(&schema_source).expect("parse served suggestion schema");
         snapback
             .apply_schema(schema)
             .expect("load suggestion schema");
-        let functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../../../demos/todo/snapback/generated/functions.manifest.json"
-        ))
-        .expect("parse served suggestion functions");
+        let functions_source = read_generated_demo_fixture(
+            "../../../../demos/todo/snapback/generated/functions.manifest.json",
+            "todo",
+        );
+        let functions: FunctionManifest =
+            serde_json::from_str(&functions_source).expect("parse served suggestion functions");
         let diagnostics = snapback.load_functions(functions);
         assert!(
             !diagnostics.iter().any(|diagnostic| matches!(
@@ -14296,10 +14316,12 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
         // Reuse the generated owner-scoped LiveQuery declaration from the
         // charter's protected demo, but bind its result contract to this
         // compact Phase-F fixture's equivalent `profiles.image` field.
-        let live_functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../../../demos/media-happy-post/snapback/generated/functions.manifest.json"
-        ))
-        .expect("parse generated media-happy live query");
+        let live_functions_source = read_generated_demo_fixture(
+            "../../../../demos/media-happy-post/snapback/generated/functions.manifest.json",
+            "media-happy-post",
+        );
+        let live_functions: FunctionManifest = serde_json::from_str(&live_functions_source)
+            .expect("parse generated media-happy live query");
         let mut list_profiles = live_functions
             .functions
             .iter()

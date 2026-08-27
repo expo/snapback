@@ -51,27 +51,7 @@ pub fn emit_build_identity() -> BuildIdentityStamp {
     // definition must re-run the probe.
     println!("cargo:rerun-if-changed=../../scripts/runtime-build-inputs.txt");
 
-    // Re-stamp when the git side moves: HEAD and the index live in the
-    // (possibly per-worktree) git dir; the branch-tip ref store lives in the
-    // *common* git dir. Tracking refs/heads + packed-refs catches ref-only
-    // moves (`git reset --soft`, `git update-ref`) that touch neither HEAD —
-    // still the same symbolic ref — nor the index (ENG-23365).
-    if let Some(git_dir) = resolve_git_dir(&repo_root) {
-        let common_dir = resolve_common_dir(&git_dir);
-        let inputs = [
-            git_dir.join("HEAD"),
-            git_dir.join("index"),
-            common_dir.join("refs").join("heads"),
-            common_dir.join("packed-refs"),
-        ];
-        for path in inputs {
-            // Only existing paths: cargo treats a missing tracked path as
-            // always-changed, which would rerun this script on every build.
-            if path.exists() {
-                println!("cargo:rerun-if-changed={}", path.display());
-            }
-        }
-    }
+    emit_git_identity_inputs(&repo_root);
 
     let git_commit = resolve_git_commit(&repo_root);
     if let Some(commit) = &git_commit {
@@ -136,11 +116,52 @@ pub fn emit_build_identity() -> BuildIdentityStamp {
     }
 }
 
+/// Emit the git metadata inputs that can change this checkout's stamped
+/// commit. The per-worktree `HEAD` catches branch switches and detached
+/// checkouts; the per-worktree `logs/HEAD` reflog is appended on every HEAD
+/// movement of *this* worktree (commit, reset, rebase, `update-ref` on the
+/// branch HEAD points at) and nothing else's; the resolved loose
+/// current-branch ref catches the same ref-only moves when reflogs are
+/// disabled; common `packed-refs` covers a current ref stored only there.
+/// The reflog also closes the packed-only edge: after `pack-refs`, the first
+/// commit creates a loose ref file that no existing tracked path would see.
+///
+/// The index is deliberately not tracked: `git add`, `git rm --cached`,
+/// `git checkout -- <file>`, `git stash`, and `git status` index refreshes do
+/// not change the reported commit. Staged changes are already visible to the
+/// scoped dirty probe, while source edits are recursively tracked from the
+/// `scripts/runtime-build-inputs.txt` pathspecs above. That recursive tracking,
+/// kept unchanged, is what prevents ENG-23365's uncommitted-code/stale-clean-
+/// stamp case. Tracking the whole common `refs/heads` directory would likewise
+/// invalidate this build for unrelated commits in sibling worktrees (git
+/// writes every ref through a `.lock` rename, so the directory mtime moves on
+/// every commit on every branch of every worktree).
+pub fn emit_git_identity_inputs(repo_root: &Path) {
+    // @ref LLP 0316#phase-1--build-identity-invalidation-surgical — invalidate
+    // only for this worktree's HEAD movements, never for the index or for
+    // sibling worktrees' branches.
+    if let Some(git_dir) = resolve_git_dir(repo_root) {
+        let common_dir = resolve_common_dir(&git_dir);
+        let mut inputs = vec![git_dir.join("HEAD"), git_dir.join("logs").join("HEAD")];
+        if let Some(current_branch_ref) = resolve_current_branch_ref(&git_dir, &common_dir) {
+            inputs.push(current_branch_ref);
+        }
+        inputs.push(common_dir.join("packed-refs"));
+
+        for path in inputs {
+            // Only existing paths: cargo treats a missing tracked path as
+            // always-changed, which would rerun this script on every build.
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
+}
+
 /// Resolve the explicit deterministic stamp or the checkout's current commit.
 /// Consumers embedding another build-bound artifact use the same precedence.
 pub fn resolve_git_commit(repo_root: &Path) -> Option<String> {
-    env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
-        .or_else(|| git(repo_root, &["rev-parse", "HEAD"]))
+    env_nonempty("SNAPBACK_BUILD_GIT_COMMIT").or_else(|| git(repo_root, &["rev-parse", "HEAD"]))
 }
 
 fn env_nonempty(name: &str) -> Option<String> {
@@ -207,6 +228,21 @@ fn resolve_common_dir(git_dir: &Path) -> PathBuf {
         }
         Err(_) => git_dir.to_path_buf(),
     }
+}
+
+/// Resolve a symbolic per-worktree HEAD to its loose current-branch ref in the
+/// common git directory. Detached HEADs and refs stored only in packed-refs do
+/// not have a loose-ref input to add.
+fn resolve_current_branch_ref(git_dir: &Path, common_dir: &Path) -> Option<PathBuf> {
+    let head = fs::read_to_string(git_dir.join("HEAD")).ok()?;
+    let symbolic_ref = head
+        .lines()
+        .find(|line| !line.trim().is_empty())?
+        .trim()
+        .strip_prefix("ref:")?
+        .trim();
+    let branch_name = symbolic_ref.strip_prefix("refs/heads/")?;
+    (!branch_name.is_empty()).then(|| common_dir.join("refs").join("heads").join(branch_name))
 }
 
 /// The real git directory for `manifest_dir`, handling a linked worktree whose

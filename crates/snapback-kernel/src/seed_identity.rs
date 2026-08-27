@@ -956,10 +956,10 @@ mod tests {
     }
 
     fn todo_schema() -> crate::manifest::SchemaManifest {
-        serde_json::from_str(include_str!(
-            "../../../demos/todo/snapback/generated/schema.manifest.json"
-        ))
-        .expect("todo generated schema")
+        const PATH: &str = "../../../demos/todo/snapback/generated/schema.manifest.json";
+        let source = crate::read_generated_demo_fixture("src", PATH, "todo");
+
+        serde_json::from_str(&source).expect("todo generated schema")
     }
 
     fn todo_artifact(version: &str, rows: usize) -> SeedArtifactV1 {
@@ -1084,10 +1084,10 @@ mod tests {
         // empty membership table validates; row-level admission is enforced
         // by the same-transaction activation scan, witnessed in the storage
         // membership-write suite.
-        let sessions: crate::manifest::SchemaManifest = serde_json::from_str(include_str!(
-            "../../../demos/rbac/snapback/generated/schema.manifest.json"
-        ))
-        .expect("rbac generated schema");
+        const PATH: &str = "../../../demos/rbac/snapback/generated/schema.manifest.json";
+        let source = crate::read_generated_demo_fixture("src", PATH, "rbac");
+        let sessions: crate::manifest::SchemaManifest =
+            serde_json::from_str(&source).expect("rbac generated schema");
         let mut membership_artifact = SeedArtifactV1 {
             format_version: SEED_ARTIFACT_FORMAT_V1.to_owned(),
             app_id: sessions.app_id.clone(),

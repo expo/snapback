@@ -1,7 +1,10 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::{fs, io};
+
+#[allow(dead_code)]
+#[path = "../snapback-types/build_identity.rs"]
+mod build_identity;
 
 #[path = "src/guide_artifact.rs"]
 mod guide_artifact;
@@ -28,25 +31,9 @@ fn emit_build_commit() -> Option<String> {
     );
     let repo_root = manifest_dir.join("../..");
 
-    // Preserve the original build-identity invalidation semantics: HEAD and
-    // the index live in the per-worktree git dir, while branch refs and
-    // packed refs live in the common git dir.
-    if let Some(git_dir) = resolve_git_dir(&repo_root) {
-        let common_dir = resolve_common_dir(&git_dir);
-        for path in [
-            git_dir.join("HEAD"),
-            git_dir.join("index"),
-            common_dir.join("refs").join("heads"),
-            common_dir.join("packed-refs"),
-        ] {
-            if path.exists() {
-                println!("cargo:rerun-if-changed={}", path.display());
-            }
-        }
-    }
+    build_identity::emit_git_identity_inputs(&repo_root);
 
-    let commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
-        .or_else(|| git(&repo_root, &["rev-parse", "HEAD"]));
+    let commit = build_identity::resolve_git_commit(&repo_root);
     if let Some(commit) = &commit {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_COMMIT={commit}");
     }
@@ -258,56 +245,4 @@ fn generated_json_string<'a>(json: &'a str, key: &str) -> Option<&'a str> {
     let prefix = format!("\"{key}\": \"");
     let rest = json.split_once(&prefix)?.1;
     Some(rest.split_once('"')?.0)
-}
-
-fn env_nonempty(name: &str) -> Option<String> {
-    std::env::var(name).ok().filter(|value| !value.is_empty())
-}
-
-fn git(dir: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git")
-        .current_dir(dir)
-        .args(args)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let value = String::from_utf8(output.stdout).ok()?.trim().to_owned();
-    (!value.is_empty()).then_some(value)
-}
-
-/// The shared git directory holding the ref store (`refs/`, `packed-refs`).
-/// Linked worktrees keep this pointer in their per-worktree git directory.
-fn resolve_common_dir(git_dir: &Path) -> PathBuf {
-    match fs::read_to_string(git_dir.join("commondir")) {
-        Ok(content) => {
-            let pointed = PathBuf::from(content.trim());
-            if pointed.is_absolute() {
-                pointed
-            } else {
-                git_dir.join(pointed)
-            }
-        }
-        Err(_) => git_dir.to_path_buf(),
-    }
-}
-
-/// Resolve a primary checkout or linked-worktree `.git` location.
-fn resolve_git_dir(repo_root: &Path) -> Option<PathBuf> {
-    let dot_git = repo_root.join(".git");
-    let meta = fs::metadata(&dot_git).ok()?;
-    if meta.is_dir() {
-        return Some(dot_git);
-    }
-    let content = fs::read_to_string(&dot_git).ok()?;
-    let path = content
-        .lines()
-        .find_map(|line| line.strip_prefix("gitdir:"))?;
-    let pointed = PathBuf::from(path.trim());
-    Some(if pointed.is_absolute() {
-        pointed
-    } else {
-        repo_root.join(pointed)
-    })
 }

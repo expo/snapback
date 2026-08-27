@@ -55,3 +55,24 @@ pub mod services_assets;
 pub mod storage;
 pub mod vector;
 pub mod watches;
+
+#[cfg(test)]
+// @ref LLP 0316#phase-2--test-currency — generated, gitignored demo fixtures
+// stay runtime preconditions of the tests that consume them, not crate inputs.
+pub(crate) fn read_generated_demo_fixture(
+    source_directory: &str,
+    relative_path: &str,
+    demo_name: &str,
+) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(source_directory)
+        .join(relative_path);
+    std::fs::read_to_string(&path).unwrap_or_else(|error| {
+        panic!(
+            "failed to read generated demo fixture at {}: {error}\n\
+             run from the repository root: node packages/snapback-codegen/index.mjs demos/{demo_name}/snapback\n\
+             generated demo outputs are gitignored; this test reads them at run time so a missing fixture fails only this test instead of breaking the crate's compilation (LLP 0316 Phase 2)",
+            path.display()
+        )
+    })
+}
