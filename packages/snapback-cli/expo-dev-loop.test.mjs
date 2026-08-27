@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, webcrypto } from 'node:crypto';
+import { createHash, randomUUID, webcrypto } from 'node:crypto';
 import {
   chmodSync,
   cpSync,
@@ -91,31 +91,81 @@ const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
 const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
 const supervisedWebSignOutReloadOnly = process.argv.includes('--supervised-web-signout-reload-only');
+const retainedProcessTableNegativeOnly = process.argv.includes('--retained-process-table-negative-only');
+const retainedProcessTableInheritedSourceNegativeChild = process.argv.includes(
+  '--retained-process-table-inherited-source-negative-child',
+);
+const retainedProcessTableSetupFailureNegativeChild = process.argv.includes(
+  '--retained-process-table-setup-failure-negative-child',
+);
 const retainedCustodyChild = process.argv.includes('--retained-custody-child');
 const retainedCustodyCasChild = process.argv.includes('--retained-custody-cas-child');
-const retainedHarnessProcessTable = process.env.SNAPBACK_RETAINED_PROCESS_TABLE ?? 'ps';
-assert(
-  retainedHarnessProcessTable === 'ps'
-    || retainedHarnessProcessTable === 'libproc-native-helper',
-  `unsupported retained harness process table: ${retainedHarnessProcessTable}`,
+const retainedProcessTableNegativeChild = retainedProcessTableInheritedSourceNegativeChild
+  || retainedProcessTableSetupFailureNegativeChild;
+const retainedProcessTableAttestationSymbol = Symbol.for(
+  'snapback.retained-process-table.attestation.v1',
 );
 
-if (
-  !retainedCustodyChild
-  && !retainedCustodyCasChild
-  && retainedHarnessProcessTable === 'ps'
-) {
-  const nativeProcessTable = spawnSync(
-    '/bin/ps',
-    ['-axo', 'pid=,ppid=,pgid=,lstart='],
-    { encoding: 'utf8', timeout: 10_000 },
+function retainedProcessTableUnavailable(cause) {
+  if (cause?.code === 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE') return cause;
+  const error = new Error(
+    'retained-session harness could not obtain observed pid/ppid/pgid/start-time facts',
   );
-  if (nativeProcessTable.error || nativeProcessTable.status !== 0) {
-    const preloadRoot = mkdtempSync(join(tmpdir(), 'snapback-retained-process-table-'));
-    const helperSource = join(preloadRoot, 'process-table.c');
-    const helper = join(preloadRoot, 'process-table');
-    const preload = join(preloadRoot, 'libproc-process-table.mjs');
-    writeFileSync(helperSource, `
+  error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
+  error.cause = cause;
+  return error;
+}
+
+function resolveRetainedProcessTableProvenance() {
+  const source = process.env.SNAPBACK_RETAINED_PROCESS_TABLE ?? 'ps';
+  if (source === 'ps') {
+    return Object.freeze({ source, attestation: 'direct-probe' });
+  }
+  if (source !== 'libproc-native-helper') {
+    throw retainedProcessTableUnavailable(
+      new Error(`unsupported retained harness process table: ${source}`),
+    );
+  }
+  const attestation = globalThis[retainedProcessTableAttestationSymbol];
+  if (
+    attestation?.source !== source
+    || attestation?.helper !== process.env.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER
+    || attestation?.nonce !== process.env.SNAPBACK_RETAINED_PROCESS_TABLE_ATTESTATION
+  ) {
+    throw retainedProcessTableUnavailable(
+      new Error('libproc process-table provenance lacks an internally probed preload/helper'),
+    );
+  }
+  return Object.freeze({ source, attestation: 'preload-helper-probed' });
+}
+
+let retainedProcessTableProvenance;
+try {
+  retainedProcessTableProvenance = resolveRetainedProcessTableProvenance();
+  if (
+    !retainedCustodyChild
+    && !retainedCustodyCasChild
+    && retainedProcessTableProvenance.source === 'ps'
+  ) {
+    const nativeProcessTable = retainedProcessTableNegativeOnly
+      || retainedProcessTableSetupFailureNegativeChild
+      ? { error: new Error('forced libproc fallback for focused negative coverage'), status: null }
+      : spawnSync(
+        '/bin/ps',
+        ['-axo', 'pid=,ppid=,pgid=,lstart='],
+        { encoding: 'utf8', timeout: 10_000 },
+      );
+    if (nativeProcessTable.error || nativeProcessTable.status !== 0) {
+      let preloadRoot = null;
+      let helper;
+      let preload;
+      const attestationNonce = randomUUID();
+      try {
+        preloadRoot = mkdtempSync(join(tmpdir(), 'snapback-retained-process-table-'));
+        const helperSource = join(preloadRoot, 'process-table.c');
+        helper = join(preloadRoot, 'process-table');
+        preload = join(preloadRoot, 'libproc-process-table.mjs');
+        writeFileSync(helperSource, `
 #include <libproc.h>
 #include <sys/proc_info.h>
 #include <stdio.h>
@@ -162,72 +212,235 @@ int main(int argc, char **argv) {
   return 0;
 }
 `, { mode: 0o600 });
-    const compile = spawnSync('/usr/bin/clang', [
-      helperSource,
-      '-O2',
-      '-o',
-      helper,
-    ], { encoding: 'utf8', timeout: 30_000 });
-    const helperProbe = compile.error || compile.status !== 0
-      ? null
-      : spawnSync(helper, [], { encoding: 'utf8', timeout: 10_000 });
-    if (
-      compile.error
-      || compile.status !== 0
-      || helperProbe?.error
-      || helperProbe?.status !== 0
-      || !new RegExp(`^${process.pid}\\s`, 'mu').test(helperProbe?.stdout ?? '')
-    ) {
-      rmSync(preloadRoot, { recursive: true, force: true });
-      const error = new Error(
-        'retained-session harness could not obtain observed pid/ppid/pgid/start-time facts',
-      );
-      error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
-      error.cause = compile.error ?? helperProbe?.error ?? new Error(
-        compile.stderr || helperProbe?.stderr || 'native process-table helper returned unusable output',
-      );
-      throw error;
-    }
-    writeFileSync(preload, `
+        const compile = spawnSync('/usr/bin/clang', [
+          helperSource,
+          '-O2',
+          '-o',
+          helper,
+        ], { encoding: 'utf8', timeout: 30_000 });
+        const helperProbe = compile.error || compile.status !== 0
+          ? null
+          : spawnSync(helper, [], { encoding: 'utf8', timeout: 10_000 });
+        if (
+          compile.error
+          || compile.status !== 0
+          || helperProbe?.error
+          || helperProbe?.status !== 0
+          || !new RegExp(`^${process.pid}\\s`, 'mu').test(helperProbe?.stdout ?? '')
+        ) {
+          throw retainedProcessTableUnavailable(
+            compile.error ?? helperProbe?.error ?? new Error(
+              compile.stderr
+                || helperProbe?.stderr
+                || 'native process-table helper returned unusable output',
+            ),
+          );
+        }
+        writeFileSync(preload, `
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 
 const originalSpawnSync = childProcess.spawnSync;
+const unavailable = (cause) => {
+  const error = new Error(
+    'retained-session harness could not obtain observed pid/ppid/pgid/start-time facts',
+  );
+  error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
+  error.cause = cause;
+  return error;
+};
+const helper = process.env.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER;
+const nonce = process.env.SNAPBACK_RETAINED_PROCESS_TABLE_ATTESTATION;
+if (typeof helper !== 'string' || helper.length === 0 || typeof nonce !== 'string' || nonce.length === 0) {
+  throw unavailable(new Error('libproc process-table helper attestation inputs are missing'));
+}
+const helperProbe = originalSpawnSync(helper, [], { encoding: 'utf8', timeout: 10_000 });
+if (
+  helperProbe.error
+  || helperProbe.status !== 0
+  || !new RegExp('^' + process.pid + '\\\\s', 'mu').test(helperProbe.stdout ?? '')
+) {
+  throw unavailable(helperProbe.error ?? new Error(
+    helperProbe.stderr || 'native process-table helper returned unusable output during preload',
+  ));
+}
 childProcess.spawnSync = function retainedHarnessSpawnSync(command, args, options) {
   if (command !== '/bin/ps') return originalSpawnSync(command, args, options);
-  const tableRequest = args?.[0] === '-axo'
-    && args?.[1]?.startsWith('pid=,ppid=,pgid=,lstart=');
-  if (!tableRequest) {
+  const requestShape = Array.isArray(args) && args.length === 2 && args[0] === '-axo'
+    ? args[1]
+    : null;
+  const includeCommand = requestShape === 'pid=,ppid=,pgid=,lstart=,command=';
+  if (requestShape !== 'pid=,ppid=,pgid=,lstart=' && !includeCommand) {
     const error = new Error('unsupported /bin/ps request in retained-session harness');
     error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
     return { error, status: null, signal: null, stdout: '', stderr: error.message };
   }
   return originalSpawnSync(
-    process.env.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER,
-    args[1].includes('command=') ? ['--command'] : [],
+    helper,
+    includeCommand ? ['--command'] : [],
     options,
   );
 };
 syncBuiltinESMExports();
+Object.defineProperty(
+  globalThis,
+  Symbol.for('snapback.retained-process-table.attestation.v1'),
+  {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: Object.freeze({ source: 'libproc-native-helper', helper, nonce }),
+  },
+);
 `, { mode: 0o600 });
-    const result = spawnSync(process.execPath, [
-      '--import', preload,
+      } catch (error) {
+        if (preloadRoot !== null) rmSync(preloadRoot, { recursive: true, force: true });
+        throw retainedProcessTableUnavailable(error);
+      }
+      const result = spawnSync(process.execPath, [
+        '--import', preload,
+        fileURLToPath(import.meta.url),
+        ...process.argv.slice(2),
+      ], {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          SNAPBACK_RETAINED_PROCESS_TABLE: 'libproc-native-helper',
+          SNAPBACK_RETAINED_PROCESS_TABLE_HELPER: helper,
+          SNAPBACK_RETAINED_PROCESS_TABLE_ATTESTATION: attestationNonce,
+        },
+        stdio: 'inherit',
+        timeout: 180_000,
+      });
+      rmSync(preloadRoot, { recursive: true, force: true });
+      if (result.error) throw result.error;
+      process.exit(result.status ?? 1);
+    }
+  }
+} catch (error) {
+  if (retainedProcessTableNegativeChild) {
+    console.log(JSON.stringify({
+      schemaVersion: 'snapback.retained-process-table-negative-child.v1',
+      code: error?.code ?? null,
+      causeCode: error?.cause?.code ?? null,
+    }));
+    process.exit(86);
+  }
+  throw error;
+}
+
+const retainedHarnessProcessTable = retainedProcessTableProvenance.source;
+const retainedHarnessProcessTableAttestation = retainedProcessTableProvenance.attestation;
+
+function parseRetainedProcessTableNegativeChild(result, label) {
+  assert.equal(result.error, undefined, `${label}: ${result.error?.message ?? ''}`);
+  assert.equal(result.status, 86, `${label}: ${result.stderr || result.stdout}`);
+  const line = result.stdout.trim().split('\n').reverse().find((candidate) => {
+    try {
+      return JSON.parse(candidate)?.schemaVersion
+        === 'snapback.retained-process-table-negative-child.v1';
+    } catch {
+      return false;
+    }
+  });
+  assert.equal(typeof line, 'string', `${label}: missing structured refusal`);
+  const refusal = JSON.parse(line);
+  assert.equal(refusal.code, 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE');
+  return refusal;
+}
+
+function runRetainedProcessTableNegativeSuite() {
+  assert.deepEqual(
+    retainedProcessTableProvenance,
+    { source: 'libproc-native-helper', attestation: 'preload-helper-probed' },
+    'the focused arm must run through an internally attested helper preload',
+  );
+  for (const columns of [
+    'pid=,ppid=,pgid=,lstart=',
+    'pid=,ppid=,pgid=,lstart=,command=',
+  ]) {
+    const supported = spawnSync('/bin/ps', ['-axo', columns], {
+      encoding: 'utf8',
+      timeout: 10_000,
+    });
+    assert.equal(supported.error, undefined, supported.error?.message);
+    assert.equal(supported.status, 0, supported.stderr);
+    assert.match(supported.stdout, new RegExp(`^${process.pid}\\s`, 'mu'));
+  }
+
+  const unknownColumns = spawnSync(
+    '/bin/ps',
+    ['-axo', 'pid=,ppid=,pgid=,lstart=,rss='],
+    { encoding: 'utf8', timeout: 10_000 },
+  );
+  assert.equal(unknownColumns.status, null);
+  assert.equal(unknownColumns.error?.code, 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE');
+
+  const inheritedSource = spawnSync(process.execPath, [
+    fileURLToPath(import.meta.url),
+    '--retained-process-table-inherited-source-negative-child',
+  ], {
+    cwd: process.cwd(),
+    env: { ...process.env },
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  const inheritedRefusal = parseRetainedProcessTableNegativeChild(
+    inheritedSource,
+    'inherited libproc source without preload',
+  );
+
+  const failureRoot = mkdtempSync(join(tmpdir(), 'snapback-process-table-negative-'));
+  const unwritableTempRoot = join(failureRoot, 'unwritable');
+  mkdirSync(unwritableTempRoot, { mode: 0o500 });
+  let setupRefusal;
+  try {
+    const setupFailureEnvironment = { ...process.env, TMPDIR: unwritableTempRoot };
+    delete setupFailureEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE;
+    delete setupFailureEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER;
+    delete setupFailureEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE_ATTESTATION;
+    const setupFailure = spawnSync(process.execPath, [
       fileURLToPath(import.meta.url),
-      ...process.argv.slice(2),
+      '--retained-process-table-setup-failure-negative-child',
     ], {
       cwd: process.cwd(),
-      env: {
-        ...process.env,
-        SNAPBACK_RETAINED_PROCESS_TABLE: 'libproc-native-helper',
-        SNAPBACK_RETAINED_PROCESS_TABLE_HELPER: helper,
-      },
-      stdio: 'inherit',
-      timeout: 180_000,
+      env: setupFailureEnvironment,
+      encoding: 'utf8',
+      timeout: 30_000,
     });
-    rmSync(preloadRoot, { recursive: true, force: true });
-    if (result.error) throw result.error;
-    process.exit(result.status ?? 1);
+    setupRefusal = parseRetainedProcessTableNegativeChild(
+      setupFailure,
+      'process-table temporary-directory setup failure',
+    );
+    assert(
+      ['EACCES', 'EPERM'].includes(setupRefusal.causeCode),
+      `expected a permission refusal from mkdtempSync, received ${setupRefusal.causeCode}`,
+    );
+  } finally {
+    chmodSync(unwritableTempRoot, 0o700);
+    rmSync(failureRoot, { recursive: true, force: true });
   }
+
+  console.log(JSON.stringify(Object.freeze({
+    schemaVersion: 'snapback.retained-process-table-negative.v1',
+    processTableSource: retainedHarnessProcessTable,
+    processTableSourceAttestation: retainedHarnessProcessTableAttestation,
+    exactSupportedRequestShapes: Object.freeze([
+      'pid=,ppid=,pgid=,lstart=',
+      'pid=,ppid=,pgid=,lstart=,command=',
+    ]),
+    refusals: Object.freeze({
+      inheritedSourceWithoutPreload: inheritedRefusal.code,
+      unknownColumnShape: unknownColumns.error.code,
+      helperSetupFailure: setupRefusal.code,
+      helperSetupCause: setupRefusal.causeCode,
+    }),
+  })));
+}
+
+if (retainedProcessTableNegativeOnly) {
+  runRetainedProcessTableNegativeSuite();
+  process.exit(0);
 }
 
 if (!metroFreshnessOnly) {
@@ -275,6 +488,14 @@ async function withExclusiveFileLock(path, operation, { holdMs = 0 } = {}) {
   }
 }
 
+// @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+// — this grade is injected fixture input; this harness does not exercise the
+// separate-runtime pre-I/O refusal required to establish the grade.
+const retainedNativeCustodyGradeFixture = Object.freeze({
+  value: 'single-runtime',
+  provenance: 'fixture-declared',
+});
+
 function persistentNativeCustodyModule(path, calls, { holdCasLockMs = 0 } = {}) {
   return Object.freeze({
     async platformGrade() {
@@ -282,7 +503,7 @@ function persistentNativeCustodyModule(path, calls, { holdCasLockMs = 0 } = {}) 
       return Object.freeze({
         status: 'ok',
         os: 'ios',
-        grade: 'single-runtime',
+        grade: retainedNativeCustodyGradeFixture.value,
         carrier: 'process-persistent-file-native-module-stand-in',
         mechanism: 'exclusive-lock-rename-file-cas-test-double',
         moduleVersion: 'retained-session-harness.v1',
@@ -397,7 +618,7 @@ async function runRetainedCustodyChild() {
     ready.binding.provenance.supervisorGeneration,
     expectedSupervisorGeneration,
   );
-  assert.equal(ready.custody.grade, 'single-runtime');
+  assert.equal(ready.custody.grade, retainedNativeCustodyGradeFixture.value);
   assert.equal(ready.custody.carrier, 'expo-native-injected');
   assert.equal(ready.custody.mechanism, 'exclusive-lock-rename-file-cas-test-double');
   assert.equal(nativeFactoryCalls, 1, 'the provider must call the native custody factory exactly once');
@@ -429,6 +650,7 @@ async function runRetainedCustodyChild() {
     storageArm: Object.freeze({
       providerFactoryCalls: nativeFactoryCalls,
       grade: ready.custody.grade,
+      gradeProvenance: retainedNativeCustodyGradeFixture.provenance,
       carrier: ready.custody.carrier,
       nativeGradeCarrier: 'process-persistent-file-native-module-stand-in',
       mechanism: ready.custody.mechanism,
@@ -1181,10 +1403,14 @@ function authSessionFactsForId(databasePath, sessionId) {
 }
 
 function startRetainedHarnessChild({ flag, env, schemaVersion, timeoutMs = 60_000 }) {
+  const childEnvironment = { ...process.env };
+  delete childEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE;
+  delete childEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER;
+  delete childEnvironment.SNAPBACK_RETAINED_PROCESS_TABLE_ATTESTATION;
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), flag], {
     cwd: packageRoot,
     env: {
-      ...process.env,
+      ...childEnvironment,
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
       ...env,
     },
@@ -1396,7 +1622,11 @@ async function runRetainedSessionLifecycleSuite() {
       custodyPath,
     });
     assert.equal(signedOutProcess.supervisorGeneration, generation);
-    assert.equal(signedOutProcess.storageArm.grade, 'single-runtime');
+    assert.equal(signedOutProcess.storageArm.grade, retainedNativeCustodyGradeFixture.value);
+    assert.equal(
+      signedOutProcess.storageArm.gradeProvenance,
+      retainedNativeCustodyGradeFixture.provenance,
+    );
     assert.equal(signedOutProcess.storageArm.carrier, 'expo-native-injected');
     assert.equal(signedOutProcess.storageArm.processPersistent, true);
     assert.equal(signedOutProcess.storageArm.providerFactoryCalls, 1);
@@ -1415,7 +1645,11 @@ async function runRetainedSessionLifecycleSuite() {
     assert.notEqual(restartedProcess.pid, signedOutProcess.pid, 'the app must relaunch in a new OS process');
     assert.equal(restartedProcess.supervisorGeneration, generation);
     assert.equal(supervisor.supervisorGeneration, generation, 'the supervisor must never restart');
-    assert.equal(restartedProcess.storageArm.grade, 'single-runtime');
+    assert.equal(restartedProcess.storageArm.grade, retainedNativeCustodyGradeFixture.value);
+    assert.equal(
+      restartedProcess.storageArm.gradeProvenance,
+      retainedNativeCustodyGradeFixture.provenance,
+    );
     assert.equal(restartedProcess.storageArm.carrier, 'expo-native-injected');
     assert.equal(restartedProcess.storageArm.processPersistent, true);
     assert.equal(restartedProcess.beforeBootCustody.authorityKind, 'anonymous');
@@ -1720,6 +1954,7 @@ async function runRetainedSessionLifecycleSuite() {
     const structured = Object.freeze({
       schemaVersion: 'snapback.retained-development-session-lifecycle.v1',
       processTableSource: retainedHarnessProcessTable,
+      processTableSourceAttestation: retainedHarnessProcessTableAttestation,
       variants: Object.freeze([surface1, surface2]),
     });
     console.log(JSON.stringify(structured));
@@ -2036,6 +2271,7 @@ async function runSupervisedWebSignOutReloadSuite() {
       schemaVersion: 'snapback.supervised-web-signout-reload.v1',
       surface: 'HTTP-level stand-in for a browser reload (browser control unavailable)',
       processTableSource: retainedHarnessProcessTable,
+      processTableSourceAttestation: retainedHarnessProcessTableAttestation,
       reproduced: false,
       supervisorGeneration: generation,
       supervisorRestarted: false,

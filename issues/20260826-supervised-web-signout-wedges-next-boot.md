@@ -66,15 +66,18 @@ It ran with the qualified `target/debug/snapback` binary and exited 0.
 The first child process booted through the production Expo provider's native
 custody selection, signed out, and exited. A second child PID then read the
 same custody file and booted against the same still-running supervisor. The
-provider reported `grade: single-runtime`, `carrier: expo-native-injected`, and
-`mechanism: exclusive-lock-rename-file-cas-test-double`. Unlike the earlier
-stand-in, that mechanism now serializes the revision comparison and rename
-under an exclusive cross-process file lock. A separate contention arm launched
-PIDs `94853` and `94854` against expected revision 1: the first committed
+injected fixture declared `grade: single-runtime`, and the receipt marks that
+input `gradeProvenance: fixture-declared`; this arm does not observe the
+separate-runtime pre-I/O refusal required to establish that grade. The provider
+reported `carrier: expo-native-injected` and
+`mechanism: exclusive-lock-rename-file-cas-test-double`. That mechanism
+serializes the revision comparison and rename under an exclusive cross-process
+file lock. A separate contention arm launched PIDs `88732` and `88742` against
+expected revision 1: the first committed
 revision 2, the second reported `cas-stale` after observing revision 2, and the
-settled file remained at revision 2. The lifecycle PIDs were `94863` and
-`94877`, and both observed supervisor generation
-`supervisor-e28eab05-0d33-45c2-b0ae-9d96cadef8c8`.
+settled file remained at revision 2. The lifecycle PIDs were `88757` and
+`88763`, and both observed supervisor generation
+`supervisor-09b1669e-fd58-4fc2-9305-346b7c4ec40d`.
 
 The settled record visible to the second process before boot was anonymous at
 revision 5 and contained neither a current nor pending bearer. The second
@@ -130,14 +133,16 @@ of those remaining sequences reproduces the record-lifecycle gap.
 The harness emitted this structured result verbatim:
 
 ```json
-{"schemaVersion":"snapback.retained-development-session-lifecycle.v1","processTableSource":"libproc-native-helper","variants":[{"variant":"process-restart-retained-native-custody","surface":"client process-persistent custody","reached":true,"reproduced":false,"proof":{"processIds":[94863,94877],"supervisorGeneration":"supervisor-e28eab05-0d33-45c2-b0ae-9d96cadef8c8","supervisorRestarted":false,"storageArm":{"providerFactoryCalls":1,"grade":"single-runtime","carrier":"expo-native-injected","nativeGradeCarrier":"process-persistent-file-native-module-stand-in","mechanism":"exclusive-lock-rename-file-cas-test-double","processPersistent":true,"nativeOperations":["platformGrade","read","read","read","read","read","read","read","read","read","compareAndReplace","read","read","compareAndReplace","read","read","read","read","read","read","read","read","read","read","read"]},"custodyCasContention":{"mechanism":"exclusive-lock-rename-file-cas-test-double","processIds":[94853,94854],"competingExpectedRevision":1,"winnerProposedRevision":2,"loserProposedRevision":3,"loserStatus":"cas-stale","loserObservedRevision":2,"finalRevision":2},"recordBeforeRestartBoot":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false}},"result":{"afterSignOut":{"principalStatus":"anonymous","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false},"diagnosticCodes":[]},"afterRestartFreshSignIn":{"principalStatus":"authenticated","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":7,"authorityEpoch":3,"authorityKind":"session","bearerPresent":true,"pendingBearerPresent":false},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}},{"variant":"successor-reload-plus-stashed-replacement-before-sign-out","surface":"one-shot supervisor pendingAuthority","reached":true,"reproduced":false,"proof":{"supervisorGeneration":"supervisor-e28eab05-0d33-45c2-b0ae-9d96cadef8c8","supervisorRestarted":false,"mintCountAfterStash":4,"mintCountAfterSuccessorBoot":4,"pendingAuthorityConsumedWithoutMint":true,"ordinaryReloadPopulatedPendingAuthority":false,"pendingAuthorityEvidence":"behavioral-supervisor-inspection","pendingAuthorityPopulatedBy":"replaceAuthority-same-email","sameEmailUser":true,"distinctSessionFamilies":true,"productionStashArm":{"verb":"dev-fresh","supervisorGeneration":"supervisor-e28eab05-0d33-45c2-b0ae-9d96cadef8c8","supervisorRestarted":false,"predecessorSignOutDiagnosticCode":"SNAPBACK_AUTH_REQUIRED","logoutInvalidationTested":false,"mintCountAfterStash":6,"mintCountAfterSuccessorBoot":6,"pendingAuthorityConsumedWithoutMint":true}},"result":{"predecessor":{"sessionId":"ses_01m1132ytqea0rftbp97rk3hgt","revoked":true},"stashedSuccessor":{"sessionId":"ses_01m11330q0ez794c9ng5e41gdq","revoked":false,"principalStatus":"authenticated"},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false,"productionStashArm":{"predecessorSignOut":{"status":"failed","diagnosticCode":"SNAPBACK_AUTH_REQUIRED"},"successorBoot":{"principalStatus":"authenticated","diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}}}]}
+{"schemaVersion":"snapback.retained-development-session-lifecycle.v1","processTableSource":"libproc-native-helper","processTableSourceAttestation":"preload-helper-probed","variants":[{"variant":"process-restart-retained-native-custody","surface":"client process-persistent custody","reached":true,"reproduced":false,"proof":{"processIds":[88757,88763],"supervisorGeneration":"supervisor-09b1669e-fd58-4fc2-9305-346b7c4ec40d","supervisorRestarted":false,"storageArm":{"providerFactoryCalls":1,"grade":"single-runtime","gradeProvenance":"fixture-declared","carrier":"expo-native-injected","nativeGradeCarrier":"process-persistent-file-native-module-stand-in","mechanism":"exclusive-lock-rename-file-cas-test-double","processPersistent":true,"nativeOperations":["platformGrade","read","read","read","read","read","read","read","read","read","compareAndReplace","read","read","compareAndReplace","read","read","read","read","read","read","read","read","read","read","read"]},"custodyCasContention":{"mechanism":"exclusive-lock-rename-file-cas-test-double","processIds":[88732,88742],"competingExpectedRevision":1,"winnerProposedRevision":2,"loserProposedRevision":3,"loserStatus":"cas-stale","loserObservedRevision":2,"finalRevision":2},"recordBeforeRestartBoot":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false}},"result":{"afterSignOut":{"principalStatus":"anonymous","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false},"diagnosticCodes":[]},"afterRestartFreshSignIn":{"principalStatus":"authenticated","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":7,"authorityEpoch":3,"authorityKind":"session","bearerPresent":true,"pendingBearerPresent":false},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}},{"variant":"successor-reload-plus-stashed-replacement-before-sign-out","surface":"one-shot supervisor pendingAuthority","reached":true,"reproduced":false,"proof":{"supervisorGeneration":"supervisor-09b1669e-fd58-4fc2-9305-346b7c4ec40d","supervisorRestarted":false,"mintCountAfterStash":4,"mintCountAfterSuccessorBoot":4,"pendingAuthorityConsumedWithoutMint":true,"ordinaryReloadPopulatedPendingAuthority":false,"pendingAuthorityEvidence":"behavioral-supervisor-inspection","pendingAuthorityPopulatedBy":"replaceAuthority-same-email","sameEmailUser":true,"distinctSessionFamilies":true,"productionStashArm":{"verb":"dev-fresh","supervisorGeneration":"supervisor-09b1669e-fd58-4fc2-9305-346b7c4ec40d","supervisorRestarted":false,"predecessorSignOutDiagnosticCode":"SNAPBACK_AUTH_REQUIRED","logoutInvalidationTested":false,"mintCountAfterStash":6,"mintCountAfterSuccessorBoot":6,"pendingAuthorityConsumedWithoutMint":true}},"result":{"predecessor":{"sessionId":"ses_01m1197wwsek38q7sds6g5gh5s","revoked":true},"stashedSuccessor":{"sessionId":"ses_01m1197ys3fpeva72bbq4ak47m","revoked":false,"principalStatus":"authenticated"},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false,"productionStashArm":{"predecessorSignOut":{"status":"failed","diagnosticCode":"SNAPBACK_AUTH_REQUIRED"},"successorBoot":{"principalStatus":"authenticated","diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}}}]}
 ```
 
 On this sandbox `/bin/ps` was unavailable. The corrected harness therefore
 used a compiled macOS `libproc` helper and recorded
-`processTableSource: libproc-native-helper`; PID, PPID, PGID, and start time
-came from `proc_bsdinfo`. It no longer substitutes `lsof` fields or invented
-identity values.
+`processTableSource: libproc-native-helper` only after the preload probed that
+helper and installed the exact-column adapter; the receipt records
+`processTableSourceAttestation: preload-helper-probed`. PID, PPID, PGID, and
+start time came from `proc_bsdinfo`. It no longer substitutes `lsof` fields,
+invented identity values, or an inherited source label.
 
 ## Lane C supervised-web follow-up (2026-08-27)
 
@@ -161,23 +166,23 @@ anonymous by default. The initial page-shaped bootstrap GET returned authority
 `unavailable` and no session id. The headless external-user-agent stand-in then
 drove the same shared-development broker protocol as the Apple provider button,
 and the ordinary coordinator established session
-`ses_01m1133mxcejd9s2rg3z9svct2`. Sign-out revoked that exact server row.
+`ses_01m119aft8fvfr18e4cskr5cxp`. Sign-out revoked that exact server row.
 
 The reload-shaped bootstrap GET, against the same supervisor generation
-`supervisor-e38f31f6-1cf3-4697-8f20-aa8b15611cd6`, again returned authority
+`supervisor-f8126dc2-67c6-4d31-8384-01a99054f026`, again returned authority
 `unavailable` and no session id. The replacement page booted anonymous
 `ready`; the ended provider session was never present in any bootstrap
 exchange. The mandatory positive then drove the Google provider flow against
 that same never-restarted supervisor. It authenticated as live session
-`ses_01m1133n0qf32b7ggcr7m7ew53`.
+`ses_01m119afynfmj8a0zmptbtxt48`.
 
 ### Former boot-authenticated posture
 
 A second diagnostic arm opted web into supervised adoption to represent the
 former boot-authenticated posture. Its bootstrap POST returned live session
-`ses_01m1133n37f07v6ze2szjwtsfk`; sign-out revoked that exact server row. The
+`ses_01m119ag1yezjrckzavem12aw0`; sign-out revoked that exact server row. The
 next explicit-adoption reload sent a new POST and received distinct live
-session `ses_01m1133n77ekdtsthzr7zawm0w`. The supervisor did not replay the
+session `ses_01m119ag6vfg099zjvs8z4t3n3`. The supervisor did not replay the
 ended session.
 
 Every diagnostic-code list was exactly empty, and
@@ -198,5 +203,5 @@ specific differences for the author to identify or reproduce.
 The harness emitted this structured result verbatim:
 
 ```json
-{"schemaVersion":"snapback.supervised-web-signout-reload.v1","surface":"HTTP-level stand-in for a browser reload (browser control unavailable)","processTableSource":"libproc-native-helper","reproduced":false,"supervisorGeneration":"supervisor-e38f31f6-1cf3-4697-8f20-aa8b15611cd6","supervisorRestarted":false,"exchanges":[{"phase":"initial-page-bootstrap","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"reload-after-provider-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"POST","authorityStatus":"ready","sessionId":"ses_01m1133n37f07v6ze2szjwtsfk","serverRevoked":false},{"phase":"explicit-adoption-reload","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-reload","method":"POST","authorityStatus":"ready","sessionId":"ses_01m1133n77ekdtsthzr7zawm0w","serverRevoked":false}],"providerButtonPath":{"endedSession":{"sessionId":"ses_01m1133mxcejd9s2rg3z9svct2","serverRevoked":true},"reload":{"principalStatus":"anonymous","exchangeAuthorityStatus":"unavailable","exchangeSessionId":null},"positiveAfterReload":{"provider":"google","principalStatus":"authenticated","sessionId":"ses_01m1133n0qf32b7ggcr7m7ew53","serverRevoked":false}},"explicitAdoptionDiagnostic":{"endedSession":{"sessionId":"ses_01m1133n37f07v6ze2szjwtsfk","serverRevoked":true},"reloadSession":{"sessionId":"ses_01m1133n77ekdtsthzr7zawm0w","sameAsEnded":false,"serverRevoked":false}},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}
+{"schemaVersion":"snapback.supervised-web-signout-reload.v1","surface":"HTTP-level stand-in for a browser reload (browser control unavailable)","processTableSource":"libproc-native-helper","processTableSourceAttestation":"preload-helper-probed","reproduced":false,"supervisorGeneration":"supervisor-f8126dc2-67c6-4d31-8384-01a99054f026","supervisorRestarted":false,"exchanges":[{"phase":"initial-page-bootstrap","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"reload-after-provider-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"POST","authorityStatus":"ready","sessionId":"ses_01m119ag1yezjrckzavem12aw0","serverRevoked":false},{"phase":"explicit-adoption-reload","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-reload","method":"POST","authorityStatus":"ready","sessionId":"ses_01m119ag6vfg099zjvs8z4t3n3","serverRevoked":false}],"providerButtonPath":{"endedSession":{"sessionId":"ses_01m119aft8fvfr18e4cskr5cxp","serverRevoked":true},"reload":{"principalStatus":"anonymous","exchangeAuthorityStatus":"unavailable","exchangeSessionId":null},"positiveAfterReload":{"provider":"google","principalStatus":"authenticated","sessionId":"ses_01m119afynfmj8a0zmptbtxt48","serverRevoked":false}},"explicitAdoptionDiagnostic":{"endedSession":{"sessionId":"ses_01m119ag1yezjrckzavem12aw0","serverRevoked":true},"reloadSession":{"sessionId":"ses_01m119ag6vfg099zjvs8z4t3n3","sameAsEnded":false,"serverRevoked":false}},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}
 ```
