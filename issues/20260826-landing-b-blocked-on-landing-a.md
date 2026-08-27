@@ -72,3 +72,18 @@ evidence.
 Land Landing A, then re-run this test in the B lane and land B if it passes.
 If it still fails after A lands, that is a new finding and needs its own
 triage rather than a fixture change.
+
+## Custody (2026-08-27)
+
+The lane was not on the control plane, the M1 Max build lane, bones, Durand,
+Minisforum, the Office M1, the Apartment Air, or the EPYC. It is on the Hetzner
+host `expo-build-450b` (`100.85.211.16`) at `~/lanes/landingB`, whose `origin`
+points at the EPYC checkout rather than GitHub — which is why "nothing pushed"
+had left thirty commits reachable from exactly one disk.
+
+They are now on GitHub at `lane/landingB-20260827` (`603f19d91`, thirty commits
+over merge-base `13df62466`). The lane worktree is unchanged and still clean.
+
+Securing an unpushed lane to a branch is not landing it and makes no claim about
+its content; the ordering constraint above is unaffected. It exists so the work
+survives the host.
