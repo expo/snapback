@@ -10462,17 +10462,17 @@ fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Resp
     );
     headers.insert(
         HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
-        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+        HeaderValue::from_static(crate::identity::git_commit()),
     );
     response
 }
 
-fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
+fn embedded_guide_response(file: crate::guide::EmbeddedGuideFile) -> Response {
     guide_bound_response(file.bytes, file.content_type)
 }
 
 fn embedded_guide_path(path: &str) -> Response {
-    crate::guide::file(path)
+    crate::guide::served_file(path)
         .map(embedded_guide_response)
         .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response())
 }
@@ -10505,7 +10505,7 @@ async fn served_http_routes() -> Response {
     );
     response.headers_mut().insert(
         HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
-        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+        HeaderValue::from_static(crate::identity::git_commit()),
     );
     response
 }

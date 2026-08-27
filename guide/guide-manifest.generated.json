@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:b8b02daccd48c3238194d6632cf3f0d45a5be19079598c0bce155f997db274df"
+    "sourceDigest": "sha256:aae8d472e9af314e7b2c452583f8c35b0c9dcfc40bd06857bfc7118254bc7c5c"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -3777,7 +3777,7 @@
       "examples": [],
       "reviewed": "2026-08-25",
       "reviewedAuthoritiesDigest": "sha256:636aab1ee1ab3ffe0712f132f100f289ddd4c3ccae1af57e168e6a1af68d6b82",
-      "sha256": "27003167ad37484354237cfd2d67c7c2f3c71fa87ebc07d21e12450cbfa3e9c3",
+      "sha256": "6d4df3baac90b0195af9d8bd91e95d689af76b85fa8291916a488f75f491834b",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -6160,8 +6160,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:3136fe356f93276d1343767bce435efa549a5e6bf7ab6c336ee61fe980a7bff5",
-      "sha256": "5564fd0884188d851bbdc2ab9c3cdd7905972fd760bd81750f3f69df7cf16576",
+      "reviewedAuthoritiesDigest": "sha256:383379a0106c8a94d9668f2fdfa585efd4b435d6fad897216e8a4c0a4fd44524",
+      "sha256": "896257a81b51ded52681c75ed031fedad6e487540cb54fbdffee185c6fb44f64",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -13883,8 +13883,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2530776,
-      "sha256": "7eb277d2a9db58e51c365a1f82ad3a96af5ac06f0648a67f44ff76d083e6c28a",
+      "bytes": 2528760,
+      "sha256": "b1c733c04c010b67f5eaf94d19049546ede02b2f4e1df0885653ebf8df58524f",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -13893,13 +13893,13 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:7aa56b02854485113ad75623ac2549db49d68771abc3bd4f060f08fed20994a8",
+      "sourceDigest": "sha256:795b374303300e3d37ed87cf21a1f9236ac59a2dc64c30506600ec09707d5e31",
       "codes": 3580,
       "emittingSites": 9615,
       "receivedSites": 378,
       "reservedSites": 11,
       "environmentVariables": 188,
-      "environmentSites": 368
+      "environmentSites": 356
     }
   },
   "capabilities": {
@@ -14043,16 +14043,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 4107374,
-      "sha256": "5acc05b64b64957525b077bd386c306acfec4652badc2198c7e5621d396da584"
+      "bytes": 4107484,
+      "sha256": "bee99eeeb6d6e7709f2543f1288cb3225fd2765afe8d4b1cd161dcbbaabab686"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 195370,
-        "sha256": "a11362aa113325c6e700c9ed9d6d4b70fb7aef71cc5c4619e98ecc3cc5294f40"
+        "bytes": 195498,
+        "sha256": "b9687f8fb0a313442b16aa7d70f3ea4a0342b296544d7beb571fe5aba923fd08"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -14121,8 +14121,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2290648,
-        "sha256": "6cb8f2329d7f6aa9198948af0cf663e8a97d07e5dde38d0085e9c1956ec0b71b"
+        "bytes": 2290630,
+        "sha256": "99591d9b3b452396d61e6da06ae515441077f9b751d3aa8f0c65c27f7194a3f8"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -14147,5 +14147,5 @@
       }
     }
   },
-  "contentHash": "b8b02daccd48c3238194d6632cf3f0d45a5be19079598c0bce155f997db274df"
+  "contentHash": "aae8d472e9af314e7b2c452583f8c35b0c9dcfc40bd06857bfc7118254bc7c5c"
 }

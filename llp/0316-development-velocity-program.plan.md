@@ -5,7 +5,9 @@
 **Systems:** Build, Verification, CI, Project, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5, orchestrating codex gpt-5.6-sol)
 **Date:** 2026-08-27
-**Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
+**Revised:** 2026-08-27 (Phase 4 implemented and measured, including the
+literal Git-ref transition and the controlling server edit loops;
+Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change) and its cargo-nextest tail is
 implemented with a pinned runner, typed missing-tool refusal, and deterministic
@@ -316,9 +318,10 @@ across four settings — which is why they ran in a throwaway worktree.
 ### Phase 4 — Leaf crates for non-Rust inputs
 
 - `snapback-guide-embed`: owns today's `emit_embedded_guide` build step and
-  exposes the artifact bytes. `snapback-server` depends on it; the
-  `rerun-if-changed=../../guide` line moves with it. A guide edit then
-  recompiles one small crate and relinks.
+  exposes the artifact bytes. The `rerun-if-changed=../../guide` line moves
+  with it; the server decoder receives the bytes through a stable native
+  boundary, so a Guide edit recompiles only the changing leaves and final
+  composition/link units.
 - `snapback-build-identity`: owns the git stamp. Kernel's embedded control
   catalog stops stamping `buildIdentity` at build time and stamps it at
   serve time from this crate (the kernel test above moves with it), so the
@@ -329,6 +332,88 @@ across four settings — which is why they ran in a throwaway worktree.
 
 Acceptance: a guide edit → `cargo build -p snapback` recompiles no crate
 larger than the leaf; a commit → only leaf + relink.
+
+**Implemented and correctively measured 2026-08-27.**
+`snapback-guide-embed` is now the sole embedded-artifact producer and direct
+owner of the recursive `guide/**` input formerly held by the server build
+script. It emits the same length-prefixed inert artifact with the manifest's
+entire `buildIdentity` removed. The server retains the committed, fail-closed
+decoder and reconstructs the served manifest identity at runtime:
+`sourceDigest` remains `sha256:<contentHash>`, while `commit` comes from the
+enclosing binary's identity leaf. Raw artifact bytes therefore never vary for
+a Git-only change.
+
+`snapback-build-identity` is the sole Cargo owner of Git probes and Git
+`rerun-if-*` directives. Kernel re-exports a stable runtime API to preserve
+downstream call sites. Kernel's build script now reads only the generated semantic
+control catalog, removes `buildIdentity`, and writes identity-free bytes. The
+kernel stamps `{sourceCommit, dirty}` when the catalog is first accessed at
+runtime. Versioned native symbols carry the changing identity values and Guide
+bytes into stable kernel/server code, keeping those values out of dependent
+Rust metadata. Final façade/tool composition anchors the providers; package
+build scripts retain only their native loader-path responsibilities and never
+inspect Git. The CLI package's standalone binary enables an optional provider
+feature and anchors the leaves itself; the root façade disables that feature
+and supplies the provider, so the ordinary root build still has no changing
+identity→CLI library edge. This preserves LLP 0031's
+conservative `unknown`/dirty fallback and `/health` startup nonce semantics
+while making Git invalidation terminate at one observable package build
+script. `snapback-guide-embed` is the sole direct `guide/**` watcher and
+publishes its generated artifact path as Cargo metadata. The identity leaf
+watches that producer-owned output, then runs its sole Git probe over the full
+declared runtime-input closure (still including `guide/`), so a Guide edit also
+recomputes the conservative dirty bit without a second Guide-tree watcher.
+
+The literal first leaf dependency placement failed acceptance: after a real
+Guide edit plus `generate-guide-manifest`, the orchestrator measured **12.04 s**
+and all 11 workspace crates rebuilt because Guide→server and
+identity→kernel were ordinary changing Rust metadata edges. After the native
+boundary correction, the first real edit/projection proof measured **4.04 s**
+(timing `20260827T223415928Z`). After the candidate was finalized and rewarmed,
+the required real edit plus generator workflow was repeated and measured
+**1.99 s** (timing `20260827T224303764Z`). After the standalone CLI
+composition edge was closed and the root feature split rewarmed, the final
+real Guide probe measured **2.17 s** (timing `20260827T225703063Z`): Guide
+build script **0.38 s**, Guide leaf **0.13 s**, identity build script **0.20 s**,
+identity leaf **0.06 s**, façade composition **0.13 s**, and final binary link
+**1.10 s**.
+Kernel, types, auth, sync, activation, services, engine, server, and CLI were
+all Fresh. Restoring the exact final probe and regenerating measured **2.11 s**
+with the same unit set (timing `20260827T225820776Z`); the earlier subsequent
+true no-op was **0.27 s**.
+
+A value-changing identity probe performed without mutating `.git` was repeated
+after the final feature split and measured **1.85 s** (timing
+`20260827T225854277Z`): identity build script **0.36 s**, identity leaf
+**0.05 s**, façade composition **0.10 s**, and final binary link **1.06 s**.
+The Guide leaf and every runtime crate were Fresh. The ordinary unoverridden
+build was then rerun to restore the worktree's real identity. The landing
+orchestrator then made a temporary empty commit
+(`e5c25a039a65cbe6588816dfb8e30e16749b1368`) and measured the literal
+branch-ref transition at **2.20 s**: only the identity leaf and final façade
+composition/link rebuilt; Guide, kernel, server, and CLI were Fresh. The
+worktree was restored exactly to its pre-probe HEAD afterward.
+Against the Phase 7B1 accepted control, the same timestamp-only `server.rs`
+edit methodology measured production-binary wall **17.21 → 7.09 s** and
+server-test-binary wall **16.31 → 7.42 s**. These measurements prove both the
+changing-value boundary and the program's controlling edit loops.
+
+The two rows, all shifted ranks, and both downward edges are registered in
+`crates/allowed-dependencies.v1.json`, the workspace-graph checked projection,
+and LLP 0276. No membership exception or dependency waiver was added. The
+runtime-source binding includes both leaf crates, and a focused graph test
+fails unless exactly the identity leaf owns Git inputs, exactly the Guide leaf
+directly declares the embedded-artifact `rerun-if-changed=../../guide`, the
+identity leaf watches the producer artifact rather than the Guide tree, and its
+declared dirty-input closure still contains `guide/`.
+
+Proof record: (1) unit tests assert both embedded artifacts lack identity and
+their runtime projections match the enclosing identity; (2) Guide HTTP/MCP
+tests assert the served manifest and identity headers agree; (3) workspace
+graph/source-binding tests prove ownership and downward edges; and (4) the real
+Guide edit and value-changing identity measurements above prove the accepted
+unit boundaries. The literal Git-ref proof additionally verifies that the
+Guide, kernel, server, and CLI build scripts do not rerun for a commit.
 
 ### Phase 5 — Link targets
 
@@ -607,6 +692,7 @@ regeneration-in-CI.
 | Baseline (fresh control worktree) | f16d432db | 17.5 s | — | 11.0 s (kernel) | 18 s on a *true no-op* | same tree, uncontended `target/`; the primary checkout's 68 s includes its 28 GB shared target and `--all-targets` residue |
 | Phases 1–2 | this landing | 17–18 s (unchanged) | — | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
 | Phase 3 | closed, nothing kept | 16.8–22.4 s | — | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
+| Phase 4 — leaf invalidation | this landing | **17.21 → 7.09 s** | **16.31 → 7.42 s** | not in Phase 4 scope | **22.11 → 2.20 s** | Real Guide edit: **18.62 → 2.17 s**, rebuilding only Guide/identity leaves + **0.13 s** façade composition + **1.10 s** link; literal empty-commit ref proof rebuilt only the identity leaf + façade/link; no-op **0.26 s**. |
 | Phase 5 | this landing | unchanged (single-binary loop) | — | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
 | Phase 5 — nextest | this landing | unchanged (runner-only change) | — | unchanged | — | `cargo test -p snapback --tests`: **505.68 s**; `cargo nextest run -p snapback --tests`: **294.08 s** (**211.60 s / 41.8% faster**); 174/174 failure names identical; JUnit: 718 tests, 540 pass / 174 fail / 4 skipped / 0 errors |
 | Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
@@ -640,6 +726,7 @@ so here rather than being quietly dropped.
 Phases 1–2 landed together on 2026-08-27; Phase 3 closed the same day with
 nothing to land; Phase 5's consolidation and cargo-nextest tail landed the same
 day. Phase 7 Stage A landed next and reduced the server test unit without yet
-removing it from the critical path. Next: Phase 4 (bounded by the link floor),
-Phase 8, and the Phase 6 precondition. Phase 6 itself is a decision, not code,
-and can be taken at any time.
+removing it from the critical path. Phase 4's Guide-edit, literal Git-ref, and
+controlling server-edit acceptance measurements are proven in this landing.
+Next program work is Phase 8 and the Phase 6 precondition. Phase 6 itself is a
+decision, not code, and can be taken at any time.

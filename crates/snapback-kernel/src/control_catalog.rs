@@ -10,34 +10,54 @@
 //! projects the generated join; invocation admission remains authoritative.
 
 use serde_json::{Value, json};
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 pub const CATALOG_SCHEMA_VERSION: &str = "snapback.control-catalog.v1";
 pub const INSTANCE_SCHEMA_VERSION: &str = "snapback.control-catalog-instance.v1";
 pub const CATALOG_DIGEST_HEADER: &str = "x-snapback-control-catalog-digest";
 
-pub static BUILD_CATALOG_BYTES: &[u8] = include_bytes!(concat!(
+const EMBEDDED_BUILD_CATALOG_BYTES: &[u8] = include_bytes!(concat!(
     env!("OUT_DIR"),
     "/embedded-control-catalog.v1.json"
 ));
 
-static BUILD_CATALOG: OnceLock<Value> = OnceLock::new();
+static BUILD_CATALOG: LazyLock<Value> = LazyLock::new(|| {
+    let mut catalog: Value = serde_json::from_slice(EMBEDDED_BUILD_CATALOG_BYTES)
+        .expect("compiled control catalog must be valid JSON");
+    assert_eq!(
+        catalog.get("schemaVersion").and_then(Value::as_str),
+        Some(CATALOG_SCHEMA_VERSION),
+        "compiled control catalog has the wrong schemaVersion"
+    );
+    assert!(
+        catalog_digest(&catalog).is_some(),
+        "compiled control catalog has no catalogDigest"
+    );
+    assert!(
+        catalog.get("buildIdentity").is_none(),
+        "compiled control catalog artifact must be identity-free"
+    );
+    catalog
+        .as_object_mut()
+        .expect("compiled control catalog is an object")
+        .insert(
+            "buildIdentity".to_owned(),
+            json!({
+                "sourceCommit": crate::identity::git_commit(),
+                "dirty": crate::identity::git_dirty(),
+            }),
+        );
+    catalog
+});
+
+/// Exact served bytes for the build catalog after the enclosing binary
+/// identity has been stamped at runtime.
+pub static BUILD_CATALOG_BYTES: LazyLock<Vec<u8>> = LazyLock::new(|| {
+    serde_json::to_vec_pretty(build_catalog()).expect("runtime-stamped catalog must serialize")
+});
 
 pub fn build_catalog() -> &'static Value {
-    BUILD_CATALOG.get_or_init(|| {
-        let catalog: Value = serde_json::from_slice(BUILD_CATALOG_BYTES)
-            .expect("compiled control catalog must be valid JSON");
-        assert_eq!(
-            catalog.get("schemaVersion").and_then(Value::as_str),
-            Some(CATALOG_SCHEMA_VERSION),
-            "compiled control catalog has the wrong schemaVersion"
-        );
-        assert!(
-            catalog_digest(&catalog).is_some(),
-            "compiled control catalog has no catalogDigest"
-        );
-        catalog
-    })
+    &BUILD_CATALOG
 }
 
 pub fn catalog_digest(catalog: &Value) -> Option<&str> {
@@ -159,7 +179,7 @@ mod tests {
 
     #[test]
     fn embedded_catalog_build_identity_matches_the_enclosing_binary() {
-        let binary = snapback_types::identity::binary_identity();
+        let binary = crate::identity::binary_identity();
         let catalog_identity = &build_catalog()["buildIdentity"];
         assert_eq!(
             catalog_identity["sourceCommit"].as_str(),
@@ -167,13 +187,21 @@ mod tests {
         );
         assert_eq!(catalog_identity["dirty"].as_bool(), Some(binary.git_dirty));
 
-        // Outside a git checkout both build scripts omit their rustc-env
-        // stamps. The shared runtime contract then defaults conservatively,
-        // and the embedded catalog must follow those same defaults.
+        // Outside a git checkout the identity leaf omits its rustc-env stamps.
+        // The shared runtime contract then defaults conservatively, and the
+        // runtime-stamped catalog must follow those same defaults.
         if binary.git_commit == "unknown" {
             assert_eq!(catalog_identity["sourceCommit"], "unknown");
             assert_eq!(catalog_identity["dirty"], true);
         }
+
+        let inert: Value = serde_json::from_slice(EMBEDDED_BUILD_CATALOG_BYTES).unwrap();
+        assert!(
+            inert.get("buildIdentity").is_none(),
+            "the kernel artifact must not retain build-time Git identity"
+        );
+        let served: Value = serde_json::from_slice(BUILD_CATALOG_BYTES.as_slice()).unwrap();
+        assert_eq!(served, *build_catalog());
     }
 
     #[test]

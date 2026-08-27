@@ -1413,7 +1413,7 @@ async fn build_and_instance_control_catalogs_are_admin_read_gated_and_identity_b
     let build_bytes = to_bytes(build.into_body(), usize::MAX).await.unwrap();
     assert_eq!(
         build_bytes.as_ref(),
-        snapback::control_catalog::BUILD_CATALOG_BYTES,
+        snapback::control_catalog::BUILD_CATALOG_BYTES.as_slice(),
         "the HTTP build catalog must be the exact bytes embedded in the binary"
     );
     let build_json: Value = serde_json::from_slice(&build_bytes).unwrap();

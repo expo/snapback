@@ -318,11 +318,8 @@ pub fn run_phase1_benchmark(
 
 fn benchmark_environment() -> BenchmarkEnvironment {
     BenchmarkEnvironment {
-        build_commit: option_env!("SNAPBACK_BUILD_GIT_COMMIT")
-            .unwrap_or("unknown")
-            .to_owned(),
-        build_dirty: option_env!("SNAPBACK_BUILD_GIT_DIRTY")
-            .and_then(|value| value.parse::<bool>().ok()),
+        build_commit: snapback_kernel::identity::git_commit().to_owned(),
+        build_dirty: Some(snapback_kernel::identity::git_dirty()),
         os: std::env::consts::OS.to_owned(),
         architecture: std::env::consts::ARCH.to_owned(),
         profile: if cfg!(debug_assertions) {

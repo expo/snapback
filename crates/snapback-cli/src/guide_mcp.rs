@@ -66,9 +66,7 @@ fn page_description(page: &Value) -> anyhow::Result<String> {
 }
 
 fn embedded_manifest() -> anyhow::Result<Value> {
-    let file = guide::file("guide-manifest.generated.json")
-        .context("embedded Snapback Guide manifest is missing")?;
-    serde_json::from_slice(file.bytes).context("embedded Snapback Guide manifest is invalid")
+    Ok(guide::manifest().clone())
 }
 
 fn guide_identity(manifest: &Value) -> anyhow::Result<GuideIdentity> {
@@ -490,7 +488,7 @@ fn handle_request(request: Value) -> Option<Value> {
             let Some(resource) = resources.iter().find(|resource| resource.uri == uri) else {
                 return Some(failure(id, -32002, "Resource not found"));
             };
-            let Some(file) = guide::file(&resource.embedded_path) else {
+            let Some(file) = guide::served_file(&resource.embedded_path) else {
                 return Some(failure(id, -32603, "Embedded guide resource missing"));
             };
             let Ok(text) = std::str::from_utf8(file.bytes) else {
@@ -636,8 +634,12 @@ mod tests {
         let manifest = request(2, "resources/read", json!({ "uri": MANIFEST_URI }));
         assert_eq!(
             manifest["result"]["contents"][0]["text"],
-            std::str::from_utf8(guide::file("guide-manifest.generated.json").unwrap().bytes)
-                .unwrap()
+            std::str::from_utf8(
+                guide::served_file("guide-manifest.generated.json")
+                    .unwrap()
+                    .bytes
+            )
+            .unwrap()
         );
         let registry = request(
             3,

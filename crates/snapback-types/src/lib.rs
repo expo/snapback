@@ -22,6 +22,7 @@ pub mod diagnostic;
 pub mod ephemeral;
 pub mod error_tracking;
 pub mod exec_guard;
+pub mod guide_artifact;
 pub mod handler_wire;
 pub mod host_ops_contract;
 pub mod identity;

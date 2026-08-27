@@ -1115,11 +1115,13 @@ budget) plus [`surface-map.md`](./surface-map.md) (about 12 KiB under its 16 KiB
 budget). Then choose a section flat or specific page. The whole export remains
 available for bulk consumers, but is not the default reading recommendation.
 The checked source manifest carries only its content-derived
-`buildIdentity.sourceDigest`. At server compile time, `build.rs` adds
-`buildIdentity.commit` to the embedded manifest for the exact binary build;
-HTTP headers and MCP metadata therefore give every whole or section projection
-the same guide content hash and exact carrier commit without making the source
-record depend on the current checkout commit.
+`buildIdentity.sourceDigest`. The `snapback-guide-embed` leaf removes that
+identity when it builds the inert artifact. At serve time, the server
+reconstructs `buildIdentity` as exactly the content-derived `sourceDigest` plus
+the enclosing binary's runtime-stamped `commit`; HTTP headers and MCP metadata
+therefore give every whole or section projection the same guide content hash
+and exact carrier commit without making the source record depend on the current
+checkout commit.
 
 ## Running the checks in a fresh tree
 

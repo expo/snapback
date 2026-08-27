@@ -17,20 +17,22 @@ const RUST_VISIBILITY = String.raw`pub(?:\s*\([^)]*\)\s*|\s+)`;
 const OPTIONAL_RUST_VISIBILITY = String.raw`(?:${RUST_VISIBILITY})?`;
 
 const EXPECTED_CRATES = [
+  ['snapback-guide-embed', 'guide-artifact-leaf', 1, ['snapback-types']],
   ['snapback-types', 'shared-contract-types-leaf', 0, []],
-  ['snapback-kernel', 'storage-migration-kernel', 1, ['snapback-types']],
-  ['snapback-auth', 'auth-substrate', 2, ['snapback-kernel', 'snapback-types']],
-  ['snapback-activation', 'generation-activation-coordinator', 3, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
-  ['snapback-runtime', 'js-execution', 3, ['snapback-types']],
-  ['snapback-services', 'background-services', 3, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
-  ['snapback-sync', 'sync-realtime-engine', 3, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
-  ['snapback-engine', 'engine-coordinator', 4, ['snapback-activation', 'snapback-auth', 'snapback-kernel', 'snapback-runtime', 'snapback-services', 'snapback-sync', 'snapback-types']],
-  ['snapback-server', 'transport-adapters', 5, ['snapback-activation', 'snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-services', 'snapback-sync', 'snapback-types']],
-  ['snapback-cli', 'transport-adapters', 6, ['snapback-activation', 'snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
-  ['snapback', 'embed-facade', 7, ['snapback-activation', 'snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
-  ['snapback-conformance', 'proof-harness', 7, ['snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-server', 'snapback-types']],
-  ['snapback-harness', 'proof-harness', 7, ['snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-server', 'snapback-services']],
-  ['snapback-tools', 'dev-tools', 7, ['snapback-activation', 'snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
+  ['snapback-build-identity', 'build-identity-leaf', 2, ['snapback-guide-embed']],
+  ['snapback-kernel', 'storage-migration-kernel', 2, ['snapback-types']],
+  ['snapback-auth', 'auth-substrate', 3, ['snapback-kernel', 'snapback-types']],
+  ['snapback-activation', 'generation-activation-coordinator', 4, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
+  ['snapback-runtime', 'js-execution', 4, ['snapback-types']],
+  ['snapback-services', 'background-services', 4, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
+  ['snapback-sync', 'sync-realtime-engine', 4, ['snapback-auth', 'snapback-kernel', 'snapback-types']],
+  ['snapback-engine', 'engine-coordinator', 5, ['snapback-activation', 'snapback-auth', 'snapback-kernel', 'snapback-runtime', 'snapback-services', 'snapback-sync', 'snapback-types']],
+  ['snapback-server', 'transport-adapters', 6, ['snapback-activation', 'snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-services', 'snapback-sync', 'snapback-types']],
+  ['snapback-cli', 'transport-adapters', 7, ['snapback-activation', 'snapback-auth', 'snapback-build-identity', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
+  ['snapback', 'embed-facade', 8, ['snapback-activation', 'snapback-auth', 'snapback-build-identity', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
+  ['snapback-conformance', 'proof-harness', 8, ['snapback-auth', 'snapback-engine', 'snapback-kernel', 'snapback-server', 'snapback-types']],
+  ['snapback-harness', 'proof-harness', 8, ['snapback-auth', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-server', 'snapback-services']],
+  ['snapback-tools', 'dev-tools', 8, ['snapback-activation', 'snapback-auth', 'snapback-build-identity', 'snapback-cli', 'snapback-engine', 'snapback-kernel', 'snapback-runtime', 'snapback-server', 'snapback-services', 'snapback-sync', 'snapback-types']],
 ].map(([name, owner, rank, allowedWorkspaceDependencies]) => ({ name, owner, rank, allowedWorkspaceDependencies }));
 
 const EXPECTED_CONFINEMENT = [
@@ -1559,7 +1561,7 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
   assert(
     JSON.stringify([...memberNames].sort())
       === JSON.stringify(EXPECTED_CRATES.map((entry) => entry.name).sort()),
-    `workspace member set must exactly match the ${EXPECTED_CRATES.length}-crate Phase 2 matrix`,
+    `workspace member set must exactly match the ${EXPECTED_CRATES.length}-crate governed matrix`,
   );
   const defaultMembers = (metadata?.workspace_default_members ?? [])
     .map((id) => packagesById.get(id));

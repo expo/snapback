@@ -123,10 +123,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
 
     assert_eq!(served.0, 200);
     assert_eq!(served.1, *GUIDE_CONTENT_SHA256);
-    assert_eq!(
-        served.2,
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
-    );
+    assert_eq!(served.2, snapback::identity::git_commit());
     assert_eq!(
         served.3,
         include_bytes!("../../../guide/guide-flat.generated.md")
@@ -149,7 +146,7 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
     );
     assert_eq!(
         header(&response, GUIDE_BUILD_COMMIT_HEADER),
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+        snapback::identity::git_commit()
     );
 
     let bytes = to_bytes(response.into_body(), usize::MAX)
@@ -179,7 +176,7 @@ async fn memory_server_serves_every_section_projection_with_manifest_identity() 
         );
         assert_eq!(
             header(&response, GUIDE_BUILD_COMMIT_HEADER),
-            option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+            snapback::identity::git_commit()
         );
         let bytes = to_bytes(response.into_body(), usize::MAX)
             .await
@@ -202,7 +199,7 @@ async fn memory_server_serves_root_llms_txt_with_guide_identity() {
     );
     assert_eq!(
         header(&response, GUIDE_BUILD_COMMIT_HEADER),
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+        snapback::identity::git_commit()
     );
 
     let body = to_bytes(response.into_body(), usize::MAX)
@@ -254,7 +251,7 @@ async fn memory_server_serves_build_bound_http_route_schema_join() {
     );
     assert_eq!(
         header(&response, GUIDE_BUILD_COMMIT_HEADER),
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+        snapback::identity::git_commit()
     );
     let bytes = to_bytes(response.into_body(), usize::MAX)
         .await

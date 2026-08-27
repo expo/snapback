@@ -29,10 +29,7 @@ struct ReferenceArtifacts {
 static REFERENCE_ARTIFACTS: OnceLock<Result<ReferenceArtifacts, String>> = OnceLock::new();
 
 fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
-    let manifest_file = crate::guide::file("guide-manifest.generated.json")
-        .context("embedded Snapback Guide manifest is missing")?;
-    let manifest: Value = serde_json::from_slice(manifest_file.bytes)
-        .context("embedded Snapback Guide manifest is invalid")?;
+    let manifest = crate::guide::manifest().clone();
     let registry_file = crate::guide::file(REGISTRY_PATH)
         .context("embedded Snapback Guide symbol registry is missing")?;
     let diagnostics_file = crate::guide::file(DIAGNOSTICS_REGISTRY_PATH)

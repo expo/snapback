@@ -116,6 +116,7 @@ ureq = { version = "2", features = ["json"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 snapback-types = { path = "../snapback-types" }
+snapback-build-identity = { path = "../snapback-build-identity" }
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-auth = { path = "../snapback-auth" }
 snapback-activation = { path = "../snapback-activation" }
@@ -124,7 +125,7 @@ snapback-sync = { path = "../snapback-sync" }
 snapback-services = { path = "../snapback-services", features = ["benchmark-support"] }
 snapback-engine = { path = "../snapback-engine" }
 snapback-server = { path = "../snapback-server", features = ["test-support"] }
-snapback-cli = { path = "../snapback-cli" }
+snapback-cli = { path = "../snapback-cli", default-features = false, features = ["cli-owner"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [

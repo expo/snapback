@@ -18,6 +18,14 @@
 // result-size heuristic.
 #![allow(clippy::result_large_err)]
 
+// The changing build-input leaves satisfy stable native symbols referenced by
+// lower crates. Keeping the sole ordinary Rust edge here makes their rebuild
+// terminate at final composition and relink instead of crossing the tower.
+#[used]
+static BUILD_INPUT_LEAF_LINK_ANCHOR: fn() = || {
+    let _ = snapback_build_identity::link_anchor();
+};
+
 // @ref LLP 0225#1-ownership-map — owner 6 preserves this supported
 // façade while non-façade implementation modules become crate-private.
 pub mod embed;
@@ -167,6 +175,8 @@ pub use snapback_kernel::diagnostic;
 #[doc(hidden)]
 pub use snapback_kernel::fork_promotion;
 #[doc(hidden)]
+pub use snapback_kernel::identity;
+#[doc(hidden)]
 pub use snapback_server::guide;
 pub(crate) use snapback_server::guide_reference;
 #[doc(hidden)]
@@ -182,8 +192,6 @@ pub use snapback_types::exec_guard;
 #[doc(hidden)]
 pub use snapback_types::handler_wire;
 pub use snapback_types::host_ops_contract;
-#[doc(hidden)]
-pub use snapback_types::identity;
 #[doc(hidden)]
 pub use snapback_types::ids;
 #[doc(hidden)]

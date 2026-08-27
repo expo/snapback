@@ -1,0 +1,17 @@
+[package]
+name = "snapback-build-identity"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+build = "build.rs"
+
+[lib]
+name = "snapback_build_identity"
+path = "src/lib.rs"
+
+[dependencies]
+snapback-guide-embed = { path = "../snapback-guide-embed" }
+
+[lints]
+workspace = true

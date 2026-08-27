@@ -7,9 +7,9 @@
 
 pub use snapback_auth::auth;
 pub(crate) use snapback_kernel::storage;
-pub use snapback_kernel::{diagnostic, secure_file, seed_identity};
+pub use snapback_kernel::{diagnostic, identity, secure_file, seed_identity};
 pub use snapback_types::{
-    contract_types, error_tracking, host_ops_contract, identity, live_wire, manifest, rqs_contract,
+    contract_types, error_tracking, host_ops_contract, live_wire, manifest, rqs_contract,
 };
 
 pub mod telemetry {

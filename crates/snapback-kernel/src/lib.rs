@@ -8,10 +8,10 @@
 
 pub use snapback_types::{
     api_envelope, app_data_result, args_contract, commit_envelope, completeness, contract_exact,
-    contract_types, error_tracking, exec_guard, handler_wire, host_ops_contract, identity, ids,
-    live_wire, local, manifest, network_profile, owner_only_file, result_contract,
-    result_transform, rqs_contract, runtime, service_profile, stream_attempt, telemetry_contract,
-    value_expr, visibility_governance, wire_version,
+    contract_types, error_tracking, exec_guard, handler_wire, host_ops_contract, ids, live_wire,
+    local, manifest, network_profile, owner_only_file, result_contract, result_transform,
+    rqs_contract, runtime, service_profile, stream_attempt, telemetry_contract, value_expr,
+    visibility_governance, wire_version,
 };
 
 pub mod assets;
@@ -28,6 +28,7 @@ pub mod diagnostic;
 pub mod ephemeral;
 pub mod fork_promotion;
 pub mod fork_promotion_bench;
+pub mod identity;
 pub mod instance_fork;
 pub mod instance_lock;
 pub mod jobs {
@@ -55,6 +56,9 @@ pub mod services_assets;
 pub mod storage;
 pub mod vector;
 pub mod watches;
+
+#[cfg(test)]
+extern crate snapback_build_identity as _;
 
 #[cfg(test)]
 // @ref LLP 0316#phase-2--test-currency — generated, gitignored demo fixtures

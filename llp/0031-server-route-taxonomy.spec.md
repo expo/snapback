@@ -5,6 +5,10 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
+**Revised:** 2026-08-27 (LLP 0316 Phase 4 moves the sole Git stamp into
+`snapback-build-identity`; binary, health, Guide, control-catalog, and tool
+provenance read that one conservative runtime identity through stable native
+symbols, so value-only restamps do not recompile the Rust crate tower.)
 **Revised:** 2026-08-21 (the build-identity emitter is now one shared source
 included by `snapback-types`, `snapback`, and `snapback-tools`; package-local
 Cargo stamping retains the ENG-23365/ENG-23419 invalidation contract).
@@ -747,21 +751,23 @@ server can never be verified and are always refused:
 To shrink that unverifiable set, `/health` carries a **server-binary identity**
 block (ENG-22798): `{ crateVersion, gitCommit, gitDirty, buildProfile,
 startupNonce }`. `crateVersion` is `CARGO_PKG_VERSION`; `gitCommit`/`gitDirty` are
-stamped by the shared `crates/snapback-types/build_identity.rs` emitter at
-build time (included by the package-local build scripts and overridable via the
+stamped by the leaf `crates/snapback-build-identity/build.rs` at build time and
+read through versioned native symbols by the kernel's stable runtime projection
+(overridable via the
 `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` env vars for a
 deterministic CI stamp); `startupNonce` is a per-process UUIDv7 boot id. Together
 they answer "is this MY checkout's binary?" before any app is provisioned.
-The stamp tracks the binary's real inputs (`crates/snapback/src/`, `Cargo.toml`, `Cargo.lock`)
-and the ref store (`refs/heads`, `packed-refs`) alongside `.git/HEAD` and the
-index, so an incremental rebuild after a source edit — or a ref-only move like
+The stamp tracks the binary's real inputs (`scripts/runtime-build-inputs.txt`)
+and only the identity-bearing Git facts: the worktree `HEAD` and `logs/HEAD`,
+the resolved loose current-branch ref, and common `packed-refs`. Thus an
+incremental rebuild after a source edit — or a ref-only move like
 `git reset --soft` — re-runs the git probe instead of replaying the previous
 build's cached commit/dirty pair; without that, a binary containing
 uncommitted code could self-report the prior clean commit and falsely earn
 reuse (ENG-23365). The dirty probe distinguishes `git status --porcelain`
 succeeding with empty output (a proven-clean input set → `gitDirty: false`)
-from the command failing (unknown → env var left unset, runtime defaults to
-dirty); conflating the two had made a clean checkout unable to ever stamp
+from the command failing (unknown → the leaf emits dirty); conflating the two
+had made a clean checkout unable to ever stamp
 `gitDirty: false`, silently disabling binary-provenance reuse in exactly the
 clean-CI case it exists for (ENG-23419). Since 2026-08-05 the probe is scoped
 to the runtime binary's input set — the shared pathspec definition in

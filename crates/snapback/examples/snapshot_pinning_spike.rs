@@ -239,10 +239,8 @@ fn run() -> anyhow::Result<SnapshotPinningSpikeV1> {
     Ok(SnapshotPinningSpikeV1 {
         schema_version: "snapback.oq13-snapshot-pinning-spike.v1",
         date: "2026-08-03",
-        source_revision: option_env!("SNAPBACK_BUILD_GIT_COMMIT")
-            .unwrap_or("unknown")
-            .to_owned(),
-        source_dirty: matches!(option_env!("SNAPBACK_BUILD_GIT_DIRTY"), Some("true")),
+        source_revision: snapback::identity::git_commit().to_owned(),
+        source_dirty: snapback::identity::git_dirty(),
         runner: "examples/snapshot_pinning_spike.rs",
         sqlite_version: rusqlite::version().to_owned(),
         fixture: Fixture {

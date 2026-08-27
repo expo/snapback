@@ -210,10 +210,8 @@ fn main() -> anyhow::Result<()> {
             .to_owned(),
         baseline_artifact_sha256: baseline_sha256,
         source: Source {
-            revision: option_env!("SNAPBACK_BUILD_GIT_COMMIT")
-                .unwrap_or("unknown")
-                .to_owned(),
-            dirty: matches!(option_env!("SNAPBACK_BUILD_GIT_DIRTY"), Some("true")),
+            revision: snapback_kernel::identity::git_commit().to_owned(),
+            dirty: snapback_kernel::identity::git_dirty(),
             dirty_paths: git_dirty_paths(),
             profile_changes_present: true,
             build_profile: "release",

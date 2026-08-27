@@ -1,27 +1,32 @@
 //! The build-bound Snapback Guide corpus.
 //!
-//! `build.rs` generates the file table from `guide/**`, excluding retrieval
-//! eval evidence. Handlers perform exact lookups in this closed table, so URL
-//! paths cannot escape into the checkout and a running server always serves
-//! the documentation snapshot compiled into its own binary.
+//! The `snapback-guide-embed` build script generates the file table from
+//! `guide/**`, excluding retrieval eval evidence. Handlers perform exact lookups
+//! in this closed table, so URL paths cannot escape into the checkout and a
+//! running server always serves the documentation snapshot compiled into it.
 //!
 //! @ref LLP 0061#4-distribution-and-discovery — served-guide §4a: the
 //! server is the version authority for the embedded, read-only guide channel.
 
+use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 use std::sync::LazyLock;
 
-use crate::guide_artifact::{
+use snapback_types::guide_artifact::{
     CONTENT_HASH_DIAGNOSTICS_REGISTRY_LABEL, CONTENT_HASH_REGISTRY_LABEL,
     CONTENT_HASH_RESOURCE_SEPARATOR, DIAGNOSTICS_REGISTRY_PATH, MANIFEST_PATH, REGISTRY_PATH,
     REQUIRED_GUIDE_PATHS,
 };
 
+unsafe extern "C" {
+    fn snapback_embedded_guide_bytes_ptr_v1() -> *const u8;
+    fn snapback_embedded_guide_bytes_len_v1() -> usize;
+    fn snapback_committed_guide_manifest_ptr_v1() -> *const u8;
+    fn snapback_committed_guide_manifest_len_v1() -> usize;
+}
+
 const ARTIFACT_MAGIC: &[u8] = b"SNAPBACK_EMBEDDED_GUIDE\0\x01";
 const CONTENT_HASH_LENGTH: usize = 64;
-const EMBEDDED_GUIDE_BYTES: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/embedded-guide.v1.bin"));
-const COMMITTED_GUIDE_MANIFEST: &str = include_str!("../../../guide/guide-manifest.generated.json");
 
 #[derive(Clone, Copy, Debug)]
 pub struct EmbeddedGuideFile {
@@ -38,7 +43,7 @@ struct EmbeddedGuideData {
 }
 
 static EMBEDDED_GUIDE: LazyLock<EmbeddedGuideData> = LazyLock::new(|| {
-    parse_embedded_guide(EMBEDDED_GUIDE_BYTES)
+    parse_embedded_guide(embedded_guide_bytes())
         .unwrap_or_else(|error| panic!("malformed embedded Guide artifact: {error}"))
 });
 
@@ -51,13 +56,68 @@ pub static EMBEDDED_GUIDE_FILES: LazyLock<&'static [EmbeddedGuideFile]> =
 pub static SECTION_FLAT_PATHS: LazyLock<&'static [&'static str]> =
     LazyLock::new(|| EMBEDDED_GUIDE.section_flat_paths.as_slice());
 
-pub const INDEX_PATH: &str = crate::guide_artifact::INDEX_PATH;
-pub const FLAT_PATH: &str = crate::guide_artifact::FLAT_PATH;
+pub const INDEX_PATH: &str = snapback_types::guide_artifact::INDEX_PATH;
+pub const FLAT_PATH: &str = snapback_types::guide_artifact::FLAT_PATH;
+
+static SERVED_GUIDE_MANIFEST: LazyLock<Value> = LazyLock::new(|| {
+    let raw = file(MANIFEST_PATH).expect("embedded Guide manifest is present");
+    let mut manifest: Value =
+        serde_json::from_slice(raw.bytes).expect("embedded Guide manifest must remain valid JSON");
+    assert!(
+        manifest.get("buildIdentity").is_none(),
+        "embedded Guide artifact must be identity-free"
+    );
+    let content_hash = manifest
+        .get("contentHash")
+        .and_then(Value::as_str)
+        .expect("embedded Guide manifest carries contentHash")
+        .to_owned();
+    manifest
+        .as_object_mut()
+        .expect("embedded Guide manifest is an object")
+        .insert(
+            "buildIdentity".to_owned(),
+            json!({
+                "sourceDigest": format!("sha256:{content_hash}"),
+                "commit": crate::identity::git_commit(),
+            }),
+        );
+    manifest
+});
+
+static SERVED_GUIDE_MANIFEST_BYTES: LazyLock<Vec<u8>> = LazyLock::new(|| {
+    let mut bytes = serde_json::to_vec_pretty(manifest())
+        .expect("runtime-stamped Guide manifest must serialize");
+    bytes.push(b'\n');
+    bytes
+});
 
 pub fn file(path: &str) -> Option<&'static EmbeddedGuideFile> {
     EMBEDDED_GUIDE_FILES
         .iter()
         .find(|candidate| candidate.path == path)
+}
+
+/// Return the runtime projection of the embedded manifest. The identity is
+/// stamped from the enclosing binary's leaf-owned build fact, while every
+/// semantic manifest field remains the inert artifact's checked content.
+///
+/// @ref LLP 0316#phase-4--leaf-crates-for-non-rust-inputs — a commit changes
+/// runtime identity without rebuilding the Guide artifact producer.
+pub fn manifest() -> &'static Value {
+    &SERVED_GUIDE_MANIFEST
+}
+
+pub fn served_file(path: &str) -> Option<EmbeddedGuideFile> {
+    let file = file(path)?;
+    if path == MANIFEST_PATH {
+        Some(EmbeddedGuideFile {
+            bytes: SERVED_GUIDE_MANIFEST_BYTES.as_slice(),
+            ..*file
+        })
+    } else {
+        Some(*file)
+    }
 }
 
 /// Decode the only build-generated Guide artifact.
@@ -73,13 +133,48 @@ pub fn file(path: &str) -> Option<&'static EmbeddedGuideFile> {
 // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the generated
 // boundary is inert data rather than expansion-visible Rust tokens.
 fn parse_embedded_guide(bytes: &'static [u8]) -> Result<EmbeddedGuideData, String> {
-    let committed_manifest: serde_json::Value = serde_json::from_str(COMMITTED_GUIDE_MANIFEST)
-        .map_err(|error| format!("committed Guide manifest is not valid JSON: {error}"))?;
+    let committed_manifest: serde_json::Value =
+        serde_json::from_slice(committed_guide_manifest_bytes())
+            .map_err(|error| format!("committed Guide manifest is not valid JSON: {error}"))?;
     let expected_content_hash = committed_manifest
         .get("contentHash")
         .and_then(serde_json::Value::as_str)
         .ok_or_else(|| "committed Guide manifest has no string contentHash".to_owned())?;
     parse_embedded_guide_with_expected_content_hash(bytes, expected_content_hash)
+}
+
+fn embedded_guide_bytes() -> &'static [u8] {
+    // SAFETY: the Guide leaf exports process-lifetime embedded bytes and their
+    // exact length under this versioned symbol pair.
+    unsafe {
+        static_bytes(
+            snapback_embedded_guide_bytes_ptr_v1(),
+            snapback_embedded_guide_bytes_len_v1(),
+            "embedded Guide artifact",
+        )
+    }
+}
+
+fn committed_guide_manifest_bytes() -> &'static [u8] {
+    // SAFETY: the Guide leaf exports process-lifetime embedded bytes and their
+    // exact length under this versioned symbol pair.
+    unsafe {
+        static_bytes(
+            snapback_committed_guide_manifest_ptr_v1(),
+            snapback_committed_guide_manifest_len_v1(),
+            "committed Guide manifest",
+        )
+    }
+}
+
+unsafe fn static_bytes(pointer: *const u8, length: usize, label: &str) -> &'static [u8] {
+    assert!(
+        !pointer.is_null(),
+        "Guide leaf returned a null {label} pointer"
+    );
+    // SAFETY: the caller establishes that the provider owns `length` bytes at
+    // `pointer` for the lifetime of the process.
+    unsafe { std::slice::from_raw_parts(pointer, length) }
 }
 
 fn parse_embedded_guide_with_expected_content_hash(
@@ -208,6 +303,9 @@ fn validate_content_hash(
     let manifest = embedded_file(files, MANIFEST_PATH).expect("required corpus includes manifest");
     let manifest: serde_json::Value = serde_json::from_slice(manifest.bytes)
         .map_err(|error| format!("Guide manifest is not valid JSON: {error}"))?;
+    if manifest.get("buildIdentity").is_some() {
+        return Err("Guide artifact manifest unexpectedly carries buildIdentity".to_owned());
+    }
     let manifest_content_hash = manifest
         .get("contentHash")
         .and_then(serde_json::Value::as_str)
@@ -368,6 +466,34 @@ mod tests {
         for path in SECTION_FLAT_PATHS.iter() {
             assert!(file(path).is_some(), "missing embedded section flat {path}");
         }
+    }
+
+    #[test]
+    fn embedded_manifest_is_identity_free_and_serve_projection_is_runtime_stamped() {
+        let raw: Value = serde_json::from_slice(file(MANIFEST_PATH).unwrap().bytes).unwrap();
+        assert!(raw.get("buildIdentity").is_none());
+
+        let served = manifest();
+        assert_eq!(served["contentHash"], raw["contentHash"]);
+        assert_eq!(
+            served
+                .pointer("/buildIdentity/sourceDigest")
+                .and_then(Value::as_str),
+            raw["contentHash"]
+                .as_str()
+                .map(|hash| format!("sha256:{hash}"))
+                .as_deref(),
+        );
+        assert_eq!(
+            served
+                .pointer("/buildIdentity/commit")
+                .and_then(Value::as_str),
+            Some(crate::identity::git_commit()),
+        );
+
+        let served_bytes = served_file(MANIFEST_PATH).unwrap();
+        let round_trip: Value = serde_json::from_slice(served_bytes.bytes).unwrap();
+        assert_eq!(round_trip, *served);
     }
 
     #[test]
