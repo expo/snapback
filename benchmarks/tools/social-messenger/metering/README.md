@@ -32,7 +32,8 @@ Artifacts must be relative to and remain inside the manifest directory. The
 loader verifies every digest, native Claude/Codex session identity, descendant
 reachability, receipt `runId`/milestone, and lane/driver identity before it
 parses usage. Every Codex nonzero cumulative delta must equal normalized
-`last_token_usage`. Green milestones additionally require a bound
+`last_token_usage`; a cumulative reset is admitted only after the registered
+native `compacted` marker and must checksum from its new zero origin. Green milestones additionally require a bound
 `segment-summary` that attests `green: true` at exactly the first-green
 timestamp, no later than the driver-stamped terminal; a non-green receipt
 conflicts.
@@ -52,14 +53,19 @@ The emitted `meteringProvenance` block retains all identities, hashes, and clock
 evidence.
 
 The Codex parser is versioned independently from the manifest. Adapter
-`codex-rollout-jsonl.v3` validates the aggregate `last_token_usage.total_tokens`
-against the exact cumulative-component delta even when Codex reports only an
-aggregate last-turn total. A repeated cumulative snapshot with a nonzero
-aggregate therefore fails closed: treating that value as advisory would discard
-unexplained charged usage. When cumulative usage advances, an aggregate-only
-last-turn shape may be admitted only when its aggregate equals the exact
-cumulative delta; full component shapes must additionally equal that delta
-component by component.
+`codex-rollout-jsonl.v4` treats `total_token_usage` as the charging ledger and
+validates the aggregate `last_token_usage.total_tokens` against every charging
+cumulative-component delta. Codex also emits unchanged cumulative recaps: a
+periodic duplicate can repeat populated last-use fields, while a context
+compaction recap carries zero last-use components and a nonzero aggregate
+housekeeping total between `compacted` and `ContextCompaction`. Both are
+non-charging and create no turn. When cumulative usage advances, an
+aggregate-only last-turn shape is admitted only when its aggregate equals the
+exact cumulative delta; full component shapes must additionally equal that
+delta component by component. A cumulative counter that moves backwards
+without the registered native `compacted` reset marker, or a post-reset value
+that does not checksum from its new zero origin, still fails closed with the
+event-scoped diagnostic.
 Optional native counters that are genuinely absent remain `null` where the
 record schema allows null; the adapter does not manufacture zeroes.
 

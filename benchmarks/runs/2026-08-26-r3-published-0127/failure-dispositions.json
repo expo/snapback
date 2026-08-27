@@ -1,0 +1,18 @@
+{
+  "version": "snapback.r2-failure-dispositions.v1",
+  "dispositions": [
+    {
+      "cellId": "sol-clique-explicit-1",
+      "report": {
+        "path": "BLOCKED-sol-clique-explicit-1-finalization.md",
+        "sha256": "sha256:875b0b8c68c0bfb5eeaad3e7f7d6c80e7af0f07dafc7e27e2fe9fd7689a7d915"
+      },
+      "disposedArtifact": {
+        "kind": "admission",
+        "path": "admissions/sol-clique-explicit-1.json",
+        "sha256": "sha256:b38c198ac74ad3b1f6fb05d9db5e648d0ff56364c8e7160666e411e2d7ee4125"
+      },
+      "rootCauseClass": "codex-token-count-delta-join"
+    }
+  ]
+}

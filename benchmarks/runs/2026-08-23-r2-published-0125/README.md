@@ -316,3 +316,21 @@ later command is fail-closed behind a versioned per-cell admission artifact.
 Historical preflight reds are not weakened: the requested cell must satisfy
 its current reservation, auth, version, port, process-closure, instrument,
 seriality, and load conditions.
+
+## Post-run token-recap reinterpretation (2026-08-26)
+
+Later empirical investigation found the same Codex native shape independently
+at R2 `sol-clique-explicit` ordinal 710, R2 `sol-clique-familiar` ordinal 839,
+and R3 `sol-clique-explicit-1` ordinal 387 (rollout line 388). The full retained
+explicit rollout shows ordinal 710 immediately after a `compacted` marker and
+before `ContextCompaction` completion; its cumulative total stays unchanged,
+and ordinal 719 then advances by exactly its own declared 21,923-token last
+usage. A sample of 46 other recent long sessions found 24 more aggregate-only
+occurrences, all at the same compaction boundary, with every next charging
+event continuing the cumulative ledger consistently.
+
+These events are now interpreted as non-charging usage recaps, not corrupt
+token events. The historical R2 records and blocked reports remain unchanged:
+they truthfully describe the instrument and dispositions in force when the run
+closed. This annotation changes only the semantics used by future live checks
+and finalization.

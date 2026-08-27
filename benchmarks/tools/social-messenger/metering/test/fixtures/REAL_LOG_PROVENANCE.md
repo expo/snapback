@@ -32,12 +32,34 @@ the exact retained ordinal-710 event bytes, including its native envelope; its
 line SHA-256 is
 `144d9413f662621e63bdd63f622b0da791d31c30ef63befe53b2f604a7489254`.
 That event repeats the prior cumulative snapshot unchanged while carrying zero
-component counters and the contradictory advisory
+component counters and the compaction-housekeeping aggregate
 `last_token_usage.total_tokens: 15283`. No credentials or application content
-are copied into the fixture. Adapter `codex-rollout-jsonl.v3` retains this as a
-fail-closed regression: the zero cumulative delta cannot checksum the nonzero
-aggregate, so the parser names ordinal 710 and refuses to invent or discard
-usage.
+are copied into the fixture. The full retained rollout places it immediately
+after `compacted → world_state → turn_context`, and its next charging ordinal
+advances consistently. Adapter `codex-rollout-jsonl.v4` therefore retains it
+as a non-charging recap regression: no turn is invented and no cumulative
+usage is discarded.
+
+`real-codex-r3-compaction-recap.jsonl` is the usage-only prefix through native
+ordinal 383 plus the minimized native housekeeping neighbors and byte-exact
+ordinal-387 event from the retained R3 attempt at
+`/Users/ccheever/bench-r3-20260826/cells/sol-clique-explicit-1/events/codex-rollout.builder.jsonl`.
+The complete minimized fixture SHA-256 is
+`65af00200ce3e9657250f3b83a28948e12e3d77b57f7e9c0e71a71bbffaaac70`;
+the exact ordinal-387 line (rollout line 388) SHA-256 is
+`21c1c05b7e06af61408e4744708fa661f2d9eac2688b049dbfb9c38dd31cadd5`.
+It preserves `compacted`, `world_state`, `turn_context`, the aggregate-only
+recap, and `ContextCompaction` completion without retaining prompts, responses,
+tool arguments, or compaction content.
+
+`real-codex-r3-contradictory-token-count.jsonl` is a negative fixture derived
+from the first two exact native usage records of that same retained R3 rollout.
+The second record changes only `last_token_usage.output_tokens` and its matching
+aggregate total by +1, so the last-use object is internally well-formed but
+contradicts the real cumulative advance by one token. Its fixture SHA-256 is
+`4b3e8be90b1797dde7a60466c8cac37badaa4980a102f595fc0030e5001babc9`.
+This deliberate mutation is not presented as a native observation; it proves
+that accepting recaps does not weaken the advancing-delta checksum refusal.
 
 `real-opus-shorthand-lane-observation.jsonl` is the exact first event from the
 retained Opus Clique explicit M1 suite-observation sidecar at
@@ -49,10 +71,14 @@ versioned observation admission canonicalizes that suffix to the manifest's
 full lane identity and still refuses every unrelated value.
 
 The three `real-*-familiar-*.jsonl` fixtures are exact single-event bytes from
-the retained `sol-clique-familiar` attempt. The Codex event is native ordinal
-839 (line 840 of the rollout), whose unchanged cumulative snapshot conflicts
-with `last_token_usage.total_tokens: 14133`; its line SHA-256 is
+the retained `sol-clique-familiar` attempt. The Codex fixture is
+`real-codex-familiar-compaction-recap.jsonl`, native ordinal 839 (line 840 of
+the rollout), whose unchanged cumulative snapshot carries the aggregate-only
+recap `last_token_usage.total_tokens: 14133`; its line SHA-256 is
 `3d2a694a775989b52854f50e99f6e6caa2251714b206a4b5cf5287ae0a11210f`.
+Only that exact line was retained, so its neighbor types are not inferred; the
+identical R2 ordinal-710 and R3 ordinal-387 shapes plus the wider real-session
+sample establish the reinterpretation.
 The transition event is controller sequence 195, timestamped 1 ms before the
 later M2 gate-file write; its line SHA-256 is
 `df18cf7baf2bd8cba89e10549c32d548b7c823bd04ecc77f6cebe8ec131e4c5c`.

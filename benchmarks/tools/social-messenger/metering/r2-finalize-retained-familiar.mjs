@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+// Historical one-off finalizer retained to reproduce the closed R2 artifact
+// and its then-current fail-closed disposition. New live and finalization
+// accounting uses adapters/codex-session.mjs v4, where an unchanged cumulative
+// token_count is a non-charging recap; this script must not rewrite R2 history.
+
 import { createHash } from "node:crypto";
 import {
   copyFile,

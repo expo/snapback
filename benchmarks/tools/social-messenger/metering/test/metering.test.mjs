@@ -948,37 +948,131 @@ test("Codex adapter differences every session's cumulative counters", async () =
   );
 });
 
-test("exact retained Codex ordinal 710 fails closed on its contradictory usage checksum", async () => {
+test("exact retained Codex ordinal 710 is a non-charging cumulative recap", async () => {
   const fixture = await fixtureText("real-codex-0149-zero-delta.jsonl");
   const lines = fixture.trimEnd().split("\n");
   assert.equal(
     sha256(lines.at(-1)),
     "sha256:144d9413f662621e63bdd63f622b0da791d31c30ef63befe53b2f604a7489254",
-    "the malformed token_count line must retain the exact retained bytes",
+    "the native recap line must retain the exact retained bytes",
   );
   const records = parseJsonLines(fixture, "retained Codex 0.149 zero-delta fixture");
-  const retainedSession = {
+  const channel = adaptCodexSessionTree([{
     sourceId: "builder",
     nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
     records,
-  };
+  }]);
+  // R2 ordinals 710 and 839 plus R3 ordinal 387 independently carry this
+  // native recap shape; ordinal 710's next real event resumes consistently.
+  assert.equal(channel.turns.length, 111);
+  assert.equal(channel.turns.at(-1).nativeRecordOrdinal, 706);
+  assert.equal(channel.turns.some((turn) => turn.nativeRecordOrdinal === 710), false);
+  assert.deepEqual(channel.turns.reduce((total, turn) => ({
+    input: total.input + turn.usage.input,
+    output: total.output + turn.usage.output,
+    cacheRead: total.cacheRead + turn.usage.cacheRead,
+    cacheWrite: total.cacheWrite + turn.usage.cacheWrite,
+    reasoning: total.reasoning + turn.usage.reasoning,
+  }), counts(0, 0)), counts(321_961, 64_301, 15_223_040, 0, 20_864));
+  assert.equal(CODEX_ADAPTER_VERSION, "codex-rollout-jsonl.v4");
+});
+
+test("exact retained R3 compaction recap is accepted without a charged turn", async () => {
+  const fixture = await fixtureText("real-codex-r3-compaction-recap.jsonl");
+  assert.equal(
+    sha256(fixture),
+    "sha256:65af00200ce3e9657250f3b83a28948e12e3d77b57f7e9c0e71a71bbffaaac70",
+  );
+  const lines = fixture.trimEnd().split("\n");
+  const recapLine = lines.find((line) => JSON.parse(line).ordinal === 387);
+  assert.equal(
+    sha256(recapLine),
+    "sha256:21c1c05b7e06af61408e4744708fa661f2d9eac2688b049dbfb9c38dd31cadd5",
+    "R3 rollout line 388 must remain byte-exact",
+  );
+  const records = parseJsonLines(fixture, "retained R3 compaction recap fixture");
+  assert.deepEqual(records.filter((record) => record.ordinal >= 384).map((record) => [
+    record.ordinal,
+    record.type,
+    record.payload?.type ?? record.payload?.item?.type ?? null,
+  ]), [
+    [384, "compacted", null],
+    [385, "world_state", null],
+    [386, "turn_context", null],
+    [387, "event_msg", "token_count"],
+    [388, "event_msg", "item_completed"],
+  ]);
+  const channel = adaptCodexSession(records);
+  assert.equal(channel.turns.at(-1).nativeRecordOrdinal, 383);
+  assert.equal(channel.turns.some((turn) => turn.nativeRecordOrdinal === 387), false);
+  assert.deepEqual(channel.turns.reduce((total, turn) => ({
+    input: total.input + turn.usage.input,
+    output: total.output + turn.usage.output,
+    cacheRead: total.cacheRead + turn.usage.cacheRead,
+    cacheWrite: total.cacheWrite + turn.usage.cacheWrite,
+    reasoning: total.reasoning + turn.usage.reasoning,
+  }), counts(0, 0)), counts(276_812, 31_161, 7_683_072, 0, 10_984));
+});
+
+test("real retained R3 advancing usage still refuses a contradictory checksum", async () => {
+  const fixture = await fixtureText("real-codex-r3-contradictory-token-count.jsonl");
+  assert.equal(
+    sha256(fixture),
+    "sha256:4b3e8be90b1797dde7a60466c8cac37badaa4980a102f595fc0030e5001babc9",
+  );
+  const records = parseJsonLines(fixture, "R3 contradictory checksum fixture");
   let failure = null;
   try {
-    adaptCodexSessionTree([retainedSession]);
+    adaptCodexSession(records);
   } catch (error) {
     failure = error;
   }
-  assert.notEqual(failure, null);
   const diagnostic = formatFinalizationFailure(failure);
   assert.match(diagnostic, /stage=codex-token-count-delta-join/u);
-  assert.match(diagnostic, /eventOrdinal=710/u);
-  assert.match(diagnostic, /eventType="event_msg\/token_count"/u);
-  assert.match(
-    diagnostic,
-    /cumulative delta does not equal last_token_usage\.total_tokens; received 0 and 15283/u,
+  assert.match(diagnostic, /eventOrdinal=23/u);
+  assert.match(diagnostic, /received 16303 and 16304/u);
+});
+
+test("only a registered compaction marker permits a checksummed cumulative reset", () => {
+  const usage = (input, cached, output, reasoning) => ({
+    input_tokens: input,
+    cached_input_tokens: cached,
+    cache_write_input_tokens: 0,
+    output_tokens: output,
+    reasoning_output_tokens: reasoning,
+    total_tokens: input + output,
+  });
+  const records = [{
+    ordinal: 0,
+    timestamp: "2026-08-26T20:00:00.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: usage(100, 20, 10, 2), last_token_usage: usage(100, 20, 10, 2) },
+    },
+  }, {
+    ordinal: 1,
+    timestamp: "2026-08-26T20:00:01.000Z",
+    type: "compacted",
+    payload: { window_number: 1 },
+  }, {
+    ordinal: 2,
+    timestamp: "2026-08-26T20:00:02.000Z",
+    type: "event_msg",
+    payload: {
+      type: "token_count",
+      info: { total_token_usage: usage(15, 5, 3, 1), last_token_usage: usage(15, 5, 3, 1) },
+    },
+  }];
+  const channel = adaptCodexSession(records);
+  assert.deepEqual(channel.turns.map((turn) => turn.usage), [
+    counts(80, 10, 20, 0, 2),
+    counts(10, 3, 5, 0, 1),
+  ]);
+  assert.throws(
+    () => adaptCodexSession(records.filter((record) => record.type !== "compacted")),
+    /token counter input moved backwards/u,
   );
-  assert.match(diagnostic, /rawPayloadExcerpt=.*ordinal/u);
-  assert.equal(CODEX_ADAPTER_VERSION, "codex-rollout-jsonl.v3");
 });
 
 test("Codex preserves an absent optional reasoning counter as null", () => {
@@ -1047,7 +1141,7 @@ test("optional null cache and reasoning orientation counters preserve measured o
   );
 });
 
-test("retained R2 Codex ordering remains exact and metering fails closed", async () => {
+test("retained R2 Codex ordering remains exact while historical disposition stands", async () => {
   const cellRoot = new URL(
     "benchmarks/runs/2026-08-23-r2-published-0125/cells/sol-clique-explicit/",
     ROOT,
@@ -1082,23 +1176,15 @@ test("retained R2 Codex ordering remains exact and metering fails closed", async
   );
   assert.equal(manifest.adapter, "unavailable");
   assert.equal(manifest.unavailableReason, "retained-session-token-event-corrupt");
-
-  let adapterFailure = null;
-  try {
-    adaptCodexSessionTree([{
-      sourceId: "builder",
-      nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
-      records,
-    }]);
-  } catch (error) {
-    adapterFailure = error;
-  }
-  const adapterDiagnostic = formatFinalizationFailure(adapterFailure);
-  assert.match(adapterDiagnostic, /stage=codex-token-count-delta-join/u);
-  assert.match(adapterDiagnostic, /eventOrdinal=710/u);
-  assert.match(adapterDiagnostic, /eventType="event_msg\/token_count"/u);
-  assert.match(adapterDiagnostic, /received 0 and 15283/u);
-
+  const channel = adaptCodexSessionTree([{
+    sourceId: "builder",
+    nativeSessionId: "01a03304-e4e2-71d0-892e-bf0440eac5b2",
+    records,
+  }]);
+  assert.equal(channel.turns.some((turn) => turn.nativeRecordOrdinal === 710), false);
+  const resumed = channel.turns.find((turn) => turn.nativeRecordOrdinal === 719);
+  assert.notEqual(resumed, undefined);
+  assert.equal(resumed.usage.input + resumed.usage.cacheRead + resumed.usage.output, 21_923);
 });
 
 test("closed Codex failure without a later native token_count is explicitly unavailable", () => {
@@ -1271,7 +1357,7 @@ test("exact retained Opus shorthand lane identity canonicalizes to its full lane
 });
 
 test("exact retained Familiar failures stay named, transition-bound, and fail-closed", async () => {
-  const native = await fixtureText("real-codex-familiar-corrupt-token-count.jsonl");
+  const native = await fixtureText("real-codex-familiar-compaction-recap.jsonl");
   assert.equal(
     sha256(native.trimEnd()),
     "sha256:3d2a694a775989b52854f50e99f6e6caa2251714b206a4b5cf5287ae0a11210f",
@@ -2320,6 +2406,36 @@ test("Codex cumulative polling keeps one session watchdog across two milestones"
     { milestone: "M1", liveActualTokens: 80, retainedActualTokens: 80 },
     { milestone: "M2", liveActualTokens: 20, retainedActualTokens: 20 },
   ]);
+});
+
+test("live Codex milestone integrity ignores an aggregate-only compaction recap", async () => {
+  const recap = codexTokenRecord(5, "2026-08-26T12:00:05.000Z", 80, 0);
+  recap.payload.info.last_token_usage.total_tokens = 14_007;
+  const records = [
+    codexSignalRecord(0, "M1", "2026-08-26T12:00:02.000Z"),
+    codexTokenRecord(1, "2026-08-26T12:00:03.000Z", 80, 80),
+    { ordinal: 2, timestamp: "2026-08-26T12:00:04.000Z", type: "compacted", payload: { window_number: 1 } },
+    { ordinal: 3, timestamp: "2026-08-26T12:00:04.100Z", type: "world_state" },
+    { ordinal: 4, timestamp: "2026-08-26T12:00:04.200Z", type: "turn_context" },
+    recap,
+  ];
+  const state = codexWatchdogState([records]);
+  state.tokenWatchdog.arm({
+    capFamily: "gpt-frontier",
+    milestone: "M1",
+    tokenCap: 1_000,
+    startedAt: "2026-08-26T12:00:00.000Z",
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M1",
+    status: "green",
+    recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  assert.deepEqual(state.tokenWatchdogHistory.map((item) => ({
+    liveActualTokens: item.reconciliation.liveActualTokens,
+    retainedActualTokens: item.reconciliation.retainedActualTokens,
+  })), [{ liveActualTokens: 80, retainedActualTokens: 80 }]);
+  assert.equal(state.usageFailure, null);
 });
 
 test("post-marker Codex usage is settled, charged to that milestone, and enforced", async () => {

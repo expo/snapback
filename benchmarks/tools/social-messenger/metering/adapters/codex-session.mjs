@@ -8,7 +8,9 @@ import { timestampMillis } from "../jsonl.mjs";
 import { TOKEN_SOURCES } from "../sources.mjs";
 import { withEventDiagnostic } from "../finalization-diagnostics.mjs";
 
-export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v3";
+export const CODEX_ADAPTER_VERSION = "codex-rollout-jsonl.v4";
+
+const CODEX_CUMULATIVE_RESET_RECORD_TYPES = new Set(["compacted"]);
 
 function requiredCount(value, label) {
   if (!Number.isInteger(value) || value < 0) {
@@ -98,6 +100,12 @@ function rawTokenTotal(counts) {
   return counts.input + counts.output + counts.cacheRead + counts.cacheWrite;
 }
 
+function hasRegisteredResetMarker(records, previousRecordIndex, recordIndex) {
+  return records
+    .slice(previousRecordIndex, recordIndex - 1)
+    .some((record) => CODEX_CUMULATIVE_RESET_RECORD_TYPES.has(record?.type));
+}
+
 function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   const nativeCliVersion = codexCliVersion(records);
   const cumulativeRecords = [];
@@ -141,16 +149,28 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
   ));
 
   let previous = zeroTokenCounts();
+  let previousRecordIndex = 0;
   const turns = [];
   for (const entry of cumulativeRecords) {
     withEventDiagnostic("codex-token-count-delta-join", entry.rawRecord, () => {
-      const usage = subtractTokenCounts(entry.cumulative, previous);
       const cumulativeChanged = !tokenCountsEqual(entry.cumulative, previous);
-      if (
-        !cumulativeChanged
-        && entry.last?.version !== "codex-last-token-usage.aggregate-only.v1"
-      ) {
-        return;
+      // @ref LLP 0201#d2--quantitative-instrument — Codex emits unchanged
+      // cumulative usage recaps both periodically and while completing context
+      // compaction. The cumulative ledger is the charging authority: a recap
+      // creates no turn even when last_token_usage repeats a prior turn or
+      // carries only an aggregate housekeeping total.
+      if (!cumulativeChanged) return;
+      let usage;
+      try {
+        usage = subtractTokenCounts(entry.cumulative, previous);
+      } catch (error) {
+        if (!hasRegisteredResetMarker(records, previousRecordIndex, entry.recordIndex)) {
+          throw error;
+        }
+        // A native compacted marker is the only registered in-stream reset.
+        // After one, the new cumulative origin is zero; the first post-reset
+        // snapshot must still checksum against its own last_token_usage below.
+        usage = entry.cumulative;
       }
       if (entry.last === null) {
         throw new Error(
@@ -187,6 +207,7 @@ function adaptOneCodexSession({ sourceId, nativeSessionId, records }) {
         usage,
       });
       previous = entry.cumulative;
+      previousRecordIndex = entry.recordIndex;
     });
   }
   return { turns, compatibilityEvents: [], nativeCliVersion };

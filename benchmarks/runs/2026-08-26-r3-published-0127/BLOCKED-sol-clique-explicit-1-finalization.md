@@ -111,3 +111,45 @@ refusal. Per the commissioned conductor instructions, the wave stops for
 orchestrator review. `opus-clique-explicit-1` was not admitted or attempted;
 no product, harness, config, existing cell slot, or evidence capsule was
 modified to work around the refusal.
+
+## Post-block investigation — Codex compaction recap (2026-08-26)
+
+The fail-closed disposition above accurately records what the then-current
+instrument did, and the attempt remains consumed. A later read-only
+investigation established that native ordinal 387 is nevertheless a legitimate
+Codex CLI housekeeping recap, not missing charged usage.
+
+The exact retained neighbors are:
+
+1. ordinal 383 charges the preceding turn and advances cumulative
+   `total_token_usage.total_tokens` to `7,991,045`;
+2. ordinal 384 is a native `compacted` record;
+3. ordinals 385–386 restate `world_state` and `turn_context` for the new
+   context window;
+4. ordinal 387 repeats the exact cumulative usage tuple unchanged, reports
+   zero in every `last_token_usage` component, and carries the aggregate-only
+   `last_token_usage.total_tokens=14,007`; and
+5. ordinal 388 completes the `ContextCompaction` item.
+
+This is not an isolated malformed line. A sample of 46 other recent, long real
+rollouts under `/Users/ccheever/.codex/sessions/2026/` contained 4,731 native
+`token_count` records and 43 zero-cumulative-delta/nonzero-last-total recaps.
+Twenty-four were the exact aggregate-only shape above; every one immediately
+followed `compacted → world_state → turn_context` and later resumed from the
+unchanged cumulative total with a delta exactly matching the next event's own
+`last_token_usage.total_tokens`. The other 19 were populated duplicate usage
+recaps outside compaction; all eventually resumed with a consistent charging
+delta. No sampled cumulative counter moved backwards.
+
+The retained R2 `sol-clique-explicit` ordinal 710 has the same native
+compaction sequence and unchanged cumulative recap. Its next charging event,
+ordinal 719, advances by exactly 21,923 tokens, matching that event's
+`last_token_usage.total_tokens=21,923`. The retained R2
+`sol-clique-familiar` ordinal 839 is a line-only fixture of the same
+aggregate-only shape; its neighbors were not copied into the public fixture,
+so the investigation does not infer their event types.
+
+The corrected interpretation is therefore: unchanged cumulative totals are
+the accounting authority, and this event is a non-charging recap. The original
+instrument's refusal remains part of the immutable run history; this note does
+not fabricate an M1 result or authorize another attempt.

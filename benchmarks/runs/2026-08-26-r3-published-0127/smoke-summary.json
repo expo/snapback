@@ -11,10 +11,10 @@
     "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
   ],
   "bindings": {
-    "harnessConfigSha256": "661c6969469eab65727dc0f1868a9dbfdf41bcd7b5bff882e82ef19382614e5e",
-    "instrumentManifestSha256": "f48b0e7639178beaf426e9cdbaff22a753baff1e0fa322f5d48ee828f1fff5c9",
-    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round5-final-v1",
-    "meteringSourceClosureSha256": "f5088913b1ca30cd6a3e68c98e50c1adb1a84d60fdb3b7c46ededa244157b8a1",
+    "harnessConfigSha256": "541d4e5e9063621d24a822874060ce726babf9f6d8cb0e2d3174e09fb8feef76",
+    "instrumentManifestSha256": "ffe4ddc7075a21ec9e7dd3d1afb83b9458550779268e97e42a7bc1ffab0445b7",
+    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-token-recap-fix-v1",
+    "meteringSourceClosureSha256": "fe4e480f1862297fe1b4008b473ebd739384587956d445946af630d758b56848",
     "laneControllerSha256": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71",
     "productionDriverSha256": "14a1bb3a3ec5c3360bc1672142b669aabfbaeaee75bc287cf78b9399a505161f"
   },

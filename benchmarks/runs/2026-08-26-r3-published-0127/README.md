@@ -1,8 +1,9 @@
 # LLP 0295 R3 — published Snapback 0.1.27 closure wave
 
 **Status:** commissioned; preregistration committed and non-consuming smoke
-passed; no benchmark cell has started. Review status: `scoped-review-pending` (the
-author-delegated task expressly requested no review loop).
+passed; Cell 1 is consumed and blocked, with 27 cells remaining pristine. Review
+status: `scoped-review-pending` (the author-delegated task expressly requested no
+review loop).
 
 This directory commissions the LLP 0295 §R3 closure wave against the coherent
 published Snapback **0.1.27** package set and immutable instrument
@@ -128,3 +129,15 @@ node benchmarks/runs/2026-08-26-r3-published-0127/validate-plan.mjs
 
 This authoring task stops after commissioning and the non-consuming smoke. It
 does not run a campaign cell.
+
+## Token-recap investigation note (2026-08-26)
+
+The consumed `sol-clique-explicit-1` attempt remains blocked as recorded in
+[its finalization report](./BLOCKED-sol-clique-explicit-1-finalization.md).
+Subsequent inspection of its exact native neighbors plus 47 other recent real
+Codex rollouts established that the rejected zero-delta/nonzero-last-total
+record is a non-charging recap emitted during context compaction. Future
+finalization accepts that native housekeeping shape only when the cumulative
+ledger remains consistent; contradictory or unexplained backward totals still
+fail closed. This reinterpretation does not rerun or retroactively complete the
+consumed cell.

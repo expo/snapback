@@ -11,6 +11,7 @@ import {
   allCampaignPorts,
   configuredExecutionBinding,
   currentHostIdentity,
+  inspectCommittedDispositions,
   liveSourceClosure,
   registeredCellExpectations,
   registeredMilestonesForCell,
@@ -37,6 +38,7 @@ const configBytes = readFileSync(configPath);
 const config = JSON.parse(configBytes);
 const full = ["M1", "M2", "M3", "M4", "M5", "M6", "M8", "M7"];
 const reduced = ["M1", "M2", "M3"];
+const disposedCellId = "sol-clique-explicit-1";
 const conditions = [
   ["Clique", "explicit"],
   ["Coterie", "explicit"],
@@ -121,7 +123,7 @@ if (
   config.schemaVersion !== "snapback.r2-harness-config.v1"
   || config.runId !== "2026-08-26-r3-published-0127"
   || config.status !== "serial-per-cell-admission"
-  || config.noBenchmarkCellStarted !== true
+  || config.noBenchmarkCellStarted !== false
   || config.execution.serial !== true
   || config.execution.maxConcurrentCells !== 1
 ) fail("campaign identity, pristine flag, or seriality drifted");
@@ -237,15 +239,29 @@ for (const [index, cell] of config.cells.entries()) {
   assertPristineSlot({ entries, slot, expectedSlot, cellId: cell.id });
 }
 
-for (const admissionsRoot of [join(root, "admissions"), join(config.paths.privateExecutionRoot, "admissions")]) {
-  if (existsSync(admissionsRoot) && readdirSync(admissionsRoot).length !== 0) {
-    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `${admissionsRoot} contains prior-attempt admission artifacts`);
-  }
+const dispositionState = await inspectCommittedDispositions({
+  harnessConfig: config,
+  repositoryRoot,
+});
+if (
+  dispositionState.landedDispositions.length !== 1
+  || dispositionState.landedDispositions[0].cellId !== disposedCellId
+  || dispositionState.landedDispositions[0].outcome !== "failure"
+  || dispositionState.pristineCells.length !== 27
+  || dispositionState.pristineCells.includes(disposedCellId)
+) {
+  namedFailure(
+    "R3_PLAN_PRIOR_ATTEMPT_STATE",
+    "campaign must retain exactly the committed Cell 1 blocked disposition and 27 pristine cells",
+  );
 }
-for (const cellId of config.cellOrder) {
-  if (existsSync(join(config.paths.privateExecutionRoot, "cells", cellId))) {
-    namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `private execution state exists for pristine cell ${cellId}`);
-  }
+const committedAdmissions = readdirSync(join(root, "admissions"));
+if (!same(committedAdmissions, [`${disposedCellId}.json`])) {
+  namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", "committed admissions must contain only disposed Cell 1");
+}
+const privateAdmissions = join(config.paths.privateExecutionRoot, "admissions");
+if (existsSync(privateAdmissions) && readdirSync(privateAdmissions).length !== 0) {
+  namedFailure("R3_PLAN_PRIOR_ATTEMPT_STATE", `${privateAdmissions} contains an uncommitted admission artifact`);
 }
 
 let fullRefusal = null;
@@ -412,13 +428,15 @@ if (!Buffer.from(committed).equals(configBytes)) fail("harness config differs fr
 
 process.stdout.write(`${JSON.stringify({
   ok: true,
-  status: "pristine",
+  status: "pristine-remaining",
   cells: config.cells.length,
+  disposedCells: dispositionState.landedDispositions.length,
+  pristineCells: dispositionState.pristineCells.length,
   legs: { A: byLeg.A.length, B: byLeg.B.length, C: byLeg.C.length },
   fullJourneyCells: byLeg.A.length,
   reducedCells: byLeg.B.length + byLeg.C.length,
   campaignPorts: campaignPorts.length,
-  firstCell: config.cellOrder[0],
-  noBenchmarkCellStarted: true,
+  firstRemainingCell: dispositionState.pristineCells[0],
+  noBenchmarkCellStarted: false,
   instrumentManifestSha256: config.pins.instrument.manifestSha256,
 })}\n`);
