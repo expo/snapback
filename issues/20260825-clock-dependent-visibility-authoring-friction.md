@@ -37,3 +37,16 @@ the exact `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` refusal it resolves.
 This ticket remains **Open** for the paved-primitive evaluation. Lane P2 did
 not choose server-authored buckets, a declared clock-quantization argument,
 or any weakening of the determinism guard.
+
+## Corroboration (2026-08-27 clique matrix, published 0.1.29)
+
+A second bread-and-butter surface hit this beyond M8 trending: **live typing
+indicators**. In the 4-model × 5-backend clique matrix on published 0.1.29,
+`sol-snapback-familiar` hit `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` on
+protected **live typing queries** — typing-lease expiry depends on `RuntimeNow`,
+which the determinism guard refuses — and worked around it by performing
+typing-lease **expiry projection client-side** in `snapback/chats.ts` (plus an
+N+1 on the protected live read). Typing/ephemeral leases are a core realtime
+primitive, so this reinforces the "Wanted" above: a paved recipe/primitive for
+time-windowed and lease-expiry live reads, generated rather than hand-designed.
+Evidence: lane run-log `~/clique-matrix-0129/lanes/sol-snapback-familiar/`.
