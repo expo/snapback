@@ -1179,7 +1179,7 @@ function warnImplicitDefaultPartitionReuse(owner) {
     code: 'SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE',
     severity: 'warning',
     subsystem: 'auth',
-    message: 'Multiple Node application clients share an authenticated durable session in the implicit default storage partition. Set one stable storagePartition per persona; see guide/recipes/multi-persona-clients.md.',
+    message: 'Multiple Node application clients share an authenticated durable session in the implicit default storage partition, so cross-client live updates will appear stale or absent — these clients are the SAME principal, not independent subscribers. Set one stable storagePartition per persona; see guide/recipes/multi-persona-clients.md.',
     details: {
       appId: owner.app.identity.app,
       storagePartition: DEFAULT_AUTH_STORAGE_PARTITION,

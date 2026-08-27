@@ -1166,7 +1166,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
 ---
 
@@ -2324,6 +2324,25 @@ blanking all history is not an equivalent answer.
      "server-authored row time", "server-authored lease deadline".
      Exact diagnostic target: `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` ->
      `/_snapback/guide/recipes/time-windowed-live-reads.md#recipe-time-windowed-live-reads`.
+
+106. **Cross-client live updates appear stale:** "A committed write doesn't
+     wake the other client's live hook; the second client's live query stays
+     stale, so cross-client fanout looks broken in my acceptance test." The run
+     fails if it diagnoses the live-delivery lane before first reaching
+     `realtime/live-queries.md#troubleshoot-stale-or-absent-cross-client-updates`,
+     or if it omits the shared-auth-custody collision and its stable-partition
+     repair.
+     Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`,
+     `realtime/live-queries.md`.
+     Route terms: "second client does not receive live updates",
+     "query stays stale on the other client",
+     "cross-client fanout then looks broken",
+     "committed write does not wake the other client's live hook",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     Required guidance: "one stable explicit storagePartition per persona or worker",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
+     `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
 
 ## Static routing check
@@ -24852,13 +24871,13 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:c383b6a529c23ecdfb650b27fe18fa9ca5f9378b15491b59e084f02fbfdd300b
+reviewed: 2026-08-27
+reviewed-authorities-digest: sha256:63fc6585854a340747d6ce85561a0f1606d2a32b4afcb7ce8a2053b68d2de1c8
 ---
 
 # Live queries
@@ -24959,6 +24978,26 @@ matching frame (LLP 0200 §2.1): fan-out runs on the evaluation scheduler
 after the commit is durable, and skipped subscriptions converge via a
 rows-free `current_as_of` watermark. Wait on delivery (as above) rather
 than asserting immediately after `mutate` resolves.
+
+## Troubleshoot stale or absent cross-client updates
+
+<!-- @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client — same app + storage partition intentionally shares one auth-bearing owner; separate personas require separate partitions -->
+
+When a committed write does not wake the other client's live hook, or the live
+query stays stale on the other client, or
+the second client does not receive live updates at all in a headless or
+multi-client test, **first verify that each client/persona uses a distinct
+`storagePartition`**. Sharing the implicit durable auth partition `"default"`
+makes multiple clients restore the same principal: the "second client" is
+really the first, and its subscription is not an independent second-principal
+subscription. Cross-client fanout then looks broken in the acceptance test,
+but this is an auth-custody collision.
+
+The client emits `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` for this
+case. Set one stable explicit `storagePartition` per persona or worker, then
+follow the [multiple Node personas recipe](../recipes/multi-persona-clients.md);
+the [headless client](../clients/headless.md#construct-one-client-per-backend-and-custody-context)
+explains the custody owner contract.
 
 ## Matching inserts in point and parent queries
 
@@ -29361,8 +29400,8 @@ examples: [tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts,
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d56068f2769d0ee7471e5c73374a68201d6530108e5c480db2ca34b3fff6e9b2
+reviewed: 2026-08-27
+reviewed-authorities-digest: sha256:60c8b0cc7293dbdbefb8108a8004f87eba7baf84315e8ec869e8c54db6a4b936
 ---
 
 # Recipe: multiple Node personas and storage partitions

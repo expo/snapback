@@ -9,7 +9,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
 ---
 
@@ -1167,6 +1167,25 @@ blanking all history is not an equivalent answer.
      "server-authored row time", "server-authored lease deadline".
      Exact diagnostic target: `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` ->
      `/_snapback/guide/recipes/time-windowed-live-reads.md#recipe-time-windowed-live-reads`.
+
+106. **Cross-client live updates appear stale:** "A committed write doesn't
+     wake the other client's live hook; the second client's live query stays
+     stale, so cross-client fanout looks broken in my acceptance test." The run
+     fails if it diagnoses the live-delivery lane before first reaching
+     `realtime/live-queries.md#troubleshoot-stale-or-absent-cross-client-updates`,
+     or if it omits the shared-auth-custody collision and its stable-partition
+     repair.
+     Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`,
+     `realtime/live-queries.md`.
+     Route terms: "second client does not receive live updates",
+     "query stays stale on the other client",
+     "cross-client fanout then looks broken",
+     "committed write does not wake the other client's live hook",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     Required guidance: "one stable explicit storagePartition per persona or worker",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
+     `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
 
 ## Static routing check

@@ -9,8 +9,8 @@ examples: [tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts,
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d56068f2769d0ee7471e5c73374a68201d6530108e5c480db2ca34b3fff6e9b2
+reviewed: 2026-08-27
+reviewed-authorities-digest: sha256:60c8b0cc7293dbdbefb8108a8004f87eba7baf84315e8ec869e8c54db6a4b936
 ---
 
 # Recipe: multiple Node personas and storage partitions
