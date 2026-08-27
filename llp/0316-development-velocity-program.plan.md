@@ -9,8 +9,10 @@
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change); Phase 7 Stage A server-test
 source carve and Stage B1 live-delivery production carve implemented and
-measured; Stage B2 action-watchdog and Stage B3 route-assembly carves measured
-negative and discarded; Open Question 2 answered. Accepted by author direction
+measured; Stage B2 action-watchdog, Stage B3 route-assembly, and Stage B4
+auth/operator-control carves measured negative and discarded; Phase 7 closed
+partial with the server lib-test unit still the workspace critical path; Open
+Question 2 answered. Accepted by author direction
 the same day — "write this up as an LLP and then execute on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
 LLP 0031, LLP 0041, LLP 0287, LLP 0289, LLP 0225, LLP 0010
@@ -475,6 +477,31 @@ failed the keep rule, its Rust and reader diffs were discarded, the full
 failing-suite comparison was not run for code that could not land, and
 `cargo clean` removed the 36.9 GiB measurement target.
 
+**Measured negative 2026-08-27 (Stage B4 auth/operator-control carve; Phase 7
+closed partial).** The final candidate named by LLP 0316.000 moved the cohesive
+405-line `/_snapback/api/auth/*` operator-control route, handler, and wire
+projection family into `server/auth_operator_control.rs`, removing a net 389
+lines from `server.rs`. It compiled, preserved the exact 602/419 test inventory,
+and passed focused route-registry, source-inventory, password-admin, and
+integration-retirement tests. The fresh server lib-test unit nevertheless
+regressed **46.22 → 56.30 s** and fresh command wall regressed
+**113.32 → 125.91 s**. The warm unit was effectively unchanged
+(**6.48 → 6.49 s**) while the controlling edit-to-test-binary wall regressed
+**16.31 → 16.93 s**. The production loop alone improved
+**17.21 → 16.58 s**, which cannot satisfy the server-test acceptance bar. The
+candidate Rust and source-reader diffs were discarded before full failing-suite
+proof.
+
+The four bounded Stage B families specified by LLP 0316.000 are now exhausted:
+one paid and three did not. The post-B1 workspace timing still places the
+`snapback-server` lib-test unit at **73.59 s**, ahead of the 43.56-second kernel
+unit and therefore still the critical path. Phase 7 closes **partial**, not as
+an achieved critical-path claim. A further attempt would need a different
+design—most likely separate test targets/crates or lower-owner production
+decomposition—with a new ownership/dependency proposal rather than another
+unbounded same-crate source shuffle. That expansion is not silently assumed by
+this stopwatch program.
+
 ### Phase 8 — Frozen-record ratchet
 
 Count the committed generated artifacts and the drift tickets they produced
@@ -505,6 +532,7 @@ regeneration-in-CI.
 | Phase 7B1 — live-delivery production carve | this landing | **18.00 → 17.21 s** | **18.09 → 16.31 s**; fresh unit **48.23 → 46.22 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 106.31 → 113.32 s (noise, not a win); 602/602 names and 66/66 full failure sets identical; 552,094,512-byte executable |
 | Phase 7B2 — action-watchdog carve | closed, nothing kept | **17.21 → 20.46 s** | **16.31 → 19.16 s**; fresh unit **46.22 → 59.47 s** | — | unchanged (**0.3–0.5 s**) | all clock metrics regressed; 541-line Rust move discarded before full failing-suite proof |
 | Phase 7B3 — route-assembly carve | closed, nothing kept | **17.21 → 18.32 s** | **16.31 → 18.75 s**; fresh unit **46.22 → 51.67 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 113.53 s; all controlling clocks regressed; 1,131-line Rust move discarded before full failing-suite proof |
+| Phase 7B4 — auth/operator-control carve | closed, nothing kept; Phase 7 closed partial | **17.21 → 16.58 s** | **16.31 → 16.93 s**; fresh unit **46.22 → 56.30 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 125.91 s; warm unit 6.48 → 6.49 s; server-test acceptance failed; 405-line move discarded before full failing-suite proof |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
