@@ -251,6 +251,22 @@ export function createSharedDevelopmentBroker({
     }
   }));
 
+  // Where a submission from the authorization page may end up. Every
+  // allowlisted return target belongs here, not just the browser ones: on
+  // native the completion redirects to the `exp://` deep link, and a policy
+  // that omits it blocks the redirect in the in-app browser exactly as an
+  // http-only policy blocks Expo web. `URL.origin` is `null` for a non-special
+  // scheme, so the scheme and host are composed directly.
+  const completionTargets = new Set((returnTargets ?? []).flatMap((target) => {
+    try {
+      const { protocol, host, origin } = new URL(target);
+      if (protocol === 'http:' || protocol === 'https:') return [origin];
+      return host.length > 0 ? [`${protocol}//${host}`] : [];
+    } catch {
+      return [];
+    }
+  }));
+
   function presentedBrowserOrigin(request) {
     const origin = request?.headers?.origin;
     return typeof origin === 'string' ? origin : null;
@@ -352,10 +368,11 @@ export function createSharedDevelopmentBroker({
           'cache-control': 'no-store',
           'referrer-policy': 'no-referrer',
           // `form-action` governs where a submission may *end up*, redirects
-          // included, so the completion's 303 to the app's own origin needs
-          // that origin named here. Anything the supervisor did not derive is
-          // still refused, by this policy and by the route itself.
-          'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; form-action ${["'self'", ...browserOrigins].join(' ')}; base-uri 'none'; frame-ancestors 'none'`,
+          // included, so the completion's 303 needs its return target named
+          // here — the app's own origin on web, the `exp://` deep link on
+          // native. Anything the supervisor did not derive is still refused,
+          // by this policy and by the route itself.
+          'content-security-policy': `default-src 'none'; style-src 'unsafe-inline'; form-action ${["'self'", ...completionTargets].join(' ')}; base-uri 'none'; frame-ancestors 'none'`,
         });
         response.end(renderAuthorizationPage(transactionId, provider));
       } catch (error) {
