@@ -1693,7 +1693,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-expo-crypto-module-invalid"></a>`SNAPBACK_EXPO_CRYPTO_MODULE_INVALID` | emitted | expo | — | — | `packages/snapback-expo/expo-crypto-digest.mjs:66` | 1 |
 | <a id="diagnostic-snapback-expo-descriptor-path-invalid"></a>`SNAPBACK_EXPO_DESCRIPTOR_PATH_INVALID` | emitted | expo | — | — | `packages/snapback-expo/config-plugin.cjs:59` | 3 |
 | <a id="diagnostic-snapback-expo-device-unsupported"></a>`SNAPBACK_EXPO_DEVICE_UNSUPPORTED` | emitted | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2009` | 2 |
-| <a id="diagnostic-snapback-expo-dev-failed"></a>`SNAPBACK_EXPO_DEV_FAILED` | emitted | cli | — | — | `packages/snapback-cli/expo-dev.mjs:5239` | 1 |
+| <a id="diagnostic-snapback-expo-dev-failed"></a>`SNAPBACK_EXPO_DEV_FAILED` | emitted | cli | — | — | `packages/snapback-cli/expo-dev.mjs:5240` | 1 |
 | <a id="diagnostic-snapback-expo-dev-interrupted"></a>`SNAPBACK_EXPO_DEV_INTERRUPTED` | emitted | cli | — | — | `packages/snapback-cli/expo-dev.mjs:3738` | 2 |
 | <a id="diagnostic-snapback-expo-dev-startup-cancelled"></a>`SNAPBACK_EXPO_DEV_STARTUP_CANCELLED` | emitted | cli | — | — | `packages/snapback-cli/expo-dev.mjs:3711` | 2 |
 | <a id="diagnostic-snapback-expo-environment-invalid"></a>`SNAPBACK_EXPO_ENVIRONMENT_INVALID` | emitted | expo | — | — | `packages/snapback-expo/provider.mjs:687` | 6 |
