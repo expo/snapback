@@ -7,8 +7,8 @@
 **Date:** 2026-08-27
 **Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
-integration link targets, 0 semantic change); first `--timings` record;
-Open Question 2 answered. Accepted by
+integration link targets, 0 semantic change); Phase 7 Stage A server-test
+source carve implemented and measured; Open Question 2 answered. Accepted by
 author direction the same day — "write this up as an LLP and then execute
 on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
@@ -425,6 +425,21 @@ sub-LLP with its own before/after row. LLP 0225's ownership map and
 LLP 0283's F-1 boundary work govern *where* the seams may go; this plan
 governs only *whether* a seam pays for itself on the clock.
 
+**Implemented 2026-08-27 (Stage A test-source carve).** LLP 0316.000 split
+`server/tests.rs` into seven same-scope area fragments without changing any
+harness name. On the clean paired target, the fresh server lib-test unit moved
+**52.82 → 48.23 s** and command wall moved **131.48 → 106.31 s**; the
+warm `server.rs` invalidation moved **7.63 → 7.3 s** for the unit and
+**20.35 → 18.09 s** wall. The production-binary edit loop measured
+**18.00 s**, unchanged at the 17–18 s link floor. All 602 test names and all
+419 `server::tests::*` names were byte-identical. Full `--no-fail-fast` runs
+were 536 passed / 66 failed before and after, with byte-identical complete
+failure-name sets. The 552,099,632-byte test executable did not regress.
+Diagnostics authority and chained Guide projections were regenerated. The
+remaining Phase 7 work is a sequence of independently measured production
+`server.rs` seams; Stage A improves but does not by itself retire the server
+lib-test critical path.
+
 ### Phase 8 — Frozen-record ratchet
 
 Count the committed generated artifacts and the drift tickets they produced
@@ -444,13 +459,14 @@ regeneration-in-CI.
 
 ## Record — measurements by phase
 
-| Phase | Landed | Edit `server.rs` → binary | Edit `engine.rs` → test binary | Git→cargo tax | Notes |
-| --- | --- | --- | --- | --- | --- |
-| Baseline | f16d432db era | 68 s | 81 s | 17 s | 533 MB debug binary; 83 link targets |
-| Baseline (fresh control worktree) | f16d432db | 17.5 s | 11.0 s (kernel) | 18 s on a *true no-op* | same tree, uncontended `target/`; the primary checkout's 68 s includes its 28 GB shared target and `--all-targets` residue |
-| Phases 1–2 | this landing | 17–18 s (unchanged) | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
-| Phase 3 | closed, nothing kept | 16.8–22.4 s | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
-| Phase 5 | this landing | unchanged (single-binary loop) | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
+| Phase | Landed | Edit `server.rs` → binary | Edit `server.rs` → server test binary | Edit `engine.rs` → test binary | Git→cargo tax | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline | f16d432db era | 68 s | — | 81 s | 17 s | 533 MB debug binary; 83 link targets |
+| Baseline (fresh control worktree) | f16d432db | 17.5 s | — | 11.0 s (kernel) | 18 s on a *true no-op* | same tree, uncontended `target/`; the primary checkout's 68 s includes its 28 GB shared target and `--all-targets` residue |
+| Phases 1–2 | this landing | 17–18 s (unchanged) | — | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
+| Phase 3 | closed, nothing kept | 16.8–22.4 s | — | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
+| Phase 5 | this landing | unchanged (single-binary loop) | — | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
+| Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
@@ -477,8 +493,9 @@ so here rather than being quietly dropped.
 Phases 1–2 landed together on 2026-08-27; Phase 3 closed the same day with
 nothing to land; Phase 5's consolidation landed the same day (nextest
 adoption remains open under Phase 5 — it needs `cargo-nextest` on the
-fleet and in CI first). Next in order of measured payoff: Phase 7's first
-carve (the `snapback-server` test unit is the 73 s critical path), then
-Phase 4 (bounded by the link floor), then Phase 8 and the Phase 6
-precondition. Phase 6 itself is a decision, not code, and can be taken at
-any time.
+fleet and in CI first). Phase 7 Stage A landed next and reduced the server
+test unit without yet removing it from the critical path. Next: independently
+measure the first production `server.rs` seam under LLP 0316.000, then Phase 5
+nextest, Phase 4 (bounded by the link floor), Phase 8, and the Phase 6
+precondition. Phase 6 itself is a decision, not code, and can be taken at any
+time.
