@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate, generateInProcess } from './index.mjs';
@@ -225,6 +225,38 @@ try {
   assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(reviewBytes));
   assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBytes));
   verifyGeneratedGraph(isolated.outDir);
+
+  const authoredGeneratedSentinel = join(second.outDir, '.output-root-overlap-sentinel');
+  writeFileSync(authoredGeneratedSentinel, 'authored generated surface must survive refusal\n');
+  const overlappingProgrammatic = await generate(backend, { outputRoot: project });
+  assert.equal(overlappingProgrammatic.ok, false);
+  assert.equal(
+    overlappingProgrammatic.diagnostics[0]?.code,
+    'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+  );
+  assert.equal(
+    existsSync(authoredGeneratedSentinel),
+    true,
+    'an aliasing outputRoot must refuse before replacing the authored generated directory',
+  );
+
+  const relativeAliasingOutputRoot = relative(process.cwd(), project);
+  assert.notEqual(relativeAliasingOutputRoot, project);
+  const overlappingRelative = await generateInProcess(
+    backend,
+    { outputRoot: relativeAliasingOutputRoot },
+  );
+  assert.equal(overlappingRelative.ok, false);
+  assert.equal(
+    overlappingRelative.diagnostics[0]?.code,
+    'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+  );
+  assert.equal(
+    existsSync(authoredGeneratedSentinel),
+    true,
+    'a relative spelling of an aliasing outputRoot must preserve the authored sentinel',
+  );
+  rmSync(authoredGeneratedSentinel);
 
   const callerCwd = process.cwd();
   let relativeProgrammatic;

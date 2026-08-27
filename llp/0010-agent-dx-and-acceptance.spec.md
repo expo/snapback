@@ -5,6 +5,10 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-27 (codegen now prospectively canonicalizes the derived
+publication backend and refuses authored-backend overlap before creating or
+replacing output; relative, absolute, traversal, case-folded, and symlinked
+spellings converge at that guard).
 **Revised:** 2026-08-27 (the release output-root refusal claim is scoped to
 the tested symlinked-ancestor topology; descendant symlinks and the prospective
 canonicalization-to-creation race remain explicit hardening routes).
@@ -528,14 +532,16 @@ relocation must preserve the same relative review-manifest cache path and
 artifact identities as the ordinary layout; an output pathname is custody, not
 application content. With an ordinary disjoint publication root, the tested
 release path does not rewrite or restore the committed `generated/` review
-surface. For the tested symlinked-ancestor topology, prospective
-canonicalization detects overlap before creating the requested output directory,
-and the refusal leaves that directory absent. This is not a universal
-filesystem-non-mutation claim: descendant symlinks at
-`outputRoot/<backend-name>`, `outputRoot/.snapback`, or an existing
-`outputRoot/<backend-name>/generated` followed by familiar-bootstrap synthesis,
-plus the interval between prospective canonicalization and `mkdirSync`, remain
-hardening routes tracked in
+surface. Before codegen creates an explicit publication directory or acquires
+its lock, it prospectively canonicalizes the derived
+`outputRoot/<backend-name>` directory and refuses when that directory contains
+or is contained by the canonical authored backend. Relative, absolute, `..`
+traversal, case-folded, and symlinked spellings therefore converge on the same
+coded refusal, which leaves the authored tree untouched. This is not a
+universal filesystem-non-mutation claim: descendant symlinks below an otherwise
+disjoint publication backend (including `.snapback` or `generated`) and the
+interval between prospective canonicalization and `mkdirSync` remain hardening
+routes tracked in
 `issues/20260827-release-output-root-alias-hardening.md`.
 
 The freshness boundary is the complete permitted static local module graph, not

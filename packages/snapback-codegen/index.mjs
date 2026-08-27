@@ -2115,6 +2115,36 @@ function codegenWorkerEnvironment() {
   return environment;
 }
 
+function canonicalProspectiveDirectory(path) {
+  const absolute = resolve(path);
+  let cursor = absolute;
+  while (true) {
+    try {
+      const canonicalAncestor = realpathSync.native(cursor);
+      if (!lstatSync(canonicalAncestor).isDirectory()) {
+        throw new TypeError(`output path ancestor is not a directory: ${cursor}`);
+      }
+      return cursor === absolute
+        ? canonicalAncestor
+        : join(canonicalAncestor, relative(cursor, absolute));
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+      const parent = dirname(cursor);
+      if (parent === cursor) throw error;
+      cursor = parent;
+    }
+  }
+}
+
+function pathsOverlap(left, right) {
+  const isOutside = (relation) => (
+    relation === '..' || relation.startsWith(`..${sep}`) || isAbsolute(relation)
+  );
+  const leftToRight = relative(left, right);
+  const rightToLeft = relative(right, left);
+  return leftToRight === '' || !isOutside(leftToRight) || !isOutside(rightToLeft);
+}
+
 export async function generateInProcess(backendDir, options = {}, testHooks = undefined) {
   const diagnostics = [];
   // Non-blocking info diagnostics carried into the generated function
@@ -2146,10 +2176,14 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   // complete-graph publication step differs.
   const checkOnly = options?.check === true;
   const targetConfig = TARGET_PROFILES.get(targetProfile);
+  const outputRootInvalid = (message, details) => err(
+    'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+    'codegen',
+    message,
+    details,
+  );
   if (Object.hasOwn(options ?? {}, 'outputRoot') && (typeof outputRoot !== 'string' || outputRoot.length === 0)) {
-    err(
-      'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
-      'codegen',
+    outputRootInvalid(
       'outputRoot must be a non-empty path when supplied',
       { outputRoot },
     );
@@ -2179,11 +2213,35 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   try {
     // @ref LLP 0010#generated-artifacts — an explicit publication root moves
     // the complete materialization/cache/envelope graph together, preserving
-    // the ordinary project-relative review-manifest layout without touching
-    // the authored generated/ review surface.
+    // the ordinary project-relative review-manifest layout; canonical overlap
+    // refusal keeps that publication from touching the authored backend.
     const publicationBackendRoot = outputRoot === null
       ? backendRoot
       : join(resolve(outputRoot), basename(backendRoot));
+    if (outputRoot !== null) {
+      let canonicalPublicationBackendRoot;
+      try {
+        canonicalPublicationBackendRoot = canonicalProspectiveDirectory(publicationBackendRoot);
+      } catch (error) {
+        outputRootInvalid('outputRoot could not be canonicalized before publication', {
+          outputRoot,
+          publicationBackendRoot,
+          reason: 'canonicalization-failed',
+          cause: error.message,
+        });
+        return { ok: false, diagnostics };
+      }
+      if (pathsOverlap(backendRoot, canonicalPublicationBackendRoot)) {
+        outputRootInvalid('outputRoot must derive a publication backend disjoint from the authored backend', {
+          outputRoot,
+          backendRoot,
+          publicationBackendRoot,
+          canonicalPublicationBackendRoot,
+          reason: 'authored-backend-overlap',
+        });
+        return { ok: false, diagnostics };
+      }
+    }
     if (outputRoot !== null) mkdirSync(publicationBackendRoot, { recursive: true });
     return await withCodegenGenerationLock(
       publicationBackendRoot,
