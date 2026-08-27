@@ -35,7 +35,9 @@ import {
   createSupervisedExpoEnvironment,
   useSnapbackExpoBootState,
 } from '../snapback-expo/index.mjs';
+import { createSharedBrowserAdapter } from '../snapback-expo/shared-browser-adapter.mjs';
 import { createNativeAuthCustodyStorage } from '../snapback-expo-custody/index.mjs';
+import { createSnapbackAppClient } from '../snapback-client/app-client.mjs';
 import {
   observeSnapbackPresence,
   observeSnapbackQueries,
@@ -88,10 +90,11 @@ const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival
 const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
 const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
+const supervisedWebSignOutReloadOnly = process.argv.includes('--supervised-web-signout-reload-only');
 const retainedCustodyChild = process.argv.includes('--retained-custody-child');
 const retainedHarnessProcessTable = process.env.SNAPBACK_RETAINED_PROCESS_TABLE === 'lsof';
 
-if (retainedSessionLifecycleOnly && !retainedHarnessProcessTable) {
+if ((retainedSessionLifecycleOnly || supervisedWebSignOutReloadOnly) && !retainedHarnessProcessTable) {
   const nativeProcessTable = spawnSync(
     '/bin/ps',
     ['-axo', 'pid=,ppid=,pgid=,lstart='],
@@ -135,7 +138,9 @@ syncBuiltinESMExports();
     const result = spawnSync(process.execPath, [
       '--import', preload,
       fileURLToPath(import.meta.url),
-      '--retained-session-lifecycle-only',
+      retainedSessionLifecycleOnly
+        ? '--retained-session-lifecycle-only'
+        : '--supervised-web-signout-reload-only',
     ], {
       cwd: process.cwd(),
       env: {
@@ -1027,6 +1032,19 @@ function authSessionFactsForBearer(databasePath, bearer) {
   }
 }
 
+function authSessionFactsForId(databasePath, sessionId) {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const row = database.prepare(
+      'SELECT id, user_id AS userId, generation, revoked_at_ms AS revokedAtMs '
+        + 'FROM "_auth_sessions" WHERE id = ?',
+    ).get(sessionId);
+    return row === undefined ? null : Object.freeze({ ...row });
+  } finally {
+    database.close();
+  }
+}
+
 async function runRetainedCustodyProcess({ action, appPath, supervisor, custodyPath }) {
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), '--retained-custody-child'], {
     cwd: packageRoot,
@@ -1436,6 +1454,357 @@ async function runRetainedSessionLifecycleSuite() {
       await run.supervisor.close().catch(() => {});
       supervisors.splice(supervisors.indexOf(run.supervisor), 1);
     }
+  }
+}
+
+async function runSupervisedWebSignOutReloadSuite() {
+  // This is the HTTP-level stand-in permitted by the issue's round-4 brief
+  // when the sandbox cannot provide a controllable browser. It uses the real
+  // web supervisor, browser Origin headers, the current expo-chat backend and
+  // provider protocol, and fresh IndexedDB factories for each reload. It does
+  // not claim DOM/button coverage.
+  const target = fixture('supervised-web-signout-reload', { sessions: false });
+  rmSync(target.backendRoot, { recursive: true, force: true });
+  cpSync(join(packageRoot, 'templates', 'expo-chat', 'snapback'), target.backendRoot, {
+    recursive: true,
+  });
+  const templateAppSource = readFileSync(
+    join(packageRoot, 'templates', 'expo-chat', 'App.tsx'),
+    'utf8',
+  );
+  assert.equal(
+    templateAppSource.includes('adoptSupervisedSession'),
+    false,
+    'the current freshly scaffolded expo-chat web page must retain default anonymous adoption',
+  );
+
+  let run = null;
+  let exchangeOrigin = null;
+  let backendOrigin = null;
+  const allDiagnostics = [];
+  const exchangeSummaries = [];
+  try {
+    const stopSupervisedWebMetro = async (child) => {
+      if (child.exitCode !== null || child.signalCode !== null) return true;
+      const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
+      child.kill('SIGTERM');
+      const graceful = await Promise.race([
+        exited.then(() => true),
+        new Promise((resolveWait) => setTimeout(() => resolveWait(false), 5_000)),
+      ]);
+      if (graceful) return true;
+      child.kill('SIGKILL');
+      await exited;
+      return true;
+    };
+    run = await startFixture(target, {
+      platform: 'web',
+      env: { SNAPBACK_EXPO_TEST_NO_GENERATED_WATCH: '1' },
+      stopProcessGroup: stopSupervisedWebMetro,
+    });
+    const { supervisor } = run;
+    exchangeOrigin = supervisor.exchangeOrigin;
+    backendOrigin = supervisor.snapbackUrl;
+    const generation = supervisor.supervisorGeneration;
+    const app = JSON.parse(readFileSync(
+      join(target.backendRoot, 'generated', 'app.descriptor.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      app.authBootstrap.providers.map(({ provider }) => provider),
+      ['apple', 'google'],
+    );
+
+    const makeWebEnvironment = (phase) => {
+      const observed = [];
+      const diagnostics = [];
+      const environment = createSupervisedExpoEnvironment({
+        exchangeOrigin: supervisor.exchangeOrigin,
+        runtimePlatform: 'web',
+        bindingCache: null,
+        appState: Object.freeze({
+          currentState: 'active',
+          addEventListener() { return Object.freeze({ remove() {} }); },
+        }),
+        async fetch(input, init = {}) {
+          const headers = new Headers(init.headers ?? {});
+          headers.set('Origin', supervisor.metroOrigin);
+          const response = await fetch(input, { ...init, headers });
+          if (
+            String(input).startsWith(
+              `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}`,
+            )
+            && response.ok
+          ) {
+            const exchange = await response.clone().json();
+            let session = null;
+            if (exchange.authority?.status === 'ready') {
+              session = authSessionFactsForBearer(
+                target.database,
+                exchange.authority.token,
+              );
+              assert.notEqual(session, null, 'every exchanged bearer must name a server session');
+            }
+            const summary = Object.freeze({
+              phase,
+              method: init.method ?? 'GET',
+              authorityStatus: exchange.authority?.status ?? null,
+              sessionId: session?.id ?? null,
+              serverRevoked: session === null ? null : session.revokedAtMs !== null,
+            });
+            observed.push(Object.freeze({ exchange, summary }));
+            exchangeSummaries.push(summary);
+          }
+          return response;
+        },
+        onDiagnostic(diagnostic) {
+          diagnostics.push(diagnostic.code);
+          allDiagnostics.push(diagnostic.code);
+        },
+      });
+      return Object.freeze({ environment, observed, diagnostics });
+    };
+
+    const headlessProviderSession = async (authorizationUrl, returnTo) => {
+      const page = await fetch(authorizationUrl);
+      assert.equal(page.status, 200);
+      assert.match(await page.text(), /Snapback development sign-in/u);
+      const transaction = new URL(authorizationUrl).searchParams.get('transaction');
+      assert.equal(typeof transaction, 'string');
+      const completed = await fetch(
+        `${new URL(authorizationUrl).origin}/v1/shared/complete?transaction=${encodeURIComponent(transaction)}`,
+        { method: 'POST', redirect: 'manual' },
+      );
+      assert.equal(completed.status, 303);
+      const callback = completed.headers.get('location');
+      assert.equal(callback.startsWith(returnTo), true);
+      return Object.freeze({ type: 'success', url: callback });
+    };
+
+    const createProviderClient = async (exchange, phase) => {
+      assert.equal(exchange.sharedAuth?.available, true);
+      const returnTo = exchange.sharedAuth.returnTargets.find((targetUrl) => (
+        targetUrl.startsWith(supervisor.metroOrigin)
+      ));
+      assert.equal(typeof returnTo, 'string');
+      const adapter = createSharedBrowserAdapter({
+        projection: exchange.sharedAuth,
+        appId: app.authBootstrap.appId,
+        openAuthSession: (authorizationUrl, targetUrl) => (
+          headlessProviderSession(authorizationUrl, targetUrl)
+        ),
+        createUrl: () => returnTo,
+      });
+      const diagnostics = [];
+      const client = await createSnapbackAppClient({
+        app,
+        binding: exchange.binding,
+        platform: Object.freeze({
+          kind: 'expo-web',
+          indexedDB: new IDBFactory(),
+          cryptoObject: webcrypto,
+          databaseName: `snapback-supervised-web-${phase}-${process.pid}`,
+        }),
+        authProviders: Object.freeze({
+          context: Object.freeze({
+            deployment: 'development',
+            platform: 'web',
+            sharedAvailable: true,
+          }),
+          adapters: Object.freeze({ 'snapback-shared-browser': adapter }),
+        }),
+        onDiagnostic(diagnostic) {
+          diagnostics.push(diagnostic.code);
+          allDiagnostics.push(diagnostic.code);
+        },
+      });
+      return Object.freeze({ client, diagnostics });
+    };
+
+    // Exact current freshly scaffolded posture: the page asks only for a
+    // binding. The provider button owns the first application session.
+    const initialPage = makeWebEnvironment('initial-page-bootstrap');
+    const initialBoot = createSnapbackExpoBoot({
+      app,
+      environment: initialPage.environment,
+      rqsStore: null,
+    });
+    const initialReady = await initialBoot.start();
+    assert.equal(initialReady.status, 'ready', JSON.stringify(initialReady));
+    assert.equal(initialBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+    assert.equal(initialPage.observed.length, 1);
+    assert.equal(initialPage.observed[0].summary.authorityStatus, 'unavailable');
+    assert.equal(initialPage.observed[0].summary.sessionId, null);
+    assert.deepEqual(initialPage.diagnostics, []);
+    const initialExchange = initialPage.observed[0].exchange;
+    await initialBoot.dispose();
+
+    const beforeSignOutProvider = await createProviderClient(
+      initialExchange,
+      'before-sign-out',
+    );
+    assert.equal(beforeSignOutProvider.client.auth.currentPrincipal().status, 'anonymous');
+    await beforeSignOutProvider.client.auth.signIn({ provider: 'apple' });
+    const providerPrincipal = beforeSignOutProvider.client.auth.currentPrincipal();
+    assert.equal(providerPrincipal.status, 'authenticated');
+    const endedProviderSessionId = providerPrincipal.sessionId;
+    const providerBeforeSignOut = authSessionFactsForId(
+      target.database,
+      endedProviderSessionId,
+    );
+    assert.notEqual(providerBeforeSignOut, null);
+    assert.equal(providerBeforeSignOut.revokedAtMs, null);
+    await beforeSignOutProvider.client.auth.signOut();
+    const providerAfterSignOut = authSessionFactsForId(
+      target.database,
+      endedProviderSessionId,
+    );
+    assert.notEqual(providerAfterSignOut.revokedAtMs, null);
+    assert.equal(beforeSignOutProvider.client.auth.currentPrincipal().status, 'anonymous');
+    assert.deepEqual(beforeSignOutProvider.diagnostics, []);
+    await beforeSignOutProvider.client.dispose();
+
+    // A reload with every browser store replaced performs the same GET as a
+    // fresh page. It receives no authority and boots anonymous.
+    const reloadedPage = makeWebEnvironment('reload-after-provider-sign-out');
+    const reloadedBoot = createSnapbackExpoBoot({
+      app,
+      environment: reloadedPage.environment,
+      rqsStore: null,
+    });
+    const reloadedReady = await reloadedBoot.start();
+    assert.equal(reloadedReady.status, 'ready', JSON.stringify(reloadedReady));
+    assert.equal(reloadedBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+    assert.equal(reloadedPage.observed.length, 1);
+    assert.equal(reloadedPage.observed[0].summary.authorityStatus, 'unavailable');
+    assert.equal(reloadedPage.observed[0].summary.sessionId, null);
+    assert.deepEqual(reloadedPage.diagnostics, []);
+    const reloadExchange = reloadedPage.observed[0].exchange;
+    await reloadedBoot.dispose();
+
+    // Mandatory positive: the same never-restarted supervisor's provider
+    // protocol signs in again after the anonymous reload.
+    const positiveProvider = await createProviderClient(reloadExchange, 'positive-after-reload');
+    await positiveProvider.client.auth.signIn({ provider: 'google' });
+    const positivePrincipal = positiveProvider.client.auth.currentPrincipal();
+    assert.equal(positivePrincipal.status, 'authenticated');
+    const positiveSession = authSessionFactsForId(target.database, positivePrincipal.sessionId);
+    assert.notEqual(positiveSession, null);
+    assert.equal(positiveSession.revokedAtMs, null);
+    assert.notEqual(positiveSession.id, endedProviderSessionId);
+    assert.deepEqual(positiveProvider.diagnostics, []);
+    await positiveProvider.client.dispose();
+
+    // Diagnostic arm for the report's former boot-authenticated posture. An
+    // explicit web adopter gets a minted session, revokes it, then receives a
+    // distinct live session on its next explicit adoption—not the ended one.
+    const explicitBefore = makeWebEnvironment('explicit-adoption-before-sign-out');
+    const explicitBeforeBoot = createSnapbackExpoBoot({
+      app,
+      environment: explicitBefore.environment,
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const explicitBeforeReady = await explicitBeforeBoot.start();
+    assert.equal(explicitBeforeReady.status, 'ready', JSON.stringify(explicitBeforeReady));
+    const explicitBeforePrincipal = explicitBeforeBoot.appClient().auth.currentPrincipal();
+    assert.equal(explicitBeforePrincipal.status, 'authenticated');
+    const explicitBeforeAuthority = explicitBefore.observed.find(({ summary }) => (
+      summary.authorityStatus === 'ready'
+    ));
+    assert.notEqual(explicitBeforeAuthority, undefined);
+    assert.equal(explicitBeforeAuthority.summary.sessionId, explicitBeforePrincipal.sessionId);
+    const endedAdoptedSessionId = explicitBeforePrincipal.sessionId;
+    await explicitBeforeBoot.appClient().auth.signOut();
+    const explicitAfterSignOut = authSessionFactsForId(
+      target.database,
+      endedAdoptedSessionId,
+    );
+    assert.notEqual(explicitAfterSignOut.revokedAtMs, null);
+    assert.deepEqual(explicitBefore.diagnostics, []);
+    await explicitBeforeBoot.dispose();
+
+    const explicitReload = makeWebEnvironment('explicit-adoption-reload');
+    const explicitReloadBoot = createSnapbackExpoBoot({
+      app,
+      environment: explicitReload.environment,
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const explicitReloadReady = await explicitReloadBoot.start();
+    assert.equal(explicitReloadReady.status, 'ready', JSON.stringify(explicitReloadReady));
+    const explicitReloadPrincipal = explicitReloadBoot.appClient().auth.currentPrincipal();
+    assert.equal(explicitReloadPrincipal.status, 'authenticated');
+    const explicitReloadAuthority = explicitReload.observed.find(({ summary }) => (
+      summary.authorityStatus === 'ready'
+    ));
+    assert.notEqual(explicitReloadAuthority, undefined);
+    assert.equal(explicitReloadAuthority.summary.sessionId, explicitReloadPrincipal.sessionId);
+    assert.notEqual(explicitReloadAuthority.summary.sessionId, endedAdoptedSessionId);
+    assert.equal(explicitReloadAuthority.summary.serverRevoked, false);
+    assert.deepEqual(explicitReload.diagnostics, []);
+    await explicitReloadBoot.appClient().auth.signOut();
+    await explicitReloadBoot.dispose();
+
+    assert.equal(supervisor.supervisorGeneration, generation);
+    assert.deepEqual(allDiagnostics, []);
+    assert.equal(
+      exchangeSummaries.some(({ sessionId }) => sessionId === endedProviderSessionId),
+      false,
+      'the provider-button session must never appear in bootstrap authority',
+    );
+    assert.equal(
+      exchangeSummaries.filter(({ sessionId }) => sessionId === endedAdoptedSessionId).length,
+      1,
+      'the ended adopted session must appear only on its original exchange',
+    );
+
+    console.log(JSON.stringify(Object.freeze({
+      schemaVersion: 'snapback.supervised-web-signout-reload.v1',
+      surface: 'HTTP-level stand-in for a browser reload (browser control unavailable)',
+      reproduced: false,
+      supervisorGeneration: generation,
+      supervisorRestarted: false,
+      exchanges: Object.freeze(exchangeSummaries),
+      providerButtonPath: Object.freeze({
+        endedSession: Object.freeze({
+          sessionId: endedProviderSessionId,
+          serverRevoked: providerAfterSignOut.revokedAtMs !== null,
+        }),
+        reload: Object.freeze({
+          principalStatus: 'anonymous',
+          exchangeAuthorityStatus: reloadedPage.observed[0].summary.authorityStatus,
+          exchangeSessionId: reloadedPage.observed[0].summary.sessionId,
+        }),
+        positiveAfterReload: Object.freeze({
+          provider: 'google',
+          principalStatus: positivePrincipal.status,
+          sessionId: positiveSession.id,
+          serverRevoked: positiveSession.revokedAtMs !== null,
+        }),
+      }),
+      explicitAdoptionDiagnostic: Object.freeze({
+        endedSession: Object.freeze({
+          sessionId: endedAdoptedSessionId,
+          serverRevoked: explicitAfterSignOut.revokedAtMs !== null,
+        }),
+        reloadSession: Object.freeze({
+          sessionId: explicitReloadAuthority.summary.sessionId,
+          sameAsEnded: explicitReloadAuthority.summary.sessionId === endedAdoptedSessionId,
+          serverRevoked: explicitReloadAuthority.summary.serverRevoked,
+        }),
+      }),
+      diagnosticCodes: Object.freeze([...allDiagnostics]),
+      exactExpiredDiagnosticObserved: allDiagnostics.includes('SNAPBACK_AUTH_SESSION_EXPIRED'),
+    })));
+  } finally {
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      const index = supervisors.indexOf(run.supervisor);
+      if (index !== -1) supervisors.splice(index, 1);
+    }
+    if (exchangeOrigin !== null) await assertOriginClosed(exchangeOrigin, 'bootstrap');
+    if (backendOrigin !== null) await assertOriginClosed(backendOrigin, 'backend');
   }
 }
 
@@ -3289,7 +3658,9 @@ async function runRegularFileControlInputSuite() {
 }
 
 try {
-  if (retainedSessionLifecycleOnly) {
+  if (supervisedWebSignOutReloadOnly) {
+    await runSupervisedWebSignOutReloadSuite();
+  } else if (retainedSessionLifecycleOnly) {
     await runRetainedSessionLifecycleSuite();
   } else if (metroStopRaceOnly) {
     await runDelayedMetroExitAfterStopFailureSuite();

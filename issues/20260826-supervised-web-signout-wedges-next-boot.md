@@ -122,3 +122,64 @@ The harness emitted this structured result verbatim:
 ```json
 {"schemaVersion":"snapback.retained-development-session-lifecycle.v1","variants":[{"variant":"process-restart-retained-native-custody","surface":"client process-persistent custody","reached":true,"reproduced":false,"proof":{"processIds":[39610,40738],"supervisorGeneration":"supervisor-04f94493-c19d-4f5c-a4df-918f0d22bf39","supervisorRestarted":false,"storageArm":{"providerFactoryCalls":1,"grade":"single-runtime","carrier":"expo-native-injected","nativeGradeCarrier":"process-persistent-file-native-module-stand-in","mechanism":"atomic-file-cas-test-double","processPersistent":true,"nativeOperations":["platformGrade","read","read","read","read","read","read","read","read","read","compareAndReplace","read","read","compareAndReplace","read","read","read","read","read","read","read","read","read","read","read"]},"recordBeforeRestartBoot":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false}},"result":{"afterSignOut":{"principalStatus":"anonymous","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":5,"authorityEpoch":2,"authorityKind":"anonymous","bearerPresent":false,"pendingBearerPresent":false},"diagnosticCodes":[]},"afterRestartFreshSignIn":{"principalStatus":"authenticated","custody":{"storageKey":"snapback.auth-custody.d835e21d0fae444fcc4b1a763ac5e0860043be04ed9c7a2ad52858f4a998875f","formatVersion":2,"phase":"settled","revision":7,"authorityEpoch":3,"authorityKind":"session","bearerPresent":true,"pendingBearerPresent":false},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}},{"variant":"successor-reload-plus-stashed-replacement-before-sign-out","surface":"one-shot supervisor pendingAuthority","reached":true,"reproduced":false,"proof":{"supervisorGeneration":"supervisor-04f94493-c19d-4f5c-a4df-918f0d22bf39","supervisorRestarted":false,"mintCountAfterStash":4,"mintCountAfterSuccessorBoot":4,"pendingAuthorityConsumedWithoutMint":true,"ordinaryReloadPopulatedPendingAuthority":false,"pendingAuthorityPopulatedBy":"replaceAuthority-same-email","sameEmailUser":true,"distinctSessionFamilies":true,"productionStashArm":{"verb":"dev-fresh","supervisorGeneration":"supervisor-04f94493-c19d-4f5c-a4df-918f0d22bf39","supervisorRestarted":false,"predecessorSignOutDiagnosticCode":"SNAPBACK_AUTH_REQUIRED","logoutInvalidationTested":false,"mintCountAfterStash":6,"mintCountAfterSuccessorBoot":6,"pendingAuthorityConsumedWithoutMint":true}},"result":{"predecessor":{"sessionId":"ses_01m10ztwmjec3b93arq5gdwqtc","revoked":true},"stashedSuccessor":{"sessionId":"ses_01m10zv2z3f62bgay7tg542b72","revoked":false,"principalStatus":"authenticated"},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false,"productionStashArm":{"predecessorSignOut":{"status":"failed","diagnosticCode":"SNAPBACK_AUTH_REQUIRED"},"successorBoot":{"principalStatus":"authenticated","diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}}}}]}
 ```
+
+## Lane C supervised-web follow-up (2026-08-27)
+
+This round targeted the platform named by the original report. The opt-in
+harness is
+`packages/snapback-cli/expo-dev-loop.test.mjs --supervised-web-signout-reload-only`.
+It ran against HEAD `9022fd5ee` with the qualified
+`target/debug/snapback` binary and exited 0. The available browser-control
+inventory was empty, so this is explicitly an HTTP-level stand-in for a real
+browser reload, not a DOM/button claim. It used a live `runExpoDev` supervisor
+with `platform: web`, browser `Origin` headers, the current freshly scaffolded
+`expo-chat` backend and provider declarations, and a fresh IndexedDB factory
+for every reload-shaped boot. The Metro child was the existing supervised-loop
+stand-in.
+
+### Current `expo-chat` provider-button posture
+
+The current template does not pass `adoptSupervisedSession`; supervised web is
+anonymous by default. The initial page-shaped bootstrap GET returned authority
+`unavailable` and no session id. The headless external-user-agent stand-in then
+drove the same shared-development broker protocol as the Apple provider button,
+and the ordinary coordinator established session
+`ses_01m1114ysjfjbta26zxert32fm`. Sign-out revoked that exact server row.
+
+The reload-shaped bootstrap GET, against the same supervisor generation
+`supervisor-dc063517-35dc-4d74-95ff-cf943786dc24`, again returned authority
+`unavailable` and no session id. The replacement page booted anonymous
+`ready`; the ended provider session was never present in any bootstrap
+exchange. The mandatory positive then drove the Google provider flow against
+that same never-restarted supervisor. It authenticated as live session
+`ses_01m1114yzaf3jsy0ssnnw2t4mp`.
+
+### Former boot-authenticated posture
+
+A second diagnostic arm opted web into supervised adoption to represent the
+former boot-authenticated posture. Its bootstrap POST returned live session
+`ses_01m1114z3zf3qvefqwrg9t0k35`; sign-out revoked that exact server row. The
+next explicit-adoption reload sent a new POST and received distinct live
+session `ses_01m1114zaye2cs4dwsp2cmqsxc`. The supervisor did not replay the
+ended session.
+
+Every diagnostic-code list was exactly empty, and
+`SNAPBACK_AUTH_SESSION_EXPIRED` was not observed. The harness closed the
+bootstrap, backend, and Metro process surfaces and verified the bootstrap and
+backend listeners were gone.
+
+This is another evidenced non-reproduction, not a fix. The author's environment
+differs in a way not yet identified. This round covered the current source
+template, its Apple/Google rehearsal-provider protocol, browser-origin
+bootstrap GET/POST behavior, fully fresh browser-storage stand-ins, both the
+current anonymous-default and explicit adopted-session postures, and a single
+never-restarted supervisor. It did not cover a real Expo/Metro-rendered page,
+the DOM button/popup integration, or the historical package/bundle revision
+that still booted supervised web already authenticated. Those are now the
+specific differences for the author to identify or reproduce.
+
+The harness emitted this structured result verbatim:
+
+```json
+{"schemaVersion":"snapback.supervised-web-signout-reload.v1","surface":"HTTP-level stand-in for a browser reload (browser control unavailable)","reproduced":false,"supervisorGeneration":"supervisor-dc063517-35dc-4d74-95ff-cf943786dc24","supervisorRestarted":false,"exchanges":[{"phase":"initial-page-bootstrap","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"reload-after-provider-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-before-sign-out","method":"POST","authorityStatus":"ready","sessionId":"ses_01m1114z3zf3qvefqwrg9t0k35","serverRevoked":false},{"phase":"explicit-adoption-reload","method":"GET","authorityStatus":"unavailable","sessionId":null,"serverRevoked":null},{"phase":"explicit-adoption-reload","method":"POST","authorityStatus":"ready","sessionId":"ses_01m1114zaye2cs4dwsp2cmqsxc","serverRevoked":false}],"providerButtonPath":{"endedSession":{"sessionId":"ses_01m1114ysjfjbta26zxert32fm","serverRevoked":true},"reload":{"principalStatus":"anonymous","exchangeAuthorityStatus":"unavailable","exchangeSessionId":null},"positiveAfterReload":{"provider":"google","principalStatus":"authenticated","sessionId":"ses_01m1114yzaf3jsy0ssnnw2t4mp","serverRevoked":false}},"explicitAdoptionDiagnostic":{"endedSession":{"sessionId":"ses_01m1114z3zf3qvefqwrg9t0k35","serverRevoked":true},"reloadSession":{"sessionId":"ses_01m1114zaye2cs4dwsp2cmqsxc","sameAsEnded":false,"serverRevoked":false}},"diagnosticCodes":[],"exactExpiredDiagnosticObserved":false}
+```
