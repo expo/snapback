@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
@@ -244,6 +245,13 @@ export function prepareDarwinRuntimePackage({
   // proof. Manufacturing adds --strict-clean-release; neither mode may omit
   // the console.
   const allowMissingAdminConsole = nativeArtifactStaging;
+  // @ref LLP 0041#defence-in-depth — receiptless native transport and source
+  // testing are not final publication assemblies; contributor-source builds
+  // also do not derive single_table_v1 authority from a packaged receipt.
+  const requiresPackagedStoreReceipt =
+    identity.buildDistribution === PUBLIC_PACKAGE_BUILD_DISTRIBUTION
+    && !nativeArtifactStaging
+    && !sourceTestStaging;
   const stagingRoot = mkdtempSync(join(packageRoot, '.staging-'));
   const binDirectory = join(stagingRoot, 'bin');
   const frameworksDirectory = join(stagingRoot, 'Frameworks');
@@ -301,10 +309,11 @@ export function prepareDarwinRuntimePackage({
         environment,
       });
       if (!receiptInstall.installed
+          && requiresPackagedStoreReceipt
           && environment.SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS !== '1') {
-        console.error(
-          '@expo/snapback-runtime-darwin-arm64: packaged-store qualification receipt is absent; the package will not advertise single_table_v1',
-        );
+        // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+        // — final public packages require byte-bound qualification evidence.
+        throw new Error('@expo/snapback-runtime-darwin-arm64: packaged-store qualification receipt is required; SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1 is reserved for qualification pass-one staging');
       }
     } catch (error) {
       throw diagnosticError(

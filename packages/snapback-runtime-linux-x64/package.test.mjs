@@ -16,6 +16,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
   assertPublicPackageBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
@@ -765,15 +767,97 @@ try {
     architecture: 'x64',
   });
   assert.equal(verifyAssembly().ok, true);
-  const originalReceipt = readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8');
+  const allowOverrideReceipt = readFileSync(
+    join(packageRoot, 'runtime-readiness.json'),
+    'utf8',
+  );
   assert.deepEqual(
-    JSON.parse(originalReceipt).catalogBuildIdentityProof,
+    JSON.parse(allowOverrideReceipt).catalogBuildIdentityProof,
     {
       schemaVersion: 'snapback.runtime-catalog-build-identity-proof.v1',
       source: 'snapback.runtime-artifact-attestation.v4',
       buildIdentity: catalogBuildIdentity,
     },
   );
+
+  const receiptlessEnvironment = { ...process.env };
+  delete receiptlessEnvironment.SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS;
+  delete receiptlessEnvironment.SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT;
+  const receiptlessSourceTest = prepareLinuxRuntimePackage({
+    ...preparation,
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    receiptlessSourceTest.identity,
+    buildIdentity,
+    'source-test staging must remain receiptless without an override',
+  );
+
+  const nativePrepared = prepareLinuxRuntimePackage({
+    ...preparation,
+    args: ['--native-artifact-staging'],
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    nativePrepared.identity,
+    buildIdentity,
+    'native-artifact staging must remain receiptless without an override',
+  );
+  const nativeAssembly = verifyRuntimePackageSeal({
+    root: packageRoot,
+    binaryPath: join(packageRoot, 'bin', 'snapback'),
+    packageName: PACKAGE_NAME,
+    platform: 'linux',
+    architecture: 'x64',
+    adminConsoleRequired: false,
+  });
+  assert.equal(nativeAssembly.ok, true);
+  const nativeAssemblyReceipt = readFileSync(
+    join(packageRoot, 'runtime-readiness.json'),
+    'utf8',
+  );
+
+  assert.throws(
+    () => prepareLinuxRuntimePackage({
+      ...preparation,
+      args: [],
+      environment: receiptlessEnvironment,
+    }),
+    (error) => error.code === 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+    'final package assembly must not silently omit single_table_v1 evidence',
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),
+    nativeAssemblyReceipt,
+  );
+
+  const packagedStoreReceipt = join(
+    sourceRoot,
+    PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  );
+  writeFileSync(packagedStoreReceipt, `${JSON.stringify({
+    schemaVersion: PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
+  })}\n`);
+  const finalPrepared = prepareLinuxRuntimePackage({
+    ...preparation,
+    args: [],
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    finalPrepared.identity,
+    buildIdentity,
+    'final public-package assembly with a receipt must succeed without the override',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.equal(
+    existsSync(join(packageRoot, 'bin', PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE)),
+    true,
+  );
+  const originalReceipt = readFileSync(
+    join(packageRoot, 'runtime-readiness.json'),
+    'utf8',
+  );
+  rmSync(packagedStoreReceipt, { force: true });
 
   // Same-host Linux preparation must execute the binary's catalog projection,
   // just as the Darwin preparer does, before any staged package can replace

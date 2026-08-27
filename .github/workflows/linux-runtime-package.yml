@@ -92,6 +92,13 @@ jobs:
             --binary "$GITHUB_WORKSPACE/target/release/snapback"
 
       - name: Prepare and test the sealed Linux runtime package
+        # This CI job validates packaging/pack/cold-install mechanics on a
+        # public-package build; it does not run packaged-store qualification, so
+        # it declares the LLP 0041 pass-one override rather than carrying a store
+        # receipt. The final public-package receipt requirement is exercised by
+        # the runtime package tests and the real publication ceremony.
+        env:
+          SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS: '1'
         run: |
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           node packages/snapback-runtime-linux-x64/package.test.mjs
@@ -105,6 +112,10 @@ jobs:
       - name: Pack and cold-install the Linux public-alias closure
         env:
           SNAPBACK_PACKAGE_OUT: ${{ runner.temp }}/snapback-linux-package
+          # See the prepare step above: this mechanics test runs on a
+          # public-package build without packaged-store qualification, so
+          # snapback-publish's internal prepare declares the pass-one override.
+          SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS: '1'
         run: |
           node scripts/snapback-publish.mjs \
             --scope-preset identity \

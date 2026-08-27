@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (final public-package receipt guard):** 2026-08-27 (0.1.28 shipped
+both final runtime packages without packaged-store qualification receipts and
+therefore dropped `single_table_v1`; final `public-package` assembly now
+requires the receipt, while native-artifact transport, source-test/contributor
+staging, and the explicit pass-one override remain receiptless.)
 **Revised (0.1.27 ceremony complete):** 2026-08-24 (the fourteen-package
 closure published and promoted from `98681377721e` under holding tag
 `fastpath-0-1-27-98681377721e`; see §0.1.27 for the completed record and
@@ -515,7 +520,8 @@ Both platform preparers assemble `bin/`, the platform Hermes directory,
 `include/`, `admin/`, and `runtime-readiness.json` beneath a private staging
 root inside the package. All fallible work happens there: native/header copy,
 the source-revision-matched admin snapshot install, optional packaged-store
-receipt install, CV-2 qualification against the final loader-relative shape,
+receipt install under the mode-specific rule below, CV-2 qualification against
+the final loader-relative shape,
 seal issuance, and read-only seal reopening. Only a staging tree whose seal
 reopens may replace the shipped entries. Entry renames retain rollback copies
 for ordinary failures and land `runtime-readiness.json` last, so interruption
@@ -2019,12 +2025,21 @@ would let this recur.
 ### Defence in depth
 
 `installPackagedStoreQualificationReceipt` no longer returns a bare `null` when
-it finds no receipt. It returns a discriminated result, and both
-`packages/snapback-runtime-*/prepare-runtime.mjs` print a visible line naming
-the package and saying it will not advertise `single_table_v1`. It is
-deliberately **not** fatal: many in-repo gates stage receiptless closures on
-purpose, and the authoritative refusal belongs at publish time, over the bytes
-that are about to leave the machine.
+it finds no receipt. It returns a discriminated result. Receipt absence remains
+valid for `--native-artifact-staging`, which transports the pre-receipt native
+closure, for `--source-test-staging` and contributor-source preparation, and
+under the explicit qualification-pass-one
+`SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1` override. These modes cannot derive
+public-package `single_table_v1` authority from a receipt they do not carry.
+
+A final assembly of a `public-package` binary — neither native-artifact nor
+source-test staging — now requires the receipt and fails closed with
+`SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID` before the staged tree
+can replace the previous assembly. This local manufacturing interlock joins,
+rather than replaces, the authoritative publication gate over the bytes about
+to leave the machine. The narrower fatal rule is required because 0.1.28
+reached the registry receiptless and consequently withheld `single_table_v1`;
+publish-time ceremony alone did not prevent that recurrence.
 
 ### 0.1.17 (2026-08-09) — the first cut under the gate, and what it caught
 

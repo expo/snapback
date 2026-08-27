@@ -770,6 +770,53 @@ fn public_packaged_store_verified(
 }
 
 #[test]
+fn receipt_qualified_public_package_matches_contributor_core_capabilities() {
+    let receipt = packaged_store_test_receipt_bytes();
+    // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
+    // — a receipt-qualified public package and contributor-source build expose
+    // the same core ids; package preparation owns the missing-receipt refusal.
+    let dev_facts = TargetCapabilityFacts::local_auth_aware_with_packaged_store_evidence(
+        crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+        PACKAGED_STORE_TEST_GIT_COMMIT,
+        false,
+        "release",
+        Some(&receipt),
+        false,
+    );
+    assert!(dev_facts.single_table_v1_registered);
+    assert!(dev_facts.local_persistent_store_publication_v1_verified);
+    let dev_manifest =
+        CapabilityManifest::local_v0_with_facts(local_v0_default_capability_gaps(), dev_facts);
+    let verify_manifest = CapabilityManifest::local_v0_with_facts(
+        local_v0_default_capability_gaps(),
+        TargetCapabilityFacts::local_auth_aware_for_distribution(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+        ),
+    );
+
+    for capability in [
+        TargetCapabilityId::HostPlanRuntime,
+        TargetCapabilityId::LiveSubscriptions,
+        TargetCapabilityId::SingleTableV1,
+    ] {
+        assert!(
+            dev_manifest.supported_capabilities.contains(&capability),
+            "receipt-qualified public package must offer {capability:?}",
+        );
+        assert!(
+            verify_manifest.supported_capabilities.contains(&capability),
+            "verify contributor target must support {capability:?}",
+        );
+    }
+    assert!(
+        !dev_manifest
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "single_table_v1")
+    );
+}
+
+#[test]
 fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
     let valid_receipt = packaged_store_test_receipt_bytes();
     // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06

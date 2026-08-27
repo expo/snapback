@@ -16,6 +16,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   assertPublicPackageBuildIdentity,
 } from '../../scripts/runtime-package-authority.mjs';
@@ -360,6 +362,85 @@ process.exit(ok ? 0 : 1);
   assert.equal(verifyAssembly().ok, true);
   let originalReceipt;
   const originalBinary = readFileSync(join(packageRoot, 'bin', 'snapback'), 'utf8');
+
+  const receiptlessEnvironment = { ...process.env };
+  delete receiptlessEnvironment.SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS;
+  delete receiptlessEnvironment.SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE;
+  const receiptlessSourceTest = prepareDarwinRuntimePackage({
+    ...preparation,
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    receiptlessSourceTest.identity,
+    fixtureIdentity,
+    'source-test staging must remain receiptless without an override',
+  );
+
+  const publicPackageIdentity = structuredClone(fixtureIdentity);
+  publicPackageIdentity.buildDistribution = 'public-package';
+  writeFileSync(sourceBinary, fixtureBinarySourceFor(publicPackageIdentity));
+  chmodSync(sourceBinary, 0o755);
+  const nativePrepared = prepareDarwinRuntimePackage({
+    ...preparation,
+    args: ['--native-artifact-staging'],
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    nativePrepared.identity,
+    publicPackageIdentity,
+    'native-artifact staging must remain receiptless without an override',
+  );
+  const nativeAssembly = verifyRuntimePackageSeal({
+    root: packageRoot,
+    binaryPath: join(packageRoot, 'bin', 'snapback'),
+    packageName: PACKAGE_NAME,
+    platform: 'darwin',
+    architecture: 'arm64',
+    adminConsoleRequired: false,
+  });
+  assert.equal(nativeAssembly.ok, true);
+  const nativeAssemblyReceipt = readFileSync(
+    join(packageRoot, 'runtime-readiness.json'),
+    'utf8',
+  );
+
+  assert.throws(
+    () => prepareDarwinRuntimePackage({
+      ...preparation,
+      args: [],
+      environment: receiptlessEnvironment,
+    }),
+    (error) => error.code === 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+    'final package assembly must not silently omit single_table_v1 evidence',
+  );
+  assert.equal(
+    readFileSync(join(packageRoot, 'runtime-readiness.json'), 'utf8'),
+    nativeAssemblyReceipt,
+  );
+
+  const packagedStoreReceipt = join(
+    sourceRoot,
+    PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  );
+  writeFixture(packagedStoreReceipt, `${JSON.stringify({
+    schemaVersion: PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
+  })}\n`);
+  const finalPrepared = prepareDarwinRuntimePackage({
+    ...preparation,
+    args: [],
+    environment: receiptlessEnvironment,
+  });
+  assert.deepEqual(
+    finalPrepared.identity,
+    publicPackageIdentity,
+    'final public-package assembly with a receipt must succeed without the override',
+  );
+  assert.equal(verifyAssembly().ok, true);
+  assert.equal(
+    existsSync(join(packageRoot, 'bin', PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE)),
+    true,
+  );
+  rmSync(packagedStoreReceipt, { force: true });
 
   const debugDirtyIdentity = structuredClone(fixtureIdentity);
   debugDirtyIdentity.binary.gitDirty = true;
