@@ -92,9 +92,19 @@ const regularFileOnly = process.argv.includes('--regular-file-only');
 const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
 const supervisedWebSignOutReloadOnly = process.argv.includes('--supervised-web-signout-reload-only');
 const retainedCustodyChild = process.argv.includes('--retained-custody-child');
-const retainedHarnessProcessTable = process.env.SNAPBACK_RETAINED_PROCESS_TABLE === 'lsof';
+const retainedCustodyCasChild = process.argv.includes('--retained-custody-cas-child');
+const retainedHarnessProcessTable = process.env.SNAPBACK_RETAINED_PROCESS_TABLE ?? 'ps';
+assert(
+  retainedHarnessProcessTable === 'ps'
+    || retainedHarnessProcessTable === 'libproc-native-helper',
+  `unsupported retained harness process table: ${retainedHarnessProcessTable}`,
+);
 
-if ((retainedSessionLifecycleOnly || supervisedWebSignOutReloadOnly) && !retainedHarnessProcessTable) {
+if (
+  !retainedCustodyChild
+  && !retainedCustodyCasChild
+  && retainedHarnessProcessTable === 'ps'
+) {
   const nativeProcessTable = spawnSync(
     '/bin/ps',
     ['-axo', 'pid=,ppid=,pgid=,lstart='],
@@ -102,7 +112,82 @@ if ((retainedSessionLifecycleOnly || supervisedWebSignOutReloadOnly) && !retaine
   );
   if (nativeProcessTable.error || nativeProcessTable.status !== 0) {
     const preloadRoot = mkdtempSync(join(tmpdir(), 'snapback-retained-process-table-'));
-    const preload = join(preloadRoot, 'lsof-process-table.mjs');
+    const helperSource = join(preloadRoot, 'process-table.c');
+    const helper = join(preloadRoot, 'process-table');
+    const preload = join(preloadRoot, 'libproc-process-table.mjs');
+    writeFileSync(helperSource, `
+#include <libproc.h>
+#include <sys/proc_info.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+int main(int argc, char **argv) {
+  const int include_command = argc == 2 && strcmp(argv[1], "--command") == 0;
+  const int capacity = proc_listallpids(NULL, 0);
+  if (capacity <= 0) return 70;
+  pid_t *pids = calloc((size_t)capacity, sizeof(pid_t));
+  if (pids == NULL) return 71;
+  const int count = proc_listallpids(pids, capacity * (int)sizeof(pid_t));
+  if (count <= 0) {
+    free(pids);
+    return 72;
+  }
+  for (int index = 0; index < count; index += 1) {
+    struct proc_bsdinfo info;
+    const int bytes = proc_pidinfo(
+      pids[index],
+      PROC_PIDTBSDINFO,
+      0,
+      &info,
+      (int)sizeof(info)
+    );
+    if (bytes != (int)sizeof(info) || info.pbi_pid == 0 || info.pbi_pgid == 0) continue;
+    const time_t started = (time_t)info.pbi_start_tvsec;
+    struct tm local_started;
+    char start_time[64];
+    if (localtime_r(&started, &local_started) == NULL) continue;
+    if (strftime(start_time, sizeof(start_time), "%a %b %e %H:%M:%S %Y", &local_started) == 0) {
+      continue;
+    }
+    printf("%u %u %u %s", info.pbi_pid, info.pbi_ppid, info.pbi_pgid, start_time);
+    if (include_command) {
+      const char *command = info.pbi_name[0] == '\\0' ? info.pbi_comm : info.pbi_name;
+      printf(" %s", command[0] == '\\0' ? "unknown" : command);
+    }
+    putchar('\\n');
+  }
+  free(pids);
+  return 0;
+}
+`, { mode: 0o600 });
+    const compile = spawnSync('/usr/bin/clang', [
+      helperSource,
+      '-O2',
+      '-o',
+      helper,
+    ], { encoding: 'utf8', timeout: 30_000 });
+    const helperProbe = compile.error || compile.status !== 0
+      ? null
+      : spawnSync(helper, [], { encoding: 'utf8', timeout: 10_000 });
+    if (
+      compile.error
+      || compile.status !== 0
+      || helperProbe?.error
+      || helperProbe?.status !== 0
+      || !new RegExp(`^${process.pid}\\s`, 'mu').test(helperProbe?.stdout ?? '')
+    ) {
+      rmSync(preloadRoot, { recursive: true, force: true });
+      const error = new Error(
+        'retained-session harness could not obtain observed pid/ppid/pgid/start-time facts',
+      );
+      error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
+      error.cause = compile.error ?? helperProbe?.error ?? new Error(
+        compile.stderr || helperProbe?.stderr || 'native process-table helper returned unusable output',
+      );
+      throw error;
+    }
     writeFileSync(preload, `
 import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
@@ -110,42 +195,31 @@ import { syncBuiltinESMExports } from 'node:module';
 const originalSpawnSync = childProcess.spawnSync;
 childProcess.spawnSync = function retainedHarnessSpawnSync(command, args, options) {
   if (command !== '/bin/ps') return originalSpawnSync(command, args, options);
-  const result = originalSpawnSync('/usr/sbin/lsof', ['-nP', '-FpcR'], {
-    encoding: 'utf8',
-    timeout: options?.timeout ?? 10_000,
-  });
-  if (result.error || result.status !== 0) return result;
-  const records = new Map();
-  let current = null;
-  for (const line of result.stdout.split('\\n')) {
-    if (line.startsWith('p')) {
-      current = Number(line.slice(1));
-      if (Number.isSafeInteger(current) && current > 0 && !records.has(current)) {
-        records.set(current, { pid: current, ppid: 1 });
-      }
-    } else if (line.startsWith('R') && records.has(current)) {
-      records.get(current).ppid = Number(line.slice(1));
-    }
+  const tableRequest = args?.[0] === '-axo'
+    && args?.[1]?.startsWith('pid=,ppid=,pgid=,lstart=');
+  if (!tableRequest) {
+    const error = new Error('unsupported /bin/ps request in retained-session harness');
+    error.code = 'SNAPBACK_RETAINED_PROCESS_TABLE_UNAVAILABLE';
+    return { error, status: null, signal: null, stdout: '', stderr: error.message };
   }
-  const stdout = [...records.values()].map(({ pid, ppid }) => (
-    String(pid) + ' ' + String(ppid) + ' ' + String(pid)
-      + ' Thu Jan  1 00:00:00 1970-' + String(pid)
-  )).join('\\n') + '\\n';
-  return { ...result, stdout, stderr: '' };
+  return originalSpawnSync(
+    process.env.SNAPBACK_RETAINED_PROCESS_TABLE_HELPER,
+    args[1].includes('command=') ? ['--command'] : [],
+    options,
+  );
 };
 syncBuiltinESMExports();
 `, { mode: 0o600 });
     const result = spawnSync(process.execPath, [
       '--import', preload,
       fileURLToPath(import.meta.url),
-      retainedSessionLifecycleOnly
-        ? '--retained-session-lifecycle-only'
-        : '--supervised-web-signout-reload-only',
+      ...process.argv.slice(2),
     ], {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        SNAPBACK_RETAINED_PROCESS_TABLE: 'lsof',
+        SNAPBACK_RETAINED_PROCESS_TABLE: 'libproc-native-helper',
+        SNAPBACK_RETAINED_PROCESS_TABLE_HELPER: helper,
       },
       stdio: 'inherit',
       timeout: 180_000,
@@ -158,6 +232,7 @@ syncBuiltinESMExports();
 
 if (!metroFreshnessOnly) {
   assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
+  process.env.SNAPBACK_RUNTIME_BINARY = runtimeBinary;
 }
 
 function readJsonObject(path) {
@@ -173,7 +248,34 @@ function writeJsonObject(path, value) {
   renameSync(temporary, path);
 }
 
-function persistentNativeCustodyModule(path, calls) {
+async function withExclusiveFileLock(path, operation, { holdMs = 0 } = {}) {
+  const lockPath = `${path}.cas-lock`;
+  const deadline = Date.now() + 10_000;
+  while (true) {
+    try {
+      mkdirSync(lockPath, { mode: 0o700 });
+      break;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
+      if (Date.now() >= deadline) {
+        const timeout = new Error(`timed out acquiring custody CAS lock ${lockPath}`);
+        timeout.code = 'SNAPBACK_RETAINED_CUSTODY_FILE_LOCK_TIMEOUT';
+        throw timeout;
+      }
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+    }
+  }
+  try {
+    if (holdMs > 0) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, holdMs));
+    }
+    return await operation();
+  } finally {
+    rmSync(lockPath, { recursive: true, force: true });
+  }
+}
+
+function persistentNativeCustodyModule(path, calls, { holdCasLockMs = 0 } = {}) {
   return Object.freeze({
     async platformGrade() {
       calls.push(Object.freeze({ operation: 'platformGrade' }));
@@ -182,7 +284,7 @@ function persistentNativeCustodyModule(path, calls) {
         os: 'ios',
         grade: 'single-runtime',
         carrier: 'process-persistent-file-native-module-stand-in',
-        mechanism: 'atomic-file-cas-test-double',
+        mechanism: 'exclusive-lock-rename-file-cas-test-double',
         moduleVersion: 'retained-session-harness.v1',
         storageFormatVersion: 1,
       });
@@ -201,15 +303,17 @@ function persistentNativeCustodyModule(path, calls) {
         storageKey,
         expectedRevision,
       }));
-      const records = readJsonObject(path);
-      const current = records[storageKey] ?? null;
-      const actualRevision = current === null ? null : JSON.parse(current).revision;
-      if (actualRevision !== expectedRevision) {
-        return Object.freeze({ status: 'cas-stale', expectedRevision, actualRevision });
-      }
-      records[storageKey] = serializedRecord;
-      writeJsonObject(path, records);
-      return Object.freeze({ status: 'ok', record: serializedRecord });
+      return withExclusiveFileLock(path, async () => {
+        const records = readJsonObject(path);
+        const current = records[storageKey] ?? null;
+        const actualRevision = current === null ? null : JSON.parse(current).revision;
+        if (actualRevision !== expectedRevision) {
+          return Object.freeze({ status: 'cas-stale', expectedRevision, actualRevision });
+        }
+        records[storageKey] = serializedRecord;
+        writeJsonObject(path, records);
+        return Object.freeze({ status: 'ok', record: serializedRecord });
+      }, { holdMs: holdCasLockMs });
     },
   });
 }
@@ -295,7 +399,7 @@ async function runRetainedCustodyChild() {
   );
   assert.equal(ready.custody.grade, 'single-runtime');
   assert.equal(ready.custody.carrier, 'expo-native-injected');
-  assert.equal(ready.custody.mechanism, 'atomic-file-cas-test-double');
+  assert.equal(ready.custody.mechanism, 'exclusive-lock-rename-file-cas-test-double');
   assert.equal(nativeFactoryCalls, 1, 'the provider must call the native custody factory exactly once');
   assert.equal(boot.appClient().auth.currentPrincipal().status, 'authenticated');
 
@@ -343,9 +447,40 @@ async function runRetainedCustodyChild() {
   return result;
 }
 
-if (retainedCustodyChild) {
+async function runRetainedCustodyCasChild() {
+  const custodyPath = process.env.SNAPBACK_RETAINED_CUSTODY_FILE;
+  const storageKey = process.env.SNAPBACK_RETAINED_CUSTODY_STORAGE_KEY;
+  const proposedRevision = Number(process.env.SNAPBACK_RETAINED_CUSTODY_PROPOSED_REVISION);
+  const holdCasLockMs = Number(process.env.SNAPBACK_RETAINED_CUSTODY_CAS_HOLD_MS ?? 0);
+  assert.equal(typeof custodyPath === 'string' && custodyPath.length > 0, true);
+  assert.equal(typeof storageKey === 'string' && storageKey.length > 0, true);
+  assert.equal(Number.isSafeInteger(proposedRevision) && proposedRevision > 1, true);
+  assert.equal(Number.isSafeInteger(holdCasLockMs) && holdCasLockMs >= 0, true);
+  const calls = [];
+  const module = persistentNativeCustodyModule(custodyPath, calls, { holdCasLockMs });
+  const serializedRecord = JSON.stringify({ revision: proposedRevision });
+  const outcome = await module.compareAndReplace(
+    'retained-custody-contention-app',
+    storageKey,
+    1,
+    serializedRecord,
+  );
+  return Object.freeze({
+    schemaVersion: 'snapback.retained-custody-cas-child.v1',
+    pid: process.pid,
+    proposedRevision,
+    status: outcome.status,
+    actualRevision: outcome.actualRevision ?? proposedRevision,
+  });
+}
+
+if (retainedCustodyChild || retainedCustodyCasChild) {
   try {
-    console.log(JSON.stringify(await runRetainedCustodyChild()));
+    console.log(JSON.stringify(
+      retainedCustodyCasChild
+        ? await runRetainedCustodyCasChild()
+        : await runRetainedCustodyChild(),
+    ));
     process.exit(0);
   } catch (error) {
     console.error(JSON.stringify({
@@ -1045,39 +1180,135 @@ function authSessionFactsForId(databasePath, sessionId) {
   }
 }
 
-async function runRetainedCustodyProcess({ action, appPath, supervisor, custodyPath }) {
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), '--retained-custody-child'], {
+function startRetainedHarnessChild({ flag, env, schemaVersion, timeoutMs = 60_000 }) {
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), flag], {
     cwd: packageRoot,
     env: {
       ...process.env,
       SNAPBACK_RUNTIME_BINARY: runtimeBinary,
-      SNAPBACK_RETAINED_CUSTODY_ACTION: action,
-      SNAPBACK_RETAINED_CUSTODY_APP: appPath,
-      SNAPBACK_RETAINED_CUSTODY_EXCHANGE_ORIGIN: supervisor.exchangeOrigin,
-      SNAPBACK_RETAINED_CUSTODY_FILE: custodyPath,
-      SNAPBACK_RETAINED_CUSTODY_GENERATION: supervisor.supervisorGeneration,
+      ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  cliChildren.push(child);
   let stdout = '';
   let stderr = '';
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr += chunk; });
-  const exit = await new Promise((resolveExit) => {
-    child.once('exit', (code, signal) => resolveExit({ code, signal }));
+  const exited = new Promise((resolveExit) => {
+    child.once('error', (error) => resolveExit({ error, code: null, signal: null }));
+    child.once('exit', (code, signal) => resolveExit({ error: null, code, signal }));
   });
-  assert.deepEqual(exit, { code: 0, signal: null }, stderr || stdout);
-  const structuredLine = stdout.trim().split('\n').reverse().find((line) => {
+  const completion = (async () => {
+    let timeoutTimer = null;
     try {
-      return JSON.parse(line)?.schemaVersion === 'snapback.retained-development-session-child.v1';
-    } catch {
-      return false;
+      const outcome = await Promise.race([
+        exited,
+        new Promise((resolveTimeout) => {
+          timeoutTimer = setTimeout(() => resolveTimeout({ timeout: true }), timeoutMs);
+        }),
+      ]);
+      if (outcome.timeout) {
+        child.kill('SIGTERM');
+        const terminated = await Promise.race([
+          exited.then(() => true),
+          new Promise((resolveWait) => setTimeout(() => resolveWait(false), 1_000)),
+        ]);
+        if (!terminated) {
+          child.kill('SIGKILL');
+          await exited;
+        }
+        const error = new Error(`${flag} child exceeded ${timeoutMs}ms`);
+        error.code = 'SNAPBACK_RETAINED_CUSTODY_CHILD_TIMEOUT';
+        throw error;
+      }
+      if (outcome.error) throw outcome.error;
+      assert.deepEqual(
+        { code: outcome.code, signal: outcome.signal },
+        { code: 0, signal: null },
+        stderr || stdout,
+      );
+      const structuredLine = stdout.trim().split('\n').reverse().find((line) => {
+        try {
+          return JSON.parse(line)?.schemaVersion === schemaVersion;
+        } catch {
+          return false;
+        }
+      });
+      assert.equal(typeof structuredLine, 'string', `child returned no structured result: ${stdout}`);
+      return JSON.parse(structuredLine);
+    } finally {
+      if (timeoutTimer !== null) clearTimeout(timeoutTimer);
+      if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) {
+        const index = cliChildren.indexOf(child);
+        if (index !== -1) cliChildren.splice(index, 1);
+      }
     }
+  })();
+  return Object.freeze({ child, completion });
+}
+
+async function runRetainedCustodyProcess({ action, appPath, supervisor, custodyPath }) {
+  return startRetainedHarnessChild({
+    flag: '--retained-custody-child',
+    schemaVersion: 'snapback.retained-development-session-child.v1',
+    env: {
+      SNAPBACK_RETAINED_CUSTODY_ACTION: action,
+      SNAPBACK_RETAINED_CUSTODY_APP: appPath,
+      SNAPBACK_RETAINED_CUSTODY_EXCHANGE_ORIGIN: supervisor.exchangeOrigin,
+      SNAPBACK_RETAINED_CUSTODY_FILE: custodyPath,
+      SNAPBACK_RETAINED_CUSTODY_GENERATION: supervisor.supervisorGeneration,
+    },
+  }).completion;
+}
+
+async function proveRetainedCustodyCasContention(custodyPath) {
+  const storageKey = `snapback.auth-custody.${'f'.repeat(64)}`;
+  writeJsonObject(custodyPath, {
+    [storageKey]: JSON.stringify({ revision: 1 }),
   });
-  assert.equal(typeof structuredLine, 'string', `child returned no structured result: ${stdout}`);
-  return JSON.parse(structuredLine);
+  const startContender = (proposedRevision, holdCasLockMs) => startRetainedHarnessChild({
+    flag: '--retained-custody-cas-child',
+    schemaVersion: 'snapback.retained-custody-cas-child.v1',
+    env: {
+      SNAPBACK_RETAINED_CUSTODY_FILE: custodyPath,
+      SNAPBACK_RETAINED_CUSTODY_STORAGE_KEY: storageKey,
+      SNAPBACK_RETAINED_CUSTODY_PROPOSED_REVISION: String(proposedRevision),
+      SNAPBACK_RETAINED_CUSTODY_CAS_HOLD_MS: String(holdCasLockMs),
+    },
+  });
+  const first = startContender(2, 500);
+  let second = null;
+  try {
+    await eventually(
+      () => existsSync(`${custodyPath}.cas-lock`),
+      { timeoutMs: 5_000, label: 'first cross-process custody CAS lock acquisition' },
+    );
+    second = startContender(3, 0);
+    const [winner, loser] = await Promise.all([first.completion, second.completion]);
+    assert.equal(winner.status, 'ok');
+    assert.equal(loser.status, 'cas-stale');
+    assert.equal(loser.actualRevision, 2);
+    const persisted = JSON.parse(readJsonObject(custodyPath)[storageKey]);
+    assert.equal(persisted.revision, 2);
+    return Object.freeze({
+      mechanism: 'exclusive-lock-rename-file-cas-test-double',
+      processIds: Object.freeze([winner.pid, loser.pid]),
+      competingExpectedRevision: 1,
+      winnerProposedRevision: winner.proposedRevision,
+      loserProposedRevision: loser.proposedRevision,
+      loserStatus: loser.status,
+      loserObservedRevision: loser.actualRevision,
+      finalRevision: persisted.revision,
+    });
+  } finally {
+    await Promise.allSettled([
+      first.completion,
+      ...(second === null ? [] : [second.completion]),
+    ]);
+  }
 }
 
 function retainedWebEnvironment(supervisor, indexedDB, databaseName, diagnostics, bearers) {
@@ -1117,6 +1348,12 @@ function retainedWebEnvironment(supervisor, indexedDB, databaseName, diagnostics
   });
 }
 
+async function closeRegisteredSupervisor(supervisor) {
+  await supervisor.close();
+  const index = supervisors.indexOf(supervisor);
+  if (index !== -1) supervisors.splice(index, 1);
+}
+
 async function runRetainedSessionLifecycleSuite() {
   const target = fixture('retained-development-session', { sessions: true });
   let run = null;
@@ -1147,7 +1384,9 @@ async function runRetainedSessionLifecycleSuite() {
     const { supervisor } = run;
     const appPath = join(target.backendRoot, 'generated', 'app.descriptor.json');
     const custodyPath = join(target.stateRoot, 'retained-native-custody.json');
+    const contentionPath = join(target.stateRoot, 'retained-native-custody-contention.json');
     const generation = supervisor.supervisorGeneration;
+    const custodyCasContention = await proveRetainedCustodyCasContention(contentionPath);
 
     const mintCountBeforeProcesses = supervisor.inspection().authorityMintCount;
     const signedOutProcess = await runRetainedCustodyProcess({
@@ -1200,6 +1439,7 @@ async function runRetainedSessionLifecycleSuite() {
         supervisorGeneration: generation,
         supervisorRestarted: false,
         storageArm: restartedProcess.storageArm,
+        custodyCasContention,
         recordBeforeRestartBoot: restartedProcess.beforeBootCustody,
       }),
       result: Object.freeze({
@@ -1247,6 +1487,11 @@ async function runRetainedSessionLifecycleSuite() {
     );
     assert.notEqual(predecessorFactsBeforeReload, null);
     assert.equal(predecessorFactsBeforeReload.revokedAtMs, null);
+    assert.equal(
+      supervisor.inspection().pendingAuthorityPresent,
+      false,
+      'initial adoption must not populate the one-shot authority slot',
+    );
 
     const reload = await supervisor.verbs.reload({
       requestId: 'retained-pending-authority-successor-reload',
@@ -1256,12 +1501,24 @@ async function runRetainedSessionLifecycleSuite() {
     assert.equal(
       supervisor.inspection().authorityMintCount,
       mintCountBeforeReloadVariant + 1,
-      'ordinary reload does not populate the one-shot authority slot at this base',
+      'ordinary reload does not mint at this base',
+    );
+    const ordinaryReloadPopulatedPendingAuthority =
+      supervisor.inspection().pendingAuthorityPresent;
+    assert.equal(
+      ordinaryReloadPopulatedPendingAuthority,
+      false,
+      'ordinary reload must leave the observed one-shot authority slot empty',
     );
     assert.equal(
       await supervisor.replaceAuthority('first@expo-e1.test'),
       'ready',
       'the supervisor replacement seam populates the exact pendingAuthority slot',
+    );
+    assert.equal(
+      supervisor.inspection().pendingAuthorityPresent,
+      true,
+      'replaceAuthority must populate the observed one-shot authority slot',
     );
     assert.equal(
       supervisor.inspection().authorityMintCount,
@@ -1298,6 +1555,11 @@ async function runRetainedSessionLifecycleSuite() {
       supervisor.inspection().authorityMintCount,
       mintCountAfterStash,
       'the successor boot consumes the stashed authority without minting again',
+    );
+    assert.equal(
+      supervisor.inspection().pendingAuthorityPresent,
+      false,
+      'the successor boot must consume the observed one-shot authority slot',
     );
     const mintCountAfterSameDatabaseSuccessorBoot = supervisor.inspection().authorityMintCount;
     assert.equal(deliveredBearers.length, 2);
@@ -1350,6 +1612,11 @@ async function runRetainedSessionLifecycleSuite() {
       beforeFreshBootMintCount + 2,
       'dev-fresh mints and stashes one successor because authority was previously requested',
     );
+    assert.equal(
+      supervisor.inspection().pendingAuthorityPresent,
+      true,
+      'dev-fresh must populate the observed one-shot authority slot',
+    );
     const mintCountAfterDevFreshStash = supervisor.inspection().authorityMintCount;
     let postResetSignOutCode = null;
     try {
@@ -1380,6 +1647,11 @@ async function runRetainedSessionLifecycleSuite() {
       'the first post-reset boot consumes the production-stashed authority without another mint',
     );
     assert.equal(
+      supervisor.inspection().pendingAuthorityPresent,
+      false,
+      'the post-reset boot must consume the observed one-shot authority slot',
+    );
+    assert.equal(
       freshDiagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
       false,
       'the exact expiry diagnostic belongs to the already-reset predecessor sign-out, not later boot',
@@ -1399,7 +1671,8 @@ async function runRetainedSessionLifecycleSuite() {
         mintCountAfterStash,
         mintCountAfterSuccessorBoot: mintCountAfterSameDatabaseSuccessorBoot,
         pendingAuthorityConsumedWithoutMint: true,
-        ordinaryReloadPopulatedPendingAuthority: false,
+        ordinaryReloadPopulatedPendingAuthority,
+        pendingAuthorityEvidence: 'behavioral-supervisor-inspection',
         pendingAuthorityPopulatedBy: 'replaceAuthority-same-email',
         sameEmailUser: successorFacts.userId === predecessorFactsAfterSignOut.userId,
         distinctSessionFamilies: successorFacts.id !== predecessorFactsAfterSignOut.id,
@@ -1446,13 +1719,13 @@ async function runRetainedSessionLifecycleSuite() {
 
     const structured = Object.freeze({
       schemaVersion: 'snapback.retained-development-session-lifecycle.v1',
+      processTableSource: retainedHarnessProcessTable,
       variants: Object.freeze([surface1, surface2]),
     });
     console.log(JSON.stringify(structured));
   } finally {
     if (run !== null) {
-      await run.supervisor.close().catch(() => {});
-      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+      await closeRegisteredSupervisor(run.supervisor);
     }
   }
 }
@@ -1762,6 +2035,7 @@ async function runSupervisedWebSignOutReloadSuite() {
     console.log(JSON.stringify(Object.freeze({
       schemaVersion: 'snapback.supervised-web-signout-reload.v1',
       surface: 'HTTP-level stand-in for a browser reload (browser control unavailable)',
+      processTableSource: retainedHarnessProcessTable,
       reproduced: false,
       supervisorGeneration: generation,
       supervisorRestarted: false,
@@ -1799,9 +2073,7 @@ async function runSupervisedWebSignOutReloadSuite() {
     })));
   } finally {
     if (run !== null) {
-      await run.supervisor.close().catch(() => {});
-      const index = supervisors.indexOf(run.supervisor);
-      if (index !== -1) supervisors.splice(index, 1);
+      await closeRegisteredSupervisor(run.supervisor);
     }
     if (exchangeOrigin !== null) await assertOriginClosed(exchangeOrigin, 'bootstrap');
     if (backendOrigin !== null) await assertOriginClosed(backendOrigin, 'backend');

@@ -5208,6 +5208,7 @@ export async function runExpoDev(options = {}) {
         return Object.freeze({
           correlationId,
           authorityMintCount,
+          pendingAuthorityPresent: pendingAuthority !== null,
           listeners,
           binding: publicBinding(bindingProjection),
           applicationReady: currentApplicationReceiptProjection(),
