@@ -12,7 +12,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generate } from './index.mjs';
 import {
   HOUR_MS,
-  openTimeWindow,
+  SOON_MS,
+  openExpiringSoon,
+  openTrendingWindow,
   refreshTimeWindow,
 } from '../../tests/fixtures/guide-time-windowed-live-reads/time-windowed-live-reads.mjs';
 
@@ -53,11 +55,18 @@ try {
     'utf8',
   ));
   const query = manifest.functions.find((entry) => entry.name === 'eventsVisibleAtPinnedClock');
-  assert(query, 'recipe query is emitted');
+  assert(query, 'trending recipe query is emitted');
   assert.deepEqual(
     query.argsContract.fields.map((field) => field.name),
     ['clockMs', 'windowMs'],
     'the pasted recipe emits the load-pinned clock argument contract',
+  );
+  const typingQuery = manifest.functions.find((entry) => entry.name === 'typingLeasesExpiringSoon');
+  assert(typingQuery, 'typing-lease recipe query is emitted');
+  assert.deepEqual(
+    typingQuery.argsContract.fields.map((field) => field.name),
+    ['clockMs', 'soonWithinMs'],
+    'the typing-lease recipe emits the pinned clock and expiry horizon contract',
   );
 
   const calls = [];
@@ -68,18 +77,27 @@ try {
       return { async dispose() { disposals += 1; } };
     },
   };
-  const reference = Object.freeze({ name: 'eventsVisibleAtPinnedClock' });
-  const first = await openTimeWindow(client, reference, 'guide-proof');
+  const trendingReference = Object.freeze({ name: 'eventsVisibleAtPinnedClock' });
+  const typingReference = Object.freeze({ name: 'typingLeasesExpiringSoon' });
+  const first = await openTrendingWindow(client, trendingReference, 'guide-proof-trending');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].options.args.clockMs, first.clockMs);
   assert.equal(calls[0].options.args.windowMs, HOUR_MS);
   assert.equal(calls[0].options.transport, 'stream');
-  const second = await refreshTimeWindow(first, client, reference, 'guide-proof');
+  const second = await refreshTimeWindow(
+    first,
+    () => openTrendingWindow(client, trendingReference, 'guide-proof-trending'),
+  );
   assert.equal(disposals, 1, 'refresh disposes the predecessor generation');
   assert.equal(calls.length, 2);
   assert.equal(calls[1].options.args.clockMs, second.clockMs);
+  const typing = await openExpiringSoon(client, typingReference, 'guide-proof-typing');
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].options.args.clockMs, typing.clockMs);
+  assert.equal(calls[2].options.args.soonWithinMs, SOON_MS);
+  assert.equal(calls[2].options.transport, 'stream');
 } finally {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
 
-console.log('guide-time-windowed-live-reads.test.mjs: naive refusal and authorable recipe pass');
+console.log('guide-time-windowed-live-reads.test.mjs: guard, trending window, and typing lease pass');

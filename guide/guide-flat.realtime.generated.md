@@ -380,6 +380,12 @@ a membership-scoped conversation or the
 [presence-cursors recipe](../recipes/presence-cursors.md) for a public room.
 Use this page when choosing collection options or handling recovery.
 
+If typing expiry must instead be projected from durable rows inside an
+authenticated live query, use the [time-windowed live-read
+recipe](../recipes/time-windowed-live-reads.md#read-typing-leases-that-are-expiring-soon).
+It preserves the protected-query clock guard by combining a pinned client
+clock argument with a server-authored lease deadline.
+
 <!-- since: 0.1.23 -->
 
 ## Stop publishing when activity goes idle

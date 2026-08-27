@@ -12,4 +12,12 @@ export default defineSchema({
   })
     .visibility({ kind: 'owner', field: 'ownerId' })
     .sync(),
+  typingLeases: defineTable({
+    ownerId: v.principal(),
+    typerLabel: v.string(),
+    expiresAt: v.integer(),
+  })
+    .visibility({ kind: 'owner', field: 'ownerId' })
+    .index('by_owner_and_typer', ['ownerId', 'typerLabel'], { unique: true })
+    .sync(),
 });
