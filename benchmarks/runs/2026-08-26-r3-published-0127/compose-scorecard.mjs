@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { validateSocialMessengerRunRecord } from "../../tools/social-messenger/record-validator.mjs";
+import { validateFinalizedCellSlot } from "../../tools/social-messenger/metering/r2-finalized-cell.mjs";
 
 export const R3_SCORECARD_VERSION = "snapback.r3-run-scorecard.v2";
 const STRUCTURAL_ROWS = Object.freeze([
@@ -16,6 +17,7 @@ const STRUCTURAL_ROWS = Object.freeze([
 const RATIO_ROWS = Object.freeze([
   "semantic-correction-actions", "output-tokens", "m1-wall-to-first-green",
 ]);
+const MIGRATION_ADVISORY_EVENT = "migration-advisory";
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 
 function digest(bytes) {
@@ -69,14 +71,17 @@ function successful(record, cell) {
   ));
 }
 
-function defaultValidator(repositoryRoot, input) {
-  const [baseSchema, extensionSchema, composedSchema] = [
-    "benchmarks/schema/run-record.schema.json",
-    "benchmarks/schema/social-messenger/run-record-extension.schema.json",
-    "benchmarks/schema/social-messenger/run-record.schema.json",
-  ].map((path) => JSON.parse(readFileSync(resolve(repositoryRoot, path), "utf8")));
-  return validateSocialMessengerRunRecord(composedSchema, input.record, {
-    schemas: [baseSchema, extensionSchema], artifactRoot: input.artifactRoot,
+function gitRead(args, repositoryRoot) {
+  return execFileSync("git", args, { cwd: repositoryRoot });
+}
+
+function defaultFinalizedSlotValidator({ slotPath, cellId, repositoryRoot, expectedMilestones }) {
+  return validateFinalizedCellSlot({
+    slotPath,
+    cellId,
+    repositoryRoot,
+    expectedMilestones,
+    gitRead,
   });
 }
 
@@ -238,34 +243,28 @@ function composeRatioRow({ row, definition, first, second, floor }) {
   };
 }
 
-function identityCellId(cell) {
-  const family = { "codex-sol": "sol", "claude-opus5": "opus", "grok-46": "grok" }[cell.harness];
-  if (family === undefined || !Number.isInteger(cell.replicate)) return null;
-  return `${family}-${cell.app.toLowerCase()}-${cell.profile}-${cell.replicate}`;
-}
-
-function assertRecordIdentity({ config, cell, record }) {
+function assertRecordIdentity({ config, cell, finalized, record }) {
   const provenance = record.socialMessenger?.meteringProvenance;
   const expected = {
+    finalizedCellId: cell.id,
     laneRunId: `${config.runId}/${cell.id}`,
     model: cell.model,
-    family: cell.meteringPolicy?.capFamily,
+    capFamily: cell.meteringPolicy?.capFamily,
     runScope: cell.runScope,
-    driver: cell.driverId,
-    encodedCellId: identityCellId(cell),
+    driverId: cell.driverId,
   };
   const actual = {
+    finalizedCellId: finalized.slot.cellId,
     laneRunId: provenance?.laneRunId,
     model: record.harness?.model,
-    family: record.socialMessenger?.capFamily,
+    capFamily: record.socialMessenger?.capFamily,
     runScope: record.socialMessenger?.runScope,
-    driver: provenance?.driver?.id,
-    encodedCellId: cell.id,
+    driverId: provenance?.driver?.id,
   };
   if (Object.keys(expected).some((key) => expected[key] === undefined || expected[key] !== actual[key])) {
     throw new Error(
       `R3_SCORECARD_INPUT_IDENTITY: ${cell.id} record does not bind its `
-      + "laneRunId, model/family, app, profile, replicate, driver, and runScope",
+      + "finalizedCellId, laneRunId, model, capFamily, runScope, and driverId",
     );
   }
 }
@@ -274,12 +273,20 @@ function loadInputBytes(input) {
   if (typeof input.path !== "string" || input.path.length === 0) {
     throw new Error(`R3_SCORECARD_INPUT_IDENTITY: ${input.cellId} has no record path`);
   }
-  if (input.recordBytes !== undefined) return Buffer.from(input.recordBytes);
   const path = resolve(input.path);
-  if (lstatSync(path).isSymbolicLink() || realpathSync(path) !== path || !statSync(path).isFile()) {
+  if (
+    lstatSync(path).isSymbolicLink()
+    || realpathSync(path) !== path
+    || !statSync(path).isFile()
+    || path !== resolve(dirname(path), "record.json")
+  ) {
     throw new Error(`R3_SCORECARD_INPUT_IDENTITY: ${input.cellId} record path is not canonical`);
   }
-  return readFileSync(path);
+  const bytes = readFileSync(path);
+  if (input.recordBytes !== undefined && !Buffer.from(input.recordBytes).equals(bytes)) {
+    throw new Error(`R3_SCORECARD_INPUT_IDENTITY: ${input.cellId} supplied bytes differ from its record file`);
+  }
+  return { path, bytes };
 }
 
 function readStream(input, descriptor) {
@@ -309,37 +316,6 @@ function readStream(input, descriptor) {
     throw new Error(`R3_SCORECARD_STREAM_INVALID: ${input.cellId}/${descriptor.sourceId} bytes differ`);
   }
   return bytes.toString("utf8").trimEnd().split("\n").filter(Boolean).map((line) => JSON.parse(line));
-}
-
-function correctionCount(record, pattern) {
-  const loops = record.correctionLoops;
-  if (!Array.isArray(loops)) return null;
-  return loops.filter((loop) => pattern.test(loop?.summary ?? "")).length;
-}
-
-function structuralValue(record, rowId) {
-  if (rowId === "covered-fact-source-inspections") {
-    const values = milestoneValues(record).map((milestone) => milestone.semanticActions?.byClass?.["source-inspection"]);
-    return values.every(Number.isInteger) ? values.reduce((sum, value) => sum + value, 0) : null;
-  }
-  if (rowId === "destructive-additive-schema-restarts") {
-    const values = milestoneValues(record).map((milestone) => {
-      const restarts = milestone.restartReseed?.restarts;
-      const destructive = milestone.restartReseed?.destructiveReseeds;
-      return Number.isInteger(restarts) && Number.isInteger(destructive) ? restarts + destructive : null;
-    });
-    return values.every(Number.isInteger) ? values.reduce((sum, value) => sum + value, 0) : null;
-  }
-  if (rowId === "custom-fixed-origin-relays") {
-    return correctionCount(record, /(?:custom|fixed[- ]origin).*(?:relay|binding)|(?:relay|binding).*fixed[- ]origin/iu);
-  }
-  if (rowId === "silent-auth-query-waits") {
-    return correctionCount(record, /(?:silent|timeout).*(?:auth|query|app wait)|(?:auth|query).*timeout/iu);
-  }
-  if (rowId === "advertised-path-disagreements") {
-    return correctionCount(record, /(?:advertised path|guide|type|codegen|runtime|client).*(?:disagree|mismatch)/iu);
-  }
-  throw new Error(`R3_SCORECARD_ROW_UNSUPPORTED: ${rowId}`);
 }
 
 function groupId(item) {
@@ -376,15 +352,32 @@ function withGroups(row, constituents, options = {}) {
   return result;
 }
 
-function composeStructuralRow(row, validated) {
-  const constituents = validated.filter((item) => item.eligible).map((item) => {
-    const value = structuralValue(item.record, row.id);
-    return { cellId: item.cell.id, groupId: groupId(item), value, pass: value === 0 };
-  });
-  return withGroups(row, constituents);
+function composeStructuralRow(row) {
+  if (row.instrumentDisposition !== "instrument-incomplete") {
+    throw new Error(`R3_SCORECARD_CONFIG_INVALID: ${row.id} has no registered typed classifier`);
+  }
+  return {
+    rowId: row.id,
+    status: "instrument-incomplete",
+    aggregation: row.aggregation,
+    rationale: row.rationale,
+    constituents: [],
+    groups: [],
+  };
 }
 
 function composeOrientationRow(row, validated) {
+  if (row.instrumentDisposition !== "computed") {
+    return {
+      rowId: row.id,
+      status: "instrument-incomplete",
+      aggregation: row.aggregation,
+      rationale: row.rationale,
+      constituents: [],
+      groups: [],
+      threshold: row.threshold,
+    };
+  }
   const threshold = row.threshold?.bytes;
   const constituents = validated.filter((item) => item.successful && item.eligible).map((item) => {
     const value = item.record.socialMessenger?.firstProductEdit?.orientationBytes;
@@ -423,13 +416,13 @@ function composeChoreographyRow(row, validated) {
     const assertions = [...byAssertion].sort(([left], [right]) => left.localeCompare(right))
       .map(([assertionId, attempts]) => {
         const ordered = [...attempts.values()].sort((left, right) => left.attempt - right.attempt);
-        const firstFailure = ordered.findIndex((attempt) => attempt.pass === false);
-        const retries = firstFailure < 0 ? 0 : ordered.length - firstFailure - 1;
+        const failed = ordered.some((attempt) => attempt.pass === false);
+        const retries = Math.max(0, ordered.length - 1);
         return {
           assertionId,
-          failed: firstFailure >= 0,
+          failed,
           retries,
-          pass: firstFailure < 0 ? retries === 0 : retries <= 1,
+          pass: failed ? retries <= 1 : retries === 0,
         };
       });
     const value = assertions.reduce((maximum, assertion) => Math.max(maximum, assertion.retries), 0);
@@ -444,19 +437,23 @@ function composeChoreographyRow(row, validated) {
   return withGroups(row, constituents, { maximum: true });
 }
 
-function collectAdvisories(value, found = []) {
-  if (Array.isArray(value)) {
-    for (const item of value) collectAdvisories(item, found);
-  } else if (value && typeof value === "object") {
-    if (typeof value.repairClass === "string" && Number.isInteger(value.affectedTableCount)) {
-      found.push({
-        repairClass: value.repairClass.trim().toLowerCase(),
-        affectedTableCount: value.affectedTableCount,
-      });
-    }
-    for (const item of Object.values(value)) collectAdvisories(item, found);
+function collectAdvisories(record) {
+  if (record?.event !== MIGRATION_ADVISORY_EVENT) return [];
+  if (!Array.isArray(record.migrationAdvisories)) {
+    throw new Error("R3_SCORECARD_STREAM_INVALID: migration-advisory record lacks migrationAdvisories[]");
   }
-  return found;
+  return record.migrationAdvisories.map((advisory, index) => {
+    const repairClass = advisory?.repairClass?.trim().toLowerCase();
+    if (
+      typeof repairClass !== "string"
+      || repairClass.length === 0
+      || !Number.isInteger(advisory?.affectedTableCount)
+      || advisory.affectedTableCount < 1
+    ) {
+      throw new Error(`R3_SCORECARD_STREAM_INVALID: migrationAdvisories[${index}] is malformed`);
+    }
+    return { repairClass, affectedTableCount: advisory.affectedTableCount };
+  });
 }
 
 function composeMigrationRow(row, validated) {
@@ -495,11 +492,11 @@ function composeMigrationRow(row, validated) {
 
 // @ref LLP 0295#r3-claim-eligible-wave — the sanctioned R3 composer binds
 // byte-valid inputs before emitting every preregistered scorecard class.
-export function composeScorecard({
+export async function composeScorecard({
   config,
   inputs,
   repositoryRoot,
-  validateRecord = (input) => defaultValidator(repositoryRoot, input),
+  validateFinalizedSlot = defaultFinalizedSlotValidator,
 }) {
   if (config?.scoring?.composer?.path !== "compose-scorecard.mjs") {
     throw new Error("R3_SCORECARD_CONFIG_INVALID: config.scoring does not sanction this composer");
@@ -513,18 +510,20 @@ export function composeScorecard({
   const seenIds = new Set();
   const seenPaths = new Set();
   const seenDigests = new Map();
-  const validated = inputs.map((input) => {
+  const validated = [];
+  for (const input of inputs) {
     const cell = cells.get(input.cellId);
-    const canonicalPath = resolve(input.path ?? "");
     if (cell === undefined || seenIds.has(input.cellId)) {
       throw new Error(`R3_SCORECARD_INPUT_IDENTITY: ${input.cellId} is unknown or duplicated`);
     }
+    const loaded = loadInputBytes(input);
+    const canonicalPath = loaded.path;
     if (seenPaths.has(canonicalPath)) {
       throw new Error(`R3_SCORECARD_INPUT_IDENTITY: duplicate record path ${input.path}`);
     }
     seenIds.add(input.cellId);
     seenPaths.add(canonicalPath);
-    const recordBytes = loadInputBytes(input);
+    const recordBytes = loaded.bytes;
     const recordDigest = digest(recordBytes);
     if (seenDigests.has(recordDigest)) {
       throw new Error(
@@ -539,23 +538,47 @@ export function composeScorecard({
     if (input.record !== undefined && JSON.stringify(input.record) !== JSON.stringify(record)) {
       throw new Error(`R3_SCORECARD_INPUT_IDENTITY: ${input.cellId} object differs from its record bytes`);
     }
-    const normalized = { ...input, record, recordBytes };
-    const errors = validateRecord(normalized);
-    if (!Array.isArray(errors) || errors.length > 0) {
+    const slotPath = resolve(dirname(canonicalPath), "cell.json");
+    let finalized;
+    try {
+      finalized = await validateFinalizedSlot({
+        slotPath,
+        cellId: cell.id,
+        repositoryRoot,
+        expectedMilestones: cell.milestones,
+      });
+    } catch (error) {
       throw new Error(
-        `R3_SCORECARD_INPUT_INVALID: ${input.cellId} failed validation: ${
-          Array.isArray(errors) ? errors.join("; ") : "validator returned a non-array verdict"
-        }`,
+        `R3_SCORECARD_INPUT_INVALID: ${input.cellId} failed finalized-slot validation: ${error.message}`,
       );
     }
-    assertRecordIdentity({ config, cell, record });
-    return {
-      ...normalized,
+    if (
+      finalized === null
+      || typeof finalized !== "object"
+      || finalized.slot?.record?.path !== "record.json"
+      || !SHA256.test(finalized.slot.record.sha256 ?? "")
+      || finalized.slot.record.sha256 !== recordDigest
+      || !Array.isArray(finalized.evidencePaths)
+      || !finalized.evidencePaths.includes("record.json")
+      || JSON.stringify(finalized.record) !== JSON.stringify(record)
+    ) {
+      throw new Error(
+        `R3_SCORECARD_INPUT_INVALID: ${input.cellId} finalized-slot validator returned incomplete verified semantics`,
+      );
+    }
+    assertRecordIdentity({ config, cell, finalized, record: finalized.record });
+    validated.push({
+      ...input,
+      artifactRoot: dirname(canonicalPath),
+      path: canonicalPath,
+      record: finalized.record,
+      recordBytes,
+      finalizedSlot: finalized.slot,
       cell,
-      successful: successful(record, cell),
-      eligible: record.socialMessenger.efficiencyScorecardEligibility?.eligible === true,
-    };
-  });
+      successful: successful(finalized.record, cell),
+      eligible: finalized.record.socialMessenger.efficiencyScorecardEligibility?.eligible === true,
+    });
+  }
 
   const registeredRows = new Map(config.scoring.scorecardRows.map((row) => [row.id, row]));
   const requiredRows = [
@@ -568,7 +591,7 @@ export function composeScorecard({
   if (RATIO_ROWS.some((id) => !Number.isFinite(registeredRows.get(id).contrastBarPercent))) {
     throw new Error("R3_SCORECARD_CONFIG_INVALID: one or more ratio magnitude bars are missing");
   }
-  const structuralRows = STRUCTURAL_ROWS.map((id) => composeStructuralRow(registeredRows.get(id), validated));
+  const structuralRows = STRUCTURAL_ROWS.map((id) => composeStructuralRow(registeredRows.get(id)));
   const boundedOrientationRow = composeOrientationRow(registeredRows.get("bounded-orientation-packet"), validated);
   const choreographyRetryRow = composeChoreographyRow(registeredRows.get("choreography-retry-ceiling"), validated);
   const groupedMigrationAdvisoriesRow = composeMigrationRow(
@@ -633,7 +656,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function main(argv) {
+async function main(argv) {
   const options = parseArgs(argv);
   const configPath = resolve(options.configPath);
   const runRoot = dirname(configPath);
@@ -650,11 +673,8 @@ function main(argv) {
   const inputs = config.cells.flatMap((cell) => {
     const recordPath = explicit.get(cell.id) ?? resolve(runRoot, "cells", cell.id, "record.json");
     if (!existsSync(recordPath)) return [];
-    const recordBytes = readFileSync(recordPath);
     return [{
       cellId: cell.id,
-      record: JSON.parse(recordBytes.toString("utf8")),
-      recordBytes,
       artifactRoot: dirname(recordPath),
       path: recordPath,
     }];
@@ -662,15 +682,15 @@ function main(argv) {
   if (explicit.size !== inputs.filter((input) => explicit.has(input.cellId)).length) {
     throw new Error("R3_SCORECARD_INPUT_IDENTITY: one or more explicit records do not name configured cells");
   }
-  const result = composeScorecard({ config, inputs, repositoryRoot });
+  const result = await composeScorecard({ config, inputs, repositoryRoot });
   const bytes = `${JSON.stringify(result, null, 2)}\n`;
   if (options.outPath === null) process.stdout.write(bytes);
   else writeFileSync(resolve(options.outPath), bytes, { flag: "wx" });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try { main(process.argv.slice(2)); } catch (error) {
+  main(process.argv.slice(2)).catch((error) => {
     process.stderr.write(`${error.message}\n`);
     process.exitCode = 2;
-  }
+  });
 }

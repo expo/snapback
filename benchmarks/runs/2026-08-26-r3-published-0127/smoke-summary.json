@@ -1,9 +1,9 @@
 {
   "version": "snapback.r3-non-consuming-smoke-summary.v1",
   "status": "passed",
-  "executedAt": "2026-08-26T22:34:36.395Z",
+  "executedAt": "2026-08-27T00:04:45.465Z",
   "command": [
-    "env", "-u", "NODE_PATH", "node",
+    "env", "-u", "NODE_PATH", "-u", "NODE_OPTIONS", "-u", "DYLD_FRAMEWORK_PATH", "-u", "DYLD_LIBRARY_PATH", "-u", "LD_LIBRARY_PATH", "node",
     "benchmarks/tools/social-messenger/metering/lane-controller.mjs",
     "--smoke",
     "--harness-config", "benchmarks/runs/2026-08-26-r3-published-0127/harness-config.json",
@@ -11,12 +11,12 @@
     "--driver", "benchmarks/tools/social-messenger/metering/r2-cell-driver.mjs"
   ],
   "bindings": {
-    "harnessConfigSha256": "4171d79fda2228d1b85f18b5e2985f56e622bdefa4b1cb1bf35f2ce85cd3cb4d",
-    "instrumentManifestSha256": "715248e53c8ecdafda12e545537590ae43b2ea376f99842f2f30dacaefb0b724",
-    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1",
-    "meteringSourceClosureSha256": "e962d99306f1b18320d021bcbc977a6f45ab3bc042cdad3fd87dd8bb0635f7bd",
-    "laneControllerSha256": "13d825bc32c8b63a5bf8481e293929772a6d33721ab564ec2b033ae761c466d2",
-    "productionDriverSha256": "24f46695feb58153978e6e5512226d9a5b2413aeff2a75be8c5f1357aef39646"
+    "harnessConfigSha256": "bc83d1cef54b1f7807ae00c0596185337e159dc1346eccc7433f71e67412c904",
+    "instrumentManifestSha256": "5b92b30e8ebd00ef58e49fb509fb6c19861bcac5df88aea44391e243b342f8db",
+    "materializedInstrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round4-final-v1",
+    "meteringSourceClosureSha256": "e2a3e9d5bdd43e51f8ff09909ebecf0a26fc14eb4ac07e832d9f8b9aa92f5632",
+    "laneControllerSha256": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71",
+    "productionDriverSha256": "14a1bb3a3ec5c3360bc1672142b669aabfbaeaee75bc287cf78b9399a505161f"
   },
   "result": {
     "version": "snapback.r2-controller-non-consuming-smoke.v1",
@@ -33,11 +33,11 @@
     "diskAdmission": {
       "diagnostic": "R3_ADMISSION_DISK_FLOOR",
       "filesystemRoot": "/Users/ccheever/bench-r3-20260826",
-      "availableBytes": "101265428480",
+      "availableBytes": "94943068160",
       "floorBytes": "21474836480",
       "passed": true
     },
-    "loadavg": {"oneMinute": 5.12158203125, "fiveMinute": 6.56201171875, "fifteenMinute": 9.8505859375},
-    "recordCompositionSha256": "92c43decef28ef6b5cae956f3942c71fb9dcf183858b3eb96cd15dfd3188782d"
+    "loadavg": {"oneMinute": 4.57568359375, "fiveMinute": 3.93798828125, "fifteenMinute": 4.27197265625},
+    "recordCompositionSha256": "495566344589f38b01b2dc0679bb9868e6af27ebc65a02ce7bf2182fd3d5c0a6"
   }
 }

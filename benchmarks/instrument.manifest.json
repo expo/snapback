@@ -80,17 +80,17 @@
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a"
+      "sha256": "a83b80b115018f946397b98898865a28805bcde198d5f7912a3e2c5551f98b44"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3"
+      "sha256": "7fd60c5ecf0578563ae0bc96e0d98e05e358b47ad78fe55c254fe96b0a20f566"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "e962d99306f1b18320d021bcbc977a6f45ab3bc042cdad3fd87dd8bb0635f7bd"
+      "sha256": "e2a3e9d5bdd43e51f8ff09909ebecf0a26fc14eb4ac07e832d9f8b9aa92f5632"
     },
     "observabilityRoot": {
       "kind": "directory",

@@ -17,7 +17,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
     "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
-    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round3-final-v1",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round4-final-v1",
     "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
   },
   "pins": {
@@ -57,7 +57,7 @@
     "instrument": {
       "manifestPath": "benchmarks/instrument.manifest.json",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "715248e53c8ecdafda12e545537590ae43b2ea376f99842f2f30dacaefb0b724",
+      "manifestSha256": "5b92b30e8ebd00ef58e49fb509fb6c19861bcac5df88aea44391e243b342f8db",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",
@@ -67,18 +67,18 @@
         "revision": "r3-mixed-profile-cell-registration-scoped-review-pending",
         "recordSchema": "benchmarks/schema/social-messenger/run-record.schema.json",
         "recordSchemaSha256": "3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6",
-        "extensionSchemaSha256": "c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a",
-        "recordValidatorSha256": "1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3",
+        "extensionSchemaSha256": "a83b80b115018f946397b98898865a28805bcde198d5f7912a3e2c5551f98b44",
+        "recordValidatorSha256": "7fd60c5ecf0578563ae0bc96e0d98e05e358b47ad78fe55c254fe96b0a20f566",
         "meterSha256": "d19aa6764c513af489e43b00ef15f8560d347dc84998254d1cceb4bf9e4d5a62",
         "laneSetupSha256": "bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c",
-        "laneControllerSha256": "13d825bc32c8b63a5bf8481e293929772a6d33721ab564ec2b033ae761c466d2",
-        "productionDriverSha256": "24f46695feb58153978e6e5512226d9a5b2413aeff2a75be8c5f1357aef39646",
+        "laneControllerSha256": "a948153ea3ec9e4b2ce39ce7ad1d01a9a07dfee0eb5554273c57c85614771f71",
+        "productionDriverSha256": "14a1bb3a3ec5c3360bc1672142b669aabfbaeaee75bc287cf78b9399a505161f",
         "signalSha256": "f2f835538bc92cd5ea2af0098e43ca0e97cf3934101c713f6c13ede55066a712",
         "manifestLoaderSha256": "09300790421db0bd55d0771633db8fe54e648e49fd7e8342a2067c44835492e6",
         "joinerSha256": "713095fb4b331808a12871fbe4ff997566103b299dfcd6b9dea96d0d203a68be",
         "observationsSha256": "33c8edb044c5793bc33ad63c2afeac93bf265e5e3866f26c12057bcaa72a613c",
         "codexNativeEvidenceSha256": "052a5fa8c3a78b71769405421fd17730c0537c92567705bd498713f9aa387ad3",
-        "recordComposerSha256": "db3a64611d6a8d03554e1ffd36d95e1401938db6f4c791950acd60d24274a0be",
+        "recordComposerSha256": "c0cd5a579764d9e64611849f7d10f34cda9a9b5ba20e5e8279a4b070e27d160f",
         "admissionToolSha256": "ac122d032692838343fd910fe0657b8aba25f66f6cb3447eefb7a9c3d1b0e54f",
         "finalizedCellValidatorSha256": "9ca156073f18fd581f413b4b4b537d397a13c78317688fe91f1da2f1bb349bd2",
         "hostLockSha256": "6d42cfa31e7c819a0ff0effe396cbf2947029ccce3533ad299372aadceab96b2",
@@ -88,15 +88,15 @@
     }
   },
   "prompts": {
-    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "0c14fe017d7640866ce62f447b19a3ca9014a18c3af2dfb296548a5bfed8e558"},
-    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "b9e2b2ef780613375e44c7196ea5f6ff32642749977ffa0fb685aa49925c39c7"},
-    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "ed8880e2aa2b5aa5b2f31df0c4bd1bf4459e06d519bf55c90721d40e17747977"},
-    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "886cd14bc8b51cfae24863def440c43ef272d179386f769b49014c52e40efffc"}
+    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "87f72e6889103825fed11f066f007b9e54f8c7411eed80927515bcfd21585bf7"},
+    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "edc1fe983802b27a99ce4be9d41529af5f72f0d24d5a978ad3050d273550cc1a"},
+    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "66638be36b9ac199f96e7c4590a7176a8a881d1b1d4688dd4048cf45b13f004b"},
+    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "06aa167479bae7018fbc78306fadb34fb1337c44e98c5e6c029c48eb92c186d5"}
   },
   "machines": {
     "charlies-macbook-air": {
       "id": "charlies-macbook-air",
-      "hostname": "Charlies-MacBook-Air.local",
+      "hostname": "Mac.attlocal.net",
       "machineName": "Charlie's MacBook Air",
       "hardwareModel": "Mac17,3",
       "chip": "Apple M5",
@@ -130,7 +130,7 @@
       "argvTemplate": ["exec", "--dangerously-bypass-approvals-and-sandbox", "--json", "--model", "gpt-5.6-sol", "-c", "model_reasoning_effort=\"xhigh\"", "-"]
     },
     "claude-opus5": {
-      "binary": "/Users/ccheever/.local/bin/claude",
+      "binary": "/Users/ccheever/.local/share/claude/versions/2.1.241",
       "observedVersion": "2.1.241",
       "model": "claude-opus-5",
       "effort": {"value": null, "ruled": "AUTHOR-DELEGATED RULING: harness-default"},
@@ -216,14 +216,14 @@
     "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
     "sourceClosure": {
       "version": "snapback.r2-executing-source-closure.v1",
-      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:e962d99306f1b18320d021bcbc977a6f45ab3bc042cdad3fd87dd8bb0635f7bd"},
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:e2a3e9d5bdd43e51f8ff09909ebecf0a26fc14eb4ac07e832d9f8b9aa92f5632"},
       "files": [
         {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
-        {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:c4b7a1425e41b7fadd85ef2ed842b81c04b76ccb42a4bd17ac2dccaf6ec3114a", "bytes": 100230},
+        {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:a83b80b115018f946397b98898865a28805bcde198d5f7912a3e2c5551f98b44", "bytes": 100652},
         {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record.schema.json", "sha256": "sha256:3384205152c3f7573cc07fd994aaae2f3261e0ba9f351801456c120d50b6f5d6", "bytes": 10186},
         {"kind": "file", "path": "benchmarks/tools/lane-setup.mjs", "sha256": "sha256:bd5cf473f203db8a327afcf78193f895c040deacad638adbe031a41ce3b04c2c", "bytes": 35503},
         {"kind": "file", "path": "benchmarks/tools/social-messenger/choreography/receipts.schema.json", "sha256": "sha256:5d1033b49be1efee3a1c122bbea39f352fc158f2ccc4c424262d679488b31126", "bytes": 22268},
-        {"kind": "file", "path": "benchmarks/tools/social-messenger/record-validator.mjs", "sha256": "sha256:1484f1129664b3a1092b95dd198ad45708dca177e78782707541ab2f701738e3", "bytes": 53943},
+        {"kind": "file", "path": "benchmarks/tools/social-messenger/record-validator.mjs", "sha256": "sha256:7fd60c5ecf0578563ae0bc96e0d98e05e358b47ad78fe55c254fe96b0a20f566", "bytes": 54071},
         {"kind": "file", "path": "benchmarks/tools/lib/json-schema.mjs", "sha256": "sha256:7b882f6147e6efde88bc41f4dbc6806e712fb54c2e1b47a214a5d59e96f02660", "bytes": 7733}
       ]
     },
@@ -242,17 +242,17 @@
   "scoring": {
     "successfulCompletion": {"recordStatus": "SUCCESSFUL", "validator": "validator-clean", "milestoneRule": "all registered milestones green for the leg profile"},
     "successFloor": {"minimumSuccessfulReplicatesPerSide": 3, "belowFloorDisposition": "insufficient successful replicates", "failedReplicateUse": "A fully metered failed replicate enters failure-rate reporting only and never token or correction ratios."},
-    "composer": {"path": "compose-scorecard.mjs", "sha256": "daab7f6089e110e79ebad86f21ed27334ff1fbfd1de3d0f07ed447be24eb04a9", "sanctioned": true},
+    "composer": {"path": "compose-scorecard.mjs", "sha256": "9a5a77da36a7112a9a4379433978352a6f690538a4d496bf7ce2edd6644ce11a", "sanctioned": true},
     "contrasts": ["Explicit-minus-Familiar within family and app", "Clique-minus-Coterie within family and profile"],
     "scorecardRows": [
-      {"id": "covered-fact-source-inspections", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
-      {"id": "custom-fixed-origin-relays", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
-      {"id": "destructive-additive-schema-restarts", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
-      {"id": "silent-auth-query-waits", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
-      {"id": "advertised-path-disagreements", "aggregation": "every eligible constituent must be zero; publish every constituent, median, range, and N"},
-      {"id": "bounded-orientation-packet", "threshold": {"operator": "<=", "bytes": 16384}, "aggregation": "every successful eligible constituent must meet the threshold; publish every constituent, median, range, and N; missing orientation evidence is not zero"},
+      {"id": "covered-fact-source-inspections", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered covered-fact classifier exists; raw source-inspection actions are scope-blind.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
+      {"id": "custom-fixed-origin-relays", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered typed action or advisory identifies custom fixed-origin relay/binding implementations.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
+      {"id": "destructive-additive-schema-restarts", "instrumentDisposition": "instrument-incomplete", "rationale": "Registered lifecycle counters do not classify whether a restart or destructive reseed was caused by additive schema work.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
+      {"id": "silent-auth-query-waits", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered typed action or advisory identifies silent auth/query waits requiring an app timeout.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
+      {"id": "advertised-path-disagreements", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered typed action or advisory identifies Guide/type/codegen/runtime/client disagreements.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
+      {"id": "bounded-orientation-packet", "instrumentDisposition": "computed", "rationale": "The registered firstProductEdit.orientationBytes field is a typed, hash-bound measurement.", "threshold": {"operator": "<=", "bytes": 16384}, "aggregation": "every successful eligible constituent must meet the threshold; publish every constituent, median, range, and N; missing orientation evidence is not zero"},
       {"id": "choreography-retry-ceiling", "source": "controller-and-choreography-streams", "aggregation": "per successful eligible cell, derive retry counts by failed assertion identity from the hash-bound controller/choreography streams; require at most one retry for each failed assertion and zero retries for unaffected assertion identities; publish every constituent, maximum, median, range, and N"},
-      {"id": "grouped-migration-advisories", "source": "retained-native-streams", "aggregation": "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N"},
+      {"id": "grouped-migration-advisories", "source": "retained-native-streams", "recordSelector": {"recordTypeField": "event", "recordType": "migration-advisory", "advisoriesPath": "migrationAdvisories[]"}, "aggregation": "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N"},
       {"id": "debug-artifact-attribution", "excluded": true, "rationale": "This published-npm wave builds no debug binary; debug artifact size/link attribution belongs to a source-build wave and cannot be inferred here."},
       {"id": "semantic-correction-actions", "contrastBarPercent": 40, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
       {"id": "output-tokens", "contrastBarPercent": 20, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},

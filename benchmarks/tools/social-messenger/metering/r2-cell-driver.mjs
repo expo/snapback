@@ -1541,16 +1541,18 @@ async function writeTerminalArtifacts(state, error) {
   const terminalTimes = await controllerTerminalTimes(state);
   if (error && state.currentMilestone && !state.failureDisposition?.startsWith("scale-replay-")) {
     const existing = markers.find((item) => item.milestone === state.currentMilestone);
-    const capReason = error?.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
+    const failureDisposition = error?.code === "SOCIAL_MESSENGER_TOKEN_CAP_ENFORCED"
       ? "token-cap"
-      : new Set(["R3_CELL_WALL_CAP_TIMEOUT", "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT"]).has(error?.code)
+      : error?.code === "R3_CELL_WALL_CAP_TIMEOUT"
         ? "wall-cap"
+        : error?.code === "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT"
+          ? "native-usage-settlement-timeout"
         : null;
-    if (capReason !== null) state.failureDisposition = capReason;
+    if (failureDisposition !== null) state.failureDisposition = failureDisposition;
     const failure = {
       milestone: state.currentMilestone,
-      status: capReason === null ? "aborted" : "capability-failure",
-      terminalReason: capReason ?? "abort",
+      status: failureDisposition === null ? "aborted" : "capability-failure",
+      terminalReason: failureDisposition ?? "abort",
       recordedAt: new Date().toISOString(),
       suiteStatus: state.suiteStatusPath,
     };
@@ -1735,6 +1737,9 @@ async function writeTerminalArtifacts(state, error) {
       base.socialMessenger.clocks.replay = state.scaleReplayFailure.value.clock;
       base.socialMessenger.termination.reason = state.failureDisposition;
     }
+  }
+  if (state.failureDisposition !== null) {
+    base.socialMessenger.termination.reason = state.failureDisposition;
   }
   const retainedSetups = receipts
     .map((receipt) => receipt.summary?.setup)

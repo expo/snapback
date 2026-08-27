@@ -76,6 +76,7 @@ import {
 } from "../r2-cell-admission.mjs";
 import { finalizeExisting } from "../r2-finalize-existing.mjs";
 import {
+  finalize as finalizeProductionDriver,
   r2CellDriverTestHooks,
   reconcileSuiteStatuses,
   runMilestone as runProductionDriverMilestone,
@@ -99,6 +100,7 @@ import {
   CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION,
   ObservationWriter,
   LaneObservationHarness,
+  CURRENT_INSTRUMENT_PIN,
   isAfterTerminalHarnessTelemetry,
   isAfterTerminalHarnessTelemetryType,
   parseObservationJsonLines,
@@ -218,6 +220,7 @@ test("late wall-cap settlement poisons custody and refuses every zombie mutation
     mutationGuard,
   });
   await controller.initialize();
+  const controls = controller.controls("M1");
   r2CellDriverTestHooks.installMutationGuard(temp, mutationGuard);
 
   let permitLateSettlement;
@@ -225,6 +228,8 @@ test("late wall-cap settlement poisons custody and refuses every zombie mutation
   let resolveLateDone;
   const lateDone = new Promise((resolveDone) => { resolveLateDone = resolveDone; });
   const refused = [];
+  let apiCallbackExecuted = false;
+  let suiteCallbackExecuted = false;
   await assert.rejects(runWithCellWallCap({
     cellWallCapSeconds: 1,
     abortGraceSeconds: 1,
@@ -234,6 +239,19 @@ test("late wall-cap settlement poisons custody and refuses every zombie mutation
       const mutations = [
         () => controller.restart("M1", async () => {}),
         () => controller.reseed("M1", {}, async () => {}),
+        () => controls.apiRequest({
+          provider: "fixture-provider",
+          operation: "zombie-api-request",
+          requestId: "zombie-api-request-1",
+          retryOf: null,
+        }, async () => { apiCallbackExecuted = true; }),
+        () => controls.suiteAssertionWait({
+          assertion: "zombie-suite-settlement",
+          attempt: 1,
+        }, async () => {
+          suiteCallbackExecuted = true;
+          return { pass: true };
+        }),
         () => controller.writer.record("M1", "lifecycle", { operation: "restart", destructive: false }),
         () => controller.writeRecordPatch({}),
         () => controller.writeCompleteRecord({}),
@@ -258,7 +276,13 @@ test("late wall-cap settlement poisons custody and refuses every zombie mutation
   ));
   permitLateSettlement();
   await lateDone;
-  assert.deepEqual(refused, Array(6).fill("R3_CELL_WALL_CAP_CUSTODY_POISONED"));
+  assert.deepEqual(refused, Array(8).fill("R3_CELL_WALL_CAP_CUSTODY_POISONED"));
+  assert.equal(apiCallbackExecuted, false, "a poisoned API control must not execute its callback");
+  assert.equal(
+    suiteCallbackExecuted,
+    false,
+    "a poisoned suite-settlement control must not execute its callback",
+  );
   assert.equal((await stat(join(lock.path, "poison.json"))).isFile(), true);
   await assert.rejects(stat(join(temp, "zombie-write")), { code: "ENOENT" });
   assert.throws(() => releaseExclusiveHostLock({ lock, claim, outcome: "must-not-release" }),
@@ -2005,6 +2029,46 @@ test("Claude marker-then-usage settles only the marker-writing assistant turn", 
   assert.equal(state.tokenWatchdogHistory[0].reconciliation.retainedActualTokens, 15);
 });
 
+test("Claude milestone settlement includes a distinct assistant turn preceding its marker turn", async () => {
+  const precedingTurn = {
+    type: "assistant",
+    timestamp: "2026-08-26T12:00:00.000Z",
+    message: {
+      id: "claude-before-m2-marker",
+      role: "assistant",
+      content: [{ type: "text", text: "Preparing the retained M2 evidence." }],
+      usage: {
+        input_tokens: 7,
+        output_tokens: 3,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      },
+    },
+  };
+  const markerTurn = claudeMarkerTurn({
+    milestone: "M2",
+    id: "claude-writes-m2-marker",
+    timestamp: "2026-08-26T12:00:02.000Z",
+    usage: { input: 10, output: 5 },
+  });
+  const state = claudeWatchdogState([[precedingTurn, markerTurn]]);
+  state.tokenWatchdog.arm({
+    capFamily: "claude-frontier",
+    milestone: "M2",
+    tokenCap: 100,
+    startedAt: "2026-08-26T11:59:59.000Z",
+    maxClockSkewMs: 0,
+  });
+  await r2CellDriverTestHooks.finishTokenWatchdog(state, {
+    milestone: "M2", status: "green", recordedAt: "2026-08-26T12:00:01.000Z",
+  });
+  assert.equal(state.tokenWatchdogHistory[0].reconciliation.retainedActualTokens, 25);
+  assert.deepEqual([...state.settledUsage.turnIds].sort(), [
+    "claude-message:claude-before-m2-marker",
+    "claude-message:claude-writes-m2-marker",
+  ]);
+});
+
 test("Claude usage-then-marker settles the already-observed marker-writing assistant turn", async () => {
   const withUsage = claudeMarkerTurn({
     milestone: "M3",
@@ -2049,6 +2113,162 @@ test("ordinary Claude milestone settlement timeout fails closed against the curr
     && state.currentMilestone === "M2"
     && state.tokenWatchdog.state.milestone === "M2"
   ));
+});
+
+test("native usage settlement timeout stays distinct in the production-finalized record", async () => {
+  const temp = await realpath(await mkdtemp(join(tmpdir(), "r3-native-settlement-finalized-")));
+  const laneRunId = "fixture-run/native-settlement-finalized";
+  const nativeSessionId = "claude-native-settlement-finalized";
+  const startedAt = "2026-08-26T12:00:00.000Z";
+  const terminalAt = "2026-08-26T12:00:04.000Z";
+  const config = {
+    laneRunId,
+    cell: { harness: "claude-opus5" },
+    harness: {},
+    milestones: ["M1", "M2", "M3"],
+  };
+  const base = composedRecord({
+    capFamily: "claude-frontier",
+    source: "claude-code-session-usage",
+    metered: true,
+  });
+  base.harness.environment = { instrument: CURRENT_INSTRUMENT_PIN };
+  base.socialMessenger.instrumentVersion = CURRENT_INSTRUMENT_PIN;
+  base.socialMessenger.typingObservationBoundaryVersion =
+    CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION;
+  base.socialMessenger.orientation.instrument.pin = CURRENT_INSTRUMENT_PIN;
+  base.socialMessenger.orientation.instrument.versions.choreography = "0.3.4-m8";
+  const nativePath = join(temp, "events", "harness.stdout.jsonl");
+  const markerTurn = claudeMarkerTurn({
+    milestone: "M1",
+    id: "claude-m1-unsettled-marker",
+    timestamp: "2026-08-26T12:00:02.000Z",
+  });
+  const nativeRecords = [{
+    type: "system",
+    subtype: "init",
+    timestamp: startedAt,
+    session_id: nativeSessionId,
+  }, {
+    type: "assistant",
+    timestamp: "2026-08-26T12:00:01.000Z",
+    message: {
+      id: "claude-before-unsettled-marker",
+      role: "assistant",
+      content: [{ type: "text", text: "Preparing M1." }],
+      usage: {
+        input_tokens: 7,
+        output_tokens: 3,
+        cache_read_input_tokens: 0,
+        cache_creation_input_tokens: 0,
+      },
+    },
+  }, markerTurn];
+  const state = {
+    config,
+    root: temp,
+    journey: {
+      driverId: "social-messenger-r2-native-cli-driver.v1",
+      runScope: "reduced",
+      continuous: ["M1", "M2", "M3"],
+    },
+    startedAt,
+    currentMilestone: "M1",
+    currentSession: { sourceId: "builder", nativeSessionId },
+    sessionRuns: [{
+      sourceId: "builder",
+      parentSourceId: null,
+      role: "builder",
+      startedAt,
+      nativeSessionId,
+      stdoutPath: nativePath,
+    }],
+    child: null,
+    closed: null,
+    streamWriteQueue: Promise.resolve(),
+    observationQueue: Promise.resolve(),
+    controls: null,
+    pendingNativeTools: new Map(),
+    pendingEpisodes: new Map(),
+    actionSequence: 0,
+    episodeSequence: 0,
+    correctionLoops: [],
+    suiteStatusPath: null,
+    observationSources: [],
+    failureDisposition: null,
+    m7Handoff: null,
+    scaleReplay: null,
+    scaleReplayFailure: null,
+    terminalMarkers: [],
+  };
+  try {
+    await Promise.all([
+      mkdir(join(temp, "events"), { recursive: true }),
+      mkdir(join(temp, "schema", "social-messenger"), { recursive: true }),
+    ]);
+    await Promise.all([
+      writeFile(nativePath, `${nativeRecords.map((record) => JSON.stringify(record)).join("\n")}\n`),
+      writeFile(join(temp, "record-base.json"), `${JSON.stringify(base, null, 2)}\n`),
+      writeFile(join(temp, "schema", "social-messenger", "assertions.json"), "{}\n"),
+      writeFile(join(temp, "process-ownership.json"), `${JSON.stringify({ nativeHarnessPid: 424_242 })}\n`),
+      writeFile(join(temp, "events", "cell-milestones.jsonl"), `${JSON.stringify({
+        milestone: "M1",
+        status: "green",
+        terminalReason: "green",
+        recordedAt: "2026-08-26T12:00:02.000Z",
+      })}\n`),
+      writeFile(join(temp, "events", "lane-controller-observations.jsonl"), `${JSON.stringify({
+        laneRunId,
+        milestone: "M1",
+        at: terminalAt,
+      })}\n`),
+    ]);
+    r2CellDriverTestHooks.installState(laneRunId, state);
+    const settlementError = new Error("native usage did not settle");
+    settlementError.code = "R2_DRIVER_USAGE_SETTLEMENT_TIMEOUT";
+    settlementError.rootCauseClass = "native-usage-settlement-timeout";
+    await finalizeProductionDriver({ config, error: settlementError });
+
+    const boundaryArtifact = JSON.parse(await readFile(join(temp, "terminal-boundaries.json"), "utf8"));
+    const metering = joinUsageToMilestones(
+      await loadMeteringManifest(join(temp, "metering-manifest.json")),
+    );
+    const finalizedRecord = composeRunRecord({
+      base: JSON.parse(await readFile(join(temp, "record-base.json"), "utf8")),
+      patch: metering,
+      expectedMilestones: config.milestones,
+    });
+    assert.deepEqual({
+      failureDisposition: state.failureDisposition,
+      boundaryTerminalReason: boundaryArtifact.milestones.M1.terminalReason,
+      joinedTerminalReason: metering.milestones.M1.authoring.terminalReason,
+      finalizedStatus: finalizedRecord.socialMessenger.milestones.M1.status,
+      finalizedTerminalReason:
+        finalizedRecord.socialMessenger.milestones.M1.authoring.terminalReason,
+      finalizedTerminationReason: finalizedRecord.socialMessenger.termination.reason,
+      finalizedCharging: finalizedRecord.socialMessenger.milestones.M1.charging,
+    }, {
+      failureDisposition: "native-usage-settlement-timeout",
+      boundaryTerminalReason: "native-usage-settlement-timeout",
+      joinedTerminalReason: "native-usage-settlement-timeout",
+      finalizedStatus: "capability-failure",
+      finalizedTerminalReason: "native-usage-settlement-timeout",
+      finalizedTerminationReason: "native-usage-settlement-timeout",
+      finalizedCharging: {
+        chargedWallSeconds: 120,
+        chargedTokens: 10,
+        flags: ["capped-wall"],
+      },
+    });
+    assertExtensionDefinition(
+      "milestoneRecord",
+      finalizedRecord.socialMessenger.milestones.M1,
+    );
+    assertSchema(composedSchema, finalizedRecord, [baseSchema, extensionSchema]);
+  } finally {
+    r2CellDriverTestHooks.removeState(laneRunId);
+    await rm(temp, { recursive: true, force: true });
+  }
 });
 
 test("Codex cumulative polling keeps one session watchdog across two milestones", async () => {

@@ -64,19 +64,36 @@ the union of every main block and every present M7 block: 2,400 unique ports.
 
 ## Scorecard
 
-The zero-count structural rows are primary. Each eligible scored cell reports:
+The zero-count structural targets remain primary, but this wave computes a row
+only from a registered typed signal scoped to that exact target. Silence,
+free-text correction summaries, and broader counters cannot establish zero or
+failure. The frozen instrument dispositions are:
 
-1. zero Snapback/Exact source inspections for facts covered by LLP 0295 Phase
-   1/W1–W3;
-2. zero custom fixed-origin relay/binding implementations;
-3. zero destructive restart/reseed for additive milestone schema;
-4. zero silent auth/query waits requiring an app timeout; and
-5. zero advertised-path Guide/type/codegen/runtime/client disagreements on
-   paths closed by the vertical fixtures.
+1. **covered-fact source inspections — `instrument-incomplete`:** the registered
+   `source-inspection` action class does not classify whether the inspected fact
+   was covered by LLP 0295 Phase 1/W1–W3. Raw source-inspection counts therefore
+   neither pass nor fail this row;
+2. **custom fixed-origin relay/binding implementations —
+   `instrument-incomplete`:** no registered typed action or advisory identifies
+   this scoped implementation;
+3. **destructive restart/reseed for additive milestone schema —
+   `instrument-incomplete`:** lifecycle counters are typed but scope-blind to
+   the additive-schema cause;
+4. **silent auth/query waits requiring an app timeout —
+   `instrument-incomplete`:** no registered typed action or advisory identifies
+   this condition; and
+5. **advertised-path Guide/type/codegen/runtime/client disagreements —
+   `instrument-incomplete`:** no registered typed action or advisory identifies
+   a vertical-path disagreement.
+
+An empty `correctionLoops` array is instrument silence for these rows, not a
+zero observation. The wave emits status exactly `instrument-incomplete` for all
+five and does not publish constituents synthesized from unrelated evidence.
 
 The four remaining LLP 0186 commissioned rows are frozen as follows:
 
-6. **bounded orientation packet:** measurable; every successful eligible cell
+6. **bounded orientation packet — `computed`:** the typed, hash-bound
+   `firstProductEdit.orientationBytes` carrier supports this row. Every successful eligible cell
    must retain a first-edit orientation packet of at most 16 KiB. Publish every
    constituent, median, range, and N. Missing evidence is never zero;
 7. **choreography retry ceiling:** measurable from the hash-bound controller and
@@ -85,10 +102,13 @@ The four remaining LLP 0186 commissioned rows are frozen as follows:
    assertion and zero retries for unaffected assertion identities. Publish
    every constituent, maximum, median, range, and N;
 8. **grouped migration advisories:** measurable from the retained native
-   streams. Per successful eligible cell, group advisories by normalized repair
-   class; require exactly one advisory per class with its exact affected-table
-   count. Publish every class/count constituent, median class count, range, and
-   N; and
+   streams. The only registered advisory record is a top-level stream record
+   whose `event` equals `migration-advisory`; advisories are read only from its
+   `migrationAdvisories[]` path. Nested tool payloads and arbitrary objects with
+   similarly named fields are not advisory records. Per successful eligible
+   cell, group advisories by normalized repair class; require exactly one
+   advisory per class with its exact affected-table count. Publish every
+   class/count constituent, median class count, range, and N; and
 9. **debug-artifact attribution:** the sole excluded row. This published-npm
    wave builds no debug binary, so debug artifact size/link attribution belongs
    to a source-build wave and cannot be inferred here.
@@ -98,9 +118,11 @@ wall-to-first-green contrasts below. These twelve rows, their aggregations, and
 the sole explicit exclusion are also frozen machine-readably in
 `harness-config.json`.
 
-A row passes a family/profile/app comparison set only when every eligible
-constituent cell is zero. Inapplicable facts are named; missing observations are
-not treated as zero.
+An `instrument-incomplete` structural row cannot pass or fail a
+family/profile/app comparison set. Any future computed structural row requires
+a preregistered scoped typed classifier and passes only when every eligible
+constituent cell is zero. Inapplicable facts are named; missing observations
+are not treated as zero.
 
 The registered effect-size bars are 40% for semantic correction actions, 20%
 for output tokens, and 30% for M1 wall to first green. Because historical runs

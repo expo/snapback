@@ -21,6 +21,39 @@ export const CHOREOGRAPHY_RETRY_AGGREGATION =
 export const MIGRATION_ADVISORY_AGGREGATION =
   "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N";
 
+export const MIGRATION_ADVISORY_RECORD_SELECTOR = Object.freeze({
+  recordTypeField: "event",
+  recordType: "migration-advisory",
+  advisoriesPath: "migrationAdvisories[]",
+});
+
+export const SCORECARD_INSTRUMENT_DISPOSITIONS = Object.freeze({
+  "covered-fact-source-inspections": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "No registered covered-fact classifier exists; raw source-inspection actions are scope-blind.",
+  }),
+  "custom-fixed-origin-relays": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "No registered typed action or advisory identifies custom fixed-origin relay/binding implementations.",
+  }),
+  "destructive-additive-schema-restarts": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "Registered lifecycle counters do not classify whether a restart or destructive reseed was caused by additive schema work.",
+  }),
+  "silent-auth-query-waits": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "No registered typed action or advisory identifies silent auth/query waits requiring an app timeout.",
+  }),
+  "advertised-path-disagreements": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "No registered typed action or advisory identifies Guide/type/codegen/runtime/client disagreements.",
+  }),
+  "bounded-orientation-packet": Object.freeze({
+    instrumentDisposition: "computed",
+    rationale: "The registered firstProductEdit.orientationBytes field is a typed, hash-bound measurement.",
+  }),
+});
+
 export function r3NamedFailure(diagnostic, message) {
   const error = new Error(`${diagnostic}: ${message}`);
   error.code = diagnostic;
@@ -103,12 +136,27 @@ export function assertScorecardRegistration(scoring) {
     || migration?.excluded === true
     || migration?.source !== "retained-native-streams"
     || migration?.aggregation !== MIGRATION_ADVISORY_AGGREGATION
+    || JSON.stringify(migration?.recordSelector) !== JSON.stringify(MIGRATION_ADVISORY_RECORD_SELECTOR)
+    || Object.entries(SCORECARD_INSTRUMENT_DISPOSITIONS).some(([id, expected]) => {
+      const row = rows?.find((candidate) => candidate.id === id);
+      return row?.instrumentDisposition !== expected.instrumentDisposition
+        || row.rationale !== expected.rationale;
+    })
     || scoring.composer?.path !== "compose-scorecard.mjs"
     || scoring.composer?.sanctioned !== true
   ) {
     r3NamedFailure(
       "R3_PLAN_SCORECARD_SHAPE",
       "successful-completion floor or measured/excluded scorecard registration drifted",
+    );
+  }
+}
+
+export function assertExecutionSafetyRegistration(execution) {
+  if (execution?.perMilestoneWallSafetyLimitSeconds !== 14400) {
+    r3NamedFailure(
+      "R3_PLAN_MILESTONE_WALL_SAFETY_DRIFT",
+      "execution.perMilestoneWallSafetyLimitSeconds must remain frozen at 14400",
     );
   }
 }

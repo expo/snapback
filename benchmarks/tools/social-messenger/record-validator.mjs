@@ -1312,22 +1312,25 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
         );
         break;
       case "wall-cap":
+      case "native-usage-settlement-timeout":
         if (!exactFlags(charging.flags, ["capped-wall"])) {
-          errors.push(`${path}/charging/flags: wall-cap requires exactly capped-wall`);
+          errors.push(
+            `${path}/charging/flags: ${authoring.terminalReason} requires exactly capped-wall`,
+          );
         }
         requireEqual(
           errors,
           `${path}/charging/chargedWallSeconds`,
           charging.chargedWallSeconds,
           caps.wallCapSeconds,
-          "wall-cap charges the wall cap",
+          `${authoring.terminalReason} charges the wall cap`,
         );
         requireEqual(
           errors,
           `${path}/charging/chargedTokens`,
           charging.chargedTokens,
           actualTokens,
-          "wall-cap charges actual input + output",
+          `${authoring.terminalReason} charges actual input + output`,
         );
         break;
       case "abort":

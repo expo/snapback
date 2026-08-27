@@ -38,7 +38,7 @@ function milestoneCharging({ status, authoring, caps }) {
       flags: ["capped-tokens"],
     };
   }
-  if (authoring.terminalReason === "wall-cap") {
+  if (["wall-cap", "native-usage-settlement-timeout"].includes(authoring.terminalReason)) {
     return {
       chargedWallSeconds: caps.wallCapSeconds,
       chargedTokens: actualTokens,

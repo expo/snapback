@@ -2607,7 +2607,11 @@
           "if": {
             "properties": {
               "authoring": {
-                "properties": { "terminalReason": { "const": "wall-cap" } },
+                "properties": {
+                  "terminalReason": {
+                    "enum": ["wall-cap", "native-usage-settlement-timeout"]
+                  }
+                },
                 "required": ["terminalReason"]
               }
             },
@@ -2705,7 +2709,15 @@
           "then": {
             "properties": {
               "authoring": {
-                "properties": { "terminalReason": { "enum": ["token-cap", "wall-cap"] } }
+                "properties": {
+                  "terminalReason": {
+                    "enum": [
+                      "token-cap",
+                      "wall-cap",
+                      "native-usage-settlement-timeout"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -2836,7 +2848,7 @@
                 "null"
               ],
               "format": "date-time",
-              "description": "Driver-stamped terminal boundary for this attempt: first green, token/wall cap, or abort. Null only for blocked/not-run milestones."
+              "description": "Driver-stamped terminal boundary for this attempt: first green, token/wall cap, native usage settlement timeout, or abort. Null only for blocked/not-run milestones."
             },
             "terminalSequence": {
               "type": [
@@ -2851,6 +2863,7 @@
                 "green",
                 "token-cap",
                 "wall-cap",
+                "native-usage-settlement-timeout",
                 "abort",
                 null
               ]
@@ -2880,7 +2893,7 @@
         },
         "charging": {
           "type": "object",
-          "description": "Charged figures per LLP 0201 D2 / the brief's Charging rule: wall-exhausted capability-failure charges the full wall cap plus actual tokens (flag capped-wall); token-exhausted charges the token cap plus actual wall (flag capped-tokens); aborted charges the full wall cap plus actual tokens (flag aborted - the abort never improves the capped axis). An adjudicated milestone's published authoring wall recharges to its cap. Green milestones charge actuals with no flags.",
+          "description": "Charged figures per LLP 0201 D2 / the brief's Charging rule: wall-exhausted capability-failure and native usage settlement timeout charge the full wall cap plus actual tokens (flag capped-wall); token-exhausted charges the token cap plus actual wall (flag capped-tokens); aborted charges the full wall cap plus actual tokens (flag aborted - the abort never improves the capped axis). An adjudicated milestone's published authoring wall recharges to its cap. Green milestones charge actuals with no flags.",
           "required": [
             "chargedWallSeconds",
             "chargedTokens",

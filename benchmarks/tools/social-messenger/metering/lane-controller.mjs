@@ -166,19 +166,34 @@ export class R2LaneController {
 
   controls(milestone) {
     return Object.freeze({
-      restart: (operation) => this.restart(milestone, operation),
-      reseed: (options, operation) => this.reseed(milestone, options, operation),
-      apiRequest: (fields, operation) => (
-        this.observations.apiRequest(milestone, fields, operation)
-      ),
-      suiteAssertionWait: (fields, waitForSettlement) => (
-        this.observations.suiteAssertionWait(milestone, fields, waitForSettlement)
-      ),
-      suiteAssertionObservation: (fields) => (
-        this.observations.suiteAssertionObservation(milestone, fields)
-      ),
-      semanticAction: (event) => this.observations.semanticAction(milestone, event),
-      recoveryEpisode: (event) => this.observations.recoveryEpisode(milestone, event),
+      restart: (operation) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} restart control`);
+        return this.restart(milestone, operation);
+      },
+      reseed: (options, operation) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} reseed control`);
+        return this.reseed(milestone, options, operation);
+      },
+      apiRequest: (fields, operation) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} API request control`);
+        return this.observations.apiRequest(milestone, fields, operation);
+      },
+      suiteAssertionWait: (fields, waitForSettlement) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} suite assertion wait control`);
+        return this.observations.suiteAssertionWait(milestone, fields, waitForSettlement);
+      },
+      suiteAssertionObservation: (fields) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} suite assertion observation control`);
+        return this.observations.suiteAssertionObservation(milestone, fields);
+      },
+      semanticAction: (event) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} semantic action control`);
+        return this.observations.semanticAction(milestone, event);
+      },
+      recoveryEpisode: (event) => {
+        this.mutationGuard.assertMutationAllowed(`${milestone} recovery episode control`);
+        return this.observations.recoveryEpisode(milestone, event);
+      },
     });
   }
 

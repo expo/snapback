@@ -20,6 +20,7 @@ import { resolveRegisteredJourney } from "../../tools/social-messenger/metering/
 import { loadLaneControllerConfig } from "../../tools/social-messenger/metering/lane-controller.mjs";
 import {
   assertNoRetainedFinalization,
+  assertExecutionSafetyRegistration,
   assertPristineSlot,
   assertPromptPin,
   assertScorecardRegistration,
@@ -285,6 +286,7 @@ if (
 ) fail("disk or same-config finalization ruling drifted");
 
 assertNoRetainedFinalization(config);
+assertExecutionSafetyRegistration(config.execution);
 
 if (
   config.execution.cellWallCapSeconds !== 14400

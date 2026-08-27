@@ -106,7 +106,13 @@ function boundaryFromValue(value, label, { requireTerminal = false } = {}) {
   }
   if (
     terminalReason !== null
-    && !["green", "token-cap", "wall-cap", "abort"].includes(terminalReason)
+    && ![
+      "green",
+      "token-cap",
+      "wall-cap",
+      "native-usage-settlement-timeout",
+      "abort",
+    ].includes(terminalReason)
   ) {
     throw new TypeError(`${label}.terminalReason is invalid`);
   }
@@ -141,7 +147,7 @@ function boundaryFromValue(value, label, { requireTerminal = false } = {}) {
     } else {
       const expectedReason = status === "aborted"
         ? ["abort"]
-        : ["token-cap", "wall-cap"];
+        : ["token-cap", "wall-cap", "native-usage-settlement-timeout"];
       if (firstGreenAt !== null || !expectedReason.includes(terminalReason)) {
         throw new Error(`${label} non-green terminal boundary is inconsistent with its status`);
       }
