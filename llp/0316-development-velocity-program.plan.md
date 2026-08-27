@@ -8,9 +8,9 @@
 **Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change); Phase 7 Stage A server-test
-source carve implemented and measured; Open Question 2 answered. Accepted by
-author direction the same day — "write this up as an LLP and then execute
-on it".)
+source carve and Stage B1 live-delivery production carve implemented and
+measured; Open Question 2 answered. Accepted by author direction the same day
+— "write this up as an LLP and then execute on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
 LLP 0031, LLP 0041, LLP 0287, LLP 0289, LLP 0225, LLP 0010
 
@@ -440,6 +440,19 @@ remaining Phase 7 work is a sequence of independently measured production
 `server.rs` seams; Stage A improves but does not by itself retire the server
 lib-test critical path.
 
+**Implemented 2026-08-27 (Stage B1 live-delivery production carve).** LLP
+0316.000 moved the 253-line bounded WebSocket writer/admission-handoff closure
+from `server.rs` into the transport-owned `server/live_delivery.rs` module,
+removing a net 248 lines from the edit owner without changing behavior, public
+API, tests, dependencies, engine, or storage. The fresh server lib-test unit
+moved **48.23 → 46.22 s**; the fresh whole-command wall was noisy in the
+opposite direction (**106.31 → 113.32 s**) and is not claimed as a win. The
+controlling warm `server.rs` edit moved **7.3 → 6.48 s** for the unit and
+**18.09 → 16.31 s** wall; the production binary loop moved
+**18.00 → 17.21 s**. The harness remains 602 total / 419 server tests, and
+the full 536-pass/66-fail result has a byte-identical complete failure-name
+set. The server test executable moved 552,099,632 → 552,094,512 bytes.
+
 ### Phase 8 — Frozen-record ratchet
 
 Count the committed generated artifacts and the drift tickets they produced
@@ -467,6 +480,7 @@ regeneration-in-CI.
 | Phase 3 | closed, nothing kept | 16.8–22.4 s | — | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
 | Phase 5 | this landing | unchanged (single-binary loop) | — | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
 | Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
+| Phase 7B1 — live-delivery production carve | this landing | **18.00 → 17.21 s** | **18.09 → 16.31 s**; fresh unit **48.23 → 46.22 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 106.31 → 113.32 s (noise, not a win); 602/602 names and 66/66 full failure sets identical; 552,094,512-byte executable |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
