@@ -240,14 +240,14 @@ try {
 
   const authoredGeneratedSentinel = join(second.outDir, '.output-root-overlap-sentinel');
   const authoredLockPath = join(backend, '.generated.regenerate.lock');
-  const assertOutputRootBoundaryRefusal = async (options, label) => {
+  const assertOutputRootBoundaryRefusal = async (options, label, expectedCode = 'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID') => {
     writeFileSync(authoredGeneratedSentinel, `${label}: authored generated surface must survive refusal\n`);
     assert.equal(existsSync(authoredLockPath), false, `${label}: authored lock starts absent`);
     const refused = await generate(backend, options);
     assert.equal(refused.ok, false, `${label}: invalid outputRoot must refuse`);
     assert.equal(
       refused.diagnostics[0]?.code,
-      'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+      expectedCode,
       `${label}: refusal must occur at the generate boundary`,
     );
     assert.equal(
@@ -269,6 +269,33 @@ try {
   await assertOutputRootBoundaryRefusal(
     { outputRoot: Symbol('x') },
     'symbol-valued outputRoot',
+  );
+
+  // An option record whose value cannot be seen by own-descriptor inspection is
+  // indistinguishable from an absent option, and an absent outputRoot selects
+  // the authored backend as the publication root — so a silently discarded
+  // option is a silent write into authored source. Refuse the shape instead.
+  class PrototypeOutputRootOptions {
+    get outputRoot() { return join(project, 'prototype-disjoint'); }
+  }
+  await assertOutputRootBoundaryRefusal(
+    new PrototypeOutputRootOptions(),
+    'class instance exposing outputRoot through its prototype',
+    'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+  );
+  await assertOutputRootBoundaryRefusal(
+    Object.create({ outputRoot: join(project, 'inherited-disjoint') }),
+    'own-less record inheriting outputRoot',
+    'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+  );
+  await assertOutputRootBoundaryRefusal(
+    new Proxy({}, {
+      get: (target, key, receiver) => (key === 'outputRoot'
+        ? join(project, 'proxied-disjoint')
+        : Reflect.get(target, key, receiver)),
+    }),
+    'proxy exposing outputRoot as a virtual property',
+    'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
   );
 
   for (const [label, erasedOptions] of [

@@ -15,6 +15,7 @@
 // Exits non-zero (writing nothing) if any error diagnostic is produced.
 
 import { createHash, randomBytes } from 'node:crypto';
+import nodeTypes from 'node:util/types';
 import { fork, spawn } from 'node:child_process';
 import {
   existsSync,
@@ -2111,6 +2112,16 @@ export function validateGenerateOptions(options = {}) {
   // silently discarding what the caller supplied.
   // @ref LLP 0010#generated-artifacts — the option boundary is closed, so an
   // unsupported shape refuses instead of degrading to authored-tree output.
+  // A Proxy can answer a property read that own-descriptor inspection never
+  // sees, so the same "unnoticed option is indistinguishable from an absent
+  // one" hazard applies even when its prototype looks plain.
+  if (nodeTypes.isProxy(options)) {
+    return generateOptionFailure(
+      'CODEGEN_TARGET_PROFILE_UNSUPPORTED',
+      'codegen options must be a plain object; a proxy can hide options from inspection',
+      { option: 'options', valueKind: 'proxy' },
+    );
+  }
   const optionsPrototype = Object.getPrototypeOf(options);
   if (optionsPrototype !== Object.prototype && optionsPrototype !== null) {
     return generateOptionFailure(
