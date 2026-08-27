@@ -24,6 +24,12 @@ function digest(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+function scorecardFailure(diagnostic, message) {
+  const error = new Error(`${diagnostic}: ${message}`);
+  error.code = diagnostic;
+  throw error;
+}
+
 function median(values) {
   if (values.length === 0) return null;
   const ordered = [...values].sort((left, right) => left - right);
@@ -404,10 +410,16 @@ function composeChoreographyRow(row, validated) {
     for (const event of events) {
       const id = `${event.milestone}:${event.assertion}`;
       const attempts = byAssertion.get(id) ?? new Map();
-      const previous = attempts.get(event.attempt);
-      if (previous !== undefined && previous.pass !== event.pass) {
-        throw new Error(
-          `R3_SCORECARD_STREAM_INVALID: ${item.cell.id}/${id} attempt ${event.attempt} has conflicting verdicts`,
+      if (!Number.isInteger(event.attempt) || event.attempt < 1) {
+        scorecardFailure(
+          "R3_SCORECARD_RETRY_ORDINAL_INVALID",
+          `${item.cell.id}/${id} attempt ordinal must be a positive integer`,
+        );
+      }
+      if (attempts.has(event.attempt)) {
+        scorecardFailure(
+          "R3_SCORECARD_RETRY_ORDINAL_INVALID",
+          `${item.cell.id}/${id} repeats attempt ordinal ${event.attempt}`,
         );
       }
       attempts.set(event.attempt, event);
@@ -416,6 +428,14 @@ function composeChoreographyRow(row, validated) {
     const assertions = [...byAssertion].sort(([left], [right]) => left.localeCompare(right))
       .map(([assertionId, attempts]) => {
         const ordered = [...attempts.values()].sort((left, right) => left.attempt - right.attempt);
+        const invalidIndex = ordered.findIndex((attempt, index) => attempt.attempt !== index + 1);
+        if (invalidIndex !== -1) {
+          scorecardFailure(
+            "R3_SCORECARD_RETRY_ORDINAL_INVALID",
+            `${item.cell.id}/${assertionId} expected attempt ordinal ${invalidIndex + 1} `
+              + `but received ${ordered[invalidIndex].attempt}`,
+          );
+        }
         const failed = ordered.some((attempt) => attempt.pass === false);
         const retries = Math.max(0, ordered.length - 1);
         return {
@@ -460,11 +480,30 @@ function composeMigrationRow(row, validated) {
   const constituents = validated.filter((item) => item.successful && item.eligible).map((item) => {
     const descriptors = item.record.socialMessenger?.meteringProvenance?.sessions ?? [];
     if (descriptors.length === 0) {
-      return { cellId: item.cell.id, groupId: groupId(item), value: null, pass: false, classes: [] };
+      return {
+        cellId: item.cell.id,
+        groupId: groupId(item),
+        value: null,
+        pass: false,
+        carrierPresent: false,
+        carrierRecords: 0,
+        classes: [],
+      };
     }
-    const advisories = descriptors.flatMap((descriptor) => (
-      readStream(item, descriptor).flatMap((record) => collectAdvisories(record))
-    ));
+    const records = descriptors.flatMap((descriptor) => readStream(item, descriptor));
+    const carriers = records.filter((record) => record?.event === MIGRATION_ADVISORY_EVENT);
+    if (carriers.length === 0) {
+      return {
+        cellId: item.cell.id,
+        groupId: groupId(item),
+        value: null,
+        pass: false,
+        carrierPresent: false,
+        carrierRecords: 0,
+        classes: [],
+      };
+    }
+    const advisories = carriers.flatMap((record) => collectAdvisories(record));
     const grouped = new Map();
     for (const advisory of advisories) {
       const current = grouped.get(advisory.repairClass) ?? [];
@@ -484,10 +523,24 @@ function composeMigrationRow(row, validated) {
       groupId: groupId(item),
       value: classes.length,
       pass: classes.every((candidate) => candidate.pass),
+      carrierPresent: true,
+      carrierRecords: carriers.length,
       classes,
     };
   });
-  return withGroups(row, constituents);
+  const result = withGroups(row, constituents);
+  const markInstrumentIncomplete = (summary) => {
+    if (
+      summary.constituents.length === 0
+      || summary.constituents.some((item) => item.carrierPresent !== true)
+    ) {
+      summary.status = "instrument-incomplete";
+      summary.rationale = row.rationale;
+    }
+    return summary;
+  };
+  result.groups = result.groups.map(markInstrumentIncomplete);
+  return markInstrumentIncomplete(result);
 }
 
 // @ref LLP 0295#r3-claim-eligible-wave — the sanctioned R3 composer binds
@@ -550,6 +603,13 @@ export async function composeScorecard({
     } catch (error) {
       throw new Error(
         `R3_SCORECARD_INPUT_INVALID: ${input.cellId} failed finalized-slot validation: ${error.message}`,
+      );
+    }
+    if (finalized?.slot?.status !== "recorded-finalized") {
+      scorecardFailure(
+        "R3_SCORECARD_RECOVERED_FINALIZED_REFUSED",
+        `${input.cellId} scorecard input status is ${finalized?.slot?.status ?? "missing"}; `
+          + "every input must be recorded-finalized",
       );
     }
     if (

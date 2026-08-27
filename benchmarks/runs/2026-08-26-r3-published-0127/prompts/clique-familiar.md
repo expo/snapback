@@ -4,7 +4,7 @@ sibling lanes, a Snapback source checkout, or any prior Clique/Coterie app.
 
 Build Clique as an Expo Router web app on published Snapback 0.1.27 using ONLY
 the FAMILIAR TypeScript profile (`snapback-familiar-ts-v1`). The authoritative
-read-only instrument is `/Users/ccheever/bench-r3-20260826/instrument-review-fix-round4-final-v1`; read its
+read-only instrument is `/Users/ccheever/bench-r3-20260826/instrument-review-fix-round5-final-v1`; read its
 social-messenger brief, contract, fixtures, assertions, UI kit, and choreography.
 Use published packages and the served Guide only. Opt in through
 `snapback/codegen.policy.json`, use schema.ts plus top-level query/mutation/action

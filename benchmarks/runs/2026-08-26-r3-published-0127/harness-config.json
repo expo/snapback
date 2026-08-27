@@ -17,7 +17,7 @@
   "paths": {
     "committedRunRoot": "benchmarks/runs/2026-08-26-r3-published-0127",
     "privateExecutionRoot": "/Users/ccheever/bench-r3-20260826",
-    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round4-final-v1",
+    "instrumentRoot": "/Users/ccheever/bench-r3-20260826/instrument-review-fix-round5-final-v1",
     "exactPinnedCheckout": "/Users/ccheever/projects/exact-m0c-air-20260826"
   },
   "pins": {
@@ -57,7 +57,7 @@
     "instrument": {
       "manifestPath": "benchmarks/instrument.manifest.json",
       "instrumentPin": "social-messenger@0.3.4-m8",
-      "manifestSha256": "5b92b30e8ebd00ef58e49fb509fb6c19861bcac5df88aea44391e243b342f8db",
+      "manifestSha256": "f48b0e7639178beaf426e9cdbaff22a753baff1e0fa322f5d48ee828f1fff5c9",
       "fixtureVersion": "0.2.0-m8",
       "schemaVersion": "0.3.0-m8",
       "uiVersion": "0.3.2-m8",
@@ -88,10 +88,10 @@
     }
   },
   "prompts": {
-    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "87f72e6889103825fed11f066f007b9e54f8c7411eed80927515bcfd21585bf7"},
-    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "edc1fe983802b27a99ce4be9d41529af5f72f0d24d5a978ad3050d273550cc1a"},
-    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "66638be36b9ac199f96e7c4590a7176a8a881d1b1d4688dd4048cf45b13f004b"},
-    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "06aa167479bae7018fbc78306fadb34fb1337c44e98c5e6c029c48eb92c186d5"}
+    "prompts/clique-explicit.md": {"path": "prompts/clique-explicit.md", "sha256": "3a6671d36e4203edb032168f8501b73bc0815134008d5c6cfa1daac34f38eebc"},
+    "prompts/clique-familiar.md": {"path": "prompts/clique-familiar.md", "sha256": "5a641b0e36888e8bf60bde20bbf8225794619b463a85b0b209a6bba4dbbf9c89"},
+    "prompts/coterie-explicit.md": {"path": "prompts/coterie-explicit.md", "sha256": "3f985f42835848ed0e7bd8325cdc928809de8694118d764f5b131a12ecb03520"},
+    "prompts/coterie-familiar.md": {"path": "prompts/coterie-familiar.md", "sha256": "9a0df1e82f573e1258451425b7babe017da2a0c3b10d7d86ae8c87de8ea14f4b"}
   },
   "machines": {
     "charlies-macbook-air": {
@@ -216,7 +216,7 @@
     "portPolicy": {"mainRange": [57000, 58679], "m7Range": [59000, 59719], "rangeWidth": 60, "allCampaignPorts": "union of every cell.ports and every present cell.m7Ports"},
     "sourceClosure": {
       "version": "snapback.r2-executing-source-closure.v1",
-      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:e2a3e9d5bdd43e51f8ff09909ebecf0a26fc14eb4ac07e832d9f8b9aa92f5632"},
+      "meteringRoot": {"kind": "directory", "path": "benchmarks/tools/social-messenger/metering", "sha256": "sha256:f5088913b1ca30cd6a3e68c98e50c1adb1a84d60fdb3b7c46ededa244157b8a1"},
       "files": [
         {"kind": "file", "path": "benchmarks/schema/run-record.schema.json", "sha256": "sha256:48083edb411bc7a3f1e879183e8cab3952ee7e5efd4447dfe55a5a57771d5de3", "bytes": 12655},
         {"kind": "file", "path": "benchmarks/schema/social-messenger/run-record-extension.schema.json", "sha256": "sha256:a83b80b115018f946397b98898865a28805bcde198d5f7912a3e2c5551f98b44", "bytes": 100652},
@@ -242,7 +242,7 @@
   "scoring": {
     "successfulCompletion": {"recordStatus": "SUCCESSFUL", "validator": "validator-clean", "milestoneRule": "all registered milestones green for the leg profile"},
     "successFloor": {"minimumSuccessfulReplicatesPerSide": 3, "belowFloorDisposition": "insufficient successful replicates", "failedReplicateUse": "A fully metered failed replicate enters failure-rate reporting only and never token or correction ratios."},
-    "composer": {"path": "compose-scorecard.mjs", "sha256": "9a5a77da36a7112a9a4379433978352a6f690538a4d496bf7ce2edd6644ce11a", "sanctioned": true},
+    "composer": {"path": "compose-scorecard.mjs", "sha256": "f84116748430aab7b95ac5f31e7c6fb9c0afbbaa71edb8c813cdd26f3262423c", "sanctioned": true},
     "contrasts": ["Explicit-minus-Familiar within family and app", "Clique-minus-Coterie within family and profile"],
     "scorecardRows": [
       {"id": "covered-fact-source-inspections", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered covered-fact classifier exists; raw source-inspection actions are scope-blind.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
@@ -252,7 +252,7 @@
       {"id": "advertised-path-disagreements", "instrumentDisposition": "instrument-incomplete", "rationale": "No registered typed action or advisory identifies Guide/type/codegen/runtime/client disagreements.", "aggregation": "not computed in this wave; emit instrument-incomplete and no zero/failure inference"},
       {"id": "bounded-orientation-packet", "instrumentDisposition": "computed", "rationale": "The registered firstProductEdit.orientationBytes field is a typed, hash-bound measurement.", "threshold": {"operator": "<=", "bytes": 16384}, "aggregation": "every successful eligible constituent must meet the threshold; publish every constituent, median, range, and N; missing orientation evidence is not zero"},
       {"id": "choreography-retry-ceiling", "source": "controller-and-choreography-streams", "aggregation": "per successful eligible cell, derive retry counts by failed assertion identity from the hash-bound controller/choreography streams; require at most one retry for each failed assertion and zero retries for unaffected assertion identities; publish every constituent, maximum, median, range, and N"},
-      {"id": "grouped-migration-advisories", "source": "retained-native-streams", "recordSelector": {"recordTypeField": "event", "recordType": "migration-advisory", "advisoriesPath": "migrationAdvisories[]"}, "aggregation": "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N"},
+      {"id": "grouped-migration-advisories", "instrumentDisposition": "instrument-incomplete", "rationale": "This instrument has no producer for the typed event=migration-advisory carrier; a cell becomes computable only if its retained native stream contains an explicit carrier, including an explicit empty migrationAdvisories list.", "source": "retained-native-streams", "recordSelector": {"recordTypeField": "event", "recordType": "migration-advisory", "advisoriesPath": "migrationAdvisories[]"}, "aggregation": "per successful eligible cell, group retained native-stream migration advisories by normalized repair class; require exactly one advisory per class with its exact affected-table count; publish every class/count constituent, median class count, range, and N"},
       {"id": "debug-artifact-attribution", "excluded": true, "rationale": "This published-npm wave builds no debug binary; debug artifact size/link attribution belongs to a source-build wave and cannot be inferred here."},
       {"id": "semantic-correction-actions", "contrastBarPercent": 40, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},
       {"id": "output-tokens", "contrastBarPercent": 20, "aggregation": "successful replicates only; paired constituent values, arm medians, median paired percentage difference, range, and N"},

@@ -52,6 +52,10 @@ export const SCORECARD_INSTRUMENT_DISPOSITIONS = Object.freeze({
     instrumentDisposition: "computed",
     rationale: "The registered firstProductEdit.orientationBytes field is a typed, hash-bound measurement.",
   }),
+  "grouped-migration-advisories": Object.freeze({
+    instrumentDisposition: "instrument-incomplete",
+    rationale: "This instrument has no producer for the typed event=migration-advisory carrier; a cell becomes computable only if its retained native stream contains an explicit carrier, including an explicit empty migrationAdvisories list.",
+  }),
 });
 
 export function r3NamedFailure(diagnostic, message) {

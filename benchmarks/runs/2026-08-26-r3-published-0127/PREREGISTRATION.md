@@ -101,14 +101,19 @@ The four remaining LLP 0186 commissioned rows are frozen as follows:
    failed assertion identity; require at most one retry for each failed
    assertion and zero retries for unaffected assertion identities. Publish
    every constituent, maximum, median, range, and N;
-8. **grouped migration advisories:** measurable from the retained native
-   streams. The only registered advisory record is a top-level stream record
-   whose `event` equals `migration-advisory`; advisories are read only from its
-   `migrationAdvisories[]` path. Nested tool payloads and arbitrary objects with
-   similarly named fields are not advisory records. Per successful eligible
-   cell, group advisories by normalized repair class; require exactly one
-   advisory per class with its exact affected-table count. Publish every
-   class/count constituent, median class count, range, and N; and
+8. **grouped migration advisories — `instrument-incomplete` for this wave:**
+   no producer in this instrument emits the registered typed carrier. The only
+   registered advisory record is a top-level native-stream record whose `event`
+   equals `migration-advisory`; advisories are read only from its
+   `migrationAdvisories[]` path. Sessions without such a record remain
+   `instrument-incomplete` and never pass as a zero count. A cell becomes
+   computable only when its retained native stream contains an explicit typed
+   carrier, including an explicit record with an empty `migrationAdvisories`
+   list. Nested tool payloads and arbitrary objects with similarly named fields
+   are not advisory records. When computed, group advisories by normalized
+   repair class; require exactly one advisory per class with its exact
+   affected-table count. Publish every class/count constituent, median class
+   count, range, and N; and
 9. **debug-artifact attribution:** the sole excluded row. This published-npm
    wave builds no debug binary, so debug artifact size/link attribution belongs
    to a source-build wave and cannot be inferred here.

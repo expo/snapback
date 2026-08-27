@@ -147,6 +147,7 @@ function scoringRegistration() {
       };
       if (id === "grouped-migration-advisories") return {
         id,
+        ...SCORECARD_INSTRUMENT_DISPOSITIONS[id],
         source: "retained-native-streams",
         recordSelector: MIGRATION_ADVISORY_RECORD_SELECTOR,
         aggregation: MIGRATION_ADVISORY_AGGREGATION,
@@ -279,6 +280,7 @@ function fixtureFinalizedSlotValidator({ slotPath, cellId }) {
   return {
     slot: {
       cellId,
+      status: "recorded-finalized",
       record: { path: "record.json", sha256: sha256(recordBytes) },
     },
     record: JSON.parse(recordBytes.toString("utf8")),
@@ -379,6 +381,20 @@ test("scorecard composer refuses the whole composition when one record fails val
   }), /R3_SCORECARD_INPUT_INVALID: .* failed finalized-slot validation/u);
 });
 
+test("scorecard composer refuses a recovered-finalized input", async () => {
+  const config = scorecardConfig(1);
+  await assert.rejects(composeScorecard({
+    config,
+    inputs: inputsFor(config),
+    repositoryRoot: ROOT_PATH,
+    validateFinalizedSlot: (input) => {
+      const finalized = fixtureFinalizedSlotValidator(input);
+      finalized.slot.status = "recovered-finalized";
+      return finalized;
+    },
+  }), exactDiagnostic("R3_SCORECARD_RECOVERED_FINALIZED_REFUSED"));
+});
+
 test("scorecard composer refuses a missing success floor before computing", async () => {
   const config = scorecardConfig(3);
   delete config.scoring.successFloor.minimumSuccessfulReplicatesPerSide;
@@ -392,6 +408,7 @@ test("scorecard composer refuses a missing success floor before computing", asyn
 test("scorecard composer refuses an identity-rewritten and rehashed replay under three IDs", async () => {
   const config = scorecardConfig(2);
   const source = inputsFor(config)[0];
+  const originalCellId = "forged-original-cell";
   const replayed = config.cells.slice(0, 3).map((cell) => {
     const record = structuredClone(source.record);
     record.harness.model = cell.model;
@@ -401,6 +418,13 @@ test("scorecard composer refuses an identity-rewritten and rehashed replay under
     record.socialMessenger.meteringProvenance.driver.id = cell.driverId;
     const artifactRoot = mkdtempSync(join(TEMP_PATH, `r3-scorecard-replay-${cell.id}-`));
     TEMP_ROOTS.push(artifactRoot);
+    writeFileSync(join(artifactRoot, "cell.json"), `${JSON.stringify({
+      schemaVersion: "snapback.r2-cell-slot.v1",
+      cellId: originalCellId,
+      status: "recorded-finalized",
+      attemptCount: 1,
+      campaignCellRerun: false,
+    })}\n`);
     return persistInput({
       cellId: cell.id,
       record,
@@ -408,20 +432,14 @@ test("scorecard composer refuses an identity-rewritten and rehashed replay under
       path: join(artifactRoot, "record.json"),
     });
   });
-  const originalCellId = source.cellId;
   let received;
   await assert.rejects(composeScorecard({
     config,
     inputs: replayed,
     repositoryRoot: ROOT_PATH,
-    validateFinalizedSlot: (input) => {
-      const verified = fixtureFinalizedSlotValidator(input);
-      verified.slot.cellId = originalCellId;
-      return verified;
-    },
   }), (error) => {
     received = error.message;
-    return /R3_SCORECARD_INPUT_IDENTITY: .*finalizedCellId, laneRunId, model, capFamily, runScope, and driverId/u
+    return /R3_SCORECARD_INPUT_INVALID: .* failed finalized-slot validation: .* is not an exact finalized single-attempt cell slot/u
       .test(error.message);
   });
   assert.doesNotMatch(received, /app|profile|replicate/u);
@@ -641,6 +659,24 @@ test("more than one retry after a failed assertion fails the retry ceiling", asy
   )));
 });
 
+test("retry attempt ordinals with a gap refuse composition", async () => {
+  await assert.rejects(composeWithStreams({
+    choreographyEvents: [
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 1, pass: false },
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 3, pass: true },
+    ],
+  }), exactDiagnostic("R3_SCORECARD_RETRY_ORDINAL_INVALID"));
+});
+
+test("duplicate retry attempt ordinals refuse composition", async () => {
+  await assert.rejects(composeWithStreams({
+    choreographyEvents: [
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 1, pass: false },
+      { type: "assertion-wait", owner: "choreography", milestone: "M1", assertion: "live", attempt: 1, pass: false },
+    ],
+  }), exactDiagnostic("R3_SCORECARD_RETRY_ORDINAL_INVALID"));
+});
+
 test("duplicate migration repair classes fail and nested tool payloads do not become advisories", async () => {
   const result = await composeWithStreams({
     nativeEvents: [
@@ -667,6 +703,29 @@ test("duplicate migration repair classes fail and nested tool payloads do not be
     && item.classes[0].repairClass === "add-index"
     && item.classes[0].occurrences === 2
     && item.classes[0].pass === false
+  )));
+});
+
+test("native sessions without a typed migration-advisory carrier are instrument-incomplete", async () => {
+  const result = await composeWithStreams({
+    nativeEvents: [{
+      event: "tool-result",
+      payload: { migrationAdvisories: [], repairClass: "nested-only", affectedTableCount: 1 },
+    }],
+  });
+  assert.equal(result.groupedMigrationAdvisoriesRow.status, "instrument-incomplete");
+  assert.ok(result.groupedMigrationAdvisoriesRow.constituents.every((item) => (
+    item.carrierPresent === false && item.value === null && item.pass === false
+  )));
+});
+
+test("an explicit empty migration-advisory carrier computes a zero-count pass", async () => {
+  const result = await composeWithStreams({
+    nativeEvents: [{ event: "migration-advisory", migrationAdvisories: [] }],
+  });
+  assert.equal(result.groupedMigrationAdvisoriesRow.status, "pass");
+  assert.ok(result.groupedMigrationAdvisoriesRow.constituents.every((item) => (
+    item.carrierPresent === true && item.value === 0 && item.pass === true
   )));
 });
 
