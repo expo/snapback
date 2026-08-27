@@ -385,9 +385,11 @@ The 174 inherited reds are the fixture-migration debt of
 `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` refusals since the 2026-08-16
 enforcement) plus the admin-read enforcement flip of LLP 0262 stage 3;
 `issues/20260825-the-two-inherited-reds-every-lane-re-derives.md` is the
-standing reference. `check-guide` is red on `main` at "generated API cold
-signatures" since cbf4fc7fa, independent of this work
-(`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`).
+standing reference. At this landing's evidence point, `check-guide` was red at
+"generated API cold signatures" since cbf4fc7fa, independent of this work.
+That failure was fixed concurrently while the nextest landing rebased; its
+resolution is recorded in
+`issues/closed/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`.
 
 **Implemented 2026-08-27 (cargo-nextest tail; no binary merge).**
 `.config/nextest.toml` requires/recommends the fleet version 0.9.143 and defines
@@ -445,9 +447,12 @@ or unchecked references); and `git diff --check` (exit 0). The orchestrator's
 controlled runner comparison, exact failure-set proof, and JUnit inspection are
 recorded above. The landing inventory proof passed (364 package tests, 32
 script tests, 31 demos, 487 publication leaves, 158 guide pages, and 1,888
-snippets). The guide proof retained only the inherited "generated API cold
-signatures" failure owned by
-`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`.
+snippets). Before rebase, the guide proof retained only the inherited
+"generated API cold signatures" failure. A concurrent main change fixed that
+red and moved its ticket to
+`issues/closed/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`;
+the post-rebase guide proof then passed all 22 checks (158 pages / 1,893
+snippets).
 
 ### Phase 6 — The required signal
 
