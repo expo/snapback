@@ -1104,6 +1104,45 @@ function assertExistingDirectory(path, code = 'SNAPBACK_RELEASE_PATH_INVALID') {
   return realpathSync.native(absolute);
 }
 
+function canonicalProspectiveDirectory(path, code = 'SNAPBACK_RELEASE_PATH_INVALID') {
+  const absolute = resolve(path);
+  let cursor = absolute;
+  while (true) {
+    try {
+      const canonicalAncestor = realpathSync.native(cursor);
+      if (!statSync(canonicalAncestor).isDirectory()) {
+        throw diagnosticError(code, 'release output ancestor must be a directory', {
+          path: absolute,
+          ancestor: cursor,
+          canonicalAncestor,
+        });
+      }
+      return cursor === absolute
+        ? canonicalAncestor
+        : join(canonicalAncestor, relative(cursor, absolute));
+    } catch (cause) {
+      if (cause?.code !== 'ENOENT' && cause?.code !== 'ENOTDIR') {
+        if (cause?.diagnostic) throw cause;
+        const error = diagnosticError(code, 'release output path could not be resolved before creation', {
+          path: absolute,
+          ancestor: cursor,
+        });
+        error.cause = cause;
+        throw error;
+      }
+      const parent = dirname(cursor);
+      if (parent === cursor) {
+        const error = diagnosticError(code, 'release output path has no resolvable directory ancestor', {
+          path: absolute,
+        });
+        error.cause = cause;
+        throw error;
+      }
+      cursor = parent;
+    }
+  }
+}
+
 function assertDisjointTrees(left, right) {
   const leftPath = resolve(left);
   const rightPath = resolve(right);
@@ -1663,8 +1702,9 @@ export async function buildRelease(options = {}) {
   const projectRoot = assertExistingDirectory(options.projectRoot ?? dirname(backendRoot));
   assertPathInside(projectRoot, backendRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
   const requestedOutputRoot = resolve(options.outputDirectory ?? join(projectRoot, '.snapback', 'releases'));
-  assertDisjointTrees(backendRoot, requestedOutputRoot);
-  if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
+  const prospectiveOutputRoot = canonicalProspectiveDirectory(requestedOutputRoot);
+  assertDisjointTrees(backendRoot, prospectiveOutputRoot);
+  if (options.webDirectory) assertDisjointTrees(assertExistingDirectory(options.webDirectory), prospectiveOutputRoot);
   mkdirSync(requestedOutputRoot, { recursive: true });
   const outputRoot = assertExistingDirectory(requestedOutputRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
   assertDisjointTrees(backendRoot, outputRoot);
@@ -3699,7 +3739,7 @@ export async function generateApp(backendDirectory, options = {}) {
     ? await generate(resolve(backendDirectory), {
         targetProfile,
         appBindingMode,
-        outputRoot,
+        ...(outputRoot === undefined ? {} : { outputRoot }),
         check,
       })
     : await generateAppThroughNode(backendDirectory, {

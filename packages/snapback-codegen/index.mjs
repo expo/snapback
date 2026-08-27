@@ -2140,13 +2140,13 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
   const appBindingMode = options?.appBindingMode ?? APP_BINDING_MODE_RELEASE;
-  const outputRoot = options?.outputRoot ?? null;
+  const outputRoot = Object.hasOwn(options ?? {}, 'outputRoot') ? options.outputRoot : null;
   // @ref LLP 0237#d5-preflight-is-available-before-generation — both normal
   // generation and --check enter this one full checker; only the final
   // complete-graph publication step differs.
   const checkOnly = options?.check === true;
   const targetConfig = TARGET_PROFILES.get(targetProfile);
-  if (outputRoot !== null && (typeof outputRoot !== 'string' || outputRoot.length === 0)) {
+  if (Object.hasOwn(options ?? {}, 'outputRoot') && (typeof outputRoot !== 'string' || outputRoot.length === 0)) {
     err(
       'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
       'codegen',
@@ -22311,14 +22311,35 @@ export async function runCodegenCli(argv = process.argv) {
     args.splice(appBindingModeFlag, 2);
   }
   const outputRootFlag = args.indexOf('--output-root');
+  const outputRootEqualsFlag = args.findIndex((argument) => argument.startsWith('--output-root='));
   let outputRoot;
   if (outputRootFlag !== -1) {
     const candidate = args[outputRootFlag + 1];
     outputRoot = candidate === undefined || candidate.startsWith('--') ? '' : candidate;
     args.splice(outputRootFlag, candidate === undefined || candidate.startsWith('--') ? 1 : 2);
+  } else if (outputRootEqualsFlag !== -1) {
+    outputRoot = args[outputRootEqualsFlag].slice('--output-root='.length);
+    args.splice(outputRootEqualsFlag, 1);
   }
-  const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
-  const result = await generate(backendDir, { targetProfile, appBindingMode, outputRoot, check });
+  const backendArgument = args[0] && !args[0].startsWith('--') ? args.shift() : undefined;
+  const backendDir = resolve(backendArgument ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
+  const result = args.length > 0
+    ? {
+        ok: false,
+        diagnostics: [{
+          code: 'SNAPBACK_CLI_ARGUMENT_INVALID',
+          severity: 'error',
+          subsystem: 'codegen',
+          message: `codegen received unrecognized arguments: ${args.join(' ')}`,
+          arguments: args,
+        }],
+      }
+    : await generate(backendDir, {
+        targetProfile,
+        appBindingMode,
+        ...(outputRoot === undefined ? {} : { outputRoot }),
+        check,
+      });
   // @ref LLP 0264#d9-authorization-review-projection — the summary owns the
   // grouped human rendering while --json and authorization-review keep every
   // independently actionable table/site fact.

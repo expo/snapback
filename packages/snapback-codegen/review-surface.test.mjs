@@ -224,6 +224,15 @@ try {
   assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBytes));
   verifyGeneratedGraph(isolated.outDir);
 
+  const explicitNullOutputRoot = await generate(backend, { outputRoot: null });
+  assert.equal(explicitNullOutputRoot.ok, false);
+  assert.equal(
+    explicitNullOutputRoot.diagnostics[0]?.code,
+    'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+  );
+  assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(reviewBytes));
+  assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBytes));
+
   let verified = verifyGeneratedGraph(second.outDir);
   assert.equal(verified.layout, 'review-cache');
   const committedApiBytes = readFileSync(join(second.outDir, 'api.d.ts'));
@@ -311,6 +320,33 @@ try {
   assert.match(cliText.stdout, /degraded unknownResult/);
   assert.match(cliText.stdout, /results\.documents.*results\.records/u);
   assert.equal(existsSync(join(project, '.snapback', 'codegen-cache')), true);
+  const sourceReviewBeforeCliOutputRoot = readFileSync(join(second.outDir, 'artifacts.json'));
+  const sourceGenerationBeforeCliOutputRoot = readFileSync(sourceGenerationPointer);
+
+  const equalsOutputRoot = join(project, 'cli-release-output');
+  const equalsOutputRootResult = spawnSync(
+    process.execPath,
+    [join(packageRoot, 'index.mjs'), backend, '--json', `--output-root=${equalsOutputRoot}`],
+    { encoding: 'utf8' },
+  );
+  assert.equal(equalsOutputRootResult.status, 0, equalsOutputRootResult.stderr);
+  const equalsOutputRootJson = JSON.parse(equalsOutputRootResult.stdout);
+  assert.equal(equalsOutputRootJson.outDir, join(equalsOutputRoot, 'snapback', 'generated'));
+  verifyGeneratedGraph(equalsOutputRootJson.outDir);
+  assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(sourceReviewBeforeCliOutputRoot));
+  assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBeforeCliOutputRoot));
+
+  const unknownArgument = spawnSync(
+    process.execPath,
+    [join(packageRoot, 'index.mjs'), backend, '--json', '--future-output-spelling'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(unknownArgument.status, 1, unknownArgument.stderr);
+  const unknownArgumentResult = JSON.parse(unknownArgument.stdout);
+  assert.equal(unknownArgumentResult.ok, false);
+  assert.equal(unknownArgumentResult.diagnostics[0]?.code, 'SNAPBACK_CLI_ARGUMENT_INVALID');
+  assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(sourceReviewBeforeCliOutputRoot));
+  assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBeforeCliOutputRoot));
 
   const missingOutputRoot = spawnSync(
     process.execPath,

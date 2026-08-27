@@ -2460,6 +2460,23 @@ process.stdout.write(JSON.stringify(response));
     }),
     (error) => error.code === 'SNAPBACK_RELEASE_PATH_OVERLAP',
   );
+  const symlinkOutputParent = join(root, 'symlink-output-parent');
+  mkdirSync(symlinkOutputParent);
+  symlinkSync(join(project, 'snapback'), join(symlinkOutputParent, 'backend-link'), 'dir');
+  const symlinkAncestorOutput = join(symlinkOutputParent, 'backend-link', 'release-output');
+  assert.equal(existsSync(symlinkAncestorOutput), false);
+  await assert.rejects(
+    buildRelease({
+      backendDirectory: join(project, 'snapback'),
+      outputDirectory: symlinkAncestorOutput,
+    }),
+    (error) => error.code === 'SNAPBACK_RELEASE_PATH_OVERLAP',
+  );
+  assert.equal(
+    existsSync(symlinkAncestorOutput),
+    false,
+    'a symlinked output ancestor must be refused before creating anything in authored source',
+  );
 
   const schemaSource = join(project, 'snapback', 'schema.mjs');
   writeFileSync(schemaSource, `${readFileSync(schemaSource, 'utf8')}\n// dirty preview proof\n`);
