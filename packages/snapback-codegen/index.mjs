@@ -27,7 +27,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
+import { basename, join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseJavaScript } from 'acorn';
 import { computeEffectCeiling } from './effect-ceiling.mjs';
@@ -2140,6 +2140,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
   const appBindingMode = options?.appBindingMode ?? APP_BINDING_MODE_RELEASE;
+  const outputRoot = options?.outputRoot ?? null;
   // @ref LLP 0237#d5-preflight-is-available-before-generation — both normal
   // generation and --check enter this one full checker; only the final
   // complete-graph publication step differs.
@@ -2147,11 +2148,13 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   const targetConfig = TARGET_PROFILES.get(targetProfile);
   if (!targetConfig
       || ![APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE].includes(appBindingMode)
+      || (outputRoot !== null && (typeof outputRoot !== 'string' || outputRoot.length === 0))
       || (options?.check !== undefined && typeof options.check !== 'boolean')
-      || Object.keys(options ?? {}).some((key) => !['targetProfile', 'appBindingMode', 'check'].includes(key))) {
+      || Object.keys(options ?? {}).some((key) => !['targetProfile', 'appBindingMode', 'outputRoot', 'check'].includes(key))) {
     err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile or app binding mode ${String(targetProfile)} / ${String(appBindingMode)}`, {
       targetProfile,
       appBindingMode,
+      outputRoot,
       supported: [...TARGET_PROFILES.keys()],
       supportedAppBindingModes: [APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE],
     });
@@ -2166,10 +2169,19 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
     return { ok: false, diagnostics };
   }
   try {
+    // @ref LLP 0010#generated-artifacts — an explicit publication root moves
+    // the complete materialization/cache/envelope graph together, preserving
+    // the ordinary project-relative review-manifest layout without touching
+    // the authored generated/ review surface.
+    const publicationBackendRoot = outputRoot === null
+      ? backendRoot
+      : join(resolve(outputRoot), basename(backendRoot));
+    if (outputRoot !== null) mkdirSync(publicationBackendRoot, { recursive: true });
     return await withCodegenGenerationLock(
-      backendRoot,
+      publicationBackendRoot,
       () => generateInProcessLocked({
         backendRoot,
+        publicationBackendRoot,
         targetProfile,
         targetConfig,
         appBindingMode,
@@ -2190,6 +2202,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
 
 async function generateInProcessLocked({
   backendRoot,
+  publicationBackendRoot,
   targetProfile,
   targetConfig,
   appBindingMode,
@@ -2200,6 +2213,7 @@ async function generateInProcessLocked({
   checkOnly,
   testHooks,
 }) {
+  const outDir = join(publicationBackendRoot, targetConfig.outputDirectory);
   // @ref LLP 0253#s11-selection — profile selection precedes source
   // discovery. Reading it after explicit entry evaluation would make the
   // familiar lane a selectable label over the wrong source graph.
@@ -7063,6 +7077,7 @@ async function generateInProcessLocked({
         seedRowCount = parsedSeed.seedRowCount;
         validateSeedVersionEvidence(
           backendRoot,
+          publicationBackendRoot,
           targetConfig.outputDirectory,
           seedArtifact,
         );
@@ -8187,7 +8202,6 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
 
-  const outDir = join(backendRoot, targetConfig.outputDirectory);
   // DK-7 for the asset reference DTO: every emitted upload reference must
   // match the committed Rust-owned schema exactly (LLP 0037 dated alignment).
   for (const reference of renderAssetUploadReferences(
@@ -8511,7 +8525,9 @@ async function generateInProcessLocked({
   const remoteServicePublication = remoteServiceInputs
     ? buildRemoteServicePublication({
         artifactVersion,
-        outDir,
+        // Publication references describe the authored repository layout;
+        // an alternate materialization root is custody, not application identity.
+        outDir: join(backendRoot, targetConfig.outputDirectory),
         publicationRoot: applicationRepositoryRoot(backendRoot),
         appId,
         targetProfile,
@@ -8657,7 +8673,10 @@ async function generateInProcessLocked({
       : {}),
   };
   legacyArtifactIndex.artifacts.splice(3, 0, ...governanceArtifactFiles);
-  const { publicationStagingRoot, tmpOutDir } = codegenPublicationStagingPaths(backendRoot);
+  const { publicationStagingRoot, tmpOutDir } = codegenPublicationStagingPaths(
+    backendRoot,
+    publicationBackendRoot,
+  );
   let artifactIndex;
   let summary;
   let verifiedGraph;
@@ -8762,7 +8781,7 @@ async function generateInProcessLocked({
         ...legacyArtifactIndex,
         identities: addressNeutralIdentities,
       },
-      backendRoot,
+      backendRoot: publicationBackendRoot,
       outputDirectory: targetConfig.outputDirectory,
       files,
       summary,
@@ -8836,7 +8855,7 @@ async function generateInProcessLocked({
       // latest-emitted is updated only after the ordinary graph publication
       // succeeds and is explicitly non-authoritative build metadata.
       generationEnvelope = publishGenerationEnvelope({
-        backendRoot,
+        backendRoot: publicationBackendRoot,
         identities: splitIdentities,
         appIdentity: generationIdentityInputs.appIdentity,
         dataIdentity: generationIdentityInputs.dataIdentity,
@@ -8846,7 +8865,7 @@ async function generateInProcessLocked({
       });
       verifiedGraph = publishGeneratedGraph({
         temporaryGraphRoot: tmpOutDir,
-        cacheGraphRoot: codegenCacheGraphRoot(backendRoot, inputsHash),
+        cacheGraphRoot: codegenCacheGraphRoot(publicationBackendRoot, inputsHash),
         materializedRoot: outDir,
         reviewManifest: artifactIndex,
         testHooks: testHooks?.publication,
@@ -21857,19 +21876,20 @@ function validateContractModuleFilenames(modules, err) {
 // label for different canonical bytes fails before the next graph is written.
 // @ref LLP 0109#16-final-author-reconciliation-after-round-3 — version reuse is
 // a deterministic codegen refusal, not a runtime best effort.
-function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
-  const evidence = new Set([
-    join(backendRoot, outputDirectory, 'seed.artifact.json'),
-  ]);
-  const cacheRoot = join(
-    codegenProjectRoot(backendRoot),
-    '.snapback',
-    'codegen-cache',
-  );
-  if (existsSync(cacheRoot)) {
-    for (const entry of readdirSync(cacheRoot, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        evidence.add(join(cacheRoot, entry.name, 'seed.artifact.json'));
+function validateSeedVersionEvidence(backendRoot, publicationBackendRoot, outputDirectory, candidate) {
+  const evidence = new Set();
+  for (const evidenceBackendRoot of new Set([backendRoot, publicationBackendRoot])) {
+    evidence.add(join(evidenceBackendRoot, outputDirectory, 'seed.artifact.json'));
+    const cacheRoot = join(
+      codegenProjectRoot(evidenceBackendRoot),
+      '.snapback',
+      'codegen-cache',
+    );
+    if (existsSync(cacheRoot)) {
+      for (const entry of readdirSync(cacheRoot, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          evidence.add(join(cacheRoot, entry.name, 'seed.artifact.json'));
+        }
       }
     }
   }
@@ -22242,8 +22262,14 @@ export async function runCodegenCli(argv = process.argv) {
     appBindingMode = args[appBindingModeFlag + 1];
     args.splice(appBindingModeFlag, 2);
   }
+  const outputRootFlag = args.indexOf('--output-root');
+  let outputRoot;
+  if (outputRootFlag !== -1) {
+    outputRoot = args[outputRootFlag + 1];
+    args.splice(outputRootFlag, 2);
+  }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
-  const result = await generate(backendDir, { targetProfile, appBindingMode, check });
+  const result = await generate(backendDir, { targetProfile, appBindingMode, outputRoot, check });
   // @ref LLP 0264#d9-authorization-review-projection — the summary owns the
   // grouped human rendering while --json and authorization-review keep every
   // independently actionable table/site fact.
@@ -22321,8 +22347,13 @@ function renderFamiliarApiBootstrapTypes() {
 // rollback directories live beside, not within, Metro's project watch root.
 // The sibling stays on the same filesystem so complete-directory renames
 // publish the successor immediately when generation returns.
-function codegenPublicationStagingPaths(backendRoot) {
-  const projectRoot = codegenProjectRoot(backendRoot);
+function codegenPublicationStagingPaths(backendRoot, publicationBackendRoot = backendRoot) {
+  const sourceProjectRoot = codegenProjectRoot(backendRoot);
+  const publicationProjectRoot = codegenProjectRoot(publicationBackendRoot);
+  const publicationRelativeToSource = relative(sourceProjectRoot, publicationProjectRoot);
+  const projectRoot = isPathInside(publicationRelativeToSource)
+    ? sourceProjectRoot
+    : publicationProjectRoot;
   const publicationStagingRoot = join(
     dirname(projectRoot),
     `.${relative(dirname(projectRoot), projectRoot)}.snapback-codegen-${process.pid}-${randomBytes(12).toString('hex')}`,

@@ -394,6 +394,8 @@ export type GenerateAppResult = GenerateAppSuccess | GenerateAppFailure;
 /** Run codegen for a backend directory in a fresh worker process. */
 export function generateApp(backendDirectory: string, options?: {
   readonly targetProfile?: string;
+  readonly appBindingMode?: 'development' | 'release';
+  readonly outputRoot?: string;
   readonly check?: boolean;
 }): Promise<GenerateAppResult>;
 
@@ -430,6 +432,13 @@ export interface ReadyDescriptor {
   readonly devIdentityCapabilityFile?: string;
   readonly [key: string]: unknown;
 }
+
+/**
+ * Return the canonical file-carrier spelling: resolve the directory through
+ * symlinks, then rejoin the file basename so two spellings of one file compare
+ * equal without resolving the file itself.
+ */
+export function canonicalFileCarrierPath(path: string): string;
 
 export function readReadyDescriptor(path: string): ReadyDescriptor;
 

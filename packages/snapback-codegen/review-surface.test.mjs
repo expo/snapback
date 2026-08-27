@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generate } from './index.mjs';
+import { generate, generateInProcess } from './index.mjs';
 import { createCodegenSummary } from './codegen-summary.mjs';
 import {
   CUSTODY,
@@ -198,6 +198,31 @@ try {
   assert.equal(second.ok, true);
   assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(reviewBytes), 'identical review manifests are byte-identical');
   assert(Buffer.from(JSON.stringify(second.summary)).equals(summaryBytes), 'identical summaries are byte-identical');
+
+  const sourceGenerationPointer = join(project, '.snapback', 'generations', 'latest-emitted.json');
+  const sourceGenerationBytes = readFileSync(sourceGenerationPointer);
+  const isolatedOutputRoot = join(project, 'release-output');
+  let isolatedLockPath = null;
+  const isolated = await generateInProcess(
+    backend,
+    { outputRoot: isolatedOutputRoot },
+    { generationLock: { afterAcquire: ({ lockPath }) => { isolatedLockPath = lockPath; } } },
+  );
+  assert.equal(isolated.ok, true, JSON.stringify(isolated.diagnostics));
+  assert.equal(isolated.outDir, join(isolatedOutputRoot, 'snapback', 'generated'));
+  assert.equal(
+    isolatedLockPath,
+    join(isolatedOutputRoot, 'snapback', '.generated.regenerate.lock'),
+  );
+  assert.equal(
+    isolated.cacheGraphRoot,
+    codegenCacheGraphRoot(join(isolatedOutputRoot, 'snapback'), isolated.inputsHash),
+  );
+  assert.equal(isolated.artifactIndex.cache.graphPath, second.artifactIndex.cache.graphPath);
+  assert.deepEqual(isolated.identities, second.identities);
+  assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(reviewBytes));
+  assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBytes));
+  verifyGeneratedGraph(isolated.outDir);
 
   let verified = verifyGeneratedGraph(second.outDir);
   assert.equal(verified.layout, 'review-cache');

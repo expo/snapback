@@ -411,6 +411,9 @@ export type GenerateOptions = Readonly<{
   /** Selects the generated app binding kind structurally. Programmatic
    * generation defaults to release; authoring CLIs pass development. */
   appBindingMode?: 'development' | 'release';
+  /** Alternate project root for the complete generated materialization,
+   * content-addressed cache, and immutable generation envelope. */
+  outputRoot?: string;
   /** Run complete generation validation without publishing generated output. */
   check?: boolean;
 }>;

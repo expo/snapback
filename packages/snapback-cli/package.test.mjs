@@ -1049,6 +1049,11 @@ console.log(JSON.stringify({
   assert.equal(release.schemaVersion, 'snapback.deploy-build.v1');
   assert.equal(release.state, 'built');
   assert.equal(release.sourceDirty, false);
+  assert.equal(
+    git('status', '--porcelain'),
+    '',
+    'release generation must not dirty the committed scaffold',
+  );
   assert.equal(release.activationEligible, false);
   assert.ok(release.gaps.some((gap) => gap.id === 'control-plane.backup-restore' && gap.blocking));
   assert.equal(verifyRelease(release.releaseDirectory).releaseId, release.releaseId);
@@ -1066,6 +1071,11 @@ console.log(JSON.stringify({
   });
   assert.equal(reused.state, 'reused');
   assert.equal(reused.releaseId, release.releaseId);
+  assert.equal(
+    git('status', '--porcelain'),
+    '',
+    'reusing a release must leave the committed scaffold clean',
+  );
   const defaultRelease = await buildRelease({ backendDirectory: join(project, 'snapback') });
   assert.equal(defaultRelease.state, 'built');
   assert.equal(defaultRelease.releaseId, release.releaseId);

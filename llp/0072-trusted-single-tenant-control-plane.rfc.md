@@ -5,7 +5,10 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-06 (dated amendment drafted at the author's
+**Revised:** 2026-08-26 (`deploy build` now gives release-mode codegen a
+project-shaped publication root below the excluded release output, so a build
+neither overwrites the committed development review manifest nor changes
+release identity with output location). 2026-08-06 (dated amendment drafted at the author's
 direction and ratified by the author the same day: §"Continuous-replication
 authority" — first-class replication epoch, whole-authority
 revoke-then-grant handover with drain-inclusive barrier, window
@@ -399,6 +402,16 @@ optional web bytes; refuses symlinks, path overlap/escape, secret/state file
 classes, source maps, known credential patterns, and v1 size limits; then
 copies through a private staging directory and reads every digest back before
 retaining the closure.
+
+Release-mode generation materializes its complete generated graph, codegen
+cache, and immutable generation envelope beneath the release output root, which
+the source-identity scan already excludes. It does not write the backend's
+ordinary `generated/` review surface. The private root mirrors the application's
+project shape so `artifacts.json.cache.graphPath` remains valid and the release
+identity remains independent of the caller's output-directory spelling. The
+authored backend remains the source-input authority, the relocated backend owns
+its disjoint publication lock, and authored source dirt continues to fail the
+release by default.
 
 For v1, `releaseId` is SHA-256 over the domain separator
 `snapback-release-manifest-v1` plus a NUL byte plus canonical JSON of every

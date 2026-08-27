@@ -1409,6 +1409,23 @@ function digestField(value, name) {
   });
 }
 
+function generatedInputsDigestField(value, name) {
+  if (typeof value === 'string' && (/^sha256:[0-9a-f]{64}$/i.test(value) || /^[0-9a-f]{64}$/i.test(value))) {
+    return digestField(value, name);
+  }
+  // @ref LLP 0010#generated-artifacts — the staleness identity is
+  // domain-separated, while the release compatibility projection retains its
+  // terminal full digest under the explicitly named inputsSha256 field.
+  const generatedInputs = typeof value === 'string'
+    ? /^snapback\.v[0-9]+:[a-z0-9][a-z0-9-]*:inputs:sha256:([0-9a-f]{64})$/iu.exec(value)
+    : null;
+  if (generatedInputs) return `sha256:${generatedInputs[1].toLowerCase()}`;
+  throw diagnosticError('SNAPBACK_RELEASE_ARTIFACT_INVALID', `${name} is not a full SHA-256 digest`, {
+    field: name,
+    received: typeof value,
+  });
+}
+
 function releaseContentId(content) {
   return sha256Bytes(Buffer.from(`snapback-release-manifest-v1\0${canonicalJson(content)}`));
 }
@@ -1638,9 +1655,9 @@ function makeReadOnlyTree(root) {
   visit(root);
 }
 
-// @ref LLP 0072#release-artifact — build and retain the target-neutral,
-// content-addressed closure before any provider credential or activation
-// authority is used.
+// @ref LLP 0072#release-artifact — build release-mode generated state below
+// the excluded release output, then retain the target-neutral content-addressed
+// closure before any provider credential or activation authority is used.
 export async function buildRelease(options = {}) {
   const backendRoot = assertExistingDirectory(options.backendDirectory ?? 'snapback');
   const projectRoot = assertExistingDirectory(options.projectRoot ?? dirname(backendRoot));
@@ -1648,10 +1665,15 @@ export async function buildRelease(options = {}) {
   const requestedOutputRoot = resolve(options.outputDirectory ?? join(projectRoot, '.snapback', 'releases'));
   assertDisjointTrees(backendRoot, requestedOutputRoot);
   if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), requestedOutputRoot);
+  mkdirSync(requestedOutputRoot, { recursive: true });
+  const outputRoot = assertExistingDirectory(requestedOutputRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
+  assertDisjointTrees(backendRoot, outputRoot);
+  if (options.webDirectory) assertDisjointTrees(resolve(options.webDirectory), outputRoot);
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
   const generated = await generateApp(backendRoot, {
     targetProfile,
     appBindingMode: 'release',
+    outputRoot,
   });
   if (!generated.ok) {
     throw diagnosticError('SNAPBACK_DEPLOY_GENERATION_FAILED', 'release generation failed', { diagnostics: generated.diagnostics ?? [] });
@@ -1699,7 +1721,7 @@ export async function buildRelease(options = {}) {
     error.cause = cause;
     throw error;
   }
-  const source = releaseSourceFacts(projectRoot, packageManifest, options.allowDirty === true, requestedOutputRoot);
+  const source = releaseSourceFacts(projectRoot, packageManifest, options.allowDirty === true, outputRoot);
   const requiredCapabilities = [...new Set([
     ...(schemaManifest.requiredCapabilities ?? []),
     ...((functionsManifest.functions ?? []).flatMap((definition) => definition.requiredCapabilities ?? [])),
@@ -1761,7 +1783,7 @@ export async function buildRelease(options = {}) {
       schemaSha256: sha256Bytes(readFileSync(schemaPath)),
       functionsSha256: sha256Bytes(readFileSync(functionsPath)),
       capabilitySha256: sha256Bytes(readFileSync(capabilityPath)),
-      inputsSha256: digestField(schemaManifest.inputsHash, 'schemaManifest.inputsHash'),
+      inputsSha256: generatedInputsDigestField(schemaManifest.inputsHash, 'schemaManifest.inputsHash'),
     },
     requiredCapabilities,
     runtimeArtifact: runtimeArtifact.fact,
@@ -1778,9 +1800,6 @@ export async function buildRelease(options = {}) {
   const releaseId = releaseContentId(content);
   const manifest = { ...content, releaseId };
   const manifestBytes = Buffer.from(`${canonicalJson(manifest)}\n`);
-  mkdirSync(requestedOutputRoot, { recursive: true });
-  const outputRoot = assertExistingDirectory(requestedOutputRoot, 'SNAPBACK_RELEASE_PATH_INVALID');
-  assertDisjointTrees(backendRoot, outputRoot);
   if (options.webDirectory) assertDisjointTrees(assertExistingDirectory(options.webDirectory), outputRoot);
   const finalRoot = join(outputRoot, releaseId.slice('sha256:'.length));
   let state = 'built';
@@ -3580,13 +3599,19 @@ export function initApp(target = process.cwd(), options = {}) {
   };
 }
 
-async function generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check }) {
+async function generateAppThroughNode(backendDirectory, {
+  targetProfile,
+  appBindingMode,
+  outputRoot,
+  check,
+}) {
   const args = [
     require.resolve('@expo/snapback-codegen'),
     resolve(backendDirectory),
     '--json',
     '--target-profile', targetProfile,
     '--app-binding-mode', appBindingMode,
+    ...(outputRoot === undefined ? [] : ['--output-root', outputRoot]),
     ...(check ? ['--check'] : []),
   ];
   const allowedEnvironment = new Set([
@@ -3663,6 +3688,7 @@ async function generateAppThroughNode(backendDirectory, { targetProfile, appBind
 export async function generateApp(backendDirectory, options = {}) {
   const targetProfile = options.targetProfile ?? 'local-dev-sqlite-ibex';
   const appBindingMode = options.appBindingMode ?? 'development';
+  const outputRoot = options.outputRoot;
   const check = options.check === true;
   // @ref LLP 0010#generated-artifacts — definition evaluation still occurs
   // under Node 24's permission model when a Bun-hosted Vite process owns the
@@ -3670,8 +3696,18 @@ export async function generateApp(backendDirectory, options = {}) {
   const canEvaluateIsolatedDefinitions = process.allowedNodeEnvironmentFlags
     ?.has('--permission') === true;
   const result = canEvaluateIsolatedDefinitions
-    ? await generate(resolve(backendDirectory), { targetProfile, appBindingMode, check })
-    : await generateAppThroughNode(backendDirectory, { targetProfile, appBindingMode, check });
+    ? await generate(resolve(backendDirectory), {
+        targetProfile,
+        appBindingMode,
+        outputRoot,
+        check,
+      })
+    : await generateAppThroughNode(backendDirectory, {
+        targetProfile,
+        appBindingMode,
+        outputRoot,
+        check,
+      });
   return {
     schemaVersion: 'snapback.generate.v1',
     ...result,

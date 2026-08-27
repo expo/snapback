@@ -5,6 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-26 (programmatic generation may relocate its complete
+materialization/cache/envelope graph beneath an explicit project-shaped output
+root; the authored backend remains the source-input authority, publication uses
+the relocated backend-local lock, and the ordinary committed review surface is
+not rewritten).
 **Revised:** 2026-08-22 (qualified debug bootstrap now reports binary-size and
 `__LINKEDIT` drift against a receipt-bound baseline without blocking readiness.)
 **Revised:** 2026-08-21 (proof timeouts now share one canonical decimal parser
@@ -508,6 +513,18 @@ Generated artifacts should carry a staleness marker. Valet's manifest included a
 `inputsHash` over all codegen inputs, which let a `doctor` check catch a stale
 build before the app ran (`[confirmed - Valet diaries, 2026-06-25]`); adopt that as
 the freshness signal behind "what generated artifacts changed."
+
+Programmatic generation may supply an explicit **publication root** when the
+consumer needs an isolated materialization, notably for release construction.
+The override mirrors the ordinary project shape beneath that root: generated
+files stay under the backend-named directory, while the content-addressed cache
+and immutable generation envelopes stay under the root's `.snapback/` state.
+The authored backend remains the only source-input authority; the relocated
+backend owns the cooperative lock for its disjoint publication graph. This
+relocation must preserve the same relative review-manifest cache path and
+artifact identities as the ordinary layout; an output pathname is custody, not
+application content. It therefore must not rewrite or restore the committed
+`generated/` review surface as a side effect.
 
 The freshness boundary is the complete permitted static local module graph, not
 only the entry files. An AST resolver admits literal relative/file edges only and
