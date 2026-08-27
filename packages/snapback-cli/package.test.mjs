@@ -1040,6 +1040,10 @@ console.log(JSON.stringify({
     'platform lifecycle parsing belongs to the shared runner, not the app journey',
   );
 
+  const metacharMatchedSource = join(project, 'release-o', 'authored.txt');
+  mkdirSync(dirname(metacharMatchedSource), { recursive: true });
+  writeFileSync(metacharMatchedSource, 'clean\n');
+
   const git = (...args) => {
     const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -1100,6 +1104,23 @@ console.log(JSON.stringify({
   const defaultReused = await buildRelease({ backendDirectory: join(project, 'snapback') });
   assert.equal(defaultReused.state, 'reused');
   assert.equal(defaultReused.sourceDirty, false);
+
+  const metacharOutput = join(project, 'release-[out]');
+  writeFileSync(metacharMatchedSource, 'dirty\n');
+  try {
+    await assert.rejects(
+      buildRelease({
+        backendDirectory: join(project, 'snapback'),
+        outputDirectory: metacharOutput,
+      }),
+      (error) => error.code === 'SNAPBACK_DEPLOY_DIRTY_SOURCE'
+        && error.diagnostic?.details?.dirtyEntryCount === 1,
+      'a metacharacter in the output directory must not glob-exclude dirty authored source',
+    );
+  } finally {
+    writeFileSync(metacharMatchedSource, 'clean\n');
+    rmSync(metacharOutput, { recursive: true, force: true });
+  }
 
   const familiarProject = join(root, 'familiar-release-project');
   const familiarBackend = join(familiarProject, 'snapback');

@@ -2057,13 +2057,13 @@ function validateArtifactAgainstSchema(schemaFile, instance, expected) {
   return { problems };
 }
 
-// Public API calls run generation in a fresh process. Native ESM caches every
-// transitive module by URL; changing a helper while keeping schema.mjs itself
-// unchanged otherwise reuses stale objects on the second generate() call.
+// Public API calls run generation in a fresh process because native ESM caches
+// transitive module URLs; resolve caller-owned paths before the REPO_ROOT worker.
 export async function generate(backendDir, options = {}) {
-  const workerPath = fileURLToPath(new URL('./generate-worker.mjs', import.meta.url));
+  const resolvedBackendDir = resolve(backendDir);
+  const resolvedOptions = typeof options?.outputRoot === 'string' && options.outputRoot.length > 0 ? { ...options, outputRoot: resolve(options.outputRoot) } : options;
   return new Promise((resolveResult) => {
-    const child = fork(workerPath, [resolve(backendDir), JSON.stringify(options)], {
+    const child = fork(fileURLToPath(new URL('./generate-worker.mjs', import.meta.url)), [resolvedBackendDir, JSON.stringify(resolvedOptions)], {
       // The cache-busting worker is a deterministic tool boundary. Caller
       // flags such as --eval/--input-type/--require/--inspect are not valid
       // worker arguments, and NODE_OPTIONS/preload credentials are not inputs.
@@ -22310,8 +22310,7 @@ export async function runCodegenCli(argv = process.argv) {
     appBindingMode = args[appBindingModeFlag + 1];
     args.splice(appBindingModeFlag, 2);
   }
-  const outputRootFlag = args.indexOf('--output-root');
-  const outputRootEqualsFlag = args.findIndex((argument) => argument.startsWith('--output-root='));
+  const outputRootFlag = args.indexOf('--output-root'), outputRootEqualsFlag = args.findIndex((argument) => argument.startsWith('--output-root='));
   let outputRoot;
   if (outputRootFlag !== -1) {
     const candidate = args[outputRootFlag + 1];
@@ -22323,13 +22322,14 @@ export async function runCodegenCli(argv = process.argv) {
   }
   const backendArgument = args[0] && !args[0].startsWith('--') ? args.shift() : undefined;
   const backendDir = resolve(backendArgument ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
+  if (typeof outputRoot === 'string' && outputRoot.length > 0) outputRoot = resolve(outputRoot);
   const result = args.length > 0
     ? {
         ok: false,
         diagnostics: [{
           code: 'SNAPBACK_CLI_ARGUMENT_INVALID',
           severity: 'error',
-          subsystem: 'codegen',
+          subsystem: 'cli',
           message: `codegen received unrecognized arguments: ${args.join(' ')}`,
           arguments: args,
         }],

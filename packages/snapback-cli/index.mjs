@@ -1209,7 +1209,7 @@ function releaseSourceFacts(projectRoot, packageManifest, allowDirty, excludedOu
   }
   const excludedPath = excludedOutput === undefined ? null : normalizeRelativePath(relative(projectRoot, excludedOutput));
   const excludeArguments = excludedPath && excludedPath !== '..' && !excludedPath.startsWith('../')
-    ? [`:(exclude)${excludedPath}`, `:(exclude)${excludedPath}/**`]
+    ? [`:(literal,exclude)${excludedPath}`]
     : [];
   const status = runGit(
     projectRoot,

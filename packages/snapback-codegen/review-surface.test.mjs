@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -27,6 +28,7 @@ import {
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
 const project = mkdtempSync(join(tmpdir(), 'snapback-review-surface-'));
+const canonicalProject = realpathSync.native(project);
 const backend = join(project, 'snapback');
 mkdirSync(backend);
 
@@ -224,6 +226,22 @@ try {
   assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBytes));
   verifyGeneratedGraph(isolated.outDir);
 
+  const callerCwd = process.cwd();
+  let relativeProgrammatic;
+  try {
+    process.chdir(project);
+    relativeProgrammatic = await generate(backend, { outputRoot: 'relative-api-output' });
+  } finally {
+    process.chdir(callerCwd);
+  }
+  assert.equal(relativeProgrammatic.ok, true, JSON.stringify(relativeProgrammatic.diagnostics));
+  assert.equal(
+    relativeProgrammatic.outDir,
+    join(canonicalProject, 'relative-api-output', 'snapback', 'generated'),
+    'a relative programmatic output root resolves against the caller cwd',
+  );
+  verifyGeneratedGraph(relativeProgrammatic.outDir);
+
   const explicitNullOutputRoot = await generate(backend, { outputRoot: null });
   assert.equal(explicitNullOutputRoot.ok, false);
   assert.equal(
@@ -336,6 +354,22 @@ try {
   assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(sourceReviewBeforeCliOutputRoot));
   assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBeforeCliOutputRoot));
 
+  const relativeOutputRootResult = spawnSync(
+    process.execPath,
+    [join(packageRoot, 'index.mjs'), backend, '--json', '--output-root=relative-cli-output'],
+    { cwd: project, encoding: 'utf8' },
+  );
+  assert.equal(relativeOutputRootResult.status, 0, relativeOutputRootResult.stderr);
+  const relativeOutputRootJson = JSON.parse(relativeOutputRootResult.stdout);
+  assert.equal(
+    relativeOutputRootJson.outDir,
+    join(canonicalProject, 'relative-cli-output', 'snapback', 'generated'),
+    'a relative CLI output root resolves against the caller cwd',
+  );
+  verifyGeneratedGraph(relativeOutputRootJson.outDir);
+  assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(sourceReviewBeforeCliOutputRoot));
+  assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBeforeCliOutputRoot));
+
   const unknownArgument = spawnSync(
     process.execPath,
     [join(packageRoot, 'index.mjs'), backend, '--json', '--future-output-spelling'],
@@ -345,6 +379,7 @@ try {
   const unknownArgumentResult = JSON.parse(unknownArgument.stdout);
   assert.equal(unknownArgumentResult.ok, false);
   assert.equal(unknownArgumentResult.diagnostics[0]?.code, 'SNAPBACK_CLI_ARGUMENT_INVALID');
+  assert.equal(unknownArgumentResult.diagnostics[0]?.subsystem, 'cli');
   assert(readFileSync(join(second.outDir, 'artifacts.json')).equals(sourceReviewBeforeCliOutputRoot));
   assert(readFileSync(sourceGenerationPointer).equals(sourceGenerationBeforeCliOutputRoot));
 

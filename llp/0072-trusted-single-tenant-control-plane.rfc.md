@@ -5,6 +5,10 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
+**Revised:** 2026-08-27 (release output-root refusal is scoped to the tested
+symlinked-ancestor topology; descendant aliases, the prospective-path TOCTOU
+interval, and an in-project output directory's wholesale dirty-source exclusion
+remain explicit hardening routes).
 **Revised:** 2026-08-26 (`deploy build` now gives release-mode codegen a
 project-shaped publication root below the excluded release output, so a build
 neither overwrites the committed development review manifest nor changes
@@ -405,13 +409,22 @@ retaining the closure.
 
 Release-mode generation materializes its complete generated graph, codegen
 cache, and immutable generation envelope beneath the release output root, which
-the source-identity scan already excludes. It does not write the backend's
-ordinary `generated/` review surface. The private root mirrors the application's
-project shape so `artifacts.json.cache.graphPath` remains valid and the release
-identity remains independent of the caller's output-directory spelling. The
-authored backend remains the source-input authority, the relocated backend owns
-its disjoint publication lock, and authored source dirt continues to fail the
-release by default.
+the source-identity scan excludes. On the tested ordinary disjoint path it does
+not write the backend's `generated/` review surface. The tested
+symlinked-ancestor refusal canonicalizes the deepest existing output ancestor,
+detects overlap before creating the requested directory, and leaves that
+directory absent. It does not establish universal filesystem non-mutation:
+descendant symlinks at `outputRoot/<backend-name>`, `outputRoot/.snapback`, or an
+existing `outputRoot/<backend-name>/generated` followed by familiar-bootstrap
+synthesis, and the prospective-canonicalization-to-`mkdirSync` interval, remain
+hardening routes. The private root otherwise mirrors the application's project
+shape so `artifacts.json.cache.graphPath` remains valid and release identity is
+independent of output-directory spelling. The authored backend remains the
+source-input authority, the relocated backend owns its disjoint publication
+lock, and authored dirt outside the exact output directory fails the release by
+default; excluding an in-project output directory wholesale remains a
+pre-existing hardening gap. These residual routes are tracked in
+`issues/20260827-release-output-root-alias-hardening.md`.
 
 For v1, `releaseId` is SHA-256 over the domain separator
 `snapback-release-manifest-v1` plus a NUL byte plus canonical JSON of every
