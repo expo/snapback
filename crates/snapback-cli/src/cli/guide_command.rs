@@ -1,6 +1,7 @@
 use super::*;
 
 pub(crate) const DEFAULT_SERVED_GUIDE_URL: &str = "http://127.0.0.1:4287/_snapback/guide";
+const DEFAULT_DEV_READY_FILE: &str = ".snapback/dev.ready.json";
 
 pub(crate) fn parse_guide_slice(value: &str) -> Result<usize, String> {
     value
@@ -146,10 +147,20 @@ fn guide_search_json(
     ))
 }
 
+#[cfg(test)]
 pub(crate) fn render_guide_command(
     query_words: &[String],
     slice: usize,
     json_output: bool,
+) -> anyhow::Result<String> {
+    render_guide_command_with_url(query_words, slice, json_output, DEFAULT_SERVED_GUIDE_URL)
+}
+
+pub(crate) fn render_guide_command_with_url(
+    query_words: &[String],
+    slice: usize,
+    json_output: bool,
+    served_guide_url: &str,
 ) -> anyhow::Result<String> {
     let query = query_words.join(" ");
     let query = query.trim();
@@ -164,15 +175,15 @@ pub(crate) fn render_guide_command(
                 // the channel listing; the capability index stays a lookup
                 // channel, not the lead item.
                 json!({
-                    "startPackets": format!("{DEFAULT_SERVED_GUIDE_URL}/start/index.md"),
-                    "mentalModel": format!("{DEFAULT_SERVED_GUIDE_URL}/start/mental-model.md"),
-                    "capabilityIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
-                    "surfaceMap": format!("{DEFAULT_SERVED_GUIDE_URL}/surface-map.md"),
-                    "guide": DEFAULT_SERVED_GUIDE_URL,
-                    "referenceIndex": format!("{DEFAULT_SERVED_GUIDE_URL}/reference/index.md"),
-                    "symbolRegistry": format!("{DEFAULT_SERVED_GUIDE_URL}/reference/registry.json"),
-                    "sectionProjections": format!("{DEFAULT_SERVED_GUIDE_URL}/guide-flat.<section>.generated.md"),
-                    "wholeCorpusFlat": format!("{DEFAULT_SERVED_GUIDE_URL}/flat.md"),
+                    "startPackets": format!("{served_guide_url}/start/index.md"),
+                    "mentalModel": format!("{served_guide_url}/start/mental-model.md"),
+                    "capabilityIndex": format!("{served_guide_url}/capabilities.md"),
+                    "surfaceMap": format!("{served_guide_url}/surface-map.md"),
+                    "guide": served_guide_url,
+                    "referenceIndex": format!("{served_guide_url}/reference/index.md"),
+                    "symbolRegistry": format!("{served_guide_url}/reference/registry.json"),
+                    "sectionProjections": format!("{served_guide_url}/guide-flat.<section>.generated.md"),
+                    "wholeCorpusFlat": format!("{served_guide_url}/flat.md"),
                     "mcpResource": "snapback-guide://manifest",
                 }),
             );
@@ -180,18 +191,18 @@ pub(crate) fn render_guide_command(
         return Ok(format!(
             "Snapback Guide documentation channels\n\
              \n\
-             The URLs below use the first default dev port. If Snapback selected another port, replace the origin with the one printed by snapback dev or snapback start.\n\
+             The URLs below use the live .snapback/dev.ready.json origin when it is owner-only, loopback HTTP, and nonce-verified; otherwise they use the first default dev port.\n\
              \n\
-             Start with your template's start packet: {DEFAULT_SERVED_GUIDE_URL}/start/index.md\n\
-             No template? The mental model:  {DEFAULT_SERVED_GUIDE_URL}/start/mental-model.md\n\
-             Capability index (lookup, not a linear read): {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\n\
-             Surface map:                  {DEFAULT_SERVED_GUIDE_URL}/surface-map.md\n\
-             Browse the Guide:             {DEFAULT_SERVED_GUIDE_URL}\n\
-             API reference index:           {DEFAULT_SERVED_GUIDE_URL}/reference/index.md\n\
-             API symbol registry:           {DEFAULT_SERVED_GUIDE_URL}/reference/registry.json\n\
-             Diagnostic code registry:      {DEFAULT_SERVED_GUIDE_URL}/reference/diagnostics.md\n\
-             Section projection pattern:    {DEFAULT_SERVED_GUIDE_URL}/guide-flat.<section>.generated.md\n\
-             Whole-corpus bulk export:       {DEFAULT_SERVED_GUIDE_URL}/flat.md (about 2.5 MiB; prefer the tiers above)\n\
+             Start with your template's start packet: {served_guide_url}/start/index.md\n\
+             No template? The mental model:  {served_guide_url}/start/mental-model.md\n\
+             Capability index (lookup, not a linear read): {served_guide_url}/capabilities.md\n\
+             Surface map:                  {served_guide_url}/surface-map.md\n\
+             Browse the Guide:             {served_guide_url}\n\
+             API reference index:           {served_guide_url}/reference/index.md\n\
+             API symbol registry:           {served_guide_url}/reference/registry.json\n\
+             Diagnostic code registry:      {served_guide_url}/reference/diagnostics.md\n\
+             Section projection pattern:    {served_guide_url}/guide-flat.<section>.generated.md\n\
+             Whole-corpus bulk export:       {served_guide_url}/flat.md (about 2.5 MiB; prefer the tiers above)\n\
              Exact symbol or Guide search:  snapback guide <query> [--slice <n>]\n\
              Read through MCP:              snapback mcp\n\
              MCP entry resource:            snapback-guide://manifest\n\
@@ -234,7 +245,7 @@ pub(crate) fn render_guide_command(
                     "heading": matched.heading,
                     "anchor": matched.anchor,
                     "url": format!(
-                        "{DEFAULT_SERVED_GUIDE_URL}/{}#{}",
+                        "{served_guide_url}/{}#{}",
                         matched.path, matched.anchor
                     ),
                 })
@@ -248,7 +259,7 @@ pub(crate) fn render_guide_command(
             if matches.is_empty() {
                 json!({
                     "matched": false,
-                    "next": format!("{DEFAULT_SERVED_GUIDE_URL}/capabilities.md"),
+                    "next": format!("{served_guide_url}/capabilities.md"),
                 })
             } else {
                 json!({ "matched": true })
@@ -257,14 +268,14 @@ pub(crate) fn render_guide_command(
     }
     if matches.is_empty() {
         return Ok(format!(
-            "No embedded Guide sections matched {query:?}.\nTry a shorter term, look it up in the capability index (a registry, not a first read): {DEFAULT_SERVED_GUIDE_URL}/capabilities.md\nStart packets: {DEFAULT_SERVED_GUIDE_URL}/start/index.md\n"
+            "No embedded Guide sections matched {query:?}.\nTry a shorter term, look it up in the capability index (a registry, not a first read): {served_guide_url}/capabilities.md\nStart packets: {served_guide_url}/start/index.md\n"
         ));
     }
 
     let mut output = format!("Embedded Guide sections matching {query:?}:\n");
     for matched in &matches {
         output.push_str(&format!(
-            "- {}#{} — {}\n  {DEFAULT_SERVED_GUIDE_URL}/{}#{}\n",
+            "- {}#{} — {}\n  {served_guide_url}/{}#{}\n",
             matched.path, matched.anchor, matched.heading, matched.path, matched.anchor
         ));
     }
@@ -272,10 +283,58 @@ pub(crate) fn render_guide_command(
     Ok(output)
 }
 
+// @ref LLP 0030#readiness-and-port-discovery — the nonce-verified readiness
+// descriptor, not the first port in the selection range, owns the live URL.
+// This public projection uses descriptor discovery only for the fixed
+// loopback HTTP topology; other origins require an authenticated carrier.
+pub(crate) fn served_guide_url_from_descriptor_with(
+    ready_file: &Path,
+    fetch: impl FnOnce(&str) -> Result<Value, String>,
+) -> Result<String, String> {
+    let bytes = crate::secure_file::read_strict_owner_only(ready_file, 64 * 1024)
+        .map_err(|error| format!("could not read {}: {error}", ready_file.display()))?;
+    let value: Value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("{} is not valid JSON: {error}", ready_file.display()))?;
+    let descriptor = HostReadyDescriptor::validate(&value)
+        .map_err(|problems| format!("invalid readiness descriptor: {}", problems.join("; ")))?;
+    let uri = descriptor
+        .server_url
+        .parse::<http::Uri>()
+        .map_err(|_| "the readiness descriptor serverUrl is not an HTTP origin".to_owned())?;
+    let authority = uri
+        .authority()
+        .ok_or_else(|| "the readiness descriptor serverUrl has no authority".to_owned())?;
+    if uri.scheme_str() != Some("http")
+        || authority.as_str().contains('@')
+        || !matches!(uri.path(), "" | "/")
+        || uri.query().is_some()
+        || !super::origin_is_loopback(&descriptor.server_url)
+    {
+        return Err(
+            "the readiness descriptor serverUrl is outside the loopback HTTP Guide projection"
+                .to_owned(),
+        );
+    }
+    let health = fetch(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "snapback guide")
+        .map_err(|diagnostic| diagnostic.message)?;
+    Ok(format!(
+        "{}/_snapback/guide",
+        descriptor.server_url.trim_end_matches('/')
+    ))
+}
+
+fn live_served_guide_url() -> Option<String> {
+    let ready_file = std::env::current_dir().ok()?.join(DEFAULT_DEV_READY_FILE);
+    served_guide_url_from_descriptor_with(&ready_file, fetch_health).ok()
+}
+
 pub(crate) fn guide_command(query: &[String], slice: usize, json: bool) -> anyhow::Result<()> {
     use std::io::Write as _;
 
+    let served_guide_url =
+        live_served_guide_url().unwrap_or_else(|| DEFAULT_SERVED_GUIDE_URL.to_owned());
     std::io::stdout()
-        .write_all(render_guide_command(query, slice, json)?.as_bytes())
+        .write_all(render_guide_command_with_url(query, slice, json, &served_guide_url)?.as_bytes())
         .context("failed to write Guide output")
 }

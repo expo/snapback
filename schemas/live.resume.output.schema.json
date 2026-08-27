@@ -141,6 +141,10 @@
       ],
       "type": "object"
     },
+    "PublishedScopeRetirement": {
+      "$ref": "#/$defs/ScopeRetirement",
+      "description": "Opaque evidence that a scope-retirement proof was released by the same\nregistry mutation that removed the covered live scope. The inner wire\nrecord remains cloneable/deserializable for protocol inspection, but only\na successful registry commit can wrap it for a server publication.\n\n@ref LLP 0303#s-a-compile-fail-witness-proves-a-spelling-is-gone-not-a-capability —\nevery client-visible retirement consumer requires this effect-bound\ncarrier, so reconstructing the public wire record does not recreate the\npublication capability."
+    },
     "QueryNamespace": {
       "additionalProperties": false,
       "properties": {
@@ -462,7 +466,7 @@
     },
     "scopeRetirements": {
       "items": {
-        "$ref": "#/$defs/ScopeRetirement"
+        "$ref": "#/$defs/PublishedScopeRetirement"
       },
       "type": "array"
     },

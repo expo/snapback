@@ -726,6 +726,7 @@ export async function doctor(options = {}) {
   let authCoordinator = null;
   let live = null;
   let failure = null;
+  let adminToken = null;
   try {
     cpSync(join(packageRoot, 'templates', 'todo-contract', 'snapback'), backendRoot, { recursive: true });
     const generated = await generateApp(backendRoot);
@@ -776,7 +777,7 @@ export async function doctor(options = {}) {
       await waitForReady(readyFile, child, readyTimeoutMs),
       { readyFile, database },
     );
-    const adminToken = managedAdminToken(descriptor, database);
+    adminToken = managedAdminToken(descriptor, database);
     const generatedActivation = await loadGenerated(
       runtime.binary,
       projectRoot,
@@ -941,10 +942,15 @@ export async function doctor(options = {}) {
     if (child?.exitCode === null) {
       const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], {
         cwd: projectRoot,
-        env: options.env,
+        env: adminToken
+          ? { ...options.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+          : options.env,
         timeout: 15_000,
       });
-      if (stop.status !== 0) {
+      if (stop.status !== 0 && !ownedManagedStopRecoverable(stop.stdout)) {
+        // A recoverable owned-child graceful-stop failure (our own zombie the
+        // probe still sees, or a dev server with no admin token to present) is
+        // deferred to the stopProcessGroup reap below, not a shutdown failure.
         failure ??= doctorDiagnostic(
           'SNAPBACK_DOCTOR_SHUTDOWN_FAILED',
           'runtime',
@@ -4373,6 +4379,50 @@ function requireNativeSuccess(result, code, operation) {
   return result;
 }
 
+// @ref LLP 0024#dated-amendment-server-owned-stop-2026-08-26 — the authenticated
+// `host.stop` is a graceful self-stop for a child THIS process spawned and owns.
+// It is subordinate to the owner's own reap (`stopProcessGroup` below): a process
+// can always terminate a child it spawned, so OWNERSHIP — not an admin credential
+// or a subprocess signal-0 probe — is the authority for stopping an owned server.
+// Two failures of the graceful stop are therefore recoverable, deferred to the
+// authoritative reap rather than surfaced as a stop failure:
+//   (a) the native-stop subprocess is not the parent of our child, so a
+//       self-exited owned server lingers as an unreaped zombie its signal-0 probe
+//       still sees — `processIdentityVerified:false` / `SNAPBACK_HOST_STOP_TIMEOUT`
+//       even though the credential was accepted; and
+//   (b) the graceful stop could not authenticate — a dev server with no admin
+//       token to present — which cannot bar the owner from reaping its own child.
+// Anything else (a malformed envelope, an unexpected foreign refusal, a runtime
+// crash) stays fatal.
+function ownedManagedStopRecoverable(stdout) {
+  const text = typeof stdout === 'string' ? stdout : String(stdout ?? '');
+  if (text.length === 0) return false;
+  let envelope;
+  try {
+    const documents = parseJsonDocumentStream(text);
+    envelope = documents[documents.length - 1];
+  } catch {
+    return false;
+  }
+  if (envelope?.operation !== 'host.stop' || envelope?.ok !== false) return false;
+  const codes = Array.isArray(envelope?.diagnostics)
+    ? envelope.diagnostics.map((diagnostic) => diagnostic?.code)
+    : [];
+  const data = envelope?.data;
+  const ownedChildObservationTimedOut = data?.credentialedHostOpResultAccepted === true
+    && data?.processIdentityVerified === false
+    && (codes.includes('SNAPBACK_HOST_STOP_TIMEOUT')
+      || codes.includes('SNAPBACK_HOST_RESTART_STOP_TIMEOUT'));
+  const gracefulStopUnauthenticated = codes.includes('SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED');
+  return ownedChildObservationTimedOut || gracefulStopUnauthenticated;
+}
+
+function requireOwnedManagedNativeStop(result, operation) {
+  if (result.status === 0) return result;
+  if (ownedManagedStopRecoverable(result.stdout)) return result;
+  return requireNativeSuccess(result, 'SNAPBACK_DEV_SERVER_STOP_FAILED', operation);
+}
+
 function parseJsonDocumentStream(stdout) {
   const input = typeof stdout === 'string' ? stdout : String(stdout ?? '');
   const documents = [];
@@ -5990,6 +6040,10 @@ export function genericClientCommandAdvisory(command) {
   });
 }
 
+function devBackendManagedByReadyFile(readyFileExisted) {
+  return readyFileExisted === false;
+}
+
 export async function runDev(options = {}) {
   const spawnRuntime = options.spawnManagedRuntime ?? spawnManagedRuntime;
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
@@ -6207,11 +6261,12 @@ export async function runDev(options = {}) {
   // infers sessions mode from the generated schema and establishes that
   // deployment before listener bind. Callers do not need a hidden comparator
   // option to avoid the dev-only raw host-load path.
-  let managed = false;
+  const readyFileExisted = existsSync(readyFile);
+  const managed = devBackendManagedByReadyFile(readyFileExisted);
   let child = null;
   let descriptor;
   let initialStartupSuccessor = null;
-  if (existsSync(readyFile)) {
+  if (readyFileExisted) {
     descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
     const attachAdminToken = managedAdminToken(descriptor, database);
     await verifyDevAttach({
@@ -6268,7 +6323,6 @@ export async function runDev(options = {}) {
       env: managedDevRuntimeEnvironment(devRuntimeEnvironment),
       stdio: options.serverStdio ?? ['ignore', 2, 2],
     });
-    managed = true;
     try {
       descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
     } catch (error) {
@@ -6355,12 +6409,13 @@ export async function runDev(options = {}) {
     if (managed && child?.exitCode === null && child?.signalCode === null) {
       backendControlState = 'stopping';
       try {
-        requireNativeSuccess(
+        requireOwnedManagedNativeStop(
           native(runtime.binary, ['stop', '--ready-file', readyFile], {
             cwd: projectRoot,
-            env: options.env,
+            env: adminToken
+              ? { ...options.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+              : options.env,
           }),
-          'SNAPBACK_DEV_SERVER_STOP_FAILED',
           'managed dev server stop',
         );
       } catch (error) {
@@ -6897,7 +6952,7 @@ export async function runDev(options = {}) {
       ...(requestId === undefined ? {} : { requestId }),
     }),
   );
-  // Restart stops the managed server (nonce-verified native stop) and starts
+  // Restart asks the authenticated managed server to stop itself and starts
   // it again against the same ready file and database, then re-runs the
   // generate+load pass. The client arm keeps running: its relay re-resolves
   // the backend target from the rewritten ready file, so restart never
@@ -6926,10 +6981,15 @@ export async function runDev(options = {}) {
     try {
       const previousPid = descriptor.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) {
-        native(runtime.binary, ['stop', '--ready-file', readyFile], {
-          cwd: projectRoot,
-          env: options.env,
-        });
+        requireOwnedManagedNativeStop(
+          native(runtime.binary, ['stop', '--ready-file', readyFile], {
+            cwd: projectRoot,
+            env: adminToken
+              ? { ...options.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+              : options.env,
+          }),
+          'managed dev server restart stop',
+        );
         await stopProcessGroup(child);
       }
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
@@ -7084,10 +7144,15 @@ export async function runDev(options = {}) {
     try {
       const previousPid = descriptor.pid ?? null;
       if (child.exitCode === null && child.signalCode === null) {
-        native(runtime.binary, ['stop', '--ready-file', readyFile], {
-          cwd: projectRoot,
-          env: options.env,
-        });
+        requireOwnedManagedNativeStop(
+          native(runtime.binary, ['stop', '--ready-file', readyFile], {
+            cwd: projectRoot,
+            env: adminToken
+              ? { ...options.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+              : options.env,
+          }),
+          'managed dev-fresh server stop',
+        );
         await stopProcessGroup(child);
       }
       removeManagedDatabaseState(database, readyFile, applicationReadyFile, stateRoot);
@@ -7486,7 +7551,7 @@ function printResult(result, json) {
   else console.error(JSON.stringify(result, null, 2));
 }
 
-function printDevEvent(event, { json, plainProfile }) {
+function printDevEvent(event, { json, plainProfile, stopCommand = plainProfile }) {
   console.log(JSON.stringify(event));
   const urls = typeof event?.snapbackUrl === 'string'
     ? event
@@ -7498,6 +7563,16 @@ function printDevEvent(event, { json, plainProfile }) {
     console.log(`Android emulator URL: ${urls.androidEmulatorUrl}`);
     if (plainProfile) {
       console.log('Mint an explicit ordinary session: snapback auth dev-session [--email <address>]');
+    }
+    const readyFile = typeof event?.readyFile === 'string'
+      ? event.readyFile
+      : typeof event?.backend?.readyFile === 'string'
+        ? event.backend.readyFile
+        : null;
+    if (stopCommand && readyFile !== null) {
+      // @ref LLP 0030#server-process-ownership — attach never transfers child
+      // ownership, so the ready descriptor is the unambiguous stop handle.
+      console.log(`Authenticated backend self-stop (including an attached daemon): snapback stop --ready-file ${shellSingleQuotePath(readyFile)}`);
     }
   }
   const environmentFile = event?.environmentFile ?? event?.backend?.environmentFile ?? null;
@@ -7620,7 +7695,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--port <port>] [--client-port <port>] [--bootstrap-port <port>] [--port-range <lo>-<hi>] [--external-client-origin <origin>] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--write-env [path]] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout --expo-app-scheme <scheme> <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
-    recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
+    recovery: 'Act on the event diagnostic. EOF or SIGINT/SIGTERM ends this dev-loop attachment, but an attached backend remains owned by its descriptor; ask it to stop itself with snapback stop --ready-file .snapback/dev.ready.json (requires the owner admin carrier), or keep the loop foreground-owned and use Ctrl-C.',
     details: Object.freeze([
       'Bare snapback is discovery-only root help; use snapback dev for the managed authoring loop.',
       'Use native snapback start only when a lower-level harness owns loading and lifecycle.',
@@ -9497,7 +9572,7 @@ export async function runCli(argv, options = {}) {
           stdinControl,
           signal: interrupt.signal,
           onEvent(event) {
-            printDevEvent(event, { json, plainProfile: false });
+            printDevEvent(event, { json, plainProfile: false, stopCommand: true });
             options.onEvent?.(event);
           },
           onCriticalExit(error) {
@@ -9762,6 +9837,7 @@ export async function runCli(argv, options = {}) {
 export const __test = {
   assertDevAdmissionContractMatches,
   canonicalDevClientOrigin,
+  devBackendManagedByReadyFile,
   devBackendUrls,
   devIdentityClientEnvironment,
   expectedActivationTargetFromActivation,

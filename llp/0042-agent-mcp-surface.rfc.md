@@ -5,7 +5,10 @@
 **Systems:** Developer experience, Tooling, API, Runtime, Auth, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-04 (proposed LLP 0167 OQ2 projection, subject to author
+**Revised:** 2026-08-26 (lifecycle ownership correction: attached MCP targets
+use the native PID/start-time observer, while a manager-owned target receives
+the same authenticated self-stop directly and succeeds only after MCP reaps its
+exact child handle). 2026-08-04 (proposed LLP 0167 OQ2 projection, subject to author
 veto: the control-plane server gains thin network-profile get/set tools while
 the resource-only Rust `snapback mcp` command remains unchanged); 2026-07-23 (agent-verb scope amendment, LLP 0079 SC-1a: diagnostics reading lands as an `app.inspect`/`snapback_inspect` extension with a non-deferrable bounded recent-invocations minimum; `snapback_acceptance_run` joins the slice exposed-but-unimplemented-honest with its runner deferred; client-surface driving/screenshots recorded as an Exact-side seam; the packaging and catalog-delivery open questions are decided for the first implementation — see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0042-agent-mcp-surface.claude.md`: 0024's pinned tool names and five
@@ -67,11 +70,14 @@ control-plane tools:
 
 The served operations (`app.inspect`, `app.reset`, `schema.load`,
 `functions.load`, `function.run`) project 1:1 over the host-ops HTTP surface.
-The lifecycle tools do **not**: `host.start`/`host.stop`/`host.restart` are
-CLI-only by design — a running server cannot start itself over its own HTTP
-surface — so the MCP server embeds the same process-lifecycle logic the CLI
-uses (spawn with `--ready-file`, `HostReadyDescriptor` consumption,
-`startupNonce`-verified stop), rather than proxying HTTP.
+Lifecycle is composed around the served AdminWrite `host.stop`: MCP spawns with
+`--ready-file`, consumes and validates `HostReadyDescriptor`, and presents the
+managed administrator token plus `startupNonce` for authenticated self-stop.
+For an attached target MCP delegates the process-gone observation to the native
+PID/start-time path. For the exact child MCP started, it sends the authenticated
+self-stop itself and succeeds only after asynchronously reaping that owned
+child handle. `host.start` and `host.restart` remain client compositions because
+a running server cannot start its own successor over HTTP.
 
 Unimplemented LLP 0024 operations such as `function.explain` may be exposed only
 if they return the same structured unimplemented diagnostic
@@ -230,13 +236,14 @@ consumed surfaces already gate.
 
 - **Packaging:** the control-plane MCP server ships inside the
   `@snapback/cli` package as a `snapback mcp-control` command implemented in
-  JS, reusing the CLI's existing process-lifecycle helpers (`--ready-file`
-  spawn, `HostReadyDescriptor` consumption and target validation,
-  nonce-verified stop) directly rather than duplicating them. It speaks
-  newline-delimited JSON-RPC over stdio, matching the in-repo precedent of
-  the read-only guide projection; the Rust `snapback mcp` command remains
-  the guide server, unchanged. A separate `@snapback/mcp` package remains
-  possible later without changing the tool contract.
+  JS, reusing the CLI's `--ready-file` spawn, `HostReadyDescriptor`
+  consumption and target validation, and authenticated server self-stop. An
+  attached target uses native PID/start-time observation; a manager-owned
+  target uses the exact Node child handle as its process-gone observation. It
+  speaks newline-delimited JSON-RPC over stdio, matching the in-repo precedent
+  of the read-only guide projection; the Rust `snapback mcp` command remains the
+  guide server, unchanged. A separate `@snapback/mcp` package remains possible
+  later without changing the tool contract.
 - **Catalog delivery:** the app-data catalog is **derived deterministically
   at server start** from the codegen-emitted artifacts (the function
   manifest plus the per-operation args-schema artifacts), using 0024's
@@ -285,7 +292,9 @@ LLP 0078 R3.
 server shipped as decided above: `snapback mcp-control` in `@snapback/cli`
 (`packages/snapback-cli/mcp-control.mjs`), newline-delimited JSON-RPC 2.0
 stdio, all nine tools. Lifecycle tools reuse the CLI's ready-file
-spawn/validate/nonce-stop helpers; served ops POST
+spawn/validation and authenticated self-stop contract; attached targets use
+the native PID/start-time observer, while manager-owned targets are reaped by
+the MCP process through their exact child handles. Served ops POST
 `/_snapback/api/host-ops` with the `x-snapback-admin-token` header (and the
 process-bound impersonation capability header for caller-selected-user
 operations), returning the shared envelope verbatim — `ok: false` envelopes

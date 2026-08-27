@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:9cb4837ed97a4812f82f9699f99471e7eb8a655f06fb2f260db1338824787369",
+  "catalogDigest": "sha256:b537568b0302f3e72ed88c9e154239d01ea1186ba0e8b3e3147f4ccc5c71ffe1",
   "buildIdentity": {
-    "sourceCommit": "d467c46dc3994acdbe2827afec67774d84367c93",
+    "sourceCommit": "05f14cb9a1aea8e4954bb0fdb03f38745b934e30",
     "dirty": true
   },
-  "generatedAtCommit": "d467c46dc3994acdbe2827afec67774d84367c93",
+  "generatedAtCommit": "05f14cb9a1aea8e4954bb0fdb03f38745b934e30",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -380,6 +380,60 @@
         "crates/snapback-server/src/server.rs operation_registry()"
       ],
       "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "app.identity",
+      "title": "Read the public application identity",
+      "intents": [
+        "read app identity",
+        "bind a client to the running app"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "None",
+        "routePolicy": "Public",
+        "effect": "None",
+        "responseSensitivity": "PublicNoStore"
+      },
+      "behavior": {
+        "readOnly": true,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": true,
+        "openWorld": false,
+        "persistsAcrossRestart": false
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "GET /_snapback/api/app/identity",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "surface-map.md",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "crates/snapback-server/src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "The public HTTP identity fact has no standalone CLI; readiness and client-binding consumers fetch it automatically.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",
@@ -2245,6 +2299,114 @@
       }
     },
     {
+      "operation": "auth.password.attempt",
+      "title": "Inspect a password-attempt ledger entry",
+      "intents": [
+        "inspect password lock state",
+        "diagnose failed password attempts"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminRead",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/password/attempt",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "crates/snapback-server/src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "Use the authenticated AdminClient passwordAttempt method; the native CLI exposes only the mutating unlock operation.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "auth.password.unlock",
+      "title": "Clear one password lock early",
+      "intents": [
+        "unlock a password account",
+        "clear password attempt lock state"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "cliOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "OperatorMetadata"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": "snapback auth password unlock --email <address>",
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/auth/password/unlock",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "crates/snapback-server/src/server.rs route_registry()"
+      ],
+      "mcpDeferralReason": "The owner-safe native unlock verb is shipped; no MCP projection is currently declared.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
       "operation": "auth.rehearsal.exercise",
       "title": "Exercise an authentication rehearsal grant",
       "intents": [
@@ -2552,6 +2714,60 @@
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection.",
+      "remediation": {
+        "carrier": "diagnostic.details.remediationSet",
+        "schemaVersion": "snapback.remediation-set.v1",
+        "registryVersion": "snapback.remediation-kinds.v1",
+        "decoder": "@expo/snapback-client/remediation"
+      }
+    },
+    {
+      "operation": "authority.effective",
+      "title": "Inspect one principal's effective authority",
+      "intents": [
+        "inspect effective authority",
+        "explain a scoped role decision"
+      ],
+      "status": "shipped",
+      "domain": "systemApi",
+      "surfaceAccess": "apiOnly",
+      "operability": "direct",
+      "availability": {
+        "targets": [
+          "local",
+          "derived-hosted"
+        ]
+      },
+      "policy": {
+        "authority": "operator",
+        "routePolicy": "AdminWrite",
+        "effect": "None",
+        "responseSensitivity": "SensitiveApplicationData"
+      },
+      "behavior": {
+        "readOnly": false,
+        "destructive": false,
+        "approvalPosture": null,
+        "idempotent": false,
+        "openWorld": false,
+        "persistsAcrossRestart": true
+      },
+      "projections": {
+        "cli": null,
+        "mcp": null,
+        "hostOps": null,
+        "http": "POST /_snapback/api/authority/effective",
+        "adminClient": null,
+        "console": null
+      },
+      "guide": "auth/scoped-roles.md#inspect-effective-authority",
+      "authorities": [
+        "llp/0031-server-route-taxonomy"
+      ],
+      "sources": [
+        "crates/snapback-server/src/server.rs route_registry()"
+      ],
+      "cliDeferralReason": "This specialist inspection is available through its authenticated HTTP endpoint; no native CLI or MCP projection is shipped.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",
@@ -7547,9 +7763,9 @@
         "effect": "None",
         "responseSensitivity": "SensitiveApplicationData",
         "projectionCredentials": {
-          "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-          "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
-          "mcp": "LLP 0184 §Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
+          "http": "host.restart remains a CLI-owned composition and returns SNAPBACK_HOST_OP_CLI_ONLY over HTTP; its stop leg is the separately served AdminWrite host.stop operation.",
+          "cli": "snapback stop and snapback restart resolve a concrete owner-only admin token and send only startupNonce to authenticated host.stop; before the request the caller binds the descriptor PID to that health-matching nonce and its OS process-table start time, then validates the exact typed operation/target/declared-authority/self-stop result and records configured-URL health loss separately. Top-level success is granted only when signal-0 ESRCH or a different start time after PID reuse proves the original descriptor-named identity gone; processIdentityVerified claims exactly that observation, not HTTP responder authentication. Restart launches the recorded-serverProfile successor only after this stop verdict. Same-UID responder identity is not distinguishable; no descriptor PID enters a signal, request, or stop receipt (crates/snapback-cli/src/cli.rs host_stop_result/host_restart_result/authenticated_server_stop/wait_for_lifecycle_stop_observations).",
+          "mcp": "snapback_stop (and therefore snapback_restart's mutating half) requires an admin token accepted by the host-ops route and delegates to the same native credentialed-result, configured-URL, and descriptor-named identity-bound exit observations. The fresh-spawn leg has no prior server credential to hold."
         }
       },
       "behavior": {
@@ -7655,11 +7871,11 @@
       ],
       "status": "shipped",
       "domain": "hostOps",
-      "hostOpsDisposition": "cliOnly",
+      "hostOpsDisposition": "served",
       "registeredOperations": [
         "host_ops.host.stop"
       ],
-      "surfaceAccess": "cliOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -7697,7 +7913,6 @@
         "crates/snapback-engine/src/host_ops.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "mcpDeferralReason": "Analogous to host.start.",
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",
         "schemaVersion": "snapback.remediation-set.v1",

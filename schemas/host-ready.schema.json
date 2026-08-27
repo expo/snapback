@@ -77,6 +77,16 @@
         "mode"
       ],
       "type": "object"
+    },
+    "ServerProfile": {
+      "description": "The positive environment/profile capability (LLP 0034 §5 D4 residual,\nENG-22527): auth (`AdminWrite`) answers \"may this principal?\"; the profile\nanswers \"is this operation appropriate in this environment?\". Destructive\nand provisioning operations require BOTH. Resolution: `SNAPBACK_PROFILE`\n(dev|demo|test|prod) wins; otherwise loopback binds default to `dev` (the\nzero-config local posture — OQ7 stands; since ENG-23443 the AdminWrite side\nof that posture is a minted token rather than loopback-open) and\nnon-loopback binds default to `prod`.\n\n@ref LLP 0225#1-ownership-map — deployment-posture vocabulary is leaf-owned;\n  environment and bind-address resolution remain in the transport adapter.",
+      "enum": [
+        "dev",
+        "demo",
+        "test",
+        "prod"
+      ],
+      "type": "string"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/host-ready.schema.json",
@@ -146,6 +156,17 @@
         "null"
       ]
     },
+    "serverProfile": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServerProfile"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Closed startup posture for lifecycle consumers. Older descriptors omit\nit and therefore cannot exercise profile-scoped conveniences."
+    },
     "serverUrl": {
       "type": "string"
     },
@@ -158,7 +179,7 @@
       "type": "string"
     },
     "startupNonce": {
-      "description": "The writing server's per-process boot id (`/health` →\n`binary.startupNonce`). `snapback stop` matches it against the live\nserver before signaling `pid`, so a stale descriptor (crash, Ctrl-C)\nnever routes a signal to a reused PID (ENG-23366). Optional only for\ndescriptors written by older binaries, which `stop` treats as\nunverifiable and refuses.",
+      "description": "The writing server's per-process boot id (`/health` →\n`binary.startupNonce`). Capability-bearing descriptor consumers use it\nas a freshness fence. Lifecycle commands present it through authenticated\n`host.stop`; the server compares it with its own boot id and requests its\nown shutdown. The descriptor PID is never a CLI signal target; lifecycle\ncallers bind its OS start time before stop and use only signal-0 existence\nobservation afterward. Optional only for descriptors written by older\nbinaries, which lifecycle commands refuse.",
       "type": [
         "string",
         "null"

@@ -5,7 +5,24 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-10 (operational readiness core fact amendment: server-owned
+**Revised:** 2026-08-26 (managed-MCP reaping correction: when the MCP process
+owns the server child, it sends the same authenticated `host.stop` request
+directly and grants success only after Node reaps that exact owned child;
+attached MCP targets retain the native PID/start-time observation). 2026-08-26
+(observed-exit follow-up: direct stop and restart now
+capture the descriptor-matching startup nonce plus the descriptor PID's OS
+process-table start time before `host.stop`, poll signal-0 existence and that
+creation identity afterward, and grant success only when the original process
+is observably gone; URL health loss remains a separate fact, while same-UID
+responder authentication remains explicitly unattested). 2026-08-26
+(receipt-honesty follow-up: the CLI validates the exact lifecycle
+authority/result declaration but does not preserve it as a responder identity
+attestation). 2026-08-26 (server-owned lifecycle-stop correction: both direct
+stop and restart use authenticated `host.stop`; the request carries a startup
+nonce but no PID, the server requests its own shutdown, and the caller requires
+the descriptor-named pre-stop process identity to disappear before success;
+health loss is separately recorded and no nonce-bound credential-free
+PID-signaling claim remains; see dated amendment). 2026-08-10 (operational readiness core fact amendment: server-owned
 `OperationalReadinessV1` evaluated against a launcher-declared closed
 activation target, served as `app.readiness.v1` plus the authenticated
 `app.inspect` splice, projected by the application-ready receipt and the
@@ -47,11 +64,15 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 > - **Built:** `host.start` (CLI `snapback start`, foreground; structured
 >   readiness is the `--ready-file` descriptor —
 >   `schemas/host-ready.schema.json` — per LLP 0030's out-of-band
->   handshake), `host.stop` (CLI, via the readiness descriptor; signals the
->   pid only after the descriptor's `startupNonce` matches the live `/health`
->   identity, refusing stale or unverifiable descriptors — ENG-23366),
+>   handshake), `host.stop` (CLI, via the readiness descriptor and the served
+>   AdminWrite operation; the request carries only `startupNonce`, the server
+>   validates its own boot fence and requests its own graceful shutdown, and
+>   the CLI reports success only after the descriptor-named, pre-stop
+>   PID/start-time identity is observably gone; `/health` loss is recorded as
+>   a separate fact and the receipt makes no HTTP-responder identity claim),
 >   `host.restart` (native `snapback restart` plus `snapback_restart`; one
->   credential-proven stop/start composition, request id, and envelope),
+>   authenticated server-owned stop/profile-preserving-start composition,
+>   request id, and envelope),
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
 >   — each as CLI verb + HTTP operation, tested in `crates/snapback/tests/host_ops_v0.rs`.
@@ -169,7 +190,7 @@ through their own reviewed table amendments.
 | Operation id | Purpose | Required v0 result data |
 | --- | --- | --- |
 | `host.start` | Start or attach to the canonical local Snapback server. | `runtimeState`, `capabilityManifest`, bound URL, process id, readiness. |
-| `host.stop` | Stop a local server owned by this app/root. | stopped process id, previous bound URL, final diagnostics. |
+| `host.stop` | Stop a local server owned by this app/root. | credentialed host-op result accepted, configured-URL health-loss fact, descriptor-named pre-stop process-exit observation, final diagnostics; no PID. |
 | `host.restart` | Stop then start using one request id. | previous and new `runtimeState`, restart reason. |
 | `host.wait` | Block until the local server reaches host or application readiness (CLI-only; LLP 0224). | `level`, waited time, bound URL, `startupNonce`; at application level the receipt path and the live `operationalReadiness` fact. |
 | `app.reset` | Deterministically clear local app state and optionally apply a seed. | reset scope, seed id/path/hash, resulting database version. |
@@ -765,6 +786,88 @@ CLI-only offline/store/auth and build/runtime probes either use
 explicit family `schemaVersion`. Admin console/link JSON likewise preserves
 the fragment-bearing URL; attached links may publish an owner-only readiness
 record that is removed when their observation lifecycle ends.
+
+## Dated amendment: server-owned stop (2026-08-26)
+
+Every lifecycle projection uses one authority mechanism. The caller resolves a
+concrete administrator credential, reads `startupNonce` from the owner-only
+descriptor, and sends only that nonce to the served AdminWrite `host.stop`.
+The server compares the nonce with its own boot identity and, after the
+AdminWrite gate, requests its own graceful shutdown through its process-local
+watch channel. No descriptor PID enters the request, result, receipt, or any
+signal call. Native direct lifecycle commands and MCP attached to a server it
+does not own use the descriptor PID only for a signal-0 existence probe and OS
+process-table creation-time comparison; signal 0 delivers no signal. When MCP
+started and owns the server child, the descriptor PID must match its
+unforgeable Node child handle and the process-gone observation is Node reaping
+that exact child through its `exit` event. That observation remains
+asynchronous so the parent can consume SIGCHLD rather than leaving a zombie.
+
+The successful served result attests only `shutdownRequested: true` and
+`shutdownMode: "serverSelfStop"`; it contains no `verifiedBy`, PID, stopped PID,
+or echoed nonce. The lifecycle caller accepts that result only when its schema,
+request, operation, full target, exact `devAdminBypass` lifecycle-authority
+declaration, and exact two-field data object match. It does not forward the
+served authority or self-stop claim into the success receipt. Instead it polls
+the descriptor URL and emits an `authority: null` composition whose `data` is
+exactly:
+
+```json
+{
+  "credentialedHostOpResultAccepted": true,
+  "configuredUrlStoppedAnswering": true,
+  "processIdentityVerified": true
+}
+```
+
+`credentialedHostOpResultAccepted` means that the lifecycle caller presented
+its resolved administrator credential to the configured URL and accepted the exact typed
+success result and declared lifecycle authority above. It is not mutual server
+authentication. `configuredUrlStoppedAnswering` reports whether the bounded
+poll observed three consecutive `GET /health` failures; one transient failure
+does not establish that fact, and this field does not grant success.
+`processIdentityVerified: true` means one of two caller-unforgeable observations
+matched the ownership mode: an attached/native caller found that the
+descriptor-named PID, bound before stop to the descriptor-matching startup
+nonce and its OS process-table start time, was absent (`kill(pid, 0)` returned
+`ESRCH`) or reused with a different start time; or the manager-owned MCP caller
+reaped the exact Node child handle whose PID matched the descriptor before the
+request. It does not identify which process answered HTTP, validated the
+credential, or requested shutdown. `host.restart.data.previous` embeds this
+same three-field object and restart does not spawn until this field is true.
+Top-level stop success is granted if and only if the credentialed result was
+accepted and the ownership-appropriate process observation is true.
+
+The remaining same-UID limitation is responder attestation, not stop success.
+A same-UID principal can read or replace the 0600 descriptor and
+administrator-token carrier and reproduce the nonce/target plus declared
+authority/result. It can therefore impersonate the HTTP responder, but closing
+its listener cannot make a live descriptor-named PID/start-time identity
+disappear or reap the manager's owned child: forge-then-close now returns
+`ok: false`. A caller that arranges for its own attached named process identity
+to exit can obtain success, truthfully, but cannot make an unrelated live
+process appear stopped. Independently proving which process served and
+authenticated the request would still require a separately protected
+process-identity root.
+
+A fake responder whose descriptor-named process remains live produces
+`SNAPBACK_HOST_STOP_TIMEOUT` or `SNAPBACK_HOST_RESTART_STOP_TIMEOUT`, whether or
+not its URL keeps answering health. No variant can route a signal to a
+descriptor-named victim.
+
+Ordinary local servers usually advertise an owner-only auto-minted admin-token
+file, so the command can resolve the credential without an explicit flag. That
+is credential discovery, not credential-free nonce authority. If the carrier
+is absent or invalid, direct stop refuses with
+`SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED` and restart with
+`SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED`; the sanctioned no-credential
+path is to keep the caller-owned dev loop in the foreground and stop it with
+Ctrl-C.
+
+`host.start`, `host.restart`, and `host.wait` remain CLI-owned compositions;
+only the authenticated stop leg is served because server-owned termination is
+the safe authority boundary. This amendment supersedes the 2026-08-06 wording
+that described an `app.inspect` probe followed by a nonce-only client signal.
 
 ## Dated amendment: catalog-bound CLI and refusal acquisition paths (2026-08-08)
 

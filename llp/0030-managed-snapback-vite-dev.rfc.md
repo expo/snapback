@@ -5,6 +5,14 @@
 **Systems:** Developer experience, Contract/Exact, Client integration, Tooling, Local server lifecycle, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-01
+**Revised:** 2026-08-26 (observed-exit follow-up: URL loss no longer grants
+lifecycle success; the CLI binds the descriptor PID to its pre-stop OS start
+time and descriptor-matching startup nonce, then requires that original process
+identity observably gone while continuing to attest no HTTP responder identity).
+2026-08-26 (lifecycle correction: descriptor PID is never a CLI
+signal target; direct stop and restart present only startupNonce through
+authenticated host.stop, the server stops itself, and the CLI requires the
+descriptor-named pre-stop process identity gone before success)
 **Revised:** 2026-08-21 (LLP 0223 D0.1/W1: managed/auto Vite consumes the
 fixed-port/external-client profile of `snapback dev` and its authoritative
 application-ready receipt; attach verifies that receipt; the virtual module
@@ -461,14 +469,26 @@ carries no bearer or sidecar authority.
 
 The built descriptor carries the writing server's per-process `startupNonce`
 (the same nonce `/health` reports in `binary.startupNonce`, LLP 0031's
-server-binary identity), which is how destructive consumers enforce the
-stale-file rule: `snapback stop` re-fetches `/health` from the descriptor's URL
-and refuses to signal the descriptor's pid unless the live nonce matches — a
-descriptor orphaned by a crash or Ctrl-C can never route a signal to a reused
-PID (ENG-23366). Unverifiable cases (dead server, non-Snapback responder,
-nonce-less descriptor from an older binary) fail closed with
-`SNAPBACK_HOST_STOP_STALE_DESCRIPTOR` / `SNAPBACK_HOST_STOP_UNVERIFIABLE`
-diagnostics.
+server-binary identity), which remains a freshness fence for capability-bearing
+descriptor consumers. Lifecycle does not turn descriptor freshness into signal
+authority: both `snapback stop` and `snapback restart` require the AdminWrite
+credential, send only `startupNonce` to the server-owned `host.stop`, and let
+that server request its own shutdown. The CLI never signals `descriptor.pid`.
+Before the request it binds that PID to the descriptor-matching startup nonce
+and OS process-table start time; afterward it observes signal-0 `ESRCH` or a
+different start time after PID reuse. Only that original-process-gone
+observation grants success. The receipt keeps
+`credentialedHostOpResultAccepted` and `configuredUrlStoppedAnswering` as
+separate facts and sets `processIdentityVerified` to the exit observation; it
+does not authenticate which process answered or accepted the credential. A
+same-UID principal can reproduce the owner-only descriptor/token inputs and
+forge a responder, but closing that responder while the named process remains
+live returns `ok: false`.
+A missing administrator carrier refuses with the operation-specific
+`*_ADMIN_CREDENTIAL_REQUIRED` diagnostic; a descriptor-named process that
+remains live — whether or not its health endpoint still answers, so a forged
+close that silences health while the process persists is caught the same way —
+fails with the operation-specific stop timeout.
 
 ### Proxy surface
 
@@ -951,8 +971,8 @@ only after the backend lifecycle and authority boundary prove sound.
 as `@snapback/vite` (`packages/snapback-vite/`): `snapbackDev()` with the
 five modes (`off`/`external`/`attach`/`managed`/`auto`), lifecycle built on
 the `@snapback/cli` helpers (ready-file handshake, target + live
-startup-nonce validation, admin-token discovery, nonce-verified stop of only
-its own managed child), managed-only one-shot bring-up over host-ops HTTP
+startup-freshness validation, admin-token discovery, and spawn-handle-owned
+cleanup of only its own managed child), managed-only one-shot bring-up over host-ops HTTP
 (reset/seed default `if-new` for owned children; attach never resets/seeds and
 external refuses setup), the `/__snapback` HTTP+WebSocket relay with an explicit
 method+path allowlist derived from the server's `RouteClass::AppData` route

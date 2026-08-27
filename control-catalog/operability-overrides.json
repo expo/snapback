@@ -7,6 +7,7 @@
     "admin.link.revoke": { "title": "Revoke a one-time admin-console claim", "intents": ["revoke an admin link", "cancel a console claim"], "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser" },
     "admin.link.status": { "title": "Read a one-time admin-console claim status", "intents": ["check an admin link", "resume a console handoff"], "guide": "operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser" },
     "app.ensure.provision": { "title": "Provision an app store through app ensure", "intents": ["provision the app", "ensure the app store exists"], "guide": "auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly", "cliDeferralReason": "Provisioning is dispatched through POST /app/ensure; no direct CLI wrapper ships." },
+    "app.identity": { "title": "Read the public application identity", "intents": ["read app identity", "bind a client to the running app"], "guide": "surface-map.md", "cliDeferralReason": "The public HTTP identity fact has no standalone CLI; readiness and client-binding consumers fetch it automatically." },
     "app.inspect": { "title": "Inspect the running app", "intents": ["inspect the app", "check backend readiness", "read the running build identity"], "guide": "operating/host-ops.md#served-request-operations" },
     "app.readiness.v1": { "title": "Evaluate declared application readiness", "intents": ["declare an activation target", "check application readiness", "inspect unsatisfied startup conditions"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Phase 1 exposes the server-owned predicate through authenticated host ops; the wait CLI projection is a separate phase." },
     "app.reset": { "title": "Reset local app state", "intents": ["reset the database", "clear local app data", "restore the seed state"], "guide": "backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients" },
@@ -38,11 +39,14 @@
     "auth.integrations.suspend": { "title": "Suspend an authentication integration", "intents": ["suspend an auth integration", "pause integration access"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Integration administration is currently exposed only through the authenticated API." },
     "auth.mailbox.read": { "title": "Read the local authentication mailbox", "intents": ["read login mail", "find a local auth code"], "guide": "auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe", "cliDeferralReason": "The mailbox returns credential secrets and remains an explicitly API-only operator path." },
     "auth.mintSession": { "title": "Mint a local test session", "intents": ["mint session", "create a test login", "sign in a test persona"], "guide": "operating/host-ops.md#served-request-operations" },
+    "auth.password.attempt": { "title": "Inspect a password-attempt ledger entry", "intents": ["inspect password lock state", "diagnose failed password attempts"], "guide": "auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing", "cliDeferralReason": "Use the authenticated AdminClient passwordAttempt method; the native CLI exposes only the mutating unlock operation." },
+    "auth.password.unlock": { "title": "Clear one password lock early", "intents": ["unlock a password account", "clear password attempt lock state"], "guide": "auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing" },
     "auth.rehearsal.exercise": { "title": "Exercise an authentication rehearsal grant", "intents": ["exercise an auth rehearsal", "verify rehearsal authority"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family." },
     "auth.rehearsal.mint": { "title": "Mint an authentication rehearsal grant", "intents": ["mint an auth rehearsal", "prepare rehearsal authority"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family." },
     "auth.rehearsal.revoke": { "title": "Revoke an authentication rehearsal grant", "intents": ["revoke an auth rehearsal", "cancel rehearsal authority"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family." },
     "auth.rehearsal.status": { "title": "Read authentication rehearsal status", "intents": ["check auth rehearsal status", "inspect rehearsal authority"], "guide": "operating/host-ops.md#served-request-operations", "cliDeferralReason": "Authentication rehearsal controls are currently exposed only through the authenticated host-ops family." },
     "auth.rescueCollidingTable": { "title": "Rescue a table colliding with sessions mode", "intents": ["rescue a colliding auth table", "repair sessions-mode data"], "guide": "auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly", "cliDeferralReason": "The rescue is a specialist host-ops API operation with no CLI projection." },
+    "authority.effective": { "title": "Inspect one principal's effective authority", "intents": ["inspect effective authority", "explain a scoped role decision"], "guide": "auth/scoped-roles.md#inspect-effective-authority", "cliDeferralReason": "This specialist inspection is available through its authenticated HTTP endpoint; no native CLI or MCP projection is shipped." },
     "branch.create.v1": { "title": "Create a backend branch", "intents": ["create a branch", "fork backend state"], "guide": "operating/instance-forks.md#give-a-worktree-its-own-backend", "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow." },
     "branch.drop.v1": { "title": "Drop a backend branch", "intents": ["drop a branch", "delete forked backend state"], "guide": "operating/instance-forks.md#inspect-review-and-dispose-forks", "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow." },
     "branch.execute.v1": { "title": "Execute against a backend branch", "intents": ["run against a branch", "execute in forked state"], "guide": "operating/instance-forks.md#own-forks-per-worktree-per-agent-run-and-per-suite-lane", "cliDeferralReason": "This low-level branch primitive is exposed through host-ops; use snapback fork for the local CLI workflow." },
@@ -129,15 +133,27 @@
     "test.corruptMeta": { "title": "Corrupt startup metadata in a test", "intents": ["test corrupt metadata handling"] }
   },
   "overrides": {
+    "app.identity": {
+      "operability": "direct"
+    },
+    "auth.password.attempt": {
+      "operability": "direct"
+    },
+    "auth.password.unlock": {
+      "operability": "direct",
+      "surfaceAccessOverride": "cliOnly",
+      "mcpDeferralReason": "The owner-safe native unlock verb is shipped; no MCP projection is currently declared."
+    },
+    "authority.effective": {
+      "operability": "direct"
+    },
     "host.start": {
       "operability": "direct",
       "surfaceAccessOverride": "cliOnly",
       "mcpDeferralReason": "snapback_start exists but is a distinct MCP-only projection today (this row's own HTTP/CLI path is the source of truth for surfaceAccess derivation; see host.restart below for the composed case)."
     },
     "host.stop": {
-      "operability": "direct",
-      "surfaceAccessOverride": "cliOnly",
-      "mcpDeferralReason": "Analogous to host.start."
+      "operability": "direct"
     },
     "host.restart": {
       "operability": "direct",
@@ -146,9 +162,9 @@
         "host.start"
       ],
       "projectionCredentials": {
-        "http": "AdminCredential (refuses this operation entirely: SNAPBACK_HOST_OP_CLI_ONLY)",
-        "cli": "snapback restart resolves a concrete owner-only admin token and proves it with app.inspect on the AdminRead-gated /_snapback/api/host-ops route before its nonce-verified native stop; no credential enters argv or its receipt (src/cli.rs host_restart_result/restart_admin_credential_probe).",
-        "mcp": "LLP 0184 \u00a7Design/2's disclosed, temporary, named exception is CLOSED: snapback_stop (and therefore the mutating half of snapback_restart) requires an admin token accepted by the same AdminRead-gated /_snapback/api/host-ops route, verified with a live probe before any process signal (packages/snapback-cli/mcp-control.mjs McpControlServer#requireAdminCredentialForLifecycle). The fresh-spawn leg has no prior server credential to hold."
+        "http": "host.restart remains a CLI-owned composition and returns SNAPBACK_HOST_OP_CLI_ONLY over HTTP; its stop leg is the separately served AdminWrite host.stop operation.",
+        "cli": "snapback stop and snapback restart resolve a concrete owner-only admin token and send only startupNonce to authenticated host.stop; before the request the caller binds the descriptor PID to that health-matching nonce and its OS process-table start time, then validates the exact typed operation/target/declared-authority/self-stop result and records configured-URL health loss separately. Top-level success is granted only when signal-0 ESRCH or a different start time after PID reuse proves the original descriptor-named identity gone; processIdentityVerified claims exactly that observation, not HTTP responder authentication. Restart launches the recorded-serverProfile successor only after this stop verdict. Same-UID responder identity is not distinguishable; no descriptor PID enters a signal, request, or stop receipt (crates/snapback-cli/src/cli.rs host_stop_result/host_restart_result/authenticated_server_stop/wait_for_lifecycle_stop_observations).",
+        "mcp": "snapback_stop (and therefore snapback_restart's mutating half) requires an admin token accepted by the host-ops route and delegates to the same native credentialed-result, configured-URL, and descriptor-named identity-bound exit observations. The fresh-spawn leg has no prior server credential to hold."
       }
     },
     "host.wait": {

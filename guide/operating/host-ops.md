@@ -51,7 +51,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **49 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **50 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -99,6 +99,7 @@ The endpoint serves **49 request spellings**. This count and table are generated
 | `function.explain` | Explain a generated function |
 | `function.run` | Run one generated function |
 | `functions.load` | Load the generated function manifest |
+| `host.stop` | Stop the local Snapback server |
 | `remediation.apply` | Apply a generation-fenced remediation |
 | `schema.load` | Load the generated schema manifest |
 | `telemetry.events` | Read a bounded telemetry event page |
@@ -189,11 +190,18 @@ accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
 refuses legacy sibling fields, and is registered AdminWrite; paths and
 grants are server-owned.
 
-`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
-cannot safely own starting/stopping itself; over HTTP they fail as
-`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
-projections, but its registered HTTP identity deliberately returns the same
-CLI-only refusal.
+`host.start` and `host.restart` are CLI-owned lifecycle compositions; over HTTP
+their registered identities fail as `SNAPBACK_HOST_OP_CLI_ONLY`. The
+authenticated `host.stop` operation is served at `AdminWrite`: it validates an
+expected startup nonce against its own boot identity, then requests its own
+graceful shutdown. Direct `snapback stop` and both restart projections use that
+same operation. No stop request or stop-observation receipt contains a PID, and no CLI/MCP
+lifecycle path signals `descriptor.pid` (the `host.start` result and restart's
+nested `current` receipt do report the successor's own PID). Native callers and MCP attached to an
+external server use that PID only for a signal-0 existence probe and OS
+process-table start-time comparison. When MCP owns the exact server child, it
+instead requires the descriptor PID to match the child handle and observes the
+process gone by asynchronously reaping that child.
 
 ## Restart with one credential-bound receipt
 
@@ -203,14 +211,63 @@ snapback restart --ready-file .snapback/dev.ready.json \
 ```
 
 Both `snapback restart` and `snapback_restart` compose stop then start under
-one request id and one `host.restart` envelope. Before any process signal,
-they resolve a concrete administrator token and prove it through
-`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
-credential leaves the old server running. The stop leg independently checks
-the descriptor's startup nonce, and the start leg accepts only a successor
-descriptor with the same database and a new startup nonce. Credentials never
-enter child argv or the receipt. The fresh-spawn leg has no prior server
-credential to hold.
+one request id and one `host.restart` envelope, and both require a concrete
+administrator token. Native `snapback stop` and `snapback restart` call
+authenticated `host.stop` with only the descriptor's startup nonce; the live
+server compares that fence with itself and requests its own graceful shutdown.
+Native callers and MCP attached to an external server accept only the exact
+typed result for that operation, target, declared lifecycle authority, and
+self-stop claim, then require the descriptor PID to be live with a captured OS
+process-table start time and matching health `startupNonce` before the request.
+Afterward they record URL health loss and poll until signal-0 returns `ESRCH` or
+the PID reappears with a different start time. Only that identity-bound
+original-process-gone fact grants success. For a server child MCP itself
+started, MCP sends the same managed-token-authenticated `host.stop` directly,
+requires the descriptor PID to match its exact child handle, and grants success
+only after Node reaps that child. Neither ownership mode treats URL loss as the
+process-gone observation.
+
+A ready descriptor and its `sbdev_` sidecar are discovery and app-plane
+dev-identity carriers, not lifecycle authority. Ordinary local servers usually
+advertise an owner-only auto-minted admin-token file, so the CLI can resolve the
+credential without an explicit `--token`. That is credential discovery, not a
+credential-free nonce-bound stop. If no valid credential carrier exists,
+direct stop refuses with `SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED` and
+restart with `SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED`; keep the
+caller-owned dev loop in the foreground and use Ctrl-C, or provide the
+administrator credential and retry.
+
+The CLI/MCP lifecycle stop receipt has `authority: null` and exactly three data
+facts:
+
+- `credentialedHostOpResultAccepted: true`: the lifecycle caller presented the
+  resolved administrator credential to the configured URL and accepted the
+  exact typed success result and declared lifecycle authority;
+- `configuredUrlStoppedAnswering`: whether later `/health` requests at that URL
+  failed across three consecutive probes; this fact does not grant success; and
+- `processIdentityVerified`: whether the ownership-appropriate process-gone
+  observation succeeded. For native/attached targets, `true` means the captured
+  descriptor PID/start-time identity later returned signal-0 `ESRCH` or the PID
+  had a different OS start time after reuse. For a manager-owned MCP target, it
+  means Node reaped the exact child handle whose PID matched the descriptor. It
+  does not authenticate which process answered HTTP or validated the credential.
+
+The receipt contains no server self-stop claim, PID, stopped PID, echoed nonce,
+or `verifiedBy` field. Top-level `ok` is true if and only if
+`processIdentityVerified` is true. A same-UID local process can reproduce the
+0600 descriptor/token inputs and forge the result, so the receipt does not
+attest the HTTP responder's identity. Closing a forged listener while the live
+descriptor-named process remains does not satisfy the exit observation and
+returns `ok: false`. A descriptor-named identity that remains live produces
+`SNAPBACK_HOST_STOP_TIMEOUT` (or `SNAPBACK_HOST_RESTART_STOP_TIMEOUT` for
+restart), regardless of the URL-health fact.
+
+For an authorized restart, the start leg accepts only a successor descriptor
+with the same database and `serverProfile` plus a new startup nonce, then
+proves the administrator credential against that successor too. The successor
+is never spawned until the predecessor's identity-bound exit observation is
+true. Credentials never enter child argv or the receipt. The fresh-spawn leg
+has no prior server credential to hold.
 
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are

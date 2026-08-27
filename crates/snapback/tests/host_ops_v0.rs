@@ -26,7 +26,10 @@ use snapback::auth::mode::{
     SCHEMA_V1_PREFIX,
 };
 use snapback::diagnostic::DiagnosticSeverity;
-use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
+use snapback::host_ops::{
+    HOST_READY_DESCRIPTOR_KIND, HostOpsRequest, HostOpsTarget, HostReadyDatabase,
+    HostReadyDescriptor, execute_host_op,
+};
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
     AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -36,7 +39,12 @@ use snapback::server::PolicyAuthMode;
 use snapback_server::test_support::axum::body::{Body, to_bytes};
 use snapback_server::test_support::axum::http::{Request, StatusCode, header};
 use std::fs;
+use std::io::{Read as _, Write as _};
 use std::path::PathBuf;
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
 use tower::ServiceExt as _;
 
 struct RestartServerGuard {
@@ -90,6 +98,242 @@ fn wait_for_cli_ready(
         );
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+}
+
+#[derive(Clone, Copy)]
+enum FakeLifecycleReply {
+    CloseHostOp,
+    OkOnly,
+    SelfStopClaim,
+    SelfStopClaimThenClose,
+}
+
+struct FakeLifecycleServer {
+    address: std::net::SocketAddr,
+    requests: Arc<Mutex<Vec<String>>>,
+    shutdown: Arc<AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl FakeLifecycleServer {
+    fn spawn(pid: u32, startup_nonce: &str, reply: FakeLifecycleReply) -> Self {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let address = listener.local_addr().unwrap();
+        let target = HostOpsTarget {
+            app_id: "forged-app".to_owned(),
+            app_root: None,
+            target_profile: snapback::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            server_url: Some(format!("http://{address}")),
+        };
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let request_log = Arc::clone(&requests);
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown_signal = Arc::clone(&shutdown);
+        let startup_nonce = startup_nonce.to_owned();
+        let thread = std::thread::spawn(move || {
+            while !shutdown_signal.load(Ordering::Acquire) {
+                let (mut stream, _) = match listener.accept() {
+                    Ok(connection) => connection,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                        continue;
+                    }
+                    Err(error) => panic!("fake lifecycle accept failed: {error}"),
+                };
+                let Some(request) = read_fake_http_request(&mut stream) else {
+                    continue;
+                };
+                request_log.lock().unwrap().push(request.clone());
+                if request.starts_with("GET /health ") {
+                    write_fake_http_json(
+                        &mut stream,
+                        &json!({
+                            "ok": true,
+                            "pid": pid,
+                            "binary": { "pid": pid, "startupNonce": startup_nonce },
+                            "server": { "pid": pid, "startupNonce": startup_nonce },
+                        }),
+                    );
+                    continue;
+                }
+                if !request.starts_with("POST /_snapback/api/host-ops ") {
+                    continue;
+                }
+                match reply {
+                    FakeLifecycleReply::CloseHostOp => {}
+                    FakeLifecycleReply::OkOnly => {
+                        write_fake_http_json(&mut stream, &json!({ "ok": true }));
+                    }
+                    FakeLifecycleReply::SelfStopClaim
+                    | FakeLifecycleReply::SelfStopClaimThenClose => {
+                        let body = request
+                            .split_once("\r\n\r\n")
+                            .and_then(|(_, body)| serde_json::from_str::<Value>(body).ok())
+                            .expect("host-op request JSON");
+                        write_fake_http_json(
+                            &mut stream,
+                            &json!({
+                                "schemaVersion": snapback::manifest::SNAPBACK_SCHEMA_VERSION,
+                                "resultKind": "hostOpsResult",
+                                "requestId": body["requestId"],
+                                "operation": "host.stop",
+                                "ok": true,
+                                "target": target,
+                                "authority": {
+                                    "mode": "devAdminBypass",
+                                    "actorPrincipal": null,
+                                    "effectivePrincipal": null,
+                                    "localDevOnly": true,
+                                    "adminBypass": true,
+                                    "scope": null,
+                                    "reason": "host-ops process lifecycle gate"
+                                },
+                                "artifacts": {
+                                    "schemaHash": null,
+                                    "bundleHash": null,
+                                    "databaseVersion": null
+                                },
+                                "data": {
+                                    "shutdownRequested": true,
+                                    "shutdownMode": "serverSelfStop"
+                                },
+                                "diagnostics": [],
+                                "next": []
+                            }),
+                        );
+                        if matches!(reply, FakeLifecycleReply::SelfStopClaimThenClose) {
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        Self {
+            address,
+            requests,
+            shutdown,
+            thread: Some(thread),
+        }
+    }
+
+    fn requests(&self) -> Vec<String> {
+        self.requests.lock().unwrap().clone()
+    }
+}
+
+impl Drop for FakeLifecycleServer {
+    fn drop(&mut self) {
+        self.shutdown.store(true, Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            // A destructor must never panic. The responder thread can legitimately
+            // hit a read error (connection reset on shutdown) and panic; joining a
+            // panicked thread and unwrapping would abort the whole test binary
+            // non-unwinding. The test body's assertions validate behavior — the
+            // fixture teardown only needs to stop the thread.
+            let _ = thread.join();
+        }
+    }
+}
+
+fn read_fake_http_request(stream: &mut std::net::TcpStream) -> Option<String> {
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+        .unwrap();
+    let mut bytes = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    loop {
+        let count = match stream.read(&mut chunk) {
+            Ok(count) => count,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) =>
+            {
+                return None;
+            }
+            Err(error) => panic!("read fake HTTP request: {error}"),
+        };
+        if count == 0 {
+            break;
+        }
+        bytes.extend_from_slice(&chunk[..count]);
+        let Some(header_end) = bytes.windows(4).position(|part| part == b"\r\n\r\n") else {
+            continue;
+        };
+        let header_len = header_end + 4;
+        let headers = String::from_utf8_lossy(&bytes[..header_len]);
+        let content_len = headers
+            .lines()
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
+            .unwrap_or(0);
+        if bytes.len() >= header_len + content_len {
+            break;
+        }
+    }
+    Some(String::from_utf8(bytes).expect("fake HTTP request is UTF-8"))
+}
+
+fn write_fake_http_json(stream: &mut std::net::TcpStream, body: &Value) {
+    let body = body.to_string();
+    write!(
+        stream,
+        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+        body.len(),
+        body,
+    )
+    .unwrap();
+}
+
+fn fake_lifecycle_descriptor(
+    ready_file: &std::path::Path,
+    server: &FakeLifecycleServer,
+    victim_pid: u32,
+    startup_nonce: &str,
+) -> HostReadyDescriptor {
+    let server_url = format!("http://{}", server.address);
+    let descriptor = HostReadyDescriptor {
+        schema_version: snapback::manifest::SNAPBACK_SCHEMA_VERSION.to_owned(),
+        descriptor_kind: HOST_READY_DESCRIPTOR_KIND.to_owned(),
+        startup_id: "srt_forged_lifecycle".to_owned(),
+        ready: true,
+        server_url: server_url.clone(),
+        host: server.address.ip().to_string(),
+        port: server.address.port(),
+        pid: victim_pid,
+        startup_nonce: Some(startup_nonce.to_owned()),
+        server_profile: Some("dev".to_owned()),
+        target: HostOpsTarget {
+            app_id: "forged-app".to_owned(),
+            app_root: None,
+            target_profile: snapback::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            server_url: Some(server_url),
+        },
+        database: HostReadyDatabase {
+            mode: "memory".to_owned(),
+            path: None,
+        },
+        started_at_ms: 0,
+        admin_gated: true,
+        admin_token_file: None,
+        secret_read_root_file: None,
+        impersonation_capability_file: None,
+        dev_identity_capability_file: None,
+        diagnostics: Vec::new(),
+    };
+    fs::write(ready_file, serde_json::to_string(&descriptor).unwrap()).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(ready_file, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    descriptor
 }
 
 fn fully_settled_sessions_runtime(state: AppState) -> AppState {
@@ -276,9 +520,10 @@ globalThis.__snapbackHandlers = {
     );
 }
 
-/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the native CLI
-/// restart proves a concrete admin credential before signaling, then returns
-/// one composed receipt for the stop/start successor transition.
+/// @ref LLP 0184#security-and-ergonomics-invariants — the native CLI restart
+/// presents a concrete admin credential, accepts the exact lifecycle result
+/// shape, and spawns the successor only after observing the descriptor-named,
+/// pre-stop process identity gone.
 #[test]
 fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
     let binary = env!("CARGO_BIN_EXE_snapback");
@@ -324,12 +569,21 @@ fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
         refused["diagnostics"][0]["code"],
         "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
     );
+    assert_eq!(
+        refused["diagnostics"][0]["details"].get("adminDiagnosticCodes"),
+        None,
+        "the refusal must not reveal target auth-policy diagnostics: {refused}"
+    );
+    assert!(
+        refused["diagnostics"][0]["details"]["sanctionedDevAlternative"]
+            .as_str()
+            .is_some_and(|alternative| alternative.contains("`snapback dev`")),
+        "the refusal must name the sanctioned stop/start alternative: {refused}"
+    );
     let after_refusal: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
     assert_eq!(after_refusal["startupNonce"], previous_nonce);
 
-    // Reap the first child as soon as restart signals it. This mirrors the
-    // long-lived MCP launcher and lets the CLI prove process exit, not merely
-    // loss of the listening socket.
+    // Reap the first child after it performs its authenticated self-stop.
     let reaper = std::thread::spawn(move || initial.wait().unwrap());
     let restarted = std::process::Command::new(binary)
         .args(["restart", "--ready-file"])
@@ -350,10 +604,29 @@ fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
     assert_eq!(receipt["operation"], "host.restart");
     assert_eq!(receipt["ok"], true, "{receipt}");
     assert_eq!(receipt["data"]["restartReason"], "acceptance-restart");
-    assert_eq!(receipt["data"]["previous"]["stoppedPid"], previous.pid);
-    assert_eq!(receipt["data"]["previous"]["exited"], true);
+    assert_eq!(
+        receipt["data"]["previous"]["credentialedHostOpResultAccepted"],
+        true
+    );
+    assert_eq!(
+        receipt["data"]["previous"]["configuredUrlStoppedAnswering"],
+        true
+    );
+    assert_eq!(receipt["data"]["previous"]["processIdentityVerified"], true);
+    assert_eq!(receipt["data"]["previous"].get("shutdownMode"), None);
+    assert_eq!(
+        receipt["data"]["previous"].get("healthEndpointStopped"),
+        None
+    );
+    assert_eq!(receipt["data"]["previous"].get("pid"), None);
+    assert_eq!(receipt["data"]["previous"].get("stoppedPid"), None);
+    assert_eq!(receipt["data"]["previous"].get("verifiedBy"), None);
     assert!(receipt["data"]["current"]["pid"].as_u64().is_some());
     assert!(receipt["data"]["current"]["runtimeState"].is_object());
+    assert_eq!(
+        receipt["data"]["current"]["restartVerifiedBy"],
+        "administratorCredential"
+    );
     assert!(
         !String::from_utf8_lossy(&restarted.stdout).contains(token.trim()),
         "the administrator credential must not enter the restart receipt"
@@ -362,6 +635,544 @@ fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
     assert_ne!(current["startupNonce"], previous_nonce);
 
     cleanup.stop();
+}
+
+#[test]
+fn snapback_stop_refuses_a_genuine_descriptor_crafted_with_a_foreign_pid() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("crafted-stop.sqlite3");
+    let ready_file = directory.path().join("crafted-stop.ready.json");
+    let crafted_ready_file = directory.path().join("crafted-foreign.ready.json");
+    let mut server = std::process::Command::new(binary)
+        .args(["start", "--port", "0", "--db"])
+        .arg(&database)
+        .arg("--ready-file")
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let descriptor = wait_for_cli_ready(&mut server, &ready_file);
+    let mut cleanup = RestartServerGuard {
+        binary,
+        ready_file: ready_file.clone(),
+        active: true,
+    };
+    let mut foreign = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let mut crafted = descriptor.clone();
+    crafted.pid = foreign.id();
+    fs::write(
+        &crafted_ready_file,
+        serde_json::to_string(&crafted).unwrap().as_bytes(),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        fs::set_permissions(&crafted_ready_file, fs::Permissions::from_mode(0o600)).unwrap();
+    }
+
+    let refused = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&crafted_ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.stop");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert!(
+        foreign.try_wait().unwrap().is_none(),
+        "the crafted descriptor must never signal the foreign process"
+    );
+
+    let _ = foreign.kill();
+    let _ = foreign.wait();
+    cleanup.stop();
+    assert!(server.wait().unwrap().success());
+}
+
+/// Exact round-3 peer repro: both descriptor.pid and every PID/nonce field on
+/// the fake health responder name a live unrelated victim. Direct stop may
+/// present only the nonce to authenticated host.stop; it must never signal the
+/// forged PID when that responder cannot complete the host operation.
+#[test]
+fn snapback_stop_fake_health_forging_nonce_and_pid_never_signals_victim() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("forged-stop.ready.json");
+    let mut victim = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let nonce = "peer-forged-stop-nonce";
+    let fake = FakeLifecycleServer::spawn(victim.id(), nonce, FakeLifecycleReply::CloseHostOp);
+    fake_lifecycle_descriptor(&ready_file, &fake, victim.id(), nonce);
+
+    let refused = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&ready_file)
+        .env("SNAPBACK_ADMIN_TOKEN", "dummy")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.stop");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert!(
+        victim.try_wait().unwrap().is_none(),
+        "the exact forged PID+nonce peer repro must leave the victim alive"
+    );
+    let requests = fake.requests();
+    assert!(
+        requests
+            .iter()
+            .any(|request| request.starts_with("GET /health "))
+    );
+    let stop_request = requests
+        .iter()
+        .find(|request| request.starts_with("POST /_snapback/api/host-ops "))
+        .expect("direct stop must route through authenticated host.stop");
+    assert!(stop_request.contains("x-snapback-admin-token: dummy"));
+    assert!(stop_request.contains(&format!("\"startupNonce\":\"{nonce}\"")));
+    assert!(
+        !stop_request.contains("\"pid\""),
+        "no caller-named PID may enter the self-stop request: {stop_request}"
+    );
+
+    victim.kill().unwrap();
+    victim.wait().unwrap();
+}
+
+#[test]
+fn snapback_restart_fake_ok_only_responder_never_signals_victim() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("fake-ok-restart.ready.json");
+    let mut victim = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let nonce = "fake-ok-restart-nonce";
+    let fake = FakeLifecycleServer::spawn(victim.id(), nonce, FakeLifecycleReply::OkOnly);
+    fake_lifecycle_descriptor(&ready_file, &fake, victim.id(), nonce);
+
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .env("SNAPBACK_ADMIN_TOKEN", "dummy")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.restart");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert!(
+        victim.try_wait().unwrap().is_none(),
+        "a fake top-level ok response must leave the restart victim alive"
+    );
+
+    victim.kill().unwrap();
+    victim.wait().unwrap();
+}
+
+/// A fake can forge the entire typed success response, including the declared
+/// administrator authority. While its configured URL keeps answering, restart
+/// fails the narrow post-result observation and never reaches replacement
+/// start or any PID signal.
+#[test]
+fn snapback_restart_forged_pid_nonce_and_self_stop_claim_times_out_without_signal() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("forged-restart.ready.json");
+    let mut victim = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let nonce = "forged-restart-nonce";
+    let fake = FakeLifecycleServer::spawn(victim.id(), nonce, FakeLifecycleReply::SelfStopClaim);
+    fake_lifecycle_descriptor(&ready_file, &fake, victim.id(), nonce);
+
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .env("SNAPBACK_ADMIN_TOKEN", "dummy")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.restart");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_STOP_TIMEOUT"
+    );
+    assert_eq!(
+        receipt["data"]["previous"]["credentialedHostOpResultAccepted"],
+        true
+    );
+    assert_eq!(
+        receipt["data"]["previous"]["configuredUrlStoppedAnswering"],
+        false
+    );
+    assert_eq!(
+        receipt["data"]["previous"]["processIdentityVerified"],
+        false
+    );
+    assert_eq!(receipt["data"]["previous"].get("verifiedBy"), None);
+    assert_eq!(receipt["data"]["previous"].get("pid"), None);
+    assert_eq!(receipt["data"]["previous"].get("stoppedPid"), None);
+    assert!(
+        victim.try_wait().unwrap().is_none(),
+        "a full PID+nonce+receipt forgery must leave the restart victim alive"
+    );
+
+    victim.kill().unwrap();
+    victim.wait().unwrap();
+}
+
+#[test]
+fn snapback_stop_self_stop_claim_is_failure_while_health_keeps_answering() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("lying-stop.ready.json");
+    let mut victim = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let nonce = "lying-stop-nonce";
+    let fake = FakeLifecycleServer::spawn(victim.id(), nonce, FakeLifecycleReply::SelfStopClaim);
+    fake_lifecycle_descriptor(&ready_file, &fake, victim.id(), nonce);
+
+    let refused = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&ready_file)
+        .env("SNAPBACK_ADMIN_TOKEN", "dummy")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.stop");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(receipt["data"]["credentialedHostOpResultAccepted"], true);
+    assert_eq!(receipt["data"]["configuredUrlStoppedAnswering"], false);
+    assert_eq!(receipt["data"]["processIdentityVerified"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_STOP_TIMEOUT"
+    );
+    assert_eq!(receipt["data"].get("verifiedBy"), None);
+    assert!(
+        victim.try_wait().unwrap().is_none(),
+        "a liveness lie must be reported as failure without touching the victim"
+    );
+
+    victim.kill().unwrap();
+    victim.wait().unwrap();
+}
+
+/// A same-UID responder can forge every descriptor/result input and close its
+/// listener after replying, but it cannot make the live descriptor-named,
+/// pre-stop PID/start-time identity disappear. URL loss is recorded while the
+/// top-level result remains false and the unrelated victim remains untouched.
+#[test]
+fn snapback_stop_forged_self_stop_then_close_receipt_disclaims_process_identity() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("forged-close-stop.ready.json");
+    let mut victim = std::process::Command::new("sleep")
+        .arg("60")
+        .spawn()
+        .unwrap();
+    let nonce = "forged-close-stop-nonce";
+    let fake = FakeLifecycleServer::spawn(
+        victim.id(),
+        nonce,
+        FakeLifecycleReply::SelfStopClaimThenClose,
+    );
+    fake_lifecycle_descriptor(&ready_file, &fake, victim.id(), nonce);
+
+    let stopped = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&ready_file)
+        .env("SNAPBACK_ADMIN_TOKEN", "dummy")
+        .output()
+        .unwrap();
+    assert!(!stopped.status.success());
+    let receipt: Value = serde_json::from_slice(&stopped.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.stop");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(receipt["authority"], Value::Null);
+    let data = receipt["data"].as_object().expect("stop observation data");
+    assert_eq!(
+        data.len(),
+        3,
+        "stop observation data must remain exact: {receipt}; stderr: {}",
+        String::from_utf8_lossy(&stopped.stderr),
+    );
+    assert_eq!(data["credentialedHostOpResultAccepted"], true);
+    assert_eq!(data["configuredUrlStoppedAnswering"], true);
+    assert_eq!(data["processIdentityVerified"], false);
+    assert_eq!(data.get("pid"), None);
+    assert_eq!(data.get("stoppedPid"), None);
+    assert_eq!(data.get("shutdownRequested"), None);
+    assert_eq!(data.get("shutdownMode"), None);
+    assert_eq!(data.get("verifiedBy"), None);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_STOP_TIMEOUT"
+    );
+    assert!(
+        victim.try_wait().unwrap().is_none(),
+        "forge-then-close must not stop the unrelated descriptor-named victim"
+    );
+
+    victim.kill().unwrap();
+    victim.wait().unwrap();
+}
+
+#[test]
+fn snapback_restart_cli_preserves_prod_test_and_demo_profiles() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    for profile in ["prod", "test", "demo"] {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join(format!("restart-{profile}.sqlite3"));
+        let ready_file = directory
+            .path()
+            .join(format!("restart-{profile}.ready.json"));
+        let mut initial = std::process::Command::new(binary)
+            .args(["start", "--port", "0", "--db"])
+            .arg(&database)
+            .arg("--ready-file")
+            .arg(&ready_file)
+            .env("SNAPBACK_PROFILE", profile)
+            .env_remove("SNAPBACK_ADMIN_TOKEN")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let previous = wait_for_cli_ready(&mut initial, &ready_file);
+        assert_eq!(previous.server_profile.as_deref(), Some(profile));
+        let mut cleanup = RestartServerGuard {
+            binary,
+            ready_file: ready_file.clone(),
+            active: true,
+        };
+        let reaper = std::thread::spawn(move || initial.wait().unwrap());
+        let restarted = std::process::Command::new(binary)
+            .args(["restart", "--ready-file"])
+            .arg(&ready_file)
+            .arg("--reason")
+            .arg("profile-round-trip")
+            .env("SNAPBACK_PROFILE", "dev")
+            .env_remove("SNAPBACK_ADMIN_TOKEN")
+            .output()
+            .unwrap();
+        assert!(
+            restarted.status.success(),
+            "{profile} restart stderr: {}\nstdout: {}",
+            String::from_utf8_lossy(&restarted.stderr),
+            String::from_utf8_lossy(&restarted.stdout),
+        );
+        assert!(reaper.join().unwrap().success());
+        let current: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+        assert_eq!(
+            current["serverProfile"], profile,
+            "restart must preserve the descriptor profile rather than inherit the invoking shell"
+        );
+        cleanup.stop();
+    }
+}
+
+/// A live dev descriptor and its planted or genuine `sbdev_` sidecar are not
+/// lifecycle authority. Without the owner-only administrator credential,
+/// both direct stop and restart refuse and leave the server running.
+#[test]
+fn snapback_restart_cli_refuses_dev_descriptor_without_admin_credential() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("dev-refusal.sqlite3");
+    let ready_file = directory.path().join("dev-refusal.ready.json");
+    let mut initial = std::process::Command::new(binary)
+        .args(["start", "--port", "0", "--db"])
+        .arg(&database)
+        .arg("--ready-file")
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let previous = wait_for_cli_ready(&mut initial, &ready_file);
+    assert_eq!(previous.server_profile.as_deref(), Some("dev"));
+    assert!(previous.dev_identity_capability_file.is_some());
+    let previous_nonce = previous.startup_nonce.clone().unwrap();
+    let token_file = snapback::admin::admin_token_sibling(&database);
+    let token_backup = directory.path().join("dev-refusal.admin-token.backup");
+    fs::rename(&token_file, &token_backup).unwrap();
+
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("dev-descriptor-is-not-authority")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert_eq!(
+        receipt["diagnostics"][0]["details"].get("adminDiagnosticCodes"),
+        None
+    );
+    assert!(
+        receipt["diagnostics"][0]["details"]["sanctionedDevAlternative"]
+            .as_str()
+            .is_some_and(|alternative| {
+                alternative.contains("Ctrl-C")
+                    && alternative.contains("snapback restart --ready-file")
+            }),
+        "the refusal must name the exact sanctioned alternative: {receipt}"
+    );
+    let after_refusal: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_eq!(after_refusal["startupNonce"], previous_nonce);
+    assert!(initial.try_wait().unwrap().is_none());
+
+    let stopped = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(!stopped.status.success());
+    let stop_receipt: Value = serde_json::from_slice(&stopped.stdout).unwrap();
+    assert_eq!(
+        stop_receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert!(initial.try_wait().unwrap().is_none());
+
+    fs::rename(&token_backup, &token_file).unwrap();
+    // Reap concurrently so the CLI can observe ESRCH rather than a zombie
+    // retained by this test process after the authenticated self-stop.
+    let reaper = std::thread::spawn(move || initial.wait().unwrap());
+    let stopped = std::process::Command::new(binary)
+        .args(["stop", "--ready-file"])
+        .arg(&ready_file)
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(
+        stopped.status.success(),
+        "{}",
+        String::from_utf8_lossy(&stopped.stdout)
+    );
+    assert!(reaper.join().unwrap().success());
+    let stop_receipt: Value = serde_json::from_slice(&stopped.stdout).unwrap();
+    assert_eq!(stop_receipt["ok"], true, "{stop_receipt}");
+    assert_eq!(stop_receipt["authority"], Value::Null);
+    let stop_data = stop_receipt["data"]
+        .as_object()
+        .expect("positive stop observation data");
+    assert_eq!(stop_data.len(), 3, "{stop_receipt}");
+    assert_eq!(stop_data["credentialedHostOpResultAccepted"], true);
+    assert_eq!(stop_data["configuredUrlStoppedAnswering"], true);
+    assert_eq!(stop_data["processIdentityVerified"], true);
+    assert_eq!(stop_data.get("pid"), None);
+    assert_eq!(stop_data.get("verifiedBy"), None);
+}
+
+#[test]
+fn snapback_restart_cli_refuses_non_dev_target_without_admin_credential() {
+    let binary = env!("CARGO_BIN_EXE_snapback");
+    let directory = tempfile::tempdir().unwrap();
+    let database = directory.path().join("prod-restart.sqlite3");
+    let ready_file = directory.path().join("prod-restart.ready.json");
+    let mut initial = std::process::Command::new(binary)
+        .args(["start", "--port", "0", "--db"])
+        .arg(&database)
+        .arg("--ready-file")
+        .arg(&ready_file)
+        .env("SNAPBACK_PROFILE", "prod")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let previous = wait_for_cli_ready(&mut initial, &ready_file);
+    let mut cleanup = RestartServerGuard {
+        binary,
+        ready_file: ready_file.clone(),
+        active: true,
+    };
+    assert!(
+        previous.dev_identity_capability_file.is_none(),
+        "production must not advertise development descriptor authority"
+    );
+    assert_eq!(previous.server_profile.as_deref(), Some("prod"));
+    let previous_nonce = previous.startup_nonce.clone().unwrap();
+    let token_file = snapback::admin::admin_token_sibling(&database);
+    let token_backup = directory.path().join("prod-restart.admin-token.backup");
+    fs::rename(&token_file, &token_backup).unwrap();
+
+    let refused = std::process::Command::new(binary)
+        .args(["restart", "--ready-file"])
+        .arg(&ready_file)
+        .arg("--reason")
+        .arg("non-dev-credential-negative")
+        .env("SNAPBACK_PROFILE", "prod")
+        .env_remove("SNAPBACK_ADMIN_TOKEN")
+        .output()
+        .unwrap();
+    assert!(!refused.status.success());
+    let receipt: Value = serde_json::from_slice(&refused.stdout).unwrap();
+    assert_eq!(receipt["operation"], "host.restart");
+    assert_eq!(receipt["ok"], false);
+    assert_eq!(
+        receipt["diagnostics"][0]["code"],
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert_eq!(
+        receipt["diagnostics"][0]["details"].get("adminDiagnosticCodes"),
+        None
+    );
+    assert!(
+        receipt["diagnostics"][0]["details"]["sanctionedDevAlternative"]
+            .as_str()
+            .is_some_and(|alternative| {
+                alternative.contains("Ctrl-C")
+                    && alternative.contains("snapback restart --ready-file")
+            }),
+        "the refusal must name the sanctioned descriptor-owned alternative: {receipt}"
+    );
+    let after_refusal: Value = serde_json::from_slice(&fs::read(&ready_file).unwrap()).unwrap();
+    assert_eq!(after_refusal["startupNonce"], previous_nonce);
+
+    fs::rename(&token_backup, &token_file).unwrap();
+    cleanup.stop();
+    let _ = initial.wait();
 }
 
 fn generated(file: &str) -> Value {
@@ -1322,9 +2133,9 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
             .join("ready.json.dev-identity")
     );
     assert!(dev_identity_path.exists());
-    // The stop-verification identity (ENG-23366): the descriptor carries the
-    // same per-process nonce this process reports on /health, so `snapback
-    // stop` can confirm the pid still belongs to this server before signaling.
+    // The descriptor carries the same per-process nonce this process reports
+    // on /health. Lifecycle presents the descriptor nonce to authenticated
+    // host.stop; it never signals the descriptor PID.
     assert_eq!(
         descriptor.startup_nonce.as_deref(),
         Some(snapback::identity::binary_identity().startup_nonce.as_str())

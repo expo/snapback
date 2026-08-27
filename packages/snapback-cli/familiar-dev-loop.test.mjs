@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import {
   cpSync,
   existsSync,
@@ -28,6 +28,8 @@ import {
 } from '@expo/snapback-react';
 import {
   generateApp,
+  managedAdminToken,
+  readReadyDescriptor,
   runDev,
   spawnManagedRuntime,
   waitForReady,
@@ -455,6 +457,13 @@ try {
     },
   );
   await waitForReady(serveReadyFile, serveChild);
+  const serveAdminToken = managedAdminToken(
+    readReadyDescriptor(serveReadyFile),
+    serveDatabase,
+  );
+  const serveStopEnvironment = serveAdminToken
+    ? { ...serveEnvironment, SNAPBACK_ADMIN_TOKEN: serveAdminToken }
+    : serveEnvironment;
   const serveInspect = spawnSync(
     runtimeBinary,
     ['inspect', '--ready-file', serveReadyFile],
@@ -467,11 +476,22 @@ try {
     'direct serving is recorder-off without the explicit operator flag',
   );
   const serveExit = new Promise((resolveExit) => serveChild.once('exit', resolveExit));
-  const stoppedServe = spawnSync(
-    runtimeBinary,
-    ['stop', '--ready-file', serveReadyFile],
-    { encoding: 'utf8', env: serveEnvironment },
-  );
+  // Stop asynchronously: this process owns serveChild, so Node must be free to
+  // reap it (SIGCHLD) while `snapback stop` observes the descriptor PID's exit.
+  // A blocking spawnSync would pin the loop and leave our own child an unreaped
+  // zombie the signal-0 probe still sees, timing the honest stop out.
+  const stoppedServe = await new Promise((resolveStop) => {
+    execFile(
+      runtimeBinary,
+      ['stop', '--ready-file', serveReadyFile],
+      { encoding: 'utf8', env: serveStopEnvironment },
+      (error, stdout, stderr) => resolveStop({
+        status: error ? (typeof error.code === 'number' ? error.code : 1) : 0,
+        stdout,
+        stderr,
+      }),
+    );
+  });
   assert.equal(stoppedServe.status, 0, stoppedServe.stderr);
   await serveExit;
   serveChild = null;
@@ -500,13 +520,23 @@ try {
   await receiptClient?.close?.();
   await receiptStore?.close?.();
   await dev?.close?.();
-  if (serveChild?.exitCode === null) {
-    const stopped = spawnSync(
-      runtimeBinary,
-      ['stop', '--ready-file', serveReadyFile],
-      { encoding: 'utf8' },
-    );
-    if (stopped.status !== 0) serveChild.kill('SIGKILL');
+  if (serveChild?.exitCode === null && serveChild?.signalCode === null) {
+    let stopped = null;
+    if (existsSync(serveReadyFile)) {
+      const descriptor = readReadyDescriptor(serveReadyFile);
+      const adminToken = managedAdminToken(descriptor, serveDatabase);
+      stopped = spawnSync(
+        runtimeBinary,
+        ['stop', '--ready-file', serveReadyFile],
+        {
+          encoding: 'utf8',
+          env: adminToken
+            ? { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+            : process.env,
+        },
+      );
+    }
+    if (stopped?.status !== 0) serveChild.kill('SIGKILL');
   }
   rmSync(projectRoot, { recursive: true, force: true });
 }

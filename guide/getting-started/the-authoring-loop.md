@@ -338,9 +338,20 @@ validation plus generated-client types from that source.
 When `snapback dev` runs without a TTY, stdin accepts optional
 `snapback.dev-command.v1` JSON lines while it remains open. EOF only closes
 that control channel: it does not stop the server, watcher, or generated
-client arm. Stop a detached loop with SIGINT/SIGTERM; an interactive terminal
-may also use `q` or Ctrl-C. This is deliberately different from stdio MCP
-servers, where EOF ends the protocol process.
+client arm. In the URL-first package-script loop, SIGTERM follows the backend
+ownership path. If `snapback dev` attached to a pre-existing ready descriptor,
+SIGTERM ends only the attachment and the backend survives. If `snapback dev`
+found no ready descriptor and spawned a managed backend, SIGTERM stops that
+backend during cleanup. Stop an attached backend explicitly with
+`snapback stop --ready-file .snapback/dev.ready.json`, then rerun
+`snapback dev`. Direct stop and restart are both authenticated server-self-stop
+operations; an ordinary local server's owner-only auto-minted token normally
+makes the command zero-configuration, but if that carrier is unavailable the
+sanctioned no-credential path is a foreground dev loop stopped with Ctrl-C.
+Without the explicit stop, the
+next dev command validates the attached descriptor and attaches again. This
+is deliberately different from stdio MCP servers, where EOF ends the protocol
+process.
 
 If a selected native runtime predates the generated artifact shape, the loop
 reports `SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` with the exact selected

@@ -27,7 +27,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { scaffoldApp } from './index.mjs';
+import {
+  managedAdminToken,
+  native,
+  readReadyDescriptor,
+  scaffoldApp,
+} from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(packageDir, '..', '..');
@@ -683,8 +688,13 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
     renameSync(displacedReadyFile, readyFile);
   }
   if (existsSync(readyFile)) {
-    const { native } = await import('./index.mjs');
-    native(runtimeBinary, ['stop', '--ready-file', readyFile], { env: process.env });
+    const database = join(root, 'todo-contract', '.snapback', 'dev.sqlite3');
+    const adminToken = managedAdminToken(readReadyDescriptor(readyFile), database);
+    native(runtimeBinary, ['stop', '--ready-file', readyFile], {
+      env: adminToken
+        ? { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+        : process.env,
+    });
   }
   rmSync(root, { recursive: true, force: true });
 }

@@ -145,17 +145,28 @@ pub struct HostReadyDescriptor {
     pub port: u16,
     pub pid: u32,
     /// The writing server's per-process boot id (`/health` →
-    /// `binary.startupNonce`). `snapback stop` matches it against the live
-    /// server before signaling `pid`, so a stale descriptor (crash, Ctrl-C)
-    /// never routes a signal to a reused PID (ENG-23366). Optional only for
-    /// descriptors written by older binaries, which `stop` treats as
-    /// unverifiable and refuses.
+    /// `binary.startupNonce`). Capability-bearing descriptor consumers use it
+    /// as a freshness fence. Lifecycle commands present it through authenticated
+    /// `host.stop`; the server compares it with its own boot id and requests its
+    /// own shutdown. The descriptor PID is never a CLI signal target; lifecycle
+    /// callers bind its OS start time before stop and use only signal-0 existence
+    /// observation afterward. Optional only for descriptors written by older
+    /// binaries, which lifecycle commands refuse.
     #[serde(
         rename = "startupNonce",
         default,
         skip_serializing_if = "Option::is_none"
     )]
     pub startup_nonce: Option<String>,
+    /// Closed startup posture for lifecycle consumers. Older descriptors omit
+    /// it and therefore cannot exercise profile-scoped conveniences.
+    #[serde(
+        rename = "serverProfile",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(with = "Option<crate::contract_types::ServerProfile>")]
+    pub server_profile: Option<String>,
     pub target: HostOpsTarget,
     pub database: HostReadyDatabase,
     #[serde(rename = "startedAtMs")]
@@ -229,6 +240,13 @@ impl HostReadyDescriptor {
         }
         if descriptor.pid == 0 {
             problems.push("descriptor has no process id".to_owned());
+        }
+        if descriptor
+            .server_profile
+            .as_deref()
+            .is_some_and(|profile| !matches!(profile, "dev" | "demo" | "test" | "prod"))
+        {
+            problems.push("serverProfile is not dev, demo, test, or prod".to_owned());
         }
         if problems.is_empty() {
             Ok(descriptor)

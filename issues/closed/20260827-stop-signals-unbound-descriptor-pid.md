@@ -95,3 +95,17 @@ about a process the caller does not control.
 Until it lands, `stop --ready-file` should be treated as "signals what the
 descriptor says," and the `verifiedBy` field in its receipt should not be read
 as an identity guarantee.
+
+## Resolution (2026-08-27)
+
+Fixed by the ws-devloop lifecycle-authority landing. `snapback stop`/`restart`
+(CLI and MCP) now require an admin credential AND a caller-unforgeable
+process-identity observation (signal-0 ESRCH or a differing OS start time);
+the CLI never signals a caller-named PID, and a forged `/health` responder
+that goes dark while the descriptor-named process stays live yields
+`ok:false` with `SNAPBACK_HOST_STOP_TIMEOUT`. The false `verifiedBy:startupNonce`
+receipt is gone (receipts carry `authority:null`, three observation fields, no
+PID). Certified by snapback-db's 8-cell macOS exploit gate (EXIT 0) on the
+landed authority source; the prior interim zombie-as-gone observation, a Linux
+multithreaded-`Z` fail-open, was caught by codex static review and reverted
+before landing. Landed as ws-devloop (see commit closing this ticket).

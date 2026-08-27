@@ -50,8 +50,13 @@ const verify = exact('VerifyConfig', '@expo/snapback-cli/verify');
 for (const required of ['schemaVersion', 'backendDirectory', 'generatedDirectory', 'context', 'profiles']) {
   assert.ok(verify.members.some(({ name }) => name === required), `VerifyConfig must include ${required}`);
 }
-assert.match(verify.signature, /readonly profiles\?: readonly \{/u);
-assert.match(verify.signature, /run\(context: Readonly<Record<string, unknown>>\): Promise<Readonly<Record<string, unknown>>>/u);
+assert.match(verify.signature, /readonly profiles\?: readonly VerifyProfile\[\]/u);
+const verifyProfile = exact('VerifyProfile', '@expo/snapback-cli/verify');
+const verifyCommandProfile = exact('VerifyCommandProfile', '@expo/snapback-cli/verify');
+assert.match(verifyProfile.signature, /readonly run: \(context: Readonly<Record<string, unknown>>\)/u);
+assert.match(verifyProfile.signature, /readonly command: VerifyCommandProfile/u);
+assert.match(verifyCommandProfile.signature, /readonly executable: string/u);
+assert.match(verifyCommandProfile.signature, /readonly resultFile\?: string/u);
 
 const hookFacts = ['QueryState', 'SnapbackOutboxState'].map((name) => exact(name, '@expo/snapback-react'));
 for (const fact of hookFacts) assert.equal(fact.runtime.kind, 'type-only');
@@ -77,7 +82,7 @@ assert.match(mutationContext.signature, /readonly db: MutationDatabase<Schema>/u
 assert.equal(registry.scope.handlerContext.status, 'included-published-type-only-declaration');
 assert.equal(registry.scope.handlerContext.module, ctxModule);
 
-for (const symbol of [client, options, verify, ...hookFacts, queryBuilder, queryDatabase, mutationDatabase, queryContext, mutationContext]) {
+for (const symbol of [client, options, verify, verifyProfile, verifyCommandProfile, ...hookFacts, queryBuilder, queryDatabase, mutationDatabase, queryContext, mutationContext]) {
   const moduleRecord = registry.modules.find((candidate) => candidate.module === symbol.module);
   assert.ok(moduleRecord, `module page must exist for ${symbol.identity}`);
   const page = readReference(moduleRecord.page.split('/').at(-1));
@@ -87,7 +92,7 @@ for (const symbol of [client, options, verify, ...hookFacts, queryBuilder, query
 const answers = {
   headlessArgs: 'Pass function arguments under options.args for query and liveQuery.',
   constructorCustody: "For a sessions target's anonymous-public headless client, set authClientProtocol: 1 and custody: 'anonymous-public'.",
-  verifyConfig: 'VerifyConfig pins schemaVersion and optionally selects backend/generated directories, partial identity context, and readonly profiles whose run functions return structured records.',
+  verifyConfig: 'VerifyConfig pins schemaVersion and optionally selects backend/generated directories, partial identity context, and readonly profiles that use either a named run function or a direct command contract.',
   hookFacts: 'QueryState and SnapbackOutboxState are explicit type-only hook fact surfaces.',
   ctxDbVerbs: 'Query: get/query; builder: withIndex/eq/in/lt/lte/gt/gte/order/take/collect/first; mutation adds insert/patch/delete.',
 };

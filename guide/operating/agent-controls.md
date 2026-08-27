@@ -285,16 +285,16 @@ sessions target. This behavior resolves the
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **156 operations** at digest `sha256:9cb4837ed97a4812f82f9699f99471e7eb8a655f06fb2f260db1338824787369`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **160 operations** at digest `sha256:b537568b0302f3e72ed88c9e154239d01ea1186ba0e8b3e3147f4ccc5c71ffe1`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 54 |
+| surfaceAccess | `apiOnly` | 57 |
 | surfaceAccess | `cliOnly` | 54 |
 | surfaceAccess | `mcpOnly` | 2 |
-| surfaceAccess | `native` | 42 |
+| surfaceAccess | `native` | 43 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 117 |
+| operability | `direct` | 121 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -307,6 +307,7 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `app.identity` | `apiOnly` | `direct` | `shipped` | — | — | surface-map.md |
 | `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md#served-request-operations |
 | `app.readiness.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
@@ -338,11 +339,14 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `auth.integrationSuspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe |
 | `auth.mintSession` | `cliOnly` | `direct` | `shipped` | snapback session mint --email <address> | — | operating/host-ops.md#mint-a-session-over-http |
+| `auth.password.attempt` | `apiOnly` | `direct` | `shipped` | — | — | auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing |
+| `auth.password.unlock` | `cliOnly` | `direct` | `shipped` | snapback auth password unlock --email <address> | — | auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing |
 | `auth.rehearsal.exercise` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.mint` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.revoke` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.status` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `authority.effective` | `apiOnly` | `direct` | `shipped` | — | — | auth/scoped-roles.md#inspect-effective-authority |
 | `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
 | `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
 | `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#own-forks-per-worktree-per-agent-run-and-per-suite-lane |
@@ -434,7 +438,7 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | deploying/cloudflare.md#run-the-remote-proof |
 | `host.restart` | `native` | `direct` | `shipped` | snapback restart --ready-file <path> | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
-| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `host.stop` | `native` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `host.wait` | `cliOnly` | `direct` | `shipped` | snapback wait --ready-file <path> --level <host\|application> | — | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
 | `inspect` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#query-the-typed-operations-from-the-cli |

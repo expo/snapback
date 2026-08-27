@@ -15,9 +15,10 @@ use super::{
     controls_list_text, fork_secret_disposition, managed_startup_paths, parse_fork_ttl,
     parse_network_profile_selection, parse_port_range, parse_run_args, path_segment_escape,
     prepare_database_path, prepare_database_path_for_startup, quiet_stop_fork,
-    reject_misdirected_serve_flags, render_guide_command, resolve_http_target,
-    resolve_http_target_for_operation, resolve_startup_nonce, runtime_auth_program_readiness,
-    search_guide_sections_in, validate_path_disjointness, validated_console_origin,
+    reject_misdirected_serve_flags, render_guide_command, render_guide_command_with_url,
+    resolve_http_target, resolve_http_target_for_operation, resolve_startup_nonce,
+    runtime_auth_program_readiness, search_guide_sections_in,
+    served_guide_url_from_descriptor_with, validate_path_disjointness, validated_console_origin,
     validated_secret_read_root_path, write_ready_file_atomic, write_ready_file_atomic_protected,
 };
 use crate::guide::EmbeddedGuideFile;
@@ -325,6 +326,110 @@ fn guide_channel_output_starts_with_start_packets_and_names_flat_and_mcp() {
         output.contains("snapback agent setup --print <client> --server mcp-control"),
         "{output}"
     );
+}
+
+#[test]
+fn guide_urls_follow_the_nonce_verified_live_descriptor_port() {
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("dev.ready.json");
+    std::fs::write(
+        &ready_file,
+        serde_json::to_vec(&json!({
+            "schemaVersion": crate::manifest::SNAPBACK_SCHEMA_VERSION,
+            "descriptorKind": crate::host_ops::HOST_READY_DESCRIPTOR_KIND,
+            "startupId": "startup_guide_port_test",
+            "ready": true,
+            "serverUrl": "http://127.0.0.1:43991",
+            "host": "127.0.0.1",
+            "port": 43991,
+            "pid": std::process::id(),
+            "startupNonce": "nonce-guide-port-test",
+            "target": {
+                "appId": "guide-port-test",
+                "appRoot": null,
+                "targetProfile": "local-dev-sqlite-ibex",
+                "serverUrl": "http://127.0.0.1:43991"
+            },
+            "database": { "mode": "memory", "path": null },
+            "startedAtMs": 1,
+            "adminGated": false,
+            "diagnostics": []
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&ready_file, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let guide_url = served_guide_url_from_descriptor_with(&ready_file, |server_url| {
+        assert_eq!(server_url, "http://127.0.0.1:43991");
+        Ok(json!({
+            "ok": true,
+            "pid": std::process::id(),
+            "binary": { "startupNonce": "nonce-guide-port-test" }
+        }))
+    })
+    .unwrap();
+    let output = render_guide_command_with_url(&[], 1, false, &guide_url).unwrap();
+    assert!(
+        output.contains("http://127.0.0.1:43991/_snapback/guide/start/index.md"),
+        "{output}"
+    );
+    assert!(!output.contains(":4287/"), "{output}");
+}
+
+#[test]
+fn guide_descriptor_origin_is_restricted_to_loopback_http() {
+    for (index, server_url) in [
+        "http://192.168.1.10:43991",
+        "https://127.0.0.1:43991",
+        "http://user@127.0.0.1:43991",
+        "http://127.0.0.1:43991/path",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let directory = tempfile::tempdir().unwrap();
+        let ready_file = directory.path().join(format!("dev-{index}.ready.json"));
+        std::fs::write(
+            &ready_file,
+            serde_json::to_vec(&json!({
+                "schemaVersion": crate::manifest::SNAPBACK_SCHEMA_VERSION,
+                "descriptorKind": crate::host_ops::HOST_READY_DESCRIPTOR_KIND,
+                "startupId": format!("startup_guide_origin_test_{index}"),
+                "ready": true,
+                "serverUrl": server_url,
+                "host": "127.0.0.1",
+                "port": 43991,
+                "pid": std::process::id(),
+                "startupNonce": "nonce-guide-origin-test",
+                "target": {
+                    "appId": "guide-origin-test",
+                    "appRoot": null,
+                    "targetProfile": "local-dev-sqlite-ibex",
+                    "serverUrl": server_url
+                },
+                "database": { "mode": "memory", "path": null },
+                "startedAtMs": 1,
+                "adminGated": false,
+                "diagnostics": []
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            std::fs::set_permissions(&ready_file, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        let refusal = served_guide_url_from_descriptor_with(&ready_file, |_| {
+            panic!("an inadmissible Guide origin must be refused before network access")
+        })
+        .expect_err(server_url);
+        assert!(refusal.contains("loopback HTTP"), "{server_url}: {refusal}");
+    }
 }
 
 #[test]
@@ -1062,6 +1167,7 @@ fn stop_descriptor(startup_nonce: Option<&str>) -> crate::host_ops::HostReadyDes
         port: 4287,
         pid: 4242,
         startup_nonce: startup_nonce.map(str::to_owned),
+        server_profile: Some("dev".to_owned()),
         target: crate::host_ops::HostOpsTarget {
             app_id: "app_test".to_owned(),
             app_root: None,
@@ -1142,8 +1248,8 @@ fn anonymous_public_query_sends_protocol_offer_without_authority_carriers_and_ar
     assert_eq!(body, json!({ "args": { "status": "open" } }));
 }
 
-fn health_with_nonce(nonce: &str) -> serde_json::Value {
-    json!({ "ok": true, "binary": { "startupNonce": nonce } })
+fn health_with_identity(nonce: &str, pid: u32) -> serde_json::Value {
+    json!({ "ok": true, "pid": pid, "binary": { "startupNonce": nonce } })
 }
 
 fn read_http_request(stream: &mut std::net::TcpStream) -> String {
@@ -1192,43 +1298,256 @@ fn write_http_json(stream: &mut std::net::TcpStream, body: &serde_json::Value) {
 }
 
 #[test]
-fn stop_signals_only_a_nonce_verified_server() {
+fn live_descriptor_identity_accepts_matching_health() {
     let descriptor = stop_descriptor(Some("nonce-a"));
-    let verdict = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-a")));
+    let verdict = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Ok(health_with_identity("nonce-a", descriptor.pid)),
+        "test.operation",
+    );
     assert!(verdict.is_ok());
 }
 
 #[test]
-fn stop_refuses_when_the_server_is_a_different_process() {
+fn live_descriptor_identity_refuses_a_different_process() {
     let descriptor = stop_descriptor(Some("nonce-a"));
-    let diagnostic = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-b")))
-        .expect_err("a restarted server must not be signaled via the old descriptor");
+    let diagnostic = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Ok(health_with_identity("nonce-b", descriptor.pid)),
+        "test.operation",
+    )
+    .expect_err(
+        "a restarted server must not authorize capability discovery via the old descriptor",
+    );
     assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR");
 }
 
 #[test]
-fn stop_refuses_when_the_server_no_longer_answers() {
+fn live_descriptor_identity_refuses_a_foreign_pid() {
+    let mut descriptor = stop_descriptor(Some("nonce-a"));
+    let genuine_pid = descriptor.pid;
+    descriptor.pid = genuine_pid + 1;
+    let diagnostic = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Ok(health_with_identity("nonce-a", genuine_pid)),
+        "test.operation",
+    )
+    .expect_err(
+        "a copied genuine descriptor with a foreign pid must not authorize capability discovery",
+    );
+    assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR");
+    assert_eq!(diagnostic.details["reason"], json!("pid mismatch"));
+}
+
+#[test]
+fn live_descriptor_identity_refuses_when_the_server_no_longer_answers() {
     let descriptor = stop_descriptor(Some("nonce-a"));
-    let diagnostic = super::verify_stop_target(&descriptor, &Err("connection refused".to_owned()))
-        .expect_err("a dead server means the pid may be reused; never signal it");
+    let diagnostic = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Err("connection refused".to_owned()),
+        "test.operation",
+    )
+    .expect_err("a dead server cannot authorize capability discovery");
     assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR");
     assert_eq!(diagnostic.details["reason"], json!("connection refused"));
 }
 
 #[test]
-fn stop_refuses_a_descriptor_without_a_nonce() {
+fn live_descriptor_identity_refuses_a_descriptor_without_a_nonce() {
     let descriptor = stop_descriptor(None);
-    let diagnostic = super::verify_stop_target(&descriptor, &Ok(health_with_nonce("nonce-a")))
-        .expect_err("an unverifiable descriptor must be refused");
+    let diagnostic = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Ok(health_with_identity("nonce-a", descriptor.pid)),
+        "test.operation",
+    )
+    .expect_err("an unverifiable descriptor must be refused");
     assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_UNVERIFIABLE");
 }
 
 #[test]
-fn stop_refuses_when_the_responder_reports_no_snapback_identity() {
+fn live_descriptor_identity_refuses_a_responder_without_snapback_identity() {
     let descriptor = stop_descriptor(Some("nonce-a"));
-    let diagnostic = super::verify_stop_target(&descriptor, &Ok(json!({ "hello": "world" })))
-        .expect_err("a non-Snapback responder must not vouch for the pid");
+    let diagnostic = super::verify_live_descriptor_identity(
+        &descriptor,
+        &Ok(json!({ "hello": "world" })),
+        "test.operation",
+    )
+    .expect_err("a non-Snapback responder must not authorize capability discovery");
     assert_eq!(diagnostic.code, "SNAPBACK_HOST_STOP_UNVERIFIABLE");
+}
+
+#[test]
+fn lifecycle_stop_refuses_a_descriptor_replaced_before_authority_proof() {
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = directory.path().join("restart.ready.json");
+    let expected = stop_descriptor(Some("nonce-a"));
+    let mut replacement = expected.clone();
+    replacement.server_profile = Some("prod".to_owned());
+    write_ready_file_atomic(
+        &ready_file,
+        &serde_json::to_string_pretty(&replacement).unwrap(),
+    )
+    .unwrap();
+
+    let diagnostic = super::authenticated_server_stop(
+        &ready_file,
+        &expected,
+        "hostop_race_test",
+        "host.restart",
+    )
+    .expect_err("the changed descriptor must fail before the authenticated request");
+    assert_eq!(
+        diagnostic.code,
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    assert!(
+        ready_file.exists(),
+        "the unproved replacement must not be signaled or removed"
+    );
+}
+
+#[test]
+fn restart_refuses_a_fake_responder_that_returns_only_ok_true() {
+    let directory = tempfile::tempdir().unwrap();
+    let ready_file = std::fs::canonicalize(directory.path())
+        .unwrap()
+        .join("restart.ready.json");
+    let admin_token_file = crate::admin::admin_token_sibling(&ready_file);
+    crate::secure_file::write_owner_only(&admin_token_file, b"dummy-admin-token").unwrap();
+
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let address = listener.local_addr().unwrap();
+    let mut descriptor = stop_descriptor(Some("genuine-copied-nonce"));
+    descriptor.pid = std::process::id();
+    descriptor.server_url = format!("http://{address}");
+    descriptor.host = address.ip().to_string();
+    descriptor.port = address.port();
+    descriptor.target.server_url = Some(descriptor.server_url.clone());
+    descriptor.admin_token_file = Some(admin_token_file.display().to_string());
+    let descriptor_pid = descriptor.pid;
+    crate::secure_file::write_owner_only(
+        &ready_file,
+        serde_json::to_string(&descriptor).unwrap().as_bytes(),
+    )
+    .unwrap();
+
+    let fake = std::thread::spawn(move || {
+        let mut requests = Vec::new();
+        for index in 0..3 {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_http_request(&mut stream);
+            let response = if index < 2 {
+                health_with_identity("genuine-copied-nonce", descriptor_pid)
+            } else {
+                json!({ "ok": true })
+            };
+            write_http_json(&mut stream, &response);
+            requests.push(request);
+        }
+        requests
+    });
+
+    let diagnostic =
+        super::authenticated_server_stop(&ready_file, &descriptor, "hop_fake", "host.restart")
+            .expect_err("a top-level ok boolean is not an administrator or process-identity proof");
+    assert_eq!(
+        diagnostic.code,
+        "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED"
+    );
+    let requests = fake.join().unwrap();
+    assert!(requests[2].starts_with("POST /_snapback/api/host-ops HTTP/1.1"));
+    assert!(
+        requests[2]
+            .to_ascii_lowercase()
+            .contains("x-snapback-admin-token: dummy-admin-token"),
+        "the fixture must reach the exact forged-proof seam"
+    );
+}
+
+#[test]
+fn lifecycle_stop_result_requires_exact_declared_authority_and_claim_shape() {
+    let descriptor = stop_descriptor(Some("nonce-a"));
+    let mut result = super::lifecycle_result(
+        "hop_stop_validation",
+        "host.stop",
+        descriptor.target.clone(),
+        true,
+        json!({
+            "shutdownRequested": true,
+            "shutdownMode": "serverSelfStop",
+        }),
+        Vec::new(),
+    );
+    result.authority = Some(crate::host_ops::HostOpsAuthority {
+        mode: "devAdminBypass".to_owned(),
+        actor_principal: None,
+        effective_principal: None,
+        local_dev_only: true,
+        admin_bypass: true,
+        scope: None,
+        reason: Some("host-ops process lifecycle gate".to_owned()),
+    });
+    assert!(
+        super::validate_lifecycle_host_ops_result(
+            serde_json::to_value(&result).unwrap(),
+            &descriptor,
+            "hop_stop_validation",
+            "host.stop",
+        )
+        .is_ok()
+    );
+
+    result.authority.as_mut().unwrap().reason = Some("forged authority".to_owned());
+    assert!(
+        super::validate_lifecycle_host_ops_result(
+            serde_json::to_value(&result).unwrap(),
+            &descriptor,
+            "hop_stop_validation",
+            "host.stop",
+        )
+        .is_err(),
+        "a lifecycle success result must declare the exact served authority"
+    );
+
+    result.authority.as_mut().unwrap().reason = Some("host-ops process lifecycle gate".to_owned());
+    result.data["pid"] = json!(descriptor.pid);
+    assert!(
+        super::validate_lifecycle_host_ops_result(
+            serde_json::to_value(&result).unwrap(),
+            &descriptor,
+            "hop_stop_validation",
+            "host.stop",
+        )
+        .is_err(),
+        "the server stop claim is exact and cannot smuggle identity-looking fields"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn lifecycle_exit_observation_binds_pid_reuse_to_process_start_time() {
+    let pid = std::process::id();
+    let start_time = super::process_start_time(pid)
+        .expect("read current process creation identity")
+        .expect("the unit-test process is live");
+    let matching = super::LifecycleProcessIdentityWitness {
+        pid,
+        startup_nonce: "unit-test-startup".to_owned(),
+        start_time: start_time.clone(),
+    };
+    assert!(
+        !super::original_process_is_observably_gone(&matching).unwrap(),
+        "the same PID/start-time identity remains live"
+    );
+
+    let reused = super::LifecycleProcessIdentityWitness {
+        start_time: format!("different-from-{start_time}"),
+        ..matching
+    };
+    assert!(
+        super::original_process_is_observably_gone(&reused).unwrap(),
+        "a live numeric PID with a different creation identity proves the original gone"
+    );
 }
 
 #[test]
@@ -1422,7 +1741,11 @@ fn restart_composition_keeps_one_request_id_and_one_envelope() {
         "host.stop",
         descriptor.target.clone(),
         true,
-        json!({ "stoppedPid": descriptor.pid, "exited": true }),
+        json!({
+            "credentialedHostOpResultAccepted": true,
+            "configuredUrlStoppedAnswering": true,
+            "processIdentityVerified": true
+        }),
         Vec::new(),
     );
     let current = super::lifecycle_result(
@@ -1439,7 +1762,16 @@ fn restart_composition_keeps_one_request_id_and_one_envelope() {
     assert_eq!(restart.operation, "host.restart");
     assert_eq!(restart.request_id, "hop_fixed");
     assert_eq!(restart.data["restartReason"], "acceptance restart");
-    assert_eq!(restart.data["previous"]["stoppedPid"], 4242);
+    assert_eq!(
+        restart.data["previous"]["credentialedHostOpResultAccepted"],
+        true
+    );
+    assert_eq!(
+        restart.data["previous"]["configuredUrlStoppedAnswering"],
+        true
+    );
+    assert_eq!(restart.data["previous"]["processIdentityVerified"], true);
+    assert_eq!(restart.data["previous"].get("pid"), None);
     assert_eq!(restart.data["current"]["pid"], 5252);
 }
 
@@ -2922,7 +3254,7 @@ fn session_mint_cli_calls_host_op_with_closed_email_args_and_capability() {
             let (mut stream, _) = listener.accept().unwrap();
             let request = read_http_request(&mut stream);
             let body = if index == 0 {
-                health_with_nonce("nonce-session-mint")
+                health_with_identity("nonce-session-mint", 4242)
             } else {
                 json!({
                     "ok": true,
@@ -3017,7 +3349,7 @@ fn session_mint_ready_file_attaches_file_database_minted_admin_token() {
             let (mut stream, _) = listener.accept().unwrap();
             let request = read_http_request(&mut stream);
             let body = if index == 0 {
-                health_with_nonce("nonce-file-session-mint")
+                health_with_identity("nonce-file-session-mint", 4242)
             } else {
                 json!({
                     "ok": true,
@@ -3892,6 +4224,7 @@ async fn stale_ready_descriptor_sends_adversarial_server_no_admin_or_proof_mater
                     }
                     axum::Json(json!({
                         "ok": true,
+                        "pid": 4242,
                         "binary": { "startupNonce": "attacker-startup" }
                     }))
                 }
@@ -4931,7 +5264,7 @@ fn registered_impersonation_host_op_live_checks_then_attaches_exact_sidecar() {
             let (mut stream, _) = listener.accept().unwrap();
             let request = read_http_request(&mut stream);
             let body = if index == 0 {
-                health_with_nonce("nonce-live")
+                health_with_identity("nonce-live", 4242)
             } else {
                 json!({"ok": true})
             };

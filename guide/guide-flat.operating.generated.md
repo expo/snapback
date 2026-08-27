@@ -290,16 +290,16 @@ sessions target. This behavior resolves the
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **156 operations** at digest `sha256:9cb4837ed97a4812f82f9699f99471e7eb8a655f06fb2f260db1338824787369`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **160 operations** at digest `sha256:b537568b0302f3e72ed88c9e154239d01ea1186ba0e8b3e3147f4ccc5c71ffe1`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 54 |
+| surfaceAccess | `apiOnly` | 57 |
 | surfaceAccess | `cliOnly` | 54 |
 | surfaceAccess | `mcpOnly` | 2 |
-| surfaceAccess | `native` | 42 |
+| surfaceAccess | `native` | 43 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 117 |
+| operability | `direct` | 121 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -312,6 +312,7 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `admin.link.revoke` | `cliOnly` | `mediated` | `shipped` | snapback admin link --revoke <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `admin.link.status` | `cliOnly` | `mediated` | `shipped` | snapback admin link --status <claim> | — | operating/admin-console.md#hand-a-one-time-link-from-an-agent-terminal-to-a-remote-browser |
 | `app.ensure.provision` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `app.identity` | `apiOnly` | `direct` | `shipped` | — | — | surface-map.md |
 | `app.inspect` | `native` | `direct` | `shipped` | snapback inspect | snapback_inspect | operating/host-ops.md#served-request-operations |
 | `app.readiness.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `app.reset` | `native` | `direct` | `shipped` | snapback reset | snapback_reset | backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients |
@@ -343,11 +344,14 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `auth.integrationSuspend` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.mailbox.read` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#mint-test-personas-the-complete-local-recipe |
 | `auth.mintSession` | `cliOnly` | `direct` | `shipped` | snapback session mint --email <address> | — | operating/host-ops.md#mint-a-session-over-http |
+| `auth.password.attempt` | `apiOnly` | `direct` | `shipped` | — | — | auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing |
+| `auth.password.unlock` | `cliOnly` | `direct` | `shipped` | snapback auth password unlock --email <address> | — | auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing |
 | `auth.rehearsal.exercise` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.mint` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.revoke` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rehearsal.status` | `apiOnly` | `unavailable` | `shipped` | — | — | operating/host-ops.md#served-request-operations |
 | `auth.rescueCollidingTable` | `apiOnly` | `direct` | `shipped` | — | — | auth/sessions-and-principals.md#provision-sessions-artifacts-explicitly |
+| `authority.effective` | `apiOnly` | `direct` | `shipped` | — | — | auth/scoped-roles.md#inspect-effective-authority |
 | `branch.create.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#give-a-worktree-its-own-backend |
 | `branch.drop.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#inspect-review-and-dispose-forks |
 | `branch.execute.v1` | `apiOnly` | `direct` | `shipped` | — | — | operating/instance-forks.md#own-forks-per-worktree-per-agent-run-and-per-suite-lane |
@@ -439,7 +443,7 @@ The embedded build catalog contains **156 operations** at digest `sha256:9cb4837
 | `health.read` | `apiOnly` | `direct` | `shipped` | — | — | deploying/cloudflare.md#run-the-remote-proof |
 | `host.restart` | `native` | `direct` | `shipped` | snapback restart --ready-file <path> | snapback_restart | operating/host-ops.md#restart-with-one-credential-bound-receipt |
 | `host.start` | `cliOnly` | `direct` | `shipped` | snapback start | snapback_start | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
-| `host.stop` | `cliOnly` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `host.stop` | `native` | `direct` | `shipped` | snapback stop | snapback_stop | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `host.wait` | `cliOnly` | `direct` | `shipped` | snapback wait --ready-file <path> --level <host\|application> | — | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
 | `hostCall.dispatch` | `none` | `internal` | `shipped` | — | — | — |
 | `inspect` | `apiOnly` | `direct` | `shipped` | — | — | operating/observability.md#query-the-typed-operations-from-the-cli |
@@ -784,7 +788,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 ## Served request operations
 
 <!-- BEGIN GENERATED CONTROL CATALOG: HOST OPS SERVED -->
-The endpoint serves **49 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
+The endpoint serves **50 request spellings**. This count and table are generated from the build catalog's LLP 0024 allowlist projection:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -832,6 +836,7 @@ The endpoint serves **49 request spellings**. This count and table are generated
 | `function.explain` | Explain a generated function |
 | `function.run` | Run one generated function |
 | `functions.load` | Load the generated function manifest |
+| `host.stop` | Stop the local Snapback server |
 | `remediation.apply` | Apply a generation-fenced remediation |
 | `schema.load` | Load the generated schema manifest |
 | `telemetry.events` | Read a bounded telemetry event page |
@@ -922,11 +927,18 @@ accepts its closed v1 body only under `input` (with `schemaVersion: 1`),
 refuses legacy sibling fields, and is registered AdminWrite; paths and
 grants are server-owned.
 
-`host.start` and `host.stop` are CLI-only lifecycle verbs—a running server
-cannot safely own starting/stopping itself; over HTTP they fail as
-`SNAPBACK_HOST_OP_CLI_ONLY`. `host.restart` has native CLI and MCP
-projections, but its registered HTTP identity deliberately returns the same
-CLI-only refusal.
+`host.start` and `host.restart` are CLI-owned lifecycle compositions; over HTTP
+their registered identities fail as `SNAPBACK_HOST_OP_CLI_ONLY`. The
+authenticated `host.stop` operation is served at `AdminWrite`: it validates an
+expected startup nonce against its own boot identity, then requests its own
+graceful shutdown. Direct `snapback stop` and both restart projections use that
+same operation. No stop request or stop-observation receipt contains a PID, and no CLI/MCP
+lifecycle path signals `descriptor.pid` (the `host.start` result and restart's
+nested `current` receipt do report the successor's own PID). Native callers and MCP attached to an
+external server use that PID only for a signal-0 existence probe and OS
+process-table start-time comparison. When MCP owns the exact server child, it
+instead requires the descriptor PID to match the child handle and observes the
+process gone by asynchronously reaping that child.
 
 ## Restart with one credential-bound receipt
 
@@ -936,14 +948,63 @@ snapback restart --ready-file .snapback/dev.ready.json \
 ```
 
 Both `snapback restart` and `snapback_restart` compose stop then start under
-one request id and one `host.restart` envelope. Before any process signal,
-they resolve a concrete administrator token and prove it through
-`app.inspect` on the AdminRead-gated host-ops route; a missing or refused
-credential leaves the old server running. The stop leg independently checks
-the descriptor's startup nonce, and the start leg accepts only a successor
-descriptor with the same database and a new startup nonce. Credentials never
-enter child argv or the receipt. The fresh-spawn leg has no prior server
-credential to hold.
+one request id and one `host.restart` envelope, and both require a concrete
+administrator token. Native `snapback stop` and `snapback restart` call
+authenticated `host.stop` with only the descriptor's startup nonce; the live
+server compares that fence with itself and requests its own graceful shutdown.
+Native callers and MCP attached to an external server accept only the exact
+typed result for that operation, target, declared lifecycle authority, and
+self-stop claim, then require the descriptor PID to be live with a captured OS
+process-table start time and matching health `startupNonce` before the request.
+Afterward they record URL health loss and poll until signal-0 returns `ESRCH` or
+the PID reappears with a different start time. Only that identity-bound
+original-process-gone fact grants success. For a server child MCP itself
+started, MCP sends the same managed-token-authenticated `host.stop` directly,
+requires the descriptor PID to match its exact child handle, and grants success
+only after Node reaps that child. Neither ownership mode treats URL loss as the
+process-gone observation.
+
+A ready descriptor and its `sbdev_` sidecar are discovery and app-plane
+dev-identity carriers, not lifecycle authority. Ordinary local servers usually
+advertise an owner-only auto-minted admin-token file, so the CLI can resolve the
+credential without an explicit `--token`. That is credential discovery, not a
+credential-free nonce-bound stop. If no valid credential carrier exists,
+direct stop refuses with `SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED` and
+restart with `SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED`; keep the
+caller-owned dev loop in the foreground and use Ctrl-C, or provide the
+administrator credential and retry.
+
+The CLI/MCP lifecycle stop receipt has `authority: null` and exactly three data
+facts:
+
+- `credentialedHostOpResultAccepted: true`: the lifecycle caller presented the
+  resolved administrator credential to the configured URL and accepted the
+  exact typed success result and declared lifecycle authority;
+- `configuredUrlStoppedAnswering`: whether later `/health` requests at that URL
+  failed across three consecutive probes; this fact does not grant success; and
+- `processIdentityVerified`: whether the ownership-appropriate process-gone
+  observation succeeded. For native/attached targets, `true` means the captured
+  descriptor PID/start-time identity later returned signal-0 `ESRCH` or the PID
+  had a different OS start time after reuse. For a manager-owned MCP target, it
+  means Node reaped the exact child handle whose PID matched the descriptor. It
+  does not authenticate which process answered HTTP or validated the credential.
+
+The receipt contains no server self-stop claim, PID, stopped PID, echoed nonce,
+or `verifiedBy` field. Top-level `ok` is true if and only if
+`processIdentityVerified` is true. A same-UID local process can reproduce the
+0600 descriptor/token inputs and forge the result, so the receipt does not
+attest the HTTP responder's identity. Closing a forged listener while the live
+descriptor-named process remains does not satisfy the exit observation and
+returns `ok: false`. A descriptor-named identity that remains live produces
+`SNAPBACK_HOST_STOP_TIMEOUT` (or `SNAPBACK_HOST_RESTART_STOP_TIMEOUT` for
+restart), regardless of the URL-health fact.
+
+For an authorized restart, the start leg accepts only a successor descriptor
+with the same database and `serverProfile` plus a new startup nonce, then
+proves the administrator credential against that successor too. The successor
+is never spawned until the predecessor's identity-bound exit observation is
+true. Credentials never enter child argv or the receipt. The fresh-spawn leg
+has no prior server credential to hold.
 
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
 unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. All three families are

@@ -813,7 +813,8 @@ impl AuthProviderProfile {
 ///
 /// @ref LLP 0225#1-ownership-map — deployment-posture vocabulary is leaf-owned;
 ///   environment and bind-address resolution remain in the transport adapter.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
 pub enum ServerProfile {
     Dev,
     Demo,

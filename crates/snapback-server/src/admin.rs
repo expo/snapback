@@ -2302,6 +2302,10 @@ pub struct ServerContext {
     /// Stage-2 migration warning for AdminRead requests admitted solely by a
     /// bare loopback transport. Clones share the once-per-boot guard.
     bare_loopback_admin_read_warning_emitted: Arc<AtomicBool>,
+    /// Process-local graceful-shutdown request. The authenticated `host.stop`
+    /// operation publishes here; the serving lifecycle owns the receiver and
+    /// performs the same drain/checkpoint path as SIGTERM.
+    host_shutdown: tokio::sync::watch::Sender<bool>,
 }
 
 impl fmt::Debug for ServerContext {
@@ -2332,6 +2336,7 @@ impl fmt::Debug for ServerContext {
                 "startup_warning_configured",
                 &self.startup_warning.is_some(),
             )
+            .field("host_shutdown_requested", &*self.host_shutdown.borrow())
             .finish()
     }
 }
@@ -2401,6 +2406,7 @@ impl ServerContext {
         profile: ServerProfile,
         dev_admission: DevAdmissionConfig,
     ) -> Self {
+        let (host_shutdown, _) = tokio::sync::watch::channel(false);
         Self {
             host: host.into(),
             port,
@@ -2423,7 +2429,20 @@ impl ServerContext {
             startup_warning: None,
             startup_warning_emitted: Arc::new(AtomicBool::new(false)),
             bare_loopback_admin_read_warning_emitted: Arc::new(AtomicBool::new(false)),
+            host_shutdown,
         }
+    }
+
+    /// Request graceful shutdown of the server process that owns this
+    /// context. Only the authenticated host-ops dispatcher calls this.
+    pub fn request_host_shutdown(&self) {
+        self.host_shutdown.send_replace(true);
+    }
+
+    /// Subscribe the serving lifecycle before it begins accepting requests.
+    /// A stored `true` also wakes a receiver created after the request.
+    pub fn subscribe_host_shutdown(&self) -> tokio::sync::watch::Receiver<bool> {
+        self.host_shutdown.subscribe()
     }
 
     /// Consume the opaque process-derived profile resolution. A caller cannot
@@ -5552,6 +5571,7 @@ async fn admin_health(
     let inspect = crate::server::inspect_snapback(&snapback).await?;
     Ok(Json(HealthResponse {
         ok: true,
+        pid: ctx.pid,
         target: inspect.target,
         sqlite_version: inspect.storage.version,
         ibex_available: inspect.runtime.ibex_cli.available

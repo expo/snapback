@@ -55,6 +55,9 @@ pub(crate) enum AuthRecoveryReason {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RecoveryHealthResponse {
     pub ok: bool,
+    /// Preserve the ordinary public health process identity while the server
+    /// is in collision-recovery mode, so readiness-bound stop remains safe.
+    pub pid: u32,
     pub binary: crate::identity::BinaryIdentity,
     pub auth_recovery: AuthRecoveryHealth,
 }
@@ -206,6 +209,7 @@ where
 async fn recovery_health() -> Json<RecoveryHealthResponse> {
     Json(RecoveryHealthResponse {
         ok: false,
+        pid: std::process::id(),
         binary: crate::identity::binary_identity(),
         auth_recovery: AuthRecoveryHealth {
             reason: AuthRecoveryReason::TableCollision,
@@ -698,6 +702,7 @@ mod tests {
                 .is_none()
         );
         let health_body = json_body(health).await;
+        assert_eq!(health_body["pid"], std::process::id());
         assert_eq!(health_body["authRecovery"]["reason"], "table-collision");
         assert_eq!(health_body["authRecovery"]["restartRequired"], true);
 

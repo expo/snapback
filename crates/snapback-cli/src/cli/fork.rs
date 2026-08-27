@@ -109,7 +109,7 @@ fn source_from_path(path: &Path) -> anyhow::Result<(PathBuf, String, String)> {
         && let Ok(value) = read_trusted_json_file(path)
         && let Ok(descriptor) = HostReadyDescriptor::validate(&value)
     {
-        verify_stop_target(&descriptor, &fetch_health(&descriptor.server_url))
+        verify_owned_fork_target(&descriptor, &fetch_health(&descriptor.server_url))
             .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
         let database = descriptor
             .database
@@ -562,7 +562,8 @@ pub(crate) fn quiet_stop_fork(
         anyhow::anyhow!("SNAPBACK_FORK_READY_INVALID: {}", problems.join("; "))
     })?;
     verify_fork_ready_database(&descriptor, expected_database)?;
-    if let Err(diagnostic) = verify_stop_target(&descriptor, &fetch_health(&descriptor.server_url))
+    if let Err(diagnostic) =
+        verify_owned_fork_target(&descriptor, &fetch_health(&descriptor.server_url))
     {
         if process_is_proven_gone(descriptor.pid)? {
             remove_ready_after_process_gone(ready_file)?;

@@ -2376,7 +2376,7 @@ mod guide_command;
 #[cfg(test)]
 pub(crate) use guide_command::{
     DEFAULT_SERVED_GUIDE_URL, GUIDE_SEARCH_SCHEMA_VERSION, GuideSectionMatch, render_guide_command,
-    search_guide_sections_in,
+    render_guide_command_with_url, search_guide_sections_in, served_guide_url_from_descriptor_with,
 };
 pub(crate) use guide_command::{guide_command, parse_guide_slice};
 
@@ -2619,7 +2619,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             Ok(())
         }
         Some(HostCommand::Start(args)) => run(args).await,
-        Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file).await,
         Some(HostCommand::Restart { ready_file, reason }) => {
             host_restart(&ready_file, &reason).await
         }
@@ -3605,7 +3605,7 @@ use fork::now_ms;
 pub(crate) use fork::{
     automatic_reap_before_create, fork_secret_disposition, parse_fork_ttl, quiet_stop_fork,
 };
-pub(crate) use fork::{fork_command, process_is_proven_gone, wait_for_derived_fork_expiry};
+pub(crate) use fork::{fork_command, wait_for_derived_fork_expiry};
 
 fn reject_misdirected_serve_flags(cli: &Cli) -> anyhow::Result<()> {
     if cli.serve != Args::default() {
@@ -7677,13 +7677,15 @@ async fn host_wait_result(
     )
 }
 
-/// host.stop: validate the readiness descriptor, verify the descriptor still
-/// names the live server, signal the process, remove the file, and print a
-/// synthesized host.stop envelope (the CLI owns this operation — a server
-/// cannot stop itself over its own HTTP surface).
-fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
+/// host.stop: validate one owner-only readiness descriptor, present its
+/// startup nonce through the authenticated host-ops route, and let the server
+/// request its own graceful shutdown. The CLI never signals a descriptor PID;
+/// it reports success only after accepting the credentialed result and
+/// observing that the descriptor-named, pre-stop process identity is gone.
+/// Configured-URL health loss remains a separate receipt fact.
+async fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
-    let envelope = host_stop_result(ready_file, &request_id)?;
+    let envelope = host_stop_result(ready_file, &request_id).await?;
     let value = serde_json::to_value(&envelope)?;
     let ok = print_envelope(&value);
     if !ok {
@@ -7692,7 +7694,7 @@ fn host_stop(ready_file: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostOpsResult> {
+async fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostOpsResult> {
     let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!(
@@ -7701,66 +7703,44 @@ fn host_stop_result(ready_file: &Path, request_id: &str) -> anyhow::Result<HostO
             problems.join("; ")
         )
     })?;
-    // @ref LLP 0030#readiness-and-port-discovery — "a stale ready file must
-    // never be accepted as current readiness": confirm the descriptor's server
-    // still answers /health as the same process (startupNonce match) before
-    // signaling, so a reused PID never receives the signal (ENG-23366).
-    let health = fetch_health(&descriptor.server_url);
-    let envelope =
-        |ok: bool, data: Value, diagnostics: Vec<crate::diagnostic::Diagnostic>| HostOpsResult {
-            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
-            result_kind: HOST_OPS_RESULT_KIND.to_owned(),
-            request_id: request_id.to_owned(),
-            operation: "host.stop".to_owned(),
-            ok,
-            target: descriptor.target.clone(),
-            authority: None,
-            artifacts: HostOpsArtifacts::default(),
-            data,
-            diagnostics,
-            next: crate::control_catalog::result_next(ok, "host.stop"),
-            secret_read_tables: Vec::new(),
-            secret_read_rows: 0,
-            secret_read_query: false,
-            secret_read_provenance_complete: true,
+    let process_witness =
+        match authenticated_server_stop(ready_file, &descriptor, request_id, "host.stop") {
+            Ok((_, process_witness)) => process_witness,
+            Err(diagnostic) => {
+                return Ok(lifecycle_result(
+                    request_id,
+                    "host.stop",
+                    descriptor.target.clone(),
+                    false,
+                    json!({
+                        "serverUrl": descriptor.server_url,
+                        "readyFile": ready_file.display().to_string(),
+                    }),
+                    vec![diagnostic],
+                ));
+            }
         };
-    if let Err(diagnostic) = verify_stop_target(&descriptor, &health) {
-        let refused = envelope(
-            false,
-            json!({
-                "pid": descriptor.pid,
-                "serverUrl": descriptor.server_url,
-                "readyFile": ready_file.display().to_string(),
-            }),
-            vec![diagnostic],
-        );
-        return Ok(refused);
-    }
-    let stopped = std::process::Command::new("kill")
-        .arg(descriptor.pid.to_string())
-        .status()
-        .context("failed to signal the server process")?
-        .success();
-    if stopped {
-        let _ = std::fs::remove_file(ready_file);
-    }
-    Ok(envelope(
-        stopped,
-        json!({
-            "stoppedPid": descriptor.pid,
-            "serverUrl": descriptor.server_url,
-            "verifiedBy": "startupNonce",
-        }),
-        Vec::new(),
+    let observations =
+        wait_for_lifecycle_stop_observations(&descriptor.server_url, &process_witness).await;
+    Ok(lifecycle_stop_observation_result(
+        request_id,
+        descriptor.target.clone(),
+        observations,
+        "SNAPBACK_HOST_STOP_TIMEOUT",
+        "the descriptor-named process remained live with its pre-stop creation identity through the stop deadline after a credentialed host.stop success result",
     ))
 }
 
-/// Compose the same concrete-credential probe, nonce-verified stop, and
-/// detached replacement start as `snapback_restart` in mcp-control.mjs.
+/// Compose an authenticated server-owned stop and detached replacement start.
+/// The MCP projection delegates to this same native self-stop path; neither
+/// projection signals a descriptor-named PID.
 /// Secrets stay in an in-memory header and never enter child argv or receipts.
 ///
-/// @ref LLP 0184#2-derived-ownership-not-a-second-registry — the CLI restart
-/// closes the same named lifecycle authority exception as the MCP projection.
+/// @ref LLP 0184#security-and-ergonomics-invariants — restart projections
+/// present a concrete administrator credential through the live host-ops gate.
+/// A genuine server validates its startup nonce and stops itself; the composed
+/// receipt separately reports whether the descriptor-named, pre-stop process
+/// identity was observably gone before successor spawn.
 async fn host_restart(ready_file: &Path, reason: &str) -> anyhow::Result<()> {
     let request_id = crate::ids::mint_time_ordered(crate::ids::Kind::HostOperation);
     let envelope = host_restart_result(ready_file, reason, &request_id).await?;
@@ -7786,49 +7766,21 @@ async fn host_restart_result(
         )
     })?;
 
-    let probe = restart_admin_credential_probe(ready_file);
-    let probe = match probe {
-        Ok(probe) if probe.get("ok").and_then(Value::as_bool) == Some(true) => probe,
-        Ok(probe) => {
-            let diagnostics = diagnostics_from_result(&probe).unwrap_or_else(|| {
-                vec![crate::diagnostic::Diagnostic::error(
-                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
-                    "host-ops",
-                    "host.restart requires an administrator credential accepted by the live host-ops route",
-                )]
-            });
+    let process_witness = match authenticated_server_stop(
+        ready_file,
+        &previous_descriptor,
+        request_id,
+        "host.restart",
+    ) {
+        Ok((_, process_witness)) => process_witness,
+        Err(diagnostic) => {
             let previous = lifecycle_result(
                 request_id,
                 "host.stop",
                 previous_descriptor.target.clone(),
                 false,
                 json!({}),
-                diagnostics,
-            );
-            let current = lifecycle_result(
-                request_id,
-                "host.start",
-                previous_descriptor.target.clone(),
-                false,
-                json!({}),
-                Vec::new(),
-            );
-            return Ok(compose_restart_result(
-                request_id, reason, &previous, &current,
-            ));
-        }
-        Err(_) => {
-            let previous = lifecycle_result(
-                request_id,
-                "host.stop",
-                previous_descriptor.target.clone(),
-                false,
-                json!({}),
-                vec![crate::diagnostic::Diagnostic::error(
-                    "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
-                    "host-ops",
-                    "host.restart could not prove an administrator credential against the live host-ops route",
-                )],
+                vec![diagnostic],
             );
             let current = lifecycle_result(
                 request_id,
@@ -7843,34 +7795,18 @@ async fn host_restart_result(
             ));
         }
     };
-    drop(probe);
 
-    let mut previous = host_stop_result(ready_file, request_id)?;
+    let observations =
+        wait_for_lifecycle_stop_observations(&previous_descriptor.server_url, &process_witness)
+            .await;
+    let previous = lifecycle_stop_observation_result(
+        request_id,
+        previous_descriptor.target.clone(),
+        observations,
+        "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
+        "the descriptor-named process remained live with its pre-stop creation identity through the restart deadline after a credentialed host.stop success result",
+    );
     if !previous.ok {
-        let current = lifecycle_result(
-            request_id,
-            "host.start",
-            previous_descriptor.target.clone(),
-            false,
-            json!({}),
-            Vec::new(),
-        );
-        return Ok(compose_restart_result(
-            request_id, reason, &previous, &current,
-        ));
-    }
-
-    let exited = wait_for_server_exit(&previous_descriptor).await;
-    previous.data["exited"] = json!(exited);
-    if !exited {
-        previous.ok = false;
-        previous
-            .diagnostics
-            .push(crate::diagnostic::Diagnostic::error(
-                "SNAPBACK_HOST_RESTART_STOP_TIMEOUT",
-                "host-ops",
-                "the verified server did not stop before the restart deadline",
-            ));
         let current = lifecycle_result(
             request_id,
             "host.start",
@@ -7890,7 +7826,42 @@ async fn host_restart_result(
     ))
 }
 
-fn restart_admin_credential_probe(ready_file: &Path) -> anyhow::Result<Value> {
+fn lifecycle_authority_refusal(
+    operation: &str,
+    ready_file: &Path,
+) -> crate::diagnostic::Diagnostic {
+    // Authentication, policy, and transport failures deliberately collapse
+    // to the same local lifecycle refusal. The restart receipt must not become
+    // an oracle for the target's admin policy or reachability details.
+    let (code, message) = if operation == "host.stop" {
+        (
+            "SNAPBACK_HOST_STOP_ADMIN_CREDENTIAL_REQUIRED",
+            "host.stop could not complete an authenticated, startup-fenced server self-stop; credential-free PID signaling is not available",
+        )
+    } else {
+        (
+            "SNAPBACK_HOST_RESTART_ADMIN_CREDENTIAL_REQUIRED",
+            "host.restart could not complete an authenticated, startup-fenced server self-stop; credential-free restart is refused",
+        )
+    };
+    crate::diagnostic::Diagnostic::error(
+        code,
+        "host-ops",
+        message,
+    )
+    .with_details(json!({
+        "sanctionedDevAlternative": format!(
+            "run the caller-owned development loop in the foreground with `snapback dev` and stop it with Ctrl-C; otherwise provide the server's administrator credential and retry `{}`",
+            if operation == "host.stop" {
+                format!("snapback stop --ready-file {}", ready_file.display())
+            } else {
+                format!("snapback restart --ready-file {}", ready_file.display())
+            },
+        ),
+    }))
+}
+
+fn lifecycle_admin_host_op(ready_file: &Path, request: Value) -> anyhow::Result<Value> {
     let local_target = TargetArgs {
         url: None,
         ready_file: Some(ready_file.to_path_buf()),
@@ -7908,7 +7879,106 @@ fn restart_admin_credential_probe(ready_file: &Path) -> anyhow::Result<Value> {
         token: Some(resolved.token),
         impersonation_capability_stdin: false,
     };
-    post_host_op(&proof_target, json!({ "operation": "app.inspect" }))
+    post_host_op(&proof_target, request)
+}
+
+fn validate_lifecycle_host_ops_result(
+    value: Value,
+    descriptor: &HostReadyDescriptor,
+    request_id: &str,
+    operation: &str,
+) -> anyhow::Result<HostOpsResult> {
+    let result: HostOpsResult = serde_json::from_value(value)
+        .context("host-ops response did not match the HostOpsResult schema")?;
+    anyhow::ensure!(
+        result.schema_version == SNAPBACK_SCHEMA_VERSION
+            && result.result_kind == HOST_OPS_RESULT_KIND
+            && result.request_id == request_id
+            && result.operation == operation
+            && result.ok,
+        "host-ops response did not identify the successful requested operation"
+    );
+    anyhow::ensure!(
+        result.target.app_id == descriptor.target.app_id
+            && result.target.app_root == descriptor.target.app_root
+            && result.target.target_profile == descriptor.target.target_profile
+            && result
+                .target
+                .server_url
+                .as_deref()
+                .map(|url| url.trim_end_matches('/'))
+                == Some(descriptor.server_url.trim_end_matches('/')),
+        "host-ops response target did not match the readiness descriptor"
+    );
+    if operation == "host.stop" {
+        let authority = result
+            .authority
+            .as_ref()
+            .context("host.stop response did not declare lifecycle administrator authority")?;
+        anyhow::ensure!(
+            authority.mode == "devAdminBypass"
+                && authority.actor_principal.is_none()
+                && authority.effective_principal.is_none()
+                && authority.local_dev_only
+                && authority.admin_bypass
+                && authority.scope.is_none()
+                && authority.reason.as_deref() == Some("host-ops process lifecycle gate"),
+            "host.stop response did not declare the exact lifecycle administrator authority"
+        );
+        let data = result
+            .data
+            .as_object()
+            .context("host.stop response data was not an object")?;
+        anyhow::ensure!(
+            data.len() == 2
+                && data.get("shutdownRequested").and_then(Value::as_bool) == Some(true)
+                && data.get("shutdownMode").and_then(Value::as_str) == Some("serverSelfStop"),
+            "host.stop response did not contain the exact server self-stop success claim"
+        );
+    }
+    Ok(result)
+}
+
+fn authenticated_server_stop(
+    ready_file: &Path,
+    expected: &HostReadyDescriptor,
+    request_id: &str,
+    caller_operation: &str,
+) -> Result<(HostOpsResult, LifecycleProcessIdentityWitness), crate::diagnostic::Diagnostic> {
+    let current = read_trusted_json_file(ready_file)
+        .ok()
+        .and_then(|value| HostReadyDescriptor::validate(&value).ok());
+    if current.as_ref().is_none_or(|current| {
+        match (
+            serde_json::to_value(current),
+            serde_json::to_value(expected),
+        ) {
+            (Ok(current), Ok(expected)) => current != expected,
+            _ => true,
+        }
+    }) {
+        return Err(lifecycle_authority_refusal(caller_operation, ready_file));
+    }
+    let startup_nonce = expected
+        .startup_nonce
+        .as_deref()
+        .ok_or_else(|| lifecycle_authority_refusal(caller_operation, ready_file))?;
+    let process_witness = capture_lifecycle_process_identity(expected, caller_operation)
+        .map_err(|_| lifecycle_authority_refusal(caller_operation, ready_file))?;
+    let response = lifecycle_admin_host_op(
+        ready_file,
+        json!({
+            "requestId": request_id,
+            "operation": "host.stop",
+            "input": {
+                "startupNonce": startup_nonce,
+            },
+        }),
+    )
+    .and_then(|value| validate_lifecycle_host_ops_result(value, expected, request_id, "host.stop"));
+    response
+        .map(|result| (result, process_witness))
+        .map_err(|_| lifecycle_authority_refusal(caller_operation, ready_file))
 }
 
 fn diagnostics_from_result(value: &Value) -> Option<Vec<crate::diagnostic::Diagnostic>> {
@@ -7982,19 +8052,173 @@ fn compose_restart_result(
     }
 }
 
-async fn wait_for_server_exit(descriptor: &HostReadyDescriptor) -> bool {
-    for _ in 0..200 {
-        let endpoint_gone = fetch_health(&descriptor.server_url).is_err();
-        #[cfg(unix)]
-        let process_gone = process_is_proven_gone(descriptor.pid).unwrap_or(false);
-        #[cfg(not(unix))]
-        let process_gone = endpoint_gone;
-        if endpoint_gone && process_gone {
-            return true;
+#[derive(Clone, Debug)]
+struct LifecycleProcessIdentityWitness {
+    pid: u32,
+    startup_nonce: String,
+    start_time: String,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LifecycleStopObservations {
+    configured_url_stopped_answering: bool,
+    process_identity_verified: bool,
+}
+
+/// Capture both halves of the pre-stop witness. `startupNonce` binds the
+/// descriptor to the health responder for this boot; the OS process-table
+/// start time binds the numeric PID across the later existence probes.
+fn capture_lifecycle_process_identity(
+    descriptor: &HostReadyDescriptor,
+    operation: &str,
+) -> anyhow::Result<LifecycleProcessIdentityWitness> {
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(descriptor, &health, operation)
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let startup_nonce = descriptor
+        .startup_nonce
+        .clone()
+        .context("lifecycle readiness descriptor has no startupNonce")?;
+    let start_time = process_start_time(descriptor.pid)?.with_context(|| {
+        format!(
+            "descriptor-named pid {} was gone before host.stop",
+            descriptor.pid
+        )
+    })?;
+    Ok(LifecycleProcessIdentityWitness {
+        pid: descriptor.pid,
+        startup_nonce,
+        start_time,
+    })
+}
+
+/// Read the OS process table's creation identity without delivering a signal.
+/// The signal-0 calls in `process_is_proven_gone` are permission/existence
+/// probes only; ESRCH is the authoritative no-process observation.
+///
+/// Deliberately reads only `lstart`, never the process STATE. Do NOT reintroduce
+/// a `ps -o state=` "a zombie is gone" shortcut: on Linux a multithreaded process
+/// reports state `Z` when only its thread-group leader has exited while worker
+/// threads keep running (`Zsl`, `NLWP>1`), so a state-token `Z` does NOT prove the
+/// thread group is gone — treating it as gone is fail-OPEN and lets a same-UID
+/// caller falsify the process-gone observation on Linux. The motivating case (a
+/// server whose in-process owner cannot reap it during a blocking stop) is handled
+/// by the owner reaping its OWN child — the runDev `stopProcessGroup` deferral, the
+/// MCP Node child reap, and async in-process test stops — which yields a genuine
+/// ESRCH here, not a state-token inference.
+#[cfg(unix)]
+fn process_start_time(pid: u32) -> anyhow::Result<Option<String>> {
+    anyhow::ensure!(
+        pid != 0 && i32::try_from(pid).is_ok(),
+        "invalid lifecycle process id {pid}"
+    );
+    if fork::process_is_proven_gone(pid)? {
+        return Ok(None);
+    }
+    let output = std::process::Command::new("/bin/ps")
+        .args(["-p", &pid.to_string(), "-o", "lstart="])
+        .env("LC_ALL", "C")
+        .output()
+        .with_context(|| format!("could not inspect creation time for pid {pid}"))?;
+    let start_time = String::from_utf8(output.stdout)
+        .with_context(|| format!("process-table creation time for pid {pid} was not UTF-8"))?;
+    let start_time = start_time.trim();
+    if output.status.success() && !start_time.is_empty() {
+        return Ok(Some(start_time.to_owned()));
+    }
+    if fork::process_is_proven_gone(pid)? {
+        return Ok(None);
+    }
+    anyhow::bail!("could not read process-table creation time for live pid {pid}")
+}
+
+#[cfg(not(unix))]
+fn process_start_time(_pid: u32) -> anyhow::Result<Option<String>> {
+    anyhow::bail!("process creation identity observation is unavailable on this host")
+}
+
+fn original_process_is_observably_gone(
+    witness: &LifecycleProcessIdentityWitness,
+) -> anyhow::Result<bool> {
+    anyhow::ensure!(
+        !witness.startup_nonce.is_empty(),
+        "pre-stop startupNonce witness was empty"
+    );
+    if fork::process_is_proven_gone(witness.pid)? {
+        return Ok(true);
+    }
+    Ok(process_start_time(witness.pid)?
+        .is_none_or(|current_start_time| current_start_time != witness.start_time))
+}
+
+/// Observe two independent post-stop facts in one bounded window. URL health
+/// loss remains useful diagnostic evidence, but only disappearance of the
+/// descriptor-named, PID-reuse-bound process identity grants success.
+async fn wait_for_lifecycle_stop_observations(
+    server_url: &str,
+    process_witness: &LifecycleProcessIdentityWitness,
+) -> LifecycleStopObservations {
+    const REQUIRED_CONSECUTIVE_FAILURES: u8 = 3;
+    let mut consecutive_failures = 0_u8;
+    let mut configured_url_stopped_answering = false;
+    let mut process_identity_verified = false;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    loop {
+        if !configured_url_stopped_answering {
+            if fetch_health(server_url).is_err() {
+                consecutive_failures += 1;
+                if consecutive_failures == REQUIRED_CONSECUTIVE_FAILURES {
+                    configured_url_stopped_answering = true;
+                }
+            } else {
+                consecutive_failures = 0;
+            }
+        }
+        if !process_identity_verified {
+            process_identity_verified =
+                original_process_is_observably_gone(process_witness).unwrap_or(false);
+        }
+        if configured_url_stopped_answering && process_identity_verified {
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    false
+    LifecycleStopObservations {
+        configured_url_stopped_answering,
+        process_identity_verified,
+    }
+}
+
+fn lifecycle_stop_observation_result(
+    request_id: &str,
+    target: crate::host_ops::HostOpsTarget,
+    observations: LifecycleStopObservations,
+    timeout_code: &'static str,
+    timeout_message: &'static str,
+) -> HostOpsResult {
+    // @ref LLP 0024#dated-amendment-server-owned-stop-2026-08-26 — the CLI
+    // success receipt retains only its three observations. Process identity
+    // means exactly that the descriptor-named, pre-stop PID/start-time witness
+    // is gone; it does not authenticate which process served host.stop.
+    let diagnostics = (!observations.process_identity_verified)
+        .then(|| crate::diagnostic::Diagnostic::error(timeout_code, "host-ops", timeout_message))
+        .into_iter()
+        .collect();
+    lifecycle_result(
+        request_id,
+        "host.stop",
+        target,
+        observations.process_identity_verified,
+        json!({
+            "credentialedHostOpResultAccepted": true,
+            "configuredUrlStoppedAnswering": observations.configured_url_stopped_answering,
+            "processIdentityVerified": observations.process_identity_verified,
+        }),
+        diagnostics,
+    )
 }
 
 async fn restart_start_result(
@@ -8028,8 +8252,15 @@ async fn restart_start_result(
         }
     };
     let mut command = std::process::Command::new(executable);
+    let Some(server_profile) = previous.server_profile.as_deref() else {
+        return failure(
+            "SNAPBACK_HOST_RESTART_READY_INVALID",
+            "the previous readiness descriptor has no serverProfile to preserve".to_owned(),
+        );
+    };
     command
         .args(&argv)
+        .env("SNAPBACK_PROFILE", server_profile)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
@@ -8067,7 +8298,22 @@ async fn restart_start_result(
                 }
             };
             match HostReadyDescriptor::validate(&value) {
-                Ok(descriptor) => break descriptor,
+                Ok(descriptor) => {
+                    // @ref LLP 0030#readiness-and-port-discovery — health can
+                    // disappear before the old process removes its published
+                    // inode. Wait for the atomic successor publication instead
+                    // of rejecting that unchanged, still-valid snapshot.
+                    let still_previous = match (
+                        serde_json::to_value(&descriptor),
+                        serde_json::to_value(previous),
+                    ) {
+                        (Ok(candidate), Ok(previous)) => candidate == previous,
+                        _ => false,
+                    };
+                    if !still_previous {
+                        break descriptor;
+                    }
+                }
                 Err(problems) => {
                     let _ = child.kill();
                     return failure(
@@ -8105,17 +8351,27 @@ async fn restart_start_result(
     if descriptor.pid != child.id()
         || descriptor.database.mode != previous.database.mode
         || descriptor.database.path != previous.database.path
+        || descriptor.server_profile != previous.server_profile
         || descriptor.startup_nonce == previous.startup_nonce
     {
         let _ = child.kill();
         return failure(
             "SNAPBACK_HOST_RESTART_READY_INVALID",
-            "replacement readiness did not identify the spawned successor over the same database"
+            "replacement readiness did not identify the spawned successor over the same database and server profile"
                 .to_owned(),
         );
     }
 
-    let inspect = match restart_admin_credential_probe(ready_file) {
+    let inspect = match lifecycle_admin_host_op(
+        ready_file,
+        json!({
+            "requestId": request_id,
+            "operation": "app.inspect",
+        }),
+    )
+    .and_then(|value| {
+        validate_lifecycle_host_ops_result(value, &descriptor, request_id, "app.inspect")
+    }) {
         Ok(inspect) => inspect,
         Err(_) => {
             return failure(
@@ -8125,13 +8381,9 @@ async fn restart_start_result(
             );
         }
     };
-    let ok = inspect.get("ok").and_then(Value::as_bool) == Some(true);
-    let diagnostics = diagnostics_from_result(&inspect).unwrap_or_default();
-    let artifacts = inspect
-        .get("artifacts")
-        .cloned()
-        .and_then(|artifacts| serde_json::from_value(artifacts).ok())
-        .unwrap_or_default();
+    let ok = inspect.ok;
+    let diagnostics = inspect.diagnostics.clone();
+    let artifacts = inspect.artifacts.clone();
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -8148,7 +8400,8 @@ async fn restart_start_result(
             "serverUrl": descriptor.server_url,
             "readyFile": ready_file.display().to_string(),
             "database": descriptor.database.path.as_deref().unwrap_or("memory"),
-            "runtimeState": inspect.pointer("/data/runtimeState").cloned().unwrap_or(Value::Null),
+            "runtimeState": inspect.data.pointer("/runtimeState").cloned().unwrap_or(Value::Null),
+            "restartVerifiedBy": "administratorCredential",
         }),
         diagnostics,
         next: crate::control_catalog::result_next(ok, "host.start"),
@@ -8200,16 +8453,15 @@ fn fetch_health(server_url: &str) -> Result<Value, String> {
     }
 }
 
-/// Decide whether the descriptor's pid may be signaled: only when the live
-/// server at `serverUrl` reports the same per-process `startupNonce` the
-/// descriptor was written with. Anything else — dead server, different
-/// process on the port, a descriptor without a nonce — refuses with a
-/// structured diagnostic instead of signaling a possibly reused PID.
-fn verify_stop_target(
+/// Verify the registry-owned derived-fork child before its dedicated reaper
+/// signals that owned process. Ordinary `snapback stop` and `restart` never
+/// call this helper; they use authenticated server self-stop and do not signal
+/// any descriptor PID.
+fn verify_owned_fork_target(
     descriptor: &HostReadyDescriptor,
     health: &Result<Value, String>,
 ) -> Result<(), crate::diagnostic::Diagnostic> {
-    verify_live_descriptor_identity(descriptor, health, "host.stop")
+    verify_live_descriptor_identity(descriptor, health, "fork lifecycle")
 }
 
 /// Verify that a trusted descriptor still names the process answering its
@@ -8251,13 +8503,23 @@ fn verify_live_descriptor_identity(
             .with_details(details(reason)));
         }
     };
+    let live_pid = payload
+        .get("pid")
+        .and_then(Value::as_u64)
+        .and_then(|pid| u32::try_from(pid).ok());
     let live_nonce = payload
         .get("binary")
         .and_then(|binary| binary.get("startupNonce"))
         .and_then(Value::as_str);
-    match live_nonce {
-        Some(live) if live == expected_nonce => Ok(()),
-        Some(_) => Err(crate::diagnostic::Diagnostic::error(
+    match (live_pid, live_nonce) {
+        (Some(pid), Some(live)) if pid == descriptor.pid && live == expected_nonce => Ok(()),
+        (Some(pid), Some(_)) if pid != descriptor.pid => Err(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
+            "host-ops",
+            "the server answering the descriptor's URL reports a different PID than the descriptor; the operation was refused and the descriptor PID was not signaled",
+        )
+        .with_details(details("pid mismatch"))),
+        (Some(_), Some(_)) => Err(crate::diagnostic::Diagnostic::error(
             "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR",
             "host-ops",
             "the server answering the descriptor's URL is a different process than the one that \
@@ -8265,13 +8527,19 @@ fn verify_live_descriptor_identity(
              the stale ready file and target the live server's own ready file",
         )
         .with_details(details("startupNonce mismatch"))),
-        None => Err(crate::diagnostic::Diagnostic::error(
+        (_, None) => Err(crate::diagnostic::Diagnostic::error(
             "SNAPBACK_HOST_STOP_UNVERIFIABLE",
             "host-ops",
             "the process answering the descriptor's URL does not report a Snapback identity \
              (/health has no binary.startupNonce); the operation was refused",
         )
         .with_details(details("no binary.startupNonce on /health"))),
+        (None, Some(_)) => Err(crate::diagnostic::Diagnostic::error(
+            "SNAPBACK_HOST_STOP_UNVERIFIABLE",
+            "host-ops",
+            "the process answering the descriptor's URL does not report its PID (/health has no pid); the operation was refused",
+        )
+        .with_details(details("no pid on /health"))),
     }
 }
 
@@ -9239,13 +9507,22 @@ async fn run_composed(
             host: local_addr.ip().to_string(),
             port: local_addr.port(),
             pid: std::process::id(),
-            // The identity handshake `snapback stop` verifies before it
-            // signals this pid: the same per-process nonce /health reports.
+            // The descriptor identity `snapback stop`/`restart` OBSERVES and
+            // never signals: the OS existence probe decides ok on whether this
+            // pid + process start-time is gone. The per-process nonce that
+            // /health echoes is only a pre-stop freshness fence, not the stop
+            // criterion.
             startup_nonce: Some(startup_nonce.clone()),
+            server_profile: Some(startup_profile.as_str().to_owned()),
             target: crate::host_ops::HostOpsTarget {
                 app_id: loaded_app_id.clone(),
                 app_root: None,
-                target_profile: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+                target_profile: match startup_profile {
+                    crate::contract_types::ServerProfile::Dev => {
+                        crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()
+                    }
+                    other => format!("local-{}-sqlite-ibex", other.as_str()),
+                },
                 server_url: Some(format!("http://{local_addr}")),
             },
             database: crate::host_ops::HostReadyDatabase {
@@ -9386,9 +9663,10 @@ async fn run_composed(
         auth_coordinator.clone(),
         auth_gc_initial_delay,
     );
+    let host_ops_shutdown = app_state.server.subscribe_host_shutdown();
     let server = app
         .bind(listener)?
-        .serve_with_graceful_shutdown(shutdown_signal());
+        .serve_with_graceful_shutdown(shutdown_signal(Some(host_ops_shutdown)));
     tokio::pin!(server);
     let fork_expiry = wait_for_derived_fork_expiry(database_path.clone(), derived_fork_lineage);
     tokio::pin!(fork_expiry);
@@ -9633,6 +9911,7 @@ async fn run_auth_collision_recovery(
             port: local_addr.port(),
             pid: std::process::id(),
             startup_nonce: Some(startup_nonce),
+            server_profile: Some(profile.as_str().to_owned()),
             target: crate::host_ops::HostOpsTarget {
                 // The recovery process never accepts the stored manifest just
                 // to populate descriptor identity.
@@ -9699,7 +9978,8 @@ async fn run_auth_collision_recovery(
         println!("admin: auth recovery requires SNAPBACK_ADMIN_TOKEN");
     }
 
-    let server_result = crate::auth::recovery::serve(runtime, listener, shutdown_signal()).await;
+    let server_result =
+        crate::auth::recovery::serve(runtime, listener, shutdown_signal(None)).await;
     drop(database_lock);
     if let Some(target) = ready_target.as_ref() {
         let _ = target.remove_impersonation_capability();
@@ -9710,9 +9990,24 @@ async fn run_auth_collision_recovery(
     Ok(())
 }
 
-async fn shutdown_signal() {
+async fn shutdown_signal(host_ops: Option<tokio::sync::watch::Receiver<bool>>) {
     let ctrl_c = async {
         let _ = tokio::signal::ctrl_c().await;
+    };
+    let host_ops = async move {
+        let Some(mut receiver) = host_ops else {
+            std::future::pending::<()>().await;
+            return;
+        };
+        if *receiver.borrow() {
+            return;
+        }
+        while receiver.changed().await.is_ok() {
+            if *receiver.borrow() {
+                return;
+            }
+        }
+        std::future::pending::<()>().await;
     };
 
     #[cfg(unix)]
@@ -9729,11 +10024,15 @@ async fn shutdown_signal() {
         tokio::select! {
             _ = ctrl_c => {}
             _ = terminate => {}
+            _ = host_ops => {}
         }
     }
 
     #[cfg(not(unix))]
-    ctrl_c.await;
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = host_ops => {}
+    }
 }
 
 #[derive(Clone, Debug)]

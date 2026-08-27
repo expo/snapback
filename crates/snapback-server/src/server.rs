@@ -22630,9 +22630,9 @@ pub fn host_ops_operation_spec(
         "branch.drop.v1" => "host_ops.branch.drop.v1",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
-        // authenticated request reaches the structured UNIMPLEMENTED /
-        // CLI_ONLY envelope; unregistered names still return `None` and fail
-        // closed at AdminWrite before any envelope is built.
+        // authenticated request reaches its structured envelope. host.stop
+        // is the served, server-owned exception. Unregistered names still
+        // return `None` and fail closed before any envelope is built.
         "schema.reload" => "host_ops.schema.reload",
         "functions.reload" => "host_ops.functions.reload",
         "acceptance.run" => "host_ops.acceptance.run",
@@ -23321,6 +23321,7 @@ async fn health(
     };
     Ok(Json(HealthResponse {
         ok: true,
+        pid: std::process::id(),
         target: crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
         sqlite_version: version,
         ibex_available: capabilities.ibex_cli.available
@@ -25076,6 +25077,12 @@ async fn evaluate_operational_readiness_for_runtime(
 /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
 ///   the SC-1a non-deferrable minimum: a bounded most-recent-first ring
 ///   surfaced by `app.inspect`, identical over HTTP host-ops and MCP.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HostStopInputV1 {
+    startup_nonce: String,
+}
+
 async fn host_ops_handler(
     State(runtime): State<AppState>,
     route_admission: Option<Extension<AdmissionLease>>,
@@ -25261,6 +25268,74 @@ async fn host_ops_handler_inner_unboxed(
             )
         })
         .await;
+        return Ok(Json(result));
+    }
+
+    if request.operation == "host.stop" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        crate::admin::require_operation_profile(&ctx, &request.operation, false)?;
+
+        let expected = if crate::host_ops::versioned_seed_wrapper_has_forbidden_siblings(&request) {
+            Err(SnapbackError::error(
+                "SNAPBACK_HOST_OP_INPUT_INVALID",
+                "host-ops",
+                "host.stop accepts only requestId and startupNonce under input",
+            ))
+        } else {
+            request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "host.stop requires startupNonce under input",
+                    )
+                })
+                .and_then(|input| {
+                    serde_json::from_value::<HostStopInputV1>(input).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_INVALID",
+                            "host-ops",
+                            "host.stop input must contain exactly one nonempty startupNonce",
+                        )
+                    })
+                })
+                .and_then(|input| {
+                    let live_nonce = runtime.server_startup_nonce();
+                    if input.startup_nonce.is_empty() || input.startup_nonce != live_nonce {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_HOST_STOP_STARTUP_MISMATCH",
+                            "host-ops",
+                            "host.stop startupNonce does not match this server; self-stop was refused",
+                        ));
+                    }
+                    Ok(())
+                })
+        };
+        let shutdown_context = ctx.clone();
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::lifecycle_stop_result(
+                snapback, &request, server_url, profile, expected,
+            )
+        })
+        .await;
+        if result.ok {
+            // @ref LLP 0024#dated-amendment-server-owned-stop-2026-08-26 —
+            //   authentication and the startup fence terminate at the live
+            //   server, which requests its own shutdown; no projection signals
+            //   a descriptor-named PID.
+            shutdown_context.request_host_shutdown();
+        }
         return Ok(Json(result));
     }
 

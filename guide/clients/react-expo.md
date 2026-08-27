@@ -52,6 +52,26 @@ Then start the bundler yourself:
 bun run dev:client
 ```
 
+The backend lifecycle depends on how this `snapback dev` invocation acquired
+it. When a ready descriptor already exists, the CLI **attaches** and SIGTERM
+ends only that attachment; the pre-existing backend keeps running. When no
+ready descriptor exists, the CLI spawns a **managed** backend and SIGTERM
+stops that backend during cleanup. To stop an attached backend explicitly,
+use its ready descriptor:
+
+```sh
+snapback stop --ready-file .snapback/dev.ready.json
+snapback dev
+```
+
+Both `snapback stop` and `snapback restart` are administrator-gated server
+self-stop operations. On an ordinary local server the CLI discovers the
+owner-only auto-minted administrator token, so the command usually needs no
+explicit token; if that carrier is unavailable, keep the dev loop in the
+foreground and stop it with Ctrl-C. If you do not stop an attached backend, the next `bun run dev`
+validates the live descriptor and attaches to the same daemon. This is
+intentional: an attaching CLI must not kill a server it did not spawn.
+
 The application reads exactly one bundler-native variable and passes it as
 the provider/client `url`: Expo/Metro uses
 `EXPO_PUBLIC_SNAPBACK_URL`, Vite uses `VITE_SNAPBACK_URL`, and a headless

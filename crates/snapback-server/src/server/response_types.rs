@@ -3,6 +3,10 @@ use super::*;
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct HealthResponse {
     pub ok: bool,
+    /// PID of the process serving this exact health response. It remains an
+    /// attachment/diagnostic fact and an owned derived-fork reaper fence;
+    /// ordinary stop/restart never use it as a signal target.
+    pub pid: u32,
     pub target: String,
     pub sqlite_version: u64,
     pub ibex_available: bool,

@@ -133,6 +133,7 @@ const CLI_PROJECTIONS = {
   'function.run': 'snapback run',
   'remediation.apply': 'snapback remediation apply --input <file|->',
   'auth.mintSession': 'snapback session mint --email <address>',
+  'auth.password.unlock': 'snapback auth password unlock --email <address>',
   'debug.networkProfileGet': 'snapback network-profile get',
   'debug.networkProfileSet': 'snapback network-profile set',
   'debug.live.forceResync': 'snapback debug force-resync',

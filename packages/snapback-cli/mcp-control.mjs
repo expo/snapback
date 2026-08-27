@@ -1,11 +1,12 @@
 // The LLP 0042 control-plane MCP server: newline-delimited JSON-RPC 2.0 over
 // stdio, exposing the pinned control-plane tools plus the generated app-data
-// catalog. Lifecycle tools embed the CLI's process-lifecycle helpers; served
-// operations project 1:1 over `POST /_snapback/api/host-ops`.
+// catalog. Lifecycle tools compose authenticated server self-stop with an
+// ownership-appropriate process-gone observation; served operations project
+// 1:1 over `POST /_snapback/api/host-ops`.
 //
-// @ref LLP 0042#control-plane-server — lifecycle is CLI-embedded (spawn with
-//   --ready-file, HostReadyDescriptor consumption, nonce-verified stop); the
-//   served operations proxy the host-ops HTTP surface, never a second dialect.
+// @ref LLP 0042#control-plane-server — lifecycle consumes the same ready-file
+//   and authenticated self-stop contract; attached targets use native process
+//   observation while exact manager-owned children are reaped directly.
 // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 — ships
 //   inside @expo/snapback-cli; the app-data catalog is derived deterministically at
 //   server start from the codegen-emitted artifacts.
@@ -33,6 +34,10 @@ import { stopProcessGroup } from './process-teardown.mjs';
 const PROTOCOL_VERSION = '2025-06-18';
 const SCHEMA_VERSION = 'snapback.v0';
 const INPUT_SCHEMA_VALIDATOR = new Ajv2020({ allErrors: true, strict: false });
+const LIFECYCLE_STOP_TIMEOUT_MS = 10_000;
+const LIFECYCLE_STOP_POLL_MS = 50;
+const LIFECYCLE_HEALTH_PROBE_TIMEOUT_MS = 250;
+const LIFECYCLE_HEALTH_FAILURES = 3;
 // Every MCP tool returns the same structured host-operations envelope. Keep
 // one output schema object so pinned control tools and generated app-data
 // tools cannot drift into distinct result dialects.
@@ -59,6 +64,92 @@ export const HOST_OPS_RESULT_OUTPUT_SCHEMA = {
     next: { type: 'array' },
   },
 };
+
+function childHasExited(child) {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+function closedLifecycleTarget(descriptor) {
+  const target = descriptor?.target ?? {};
+  return {
+    appId: target.appId,
+    appRoot: target.appRoot ?? null,
+    targetProfile: target.targetProfile,
+    serverUrl: target.serverUrl ?? null,
+  };
+}
+
+function waitForOwnedChildExit(child, timeoutMs) {
+  if (childHasExited(child)) return Promise.resolve(true);
+  return new Promise((resolveExit) => {
+    const onExit = () => settle(true);
+    const timer = setTimeout(() => settle(childHasExited(child)), timeoutMs);
+    const settle = (exited) => {
+      clearTimeout(timer);
+      child.off('exit', onExit);
+      resolveExit(exited);
+    };
+    child.once('exit', onExit);
+  });
+}
+
+async function waitForConfiguredUrlToStopAnswering(serverUrl, timeoutMs) {
+  const healthUrl = `${serverUrl.replace(/\/$/, '')}/health`;
+  const deadline = Date.now() + timeoutMs;
+  let consecutiveFailures = 0;
+  while (Date.now() < deadline) {
+    const remainingMs = deadline - Date.now();
+    try {
+      await fetch(healthUrl, {
+        signal: AbortSignal.timeout(Math.max(
+          1,
+          Math.min(LIFECYCLE_HEALTH_PROBE_TIMEOUT_MS, remainingMs),
+        )),
+      });
+      consecutiveFailures = 0;
+    } catch {
+      consecutiveFailures += 1;
+      if (consecutiveFailures === LIFECYCLE_HEALTH_FAILURES) return true;
+    }
+    const pauseMs = Math.min(LIFECYCLE_STOP_POLL_MS, deadline - Date.now());
+    if (pauseMs > 0) {
+      await new Promise((resolveWait) => setTimeout(resolveWait, pauseMs));
+    }
+  }
+  return false;
+}
+
+function normalizedServerUrl(value) {
+  return typeof value === 'string' ? value.replace(/\/$/, '') : null;
+}
+
+function acceptedLifecycleStopResult(result, descriptor, requestId) {
+  const authority = result?.authority;
+  const data = result?.data;
+  const target = result?.target;
+  return result?.schemaVersion === SCHEMA_VERSION
+    && result?.resultKind === 'hostOpsResult'
+    && result?.requestId === requestId
+    && result?.operation === 'host.stop'
+    && result?.ok === true
+    && target?.appId === descriptor.target?.appId
+    && target?.appRoot === descriptor.target?.appRoot
+    && target?.targetProfile === descriptor.target?.targetProfile
+    && normalizedServerUrl(target?.serverUrl) === normalizedServerUrl(descriptor.serverUrl)
+    && authority?.mode === 'devAdminBypass'
+    && authority?.actorPrincipal === null
+    && authority?.effectivePrincipal === null
+    && authority?.localDevOnly === true
+    && authority?.adminBypass === true
+    && authority?.scope === null
+    && authority?.reason === 'host-ops process lifecycle gate'
+    && data !== null
+    && typeof data === 'object'
+    && !Array.isArray(data)
+    && Object.keys(data).length === 2
+    && data.shutdownRequested === true
+    && data.shutdownMode === 'serverSelfStop';
+}
 // @ref LLP 0167#profile-model — MCP projects Rust's finite built-in
 // vocabulary and delay ceiling through a Rust-checked package artifact.
 const NETWORK_PROFILE_AUTHORITY = readJson(join(
@@ -339,7 +430,7 @@ export const CONTROL_TOOLS = [
     name: 'snapback_stop',
     operation: 'host.stop',
     title: 'Stop the local Snapback server',
-    description: 'Stop the server named by the readiness descriptor via the nonce-verified native stop.',
+    description: 'Ask the authenticated server named by the readiness descriptor to stop itself, then confirm the process is gone by either reaping the exact manager-owned child or observing the attached process identity in the OS process table. Health-endpoint silence alone never establishes a stop.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -1028,6 +1119,7 @@ export class McpControlServer {
     this.env = options.env;
     this.runtimeBinary = options.runtimeBinary;
     this.spawnSync = options.spawnSync ?? spawnSync;
+    this.lifecycleStopTimeoutMs = options.lifecycleStopTimeoutMs ?? LIFECYCLE_STOP_TIMEOUT_MS;
     this.runtime = null;
     this.child = null;
     this.managed = false;
@@ -1514,8 +1606,7 @@ export class McpControlServer {
     return response.lease;
   }
 
-  async postHostOp(body, { secretReadLease = null } = {}) {
-    const descriptor = this.currentDescriptor();
+  async postHostOp(body, { secretReadLease = null, descriptor = this.currentDescriptor() } = {}) {
     const adminToken = managedAdminToken(descriptor, this.database);
     const impersonatedUserId = typeof body.userId === 'string' && body.userId
       ? body.userId
@@ -1726,19 +1817,6 @@ export class McpControlServer {
     });
   }
 
-  async waitForExit(pid, timeoutMs = 10_000) {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      try {
-        process.kill(pid, 0);
-      } catch {
-        return true;
-      }
-      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-    }
-    return false;
-  }
-
   async startEnvelope(id) {
     try {
       mkdirSync(dirname(this.readyFile), { recursive: true });
@@ -1799,7 +1877,9 @@ export class McpControlServer {
     }
   }
 
-  async stopEnvelope(id) {
+  async stopEnvelope(id, {
+    timeoutDiagnosticCode = 'SNAPBACK_HOST_STOP_TIMEOUT',
+  } = {}) {
     if (!existsSync(this.readyFile)) {
       return this.envelope('host.stop', {
         requestId: id,
@@ -1811,25 +1891,91 @@ export class McpControlServer {
         next: [{ kind: 'callTool', tool: 'snapback_start' }],
       });
     }
-    let pid = null;
-    try {
-      pid = readReadyDescriptor(this.readyFile).pid;
-    } catch {
-      // The native stop reports the invalid descriptor itself.
-    }
     // @ref LLP 0184#2-derived-ownership-not-a-second-registry — the stop leg
     // (also the mutating half of snapback_restart) requires the same
     // admin-credential proof the host-ops HTTP surface requires, closing the
-    // disclosed MCP/HTTP authority gap. Checked before the native stop, so a
-    // caller without the credential never signals the process.
+    // disclosed MCP/HTTP authority gap. Checked before either stop path, so a
+    // caller without the credential never reaches process control.
     const { refusal } = await this.requireAdminCredentialForLifecycle('host.stop', 'snapback_stop');
     if (refusal) return { ...refusal, requestId: id };
+    if (this.managed === true) {
+      const child = this.child;
+      const descriptor = this.currentDescriptor();
+      const target = closedLifecycleTarget(descriptor);
+      if (child === null
+          || descriptor.pid !== child.pid
+          || childHasExited(child)
+          || typeof descriptor.startupNonce !== 'string'
+          || descriptor.startupNonce.length === 0) {
+        return this.envelope('host.stop', {
+          requestId: id,
+          target,
+          diagnostics: [diagnostic(
+            'SNAPBACK_MCP_STOP_FAILED',
+            'the managed child handle did not match a live, startup-fenced readiness descriptor',
+            { readyFile: this.readyFile },
+          )],
+        });
+      }
+
+      // @ref LLP 0024#dated-amendment-server-owned-stop-2026-08-26 — for a
+      // manager-owned child, the authenticated self-stop result remains the
+      // authority half while Node reaping its unforgeable child handle is the
+      // process-gone half. Keeping the observation asynchronous lets libuv
+      // consume SIGCHLD instead of leaving a zombie visible to kill(pid, 0).
+      const accepted = await this.postHostOp({
+        requestId: id,
+        operation: 'host.stop',
+        input: { startupNonce: descriptor.startupNonce },
+      }, { descriptor });
+      if (!acceptedLifecycleStopResult(accepted, descriptor, id)) {
+        return this.envelope('host.stop', {
+          requestId: id,
+          target,
+          diagnostics: [diagnostic(
+            'SNAPBACK_MCP_STOP_FAILED',
+            'the managed server did not return the exact authenticated host.stop success result',
+            { readyFile: this.readyFile },
+          )],
+        });
+      }
+
+      const [processIdentityVerified, configuredUrlStoppedAnswering] = await Promise.all([
+        waitForOwnedChildExit(child, this.lifecycleStopTimeoutMs),
+        waitForConfiguredUrlToStopAnswering(descriptor.serverUrl, this.lifecycleStopTimeoutMs),
+      ]);
+      if (processIdentityVerified) {
+        this.child = null;
+        this.managed = false;
+      }
+      return this.envelope('host.stop', {
+        requestId: id,
+        ok: processIdentityVerified,
+        target,
+        data: {
+          credentialedHostOpResultAccepted: true,
+          configuredUrlStoppedAnswering,
+          processIdentityVerified,
+        },
+        diagnostics: processIdentityVerified
+          ? []
+          : [diagnostic(
+            timeoutDiagnosticCode,
+            'the manager-owned child remained live through the stop deadline after a credentialed host.stop success result',
+          )],
+      });
+    }
     const runtime = this.resolveRuntime();
-    // The native stop verifies the live startupNonce before signaling, so a
-    // stale descriptor never routes a signal to a reused PID.
+    const descriptor = this.currentDescriptor();
+    const adminToken = managedAdminToken(descriptor, this.database);
+    // The native stop presents startupNonce through authenticated host.stop;
+    // the server requests its own shutdown and the CLI never signals the
+    // descriptor's PID.
     const result = native(runtime.binary, ['stop', '--ready-file', this.readyFile], {
       cwd: this.projectRoot,
-      env: this.env,
+      env: adminToken
+        ? { ...(this.env ?? process.env), SNAPBACK_ADMIN_TOKEN: adminToken }
+        : this.env,
     });
     let envelope;
     try {
@@ -1841,9 +1987,6 @@ export class McpControlServer {
       });
       error.cause = cause;
       throw error;
-    }
-    if (envelope.ok && pid !== null) {
-      envelope.data = { ...envelope.data, exited: await this.waitForExit(pid) };
     }
     if (envelope.ok) {
       this.child = null;
@@ -1919,7 +2062,9 @@ export class McpControlServer {
         return this.toolResult(await this.stopEnvelope(id));
       case 'snapback_restart': {
         // One request id and one envelope for the whole restart attempt.
-        const previous = await this.stopEnvelope(id);
+        const previous = await this.stopEnvelope(id, {
+          timeoutDiagnosticCode: 'SNAPBACK_HOST_RESTART_STOP_TIMEOUT',
+        });
         const current = previous.ok ? await this.startEnvelope(id) : this.envelope('host.start', { requestId: id });
         return this.toolResult(this.envelope('host.restart', {
           requestId: id,
@@ -2481,13 +2626,13 @@ export class McpControlServer {
 
   async close() {
     // Never leave a managed child orphaned behind a disconnected MCP client.
-    if (this.managed && this.child && this.child.exitCode === null) {
+    if (this.managed && this.child && !childHasExited(this.child)) {
       const child = this.child;
       let stopped = null;
       try {
         stopped = await this.stopEnvelope(requestId());
       } catch { /* owned-process fallback below */ }
-      if (stopped?.ok !== true || child.exitCode === null) await stopProcessGroup(child);
+      if (stopped?.ok !== true || !childHasExited(child)) await stopProcessGroup(child);
     }
   }
 }

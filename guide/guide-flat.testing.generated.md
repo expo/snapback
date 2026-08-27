@@ -490,13 +490,57 @@ export default defineVerifyConfig({
 });
 ```
 
+An acceptance suite that is intentionally a CLI entrypoint does not need a
+wrapper export. Define `command` instead of `run`; the verifier spawns the
+executable directly (never through a shell), applies the same profile timeout,
+and checks the declared exit code:
+
+```js fragment reason="application package scripts and milestone names are project-specific"
+profiles: [{
+  id: 'milestone-m8',
+  testFiles: ['./acceptance-cli.mjs', './package.json'],
+  paths: [],
+  command: {
+    executable: 'npm',
+    args: ['run', 'acceptance', '--', '--milestone', 'm8'],
+    cwd: '.',
+    expectedExitCode: 0,
+  },
+}]
+```
+
+`cwd`, `testFiles`, and the optional `resultFile` are config-file-relative.
+List the CLI implementation and package-script metadata in `testFiles` so the
+receipt binds the bytes that actually selected and ran the suite. For an
+exit-only command, the configured profile `context` supplies target, data,
+authority, and seed identity, and registered paths receive honest
+`unsupported` read/write provenance.
+
+`expectedExitCode` defaults to `0`. A nonzero expected code requires
+`resultFile`; matching a configured failure exit is not by itself acceptance
+evidence. The fresh machine result must validate and report `ok: true`, so an
+acceptance command that actually failed cannot be laundered by configuring its
+failure code as expected.
+
+If the CLI can emit path-level evidence, set `resultFile` on `command`. Before
+spawn, verify removes any stale file and exposes the selected path as
+`SNAPBACK_VERIFY_PROFILE_RESULT_FILE`. The command must write one JSON object
+with `schemaVersion: "snapback.verify-profile-result.v1"`, boolean `ok`, and
+the same optional `context`, `diagnostics`, and `conformance` fields returned
+by a named `run` function. Optional fields are shape-validated; malformed
+identity, diagnostic, or path-conformance evidence refuses the machine result
+instead of being discarded. Both the expected exit code and that machine
+result must pass. A profile must define exactly one of `run` or `command`.
+
 Each profile lists every file whose bytes define the acceptance run, every
 capability it needs, and every expected path. Path `kind` is one of `success`,
 `failure`, `action`, `relational`, `search`, or `snapshot-bundle`;
 `targetProfileId` names the target actually exercised; `functionId` binds D1
 read/write evidence to a declared function when the path has one.
 
-Profiles have a five-minute timeout by default. Set a positive integer
+Profiles have a five-minute timeout by default. A command-profile timeout or
+output overflow terminates the complete owned process group, including npm or
+shell descendants, before the result settles. Set a positive integer
 `timeoutMs` on one profile, override all profiles for one invocation with
 `--timeout-ms`, or set `SNAPBACK_VERIFY_PROFILE_TIMEOUT`. A timeout fails the
 profile with `SNAPBACK_VERIFY_PROFILE_TIMEOUT`.

@@ -37,13 +37,13 @@ pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 /// dispatched inline by the `execute_host_op_with_profile` match arm, the two
 /// `debug.networkProfile{Get,Set}` operations dispatched entirely in
 /// `src/server.rs` (outside that match arm, via `network_profile_result`),
-/// and `debug.live.forceResync` (LLP 0184 §B), dispatched the same way as
-/// the `debug.networkProfile*` pair — outside the match arm, gated by
-/// `AppState::debug_perturbation_target_authority` rather than
-/// `require_operation_profile`. These groups are fully served today; they
-/// belong here so `host_op_diagnostic` recognizes their spelling instead of
-/// rewriting it to `"unrecognized"` in diagnostics.
-pub const SERVED_HOST_OPS: [&str; 49] = [
+/// `debug.live.forceResync` (LLP 0184 §B), and authenticated `host.stop`.
+/// The debug operations are gated by their debug authority; `host.stop` is
+/// gated separately by the admin lifecycle authority and a startup-nonce
+/// fence evaluated by the server that will stop itself. These groups are fully served today; they belong here so
+/// `host_op_diagnostic` recognizes their spelling instead of rewriting it to
+/// `"unrecognized"` in diagnostics.
+pub const SERVED_HOST_OPS: [&str; 50] = [
     "app.inspect",
     "app.readiness.v1",
     "cron.list",
@@ -93,12 +93,13 @@ pub const SERVED_HOST_OPS: [&str; 49] = [
     "debug.networkProfileGet",
     "debug.networkProfileSet",
     "debug.live.forceResync",
+    "host.stop",
 ];
 
-// @ref LLP 0024#core-operation-ids — process lifecycle and trusted ready-file
-// coordination are CLI-owned; a running server cannot perform them over its
-// own host-ops endpoint.
-pub const CLI_ONLY_HOST_OPS: [&str; 4] = ["host.start", "host.stop", "host.restart", "host.wait"];
+// @ref LLP 0024#dated-amendment-server-owned-stop-2026-08-26 — start,
+// restart composition, and trusted ready-file waiting remain CLI-owned;
+// authenticated host.stop is served so the process terminates itself.
+pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.restart", "host.wait"];
 
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
 /// `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope so aspiration cannot be mistaken
@@ -695,6 +696,48 @@ pub fn network_profile_result(
             profile,
             false,
             authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
+/// Project the authenticated `host.stop` request before the serving adapter
+/// publishes its own graceful-shutdown request. The startup nonce is only a
+/// process fence: lifecycle authority comes from the AdminWrite gate, and no
+/// caller-supplied PID enters this result or the shutdown effect.
+pub fn lifecycle_stop_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::contract_types::ServerProfile,
+    outcome: Result<(), SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    match outcome {
+        Ok(()) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority_admin("host-ops process lifecycle gate"),
+            json!({
+                "shutdownRequested": true,
+                "shutdownMode": "serverSelfStop",
+            }),
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority_admin("host-ops process lifecycle gate"),
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),

@@ -5,7 +5,15 @@
 
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { EventEmitter } from 'node:events';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,6 +153,104 @@ class McpClient {
     assert.equal(reply.error, undefined, `${name}: ${JSON.stringify(reply.error)}`);
     return reply.result;
   }
+}
+
+async function managedTimeoutReceipt(toolName) {
+  const timeoutRoot = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-mcp-timeout-')));
+  const readyFile = join(timeoutRoot, 'managed.ready.json');
+  const database = join(timeoutRoot, 'managed.sqlite3');
+  const serverUrl = 'http://127.0.0.1:9';
+  const target = {
+    appId: 'managed-timeout',
+    appRoot: '/managed-timeout-app-root',
+    targetProfile: 'local-dev-sqlite-ibex',
+    serverUrl,
+    pid: 98_765,
+    verifiedBy: 'caller-authored-extra',
+  };
+  const descriptor = {
+    pid: 98_765,
+    serverUrl,
+    startupNonce: 'managed-timeout-nonce',
+    target,
+  };
+  const child = new EventEmitter();
+  child.pid = descriptor.pid;
+  child.exitCode = null;
+  child.signalCode = null;
+  writeFileSync(readyFile, '{}\n', { mode: 0o600 });
+  const server = new McpControlServer({
+    backendDirectory: join(timeoutRoot, 'snapback'),
+    projectRoot: timeoutRoot,
+    readyFile,
+    database,
+    runtimeBinary,
+    lifecycleStopTimeoutMs: 175,
+  });
+  server.child = child;
+  server.managed = true;
+  server.currentDescriptor = () => descriptor;
+  server.requireAdminCredentialForLifecycle = async () => ({});
+  server.postHostOp = async (body) => ({
+    schemaVersion: 'snapback.v0',
+    resultKind: 'hostOpsResult',
+    requestId: body.requestId,
+    operation: 'host.stop',
+    ok: true,
+    target: {
+      appId: target.appId,
+      appRoot: target.appRoot,
+      targetProfile: target.targetProfile,
+      serverUrl: target.serverUrl,
+    },
+    authority: {
+      mode: 'devAdminBypass',
+      actorPrincipal: null,
+      effectivePrincipal: null,
+      localDevOnly: true,
+      adminBypass: true,
+      scope: null,
+      reason: 'host-ops process lifecycle gate',
+    },
+    data: {
+      shutdownRequested: true,
+      shutdownMode: 'serverSelfStop',
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('expected closed health endpoint'); };
+  try {
+    return await server.callTool(toolName, {});
+  } finally {
+    globalThis.fetch = originalFetch;
+    rmSync(timeoutRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const timedOutStop = await managedTimeoutReceipt('snapback_stop');
+  assert.equal(timedOutStop.structuredContent.operation, 'host.stop');
+  assert.equal(timedOutStop.structuredContent.ok, false);
+  assert.equal(timedOutStop.structuredContent.authority, null);
+  assert.equal(
+    timedOutStop.structuredContent.diagnostics[0].code,
+    'SNAPBACK_HOST_STOP_TIMEOUT',
+  );
+  assert.deepEqual(timedOutStop.structuredContent.target, {
+    appId: 'managed-timeout',
+    appRoot: '/managed-timeout-app-root',
+    targetProfile: 'local-dev-sqlite-ibex',
+    serverUrl: 'http://127.0.0.1:9',
+  });
+
+  const timedOutRestart = await managedTimeoutReceipt('snapback_restart');
+  assert.equal(timedOutRestart.structuredContent.operation, 'host.restart');
+  assert.equal(timedOutRestart.structuredContent.ok, false);
+  assert.equal(timedOutRestart.structuredContent.authority, null);
+  assert.equal(
+    timedOutRestart.structuredContent.diagnostics[0].code,
+    'SNAPBACK_HOST_RESTART_STOP_TIMEOUT',
+  );
 }
 
 // realpath: the server canonicalizes the database path in the descriptor, so
@@ -342,12 +448,20 @@ try {
   assert.notEqual(started.isError, true, JSON.stringify(started));
   assert.equal(started.structuredContent.operation, 'host.start');
   assert.equal(started.structuredContent.ok, true, JSON.stringify(started.structuredContent));
+  assert.equal(started.structuredContent.data.managed, true);
   assert.ok(Number.isInteger(started.structuredContent.data.pid));
   assert.ok(existsSync(readyFile));
 
   const restarted = await client.call('snapback_restart');
   assert.equal(restarted.structuredContent.operation, 'host.restart');
   assert.equal(restarted.structuredContent.ok, true, JSON.stringify(restarted.structuredContent));
+  assert.equal(restarted.structuredContent.authority, null);
+  assert.deepEqual(restarted.structuredContent.data.previous, {
+    credentialedHostOpResultAccepted: true,
+    configuredUrlStoppedAnswering: true,
+    processIdentityVerified: true,
+  });
+  assert.equal(restarted.structuredContent.data.current.managed, true);
   assert.ok(Number.isInteger(restarted.structuredContent.data.current.pid));
 
   const instanceResource = await client.request('resources/read', {
@@ -883,9 +997,25 @@ try {
     renameSync(adminTokenBackupPath, adminTokenPath);
   }
 
+  const forgedDescriptor = readReadyDescriptor(readyFile);
+  forgedDescriptor.target.pid = forgedDescriptor.pid;
+  forgedDescriptor.target.verifiedBy = 'caller-authored-extra';
+  writeFileSync(readyFile, `${JSON.stringify(forgedDescriptor)}\n`, { mode: 0o600 });
   const stopped = await client.call('snapback_stop');
   assert.equal(stopped.structuredContent.operation, 'host.stop');
   assert.equal(stopped.structuredContent.ok, true, JSON.stringify(stopped.structuredContent));
+  assert.equal(stopped.structuredContent.authority, null);
+  assert.deepEqual(stopped.structuredContent.target, {
+    appId: forgedDescriptor.target.appId,
+    appRoot: forgedDescriptor.target.appRoot,
+    targetProfile: forgedDescriptor.target.targetProfile,
+    serverUrl: forgedDescriptor.target.serverUrl,
+  });
+  assert.deepEqual(stopped.structuredContent.data, {
+    credentialedHostOpResultAccepted: true,
+    configuredUrlStoppedAnswering: true,
+    processIdentityVerified: true,
+  });
   assert.equal(existsSync(readyFile), false);
 
   const unknown = await client.request('tools/call', { name: 'no_such_tool', arguments: {} });
@@ -902,7 +1032,13 @@ try {
   const readyFile = join(root, 'state', 'mcp.ready.json');
   if (existsSync(readyFile)) {
     const { native } = await import('./index.mjs');
-    native(runtimeBinary, ['stop', '--ready-file', readyFile], { env: process.env });
+    const descriptor = readReadyDescriptor(readyFile);
+    const adminToken = managedAdminToken(descriptor, join(root, 'state', 'mcp.sqlite3'));
+    native(runtimeBinary, ['stop', '--ready-file', readyFile], {
+      env: adminToken
+        ? { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+        : process.env,
+    });
   }
   rmSync(root, { recursive: true, force: true });
 }

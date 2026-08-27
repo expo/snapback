@@ -425,6 +425,7 @@ export interface ReadyDescriptor {
   readonly database?: Readonly<{ path?: string; [key: string]: unknown }>;
   readonly adminTokenFile?: string;
   readonly startupNonce?: string;
+  readonly serverProfile?: 'dev' | 'demo' | 'test' | 'prod';
   readonly impersonationCapabilityFile?: string;
   readonly devIdentityCapabilityFile?: string;
   readonly [key: string]: unknown;
@@ -476,7 +477,7 @@ export interface ManagedChildProcess {
 
 /** Spawn the packaged runtime with bounded startup-output capture and the
  * CLI's dynamic-loader environment policy. Lifecycle owners still perform
- * readiness validation and nonce-verified stop themselves. */
+ * readiness validation and PID-plus-nonce-verified stop themselves. */
 export function spawnManagedRuntime(
   binary: string,
   args: readonly string[],

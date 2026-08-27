@@ -46,6 +46,16 @@ function assertConflict(contents, label) {
 }
 
 try {
+  assert.equal(
+    __test.devBackendManagedByReadyFile(false),
+    true,
+    'no ready descriptor selects the self-spawned managed backend path',
+  );
+  assert.equal(
+    __test.devBackendManagedByReadyFile(true),
+    false,
+    'a pre-existing ready descriptor selects the attached backend path',
+  );
   const missingPath = join(root, 'missing.env');
   const missingInsert = writeDevEnvironmentFile(missingPath, { ...first, projectRoot: root });
   assert.equal(missingInsert.state, 'inserted');
@@ -190,6 +200,7 @@ writeDevEnvironmentFile(${JSON.stringify(atomicPath)}, {
             state: 'ready',
             snapbackUrl: first.snapbackUrl,
             androidEmulatorUrl: first.androidEmulatorUrl,
+            backend: { readyFile: '/tmp/expo dev.ready.json' },
           });
           return { ok: true, async close() {} };
         },
@@ -204,13 +215,16 @@ writeDevEnvironmentFile(${JSON.stringify(atomicPath)}, {
   const supervisedHuman = await captureSupervisedPrint(false);
   assert.ok(supervisedHuman.stdout.includes(`SNAPBACK_URL=${first.snapbackUrl}`));
   assert.ok(supervisedHuman.stdout.includes(`Android emulator URL: ${first.androidEmulatorUrl}`));
+  assert.ok(supervisedHuman.stdout.includes(
+    "Authenticated backend self-stop (including an attached daemon): snapback stop --ready-file '/tmp/expo dev.ready.json'",
+  ));
   const supervisedJson = await captureSupervisedPrint(true);
   const supervisedEvent = JSON.parse(supervisedJson.stdout[0]);
   assert.equal(supervisedEvent.snapbackUrl, first.snapbackUrl);
   assert.equal(supervisedEvent.androidEmulatorUrl, first.androidEmulatorUrl);
   assert.equal(supervisedJson.stdout.some((line) => line.startsWith('SNAPBACK_URL=')), false);
 
-  console.log('dev-env-writer.test.mjs: CRLF idempotence, marker/conflict/mode/atomicity, canonical port-80 URLs, warning, and plain/supervised print cases passed');
+  console.log('dev-env-writer.test.mjs: managed/attached lifecycle classification, CRLF idempotence, marker/conflict/mode/atomicity, canonical port-80 URLs, warning, and plain/supervised print cases passed');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

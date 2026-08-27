@@ -6,7 +6,22 @@
 Host operations, HTTP API, Guide, Auth, Security, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-12 (data-patch token/CAS coupling: the token remains
+**Revised:** 2026-08-26 (managed-MCP reaping correction: MCP now sends the
+authenticated self-stop directly for a manager-owned child and observes its
+exit by reaping the unforgeable Node child handle; attached servers continue
+through native PID/start-time observation). 2026-08-26 (observed-exit follow-up: direct stop and restart bind
+the descriptor PID to its pre-stop OS start time and descriptor-matching startup
+nonce, then grant success only after signal-0 `ESRCH` or different-start-time
+PID reuse proves the original process gone; URL loss remains a separate fact,
+and HTTP responder identity remains unattested). 2026-08-26 (lifecycle
+receipt-honesty follow-up: validation requires the exact declared administrator
+authority and self-stop result without promoting either into responder identity
+attestation). 2026-08-26 (lifecycle authority correction: direct stop and
+restart use served AdminWrite `host.stop`; its input carries startupNonce but no
+PID, the server requests its own shutdown, and the client requires the
+descriptor-named pre-stop process identity gone before success; no projection
+signals a descriptor-named PID). 2026-08-12
+(data-patch token/CAS coupling: the token remains
 available across failed commits and is consumed only after a successful CAS,
 within the same serialized process-local turn). 2026-08-10 (LLP 0146 OQ6 ruled projection: ControlCatalog's
 reserved `remediation` field now points to the shared v1 decoder/carrier and
@@ -570,9 +585,22 @@ while the shipped code contradicted it; instead:
   a convenience of that implementation, not a property this RFC endorsed
   keeping. Before that slice landed, the exception was named, dated to Phase
   2, and did not apply to any other row. **Implementation record
-  (2026-08-06):** that gate is live for MCP, and the native CLI projection
-  applies the same concrete-credential proof before its stop leg; the
-  exception is closed.
+  (2026-08-06, strengthened 2026-08-26):** that gate is live for MCP and the
+  native CLI projection. Direct stop and the restart stop leg both call
+  authenticated served `host.stop`; the request contains only the descriptor's
+  startup nonce, the served implementation validates that fence and requests
+  its own shutdown, and the caller validates the typed operation/result/target
+  and exact declared lifecycle authority. Native callers and MCP attached to a
+  server it does not own capture the descriptor-matching startup nonce plus OS
+  process-table start time, then require signal-0 `ESRCH` or a different
+  creation identity after PID reuse. For an MCP-owned child, the descriptor PID
+  must match Node's unforgeable child handle and MCP grants success only after
+  asynchronously awaiting and reaping that child's `exit`; it does not block
+  the parent inside native observation. Configured-URL health loss remains a
+  separate fact. No projection signals a descriptor-named PID, and neither a
+  ready file nor dev identity becomes signal authority. The
+  projection-authority exception is closed; same-UID HTTP responder identity
+  remains a separately disclosed local attestation limitation.
 
 `crates/snapback/src/host_ops.rs`'s in-code `CLI_ONLY_HOST_OPS` allowlist and the
 `SNAPBACK_HOST_OP_CLI_ONLY` diagnostic text it drives both assert the
@@ -1190,10 +1218,25 @@ creates authority" exception. Landing this also removes `host.restart`'s
 command lands alongside it (§Design/2, §Product contract) — either way, the
 row's authority story matches its HTTP sibling by the end of this phase.
 
-**Implemented 2026-08-06.** The MCP gate and native CLI composition both
-prove a concrete administrator credential with `app.inspect` before the
-nonce-verified stop. `host.restart` is now `native`, has no
-`cliDeferralReason`, and returns one request id/envelope in either projection.
+**Implemented 2026-08-06; authority path strengthened 2026-08-26.** Both the
+MCP gate and native CLI composition prove a concrete administrator credential.
+Native CLI restart invokes authenticated server-owned `host.stop`; that server
+validates the supplied startup nonce against its own boot identity before
+requesting its own graceful shutdown. The caller validates the typed success
+envelope and declared lifecycle authority, records configured-URL health loss,
+and requires the descriptor-named, pre-stop PID/start-time identity observably
+gone before launching with the recorded `serverProfile`. MCP restart retains
+its authenticated `app.inspect` proof and the same authenticated self-stop
+request. For an attached server it delegates to native PID/start-time
+observation; for the child MCP itself started, it instead requires the
+descriptor PID to match its owned child handle and asynchronously reaps that
+child before starting the successor. The three-field stop observation records
+`credentialedHostOpResultAccepted`, `configuredUrlStoppedAnswering`, and
+`processIdentityVerified`; the last field claims only the
+ownership-appropriate, unforgeable process-exit observation. It contains no
+PID, `verifiedBy`, or HTTP responder-identity claim. `host.restart` is
+`native`, has no `cliDeferralReason`, and returns one request id/envelope in
+either projection.
 
 ### Phase 3 — build the selected missing controls
 
@@ -1291,10 +1334,19 @@ The RFC is implemented only when all of the following hold:
 
 - **No projection creates authority.** CLI, MCP, AdminClient, and console call
   the same gate and return the same result semantics. The former named,
-  temporary lifecycle exception is closed: native CLI restart and MCP
-  stop/restart prove a concrete administrator credential through the live
-  host-ops gate before signaling, in addition to nonce-verifying the process
-  target (§Design/2).
+  temporary lifecycle exception is closed: native CLI and MCP restart both
+  require a concrete credential at the live host-ops gate. Native CLI uses
+  authenticated server-owned `host.stop` and accepts only its exact typed
+  operation/target/declared-authority/self-stop result, records configured-URL
+  health loss, and grants success only after the ownership-appropriate process
+  observation. Native and attached MCP paths require the descriptor-named,
+  pre-stop PID/start-time identity observably gone. Manager-owned MCP requires
+  the descriptor PID to match its unforgeable child handle and asynchronously
+  reaps that exact child. No projection signals a descriptor-named PID
+  (§Design/2). This does not claim mutual server or HTTP responder
+  authentication: the same-UID trust domain can reproduce the descriptor,
+  credential carrier, and responder. `processIdentityVerified` claims only the
+  separately observed, ownership-bound process exit.
 - **No secret in convenience channels.** Argv, ordinary MCP parameters/results,
   catalog examples, logs, and receipts are not secret carriers.
 - **No browser automation as API.** Agents use headless operations; a browser is
@@ -1422,8 +1474,10 @@ coordinated orchestrator sessions (lane ownership recorded in the closed
   dated LLP 0024/0028 amendments), `69136b5ac` (`ephemeral.cleanup`
   cutoff/dry-run/bounded-apply/receipt semantics), `251367f3d`
   (credential-proven `snapback restart`; §Design/2's named temporary
-  authority exception is closed — MCP and CLI lifecycle mutation paths both
-  require the admin-credential probe).
+  authority exception is closed — strengthened 2026-08-26 so native CLI
+  restart and direct stop use authenticated, startup-fenced, server-owned
+  shutdown; the caller never signals a descriptor-named PID and uses it only
+  for identity-bound existence observation).
 - **Phase 3**: §A `data.patch` at `42ce63d93..480ac704d` (single-use
   apply-token binding incl. authority tuple, per-row CAS, ordinary changeset
   + live notification, non-authorizing receipt token id;

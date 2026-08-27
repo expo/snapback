@@ -1642,9 +1642,15 @@ async function runStopChildrenFailureRetrySuite() {
       supervisors.splice(supervisors.indexOf(run.supervisor), 1);
     }
     if (backendPid !== null && processAlive(backendPid) && existsSync(target.readyFile)) {
+      const adminToken = managedAdminToken(
+        readReadyDescriptor(target.readyFile),
+        target.database,
+      );
       spawnSync(runtimeBinary, ['stop', '--ready-file', target.readyFile], {
         cwd: target.projectRoot,
-        env: process.env,
+        env: adminToken
+          ? { ...process.env, SNAPBACK_ADMIN_TOKEN: adminToken }
+          : process.env,
       });
       await eventually(() => !processAlive(backendPid), { label: 'fault-injection cleanup' });
     }

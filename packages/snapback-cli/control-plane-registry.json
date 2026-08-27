@@ -3,6 +3,16 @@
   "routes": [
     {
       "method": "GET",
+      "path": "/_snapback/api/app/identity",
+      "class": "SystemApi",
+      "pathPolicy": "Public",
+      "credentialResolution": "None",
+      "invocationAuthority": "None",
+      "effectPolicy": "None",
+      "responseSensitivity": "PublicNoStore"
+    },
+    {
+      "method": "GET",
       "path": "/_snapback/api/auth/mailbox",
       "class": "SystemApi",
       "pathPolicy": "AdminWrite",
@@ -16,6 +26,26 @@
       "path": "/_snapback/api/auth/integrations",
       "class": "SystemApi",
       "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/password/attempt",
+      "class": "SystemApi",
+      "pathPolicy": "AdminRead",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "OperatorMetadata"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/auth/password/unlock",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
       "credentialResolution": "AdminCredential",
       "invocationAuthority": "Operator",
       "effectPolicy": "None",
@@ -524,6 +554,16 @@
     {
       "method": "GET",
       "path": "/_snapback/api/inspect",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "Operator",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "method": "POST",
+      "path": "/_snapback/api/authority/effective",
       "class": "SystemApi",
       "pathPolicy": "AdminWrite",
       "credentialResolution": "AdminCredential",
@@ -1451,11 +1491,11 @@
       "asset.rotateSigningKey",
       "debug.networkProfileGet",
       "debug.networkProfileSet",
-      "debug.live.forceResync"
+      "debug.live.forceResync",
+      "host.stop"
     ],
     "cliOnly": [
       "host.start",
-      "host.stop",
       "host.restart",
       "host.wait"
     ],
