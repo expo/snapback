@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:81ea649032368bf8c239efc5bd567daad821d0b604ddacaab7c8f042feb0ba03"
+    "sourceDigest": "sha256:7aa56b02854485113ad75623ac2549db49d68771abc3bd4f060f08fed20994a8"
   },
   "limits": {
     "lookupBytes": 16384
@@ -23929,7 +23929,7 @@
       "guideAnchor": "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
       "guideAnchors": [
         "/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context",
-        "/_snapback/guide/realtime/live-queries.md#troubleshoot-stale-or-absent-cross-client-updates",
+        "/_snapback/guide/realtime/live-queries.md#troubleshoot-apparent-cross-persona-live-update-failures",
         "/_snapback/guide/recipes/multi-persona-clients.md#read-the-implicit-reuse-warning"
       ]
     },

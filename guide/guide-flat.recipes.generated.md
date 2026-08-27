@@ -3587,11 +3587,15 @@ This covers both create → sign in → create and create → create → sign in
 
 `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`
 
-The warning does not refuse construction, log credentials, change custody, or
-guess that two callers represent different people. It names the default
-partition, this guide page, and the supported repair: pass one stable explicit
-`storagePartition` per persona or worker. It does not fire for explicit
-partition reuse, anonymous custody, or volatile custody.
+The warning is conditional: implicit reuse is supported when multiple handles
+intentionally represent one persona. It does not guess that two callers are
+different people or assert that reuse has broken live delivery. It identifies
+the shared custody and warns that, if the callers were intended as independent
+personas, cross-client updates can look stale or absent because they are
+actually the same principal. It names the default partition, this guide page,
+and the supported repair: pass one stable explicit `storagePartition` per
+persona or worker. It does not fire for explicit partition reuse, anonymous
+custody, or volatile custody.
 
 ## Anti-patterns
 

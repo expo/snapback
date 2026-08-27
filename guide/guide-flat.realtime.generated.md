@@ -117,25 +117,31 @@ after the commit is durable, and skipped subscriptions converge via a
 rows-free `current_as_of` watermark. Wait on delivery (as above) rather
 than asserting immediately after `mutate` resolves.
 
-## Troubleshoot stale or absent cross-client updates
+## Troubleshoot apparent cross-persona live-update failures
 
 <!-- @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client — same app + storage partition intentionally shares one auth-bearing owner; separate personas require separate partitions -->
 
-When a committed write does not wake the other client's live hook, or the live
-query stays stale on the other client, or
-the second client does not receive live updates at all in a headless or
-multi-client test, **first verify that each client/persona uses a distinct
-`storagePartition`**. Sharing the implicit durable auth partition `"default"`
-makes multiple clients restore the same principal: the "second client" is
-really the first, and its subscription is not an independent second-principal
-subscription. Cross-client fanout then looks broken in the acceptance test,
-but this is an auth-custody collision.
+When a committed write does not wake the other persona's live hook, or the live
+query stays stale for that persona, or the second intended principal does not
+receive live updates in a multi-persona headless test, **first verify that each
+client/persona uses a distinct `storagePartition`**. Sharing the implicit
+durable auth partition `"default"` makes multiple clients restore the same
+principal: the "second client" is really the first, and its subscription is
+not an independent second-principal subscription. Cross-persona fanout then
+looks broken in the acceptance test, but this is an auth-custody collision.
 
 The client emits `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` for this
 case. Set one stable explicit `storagePartition` per persona or worker, then
 follow the [multiple Node personas recipe](../recipes/multi-persona-clients.md);
 the [headless client](../clients/headless.md#construct-one-client-per-backend-and-custody-context)
 explains the custody owner contract.
+
+If each client already uses a distinct `storagePartition` and updates are still
+stale, this is a different issue: use the
+[client/server snapshot join](../backend/query-costs.md) for the connection-axis
+stale state, and follow the
+[open live-query matcher caveat](#matching-inserts-in-point-and-parent-queries)
+when its blank-after-insert symptoms match.
 
 ## Matching inserts in point and parent queries
 
