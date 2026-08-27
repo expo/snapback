@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ef423704eb2a70785af16ecea7cc25b5a2ad09e19f462b671f3d4ca823cf51a1"
+    "sourceDigest": "sha256:8e48d303336fb69d873965002fc58bbd43f262dbc2f9fdb8be66cea4dd625a55"
   },
   "limits": {
     "lookupBytes": 16384
@@ -42049,7 +42049,7 @@
       "sites": [
         {
           "file": "packages/snapback-cli/expo-dev.mjs",
-          "line": 5239,
+          "line": 5240,
           "column": 10
         }
       ],

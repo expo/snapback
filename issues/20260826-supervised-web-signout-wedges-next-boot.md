@@ -154,10 +154,19 @@ harness and the qualified
 `target/debug/snapback` binary and exited 0. The available browser-control
 inventory was empty, so this is explicitly an HTTP-level stand-in for a real
 browser reload, not a DOM/button claim. It used a live `runExpoDev` supervisor
-with `platform: web`, browser `Origin` headers, the current freshly scaffolded
-`expo-chat` backend and provider declarations, and a fresh IndexedDB factory
-for every reload-shaped boot. The Metro child was the existing supervised-loop
-stand-in.
+with `platform: web`, browser `Origin` headers, and the current freshly scaffolded
+`expo-chat` backend and provider declarations. The Metro child was the existing
+supervised-loop stand-in.
+
+Correction (review, 2026-08-27): an earlier revision of this section claimed a
+fresh IndexedDB factory for every reload-shaped boot. That was stronger than the
+harness. The page-shaped boots do not install `globalThis.indexedDB`, so
+provider resolution falls through to volatile memory, and the `expo-chat`
+template declares `volatile-explicit` custody anyway; only the separate provider
+clients receive an explicit `IDBFactory`. The surface this arm actually
+exercised is volatile in-memory browser storage, not IndexedDB. Persistent
+browser storage across a real reload therefore remains **uncovered**, alongside
+the real Expo/Metro browser integration and native Keychain/Keystore.
 
 ### Current `expo-chat` provider-button posture
 
