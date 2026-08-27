@@ -35,6 +35,7 @@ import {
   createSupervisedExpoEnvironment,
   useSnapbackExpoBootState,
 } from '../snapback-expo/index.mjs';
+import { createNativeAuthCustodyStorage } from '../snapback-expo-custody/index.mjs';
 import {
   observeSnapbackPresence,
   observeSnapbackQueries,
@@ -86,8 +87,270 @@ const backendCloseRetryOnly = process.argv.includes('--backend-close-retry-only'
 const controlOwnerSurvivalOnly = process.argv.includes('--control-owner-survival-only');
 const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
+const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
+const retainedCustodyChild = process.argv.includes('--retained-custody-child');
+const retainedHarnessProcessTable = process.env.SNAPBACK_RETAINED_PROCESS_TABLE === 'lsof';
+
+if (retainedSessionLifecycleOnly && !retainedHarnessProcessTable) {
+  const nativeProcessTable = spawnSync(
+    '/bin/ps',
+    ['-axo', 'pid=,ppid=,pgid=,lstart='],
+    { encoding: 'utf8', timeout: 10_000 },
+  );
+  if (nativeProcessTable.error || nativeProcessTable.status !== 0) {
+    const preloadRoot = mkdtempSync(join(tmpdir(), 'snapback-retained-process-table-'));
+    const preload = join(preloadRoot, 'lsof-process-table.mjs');
+    writeFileSync(preload, `
+import childProcess from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
+
+const originalSpawnSync = childProcess.spawnSync;
+childProcess.spawnSync = function retainedHarnessSpawnSync(command, args, options) {
+  if (command !== '/bin/ps') return originalSpawnSync(command, args, options);
+  const result = originalSpawnSync('/usr/sbin/lsof', ['-nP', '-FpcR'], {
+    encoding: 'utf8',
+    timeout: options?.timeout ?? 10_000,
+  });
+  if (result.error || result.status !== 0) return result;
+  const records = new Map();
+  let current = null;
+  for (const line of result.stdout.split('\\n')) {
+    if (line.startsWith('p')) {
+      current = Number(line.slice(1));
+      if (Number.isSafeInteger(current) && current > 0 && !records.has(current)) {
+        records.set(current, { pid: current, ppid: 1 });
+      }
+    } else if (line.startsWith('R') && records.has(current)) {
+      records.get(current).ppid = Number(line.slice(1));
+    }
+  }
+  const stdout = [...records.values()].map(({ pid, ppid }) => (
+    String(pid) + ' ' + String(ppid) + ' ' + String(pid)
+      + ' Thu Jan  1 00:00:00 1970-' + String(pid)
+  )).join('\\n') + '\\n';
+  return { ...result, stdout, stderr: '' };
+};
+syncBuiltinESMExports();
+`, { mode: 0o600 });
+    const result = spawnSync(process.execPath, [
+      '--import', preload,
+      fileURLToPath(import.meta.url),
+      '--retained-session-lifecycle-only',
+    ], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        SNAPBACK_RETAINED_PROCESS_TABLE: 'lsof',
+      },
+      stdio: 'inherit',
+      timeout: 180_000,
+    });
+    rmSync(preloadRoot, { recursive: true, force: true });
+    if (result.error) throw result.error;
+    process.exit(result.status ?? 1);
+  }
+}
+
 if (!metroFreshnessOnly) {
   assert.ok(existsSync(runtimeBinary), `real Snapback runtime is missing: ${runtimeBinary}`);
+}
+
+function readJsonObject(path) {
+  if (!existsSync(path)) return {};
+  const value = JSON.parse(readFileSync(path, 'utf8'));
+  assert(value !== null && typeof value === 'object' && !Array.isArray(value));
+  return value;
+}
+
+function writeJsonObject(path, value) {
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+  renameSync(temporary, path);
+}
+
+function persistentNativeCustodyModule(path, calls) {
+  return Object.freeze({
+    async platformGrade() {
+      calls.push(Object.freeze({ operation: 'platformGrade' }));
+      return Object.freeze({
+        status: 'ok',
+        os: 'ios',
+        grade: 'single-runtime',
+        carrier: 'process-persistent-file-native-module-stand-in',
+        mechanism: 'atomic-file-cas-test-double',
+        moduleVersion: 'retained-session-harness.v1',
+        storageFormatVersion: 1,
+      });
+    },
+    async read(appId, storageKey) {
+      calls.push(Object.freeze({ operation: 'read', appId, storageKey }));
+      return Object.freeze({
+        status: 'ok',
+        record: readJsonObject(path)[storageKey] ?? null,
+      });
+    },
+    async compareAndReplace(appId, storageKey, expectedRevision, serializedRecord) {
+      calls.push(Object.freeze({
+        operation: 'compareAndReplace',
+        appId,
+        storageKey,
+        expectedRevision,
+      }));
+      const records = readJsonObject(path);
+      const current = records[storageKey] ?? null;
+      const actualRevision = current === null ? null : JSON.parse(current).revision;
+      if (actualRevision !== expectedRevision) {
+        return Object.freeze({ status: 'cas-stale', expectedRevision, actualRevision });
+      }
+      records[storageKey] = serializedRecord;
+      writeJsonObject(path, records);
+      return Object.freeze({ status: 'ok', record: serializedRecord });
+    },
+  });
+}
+
+function summarizedCustodyRecord(path) {
+  const entries = Object.entries(readJsonObject(path));
+  assert.equal(entries.length, 1, 'the native custody harness must retain exactly one owner-key row');
+  const [storageKey, serialized] = entries[0];
+  const record = JSON.parse(serialized);
+  return Object.freeze({
+    storageKey,
+    formatVersion: record.formatVersion,
+    phase: record.phase,
+    revision: record.revision,
+    authorityEpoch: record.authorityEpoch,
+    authorityKind: record.authority?.kind ?? null,
+    bearerPresent: record.bearer !== null,
+    pendingBearerPresent: record.pendingBearer !== null,
+  });
+}
+
+async function runRetainedCustodyChild() {
+  const action = process.env.SNAPBACK_RETAINED_CUSTODY_ACTION;
+  const appPath = process.env.SNAPBACK_RETAINED_CUSTODY_APP;
+  const exchangeOrigin = process.env.SNAPBACK_RETAINED_CUSTODY_EXCHANGE_ORIGIN;
+  const custodyPath = process.env.SNAPBACK_RETAINED_CUSTODY_FILE;
+  const expectedSupervisorGeneration = process.env.SNAPBACK_RETAINED_CUSTODY_GENERATION;
+  assert(['sign-out', 'restart-sign-in'].includes(action));
+  for (const [name, value] of Object.entries({
+    appPath,
+    exchangeOrigin,
+    custodyPath,
+    expectedSupervisorGeneration,
+  })) assert.equal(typeof value === 'string' && value.length > 0, true, `missing ${name}`);
+
+  const app = JSON.parse(readFileSync(appPath, 'utf8'));
+  app.authBootstrap.custody = 'durable-required';
+  const diagnostics = [];
+  const nativeCalls = [];
+  let nativeFactoryCalls = 0;
+  const nativeModule = persistentNativeCustodyModule(custodyPath, nativeCalls);
+  const nativeStorage = createNativeAuthCustodyStorage({
+    nativeModule,
+    onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
+  });
+  const environment = Object.freeze({
+    ...createSupervisedExpoEnvironment({
+      exchangeOrigin,
+      runtimePlatform: 'native',
+      bindingCache: null,
+      appState: Object.freeze({
+        currentState: 'active',
+        addEventListener() { return Object.freeze({ remove() {} }); },
+      }),
+      onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
+    }),
+    resolveNativeAuthCustodyOperatingSystem() { return 'ios'; },
+    async resolveNativeAuthCustodyModule() {
+      return Object.freeze({
+        createNativeAuthCustodyStorage() {
+          nativeFactoryCalls += 1;
+          return nativeStorage;
+        },
+      });
+    },
+    async resolveNativeAuthDigestModule() {
+      return Object.freeze({
+        CryptoDigestAlgorithm: Object.freeze({ SHA256: 'SHA-256' }),
+        digest: (algorithm, input) => webcrypto.subtle.digest(algorithm, input),
+      });
+    },
+  });
+
+  const beforeBootCustody = existsSync(custodyPath)
+    ? summarizedCustodyRecord(custodyPath)
+    : null;
+  const boot = createSnapbackExpoBoot({ app, environment, rqsStore: null });
+  const ready = await boot.start();
+  assert.equal(ready.status, 'ready', JSON.stringify(ready));
+  assert.equal(
+    ready.binding.provenance.supervisorGeneration,
+    expectedSupervisorGeneration,
+  );
+  assert.equal(ready.custody.grade, 'single-runtime');
+  assert.equal(ready.custody.carrier, 'expo-native-injected');
+  assert.equal(ready.custody.mechanism, 'atomic-file-cas-test-double');
+  assert.equal(nativeFactoryCalls, 1, 'the provider must call the native custody factory exactly once');
+  assert.equal(boot.appClient().auth.currentPrincipal().status, 'authenticated');
+
+  let afterTransitionCustody;
+  if (action === 'sign-out') {
+    await boot.appClient().auth.signOut();
+    assert.equal(boot.appClient().auth.currentPrincipal().status, 'anonymous');
+    afterTransitionCustody = summarizedCustodyRecord(custodyPath);
+    assert.equal(afterTransitionCustody.authorityKind, 'anonymous');
+    assert.equal(afterTransitionCustody.bearerPresent, false);
+    assert.equal(afterTransitionCustody.pendingBearerPresent, false);
+  } else {
+    assert.notEqual(beforeBootCustody, null, 'restart child must observe predecessor custody');
+    assert.equal(beforeBootCustody.authorityKind, 'anonymous');
+    assert.equal(beforeBootCustody.bearerPresent, false);
+    await boot.appClient().client.auth.authSession({ force: true });
+    assert.equal(boot.appClient().auth.currentPrincipal().status, 'authenticated');
+    afterTransitionCustody = summarizedCustodyRecord(custodyPath);
+    assert.equal(afterTransitionCustody.authorityKind, 'session');
+    assert.equal(afterTransitionCustody.bearerPresent, true);
+  }
+  const result = Object.freeze({
+    schemaVersion: 'snapback.retained-development-session-child.v1',
+    action,
+    pid: process.pid,
+    supervisorGeneration: ready.binding.provenance.supervisorGeneration,
+    storageArm: Object.freeze({
+      providerFactoryCalls: nativeFactoryCalls,
+      grade: ready.custody.grade,
+      carrier: ready.custody.carrier,
+      nativeGradeCarrier: 'process-persistent-file-native-module-stand-in',
+      mechanism: ready.custody.mechanism,
+      processPersistent: true,
+      nativeOperations: nativeCalls.map(({ operation }) => operation),
+    }),
+    beforeBootCustody,
+    afterTransitionCustody,
+    principalStatus: boot.appClient().auth.currentPrincipal().status,
+    diagnosticCodes: diagnostics.map(({ code }) => code),
+    expiredDiagnosticObserved: diagnostics.some(
+      ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
+    ),
+  });
+  await boot.dispose();
+  return result;
+}
+
+if (retainedCustodyChild) {
+  try {
+    console.log(JSON.stringify(await runRetainedCustodyChild()));
+    process.exit(0);
+  } catch (error) {
+    console.error(JSON.stringify({
+      schemaVersion: 'snapback.retained-development-session-child-error.v1',
+      code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_RETAINED_CUSTODY_CHILD_FAILED',
+      message: error?.message ?? String(error),
+      stack: error?.stack ?? null,
+    }));
+    process.exit(1);
+  }
 }
 
 const sourceFixture = join(packageRoot, 'fixtures', 'comparator', 'app', 'snapback');
@@ -131,6 +394,7 @@ if (process.env.SNAPBACK_EXPO_TEST_METRO_FAIL_AFTER_FIRST === '1' && launchCount
 const ci = String(process.env.CI ?? '').trim().toLowerCase();
 const watching = !['1', 'true'].includes(ci);
 const pollGeneratedAlias = process.env.SNAPBACK_EXPO_TEST_POLL_GENERATED === '1';
+const skipGeneratedWatch = process.env.SNAPBACK_EXPO_TEST_NO_GENERATED_WATCH === '1';
 
 function publishedGraph() {
   const aliasSource = readFileSync(join(generatedRoot, 'app.mjs'), 'utf8');
@@ -169,14 +433,14 @@ const scheduleRefresh = () => {
 };
 let generatedWatcher = null;
 let stagingWatcher = null;
-if (watching && pollGeneratedAlias) {
+if (watching && !skipGeneratedWatch && pollGeneratedAlias) {
   const aliasPath = join(generatedRoot, 'app.mjs');
   watchFile(aliasPath, { interval: 10 }, scheduleRefresh);
   generatedWatcher = { close: () => unwatchFile(aliasPath, scheduleRefresh) };
-} else if (watching) {
+} else if (watching && !skipGeneratedWatch) {
   generatedWatcher = watch(generatedRoot, scheduleRefresh);
 }
-if (watching) {
+if (watching && !skipGeneratedWatch) {
   stagingWatcher = watch(join(generatedRoot, '..'), (_event, filename) => {
     const entry = String(filename ?? '').split(/[\\\\/]/u)[0];
     if (!/^(?:\\.generated\\.tmp-|generated\\.tmp-|generated\\.bak-)/u.test(entry)) return;
@@ -747,6 +1011,431 @@ function authSessionUserForBearer(databasePath, bearer) {
     ).get(createHash('sha256').update(bearer).digest())?.userId ?? null;
   } finally {
     database.close();
+  }
+}
+
+function authSessionFactsForBearer(databasePath, bearer) {
+  const database = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const row = database.prepare(
+      'SELECT id, user_id AS userId, generation, revoked_at_ms AS revokedAtMs '
+        + 'FROM "_auth_sessions" WHERE token_hash = ?',
+    ).get(createHash('sha256').update(bearer).digest());
+    return row === undefined ? null : Object.freeze({ ...row });
+  } finally {
+    database.close();
+  }
+}
+
+async function runRetainedCustodyProcess({ action, appPath, supervisor, custodyPath }) {
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), '--retained-custody-child'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      SNAPBACK_RUNTIME_BINARY: runtimeBinary,
+      SNAPBACK_RETAINED_CUSTODY_ACTION: action,
+      SNAPBACK_RETAINED_CUSTODY_APP: appPath,
+      SNAPBACK_RETAINED_CUSTODY_EXCHANGE_ORIGIN: supervisor.exchangeOrigin,
+      SNAPBACK_RETAINED_CUSTODY_FILE: custodyPath,
+      SNAPBACK_RETAINED_CUSTODY_GENERATION: supervisor.supervisorGeneration,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const exit = await new Promise((resolveExit) => {
+    child.once('exit', (code, signal) => resolveExit({ code, signal }));
+  });
+  assert.deepEqual(exit, { code: 0, signal: null }, stderr || stdout);
+  const structuredLine = stdout.trim().split('\n').reverse().find((line) => {
+    try {
+      return JSON.parse(line)?.schemaVersion === 'snapback.retained-development-session-child.v1';
+    } catch {
+      return false;
+    }
+  });
+  assert.equal(typeof structuredLine, 'string', `child returned no structured result: ${stdout}`);
+  return JSON.parse(structuredLine);
+}
+
+function retainedWebEnvironment(supervisor, indexedDB, databaseName, diagnostics, bearers) {
+  return Object.freeze({
+    ...createSupervisedExpoEnvironment({
+      exchangeOrigin: supervisor.exchangeOrigin,
+      runtimePlatform: 'web',
+      bindingCache: null,
+      appState: Object.freeze({
+        currentState: 'active',
+        addEventListener() { return Object.freeze({ remove() {} }); },
+      }),
+      async fetch(input, init) {
+        const response = await fetch(input, init);
+        if (
+          String(input) === `${supervisor.exchangeOrigin}${SUPERVISED_EXCHANGE_PATH}?authority=mint`
+          && init?.method === 'POST'
+          && response.ok
+        ) {
+          const exchange = await response.clone().json();
+          if (exchange.authority?.status === 'ready') bearers.push(exchange.authority.token);
+        }
+        return response;
+      },
+      onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
+    }),
+    resolveNativeAuthCustodyOperatingSystem() { return 'web'; },
+    resolveAppClientPlatform() {
+      return Object.freeze({
+        kind: 'expo-web',
+        indexedDB,
+        lockManager: Object.freeze({ request: (_name, _options, operation) => operation() }),
+        cryptoObject: webcrypto,
+        databaseName,
+      });
+    },
+  });
+}
+
+async function runRetainedSessionLifecycleSuite() {
+  const target = fixture('retained-development-session', { sessions: true });
+  let run = null;
+  try {
+    const stopRetainedMetro = async (child) => {
+      if (child.exitCode !== null || child.signalCode !== null) return true;
+      const exited = new Promise((resolveExit) => child.once('exit', resolveExit));
+      child.kill('SIGTERM');
+      const graceful = await Promise.race([
+        exited.then(() => true),
+        new Promise((resolveWait) => setTimeout(() => resolveWait(false), 5_000)),
+      ]);
+      if (graceful) return true;
+      child.kill('SIGKILL');
+      await exited;
+      return true;
+    };
+    run = await startFixture(target, {
+      platform: 'web',
+      env: { SNAPBACK_EXPO_TEST_NO_GENERATED_WATCH: '1' },
+      stopProcessGroup: stopRetainedMetro,
+      onEvent(event) {
+        if (event.state === 'metro-output') {
+          process.stderr.write(`[retained-session Metro ${event.stream}] ${event.line}\n`);
+        }
+      },
+    });
+    const { supervisor } = run;
+    const appPath = join(target.backendRoot, 'generated', 'app.descriptor.json');
+    const custodyPath = join(target.stateRoot, 'retained-native-custody.json');
+    const generation = supervisor.supervisorGeneration;
+
+    const mintCountBeforeProcesses = supervisor.inspection().authorityMintCount;
+    const signedOutProcess = await runRetainedCustodyProcess({
+      action: 'sign-out',
+      appPath,
+      supervisor,
+      custodyPath,
+    });
+    assert.equal(signedOutProcess.supervisorGeneration, generation);
+    assert.equal(signedOutProcess.storageArm.grade, 'single-runtime');
+    assert.equal(signedOutProcess.storageArm.carrier, 'expo-native-injected');
+    assert.equal(signedOutProcess.storageArm.processPersistent, true);
+    assert.equal(signedOutProcess.storageArm.providerFactoryCalls, 1);
+    assert(signedOutProcess.storageArm.nativeOperations.includes('compareAndReplace'));
+    assert.equal(signedOutProcess.afterTransitionCustody.authorityKind, 'anonymous');
+    assert.equal(signedOutProcess.afterTransitionCustody.bearerPresent, false);
+    assert.deepEqual(signedOutProcess.diagnosticCodes, []);
+    assert.equal(signedOutProcess.expiredDiagnosticObserved, false);
+
+    const restartedProcess = await runRetainedCustodyProcess({
+      action: 'restart-sign-in',
+      appPath,
+      supervisor,
+      custodyPath,
+    });
+    assert.notEqual(restartedProcess.pid, signedOutProcess.pid, 'the app must relaunch in a new OS process');
+    assert.equal(restartedProcess.supervisorGeneration, generation);
+    assert.equal(supervisor.supervisorGeneration, generation, 'the supervisor must never restart');
+    assert.equal(restartedProcess.storageArm.grade, 'single-runtime');
+    assert.equal(restartedProcess.storageArm.carrier, 'expo-native-injected');
+    assert.equal(restartedProcess.storageArm.processPersistent, true);
+    assert.equal(restartedProcess.beforeBootCustody.authorityKind, 'anonymous');
+    assert.equal(restartedProcess.beforeBootCustody.bearerPresent, false);
+    assert.equal(restartedProcess.principalStatus, 'authenticated');
+    assert.deepEqual(restartedProcess.diagnosticCodes, []);
+    assert.equal(restartedProcess.expiredDiagnosticObserved, false);
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      mintCountBeforeProcesses + 2,
+      'each native process asks the never-restarted supervisor for one fresh sign-in',
+    );
+
+    const surface1 = Object.freeze({
+      variant: 'process-restart-retained-native-custody',
+      surface: 'client process-persistent custody',
+      reached: true,
+      reproduced: false,
+      proof: Object.freeze({
+        processIds: Object.freeze([signedOutProcess.pid, restartedProcess.pid]),
+        supervisorGeneration: generation,
+        supervisorRestarted: false,
+        storageArm: restartedProcess.storageArm,
+        recordBeforeRestartBoot: restartedProcess.beforeBootCustody,
+      }),
+      result: Object.freeze({
+        afterSignOut: Object.freeze({
+          principalStatus: signedOutProcess.principalStatus,
+          custody: signedOutProcess.afterTransitionCustody,
+          diagnosticCodes: signedOutProcess.diagnosticCodes,
+        }),
+        afterRestartFreshSignIn: Object.freeze({
+          principalStatus: restartedProcess.principalStatus,
+          custody: restartedProcess.afterTransitionCustody,
+          diagnosticCodes: restartedProcess.diagnosticCodes,
+          exactExpiredDiagnosticObserved: restartedProcess.expiredDiagnosticObserved,
+        }),
+      }),
+    });
+
+    const app = JSON.parse(readFileSync(appPath, 'utf8'));
+    const indexedDB = new IDBFactory();
+    const diagnostics = [];
+    const deliveredBearers = [];
+    const environment = () => retainedWebEnvironment(
+      supervisor,
+      indexedDB,
+      'retained-pending-authority-web',
+      diagnostics,
+      deliveredBearers,
+    );
+    const mintCountBeforeReloadVariant = supervisor.inspection().authorityMintCount;
+    const sessionCountBeforeReloadVariant = authSessionCount(target.database);
+    const predecessorBoot = createSnapbackExpoBoot({
+      app,
+      environment: environment(),
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const predecessorReady = await predecessorBoot.start();
+    assert.equal(predecessorReady.status, 'ready', JSON.stringify(predecessorReady));
+    assert.equal(predecessorBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+    assert.equal(deliveredBearers.length, 1);
+    const predecessorBearer = deliveredBearers[0];
+    const predecessorFactsBeforeReload = authSessionFactsForBearer(
+      target.database,
+      predecessorBearer,
+    );
+    assert.notEqual(predecessorFactsBeforeReload, null);
+    assert.equal(predecessorFactsBeforeReload.revokedAtMs, null);
+
+    const reload = await supervisor.verbs.reload({
+      requestId: 'retained-pending-authority-successor-reload',
+    });
+    assert.equal(reload.state, 'generated-and-loaded', JSON.stringify(reload));
+    assert.equal(supervisor.supervisorGeneration, generation);
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      mintCountBeforeReloadVariant + 1,
+      'ordinary reload does not populate the one-shot authority slot at this base',
+    );
+    assert.equal(
+      await supervisor.replaceAuthority('first@expo-e1.test'),
+      'ready',
+      'the supervisor replacement seam populates the exact pendingAuthority slot',
+    );
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      mintCountBeforeReloadVariant + 2,
+      'initial adoption plus the stashed same-email replacement each mint one authority',
+    );
+    assert.equal(
+      authSessionCount(target.database),
+      sessionCountBeforeReloadVariant + 2,
+      'the same-email stashed replacement establishes a second session row',
+    );
+    const mintCountAfterStash = supervisor.inspection().authorityMintCount;
+
+    await predecessorBoot.appClient().auth.signOut();
+    assert.equal(predecessorBoot.appClient().auth.currentPrincipal().status, 'anonymous');
+    await predecessorBoot.dispose();
+    const predecessorFactsAfterSignOut = authSessionFactsForBearer(
+      target.database,
+      predecessorBearer,
+    );
+    assert.notEqual(predecessorFactsAfterSignOut.revokedAtMs, null);
+
+    const successorBoot = createSnapbackExpoBoot({
+      app,
+      environment: environment(),
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const successorReady = await successorBoot.start();
+    assert.equal(successorReady.status, 'ready', JSON.stringify(successorReady));
+    const successorPrincipalStatus = successorBoot.appClient().auth.currentPrincipal().status;
+    assert.equal(successorPrincipalStatus, 'authenticated');
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      mintCountAfterStash,
+      'the successor boot consumes the stashed authority without minting again',
+    );
+    const mintCountAfterSameDatabaseSuccessorBoot = supervisor.inspection().authorityMintCount;
+    assert.equal(deliveredBearers.length, 2);
+    const successorBearer = deliveredBearers[1];
+    assert.notEqual(successorBearer, predecessorBearer);
+    const successorFacts = authSessionFactsForBearer(target.database, successorBearer);
+    assert.notEqual(successorFacts, null);
+    assert.notEqual(successorFacts.id, predecessorFactsAfterSignOut.id);
+    assert.equal(successorFacts.userId, predecessorFactsAfterSignOut.userId);
+    assert.equal(successorFacts.revokedAtMs, null);
+    assert.equal(
+      diagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
+      false,
+    );
+    const successorDiagnosticCodes = diagnostics.map(({ code }) => code);
+    assert.deepEqual(successorDiagnosticCodes, []);
+    await successorBoot.dispose();
+
+    const freshDiagnostics = [];
+    const freshDeliveredBearers = [];
+    const freshIndexedDB = new IDBFactory();
+    const freshEnvironment = () => retainedWebEnvironment(
+      supervisor,
+      freshIndexedDB,
+      'retained-dev-fresh-pending-authority-web',
+      freshDiagnostics,
+      freshDeliveredBearers,
+    );
+    const beforeFreshBootMintCount = supervisor.inspection().authorityMintCount;
+    const preFreshBoot = createSnapbackExpoBoot({
+      app,
+      environment: freshEnvironment(),
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const preFreshReady = await preFreshBoot.start();
+    assert.equal(preFreshReady.status, 'ready', JSON.stringify(preFreshReady));
+    assert.equal(preFreshBoot.appClient().auth.currentPrincipal().status, 'authenticated');
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      beforeFreshBootMintCount + 1,
+    );
+    const devFresh = await supervisor.verbs['dev-fresh']({
+      requestId: 'retained-pending-authority-dev-fresh',
+    });
+    assert.equal(devFresh.ok, true, JSON.stringify(devFresh));
+    assert.equal(supervisor.supervisorGeneration, generation);
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      beforeFreshBootMintCount + 2,
+      'dev-fresh mints and stashes one successor because authority was previously requested',
+    );
+    const mintCountAfterDevFreshStash = supervisor.inspection().authorityMintCount;
+    let postResetSignOutCode = null;
+    try {
+      await preFreshBoot.appClient().auth.signOut();
+    } catch (error) {
+      postResetSignOutCode = error?.diagnostic?.code ?? error?.code ?? null;
+    }
+    assert.equal(
+      postResetSignOutCode,
+      'SNAPBACK_AUTH_REQUIRED',
+      'database reset terminalizes the predecessor before its later sign-out request',
+    );
+    await preFreshBoot.dispose();
+
+    const postFreshBoot = createSnapbackExpoBoot({
+      app,
+      environment: freshEnvironment(),
+      adoptSupervisedSession: true,
+      rqsStore: null,
+    });
+    const postFreshReady = await postFreshBoot.start();
+    assert.equal(postFreshReady.status, 'ready', JSON.stringify(postFreshReady));
+    const postFreshPrincipalStatus = postFreshBoot.appClient().auth.currentPrincipal().status;
+    assert.equal(postFreshPrincipalStatus, 'authenticated');
+    assert.equal(
+      supervisor.inspection().authorityMintCount,
+      mintCountAfterDevFreshStash,
+      'the first post-reset boot consumes the production-stashed authority without another mint',
+    );
+    assert.equal(
+      freshDiagnostics.some(({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED'),
+      false,
+      'the exact expiry diagnostic belongs to the already-reset predecessor sign-out, not later boot',
+    );
+    const postFreshDiagnosticCodes = freshDiagnostics.map(({ code }) => code);
+    assert.deepEqual(postFreshDiagnosticCodes, []);
+    await postFreshBoot.dispose();
+
+    const surface2 = Object.freeze({
+      variant: 'successor-reload-plus-stashed-replacement-before-sign-out',
+      surface: 'one-shot supervisor pendingAuthority',
+      reached: true,
+      reproduced: false,
+      proof: Object.freeze({
+        supervisorGeneration: generation,
+        supervisorRestarted: false,
+        mintCountAfterStash,
+        mintCountAfterSuccessorBoot: mintCountAfterSameDatabaseSuccessorBoot,
+        pendingAuthorityConsumedWithoutMint: true,
+        ordinaryReloadPopulatedPendingAuthority: false,
+        pendingAuthorityPopulatedBy: 'replaceAuthority-same-email',
+        sameEmailUser: successorFacts.userId === predecessorFactsAfterSignOut.userId,
+        distinctSessionFamilies: successorFacts.id !== predecessorFactsAfterSignOut.id,
+        productionStashArm: Object.freeze({
+          verb: 'dev-fresh',
+          supervisorGeneration: generation,
+          supervisorRestarted: false,
+          predecessorSignOutDiagnosticCode: postResetSignOutCode,
+          logoutInvalidationTested: false,
+          mintCountAfterStash: mintCountAfterDevFreshStash,
+          mintCountAfterSuccessorBoot: supervisor.inspection().authorityMintCount,
+          pendingAuthorityConsumedWithoutMint: true,
+        }),
+      }),
+      result: Object.freeze({
+        predecessor: Object.freeze({
+          sessionId: predecessorFactsAfterSignOut.id,
+          revoked: predecessorFactsAfterSignOut.revokedAtMs !== null,
+        }),
+        stashedSuccessor: Object.freeze({
+          sessionId: successorFacts.id,
+          revoked: successorFacts.revokedAtMs !== null,
+          principalStatus: successorPrincipalStatus,
+        }),
+        diagnosticCodes: successorDiagnosticCodes,
+        exactExpiredDiagnosticObserved: diagnostics.some(
+          ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
+        ),
+        productionStashArm: Object.freeze({
+          predecessorSignOut: Object.freeze({
+            status: 'failed',
+            diagnosticCode: postResetSignOutCode,
+          }),
+          successorBoot: Object.freeze({
+            principalStatus: postFreshPrincipalStatus,
+            diagnosticCodes: postFreshDiagnosticCodes,
+            exactExpiredDiagnosticObserved: freshDiagnostics.some(
+              ({ code }) => code === 'SNAPBACK_AUTH_SESSION_EXPIRED',
+            ),
+          }),
+        }),
+      }),
+    });
+
+    const structured = Object.freeze({
+      schemaVersion: 'snapback.retained-development-session-lifecycle.v1',
+      variants: Object.freeze([surface1, surface2]),
+    });
+    console.log(JSON.stringify(structured));
+  } finally {
+    if (run !== null) {
+      await run.supervisor.close().catch(() => {});
+      supervisors.splice(supervisors.indexOf(run.supervisor), 1);
+    }
   }
 }
 
@@ -2600,7 +3289,9 @@ async function runRegularFileControlInputSuite() {
 }
 
 try {
-  if (metroStopRaceOnly) {
+  if (retainedSessionLifecycleOnly) {
+    await runRetainedSessionLifecycleSuite();
+  } else if (metroStopRaceOnly) {
     await runDelayedMetroExitAfterStopFailureSuite();
   } else if (backendCloseRetryOnly) {
     await runNonExpoCloseRetrySuite();
