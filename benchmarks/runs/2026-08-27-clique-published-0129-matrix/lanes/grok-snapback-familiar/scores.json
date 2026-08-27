@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-clique-familiar",
+  "backend": "snapback-familiar",
+  "backend_version": "snapback-familiar-0.1.29",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "aborted",
+    "M4": "aborted",
+    "M5": "aborted",
+    "M6": "aborted",
+    "M7": "not-run",
+    "M8": "aborted"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 48, "rationale": "M1–M2 green; M3–M6+M8 suites all passed but required web choreography failed after M2, so later checklists count not-passed in the full-run denominator."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 42, "rationale": "Core DM text works; receipt ticks never reached delivered, conversation media upload hung the send path, and Playwright offline unmounted the Snapback web provider."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "Requires M6 green; M6 suite passed but required web choreography failed."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "Requires M6 green; native simulator is environment-null and web offline queue choreography failed."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 0, "rationale": "Banded first-match 0: scale replay attempted on a fresh :48123 instance but hung during starter with settledPrefix=0, so the invariant manifest did not conform and the 900s cap was exhausted."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 74, "rationale": "Familiar schema.ts + query/mutation indexes felt Convex-like through M3/M8, until optional-null result contracts and RuntimeNow query bans forced redesigns."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 82, "rationale": "Password defineAuth with durable-required custody signed up Alice–Dave on the first M1 suite without a hand-authored session store."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 58, "rationale": "useQuery live-updated M2 likes/posts; M3 receipts and M5 accent never invalidated under two Playwright clients the way the typing query did."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 28, "rationale": "M6/M8 warm-offline compose lost sm-convo-send once Playwright cut the network; there is no documented familiar outbox that survives provider unmount."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 62, "rationale": "M1 avatars and M2 feed images/video passed choreography via ctx.assets.attach; M4 conversation photo/video live-render stayed red despite the same upload intent."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 55, "rationale": "Suite people/in-chat/global search passed; required warm-offline search over synced Coffee after work? did not."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 68, "rationale": "custom-client-demo.mjs and sample-50 replayLog went green on the headless familiar client; push was a pushEvents table, not a provider seam."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 38, "rationale": "Served familiar-profile page omitted password defineAuth, optional indexed scalars, and the Date/RuntimeNow query ban that failed generate."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 57, "rationale": "Codegen named SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY with a file:line; Expo bootstrap 503 SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE after generate deleted application-ready did not."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 52, "rationale": "One snapback dev --expo owner issued application-ready and additive successors, then repeatedly deleted that receipt during generate so the web client rendered Clique couldn't start."}
+  },
+  "holistic": {
+    "score": 54,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "query/mutation/useQuery on schema.ts felt like Convex and carried M1–M2 to choreography green without IR.",
+      "Generate deleted snapback.application-ready.v1 and the supervised bootstrap returned 503 until a remint; Playwright then sat on Clique couldn't start.",
+      "A Date.UTC day bucket in insights.summary failed codegen with clock-dependent visibility, so M8 totals had to use integer epoch math with no server now()."
+    ]
+  }
+}

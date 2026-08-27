@@ -1,0 +1,24 @@
+{
+  "schema_version":"clique-scores-v1","lane_id":"terra-convex","backend":"convex","backend_version":"convex-1.45.0","model":"gpt-5.6-terra","effort":"medium","run_scope":"M1-M6+M8",
+  "milestones":{"M1":"capability-failure","M2":"capability-failure","M3":"capability-failure","M4":"capability-failure","M5":"capability-failure","M6":"capability-failure","M7":"not-run","M8":"capability-failure"},
+  "sequencing_attestation":{"essay_written_before_scores":true,"dimension_scores_before_holistic":true,"holistic_before_any_totals_revealed":true},
+  "dimensions":{
+    "O1":{"layer":"grader-outcome","weight":13,"exercised":true,"score":5,"rationale":"Every attempted milestone had a non-green choreography receipt."},
+    "O2":{"layer":"grader-outcome","weight":7,"exercised":true,"score":10,"rationale":"Suite commands emitted receipts, but browser assertions exposed missing product behavior."},
+    "O3":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O4":{"layer":"grader-outcome","weight":9,"exercised":false,"score":null,"rationale":"M6 was not green; native proof is environment-null."},
+    "O5":{"layer":"grader-outcome","weight":8,"exercised":true,"score":0,"rationale":"Banded 0: only the 50-action sample was invoked; invariant-conformant scale replay was not achieved."},
+    "B1":{"layer":"builder-experience","weight":6,"exercised":true,"score":45,"rationale":"Schema/function authoring and the package pin were quick, but no live Convex deployment was established."},
+    "B2":{"layer":"builder-experience","weight":5,"exercised":true,"score":35,"rationale":"Authentication was not integrated with an authoritative backend."},
+    "B3":{"layer":"builder-experience","weight":6,"exercised":true,"score":40,"rationale":"The reactive-shaped UI was simple, but it relied on BroadcastChannel rather than Convex subscriptions."},
+    "B4":{"layer":"builder-experience","weight":7,"exercised":true,"score":20,"rationale":"M6 web failures showed durable offline and sync semantics were not reached."},
+    "B5":{"layer":"builder-experience","weight":4,"exercised":true,"score":30,"rationale":"Fixture logs were clear, but replay was a sample-only placeholder."},
+    "B6":{"layer":"builder-experience","weight":3,"exercised":true,"score":10,"rationale":"The M5 evidence exposed missing media, expiry, search, and customization primitives."},
+    "B7":{"layer":"builder-experience","weight":3,"exercised":true,"score":15,"rationale":"M6/M8 receipts show no push, digest, or cross-device durable queue implementation."},
+    "B8":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"scored by the M7 session"},
+    "B9":{"layer":"builder-experience","weight":6,"exercised":true,"score":65,"rationale":"The assertion manifest and frozen Playwright runner produced concrete, honest failure evidence."},
+    "B10":{"layer":"builder-experience","weight":4,"exercised":true,"score":50,"rationale":"The Convex pin resolved exactly and Chromium setup was straightforward."},
+    "B11":{"layer":"builder-experience","weight":5,"exercised":true,"score":30,"rationale":"The app is a prototype; its local persistence is not production-shaped backend integration."}
+  },
+  "holistic":{"score":35,"not_computed_from_dimensions":true,"moments":["The harness reached M1 and reported profile-edit-live-visibility instead of accepting a superficial UI.","The M2 filechooser failure precisely identified absent media composition.","Convex schema and functions were easy to author, but no anonymous local deployment loop was completed."]}
+}

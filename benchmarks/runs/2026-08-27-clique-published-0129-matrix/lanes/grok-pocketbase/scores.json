@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-pocketbase",
+  "backend": "pocketbase",
+  "backend_version": "pocketbase-0.39.9/0.27.3",
+  "model": "grok",
+  "effort": "xhigh",
+  "run_scope": "M1-M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "aborted",
+    "M4": "aborted",
+    "M5": "aborted",
+    "M6": "aborted",
+    "M7": "not-run",
+    "M8": "aborted"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 38, "rationale": "M1 and M2 were suite+choreography green; M3–M8 suites passed but required two-client choreography missed receipts, media, search-offline, and multi-device, so most in-scope checklists are not fully passed."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 52, "rationale": "Core auth/feed write paths held under the suite; live receipts, conversation media send, and offline flush did not settle in the harness, which are medium-to-high defects off the API happy path."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "O3 requires M6 green; M6 web choreography failed so the dimension is not exercised."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "O4 requires M6 green; native/O4 simulator proofs were not recorded and web M6 was not green."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 0, "rationale": "Banded first-match: scale replay on a fresh instance reached the 10% checkpoint then died around 28k/167k actions; 10% probes errored and the combined invariant was never verified, so the envelope did not conform."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 74, "rationale": "Auth collections, file fields, SSE subscriptions, SQL indexes, and cronAdd carried real product load; group receipts, typing, and feed fan-out still needed a large custom /api/clique surface."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 86, "rationale": "M1 used PocketBase password auth end-to-end; logout revocation required rotating tokenKey because JWTs are stateless, which was a documented hook rather than a session table."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 57, "rationale": "Record SSE made live posts and DM text easy; typing and receipts were durable rows plus expiry/aggregation with no presence primitive, and live delivered ticks never became observable in choreography."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 32, "rationale": "The JS SDK has no offline/sync; the ordered queue and cache were localStorage, and M6/M8 offline choreography did not reach read receipts after flush."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 71, "rationale": "Avatar and post image/video file fields were straightforward; view-once and tombstone denial needed protected files plus onFileDownloadRequest, and in-conversation media send did not show in the other client under the harness."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 60, "rationale": "Word-prefix people/message search was ordinary filters; warm-offline search and disappearing option observability did not pass choreography despite the API suite."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 69, "rationale": "cronAdd is a real server scheduler for the shortened digest; push is a hook-written log keyed off a presence row, not a provider seam."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 48, "rationale": "Serve/help, superuser, collections, and record helpers matched public docs; JSVM handler isolation (no file-scope closures, stack filename pb.js) was not obvious and cost a long correction loop."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 51, "rationale": "Eval-inside-routerUse, actor lookup via email local-part, and aria-valuetext patches on the vendored kit were agent workarounds; autodate and tokenKey were backend-shaped."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 78, "rationale": "Local self-hosted binary on loopback, no hosted account, one process for API+files+cron; SQLite scale replay dying mid-envelope is the operational limit of that posture."}
+  },
+  "holistic": {
+    "score": 61,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Downloading pocketbase_0.39.9_darwin_arm64.zip, superuser upsert, and serve --http 127.0.0.1:48140 was the cleanest provisioning of the day — a real app before any cloud account.",
+      "JSVM routerAdd callbacks could not see file-scope helpers (ReferenceError bodyOf is not defined at pb.js:2); eval of api.js inside every handler is a wound I would not choose twice.",
+      "Built-in password auth plus file fields made M1 avatars and M2 image posts feel like a BaaS; then typing, receipts, view-once, and offline were all hand-rolled rows and localStorage."
+    ]
+  }
+}

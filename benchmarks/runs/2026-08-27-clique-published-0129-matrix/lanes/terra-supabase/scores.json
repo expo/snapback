@@ -1,0 +1,24 @@
+{
+  "schema_version":"clique-scores-v1","lane_id":"terra-supabase","backend":"supabase","backend_version":"supabase-2.112.4","model":"gpt-5.6-terra","effort":"medium","run_scope":"M1-M6+M8",
+  "milestones":{"M1":"capability-failure","M2":"capability-failure","M3":"capability-failure","M4":"capability-failure","M5":"capability-failure","M6":"capability-failure","M7":"not-run","M8":"capability-failure"},
+  "sequencing_attestation":{"essay_written_before_scores":true,"dimension_scores_before_holistic":true,"holistic_before_any_totals_revealed":true},
+  "dimensions":{
+    "O1":{"layer":"grader-outcome","weight":13,"exercised":true,"score":20,"rationale":"All suite receipts passed basic Supabase checks, but no milestone obtained required choreography proof."},
+    "O2":{"layer":"grader-outcome","weight":7,"exercised":true,"score":15,"rationale":"Schema and basic client paths exist, but most atomic acceptance assertions were not exercised."},
+    "O3":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O4":{"layer":"grader-outcome","weight":9,"exercised":false,"score":null,"rationale":"M6 was not green; native proof is environment-null."},
+    "O5":{"layer":"grader-outcome","weight":8,"exercised":true,"score":0,"rationale":"Banded 0: required scale action log was absent, so the invariant manifest/replay could not conform."},
+    "B1":{"layer":"builder-experience","weight":6,"exercised":true,"score":65,"rationale":"Auth, relational profiles and initial realtime wiring were quick with the published client."},
+    "B2":{"layer":"builder-experience","weight":5,"exercised":true,"score":70,"rationale":"Management API DDL plus managed Auth created fixture identities cleanly."},
+    "B3":{"layer":"builder-experience","weight":6,"exercised":true,"score":55,"rationale":"Tables suit follows/posts/chats, but production authorization needs substantial RPC and policy work."},
+    "B4":{"layer":"builder-experience","weight":7,"exercised":true,"score":35,"rationale":"Realtime subscriptions worked, but offline convergence and revocation semantics were not finished."},
+    "B5":{"layer":"builder-experience","weight":4,"exercised":true,"score":50,"rationale":"The frozen IDs made the web shell predictable, but full media lifecycle behavior remained incomplete."},
+    "B6":{"layer":"builder-experience","weight":3,"exercised":true,"score":15,"rationale":"Scale replay was blocked by the absent fixture log."},
+    "B7":{"layer":"builder-experience","weight":3,"exercised":true,"score":30,"rationale":"Realtime is approachable, while the M8 scheduler/offline requirements need more backend components."},
+    "B8":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"scored by the M7 session"},
+    "B9":{"layer":"builder-experience","weight":6,"exercised":true,"score":45,"rationale":"Hosted project setup was fast, but frozen-harness dependency placement obstructed verification."},
+    "B10":{"layer":"builder-experience","weight":4,"exercised":true,"score":55,"rationale":"Supabase SQL, Auth and Realtime documentation/published surfaces were usable for the initial build."},
+    "B11":{"layer":"builder-experience","weight":5,"exercised":true,"score":50,"rationale":"The explicit schema was legible, though broad temporary RLS is not a production-ready default."}
+  },
+  "holistic":{"score":52,"not_computed_from_dimensions":true,"moments":["The Management API created the namespaced schema in one request.","Managed Auth seeded real fixture users through the published admin surface.","Realtime wiring was easy, but server-authoritative lifecycle rules required more plumbing."]}
+}
