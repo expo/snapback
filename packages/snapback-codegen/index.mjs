@@ -2146,9 +2146,17 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
   // complete-graph publication step differs.
   const checkOnly = options?.check === true;
   const targetConfig = TARGET_PROFILES.get(targetProfile);
+  if (outputRoot !== null && (typeof outputRoot !== 'string' || outputRoot.length === 0)) {
+    err(
+      'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+      'codegen',
+      'outputRoot must be a non-empty path when supplied',
+      { outputRoot },
+    );
+    return { ok: false, diagnostics };
+  }
   if (!targetConfig
       || ![APP_BINDING_MODE_DEVELOPMENT, APP_BINDING_MODE_RELEASE].includes(appBindingMode)
-      || (outputRoot !== null && (typeof outputRoot !== 'string' || outputRoot.length === 0))
       || (options?.check !== undefined && typeof options.check !== 'boolean')
       || Object.keys(options ?? {}).some((key) => !['targetProfile', 'appBindingMode', 'outputRoot', 'check'].includes(key))) {
     err('CODEGEN_TARGET_PROFILE_UNSUPPORTED', 'codegen', `unsupported target profile or app binding mode ${String(targetProfile)} / ${String(appBindingMode)}`, {
@@ -2266,9 +2274,20 @@ async function generateInProcessLocked({
 
   if (authoringProfile === FAMILIAR_AUTHORING_PROFILE) {
     familiarBootstrap = synthesizeFamiliarBootstrap(
-      backendRoot,
+      publicationBackendRoot,
       sourceLayout.operations.map(({ name }) => name),
     );
+    if (publicationBackendRoot !== backendRoot) {
+      // @ref LLP 0010#generated-artifacts — definition imports keep their
+      // authored logical paths/identity while release-only bootstrap bytes
+      // come from the disjoint publication graph.
+      for (const [name, source] of familiarBootstrap.definitionSources) {
+        definitionSourceOverrides.set(resolve(backendRoot, 'generated', name), {
+          javascript: source,
+          graphSource: source,
+        });
+      }
+    }
     const schemaSource = readDefinitionSource(schemaPath, backendRoot, 'SCHEMA_SOURCE');
     const erasedSchema = eraseFamiliarDefinitionSource(schemaSource, schemaPath, diagnostics);
     if (erasedSchema) {
@@ -18652,8 +18671,8 @@ function renderFamiliarApiBootstrapModule(operationNames) {
   return lines.join('\n');
 }
 
-function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
-  const directory = join(backendRoot, 'generated');
+function synthesizeFamiliarBootstrap(publicationBackendRoot, operationNames) {
+  const directory = join(publicationBackendRoot, 'generated');
   mkdirSync(directory, { recursive: true });
   const files = new Map([
     ['server.mjs', renderFamiliarServerModule()],
@@ -18664,6 +18683,7 @@ function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
     ['api.mjs', renderFamiliarApiBootstrapModule(operationNames)],
     ['api.d.ts', renderFamiliarApiBootstrapTypes()], ['api.d.mts', renderFamiliarApiBootstrapTypes()],
   ]);
+  const definitionSources = new Map();
   for (const [name, source] of files) {
     const path = join(directory, name);
     const current = existsSync(path) ? readFileSync(path, 'utf8') : null;
@@ -18673,12 +18693,17 @@ function synthesizeFamiliarBootstrap(backendRoot, operationNames) {
     // write: a later source refusal must preserve the prior complete graph.
     if (apiProjection
       && current !== null
-      && !current.includes('Familiar definition bootstrap;')) continue;
+      && !current.includes('Familiar definition bootstrap;')) {
+      definitionSources.set(name, current);
+      continue;
+    }
     if (current !== source) writeFileSync(path, source);
+    definitionSources.set(name, source);
   }
   return {
     apiSource: files.get('api.mjs'),
     apiDigest: `sha256:${sha256(files.get('api.mjs'))}`,
+    definitionSources,
   };
 }
 
@@ -21066,6 +21091,29 @@ async function buildDefinitionBundle(
       }
       return { path: normalizedCandidate, source: entrySourceOverride };
     }
+    const virtualOverride = sourceOverrides.get(normalizedCandidate);
+    if (typeof virtualOverride?.graphSource === 'string') {
+      const label = moduleIdentityLabel(normalizedCandidate, backendDir);
+      if (!label) {
+        return { error: problem('CODEGEN_IMPORT_OUTSIDE_IDENTITY_ROOT', `local module ${normalizedCandidate} is outside the app, repository, and a package install; its identity would not be reproducible`, { path: normalizedCandidate, importedFrom }) };
+      }
+      if (!graph.has(normalizedCandidate)) {
+        const bytes = Buffer.from(virtualOverride.graphSource, 'utf8');
+        graph.set(normalizedCandidate, {
+          path: normalizedCandidate,
+          label,
+          source: virtualOverride.graphSource,
+          bytes,
+          ...(virtualOverride.identity ? { typescriptIdentity: virtualOverride.identity } : {}),
+          ...(virtualOverride.runtimeBytes ? { runtimeBytes: virtualOverride.runtimeBytes } : {}),
+        });
+      }
+      return {
+        path: normalizedCandidate,
+        source: virtualOverride.graphSource,
+        bytes: graph.get(normalizedCandidate).bytes,
+      };
+    }
     let capability;
     try {
       capability = resolveFileReadCapability(candidate, {
@@ -21186,10 +21234,10 @@ async function buildDefinitionBundle(
             } catch (error) {
               return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} has invalid local import ${JSON.stringify(args.path)}: ${error.message}`, { path: args.importer || entryPath, specifier: args.path })] };
             }
-            if (!existsSync(candidate) && !/\.[A-Za-z0-9]+$/u.test(candidate)) {
+            if (!existsSync(candidate) && !sourceOverrides.has(resolve(candidate)) && !/\.[A-Za-z0-9]+$/u.test(candidate)) {
               const inferred = ['.mjs', '.js', '.mts', '.ts']
                 .map((extension) => `${candidate}${extension}`)
-                .find((path) => existsSync(path));
+                .find((path) => existsSync(path) || sourceOverrides.has(resolve(path)));
               if (inferred) candidate = inferred;
             }
             const loaded = addGraphFile(candidate, args.importer || null);
@@ -22265,8 +22313,9 @@ export async function runCodegenCli(argv = process.argv) {
   const outputRootFlag = args.indexOf('--output-root');
   let outputRoot;
   if (outputRootFlag !== -1) {
-    outputRoot = args[outputRootFlag + 1];
-    args.splice(outputRootFlag, 2);
+    const candidate = args[outputRootFlag + 1];
+    outputRoot = candidate === undefined || candidate.startsWith('--') ? '' : candidate;
+    args.splice(outputRootFlag, candidate === undefined || candidate.startsWith('--') ? 1 : 2);
   }
   const backendDir = resolve(args[0] ?? join(packageDir(), '..', '..', 'demos', 'todo', 'snapback'));
   const result = await generate(backendDir, { targetProfile, appBindingMode, outputRoot, check });

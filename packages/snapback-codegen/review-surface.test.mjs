@@ -311,6 +311,20 @@ try {
   assert.match(cliText.stdout, /degraded unknownResult/);
   assert.match(cliText.stdout, /results\.documents.*results\.records/u);
   assert.equal(existsSync(join(project, '.snapback', 'codegen-cache')), true);
+
+  const missingOutputRoot = spawnSync(
+    process.execPath,
+    [join(packageRoot, 'index.mjs'), backend, '--json', '--output-root'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(missingOutputRoot.status, 1, missingOutputRoot.stderr);
+  const missingOutputRootResult = JSON.parse(missingOutputRoot.stdout);
+  assert.equal(missingOutputRootResult.ok, false);
+  assert.equal(
+    missingOutputRootResult.diagnostics[0]?.code,
+    'SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID',
+  );
+  assert.match(missingOutputRoot.stderr, /SNAPBACK_CODEGEN_OUTPUT_ROOT_INVALID/u);
 } finally {
   rmSync(project, { recursive: true, force: true });
 }
