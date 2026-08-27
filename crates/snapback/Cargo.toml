@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 publish = false
 default-run = "snapback"
+# @ref LLP 0316#phase-5--link-targets — explicit harnesses collapse redundant integration-test links while retaining source paths.
+autotests = false
 # build.rs emits the macOS LC_RPATH for hermesvm.framework (ENG-22664); a
 # dependency's rustc-link-arg does not propagate to this binary's link step.
 build = "build.rs"
@@ -12,6 +14,58 @@ build = "build.rs"
 [lib]
 name = "snapback"
 path = "src/lib.rs"
+
+[[test]]
+name = "action_stream_envelope_v0"
+path = "tests/action_stream_envelope_v0.rs"
+
+[[test]]
+name = "action_watchdog_v0"
+path = "tests/action_watchdog_v0.rs"
+
+[[test]]
+name = "capability_v0"
+path = "tests/_harness/capability_v0.rs"
+
+[[test]]
+name = "control_catalog_registry_export"
+path = "tests/control_catalog_registry_export.rs"
+
+[[test]]
+name = "egress_ambient_v0"
+path = "tests/egress_ambient_v0.rs"
+
+[[test]]
+name = "graph_corpus_v1"
+path = "tests/graph_corpus_v1.rs"
+
+[[test]]
+name = "instance_fork_replication_wal_v0"
+path = "tests/instance_fork_replication_wal_v0.rs"
+
+[[test]]
+name = "live_scheduler_v0"
+path = "tests/live_scheduler_v0.rs"
+
+[[test]]
+name = "replication_sustained_v0"
+path = "tests/replication_sustained_v0.rs"
+
+[[test]]
+name = "result_transform_corpus_v1"
+path = "tests/result_transform_corpus_v1.rs"
+
+[[test]]
+name = "rqs_bundle_v0"
+path = "tests/rqs_bundle_v0.rs"
+
+[[test]]
+name = "delta_semantics_stage_b_audit_v1"
+path = "tests/delta_semantics_stage_b_audit_v1.rs"
+
+[[test]]
+name = "integration_suite"
+path = "tests/_harness/integration_suite.rs"
 
 [features]
 default = []

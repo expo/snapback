@@ -187,7 +187,7 @@ fn run_successor(database: &Path, coordination: &Path) -> std::process::Output {
         .args([
             "--ignored",
             "--exact",
-            "auth_invalidation_boot_cross_process_actor",
+            "auth_invalidation_boot_replay_v1::auth_invalidation_boot_cross_process_actor",
             "--nocapture",
         ])
         .env("SNAPBACK_Q43_ACTOR", "successor")
@@ -558,7 +558,7 @@ fn retired_boot_issuer_is_refused_at_point_of_use_across_processes() {
             .args([
                 "--ignored",
                 "--exact",
-                "auth_invalidation_boot_cross_process_actor",
+                "auth_invalidation_boot_replay_v1::auth_invalidation_boot_cross_process_actor",
                 "--nocapture",
             ])
             .env("SNAPBACK_Q43_ACTOR", role)
@@ -640,7 +640,7 @@ fn point_of_use_check_serializes_the_durable_read_decision_and_allocation() {
         .args([
             "--ignored",
             "--exact",
-            "auth_invalidation_boot_cross_process_actor",
+            "auth_invalidation_boot_replay_v1::auth_invalidation_boot_cross_process_actor",
             "--nocapture",
         ])
         .env("SNAPBACK_Q43_ACTOR", "timed_successor")

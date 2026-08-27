@@ -6,7 +6,9 @@
 **Author:** Charlie Cheever / Claude (Fable 5, orchestrating codex gpt-5.6-sol)
 **Date:** 2026-08-27
 **Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
-and closed with negative results; Open Question 2 answered. Accepted by
+and closed with negative results; Phase 5 consolidation landed (79 → 13
+integration link targets, 0 semantic change); first `--timings` record;
+Open Question 2 answered. Accepted by
 author direction the same day — "write this up as an LLP and then execute
 on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
@@ -335,6 +337,40 @@ partitioning CI needs). Acceptance: `cargo check --workspace --all-targets`
 and `cargo test --no-run` wall times; link-target count; the inventory
 gates green.
 
+**Implemented 2026-08-27 (consolidation; nextest deferred).**
+`crates/snapback/Cargo.toml` sets `autotests = false` and declares 13
+`[[test]]` targets; no file under `tests/` moved. 66 files are wrapped as
+`#[path]` modules of `tests/_harness/integration_suite.rs`; `admin_v0` +
+`capability_v0` share a harness that keeps the `capability_v0` name (the
+publication finalizer and the path-migration manifest name it); and eleven
+files keep their own binary because they mutate process-global state —
+`control_catalog_registry_export` and `result_transform_corpus_v1` (named
+by scripts), `action_stream_envelope_v0`, `action_watchdog_v0`,
+`egress_ambient_v0`, `graph_corpus_v1`, `instance_fork_replication_wal_v0`,
+`live_scheduler_v0`, `replication_sustained_v0`, `rqs_bundle_v0` (env
+toggles or a timing lock), and `delta_semantics_stage_b_audit_v1`, whose
+env mutation hides in `tests/support/graph_stage_b.rs` and was missed by
+the file-level audit — the review caught it by grepping `support/` for
+`set_var`. Test names gained a `<file>::` prefix; the one test that
+re-executes itself by `--exact` name (`auth_invalidation_boot_replay_v1`)
+was updated.
+
+| Measure | 79 targets | 13 targets |
+| --- | --- | --- |
+| Integration tests | 718 | 718 |
+| `cargo test -p snapback --tests --no-fail-fast` | 539 passed / 175 failed | 540 passed / 174 failed — **0 new failures**; the one flip is a known intermittent that failed in both pre-change runs |
+| Test executables (this crate) | 79 × ~530 MB ≈ 21.5 GB | **13, 4.13 GB** |
+| Relink after deleting all of them | 79 links | 5.2 s wall for 13 |
+
+The 174 inherited reds are the fixture-migration debt of
+`issues/20260820-f3-bucket-b-pre-existing-reds.md` (item 13: 223
+`SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` refusals since the 2026-08-16
+enforcement) plus the admin-read enforcement flip of LLP 0262 stage 3;
+`issues/20260825-the-two-inherited-reds-every-lane-re-derives.md` is the
+standing reference. `check-guide` is red on `main` at "generated API cold
+signatures" since cbf4fc7fa, independent of this work
+(`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`).
+
 ### Phase 6 — The required signal
 
 The low-noise posture is an explicit author ruling with its own restoration
@@ -355,6 +391,32 @@ ticket and preconditions; this plan does not re-decide it. What it adds:
   LLP 0189 ownership; this plan only records their state.
 
 ### Phase 7 — The tower (evidence-gated)
+
+**First `--timings` record (2026-08-27, after Phases 1–2, warm lib
+build):** `cargo test --workspace --exclude snapback-sync --no-run
+--timings` — 748 units, **572 s CPU, 74 s wall**. By unit:
+
+| Unit | CPU |
+| --- | --- |
+| `snapback-server` lib test (44k-line `tests.rs` + 552 MB link) | **73.1 s** — the critical path |
+| `snapback-server` lib | 31.5 s |
+| `snapback-cli` lib test | 28.2 s |
+| 79 `crates/snapback` integration targets | **378 s total**, mean 4.8 s, max 16.0 s (`graph_corpus_v1`) — almost all link |
+| 14 lib-test targets | 109 s total |
+
+Test executables over 50 MB: 65, **21.5 GB** — the disk-headroom problem
+LLP 0276 (#5) named. `snapback-sync` was excluded because its lib tests do
+not compile on current `main` (inherited; `issues/20260826-sync-test-target-red-room-reauthorization.md`).
+
+Reading: two-thirds of the CPU in a full test build is 79 links of the
+same ~530 MB. Phase 5 attacks that directly. The remaining critical path
+is the server crate's own test unit, which is Phase 7's first carve
+candidate (`server/tests.rs` → per-area test modules compiled as one unit
+still, but a split of `server.rs` itself moves the compile half of the
+73 s). Phase 4's expected gain is smaller than first stated: with the
+link floor at 15 s, moving the guide and identity stamps to leaf crates
+saves the tower's compile pass on a commit or docs edit (a few seconds)
+but not the relink; it stays queued behind Phase 5.
 
 Commit a `cargo build --timings` record for the baseline and after
 Phases 1–5. Only then propose kernel's decomposition (its 226k lines are
@@ -388,6 +450,7 @@ regeneration-in-CI.
 | Baseline (fresh control worktree) | f16d432db | 17.5 s | 11.0 s (kernel) | 18 s on a *true no-op* | same tree, uncontended `target/`; the primary checkout's 68 s includes its 28 GB shared target and `--all-targets` residue |
 | Phases 1–2 | this landing | 17–18 s (unchanged) | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
 | Phase 3 | closed, nothing kept | 16.8–22.4 s | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
+| Phase 5 | this landing | unchanged (single-binary loop) | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
@@ -412,7 +475,10 @@ so here rather than being quietly dropped.
 ## Sequencing
 
 Phases 1–2 landed together on 2026-08-27; Phase 3 closed the same day with
-nothing to land. Phase 4 is next (the guide-embed leaf crate first — a docs
-edit still recompiles the 110k-line server crate). Phase 5 can start now
-that Open Question 2 is answered. Phase 6 is a decision, not code, and can
-be taken at any time. Phases 7–8 wait for the `--timings` record.
+nothing to land; Phase 5's consolidation landed the same day (nextest
+adoption remains open under Phase 5 — it needs `cargo-nextest` on the
+fleet and in CI first). Next in order of measured payoff: Phase 7's first
+carve (the `snapback-server` test unit is the 73 s critical path), then
+Phase 4 (bounded by the link floor), then Phase 8 and the Phase 6
+precondition. Phase 6 itself is a decision, not code, and can be taken at
+any time.
