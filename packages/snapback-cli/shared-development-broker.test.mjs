@@ -353,3 +353,101 @@ test('the impersonation capability is matched by what it names, not how it is sp
     (error) => error.code === 'SNAPBACK_DEV_IMPERSONATION_CAPABILITY_UNAVAILABLE',
   );
 });
+
+// The browser is the component that enforces this, so these assertions are on
+// response headers rather than on a round trip: Node fetch would pass either
+// way. See issues/20260826-shared-broker-refuses-expo-web-cors.md.
+test('a supervised web client origin is admitted exactly, and nothing else is', async () => {
+  const server = await listening(broker());
+  try {
+    const webOrigin = 'http://127.0.0.1:8081';
+    // The preflight the browser sends before a JSON POST.
+    const preflight = await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: webOrigin,
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type',
+      },
+    });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), webOrigin);
+    assert.equal(preflight.headers.get('access-control-allow-methods'), 'POST, OPTIONS');
+    assert.equal(preflight.headers.get('access-control-allow-headers'), 'content-type');
+    assert.equal(preflight.headers.get('vary'), 'Origin');
+
+    // The call itself, and its refusals, carry the same projection.
+    const refused = await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'POST',
+      headers: { origin: webOrigin, 'content-type': 'application/json' },
+      body: JSON.stringify({ appId: APP_ID, provider: 'apple' }),
+    });
+    assert.equal(refused.status, 400);
+    assert.equal(refused.headers.get('access-control-allow-origin'), webOrigin);
+
+    // An origin the supervisor never derived gets no projection at all, so the
+    // browser blocks it; the route still refuses on its own terms.
+    for (const foreign of ['http://127.0.0.1:9999', 'https://evil.example', 'http://localhost:8082']) {
+      const blocked = await fetch(`${server.origin}/v1/shared/start`, {
+        method: 'OPTIONS',
+        headers: { origin: foreign, 'access-control-request-method': 'POST' },
+      });
+      assert.equal(blocked.headers.get('access-control-allow-origin'), null, foreign);
+      assert.notEqual(blocked.status, 204, foreign);
+    }
+
+    // An `exp://` return target is not an origin a browser can send, so it
+    // never becomes an admitted one.
+    const deepLinkOrigin = await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'OPTIONS',
+      headers: { origin: 'exp://127.0.0.1:8081', 'access-control-request-method': 'POST' },
+    });
+    assert.equal(deepLinkOrigin.headers.get('access-control-allow-origin'), null);
+
+    // Native clients send no Origin at all and are unaffected.
+    const native = await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ appId: APP_ID, provider: 'apple' }),
+    });
+    assert.equal(native.status, 400);
+    assert.equal(native.headers.get('access-control-allow-origin'), null);
+  } finally {
+    await server.close();
+  }
+});
+
+// The completion is a 303 to the app's own origin, and `form-action` governs
+// where a submission may end up, redirects included. A policy of `'self'` alone
+// silently blocks that redirect in the browser while every server-side check
+// still passes, so this asserts the header rather than the round trip.
+test('the authorization page permits the completion redirect it depends on', async () => {
+  const server = await listening(broker());
+  try {
+    const started = await (await fetch(`${server.origin}/v1/shared/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        appId: APP_ID,
+        provider: 'apple',
+        returnTo: `http://127.0.0.1:${METRO_PORT}/auth/shared`,
+        codeChallenge: 'x'.repeat(43),
+      }),
+    })).json();
+    const page = await fetch(`${server.origin}${started.authorizationPath}`);
+    assert.equal(page.status, 200);
+    const policy = page.headers.get('content-security-policy');
+    const formAction = /form-action ([^;]+)/u.exec(policy)?.[1] ?? '';
+    assert.match(formAction, /'self'/u);
+    assert.match(formAction, new RegExp(`http://127\\.0\\.0\\.1:${METRO_PORT}`, 'u'));
+    assert.match(formAction, new RegExp(`http://localhost:${METRO_PORT}`, 'u'));
+    // Still closed: no wildcard, and the exp:// deep-link target is not a form
+    // destination a browser could post to.
+    assert.doesNotMatch(formAction, /\*/u);
+    assert.doesNotMatch(formAction, /exp:/u);
+    assert.match(policy, /default-src 'none'/u);
+    assert.match(policy, /frame-ancestors 'none'/u);
+  } finally {
+    await server.close();
+  }
+});
