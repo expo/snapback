@@ -572,16 +572,23 @@ run cargo-clippy --requires native-runtime-bootstrap -- cargo clippy --all-targe
 # vulnerabilities and packages RustSec has marked unmaintained.
 run cargo-audit --requires toolchain-authority -- cargo audit --deny unmaintained
 # @ref LLP 0048#limits-testbed-llp-0047 — each workerd twin invocation owns a
-# fresh process. Bound libtest fan-out so high-core developer hosts do not
+# fresh process. Bound nextest fan-out so high-core developer hosts do not
 # spend the handler's wall budget on simultaneous process startup; concurrency
 # suites create and measure their own explicit contention.
 # @ref LLP 0276#the-one-shot-migration-under-the-frozen-main-window — carved
 # owner-crate test siblings remain part of the canonical Rust proof.
-run rust-tests --timeout-seconds 3600 --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace --no-fail-fast -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
+# @ref LLP 0316#phase-5--link-targets — the named profile supplies per-test
+# process isolation and deterministic JUnit output; missing nextest refuses
+# loudly through the checked launcher and never falls back to cargo test.
+run rust-tests --timeout-seconds 3600 --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 NEXTEST_TEST_THREADS="${SNAPBACK_RUST_TEST_THREADS:-4}" scripts/run-cargo-nextest --profile local-proof --workspace --no-fail-fast
+# cargo-nextest 0.9.143 does not execute doctests. Keep their pre-adoption
+# coverage as a distinct, visible gate; this never substitutes for or masks a
+# missing/failing nextest runner above.
+run rust-doc-tests --timeout-seconds 3600 --requires native-runtime-bootstrap -- env SNAPBACK_EXPECT_WORKERD=1 cargo test --workspace --doc --no-fail-fast -- --test-threads "${SNAPBACK_RUST_TEST_THREADS:-4}"
 # @ref LLP 0053#acceptance — compose the Rust invalidation/room receipts with
 # production Contract-store measurements and reject drift in the committed
 # blast-radius/property-oracle report. This remains before CI test-profile
-# cleanup so the targeted machine-readable Rust receipts reuse cargo-test
+# cleanup so the targeted machine-readable Rust receipts reuse Rust-test
 # artifacts rather than forcing another native link.
 run auth-invalidation-report --requires rust-tests -- node tests/acceptance/auth-invalidation-v1-report.mjs
 # @ref LLP 0166#executable-acceptance — retain the dated standards-real

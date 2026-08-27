@@ -7,12 +7,13 @@
 **Date:** 2026-08-27
 **Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
-integration link targets, 0 semantic change); Phase 7 Stage A server-test
-source carve and Stage B1 live-delivery production carve implemented and
-measured; Stage B2 action-watchdog, Stage B3 route-assembly, and Stage B4
-auth/operator-control carves measured negative and discarded; Phase 7 closed
-partial with the server lib-test unit still the workspace critical path; Open
-Question 2 answered. Accepted by author direction
+integration link targets, 0 semantic change) and its cargo-nextest tail is
+implemented with a pinned runner, typed missing-tool refusal, and deterministic
+JUnit; Phase 7 Stage A server-test source carve and Stage B1 live-delivery
+production carve implemented and measured; Stage B2 action-watchdog, Stage B3
+route-assembly, and Stage B4 auth/operator-control carves measured negative and
+discarded; Phase 7 closed partial with the server lib-test unit still the
+workspace critical path; Open Question 2 answered. Accepted by author direction
 the same day — "write this up as an LLP and then execute on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
 LLP 0031, LLP 0041, LLP 0287, LLP 0289, LLP 0225, LLP 0010
@@ -346,17 +347,31 @@ gates green.
 `#[path]` modules of `tests/_harness/integration_suite.rs`; `admin_v0` +
 `capability_v0` share a harness that keeps the `capability_v0` name (the
 publication finalizer and the path-migration manifest name it); and eleven
-files keep their own binary because they mutate process-global state —
-`control_catalog_registry_export` and `result_transform_corpus_v1` (named
-by scripts), `action_stream_envelope_v0`, `action_watchdog_v0`,
-`egress_ambient_v0`, `graph_corpus_v1`, `instance_fork_replication_wal_v0`,
-`live_scheduler_v0`, `replication_sustained_v0`, `rqs_bundle_v0` (env
-toggles or a timing lock), and `delta_semantics_stage_b_audit_v1`, whose
-env mutation hides in `tests/support/graph_stage_b.rs` and was missed by
-the file-level audit — the review caught it by grepping `support/` for
-`set_var`. Test names gained a `<file>::` prefix; the one test that
+targets keep their own binary for then-current isolation or naming reasons.
+Test names gained a `<file>::` prefix; the one test that
 re-executes itself by `--exact` name (`auth_invalidation_boot_replay_v1`)
 was updated.
+
+The Phase 5 tail re-audited every Rust file under `crates/snapback/tests/`,
+including `tests/support/`, for `set_var`, `remove_var`, `setenv`, and
+`unsetenv`. Exactly **eight source files** mutate the process environment:
+
+- `crates/snapback/tests/action_stream_envelope_v0.rs`
+- `crates/snapback/tests/action_watchdog_v0.rs`
+- `crates/snapback/tests/egress_ambient_v0.rs`
+- `crates/snapback/tests/graph_corpus_v1.rs`
+- `crates/snapback/tests/instance_fork_replication_wal_v0.rs`
+- `crates/snapback/tests/replication_sustained_v0.rs`
+- `crates/snapback/tests/rqs_bundle_v0.rs`
+- `crates/snapback/tests/support/graph_stage_b.rs` (compiled by the
+  `delta_semantics_stage_b_audit_v1` target)
+
+Thus eight of the eleven retained binaries are environment-affected. The
+other three are `control_catalog_registry_export` and
+`result_transform_corpus_v1`, whose binary names are invoked by scripts, and
+`live_scheduler_v0`, whose tests share the process-global
+`LIVE_SCHEDULER_TEST_SERIAL` timing lock. The earlier "eleven env-mutating
+files" shorthand was inaccurate; the support-inclusive exact count is eight.
 
 | Measure | 79 targets | 13 targets |
 | --- | --- | --- |
@@ -373,6 +388,66 @@ enforcement) plus the admin-read enforcement flip of LLP 0262 stage 3;
 standing reference. `check-guide` is red on `main` at "generated API cold
 signatures" since cbf4fc7fa, independent of this work
 (`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`).
+
+**Implemented 2026-08-27 (cargo-nextest tail; no binary merge).**
+`.config/nextest.toml` requires/recommends the fleet version 0.9.143 and defines
+the canonical `local-proof` profile: four tests by default (overridable through
+`SNAPBACK_RUST_TEST_THREADS`), no fail-fast, per-test process isolation, and
+JUnit at the deterministic
+`target/nextest/local-proof/rust-tests.junit.xml` path with failure output and
+ignored-test records retained. `scripts/verify-local-proof` invokes that named
+profile through a checked launcher. If `cargo-nextest` is absent, the launcher
+exits 127 with `SNAPBACK_CARGO_NEXTEST_MISSING`, prints
+`cargo install cargo-nextest --version 0.9.143 --locked`, and never falls back
+to `cargo test`. Canonical CI performs that exact locked install rather than
+adding an action trust boundary, and uploads the JUnit file with the proof
+inventory. Because nextest 0.9.143 does not execute doctests, the canonical
+inventory retains them as a separate `rust-doc-tests` Cargo gate; that explicit
+complement does not satisfy or mask a failed/missing nextest gate.
+
+The controlled runner comparison reused one prebuilt test target and held both
+runners to four processes with `SNAPBACK_EXPECT_WORKERD=1`. `cargo test -p
+snapback --tests --no-fail-fast -- --test-threads 4` took **505.68 s** wall
+(1027.44 s user / 55.90 s system). `cargo nextest run -p snapback --tests
+--no-fail-fast` took **294.08 s** wall (1017.78 s user / 45.36 s system):
+**211.60 s / 41.8% faster** at essentially unchanged total CPU. The normalized
+complete failure-name sets were byte-identical at **174/174**. The emitted
+648 KiB JUnit report records all 718 tests: **540 passed / 174 failed / 4
+skipped / 0 errors**.
+
+Fleet provisioning used the same 0.9.143 pin and directly verified the binary
+on the control Mac, Additional Apartment M1 Max, Office M1 Max, Bones, Durand,
+Minisforum, all three Hetzner hosts, and the Windows NucBox—ten machines in
+total. The Apartment MacBook Air did not answer Tailscale ping or TCP/22, so it
+could not be mutated; `issues/20260827-cargo-nextest-apartment-air-install.md`
+owns installation before that host rejoins Rust proof duty. The typed launcher
+refusal prevents an unprovisioned host from silently using Cargo instead.
+
+Nextest launches each test in a separate process, so the eight environment-
+affected binaries no longer require binary boundaries merely to prevent
+same-process test races. That isolation is the prerequisite for a later
+reviewed consolidation; all thirteen `[[test]]` declarations remain unchanged
+in `crates/snapback/Cargo.toml` in this landing. The eleven targets
+previously retained for global-state or naming reasons can therefore be
+reconsidered in that future landing, with script-named entry points preserved
+as needed. Implementation-lane checks completed so far:
+`cargo nextest show-config version --profile local-proof` (configuration and
+version requirements parsed, exit 0); the controlled missing-runner probe
+(exit 127, typed diagnostic, no fallback); `node --test
+tests/local_proof_inventory_v0.mjs` (7/7 pass); `node --test
+tests/ci_workflows_v0.mjs` (pass, 56 immutable action pins); and `node
+scripts/check-local-proof-gates.mjs` (181 declarations / 180 stable ids / 19
+inapplicability pairs, pass); `node --test
+tests/local_proof_selection_v0.mjs` (21/21 pass); `bash -n` for the launcher
+and proof script (exit 0); `node --check` for the edited fixtures (exit 0);
+`./ref-check --verbose` (324 LLP docs / 7,511 refs / 16,260 files, zero errors
+or unchecked references); and `git diff --check` (exit 0). The orchestrator's
+controlled runner comparison, exact failure-set proof, and JUnit inspection are
+recorded above. The landing inventory proof passed (364 package tests, 32
+script tests, 31 demos, 487 publication leaves, 158 guide pages, and 1,888
+snippets). The guide proof retained only the inherited "generated API cold
+signatures" failure owned by
+`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`.
 
 ### Phase 6 — The required signal
 
@@ -528,6 +603,7 @@ regeneration-in-CI.
 | Phases 1–2 | this landing | 17–18 s (unchanged) | — | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
 | Phase 3 | closed, nothing kept | 16.8–22.4 s | — | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
 | Phase 5 | this landing | unchanged (single-binary loop) | — | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
+| Phase 5 — nextest | this landing | unchanged (runner-only change) | — | unchanged | — | `cargo test -p snapback --tests`: **505.68 s**; `cargo nextest run -p snapback --tests`: **294.08 s** (**211.60 s / 41.8% faster**); 174/174 failure names identical; JUnit: 718 tests, 540 pass / 174 fail / 4 skipped / 0 errors |
 | Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
 | Phase 7B1 — live-delivery production carve | this landing | **18.00 → 17.21 s** | **18.09 → 16.31 s**; fresh unit **48.23 → 46.22 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 106.31 → 113.32 s (noise, not a win); 602/602 names and 66/66 full failure sets identical; 552,094,512-byte executable |
 | Phase 7B2 — action-watchdog carve | closed, nothing kept | **17.21 → 20.46 s** | **16.31 → 19.16 s**; fresh unit **46.22 → 59.47 s** | — | unchanged (**0.3–0.5 s**) | all clock metrics regressed; 541-line Rust move discarded before full failing-suite proof |
@@ -544,8 +620,8 @@ so here rather than being quietly dropped.
    (`scripts/bootstrap-ibex-runtime`, `verify-local-proof`)? Runtime
    consumers already tolerate `unknown`. Decide after Phase 4's measurement.
 2. ~~Does any inventory (LLP 0287) key on integration-test *binary* names
-   rather than test names?~~ **Answered 2026-08-27:** the proof runs
-   `cargo test --workspace` and the selection policy keys on the
+   rather than test names?~~ **Answered 2026-08-27:** the proof runs the
+   workspace through cargo-nextest and the selection policy keys on the
    `crates/snapback/tests/` *directory*; the only binary named anywhere is
    `--test control_catalog_registry_export` (proof comment and
    `scripts/generate-control-catalog.mjs`). Phase 5 must keep that one
@@ -557,11 +633,8 @@ so here rather than being quietly dropped.
 ## Sequencing
 
 Phases 1–2 landed together on 2026-08-27; Phase 3 closed the same day with
-nothing to land; Phase 5's consolidation landed the same day (nextest
-adoption remains open under Phase 5 — it needs `cargo-nextest` on the
-fleet and in CI first). Phase 7 Stage A landed next and reduced the server
-test unit without yet removing it from the critical path. Next: independently
-measure the first production `server.rs` seam under LLP 0316.000, then Phase 5
-nextest, Phase 4 (bounded by the link floor), Phase 8, and the Phase 6
-precondition. Phase 6 itself is a decision, not code, and can be taken at any
-time.
+nothing to land; Phase 5's consolidation and cargo-nextest tail landed the same
+day. Phase 7 Stage A landed next and reduced the server test unit without yet
+removing it from the critical path. Next: Phase 4 (bounded by the link floor),
+Phase 8, and the Phase 6 precondition. Phase 6 itself is a decision, not code,
+and can be taken at any time.

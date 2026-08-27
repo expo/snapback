@@ -405,6 +405,28 @@ assert.match(
   /CHROME_BIN:\s*\$\{\{ steps\.setup-chrome\.outputs\.chrome-path \}\}/,
   'canonical CI must pass the action-owned Chrome path to the proof',
 );
+const nextestStepStart = localProof.indexOf('      - name: Install cargo-nextest');
+const nextestStepEnd = localProof.indexOf('\n      - ', nextestStepStart + 1);
+assert(
+  nextestStepStart >= 0 && nextestStepEnd > nextestStepStart,
+  'cargo-nextest install step block must be bounded',
+);
+const nextestStep = localProof.slice(nextestStepStart, nextestStepEnd);
+assert.match(
+  nextestStep,
+  /if:\s*steps\.selection\.outputs\.requires_native == 'true'/u,
+  'cargo-nextest must be provisioned for native selections only',
+);
+assert.match(
+  nextestStep,
+  /cargo install cargo-nextest --version 0\.9\.143 --locked/u,
+  'canonical CI must install the fleet cargo-nextest version from its locked crate graph',
+);
+assert.match(
+  localProof,
+  /target\/nextest\/local-proof\/rust-tests\.junit\.xml/u,
+  'canonical CI must retain the deterministic nextest JUnit report',
+);
 assert.match(
   localProof,
   /if:\s*always\(\)[\s\S]*name:\s*local-proof-gate-results-\$\{\{ github\.run_id \}\}/,
@@ -504,6 +526,7 @@ assert.match(
 for (const laterStep of [
   'Cache Hermes Linux build',
   'Cache Rust build',
+  'Install cargo-nextest',
   'Install cargo-audit',
   'Verify Snapback local proof',
 ]) {

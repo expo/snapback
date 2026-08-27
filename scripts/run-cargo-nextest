@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+nextest_bin="${SNAPBACK_CARGO_NEXTEST_BIN:-cargo-nextest}"
+if ! nextest_path="$(command -v -- "$nextest_bin" 2>/dev/null)"; then
+    printf '%s\n' \
+        'SNAPBACK_CARGO_NEXTEST_MISSING: cargo-nextest 0.9.143 is required for Rust tests.' >&2
+    printf '%s\n' \
+        'Install it with: cargo install cargo-nextest --version 0.9.143 --locked' >&2
+    exit 127
+fi
+
+exec "$nextest_path" nextest run "$@"

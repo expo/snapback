@@ -744,6 +744,7 @@
       "id": "selector-authority",
       "disposition": "all",
       "files": [
+        ".config/nextest.toml",
         ".github/workflows/local-proof.yml",
         "scripts/check-local-proof-gates.mjs",
         "scripts/check-path-migration-stragglers.mjs",
@@ -751,6 +752,7 @@
         "scripts/lib/proof-runner.sh",
         "scripts/local-proof-selection-policy.v1.json",
         "scripts/path-migration-manifest.v1.json",
+        "scripts/run-cargo-nextest",
         "scripts/select-local-proof.mjs",
         "scripts/verify-local-proof",
         "tests/local_proof_inventory_v0.mjs",
@@ -1366,6 +1368,7 @@
         "cargo-clippy",
         "cargo-audit",
         "rust-tests",
+        "rust-doc-tests",
         "auth-invalidation-report",
         "axis-parity-harness",
         "cargo-test-profile-clean",
