@@ -373,6 +373,19 @@ export function provisionIsolatedWorktree({
       { isolated, path: directory },
     );
   }
+  // The staging build runs workspace node scripts that import third-party
+  // dependencies (e.g. `ajv` from scripts/symbol-lifecycle.mjs). The isolated
+  // worktree lives outside the primary tree and cannot resolve `node_modules`
+  // upward, so install the locked dependencies hermetically here. `--frozen-
+  // lockfile` keeps the release build reproducible (and fails loudly on lockfile
+  // drift), and `node_modules` is gitignored so it does not dirty the checkout
+  // whose cleanliness was just verified above.
+  runOrThrow('bun', ['install', '--frozen-lockfile'], {
+    code: 'SNAPBACK_FASTPATH_WORKTREE_PROVISION_FAILED',
+    message: `could not install locked dependencies in isolated worktree at ${directory}`,
+    cwd: directory,
+    run: runCommand,
+  });
   return { path: directory, revision };
 }
 
