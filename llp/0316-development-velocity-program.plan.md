@@ -9,9 +9,9 @@
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change); Phase 7 Stage A server-test
 source carve and Stage B1 live-delivery production carve implemented and
-measured; Stage B2 action-watchdog carve measured negative and discarded; Open
-Question 2 answered. Accepted by author direction the same day — "write this
-up as an LLP and then execute on it".)
+measured; Stage B2 action-watchdog and Stage B3 route-assembly carves measured
+negative and discarded; Open Question 2 answered. Accepted by author direction
+the same day — "write this up as an LLP and then execute on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
 LLP 0031, LLP 0041, LLP 0287, LLP 0289, LLP 0225, LLP 0010
 
@@ -462,6 +462,19 @@ fresh server lib-test unit regressed **46.22 → 59.47 s**, warm unit
 production-binary wall **17.21 → 20.46 s**. The candidate failed the keep
 rule, its Rust diff was discarded, and no product or generated change landed.
 
+**Measured negative 2026-08-27 (Stage B3 route-assembly carve).** A literal
+1,131-line move of the declarative `core_route_registrations()` Axum table into
+`server/route_assembly.rs` compiled, preserved the exact 602/419 test inventory,
+passed focused route, health, CORS, and identity tests, and required only the
+Guide route-source reader to follow the move. It nevertheless regressed every
+clock: fresh server lib-test unit **46.22 → 51.67 s**, warm unit
+**6.48 → 8.00 s**, warm test-binary wall **16.31 → 18.75 s**, and
+production-binary wall **17.21 → 18.32 s**. The fresh whole-command wall was
+effectively flat but slightly worse (**113.32 → 113.53 s**). The candidate
+failed the keep rule, its Rust and reader diffs were discarded, the full
+failing-suite comparison was not run for code that could not land, and
+`cargo clean` removed the 36.9 GiB measurement target.
+
 ### Phase 8 — Frozen-record ratchet
 
 Count the committed generated artifacts and the drift tickets they produced
@@ -491,6 +504,7 @@ regeneration-in-CI.
 | Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
 | Phase 7B1 — live-delivery production carve | this landing | **18.00 → 17.21 s** | **18.09 → 16.31 s**; fresh unit **48.23 → 46.22 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 106.31 → 113.32 s (noise, not a win); 602/602 names and 66/66 full failure sets identical; 552,094,512-byte executable |
 | Phase 7B2 — action-watchdog carve | closed, nothing kept | **17.21 → 20.46 s** | **16.31 → 19.16 s**; fresh unit **46.22 → 59.47 s** | — | unchanged (**0.3–0.5 s**) | all clock metrics regressed; 541-line Rust move discarded before full failing-suite proof |
+| Phase 7B3 — route-assembly carve | closed, nothing kept | **17.21 → 18.32 s** | **16.31 → 18.75 s**; fresh unit **46.22 → 51.67 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 113.53 s; all controlling clocks regressed; 1,131-line Rust move discarded before full failing-suite proof |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
