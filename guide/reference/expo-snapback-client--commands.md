@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:96100ff154ffa1c766beefae91930b2d67fb7b2e2b5e
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Module projection identity:
-`sha256:af71f55e59743e9797f65c5e5765220edc605ac894a8abb1ed583068de49151f`.
+`sha256:362be5bf09662efda551e62691f66c63a3d959ee805873265633699272225167`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 

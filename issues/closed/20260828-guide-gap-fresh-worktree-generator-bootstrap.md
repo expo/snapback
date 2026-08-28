@@ -92,11 +92,11 @@ the fix for the other.
 ## Resolution
 
 `scripts/generate-guide-manifest.mjs` now refuses before spawning the
-diagnostics or symbol registries when `typescript` or `ajv` cannot resolve,
-printing `[guide-manifest] environment precondition: required packages
-unavailable: typescript, ajv; run bun install --frozen-lockfile`. Direct
-invocation of `scripts/generate-symbol-registry.mjs` uses the same named
-install instead of a raw `ERR_MODULE_NOT_FOUND`. `AGENTS.md` names the
+diagnostics or symbol registries when `typescript` or `ajv/dist/2020.js`
+cannot resolve, printing `[guide-manifest] environment precondition: required
+packages unavailable: typescript, ajv; run bun install --frozen-lockfile`.
+Direct invocation of `scripts/generate-symbol-registry.mjs` uses the same
+named install instead of a raw `ERR_MODULE_NOT_FOUND`. `AGENTS.md` names the
 JS/generator bootstrap next to `scripts/bootstrap-ibex-runtime` and mentions
 the fresh-tree sequence in the `guide/conventions.md` summary.
 
