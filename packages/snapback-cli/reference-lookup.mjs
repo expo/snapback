@@ -77,6 +77,15 @@ function parseSlice(argv) {
   return value;
 }
 
+// @ref LLP 0326.000#stage-15--formatters — published site records carry
+// file, classification and multiplicity, never coordinates. An unexpected
+// shape renders loudly instead of printing `undefined`.
+function formatSiteRecord(site) {
+  if (typeof site?.file !== 'string') return `- <malformed site record: ${JSON.stringify(site)}>`;
+  const times = site.count > 1 ? ` x${site.count}` : '';
+  return `- ${site.file}${times}`;
+}
+
 function resultIdentity(registry, diagnostics, manifest) {
   return {
     guideContentHash: manifest.contentHash,
@@ -454,7 +463,7 @@ export function formatGuideReferenceLookup(result) {
         ['Reserved sites:', result.diagnostic.sites.filter((site) => site.kind === 'reserved')],
       ];
       for (const [heading, sites] of siteGroups) {
-        if (sites.length) lines.push('', heading, ...sites.map((site) => `- ${site.file}:${site.line}:${site.column}`));
+        if (sites.length) lines.push('', heading, ...sites.map(formatSiteRecord));
       }
     }
   }
@@ -468,7 +477,7 @@ export function formatGuideReferenceLookup(result) {
         '',
         'Environment sites:',
         ...result.environment.sites.map((site) => (
-          `- ${site.kind}: ${site.file}:${site.line}:${site.column}`
+          `- ${site.kind}: ${site.file}${site.count > 1 ? ` x${site.count}` : ''}`
         )),
       );
     }

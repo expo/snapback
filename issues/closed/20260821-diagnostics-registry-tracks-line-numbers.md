@@ -1,6 +1,6 @@
 # Generated projections go stale on unrelated edits, and only a clean checkout notices
 
-**Status:** Open
+**Status:** Closed
 **Filed:** 2026-08-21
 
 ## Observation
@@ -112,3 +112,24 @@ This ticket stays **open** — LLP 0326 is Draft and its OQ1 (drop the
 coordinates, move them to an uncommitted sidecar, or regenerate in the pre-push
 hook) is unruled. Close it when 0326 is decided, recording which option was
 taken. The ticket's own option 1 is 0326's Option A; its option 2 is Option C.
+
+
+## Resolution — 2026-08-28
+
+Closed by **LLP 0326 Option A**, implemented per **LLP 0326.000** Stages 1-4.
+
+The committed registry no longer publishes `line`/`column`. Site records are
+deduplicated on `(file, kind, synthetic)` with a `count`, across both the
+`diagnostics` and `environment` blocks, at schema
+`snapback-diagnostics-registry.v2`.
+
+Measured on the landing: the artifact falls from 2,526,048 to 1,740,821 bytes
+(**-31.1%**), and site records from 10,571 to 5,665. `counts.emittingSites`
+and its siblings are summed from `count`, so they still mean *sites* and did
+not silently change meaning across the shape change.
+
+The ticket's own option 1 was taken; its option 2 (regenerate in the pre-push
+hook) landed separately and earlier as LLP 0326.000 Stage 0, which closed the
+*visibility* half of this ticket. Both halves are now addressed: staleness is
+visible at push time, and unrelated edits no longer restamp the artifact with
+content-free coordinate churn.

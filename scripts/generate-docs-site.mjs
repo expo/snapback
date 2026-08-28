@@ -836,7 +836,7 @@ function loadInputs(root) {
   if (!['snapback-symbol-registry.v2', 'snapback-symbol-registry.v1'].includes(registry.schemaVersion)) {
     fail(`${SYMBOL_REGISTRY_PATH}: unsupported schemaVersion`);
   }
-  if (diagnostics.schemaVersion !== 'snapback-diagnostics-registry.v1') {
+  if (!['snapback-diagnostics-registry.v2', 'snapback-diagnostics-registry.v1'].includes(diagnostics.schemaVersion)) {
     fail(`${DIAGNOSTICS_REGISTRY_PATH}: unsupported schemaVersion`);
   }
 

@@ -71,7 +71,12 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
         .context("embedded Snapback Guide diagnostics registry is invalid")?;
     anyhow::ensure!(
         diagnostics.get("schemaVersion").and_then(Value::as_str)
-            == Some("snapback-diagnostics-registry.v1"),
+            .is_some_and(|version| matches!(
+                version,
+                // @ref LLP 0326#3-options — v2 publishes classified file
+                // records without coordinates; v1 snapshots stay readable.
+                "snapback-diagnostics-registry.v2" | "snapback-diagnostics-registry.v1"
+            )),
         "embedded Snapback Guide diagnostics registry schema is unsupported"
     );
     anyhow::ensure!(
@@ -158,7 +163,10 @@ fn budgeted_diagnostic(
         "truncation": {
             "truncated": true,
             "slice": slice,
-            "elided": [format!("emitting sites outside {}-{} of {}", start + 1, (start + DIAGNOSTIC_PAGE_SIZE).min(sites.len()), sites.len())],
+            // @ref LLP 0326.000#stage-2--served-surface — v2 paginates site *records*;
+            // one file can yield several records under (file, kind, synthetic),
+            // so neither "sites" nor "files" describes the unit.
+            "elided": [format!("site records outside {}-{} of {}", start + 1, (start + DIAGNOSTIC_PAGE_SIZE).min(sites.len()), sites.len())],
             "nextSlice": next_slice,
             "nextCommand": next_slice.map(|next| format!("snapback guide {query} --slice {next}")),
         },
@@ -607,13 +615,22 @@ pub fn format_lookup(result: &Value) -> anyhow::Result<String> {
         if let Some(sites) = diagnostic.get("sites").and_then(Value::as_array) {
             lines.push(String::new());
             lines.push("Emitting sites:".to_owned());
-            lines.extend(sites.iter().filter_map(|site| {
-                Some(format!(
-                    "- {}:{}:{}",
-                    site.get("file")?.as_str()?,
-                    site.get("line")?.as_u64()?,
-                    site.get("column")?.as_u64()?,
-                ))
+            // @ref LLP 0326.000#stage-15--formatters — render file,
+            // classification and multiplicity. A record whose shape is
+            // unexpected is rendered loudly rather than silently dropped,
+            // which is what the previous `filter_map`/`?` did.
+            lines.extend(sites.iter().map(|site| {
+                let Some(file) = site.get("file").and_then(Value::as_str) else {
+                    return format!("- <malformed site record: {site}>");
+                };
+                let kind = site
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .map(|kind| format!(" ({kind})"))
+                    .unwrap_or_default();
+                let count = site.get("count").and_then(Value::as_u64).unwrap_or(1);
+                let times = if count > 1 { format!(" x{count}") } else { String::new() };
+                format!("- {file}{kind}{times}")
             }));
         }
     } else if let Some(member) = result.get("member") {

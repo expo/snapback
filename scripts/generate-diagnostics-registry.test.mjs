@@ -1608,34 +1608,46 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     'SNAPBACK_GRAPH_RECURSION_FORBIDDEN',
     'SNAPBACK_GRAPH_DYNAMIC_CONSTRUCTION',
   ]) {
-    const receivedSites = registry.diagnostics[code].sites.filter(({ file, kind }) => (
+    // @ref LLP 0326#3-options — v2 publishes one record per
+    // (file, kind, synthetic) with a count, so this positional property is now
+    // expressed through classification and multiplicity instead of line
+    // ranges. Both halves of the original assertion survive: the receiver must
+    // be classified `received` (the record exists), and the sorting-table key
+    // must NOT be (if it were, it would merge into this same record and the
+    // count would be 2).
+    const receivedRecords = registry.diagnostics[code].sites.filter(({ file, kind }) => (
       file === 'packages/snapback-codegen/index.mjs' && kind === 'received'
     ));
     assert.equal(
-      receivedSites.some(({ line }) => (
-        lineAt(graphOrderStart) <= line && line <= lineAt(graphOrderEnd)
-      )),
-      false,
-      `${code} sorting-table key must not be received vocabulary`,
-    );
-    assert.ok(
-      receivedSites.some(({ line }) => (
-        lineAt(graphReceiverStart) <= line && line <= lineAt(graphReceiverEnd)
-      )),
+      receivedRecords.length,
+      1,
       `${code} must retain its real definition-evaluation receiver`,
+    );
+    assert.equal(
+      receivedRecords[0].count,
+      1,
+      `${code} sorting-table key must not be received vocabulary`,
     );
   }
 
+  // @ref LLP 0326#3-options — v2 deduplicates on (file, kind, synthetic), so
+  // uniqueness is asserted against the published key rather than a coordinate.
+  // This is now a structural guarantee of the projection; the assertion keeps
+  // it honest if that projection ever regresses.
   const duplicateSourceSites = Object.entries(registry.diagnostics).flatMap(([code, record]) => {
     const seen = new Set();
-    return record.sites.flatMap(({ file, line }) => {
-      const key = `${code}@${file}:${line}`;
+    return record.sites.flatMap(({ file, kind, synthetic }) => {
+      const key = `${code}@${file}#${kind ?? ''}#${synthetic === true ? 'synthetic' : ''}`;
       if (seen.has(key)) return [key];
       seen.add(key);
       return [];
     });
   });
-  assert.deepEqual(duplicateSourceSites, [], 'generated source sites are unique by code@file:line');
+  assert.deepEqual(
+    duplicateSourceSites,
+    [],
+    'generated site records are unique by code@file#kind#synthetic',
+  );
 
   const cloudflareCodes = [
     'SNAPBACK_ACTION_STREAM_CANCELLED',
@@ -1689,11 +1701,14 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       'crates/snapback-cli/src/cli.rs',
     ],
   ]) {
+    // @ref LLP 0326#3-options — "every emitter retained" is now expressed as a
+    // single emission record whose count equals the number of source lines
+    // carrying the code, rather than a line-by-line list.
     assert.deepEqual(
       registry.diagnostics[code]?.sites
         .filter((site) => site.file === file)
-        .map(({ line, kind }) => ({ line, kind })),
-      sourceLinesContaining(file, code).map((line) => ({ line, kind: undefined })),
+        .map(({ kind, count }) => ({ kind, count })),
+      [{ kind: undefined, count: sourceLinesContaining(file, code).length }],
       `${code} must retain every emitter surrounding a completed matches! call`,
     );
   }
@@ -1722,16 +1737,24 @@ test('generated registry retains target emitters and dynamic artifact-header emi
   assert.deepEqual(
     registry.diagnostics.SNAPBACK_APP_READINESS_DECLARATION_INVALID.sites
       .filter(({ file }) => file === readinessFile)
-      .map(({ line, kind }) => ({ line, kind })),
+      .map(({ kind, count }) => ({ kind, count })),
+    // @ref LLP 0326#3-options — one record per (file, kind) with a count.
+    // publishedSiteOrder sorts an absent kind ('') before 'declaration'.
     [
-      ...sourceLinesContaining(
-        readinessFile,
-        'pub const READINESS_DECLARATION_INVALID_CODE',
-      ).map((line) => ({ line, kind: 'declaration' })),
-      ...sourceLinesContaining(
-        readinessFile,
-        'SnapbackError::error(READINESS_DECLARATION_INVALID_CODE',
-      ).map((line) => ({ line, kind: undefined })),
+      {
+        kind: undefined,
+        count: sourceLinesContaining(
+          readinessFile,
+          'SnapbackError::error(READINESS_DECLARATION_INVALID_CODE',
+        ).length,
+      },
+      {
+        kind: 'declaration',
+        count: sourceLinesContaining(
+          readinessFile,
+          'pub const READINESS_DECLARATION_INVALID_CODE',
+        ).length,
+      },
     ],
   );
   assert.equal(
@@ -1804,14 +1827,24 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     assert.equal(sites.length, 1, `${code} must have one artifact-header emitting site`);
     assert.equal(sites[0].kind, undefined, `${code} must use the normal emission site kind`);
     assert.equal(sites[0].synthetic, true, `${code} must identify its dynamic site`);
-    assert.notEqual(
-      readFileSync(resolve(import.meta.dirname, '..', sites[0].file), 'utf8')
-        .split('\n')[sites[0].line - 1]
-        .trimStart()
-        .startsWith('//'),
-      true,
-      `${code} must attach to code rather than the marker comment`,
+    // @ref LLP 0326.000#2a-the-locator-assertions-must-move-not-merely-pass —
+    // where the synthetic site ATTACHES is a scanner property, so it is proved
+    // against the located sites rather than the published projection.
+    const manifestSource = readFileSync(
+      resolve(import.meta.dirname, '..', 'crates/snapback-types/src/manifest/mod.rs'),
+      'utf8',
     );
+    const locatedSynthetic = diagnosticSourceSites(manifestSource, { ordinaryMultiline: true })
+      .filter(({ match, synthetic }) => match[0] === code && synthetic === true);
+    assert.ok(locatedSynthetic.length >= 1, `${code} must have a located synthetic site`);
+    for (const { match } of locatedSynthetic) {
+      const line = manifestSource.slice(0, match.index).split('\n').length;
+      assert.notEqual(
+        manifestSource.split('\n')[line - 1].trimStart().startsWith('//'),
+        true,
+        `${code} must attach to code rather than the marker comment`,
+      );
+    }
   }
 
   const demandMismatchSites = registry.diagnostics
@@ -1819,15 +1852,15 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       (site) => site.file === 'crates/snapback-kernel/src/live_matcher.rs',
     );
   assert.deepEqual(
-    demandMismatchSites.map(({ file, line, kind }) => ({ file, line, kind })),
-    sourceLinesContaining(
-      'crates/snapback-kernel/src/live_matcher.rs',
-      'eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
-    ).map((line) => ({
+    demandMismatchSites.map(({ file, kind, count }) => ({ file, kind, count })),
+    [{
       file: 'crates/snapback-kernel/src/live_matcher.rs',
-      line,
       kind: undefined,
-    })),
+      count: sourceLinesContaining(
+        'crates/snapback-kernel/src/live_matcher.rs',
+        'eprintln!("SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH',
+      ).length,
+    }],
   );
   assert.ok(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_MISMATCH);
   assert.equal(registry.diagnostics.SNAPBACK_GRAPH_DEMAND_IDENTITY_TRACE, undefined);
@@ -1857,16 +1890,29 @@ test('generated registry retains target emitters and dynamic artifact-header emi
     .SNAPBACK_ACCEPTED_SOCKET_LIMIT.sites.filter(
       (site) => site.file === 'targets/cloudflare/src/coordinator.js',
     );
-  assert.equal(acceptedSocketDiagnosticSites.length, 2);
-  const coordinator = readFileSync(resolve(
+  // @ref LLP 0326#3-options — two occurrences in one file are one record with
+  // count 2 under v2.
+  assert.equal(acceptedSocketDiagnosticSites.length, 1);
+  assert.equal(acceptedSocketDiagnosticSites[0].count, 2);
+  // @ref LLP 0326.000#2a-the-locator-assertions-must-move-not-merely-pass —
+  // what surrounds each emitter is a scanner property, proved against located
+  // sites rather than the published projection.
+  const coordinatorSource = readFileSync(resolve(
     import.meta.dirname,
     '../targets/cloudflare/src/coordinator.js',
-  ), 'utf8').split('\n');
-  assert.ok(acceptedSocketDiagnosticSites.every((site) => (
-    /\b(?:kitError|requestDiagnostic)\s*\(/u.test(
-      coordinator.slice(Math.max(0, site.line - 3), site.line).join('\n'),
-    )
-  )));
+  ), 'utf8');
+  const coordinator = coordinatorSource.split('\n');
+  const locatedAcceptedSocket = diagnosticSourceSites(coordinatorSource, { javascript: true })
+    .filter(({ match, kind }) => (
+      match[0] === 'SNAPBACK_ACCEPTED_SOCKET_LIMIT' && kind === 'emission'
+    ));
+  assert.equal(locatedAcceptedSocket.length, 2);
+  assert.ok(locatedAcceptedSocket.every(({ match }) => {
+    const line = coordinatorSource.slice(0, match.index).split('\n').length;
+    return /\b(?:kitError|requestDiagnostic)\s*\(/u.test(
+      coordinator.slice(Math.max(0, line - 3), line).join('\n'),
+    );
+  }));
   assert.equal(
     registry.environment.SNAPBACK_ACCEPTED_SOCKET_LIMIT.sites.filter(
       (site) => site.file === 'targets/cloudflare/src/coordinator.js',
@@ -1936,24 +1982,24 @@ test('generated registry retains target emitters and dynamic artifact-header emi
 
   assert.deepEqual(
     registry.diagnostics.SNAPBACK_APP_BINDING_EXPIRED.sites
-      .map(({ file, line, kind }) => ({ file, line, kind })),
+      .map(({ file, kind, count }) => ({ file, kind, count })),
     [
-      ...sourceLinesContaining(
-        'packages/snapback-expo/app-binding.mjs',
-        "'SNAPBACK_APP_BINDING_EXPIRED'",
-      ).map((line) => ({
+      {
         file: 'packages/snapback-expo/app-binding.mjs',
-        line,
         kind: undefined,
-      })),
-      ...sourceLinesContaining(
-        'packages/snapback-expo/supervised-environment.mjs',
-        "'SNAPBACK_APP_BINDING_EXPIRED'",
-      ).map((line) => ({
+        count: sourceLinesContaining(
+          'packages/snapback-expo/app-binding.mjs',
+          "'SNAPBACK_APP_BINDING_EXPIRED'",
+        ).length,
+      },
+      {
         file: 'packages/snapback-expo/supervised-environment.mjs',
-        line,
         kind: undefined,
-      })),
+        count: sourceLinesContaining(
+          'packages/snapback-expo/supervised-environment.mjs',
+          "'SNAPBACK_APP_BINDING_EXPIRED'",
+        ).length,
+      },
     ],
   );
   const falselyClassifiedEnvironmentNames = [
@@ -2025,10 +2071,17 @@ test('generated registry retains target emitters and dynamic artifact-header emi
       }],
       `${code} must retain its finite dynamic-emission site`,
     );
+    // @ref LLP 0326.000#2a-the-locator-assertions-must-move-not-merely-pass —
+    // attachment is a scanner property, proved against the located site.
     const [site] = registry.diagnostics[code].sites;
+    const tigrisSource = readFileSync(resolve(import.meta.dirname, '..', site.file), 'utf8');
+    const locatedTigris = diagnosticSourceSites(tigrisSource, { javascript: true })
+      .filter(({ match, synthetic }) => match[0] === code && synthetic === true);
+    assert.equal(locatedTigris.length, 1, `${code} must have one located dynamic site`);
     assert.match(
-      readFileSync(resolve(import.meta.dirname, '..', site.file), 'utf8')
-        .split('\n')[site.line - 1],
+      tigrisSource.split('\n')[
+        tigrisSource.slice(0, locatedTigris[0].match.index).split('\n').length - 1
+      ],
       /^\s*throw new Error\(/u,
       `${code} must attach to the dynamic throw statement`,
     );
@@ -2214,11 +2267,21 @@ test('resume budget reservation is recorded on its spelling line', () => {
     '../guide/reference/diagnostics-registry.json',
   ), 'utf8'));
   const file = 'crates/snapback-sync/src/rqs.rs';
-  const reservedLines = registry.diagnostics.SNAPBACK_RESUME_BUDGET_EXCEEDED.sites
-    .filter((site) => site.file === file && site.kind === 'reserved')
-    .map((site) => site.line);
+  // @ref LLP 0326.000#2a-the-locator-assertions-must-move-not-merely-pass —
+  // scanner placement, proved against the source, not through the published
+  // projection.
+  const source = readFileSync(resolve(import.meta.dirname, '..', file), 'utf8');
+  const reservedLines = diagnosticSourceSites(source, { ordinaryMultiline: true })
+    .filter(({ match, kind }) => match[0] === 'SNAPBACK_RESUME_BUDGET_EXCEEDED' && kind === 'reserved')
+    .map(({ match }) => source.slice(0, match.index).split('\n').length);
 
   assert.deepEqual(reservedLines, sourceLinesContaining(file, 'pub const BUDGET_EXCEEDED'));
+  // The published record for the same code carries no coordinate.
+  for (const site of registry.diagnostics.SNAPBACK_RESUME_BUDGET_EXCEEDED.sites) {
+    assert.equal(site.line, undefined);
+    assert.equal(site.column, undefined);
+    assert.ok(typeof site.count === 'number' && site.count >= 1);
+  }
 });
 
 test('diagnostic source classifier retains explicitly marked received vocabulary', () => {

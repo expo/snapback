@@ -360,11 +360,14 @@ function subsystemFor(code, sites) {
     if (file.startsWith('src/') || file.startsWith('crates/')) return 2; // path-migration: historical
     return 3;
   };
+  // @ref LLP 0326.000#8-open-questions — sitePriority stays the primary term; the
+  // coordinate fallback is gone because it only ever ordered sites *within*
+  // one file and the selected value is the file. Verified across all codes:
+  // the chosen file is identical with and without it.
   const first = [...sites].sort((left, right) => (
     sitePriority(left.file) - sitePriority(right.file)
       || left.file.localeCompare(right.file)
-      || left.line - right.line
-      || left.column - right.column
+      || (left.kind ?? '').localeCompare(right.kind ?? '')
   ))[0]?.file ?? '';
   const packageMatch = first.match(/^packages\/([^/]+)/u);
   if (packageMatch) return packageMatch[1].replace(/^snapback-/u, '');
@@ -690,7 +693,7 @@ function renderMarkdown(registry) {
     '',
     'This build-bound registry is generated from production Rust, JavaScript, shell, Swift, and Kotlin sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.',
     '',
-    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation.`,
+    `**${registry.counts.codes.toLocaleString('en-US')} stable codes** from ${registry.counts.sourceFiles.toLocaleString('en-US')} production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation, grouped per source file with a count.`,
     '',
     '| Code | Vocabulary | Subsystem | HTTP | Guide | First registered site | Sites |',
     '| --- | --- | --- | ---: | --- | --- | ---: |',
@@ -703,7 +706,8 @@ function renderMarkdown(registry) {
       site.kind === undefined ? 'emitted' : site.kind
     )))].sort().join(', ');
     const anchor = `<a id="diagnostic-${record.code.toLowerCase().replaceAll('_', '-')}"></a>`;
-    lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(vocabulary)} | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
+    const siteCount = record.sites.reduce((total, site) => total + site.count, 0);
+    lines.push(`| ${anchor}\`${record.code}\` | ${escapeTable(vocabulary)} | ${escapeTable(record.subsystem)} | ${record.httpStatus ?? '—'} | ${guide} | \`${first.file}\` | ${siteCount} |`);
   }
   lines.push(
     '',
@@ -718,7 +722,8 @@ function renderMarkdown(registry) {
     const kinds = [...new Set(record.sites.map((site) => site.kind))].sort().join(', ');
     const first = record.sites[0];
     const anchor = `<a id="${environmentAnchorId(record.name)}"></a>`;
-    lines.push(`| ${anchor}\`${record.name}\` | ${escapeTable(kinds)} | \`${first.file}:${first.line}\` | ${record.sites.length} |`);
+    const envSiteCount = record.sites.reduce((total, site) => total + site.count, 0);
+    lines.push(`| ${anchor}\`${record.name}\` | ${escapeTable(kinds)} | \`${first.file}\` | ${envSiteCount} |`);
   }
   return `${lines.join('\n')}\n`;
 }
@@ -740,18 +745,57 @@ const codes = [...byCode].filter(([, sites]) => (
   sites.some((site) => site.kind !== 'declaration')
 )).map(([code]) => code).sort();
 const anchors = guideAnchors(new Set(codes));
+// @ref LLP 0326#3-options — published site records carry file and
+// classification and never coordinates. Line/column stay available on the
+// located records for subsystem classification and the generator's own
+// locator tests; only this projection reaches the committed artifact.
+// Deduplicated on (file, kind, synthetic) so multiplicity survives as a count
+// without pinning a volatile position.
+function publishedSiteOrder(left, right) {
+  return left.file.localeCompare(right.file)
+    || (left.kind ?? '').localeCompare(right.kind ?? '')
+    || (Number(left.synthetic === true) - Number(right.synthetic === true));
+}
+
+function projectSites(located) {
+  const groups = new Map();
+  for (const site of located) {
+    const key = `${site.file}\0${site.kind ?? ''}\0${site.synthetic === true ? '1' : ''}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+      continue;
+    }
+    groups.set(key, {
+      file: site.file,
+      ...(site.kind === undefined ? {} : { kind: site.kind }),
+      ...(site.synthetic === true ? { synthetic: true } : {}),
+      count: 1,
+    });
+  }
+  return [...groups.values()].sort(publishedSiteOrder);
+}
+
+// Site totals are summed from `count` so `emittingSites` and friends keep
+// meaning *sites*, not published records, across the v1 -> v2 shape change.
+function siteTotal(records, predicate) {
+  return records.reduce((total, record) => (
+    total + record.sites.filter(predicate).reduce((sum, site) => sum + site.count, 0)
+  ), 0);
+}
+
 const diagnostics = {};
 for (const code of codes) {
-  const sites = byCode.get(code).sort((left, right) => (
+  const located = byCode.get(code).sort((left, right) => (
     left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column
   ));
-  assertPathRelocationPreservesSubsystem(code, sites);
+  assertPathRelocationPreservesSubsystem(code, located);
   const httpStatus = statuses.get(code) ?? null;
   const guide = anchors.get(code) ?? [];
   diagnostics[code] = {
     code,
-    subsystem: subsystemFor(code, sites),
-    sites,
+    subsystem: subsystemFor(code, located),
+    sites: projectSites(located),
     httpStatus,
     httpStatusClass: httpStatus === null ? null : `${Math.floor(httpStatus / 100)}xx`,
     guideAnchor: guide[0] ?? null,
@@ -764,32 +808,30 @@ for (const name of environmentNames) {
   environment[name] = {
     name,
     guideAnchor: environmentGuideAnchor(name),
-    sites: byEnvironmentVariable.get(name).sort((left, right) => (
+    sites: projectSites(byEnvironmentVariable.get(name).sort((left, right) => (
       left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column
-    )),
+    ))),
   };
 }
 const registry = {
-  schemaVersion: 'snapback-diagnostics-registry.v1',
+  schemaVersion: 'snapback-diagnostics-registry.v2',
   generatedBy: 'scripts/generate-diagnostics-registry.mjs',
   buildIdentity: { sourceDigest: sourceDigest(inputPaths) },
   limits: { lookupBytes: 16_384 },
   counts: {
     codes: codes.length,
     sourceFiles: productionPaths.length,
-    emittingSites: Object.values(diagnostics).reduce((total, record) => (
-      total + record.sites.filter((site) => site.kind === undefined).length
-    ), 0),
-    receivedSites: Object.values(diagnostics).reduce((total, record) => (
-      total + record.sites.filter((site) => site.kind === 'received').length
-    ), 0),
-    reservedSites: Object.values(diagnostics).reduce((total, record) => (
-      total + record.sites.filter((site) => site.kind === 'reserved').length
-    ), 0),
+    emittingSites: siteTotal(Object.values(diagnostics), (site) => site.kind === undefined),
+    receivedSites: siteTotal(Object.values(diagnostics), (site) => site.kind === 'received'),
+    reservedSites: siteTotal(Object.values(diagnostics), (site) => site.kind === 'reserved'),
+    // Published records are fewer than sites after deduplication; reported
+    // separately so neither number silently takes the other's meaning.
+    siteRecords: Object.values(diagnostics).reduce((total, record) => total + record.sites.length, 0),
     httpClassified: Object.values(diagnostics).filter((record) => record.httpStatus !== null).length,
     guideAnchored: Object.values(diagnostics).filter((record) => record.guideAnchor !== null).length,
     environmentVariables: environmentNames.length,
-    environmentSites: Object.values(environment).reduce((total, record) => total + record.sites.length, 0),
+    environmentSites: siteTotal(Object.values(environment), () => true),
+    environmentSiteRecords: Object.values(environment).reduce((total, record) => total + record.sites.length, 0),
   },
   diagnostics,
   environment,

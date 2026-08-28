@@ -89,15 +89,24 @@ const declarationDiagnostic = lookupGuideReference(
 );
 assert.match(
   formatGuideReferenceLookup(declarationDiagnostic),
-  /Declaration sites:\n- crates\/snapback-activation\/src\/operational_readiness\.rs:/u,
+  /Declaration sites:\n- crates\/snapback-activation\/src\/operational_readiness\.rs$/mu,
 );
+// A code emitted more than once in one file renders as a single record with a
+// multiplicity suffix, replacing the repeated per-coordinate lines of v1.
+assert.match(
+  formatGuideReferenceLookup(declarationDiagnostic),
+  /Emitting sites:\n- crates\/snapback-activation\/src\/operational_readiness\.rs\n- crates\/snapback-server\/src\/server\.rs x2$/mu,
+);
+// No published site record may carry a coordinate.
+assert.doesNotMatch(formatGuideReferenceLookup(declarationDiagnostic), /\.rs:\d+/u);
+
 const receivedDiagnostic = lookupGuideReference(
   ['SNAPBACK_INVALID_FLOAT'],
   { projectRoot: root, includeDiagnosticSites: true },
 );
 assert.match(
   formatGuideReferenceLookup(receivedDiagnostic),
-  /Received sites:\n- crates\/snapback-types\/src\/error_tracking\.rs:/u,
+  /Received sites:\n- crates\/snapback-types\/src\/error_tracking\.rs$/mu,
 );
 assert.doesNotMatch(
   formatGuideReferenceLookup(receivedDiagnostic),
