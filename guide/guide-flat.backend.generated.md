@@ -2383,6 +2383,7 @@ examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, 
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [familiar]
 since: 0.1.21
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:3d3e817a215052e59196864d82016bcb0fbe99173c8739b32d84b325ef426cc9
@@ -2586,6 +2587,74 @@ rewrite table before authoring or when
 
 Diary search terms: dynamic computed access; imported helper; same-file function declaration.
 Further terms: captured constants; mutation document arrays; monotonic counter; `sequences`.
+
+### `ctx.refuse()` does not narrow from a bare statement
+
+`ctx.refuse()` is declared `never`, but TypeScript only lets a `never`-returning
+call end control flow when **every identifier in the dotted call target has an
+explicit type**. A handler's `ctx` parameter is contextually typed, not
+annotated, so this does *not* narrow and `row` stays possibly-null:
+
+```ts fragment class="anti-pattern" reason="bare refuse statement does not narrow; TS18047 on the next line"
+if (!row) ctx.refuse('ROW_NOT_FOUND');
+return row.title;
+```
+
+Any of these narrow correctly. The smallest edit is to `return` the refusal:
+
+```ts fragment reason="admitted narrowing spelling; smallest edit from the anti-pattern above"
+if (!row) return ctx.refuse('ROW_NOT_FOUND');
+return row.title;
+```
+
+```ts fragment reason="admitted narrowing spelling; shown beside the anti-pattern above"
+return row ? { title: row.title } : ctx.refuse('ROW_NOT_FOUND');
+```
+
+```ts fragment reason="admitted narrowing spelling; shown beside the anti-pattern above"
+const found = row ?? ctx.refuse('ROW_NOT_FOUND');
+return { title: found.title };
+```
+
+The same rule catches helper wrappers, and the obvious annotation is the wrong
+one: a return-type annotation on an arrow **does not** satisfy the rule, because
+the call target is still the unannotated binding. Annotate the *binding* with a
+callable type, or use a `function` declaration:
+
+```ts source=tests/fixtures/familiar-refuse-narrowing-0.1.29/matrix/helper-wrapper-good.ts
+function refuseMissingAnnotated(
+  ctx: FamiliarQueryContext,
+  code: string,
+): never {
+  ctx.refuse(code);
+}
+
+const refuseMissingExpression: (
+  ctx: FamiliarQueryContext,
+  code: string,
+) => never = (
+  ctx: FamiliarQueryContext,
+  code: string,
+) => ctx.refuse(code);
+```
+
+Called from a handler, either of those narrows:
+
+```ts fragment reason="helper call site; the only reason to have the helper"
+if (!post) refuseMissingAnnotated(ctx, 'POST_NOT_FOUND');
+return post.body;
+```
+
+`const missing = (code: string): never => ctx.refuse(code)` looks equivalent and
+is not — `helper-wrapper-inferred-expression.ts` in the fixture has
+`ReturnType === never` and still fails.
+
+This is TypeScript's behaviour (microsoft/TypeScript#32695), not a Snapback
+declaration defect — `refuse(code, details?): never` is correct in the published
+package. Reproduction: `tests/fixtures/familiar-refuse-narrowing-0.1.29/`.
+
+Search terms: `ctx.refuse` does not narrow; refuse still nullable after refuse;
+TS18047 after ctx.refuse; possibly null after refuse.
 
 | Allowed form | Refused familiar-looking form | Standard rewrite | When Explicit is the better profile |
 | --- | --- | --- | --- |

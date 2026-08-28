@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "snapback/schema.ts",
+    "snapback/posts.ts",
+    "snapback/generated/*.d.ts",
+    "matrix/generated-resolution.ts",
+    "matrix/control-flow-good.ts",
+    "matrix/helper-wrapper-good.ts"
+  ]
+}

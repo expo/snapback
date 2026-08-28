@@ -1,0 +1,13 @@
+{
+  "name": "snapback-familiar-refuse-narrowing-0-1-29",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "node node_modules/@expo/snapback-codegen/index.mjs snapback",
+    "test": "node run-reproduction.mjs"
+  },
+  "dependencies": {
+    "@expo/snapback-codegen": "0.1.29",
+    "typescript": "5.9.3"
+  }
+}

@@ -3,7 +3,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { FROZEN_LEGACY_AUTHORING_PROFILE_ROWS } from './guide-authoring-profiles-baseline.mjs';
+import {
+  FROZEN_LEGACY_AUTHORING_PROFILE_ROWS,
+  MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS,
+} from './guide-authoring-profiles-baseline.mjs';
 import {
   LEGACY_AUTHORING_PROFILE_ROWS,
   resolveAuthoringProfileScopes,
@@ -30,7 +33,14 @@ test('current legacy inventory is an exact subset of the frozen survey', () => {
   validateLegacyAuthoringProfileRows(LEGACY_AUTHORING_PROFILE_ROWS, errors);
 
   assert.equal(FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length, 99);
-  assert.equal(LEGACY_AUTHORING_PROFILE_ROWS.length, 95);
+  // The active list only ever shrinks, by exact-row deletion, as pages migrate.
+  // Assert the invariant rather than a fixed count, so a legitimate migration
+  // does not require editing this test — which would defeat the point of the
+  // frozen authority.
+  assert.equal(
+    LEGACY_AUTHORING_PROFILE_ROWS.length + MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS.length,
+    FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length,
+  );
   assert.deepEqual(errors, []);
 });
 
@@ -45,7 +55,9 @@ test('rejects added rows even when they only fill the old count headroom', () =>
   const errors = [];
   validateLegacyAuthoringProfileRows(candidateRows, errors);
 
-  assert.equal(candidateRows.length, FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length);
+  // Deliberately sized so the candidate list is at or under the frozen count:
+  // the point is that additions are rejected on identity, not on headroom.
+  assert.ok(candidateRows.length <= FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length);
   assert.equal(errors.length, 4);
   assert.match(errors[0], /new-exemption-a\.md: .*row was added .*Repair: declare 'authoring-profiles'.*remove the added row/u);
   assert.match(errors[1], /new-exemption-b.md: .*row was added .*Repair: declare 'authoring-profiles'.*remove the added row/u);

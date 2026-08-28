@@ -1,0 +1,7 @@
+node_modules/
+.snapback/
+snapback/.snapback/
+snapback/generated/*
+!snapback/generated/artifacts.json
+!snapback/generated/api.d.ts
+!snapback/generated/server.d.ts

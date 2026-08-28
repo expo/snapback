@@ -34,7 +34,6 @@ export const LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
   ['guide/backend/declarative-plans.md', 'explicit', '2494e1fc23fafcff1346ae95bdfcf1c00b9bd3a98ed73187dfc6699584c64ff9'],
   ['guide/backend/expo-push.md', 'explicit', 'b9ce07d7c673c9878a5492a6fbb47ecf9024a21b8a277c5fb3601d745bad03ac'],
   ['guide/backend/external-api.md', 'explicit', '3c5ea0c742f3c7410fa9360b08cf333bccfcbf9cb3c2c7cd94aca94d44e6f4f9'],
-  ['guide/backend/familiar-profile.md', 'familiar', '62d2abffae7a5ed2adc04ef8cb0ecd1d1877a9bccc80389d689be557d1bcc72d'],
   ['guide/backend/handler-runtime.md', 'explicit', '3eabb4ad82e2bb97d2b1e4bf7c3533ae9822e56e1c78d6f40b59a61c204ff4ba'],
   ['guide/backend/jobs.md', 'explicit', '40ff787cba152c7803c294998d5070ceb6e313ea5b821ac2d549d0281f65abd8'],
   ['guide/backend/media-happy-paths.md', 'explicit', '45cc91d8612865784c392d76129de2511f93513ba06bdfa225309922a3b8f500'],
