@@ -2,6 +2,7 @@
 
 **Filed:** 2026-08-22, while staging
 `benchmarks/runs/2026-08-22-clique-local-main-0125`.
+**Status:** Resolved
 
 ## Finding
 
@@ -39,4 +40,12 @@ the ceiling so drift fails CI.
 
 ## Resolution
 
-_(open)_
+Resolved 2026-08-28. The current renderer measured 10,158 emitted UTF-8 bytes
+before this change (10,185 canonical bytes), reflecting an earlier partial fix
+that had already shortened the served-Guide note and omitted the checkout-only
+diary bullet. The injected note is now compressed to the routing information
+the scaffold needs; the canonical skill retains the detailed progressive-read
+and served-Guide instructions. The emitted consumer form is 10,099 bytes,
+leaving 141 bytes below LLP 0259's 10,240-byte ceiling. The scaffold skill
+budget test enforces that ceiling and reports the measured byte count on
+failure.

@@ -13,9 +13,10 @@ test('scaffolded snapback-authoring skill fits the consumer steering budget', ()
     'utf8',
   );
   const rendered = renderScaffoldAuthoringSkill(canonical);
+  const renderedBytes = Buffer.byteLength(rendered, 'utf8');
 
   assert.ok(
-    Buffer.byteLength(rendered, 'utf8') <= MAX_SKILL_BODY_BYTES,
-    `rendered snapback-authoring skill exceeds ${MAX_SKILL_BODY_BYTES} bytes`,
+    renderedBytes <= MAX_SKILL_BODY_BYTES,
+    `rendered snapback-authoring skill is ${renderedBytes} bytes; maximum is ${MAX_SKILL_BODY_BYTES}`,
   );
 });

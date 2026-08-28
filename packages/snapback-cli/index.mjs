@@ -1924,7 +1924,7 @@ const scaffoldAuthoringSkillFiles = [
 ];
 
 export function renderScaffoldAuthoringSkill(canonicalContent) {
-  const note = '> Scaffolded app: use `snapback guide <query>` or, while dev runs, `/_snapback/guide/<path>` at the printed server origin.';
+  const note = '> Docs: `snapback guide <query>`; served at `/_snapback/guide`.';
   // The diaries/issues bullet is a checkout-only obligation (AGENTS.md); a
   // scaffold has no repository, so the consumer form drops it to stay inside
   // the LLP 0259 per-skill budget without losing any instruction that applies.
