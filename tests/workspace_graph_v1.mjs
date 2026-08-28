@@ -729,6 +729,22 @@ test('reviewed module origin files cannot be remounted through another path modu
   );
 });
 
+test('nested #[path] in a non-root file resolves from the file-module directory', () => {
+  const local = canonicalEngineFixture('local.rs');
+  local.source += [
+    '',
+    'mod tests {',
+    '    #[path = "engine.rs"]',
+    '    mod remounted_engine;',
+    '}',
+    '',
+  ].join('\n');
+  assert.throws(
+    () => validateEngineDefinitionDenylist(artifact, [local]),
+    /#\[path\] may not remount reviewed module origin .*local\/tests\/engine\.rs/u,
+  );
+});
+
 test('remounting an origin does not substitute for its missing canonical declaration', () => {
   assert.throws(
     () => validateEngineDefinitionDenylist(artifact, [

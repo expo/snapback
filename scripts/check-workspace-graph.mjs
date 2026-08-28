@@ -993,7 +993,16 @@ function reviewedEngineModuleTargets() {
 
 function rustPathModuleTarget(filePath, declaration) {
   assert(typeof declaration.path === 'string', 'Rust path-module target requires one path');
-  return resolve(dirname(filePath), ...declaration.inlineModules, declaration.path);
+  const sourceName = basename(filePath);
+  const sourceModule = sourceName.endsWith('.rs')
+    ? sourceName.slice(0, -3)
+    : sourceName;
+  const nestedInNonRootFile = declaration.inlineModules.length > 0
+    && !['lib', 'main', 'mod'].includes(sourceModule);
+  const sourceModuleDirectory = nestedInNonRootFile
+    ? resolve(dirname(filePath), sourceModule)
+    : dirname(filePath);
+  return resolve(sourceModuleDirectory, ...declaration.inlineModules, declaration.path);
 }
 
 function engineGlobObservationKey(file, lexicalModules, glob) {
@@ -1133,6 +1142,7 @@ function validateEngineDefinitionInputs(files, completeGlobInventory) {
   );
   for (const file of files) {
     const attributes = rustAttributeEntries(file.source);
+    const moduleDeclarations = rustModuleDeclarations(file.source, attributes);
     for (const { source: attribute } of attributes) {
       const head = /^#\s*!?\s*\[\s*([A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*)/su.exec(attribute)?.[1];
       assert(
@@ -1168,25 +1178,34 @@ function validateEngineDefinitionInputs(files, completeGlobInventory) {
           && !modulePath.startsWith('../'),
         `engine #[path] escapes its source tree: ${modulePath}`,
       );
-      const target = resolve(dirname(file.path), modulePath);
-      const targetRelative = relative(engineRoot, target);
       assert(
-        targetRelative.length > 0
-          && targetRelative !== '..'
-          && !targetRelative.startsWith(`..${sep}`)
-          && canonicalRegularFileExists(engineRoot, targetRelative.split(sep).join('/')),
-        `engine #[path] must resolve to a real file inside snapback-engine/src: ${modulePath}`,
+        moduleDeclarations.some(({ path }) => (
+          path === modulePath || path === AMBIGUOUS_MODULE_PATH
+        )),
+        `engine #[path] must decorate a module declaration: ${relative(ROOT, file.path).split(sep).join('/')}`,
       );
     }
 
     const masked = maskRustAttributes(maskRustCommentsAndLiterals(file.source));
     const repositoryFile = relative(ROOT, file.path).split(sep).join('/');
-    const moduleDeclarations = rustModuleDeclarations(file.source, attributes);
     for (const declaration of moduleDeclarations) {
       assert(
         declaration.path !== AMBIGUOUS_MODULE_PATH,
         `snapback-engine module declaration has multiple #[path] attributes: ${repositoryFile}`,
       );
+      const pathTarget = typeof declaration.path === 'string'
+        ? rustPathModuleTarget(file.path, declaration)
+        : undefined;
+      if (pathTarget !== undefined) {
+        const targetRelative = relative(engineRoot, pathTarget);
+        assert(
+          targetRelative.length > 0
+            && targetRelative !== '..'
+            && !targetRelative.startsWith(`..${sep}`)
+            && canonicalRegularFileExists(engineRoot, targetRelative.split(sep).join('/')),
+          `engine #[path] must resolve to a real file inside snapback-engine/src using its Rust module scope: ${declaration.path}`,
+        );
+      }
     }
     const exactReviewedDeclarations = new Set();
     const missingReviewedDeclarations = [];
@@ -1208,16 +1227,6 @@ function validateEngineDefinitionInputs(files, completeGlobInventory) {
       const targets = typeof declaration.path === 'string'
         ? [rustPathModuleTarget(file.path, declaration)]
         : conventionalModuleCandidates(file.path, declaration);
-      if (typeof declaration.path === 'string') {
-        const targetRelative = relative(engineRoot, targets[0]);
-        assert(
-          targetRelative.length > 0
-            && targetRelative !== '..'
-            && !targetRelative.startsWith(`..${sep}`)
-            && canonicalRegularFileExists(engineRoot, targetRelative.split(sep).join('/')),
-          `engine #[path] must resolve to a real file inside snapback-engine/src using its Rust module scope: ${declaration.path}`,
-        );
-      }
       for (const target of targets) {
         const targetOrigin = reviewedModuleTargets.get(target);
         assert(
