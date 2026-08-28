@@ -1,6 +1,6 @@
 # Expo supervisor `restart` verb does not reconcile a moved backend port
 
-- Status: Open
+- Status: Resolved
 - Date: 2026-08-23
 - Systems: `packages/snapback-cli/expo-dev.mjs` (supervisor control verbs),
   `packages/snapback-cli/index.mjs` (`runDev` restart)
@@ -29,3 +29,14 @@ Funnel `restart` through the same reconciliation `dev-fresh` uses
 (re-read the ready descriptor, refresh `backendRoute`/`portPlan`/route,
 reinstall forwarding, re-verify listener inventory, re-issue the binding),
 and add a test that occupies the old backend port during a restart.
+
+## Resolution
+
+Resolved on 2026-08-28. `runExpoDev` now routes both `restart` and
+`dev-fresh` through one post-rebind reconciliation that rebuilds the backend
+route and port plan from the successor ready descriptor, reinstalls device
+forwarding, verifies and republishes the live listener inventory, and only
+then issues the successor Expo binding. `runDev` exposes a bounded restart
+test barrier after the predecessor stops, and the Expo dev-loop regression
+uses it to occupy the old ranged port and prove every supervisor projection
+follows the backend to the next port.

@@ -91,6 +91,7 @@ const noTokenCarrierOnly = process.argv.includes('--no-token-carrier-only');
 const regularFileOnly = process.argv.includes('--regular-file-only');
 const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
 const supervisedWebSignOutReloadOnly = process.argv.includes('--supervised-web-signout-reload-only');
+const restartPortRebindOnly = process.argv.includes('--restart-port-rebind-only');
 const retainedProcessTableNegativeOnly = process.argv.includes('--retained-process-table-negative-only');
 const retainedProcessTableInheritedSourceNegativeChild = process.argv.includes(
   '--retained-process-table-inherited-source-negative-child',
@@ -1285,6 +1286,81 @@ async function startFixture(target, options = {}) {
     'supervised startup must not create or mutate any .env* file',
   );
   return { supervisor, events };
+}
+
+async function runRestartPortRebindSuite() {
+  const rangedPorts = await reserveFreeRange(8);
+  const target = fixture('restart-port-rebind', { sessions: true });
+  let run = null;
+  let displacedBackendPortHolder = null;
+  try {
+    run = await startFixture(target, {
+      platform: 'web',
+      portRange: `${rangedPorts.lo}-${rangedPorts.hi}`,
+      devOptions: {
+        async afterManagedRestartPreviousStopped({ serverUrl }) {
+          assert.equal(new URL(serverUrl).port, String(rangedPorts.lo));
+          displacedBackendPortHolder = createNetServer();
+          await new Promise((resolveListen, rejectListen) => {
+            displacedBackendPortHolder.once('error', rejectListen);
+            displacedBackendPortHolder.listen(rangedPorts.lo, '127.0.0.1', resolveListen);
+          });
+        },
+      },
+    });
+    assert.equal(new URL(run.supervisor.binding.target.origin).port, String(rangedPorts.lo));
+    const restarted = await run.supervisor.verbs.restart({
+      requestId: 'restart-after-backend-port-displaced',
+    });
+    assert.equal(restarted.ok, true, JSON.stringify(restarted));
+    assert.equal(displacedBackendPortHolder?.listening, true);
+    const reboundPort = rangedPorts.lo + 1;
+    assert.equal(new URL(run.supervisor.binding.target.origin).port, String(reboundPort));
+    assert.equal(new URL(readReadyDescriptor(target.readyFile).serverUrl).port, String(reboundPort));
+    assert.deepEqual(
+      run.supervisor.portPlan.owners.find(({ owner }) => owner === 'backend'),
+      { owner: 'backend', port: reboundPort, source: 'range', declaredBy: null },
+    );
+    assert(
+      run.supervisor.listeners.some(({ owner, port }) => (
+        owner === 'backend' && port === reboundPort
+      )),
+      'the reconciled listener inventory must name the rebound backend port',
+    );
+    const restartedDescriptor = JSON.parse(readFileSync(
+      join(dirname(target.readyFile), 'expo-supervisor.json'),
+      'utf8',
+    ));
+    assert.equal(new URL(restartedDescriptor.binding.target.origin).port, String(reboundPort));
+    assert.deepEqual(restartedDescriptor.portPlan, run.supervisor.portPlan);
+    assert(
+      restartedDescriptor.listeners.some(({ owner, port }) => (
+        owner === 'backend' && port === reboundPort
+      )),
+    );
+    await new Promise((resolveClose) => displacedBackendPortHolder.close(resolveClose));
+    displacedBackendPortHolder = null;
+    const refreshed = await run.supervisor.verbs['dev-fresh']({
+      requestId: 'dev-fresh-after-backend-port-displaced',
+    });
+    assert.equal(refreshed.ok, true, JSON.stringify(refreshed));
+    assert.equal(new URL(run.supervisor.binding.target.origin).port, String(rangedPorts.lo));
+    assert.deepEqual(
+      run.supervisor.portPlan.owners.find(({ owner }) => owner === 'backend'),
+      { owner: 'backend', port: rangedPorts.lo, source: 'range', declaredBy: null },
+    );
+    assert(
+      run.supervisor.listeners.some(({ owner, port }) => (
+        owner === 'backend' && port === rangedPorts.lo
+      )),
+    );
+    console.log('restart port rebind: restart and dev-fresh share binding, plan, route, and listener reconciliation');
+  } finally {
+    if (displacedBackendPortHolder !== null) {
+      await new Promise((resolveClose) => displacedBackendPortHolder.close(resolveClose));
+    }
+    if (run !== null) await closeRegisteredSupervisor(run.supervisor);
+  }
 }
 
 async function runSnapbackGenerate(backendRoot) {
@@ -4170,6 +4246,8 @@ try {
     await runSupervisedWebSignOutReloadSuite();
   } else if (retainedSessionLifecycleOnly) {
     await runRetainedSessionLifecycleSuite();
+  } else if (restartPortRebindOnly) {
+    await runRestartPortRebindSuite();
   } else if (metroStopRaceOnly) {
     await runDelayedMetroExitAfterStopFailureSuite();
   } else if (backendCloseRetryOnly) {
@@ -4216,6 +4294,7 @@ try {
   await runUnavailableStdinAdvertisementSuite();
   await runRegularFileControlInputSuite();
   await runControlSocketSuite();
+  await runRestartPortRebindSuite();
   let largeUpstreamCancelled = false;
   let largeUpstreamBytes = 0;
   const largeUpstreamTotal = 16 * 1024 * 1024;
@@ -6171,7 +6250,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
     'shutdown reports every owned arm reclaimed',
   );
 
-  console.log('expo-dev-loop.test.mjs: 6 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, control-socket reload/refusals/ack/cleanup, repeated TTL cold boots, transient descriptor, one mounted provider arm recovering across schema/functions successors, live-owner snapback generate watcher safety, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
+  console.log('expo-dev-loop.test.mjs: 7 LLP 0299 port-plan cases plus WS reset/cancelled-response handoff, zero-write rendezvous carrier, supervised web backend URL, anonymous password signup/signin, explicit on-demand mint adoption and safe signout, control-socket reload/refusals/ack/cleanup, repeated TTL cold boots, transient descriptor, one mounted provider arm recovering across schema/functions successors, live-owner snapback generate watcher safety, served successor generated descriptor without Metro restart, Sessions refusal+mint, all-listener loopback proof, provider live/mutation/presence/HMR/reconnect/authority replacement+conflict, leak matrix, SIGINT, and strict cleanup pass');
   }
 } finally {
   for (const child of cliChildren) {
