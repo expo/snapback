@@ -15,6 +15,43 @@ snapback-explicit,snapback-familiar}` stalled on OpenCode harness hangs,
 
 ---
 
+> **Correction, 2026-08-28.** `sol-snapback-explicit` **sealed** at 04:35Z after
+> 8 h 46 m and is no longer unscored. It reached **7 greens** — M1 through M8,
+> 58/58 suite-owned assertions and 33/33 implemented required choreography
+> checks, with M8 green at 4 h 24 m of continuous milestone wall. M7 was not run
+> in any lane, so 7/8 is the practical ceiling: this is a **full green run on
+> snapback-explicit**, matching convex's best.
+>
+> **O5 remained aborted and unproven**, and its band is honestly 0 — but not
+> for the reason recorded mid-run. No dispatched fixture action failed
+> (103,355 settled of 167,157, p95 57–107 ms) and the 10% and 50% invariant
+> manifests both passed; the replay exhausted its 14,400 s cap with 63,802
+> actions never executed, so the full manifest is incomplete and the
+> degradation gates did not clear. "Fixture-blocked" was the mid-run read;
+> "cap-exhausted, unproven" is the outcome. Both are a zero on O5.
+>
+> **Sections 2–7 below are a frozen 15-lane snapshot taken before this lane
+> sealed. Read every present-tense claim in them as historical.** Specifically
+> superseded: the `snapback-explicit`/sol cell ("deep run, unscored"), the
+> holistic `—` for that cell, the "15 scored" coverage counts, the "thin scored
+> coverage" caveat in §5, and the §7 statement that "the furthest anyone reached
+> on Snapback was **M4**".
+>
+> **The sealed cell is `7/8 · O 60 · B 59 · overall 60`, holistic `61`**,
+> derived from `lanes/sol-snapback-explicit/scores.json`. Read it into §2's
+> `snapback-explicit` × `sol` cell and §4's holistic table wherever they say
+> "unscored" or "—". That is
+> ranking-changing: snapback-explicit's best lane goes 4 → 7 greens, its total
+> 4 → 11, sol's total 23 → 30, and convex is no longer the only backend with two
+> independent deep runs. The tables are **not** recomputed here — a rescoring
+> pass should redo them as a whole rather than patch one cell. Snapback's placement in the tables below was not a capability
+> ceiling, and there is now direct evidence rather than an inference from
+> missing data. The tables are left as originally computed; this note is the
+> correction of record. Classification of the lane's scale-phase correction
+> causes is in LLP 0317 §Scale tail.
+
+---
+
 # Clique Benchmark — Scored Results (Snapback 0.1.29)
 
 **Matrix:** 4 models (sol / grok / terra / glm) × 5 backends (snapback-explicit, snapback-familiar, convex, supabase, pocketbase) building a social-messenger app across milestones M1–M8 on freshly-published Snapback **0.1.29**. 20 lane cells; **15 scored**, 4 unscored (no `scores.json`), 1 never run.

@@ -1,0 +1,147 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "sol-snapback-explicit",
+  "backend": "snapback-explicit",
+  "backend_version": "snapback-explicit-0.1.29",
+  "model": "gpt-5.6-sol",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "green",
+    "M6": "green",
+    "M7": "not-run",
+    "M8": "green"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {
+      "layer": "grader-outcome",
+      "weight": 13,
+      "exercised": true,
+      "score": 96,
+      "rationale": "All seven in-scope milestones were suite-and-choreography green, covering 58 suite assertions and 33 required two-client checks; native-only legs were declared environment-null."
+    },
+    "O2": {
+      "layer": "grader-outcome",
+      "weight": 7,
+      "exercised": true,
+      "score": 64,
+      "rationale": "Frozen happy paths were stable, but delivery receipts are server-created and retained asset URLs do not become server-refused after view-once or deletion."
+    },
+    "O3": {
+      "layer": "grader-outcome",
+      "weight": 8,
+      "exercised": true,
+      "score": 30,
+      "rationale": "Writes derive authority server-side, but bounded public conversation/receipt projections permit cross-membership reads when opaque chat identifiers are known, and asset revocation is incomplete."
+    },
+    "O4": {
+      "layer": "grader-outcome",
+      "weight": 9,
+      "exercised": true,
+      "score": 86,
+      "rationale": "The web choreography proved cached search, ordered pending sends, receipt convergence, restart recovery, and two-device convergence; native proof was environment-null on Linux."
+    },
+    "O5": {
+      "layer": "grader-outcome",
+      "weight": 8,
+      "exercised": true,
+      "score": 0,
+      "rationale": "Banded first match: replay exhausted its 14,400-second cap at prefix 103,355/167,157, so the full invariant manifest did not conform despite both reached checkpoints passing."
+    },
+    "B1": {
+      "layer": "builder-experience",
+      "weight": 6,
+      "exercised": true,
+      "score": 82,
+      "rationale": "Indexed rows and unique constraints directly expressed handles, DM dedupe, memberships, reactions, receipts, view-once opens, and analytics, with boilerplate mainly in bounded validators."
+    },
+    "B2": {
+      "layer": "builder-experience",
+      "weight": 5,
+      "exercised": true,
+      "score": 58,
+      "rationale": "Built-in password sessions and server scoping worked, but setup ceremony, replay mint identity divergence, and multi-context auth commit reentrancy made auth materially harder."
+    },
+    "B3": {
+      "layer": "builder-experience",
+      "weight": 6,
+      "exercised": true,
+      "score": 56,
+      "rationale": "Root live queries and typing primitives were useful, while child/custom projections failed to invalidate reliably and required ephemeral invalidation plus fresh authoritative reads."
+    },
+    "B4": {
+      "layer": "builder-experience",
+      "weight": 7,
+      "exercised": true,
+      "score": 38,
+      "rationale": "Offline outcomes passed, but I authored a localStorage cache, ordered message outbox, retry policy, optimistic echo, and route-recovery logic largely by hand."
+    },
+    "B5": {
+      "layer": "builder-experience",
+      "weight": 4,
+      "exercised": true,
+      "score": 50,
+      "rationale": "Typed upload and public delivery were workable after a child-row fallback, but pinned-runtime capability mismatch and absent post-delivery asset revocation kept policy integration incomplete."
+    },
+    "B6": {
+      "layer": "builder-experience",
+      "weight": 3,
+      "exercised": true,
+      "score": 60,
+      "rationale": "Bounded online prefix search was direct, while the warm-offline requirement needed a separate retained client index and scan path."
+    },
+    "B7": {
+      "layer": "builder-experience",
+      "weight": 3,
+      "exercised": true,
+      "score": 68,
+      "rationale": "The logged notification seam and server cron/action/mutation chain were straightforward, though push targeting did not expose a true connected-client discriminator."
+    },
+    "B8": {
+      "layer": "builder-experience",
+      "weight": 6,
+      "exercised": false,
+      "score": null,
+      "rationale": "scored by the M7 session"
+    },
+    "B9": {
+      "layer": "builder-experience",
+      "weight": 6,
+      "exercised": true,
+      "score": 57,
+      "rationale": "The scaffold and served start packets became productive quickly, but Guide discoverability gaps and runtime/codegen capability mismatches caused repeated escalation to package types."
+    },
+    "B10": {
+      "layer": "builder-experience",
+      "weight": 4,
+      "exercised": true,
+      "score": 72,
+      "rationale": "Most schema, ceiling, argument, and replay failures had precise codes and repair text, while live invalidation and auth reentrancy lacked causal traces."
+    },
+    "B11": {
+      "layer": "builder-experience",
+      "weight": 5,
+      "exercised": true,
+      "score": 62,
+      "rationale": "The supervised lifecycle preserved stores and reclaimed owned children cleanly, but inspection required custom queries and the saturated mutation ledger had no non-destructive operator recovery."
+    }
+  },
+  "holistic": {
+    "score": 61,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "I liked expressing view-once as a unique server-authorized message/recipient open fact consumed through an exact generated reference.",
+      "The declared cron action-to-mutation chain autonomously produced one idempotent digest period and was unusually legible.",
+      "I disliked recovering from same-principal auth reentrancy and an opaque saturated mutation ledger that kept probes blocked after the replay adapter crashed."
+    ]
+  }
+}

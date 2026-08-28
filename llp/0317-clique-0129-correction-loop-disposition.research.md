@@ -89,8 +89,8 @@ Lane depth is uneven, and the inventory weights it accordingly:
 
 | Lane | Model | Depth reached | Weight in this inventory |
 |---|---|---|---|
-| `sol-snapback-explicit` | gpt-5.6-sol @ xhigh | M1–M8 + unsealed scale tail | Richest single source |
-| `grok-snapback-explicit` | grok-4.6 @ xhigh | M1–M4 green, M5/M6/M8 partial (4/8, the deepest **scored** Snapback lane) | Second richest |
+| `sol-snapback-explicit` | gpt-5.6-sol @ xhigh | **M1–M8 all green (7/8; M7 not run in any lane) + scale tail, sealed 2026-08-28T04:35Z** | Richest single source, and the deepest scored Snapback lane in the matrix |
+| `grok-snapback-explicit` | grok-4.6 @ xhigh | M1–M4 green, M5/M6/M8 partial (4/8) | Second richest |
 | `sol-snapback-familiar` | gpt-5.6-sol @ xhigh | M1–M2 green, M3 instrument abort (2/8) | Rich on realtime/custody |
 | `grok-snapback-familiar` | grok-4.6 @ xhigh | M1–M2 green, M3+ partial (2/8) | Rich on Familiar parity |
 | `glm-snapback-explicit` | GLM-5.3-flash | M1 green, then OpenCode harness hang | One milestone, precise |
@@ -111,13 +111,11 @@ the lane labeled `snapback-defect` is moved out when Snapback is not the owner
 
 ### Exclusions and cutoff
 
-- The `sol-snapback-explicit` lane's M5 scale replay **was still running when
-  this revision was written** (its codex process was alive and its `run-log.md`
-  still growing at 2026-08-28T00:20Z). Its correction tail is not classified
-  here; §Scale tail preview records what it has already produced, because two
-  independent reviewers established that the tail contains causes that are not
-  scale variants of existing rows. Import it properly in a revision after the
-  lane seals.
+- ~~The `sol-snapback-explicit` scale replay is still running.~~ **Sealed
+  2026-08-28T04:35Z after 8 h 46 m and classified in §Scale tail.** The lane
+  reached M1–M8 green (58/58 suite-owned assertions, 33/33 implemented required
+  choreography checks) and its O5 replay settled 103,355 of 167,157 actions with
+  **0 failed fixture actions** before exhausting a 14,400 s cap.
 - The `glm-snapback-explicit` and `glm-snapback-familiar` lanes stalled on
   OpenCode harness hangs after M1. Their M1 evidence is inventoried; their
   absence of later evidence is not read as a Snapback fact.
@@ -189,6 +187,8 @@ because the agent eventually understood it.
 | N16 | **Corrected in r2.** Both terra lanes stopped after **220 s** (explicit) and **348 s** (familiar) with M1 `capability-failure` and everything downstream `blocked-by-M1`. The earlier claim that Terra Explicit ran "until its time budget expired" is wrong. | `gpt-5.6-terra` @ medium self-aborted almost immediately in all five of its matrix cells. The matrix record classifies every terra lane **`premature-stop, non-signal`** and excludes them from capability reads. | Model/harness outcome, not a product refusal. Their one usable contribution is corroboration for O22 and O5; do not read their scores as Snapback evidence. |
 | N17 | Invalid staging name `.scaffold` was immediately and accurately refused; the model retried with `clique-app`. Terra Explicit separately had `npm create snapback-app` refuse an existing lane target and guessed a nonexistent `expo-router` template before selecting the documented `expo-chat`. | The bad inputs were cheap, local, and self-explanatory. | No product change for the staging name. The guessed template name argues for the start packet naming the available templates — folded into O1. |
 | N20 | Three glm lanes and one glm cell never produced post-M1 evidence because the OpenCode harness hung. | Harness/runner fault outside Snapback. | Benchmark runner; do not read glm silence as a Snapback fact. |
+| N21 | A scale entry at `1787873091` is self-tagged `snapback-defect` but records the system behaving **correctly**: the owned lifecycle closed through `q`, the same preserved database reopened, durable retention survived the restart, minted custody stayed refused, and no reset or reseed occurred. | A lane tag is evidence, not a disposition (§Scope and method). This one is a mistag, and counting it would inflate the defect tally with a success. | No action. Recorded so the scale phase's seven self-tagged defects are not read as seven defects. |
+| ~~N22~~ | *Withdrawn in review — this is first-party, see O52.* | | |
 
 ## 3. Snapback prevention backlog
 
@@ -242,7 +242,7 @@ recurrence across independent models is the strongest signal available.
 | O19 | A direct conversation route could wait indefinitely for an authenticated profile live query; a mutation was used to resolve/create the DM atomically. | Route readiness should not depend on a fragile client-side join when the product has an authoritative server operation. | Add an "open by natural key" route recipe and diagnostic for route gates waiting on unsettled protected queries. |
 | O34 | **New in r2.** Membership-scoped access is not expressible. `glm-snapback-familiar` M1: "`access.read: 'members'` isn't in the closed union." `sol-snapback-explicit` M3: "the public typing rule is broader than the desired membership scope because I did not find a generated ephemeral authorization composition that could share the custom membership check." `grok-snapback-familiar` M3: "membership-scoped `allow.members()` was too expensive to adopt in-budget; we used a durable typing table instead." *3 lanes.* | Group messaging is the canonical case, and in all three lanes the app **widened its visibility** to ship. That is a security-relevant cost paid because the narrow spelling was unavailable or unaffordable. | **Largely answered 2026-08-28: it is expressible, and this is a retrieval failure.** `guide/auth/protecting-data.md` documents `{ kind: 'membership', declaration, resourceField, roles }` for table reads and `guide/realtime/ephemeral-state.md` documents `allow.members(declarationId, { roles? })` for ephemeral publish/subscribe. Three lanes widened visibility anyway because they did not find them. The one genuine residual is the **asset** upload union, which admits only `owner-only` and `via-references` (`ASSET_READ_ACCESS` in `packages/snapback-codegen/define.mjs`) — that was glm's actual refusal. Route the two shipped spellings from the words the lanes typed; commission a primitive only for the asset residual, if it is wanted at all. |
 | O42 | **New in r2.** Driving the generated API from Node is under-documented: headless `liveQuery` requires a `connectionId` (`grok-snapback-explicit` M6); wire-route shapes and the positioned `baseUrl` constructor arg "were only fully visible in package type sources"; "the command-client input shape is documented only via tests" (`glm-snapback-explicit` M1, which asks for "a 'drive the generated API from Node' page in the Guide" and estimates it "would have saved an hour"). *2 lanes.* | The headless client is a first-party arm and an agent's primary automation surface. | **Corrected 2026-08-28: the page exists.** `guide/clients/headless.md` (49 KB) already documents `baseUrl` construction, `connectionId` on `liveQuery` with a worked example, and the command client. Two lanes searched for it and did not find it, so this is O44 again, not a missing page. Adding a second Node page would make retrieval worse. Route the existing page from these lanes' exact phrases and extend it with whatever command-input-shape holes genuinely remain. |
-| O43 | **New in r2.** There is no "mark delivered when this principal's live query fetches" primitive, so delivery receipts must be client-acked. `grok-snapback-familiar` M3. `RealtimeContext.hasFreshClient({ principalId })` is the nearest shipped fact and is *connectedness*, not "this query fetched these rows"; `demos/coterie` hand-rolls an app-level `markDelivered`. | Read/delivery receipts are a defining feature of the messaging shape the benchmark and most real apps need, and a client-ack is a weaker trust story than a server-observed fetch. | **Decided 2026-08-28 (author ruling): the two states split.** *Delivered* is server-observed — the server served those rows to that principal's live query, so it should be able to record delivery without asking the client to confirm what the server already witnessed. *Read* stays a **client-ack**, because a fetched row may sit in a cache the user never opens; only the client knows what reached the screen. Server-observed fetch is therefore more *trustworthy* but not more *semantically accurate*, and the split follows that line. Two pieces of work: a fetch-observed delivery primitive, which needs an amendment under **LLP 0008** (local-first sync and realtime); and publishing the client-ack read-receipt pattern as the supported answer **with its trust boundary stated**, which is guide work and does not wait on the primitive. |
+| O43 | **New in r2.** There is no "mark delivered when this principal's live query fetches" primitive, so delivery receipts must be client-acked. `grok-snapback-familiar` M3. `RealtimeContext.hasFreshClient({ principalId })` is the nearest shipped fact and is *connectedness*, not "this query fetched these rows"; `demos/coterie` hand-rolls an app-level `markDelivered`. **Sealed-lane evidence (2026-08-28):** with no primitive available, `sol-snapback-explicit` filled the hole at M8 with the weakest of the three options — "message creation now atomically inserts delivered receipts" (`run-log.md:227`), i.e. a receipt created by the *sender's* write path. Its own final report lists that as a candid gap. So the starting point is further from server-observed delivery than this row implied. | Read/delivery receipts are a defining feature of the messaging shape the benchmark and most real apps need, and a client-ack is a weaker trust story than a server-observed fetch. | **Decided 2026-08-28 (author ruling): the two states split.** *Delivered* is server-observed — the server served those rows to that principal's live query, so it should be able to record delivery without asking the client to confirm what the server already witnessed. *Read* stays a **client-ack**, because a fetched row may sit in a cache the user never opens; only the client knows what reached the screen. Server-observed fetch is therefore more *trustworthy* but not more *semantically accurate*, and the split follows that line. Two pieces of work: a fetch-observed delivery primitive, which needs an amendment under **LLP 0008** (local-first sync and realtime); and publishing the client-ack read-receipt pattern as the supported answer **with its trust boundary stated**, which is guide work and does not wait on the primitive. |
 
 ### Mutation settlement, offline UI, and retained state
 
@@ -271,9 +271,85 @@ recurrence across independent models is the strongest signal available.
 |---|---|---|---|
 | O29 | **Provenance corrected in r2.** `glm-snapback-explicit` changed `defineAuth.minimumLength`; the successor silently retained the old value (signup kept returning the old bound). This event is from the glm lane, which r1 did not declare as in scope; it is in scope in r2. **Confirmed 2026-08-28, with the mechanism refined.** The harness used `/Users/ccheever/lanes/0317-l1-livequery/target/debug/snapback`; the clean runtime reports `health.binary.gitCommit: 4d4ce40bd9b3921a88d37063b47693923ca8c1d3` and `gitDirty: false`. That commit is an ancestor of this checkout's HEAD with an empty declared runtime-input diff, so the evidence is source-relevant. Scoped limitation: the binary was built in a sibling worktree at the same reported commit, not from this checkout's own tree. A store booted at 8 actively refused a sub-eight-character signup with `SNAPBACK_AUTH_PASSWORD_POLICY` and `minimumLength: 8`, then accepted ten characters. Same-mode `ensureApp` reported a successor at 20 as `provisioned`; afterward, the live provider still refused a new sub-eight-character signup with `minimumLength: 8` but accepted ten characters. Restarting on the same database activated 20, and the predecessor account still signed in afterward, proving persistence survived: restart is sufficient; reset or migration is not the mechanism. The original ten-character-after-provision symptom reproduced on both this runtime and the earlier `92c0033` runtime; no broader behavioral equivalence is claimed. | Silent non-application is worse than refusal. The defect is specifically that same-mode provisioning commits the successor generation without replacing or restarting the startup-bound auth provider. | Post-verdict owner L11 must either activate the candidate policy before reporting success or emit a specific restart-required auth diagnostic with predecessor/candidate bounds and the restart repair. Keep the acceptance harness as conformance coverage; do not prescribe reset or migration. |
 | O30 | Owner-policy correction patches were easy to apply to the wrong table, and generated collection ownership temporarily broke ordinary cross-author reads. | Security-shaped schema changes need a before/after policy projection, not source-text surgery and runtime discovery. | Generate a policy diff/preview naming each table, owner field, stamped inputs, read visibility, and unique disclosures before activation. |
-| O44 | **New in r2.** Guide retrieval fails on broad queries even when the right page exists. `sol-snapback-explicit` essay: "Its biggest weakness was discoverability: broad searches frequently returned no result even when a relevant page existed"; M1: "the Guide search returned no entry for the broad module-evaluation code." `sol-snapback-familiar`: `CODEGEN_POLICY_INVALID` "lacked a working exact diagnostic page." *2 lanes, and it is the mechanism behind several other rows.* | Every other guide fix in this document is worth less if the page cannot be found from the words a failing agent actually types. This is the cheapest high-leverage row here. | Add diagnostic-code → page routing for every emitted code that lacks one (`CODEGEN_POLICY_INVALID` and `SNAPBACK_AUTH_THROTTLED` are confirmed missing; audit the whole registry), and add broad-query retrieval cases to `guide/retrieval-eval.md` drawn from the exact phrases these lanes searched. |
+| O44 | **New in r2.** Guide retrieval fails on broad queries even when the right page exists. `sol-snapback-explicit` essay: "Its biggest weakness was discoverability: broad searches frequently returned no result even when a relevant page existed"; M1: "the Guide search returned no entry for the broad module-evaluation code." `sol-snapback-familiar`: `CODEGEN_POLICY_INVALID` "lacked a working exact diagnostic page." *2 lanes, and it is the mechanism behind several other rows.* | Every other guide fix in this document is worth less if the page cannot be found from the words a failing agent actually types. This is the cheapest high-leverage row here. | Add diagnostic-code → page routing for every emitted code that lacks one (`CODEGEN_POLICY_INVALID` and `SNAPBACK_AUTH_THROTTLED` were confirmed missing when this row was written; **both have since been routed** — `guide/auth/passwords.md:551` and the L8 landing — so treat them as worked examples rather than open items, and audit the rest), and add broad-query retrieval cases to `guide/retrieval-eval.md` drawn from the exact phrases these lanes searched. |
 | O45 | **New in r2.** Two lanes wanted one Expo-web sentence Snapback could cheaply own even though the defect belongs to React Native Web: `accessibilityValue` is dropped and images become CSS-background descendants. See N8 for why the defect itself is out of scope. | Snapback ships the Expo start packet; a known renderer behaviour that every web lane hits belongs in it. | One paragraph in the Expo/web start packet naming the RNW semantic drops and the app-owned bridge pattern. |
 | O46 | **Split out of N5 in r2.** After successful credential adoption, a **full navigation** returned to the auth surface while client-side routing retained the session (`sol-snapback-explicit` `1787857420`). The lane's workaround avoided full reload and never diagnosed why durable authentication disappeared across it. | Durable web custody surviving a full page load is the core promise of durable custody. An unexplained loss is either a defect or a documented boundary — it cannot stay unclassified. | Reproduce sign-in followed by a full document navigation and establish whether durable custody survives. Fix or document the boundary; add an acceptance case. Related to O7 and O33, which also involve boot-time binding state. |
+
+### Scale tail (classified 2026-08-28, after the lane sealed)
+
+The `sol-snapback-explicit` lane sealed at 2026-08-28T04:35Z after 8 h 46 m.
+Its scale phase carries **33 `milestone=scale-replay` run-log entries**
+(11 agent-error, 9 ambiguous, 7 self-tagged `snapback-defect`, 6 environment).
+The sealed report's own corrective-entry predicate counts **40** scale entries
+split 14/7/13/6 (`final-report.md:77`). The two are **different predicates, not
+nested** — ambiguous is 9 here and 6 there, so 33 cannot be a subset of 40. The
+33 is every `milestone=scale-replay` line, which includes knowledge-lookup,
+fixture-green, lifecycle-start and checkpoint-green entries the report's rule
+excludes; the 40 is the report's corrective-entry rule, which includes later
+`scale-replay-retry` / `scale-replay-correction` lines (`run-log.md:273-286`)
+that carry no `milestone=scale-replay` marker. The seven self-tagged defects are identical under both
+counts; this section dispositions those seven, plus the three candid gaps the
+run-log never tagged at all. Classified below. Full artifacts are now imported
+under `benchmarks/runs/2026-08-27-clique-published-0129-matrix/lanes/sol-snapback-explicit/`.
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O47 | `SNAPBACK_SCHEMA_FIELD_RETYPED` refuses widening an array validator's `maxItems` from 32 to 64 — **on a fresh pre-replay store with no stored data to migrate**. The lane worked around it with an additive `recipientPrincipalIdsV2(max64)` plus legacy-fallback reads. | Widening a bound is a compatible change, and on an empty store there is nothing to retype. activation calls `reject_field_retypes` **before** any row-sensitive check (`crates/snapback-kernel/src/storage/auth_mode.rs:579`), which is why an empty store does not help; the test is an exact `FieldType` inequality (`crates/snapback-kernel/src/storage.rs:14308`) in which the complete structured contract participates, so a widened bound is unequal. Note `field_type_name` does *not* carry the bound — it returns the constant `"Structured"` (`storage.rs:14567`) — so the message cannot even name what changed. Forcing a V2 field and dual-read logic for a widened maximum is a large tax on a safe edit. | Treat a widened bound as compatible. This is not free: contract-hash and storage-generation identity must be reconciled before a widening can be admitted without breaking successor identity, so the row is a design question, not a one-line predicate change. At minimum the diagnostic must name the differing contract rather than reporting an unnameable `Structured`→`Structured` retype. |
+| O49 | The documented mint-by-email path issued an email-code principal **distinct from the existing local-password identity for the same person**, so `ensureDm` refused `PROFILE_REQUIRED`. The lane added a replay-only canonical actor bridge. | The fork is **deliberate pre-hijack containment**: a password identity does not prove ownership of an address, so a later email-code exchange must not inherit the password principal's data (LLP 0227 §300). The path is also documented (`guide/operating/host-ops.md:110`, `guide/auth/sessions-and-principals.md:217`). What is missing is the *relationship* — an app offering both entry paths gets two principals for one human and learns it from a downstream `PROFILE_REQUIRED`. | **Do not auto-adopt on a matching address** — that is exactly the hijack LLP 0227 contains against. Document the relationship where multi-entry and replay apps meet it, warn in the ordered-replay recipe that mint-by-email does not adopt a local-password identity, and consider a diagnostic at the point of divergence. Revisiting LLP 0227's displacement protocol is the only path to actual adoption and needs that document's owner. |
+| O52 | **Reclassified from N22 in review.** The ordered replay runner injects a pagination argument into every query it dispatches: `pagedQuery` defaults `pageSizeKey` to `'limit'` and adds it unconditionally (`packages/snapback-acceptance/replay.mjs:1484,1492`), and the public options expose no one-shot / no-pagination mode (`packages/snapback-acceptance/index.d.mts:308`). The lane's only recourse was to widen four generated query contracts to accept an argument they did not want (`run-log.md:254`). | This is Snapback's own first-party replay helper, not lane code. It makes a correctly-typed generated contract wrong by dispatching against it, and the repair pushes the runner's implementation detail into the application's public surface. | Give `pagedQuery` a one-shot mode, or omit the page-size argument when the resolved contract does not declare it. Adjacent to O18's replay-custody work. |
+| O53 | **Reclassified from an already-ships dismissal in review.** Once the durable client-mutation ledger saturates at its 10,000-record global ceiling, the documented recovery requires re-entering the **predecessor authority cohort** (`guide/sync/offline-and-retention.md:981,1037`). An application that has lost those ACK obligations — the lane lost them to an OOM — has no paved path. The recovery that fits, an admin-gated purge (LLP 0043 §824, `crates/snapback-server/src/server.rs:27315`), ships but is exposed only as `client-mutations.purge`, `apiOnly` and `internal` (`guide/operating/agent-controls.md:396`), and it trades away exactly-once retention. | Saturation from unacknowledgeable retention is reachable by ordinary means (a crashed or replaced client), and the state is terminal for the author: the paved recovery cannot apply and the applicable recovery is not paved. | Pave an author-facing recovery for unacknowledgeable retention, stating the exactly-once cost plainly, or make the routine path cover the lost-cohort case. See also the read-blast-radius question in `issues/20260828-scale-tail-two-open-questions.md`. |
+| O50 | The published ordered mutation runner **cannot carry asset-upload references**, so any replay touching media must fabricate a scale-only representation. | Ordered replay is a first-party benchmark and agent surface (O18), and media is in the canonical social shape. A replay path that cannot express the product's own asset writes forces every media-bearing fixture into a fiction. | Either carry asset references through the ordered runner, or state the limitation where replay is documented so it is a known boundary rather than a discovery. |
+
+**O48 and O51 were drafted and withdrawn in review.** O48 claimed the
+`maxInItems`/`maxFilterBindings` ceilings were unexposed; they are documented in
+prose at `guide/backend/queries.md:441-449` ("at most **500 total `in`
+operands**", "at most **500 total filter bindings**", refused "before any
+storage read"). The drafting search looked for the constant names, not the
+prose — the fourth time in this program that searching one spelling produced a
+false "missing". Any residual belongs to O10's ceiling half and to O44.
+O51 claimed send-path delivery receipts as a new row; Snapback did not create
+them, the lane did, at M8 (`run-log.md:227`, "Message creation now atomically
+inserts delivered receipts") — it is the O43/O24 hole filled with the weakest
+available option, so it folds into O43 rather than standing alone.
+
+**Not classified as Snapback problems.** Two scale entries do not survive
+inspection: the entry at `1787873091` is tagged `snapback-defect` but records
+the system behaving **correctly** (durable retention survived restart, minted
+custody stayed refused, no reset occurred) — a mistag, counted here as N21; and
+the replay mapper injecting `args.limit` into an exact lookup whose generated
+contract lacked it (`1787872016`) is adapter code, N22.
+
+**One already-ships, and one dismissal that did not survive review.** The
+documented ledger recovery (`guide/sync/offline-and-retention.md:1028` —
+`settledMutations()`, consume, `markMutationSettlementsConsumed(ids)`, deliver
+ACKs) requires **re-entering the predecessor authority cohort**
+(`offline-and-retention.md:981,1037`). The lane had already lost those
+predecessor ACK obligations to an OOM, so the paved path was **inapplicable to
+its situation**, and calling the row already-ships on that basis was wrong.
+Current `main` does ship the right recovery for "the original client can no
+longer acknowledge" — an admin-gated purge (LLP 0043 §824,
+`crates/snapback-server/src/server.rs:27315`) — but the guide exposes it only
+as `client-mutations.purge`, `apiOnly` and `internal`
+(`guide/operating/agent-controls.md:396`), and it deliberately sacrifices
+exactly-once retention. So the true disposition is **O53**: routine recovery
+does not cover unacknowledgeable retention, and the operator recovery that does
+is unpaved. Separately
+candid gap 2 (view-once and delete-for-everyone not revoking already-delivered
+asset URLs) is an authoring choice against documented guidance:
+`guide/recipes/view-once-media.md:313` prescribes `grants: true`, an
+`owner-only` read policy and `delivery: { kind: 'private-strict' }` *precisely
+so* close or delete denies the next governed byte request. The lane used
+public-immutable delivery, which cannot revoke by construction.
+
+Both remain worth acting on, in the program's cheapest register: a saturated
+ledger blocking **reads** deserves its own question (see the ticket), and
+codegen refusing a view-once-shaped surface on a public-immutable asset is a
+generate-time prevention candidate rather than a documentation one.
+
+**Candid gap 1 is security-relevant and is ticketed**: the table-native
+conversation and receipt projections adopted to survive same-principal
+reentrancy are broader than membership-filtered private reads, so an opaque
+chat ID can expose data. That is the measured cost of the O17 workaround.
 
 ## Already-ships sweep (2026-08-28)
 
@@ -295,7 +371,10 @@ reports under `issues/sweep-20260828/`.
 | Not reproducible | 1 | O35 |
 
 **Only seven rows are genuinely new capability work.** Eleven already ship and
-nineteen are partial — a named delta rather than a build. This is the same
+nineteen are partial — a named delta rather than a build. (Counts are over the
+46 rows that existed when the sweep ran. §Scale tail later added O47, O49 and
+O50; two further drafted rows were withdrawn in review, one of them because it
+too described something that already ships — see that section.) This is the same
 finding the retrieval rows reached from the other side, and it promotes O44
 from one row among forty-six to the program's load-bearing item: the dominant
 failure mode in this corpus is a capable agent not finding a capability that
@@ -373,13 +452,15 @@ The next published rerun should record, for every row exercised:
 4. whether the fix changed application trust, visibility, or consistency; and
 5. the exact published package/runtime/template identities.
 
-## Scale tail preview
+## Scale tail preview (superseded)
 
-The `sol-snapback-explicit` scale replay is still running and is formally out
-of scope, but both round-1 reviewers independently established that it contains
-causes which are **not** scale variants of O10, O18, O23, or client retention.
-Recorded here so the follow-up plan can size the work; classify properly when
-the lane seals.
+**Superseded 2026-08-28 by §Scale tail**, which classifies the sealed lane.
+The preview below is retained because the round-1 reviewers' independent
+identification of these causes, while the lane was still running, is what
+established that the tail was not merely scale variants of O10, O18, O23 and
+client retention. It was right: five of the items became O47–O51 or folded into
+existing rows, two did not survive inspection, and two turned out to be
+already-documented behaviour.
 
 - `SNAPBACK_SCHEMA_FIELD_RETYPED` refuses raising an array validator's
   `maxItems` from 32 to 64 **on a fresh pre-replay store** (`1787868970`,
@@ -395,7 +476,7 @@ the lane seals.
   at `maxInItems`/`maxFilterBindings` = 500 (`1787875220`) — the O10 ceiling
   family, different limits.
 - `SNAPBACK_AUTH_THROTTLED` at 16 concurrent password entries (`1787870680`);
-  this code has no guide route (see O44).
+  routed since, at `guide/auth/passwords.md:551`.
 - `SNAPBACK_REPLAY_DEFINITION_INVALID` for pool 512 against a published max of
   64 (`1787873130`).
 
@@ -428,9 +509,11 @@ Open questions:
    `20260826-inline-handler-free-identifier-recovery.md` (O9),
    `20260825-guide-gap-generated-directory-spelling.md` (N18).
 2. Which current-main fixes are absent from the next published package set?
-3. **Answered in r2, provisionally:** the sealed sol-explicit scale tail adds
-   new root causes, not only scale variants — see §Scale tail preview. The
-   question that remains is how many more it adds before it seals.
+3. ~~Does the sealed scale tail add new root causes?~~ **Answered 2026-08-28,
+   finally:** yes — O47 (widened bound refused as a retype), O49 (mint-by-email
+   forks identity), O50 (ordered replay cannot carry assets) and O51 (send-path
+   delivery receipts) are new. Two self-tagged defects did not survive
+   inspection and two were already-documented behaviour the lane did not find.
 4. Should the social reference path be a richer template, a maintained demo,
    or an intent-routed guide packet under LLP 0061/0196? O31 makes this
    sharper: whatever the answer, it needs a Familiar edition.
@@ -446,7 +529,9 @@ This research can move from Review to Active after:
    repository~~ — **satisfied** before r2: commits `77b621623` and `44fcd1263`
    imported all twenty lane cells under
    `benchmarks/runs/2026-08-27-clique-published-0129-matrix/`;
-2. the sol-explicit scale tail is classified in a dated revision;
+2. ~~the sol-explicit scale tail is classified in a dated revision~~ —
+   **satisfied 2026-08-28**: the lane sealed at 04:35Z and its scale phase is
+   classified in §Scale tail, adding O47, O49, O50, O52 and O53 plus N21 (two further drafted rows, O48 and O51, were withdrawn in review, as was a second N row);
 3. each O-row is linked to an existing owner or a new filesystem ticket, with
    duplicates reconciled;
 4. the three F-rows are verified against a coherent published package/template
