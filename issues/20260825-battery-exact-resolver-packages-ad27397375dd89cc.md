@@ -10,11 +10,11 @@
 **Battery gate:** `exact-resolver-packages`
 **Failure signature:** `sha256:ad27397375dd89ccee58a40acc5305a4edd01cf5663492ed0168ee73a235deca`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260827T191659Z.cf68cae13934`
-**Last processed run:** `local.20260827T191659Z.cf68cae13934`
+**Last observed run:** `local.20260828T032832Z.2fbb5bd35a5d`
+**Last processed run:** `local.20260828T032832Z.2fbb5bd35a5d`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `cf68cae139349e56a221efac827ac435fc09be73`
-**Consecutive red runs:** `6`
+**Last observed revision:** `2fbb5bd35a5d7355b5bf9abf3dc6417ea7a02473`
+**Consecutive red runs:** `7`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
