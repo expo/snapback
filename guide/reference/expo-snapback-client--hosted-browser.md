@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:cae457a36bb50f412bf13ddf14bf2f6c132827dfb57a
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Module projection identity:
-`sha256:a24d7b03eb2413edf5ef0910d4cfbd10f67d09ba7c1f0790ec17170df1f916b8`.
+`sha256:dfbe064e809fe5fee6f63866cfbe5839fc92766eb8c6a1830b9b1952e3c3b138`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 

@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a45
 
 # Generated API reference
 
-One build-bound projection of 1469 public symbols (607 runtime values and 862 explicit type-only symbols).
-Registry source identity: `sha256:a275ef39c66cc30236a7dd40e3881be469c4ee95a13356aa9449a5a7e5b7a596`.
+One build-bound projection of 1461 public symbols (606 runtime values and 855 explicit type-only symbols).
+Registry source identity: `sha256:5184e442caddecaec4686b0640ce60ab6abe5a24d4fb1b3b3cb1b91d79d8fc0f`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -35,7 +35,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/argument-normalization`](./expo-snapback-client--argument-normalization.md) | 6 | 5 | 1 |
 | [`@expo/snapback-client/assets`](./expo-snapback-client--assets.md) | 34 | 7 | 27 |
 | [`@expo/snapback-client/authority-transition`](./expo-snapback-client--authority-transition.md) | 10 | 6 | 4 |
-| [`@expo/snapback-client/canonical-client-value`](./expo-snapback-client--canonical-client-value.md) | 5 | 4 | 1 |
+| [`@expo/snapback-client/canonical-client-value`](./expo-snapback-client--canonical-client-value.md) | 4 | 3 | 1 |
 | [`@expo/snapback-client/client-diagnostics`](./expo-snapback-client--client-diagnostics.md) | 16 | 6 | 10 |
 | [`@expo/snapback-client/commands`](./expo-snapback-client--commands.md) | 28 | 2 | 26 |
 | [`@expo/snapback-client/diagnostic-error`](./expo-snapback-client--diagnostic-error.md) | 9 | 5 | 4 |
@@ -82,7 +82,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-expo/config-plugin`](./expo-snapback-expo--config-plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/shared-browser-adapter`](./expo-snapback-expo--shared-browser-adapter.md) | 5 | 3 | 2 |
 | [`@expo/snapback-expo/supervised-environment`](./expo-snapback-expo--supervised-environment.md) | 12 | 8 | 4 |
-| [`@expo/snapback-cli/verify`](./expo-snapback-cli--verify.md) | 35 | 21 | 14 |
+| [`@expo/snapback-cli/verify`](./expo-snapback-cli--verify.md) | 28 | 21 | 7 |
 | [`@expo/snapback-codegen/ctx`](./expo-snapback-codegen--ctx.md) | 45 | 0 | 45 |
 
 ## Removed symbols

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "snapback/generated/*.d.ts",
+    "matrix/helper-wrapper-bad.ts"
+  ]
+}

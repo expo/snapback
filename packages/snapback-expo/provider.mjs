@@ -234,6 +234,7 @@ async function resolveExpoAuthProviders({ app, binding, platform, environment })
         appId: app.authBootstrap.appId,
         openAuthSession: modules.openAuthSession,
         createUrl: modules.createUrl,
+        cryptoObject: modules.cryptoObject,
       });
     }
   }

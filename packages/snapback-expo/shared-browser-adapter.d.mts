@@ -24,6 +24,11 @@ export declare function createSharedBrowserAdapter(input: Readonly<{
   openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;
   /** `Linking.createURL`. */
   createUrl: (path: string) => string;
+  /**
+   * WebCrypto for the PKCE verifier. Defaults to `globalThis.crypto`; native
+   * runtimes without one are served by `resolveExpoSharedBrowserModules`.
+   */
+  cryptoObject?: Crypto;
   path?: string;
   timeoutMs?: number;
 }>): (entry: ResolvedProviderEntryV1) => Promise<Readonly<{
@@ -35,6 +40,7 @@ export declare function resolveExpoSharedBrowserModules(
 ): Promise<Readonly<{
   openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;
   createUrl: (path: string) => string;
+  cryptoObject: Crypto;
 }> | null>;
 
 export type { SharedDevelopmentAuthError };

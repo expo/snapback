@@ -1,0 +1,44 @@
+# complete battery red: generated-artifacts
+
+**Status:** Closed
+**Closure:** `determinate PASS`
+**Closed at revision:** `1b23bca7239ee7627153e7422a55cc3080329948`
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-08-27
+**Battery gate:** `generated-artifacts`
+**Failure signature:** `sha256:9043446005d6c849cc5a84a606caa4499e8f5f497a689d036014df7fa66702e2`
+**First observed run:** `local.20260827T191659Z.cf68cae13934`
+**Last observed run:** `local.20260828T114709Z.095880f16775`
+**Last processed run:** `local.20260828T203031Z.1b23bca7239e`
+**Detected at revision:** `cf68cae139349e56a221efac827ac435fc09be73`
+**Last observed revision:** `095880f167755431165137247bd51844b8c29e09`
+**Consecutive red runs:** `3`
+**Escalation:** `pending (3/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `generated-artifacts` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `generated-artifacts` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+scripts/check-generated-artifacts
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.

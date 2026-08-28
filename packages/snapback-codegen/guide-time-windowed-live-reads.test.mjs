@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import {
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,6 +27,7 @@ const fixtureDir = join(root, 'tests/fixtures/guide-time-windowed-live-reads');
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const fixtureDefineSpecifier = '@expo/snapback-codegen/define';
 const tempDirs = [];
+const runtimeMatrixRequested = process.argv.includes('--runtime-matrix');
 
 function materialize(functionsFile) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-guide-time-window-'));
@@ -199,6 +203,253 @@ function createHandlerHarness() {
 
 function labels(result, field) {
   return result.map((row) => row[field]).toSorted();
+}
+
+function matrixName({ form, bound, over, range }) {
+  return `${form}${bound === 'literal' ? 'Literal' : 'Dynamic'}${over ? 'Over' : 'Under'}${range ? 'Range' : 'NoRange'}`;
+}
+
+function matrixQueryExpression({ bound, range, over }) {
+  const query = range
+    ? "ctx.db.query('history').withIndex('by_bucket_sequence').eq('bucket', args.bucket)"
+    : "ctx.db.query('history')";
+  const limit = bound === 'literal' ? (over ? '1_025' : '7') : 'args.limit';
+  return `${query}.order('sequence', 'asc').take(${limit}).collect()`;
+}
+
+function matrixArgsSource({ bound, range }) {
+  const fields = [];
+  if (range) fields.push('bucket: v.string()');
+  if (bound === 'dynamic') fields.push('limit: v.integer()');
+  return `{ ${fields.join(', ')} }`;
+}
+
+// @ref LLP 0317.000#wave-1--diagnosis-reproductions-parallel-no-product-change —
+// L2 retains the real-runtime matrix and ten-run negative evidence instead of
+// changing the supported dynamic-bound authoring surface.
+async function runRuntimeMatrix() {
+  const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY;
+  assert(runtimeBinary, '--runtime-matrix requires SNAPBACK_RUNTIME_BINARY');
+  assert(existsSync(runtimeBinary), `Snapback runtime does not exist: ${runtimeBinary}`);
+  const [{ SnapbackClient }, { startServer }] = await Promise.all([
+    import('../snapback-client/index.mjs'),
+    import('../../demos/_kit/server-process.mjs'),
+  ]);
+
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-dynamic-take-runtime-'));
+  tempDirs.push(scratch);
+  const backend = join(scratch, 'snapback');
+  mkdirSync(backend, { recursive: true });
+  writeFileSync(join(backend, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
+export default defineSchema({
+  history: defineTable({
+    bucket: v.string(),
+    sequence: v.integer(),
+    label: v.string(),
+  })
+    .visibility({ kind: 'public-read' })
+    .index('by_bucket_sequence', ['bucket', 'sequence']),
+});
+`);
+
+  const axes = [];
+  for (const form of ['inline', 'module']) {
+    for (const bound of ['literal', 'dynamic']) {
+      for (const over of [false, true]) {
+        for (const range of [false, true]) axes.push({ form, bound, over, range });
+      }
+    }
+  }
+  const generationOnly = axes.filter(({ form, bound, over }) => (
+    form === 'inline' && bound === 'literal' && over
+  ));
+  const runtimeCells = axes.filter((cell) => !generationOnly.includes(cell));
+
+  const inlineDeclarations = runtimeCells
+    .filter(({ form }) => form === 'inline')
+    .map((cell) => {
+      const name = matrixName(cell);
+      return `
+export const ${name} = defineJsQuery({
+  auth: 'public',
+  args: ${matrixArgsSource(cell)},
+  reads: ['history'],
+  result: results.documents('history'),
+  handler: async (ctx, args) => await ${matrixQueryExpression(cell)},
+});`;
+    })
+    .join('\n');
+  const moduleDeclarations = runtimeCells
+    .filter(({ form }) => form === 'module')
+    .map((cell) => {
+      const name = matrixName(cell);
+      return `
+export const ${name} = defineJsQuery({
+  auth: 'public',
+  args: ${matrixArgsSource(cell)},
+  reads: ['history'],
+  result: results.documents('history'),
+  source: 'handlers.mjs',
+  exportName: '${name}',
+});`;
+    })
+    .join('\n');
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};
+${inlineDeclarations}
+${moduleDeclarations}
+`);
+  const moduleHandlers = runtimeCells
+    .filter(({ form }) => form === 'module')
+    .map((cell) => {
+      const name = matrixName(cell);
+      return `${name}: async (ctx, args) => await ${matrixQueryExpression(cell)}`;
+    })
+    .join(',\n');
+  writeFileSync(join(backend, 'handlers.mjs'), `
+globalThis.__snapbackHandlers = {
+${moduleHandlers}
+};
+`);
+
+  const generated = await generate(backend);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const schema = JSON.parse(readFileSync(join(backend, 'generated/schema.manifest.json'), 'utf8'));
+  const functions = JSON.parse(readFileSync(join(backend, 'generated/functions.manifest.json'), 'utf8'));
+
+  const impossible = join(scratch, 'impossible-inline');
+  mkdirSync(impossible, { recursive: true });
+  writeFileSync(join(impossible, 'schema.mjs'), readFileSync(join(backend, 'schema.mjs')));
+  writeFileSync(join(impossible, 'functions.mjs'), `
+import { defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};
+export const inlineLiteralOverNoRange = defineJsQuery({
+  auth: 'public', args: {}, reads: ['history'], result: results.documents('history'),
+  handler: async (ctx) => await ctx.db.query('history').take(1_025).collect(),
+});
+export const inlineLiteralOverRange = defineJsQuery({
+  auth: 'public', args: { bucket: v.string() }, reads: ['history'], result: results.documents('history'),
+  handler: async (ctx, args) => await ctx.db.query('history')
+    .withIndex('by_bucket_sequence').eq('bucket', args.bucket).take(1_025).collect(),
+});
+`);
+  const impossibleResult = await generate(impossible);
+  assert.equal(impossibleResult.ok, false, 'literal inline bounds above 1,024 must refuse generation');
+  const impossibleFunctions = impossibleResult.diagnostics
+    .filter(({ code }) => code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN')
+    .map(({ function: functionName }) => functionName)
+    .toSorted();
+  assert.deepEqual(impossibleFunctions, generationOnly.map(matrixName).toSorted());
+
+  const stagedRuntime = join(scratch, 'snapback-runtime');
+  symlinkSync(runtimeBinary, stagedRuntime);
+  let server = null;
+  let client = null;
+  try {
+    server = await startServer({
+      port: 0,
+      db: ':memory:',
+      cwd: root,
+      serverBinary: stagedRuntime,
+    });
+    const provisioner = new SnapbackClient(server.baseUrl, {
+      ...server.clientOptions,
+      rqsStore: null,
+      offlineQueue: false,
+    });
+    const rows = [];
+    for (let sequence = 0; sequence < 1_100; sequence += 1) {
+      rows.push({
+        _id: `history_target_${String(sequence).padStart(4, '0')}`,
+        bucket: 'target',
+        sequence,
+        label: `target-${sequence}`,
+      });
+    }
+    for (let sequence = 0; sequence < 25; sequence += 1) {
+      rows.push({
+        _id: `history_other_${String(sequence).padStart(4, '0')}`,
+        bucket: 'other',
+        sequence,
+        label: `other-${sequence}`,
+      });
+    }
+    await provisioner.ensureApp({
+      schema,
+      functions,
+      seed: { tables: { history: rows } },
+    });
+    await provisioner.closeAuth();
+    client = new SnapbackClient(server.baseUrl, {
+      ...server.clientOptions,
+      rqsStore: null,
+      offlineQueue: false,
+    });
+
+    for (let run = 1; run <= 10; run += 1) {
+      for (const cell of runtimeCells) {
+        const name = matrixName(cell);
+        const args = {
+          ...(cell.range ? { bucket: 'target' } : {}),
+          ...(cell.bound === 'dynamic' ? { limit: cell.over ? 1_025 : 7 } : {}),
+        };
+        if (cell.over) {
+          await assert.rejects(
+            client.query(name, { args }),
+            (error) => {
+              assert.equal(
+                error?.diagnostic?.code ?? error?.code,
+                'SNAPBACK_QUERY_LIMIT_INVALID',
+                `${name} run ${run}: ${error?.stack ?? String(error)}`,
+              );
+              return true;
+            },
+          );
+          continue;
+        }
+        const result = await client.query(name, { args });
+        assert.equal(result.rows.length, 7, `${name} run ${run} must return its bounded page`);
+        assert(result.rows.length > 0, `${name} run ${run} returned an empty projection`);
+        if (cell.range) {
+          assert(
+            result.rows.every((row) => row.bucket === 'target'),
+            `${name} run ${run} escaped its preceding range predicate`,
+          );
+        }
+      }
+    }
+    for (const cell of runtimeCells.filter(({ bound, over }) => bound === 'dynamic' && !over)) {
+      const result = await client.query(matrixName(cell), {
+        args: { ...(cell.range ? { bucket: 'target' } : {}), limit: 0 },
+      });
+      assert.deepEqual(
+        result.rows,
+        [],
+        `${matrixName(cell)} must preserve the documented zero-length prefix semantics`,
+      );
+    }
+    for (const cell of runtimeCells.filter(({ range, over }) => range && !over)) {
+      const result = await client.query(matrixName(cell), {
+        args: {
+          bucket: 'missing',
+          ...(cell.bound === 'dynamic' ? { limit: 7 } : {}),
+        },
+      });
+      assert.deepEqual(
+        result.rows,
+        [],
+        `${matrixName(cell)} must return an empty projection when its range matches no rows`,
+      );
+    }
+  } finally {
+    try { await client?.closeAuth(); } finally { await server?.stop(); }
+  }
+
+  console.log(
+    `dynamic take runtime matrix: ${runtimeCells.length} runtime cells x 10 consecutive runs pass; `
+      + `${generationOnly.length} literal-over-inline cells refuse generation; `
+      + '4 dynamic zero-limit and 4 empty-range controls return intentional empty projections',
+  );
 }
 
 try {
@@ -455,8 +706,12 @@ try {
   assert.equal(calls[2].options.args.clockMs, typing.clockMs);
   assert.equal(calls[2].options.args.soonWithinMs, SOON_MS);
   assert.equal(calls[2].options.transport, 'stream');
+
+  if (runtimeMatrixRequested) await runRuntimeMatrix();
 } finally {
   for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true });
 }
 
-console.log('guide-time-windowed-live-reads.test.mjs: guard, indexed windows, refusal, paging, boundaries, renewal, scale, and owner isolation pass');
+console.log(
+  `guide-time-windowed-live-reads.test.mjs: guard, indexed windows, refusal, paging, boundaries, renewal, scale, and owner isolation pass${runtimeMatrixRequested ? '; real-runtime take matrix pass' : ''}`,
+);
