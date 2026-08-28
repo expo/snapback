@@ -16,7 +16,7 @@ async fn main() -> Result<(), String> {
     // @attack
     let approved = fixture
         .serving
-        .approve_pending_effect_admitted(preparation, false, None, NOW + 202)
+        .approve_pending_effect_admitted(preparation, None, NOW + 202)
         .map_err(|error| format!("raw approval bridge refused: {error:?}"))?;
     let result = if approved.record.status == PendingEffectStatus::Approved {
         Ok(format!(

@@ -2773,17 +2773,12 @@ impl ServingDatabase {
         &mut self,
         owner: pending_effects::PendingEffectOwner,
         approval: pending_effects::PreparedPendingEffectApproval,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<pending_effects::ApprovedPendingEffect> {
-        let command = self.authority.admit_pending_effect_approval(
-            owner,
-            approval,
-            requires_step_up,
-            step_up,
-            now_ms,
-        )?;
+        let command = self
+            .authority
+            .admit_pending_effect_approval(owner, approval, step_up, now_ms)?;
         self.db.approve_pending_effect(command)
     }
 

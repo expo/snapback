@@ -47,6 +47,13 @@ CREATE TABLE IF NOT EXISTS _snapback_pending_effects (
   outcome_code TEXT CHECK(outcome_code IS NULL OR length(CAST(outcome_code AS BLOB)) <= 256),
   journal_json TEXT NOT NULL CHECK(length(CAST(journal_json AS BLOB)) <= 65536)
 );
+
+CREATE TABLE IF NOT EXISTS _snapback_pending_effect_scopes (
+  effect_id TEXT NOT NULL PRIMARY KEY,
+  scope_basis_generation INTEGER NOT NULL
+    CHECK(scope_basis_generation BETWEEN 0 AND 9223372036854775807),
+  FOREIGN KEY(effect_id) REFERENCES _snapback_pending_effects(id) ON DELETE CASCADE
+);
 "#;
 
 const APPROVER_INDEX_SQL: &str = r#"
@@ -456,7 +463,6 @@ impl PreparedPendingEffectApproval {
 
 pub struct ApprovePendingEffectCommand {
     approval: PreparedPendingEffectApproval,
-    requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
     owner: PendingEffectOwner,
@@ -544,7 +550,6 @@ impl crate::storage::KernelCommitAuthority {
         &self,
         owner: PendingEffectOwner,
         approval: PreparedPendingEffectApproval,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovePendingEffectCommand> {
@@ -556,7 +561,6 @@ impl crate::storage::KernelCommitAuthority {
         }
         Ok(ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
             owner,
@@ -623,14 +627,17 @@ pub fn manifest_enabled(manifest: &SchemaManifest) -> bool {
     manifest.api.as_ref().is_some_and(|api| api.enabled)
 }
 
-// @ref LLP 0204#d95--approval-gated-effects — this sibling table exists only
+// @ref LLP 0204#d95--approval-gated-effects — these sibling tables exist only
 // while the external API declaration is activated.
 pub(crate) fn activate_manifest_in(
     tx: &Transaction<'_>,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<()> {
     if !manifest_enabled(manifest) {
-        tx.execute_batch("DROP TABLE IF EXISTS _snapback_pending_effects;")?;
+        tx.execute_batch(
+            "DROP TABLE IF EXISTS _snapback_pending_effect_scopes;
+             DROP TABLE IF EXISTS _snapback_pending_effects;",
+        )?;
         return Ok(());
     }
     tx.execute_batch(TABLE_SQL)?;
@@ -655,6 +662,8 @@ fn catalog_objects(conn: &Connection) -> SnapbackResult<Vec<(String, String, Str
         "SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_schema
          WHERE name = '_snapback_pending_effects'
             OR tbl_name = '_snapback_pending_effects'
+            OR name = '_snapback_pending_effect_scopes'
+            OR tbl_name = '_snapback_pending_effect_scopes'
          ORDER BY type, name",
     )?;
     Ok(statement
@@ -691,6 +700,99 @@ fn parse_function_kind(value: &str) -> SnapbackResult<FunctionKind> {
         "action" => Ok(FunctionKind::Action),
         _ => Err(catalog_corrupt()),
     }
+}
+
+fn capture_pending_effect_scope_generation(
+    tx: &Transaction<'_>,
+    function_id: &str,
+    function_kind: &str,
+) -> SnapbackResult<u64> {
+    let row = tx
+        .query_row(
+            "SELECT generation, present, authority_creating
+             FROM _auth_scope_bases
+             WHERE function_id = ?1 AND kind = ?2",
+            params![function_id, function_kind],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((generation, present, authority_creating)) = row else {
+        return Err(effect_binding_stale(
+            "the effect function has no active scope basis at intent creation",
+        ));
+    };
+    if generation < 0 || !matches!(present, 0 | 1) || !matches!(authority_creating, 0 | 1) {
+        return Err(catalog_corrupt());
+    }
+    if present != 1 {
+        return Err(effect_binding_stale(
+            "the effect function is absent at intent creation",
+        ));
+    }
+    Ok(generation as u64)
+}
+
+/// Derive the approval requirement from the exact function generation pinned
+/// when the durable effect was created. Reconciliation may replace the live
+/// classification only by advancing the scope generation, so a downgrade can
+/// never satisfy this read. An absent pin or exact basis is a stale binding,
+/// not an authority-creating classification that a generic proof may rescue.
+///
+/// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root — pending-
+/// effect decisions cannot accept a caller-selected step-up requirement.
+/// @ref LLP 0303#the-governing-principle — the effect supplies its own exact
+/// durable function subject instead of accepting the fact beside it.
+/// @ref LLP 0055#grants — kind or authority-creating changes advance the exact
+/// function scope generation and invalidate predecessor consent.
+fn pending_effect_requires_step_up(
+    tx: &Transaction<'_>,
+    effect: &PendingEffectRecord,
+) -> SnapbackResult<bool> {
+    let kind = function_kind_name(&effect.function_kind)?;
+    let pinned_generation = tx
+        .query_row(
+            "SELECT scope_basis_generation
+             FROM _snapback_pending_effect_scopes
+             WHERE effect_id = ?1",
+            params![effect.id],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .ok_or_else(|| {
+            effect_binding_stale("the effect has no immutable function-scope generation pin")
+        })?;
+    if pinned_generation < 0 {
+        return Err(catalog_corrupt());
+    }
+    let row = tx
+        .query_row(
+            "SELECT present, authority_creating
+             FROM _auth_scope_bases
+             WHERE function_id = ?1 AND kind = ?2 AND generation = ?3",
+            params![effect.function_id, kind, pinned_generation],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional()?;
+    let Some((present, authority_creating)) = row else {
+        return Err(effect_binding_stale(
+            "the effect function scope changed after intent creation",
+        ));
+    };
+    if !matches!(present, 0 | 1) || !matches!(authority_creating, 0 | 1) {
+        return Err(catalog_corrupt());
+    }
+    if present != 1 {
+        return Err(effect_binding_stale(
+            "the effect function is no longer active",
+        ));
+    }
+    Ok(authority_creating == 1)
 }
 
 fn args_digest(args_json: &str) -> String {
@@ -994,6 +1096,8 @@ impl LocalDatabase {
         }];
         let journal_json = serde_json::to_string(&journal).map_err(|_| catalog_corrupt())?;
         self.with_auth_transaction(|tx| {
+            let scope_basis_generation =
+                capture_pending_effect_scope_generation(tx, &request.function_id, kind)?;
             tx.execute(
                 "INSERT INTO _snapback_pending_effects(
                    id, function_id, function_name, function_kind, args_json,
@@ -1021,6 +1125,12 @@ impl LocalDatabase {
                     preview_json,
                     journal_json,
                 ],
+            )?;
+            tx.execute(
+                "INSERT INTO _snapback_pending_effect_scopes(
+                   effect_id, scope_basis_generation
+                 ) VALUES(?1, ?2)",
+                params![id, scope_basis_generation as i64],
             )?;
             Ok(())
         })?;
@@ -1106,7 +1216,6 @@ impl LocalDatabase {
         verify_command_identity(&command.approval.database_binding, &self.binding())?;
         let ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up,
             now_ms,
             owner,
@@ -1133,7 +1242,7 @@ impl LocalDatabase {
             if current != prepared {
                 return Err(state_invalid());
             }
-            if requires_step_up {
+            if pending_effect_requires_step_up(tx, &current)? {
                 let proof = step_up
                     .as_ref()
                     .ok_or_else(crate::auth::crypto::step_up_required_error)?;
@@ -1354,6 +1463,10 @@ fn expired() -> SnapbackError {
     )
 }
 
+fn effect_binding_stale(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_EFFECT_BINDING_STALE", "effects", message)
+}
+
 fn catalog_corrupt() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_EFFECT_CATALOG_CORRUPT",
@@ -1365,7 +1478,13 @@ fn catalog_corrupt() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::crypto::{CryptoError, RandomSource};
+    use crate::auth::crypto::{
+        AuthKeyId, AuthKeyMaterial, CanonicalAddress, ChallengeId, CryptoError, RandomSource,
+        StepUpDigest, StepUpProof, VerificationCode,
+    };
+    use crate::manifest::{
+        FunctionDefinition, FunctionManifest, FunctionRuntime, HandlerPlan, QueryPlan,
+    };
     use std::sync::atomic::{AtomicU8, Ordering};
 
     struct CounterRandom(AtomicU8);
@@ -1422,6 +1541,87 @@ mod tests {
 
     fn management_owner(db: &LocalDatabase, principal_id: &str) -> PendingEffectOwner {
         test_owner(db, PendingEffectAuthority::Anonymous, Some(principal_id))
+    }
+
+    fn seed_effect_scope_requirement(db: &LocalDatabase, authority_creating: bool) {
+        db.conn
+            .execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:write', 'mutation', 0, 1, ?1)
+                 ON CONFLICT(function_id) DO UPDATE SET
+                   kind = excluded.kind,
+                   present = excluded.present,
+                   authority_creating = excluded.authority_creating",
+                [i64::from(authority_creating)],
+            )
+            .expect("seed pending-effect scope requirement");
+    }
+
+    fn effect_manifest(authority_creating: bool) -> FunctionManifest {
+        let mut function = FunctionDefinition::new(
+            "write",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table_visibility: None,
+                table: "items".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            })),
+        );
+        function.authority_creating = authority_creating;
+        FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        }
+    }
+
+    fn seed_effect_step_up_proof(db: &LocalDatabase, effect_id: &str, now_ms: u64) -> StepUpProof {
+        let random = CounterRandom::new();
+        let key = AuthKeyMaterial::from_bytes([7; 32]);
+        let challenge_id = ChallengeId::generate(&random).unwrap();
+        let key_id = AuthKeyId::generate(&random).unwrap();
+        let address = CanonicalAddress::parse("human-a@example.test").unwrap();
+        let code = VerificationCode::parse("123456").unwrap();
+        let submitted_digest = StepUpDigest::compute(
+            &key,
+            &challenge_id,
+            &address,
+            "human-a",
+            "session-human-a",
+            1,
+            "authority-human-a",
+            "effectApproval",
+            effect_id,
+            &code,
+        );
+        db.conn
+            .execute(
+                "INSERT INTO _auth_verification_codes(
+                   challenge_id, canonical_address, code_digest, key_id,
+                   attempts, max_attempts, requested_at_ms, expires_at_ms,
+                   consumed_at_ms, superseded_by
+                 ) VALUES(?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, NULL, NULL)",
+                params![
+                    challenge_id.as_str(),
+                    address.as_str(),
+                    submitted_digest.as_bytes().as_slice(),
+                    key_id.as_str(),
+                    crate::auth::throttle::AUTH_MAXIMUM_ATTEMPTS as i64,
+                    (now_ms - 1) as i64,
+                    (now_ms + 1_000) as i64,
+                ],
+            )
+            .expect("seed exact effect-approval step-up proof");
+        StepUpProof {
+            challenge_id,
+            address,
+            key_id: Some(key_id),
+            submitted_digest,
+        }
     }
 
     fn request(now_ms: u64, ttl_ms: u64) -> CreatePendingEffect {
@@ -1511,8 +1711,9 @@ mod tests {
     }
 
     #[test]
-    fn disclosed_intent_is_bounded_and_journals_approve_execute() {
+    fn non_authority_creating_intent_approves_without_step_up_and_journals_execute() {
         let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, false);
         let created = db
             .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
             .unwrap();
@@ -1532,7 +1733,6 @@ mod tests {
                     .admit_pending_effect_approval(
                         management_owner(&db, "human-a"),
                         approval,
-                        false,
                         None,
                         20,
                     )
@@ -1625,6 +1825,151 @@ mod tests {
             durable.22,
             serde_json::to_string(&executed.journal).unwrap()
         );
+    }
+
+    #[test]
+    fn authority_creating_effect_requires_step_up_from_durable_scope() {
+        let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, true);
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+
+        let error = match db.approve_pending_effect(
+            authority
+                .admit_pending_effect_approval(management_owner(&db, "human-a"), approval, None, 20)
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("durable authority-creating effect bypassed step-up"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
+        );
+    }
+
+    #[test]
+    fn authority_creating_effect_consumes_verified_step_up_proof() {
+        let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, true);
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        let proof = seed_effect_step_up_proof(&db, &created.id, 20);
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+
+        let approved = db
+            .approve_pending_effect(
+                authority
+                    .admit_pending_effect_approval(
+                        management_owner(&db, "human-a"),
+                        approval,
+                        Some(&proof),
+                        20,
+                    )
+                    .unwrap(),
+            )
+            .expect("valid operation-bound proof approves authority-creating effect");
+        assert_eq!(approved.record.status, PendingEffectStatus::Approved);
+        let consumption = db
+            .conn
+            .query_row(
+                "SELECT attempts, consumed_at_ms
+                 FROM _auth_verification_codes WHERE challenge_id = ?1",
+                [proof.challenge_id.as_str()],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+            )
+            .expect("read durable step-up consumption");
+        assert_eq!(consumption, (1, Some(20)));
+    }
+
+    #[test]
+    fn reconciled_scope_downgrade_cannot_bypass_effect_step_up() {
+        let mut db = LocalDatabase::memory().expect("pending-effect database");
+        db.activate_current_auth_catalog()
+            .expect("activate protected catalog");
+        db.conn.execute_batch(TABLE_SQL).unwrap();
+        db.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
+        db.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        db.reconcile_auth_scope_bases(&effect_manifest(true))
+            .expect("activate authority-creating basis");
+        let mut serving = crate::storage::ServingDatabase::adopt(db).expect("serving database");
+        let creation_owner = test_owner(&serving.db, PendingEffectAuthority::Anonymous, None);
+        let created = serving
+            .create_pending_effect_admitted(&creation_owner, request(10, DEFAULT_TTL_MS))
+            .unwrap();
+        let approval_owner = management_owner(&serving.db, "human-a");
+        let approval = serving
+            .prepare_pending_effect_approval(&approval_owner, &created.id, 20)
+            .unwrap();
+
+        serving
+            .reconcile_auth_scope_bases(&effect_manifest(false))
+            .expect("caller-controlled reconciliation downgrades the live basis");
+        let error =
+            match serving.approve_pending_effect_admitted(approval_owner, approval, None, 20) {
+                Ok(_) => panic!("reconciled scope downgrade bypassed effect step-up"),
+                Err(error) => error,
+            };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+        assert_eq!(
+            serving.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
+        );
+    }
+
+    #[test]
+    fn effect_with_missing_scope_pin_refuses_before_consuming_step_up() {
+        let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, false);
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        let proof = seed_effect_step_up_proof(&db, &created.id, 20);
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_pending_effect_scopes WHERE effect_id = ?1",
+                [&created.id],
+            )
+            .expect("simulate an undeterminable legacy or damaged scope pin");
+
+        let error = match db.approve_pending_effect(
+            authority
+                .admit_pending_effect_approval(
+                    management_owner(&db, "human-a"),
+                    approval,
+                    Some(&proof),
+                    20,
+                )
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("effect with no durable scope pin accepted a generic step-up proof"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_EFFECT_BINDING_STALE");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
+        );
+        let consumed: Option<i64> = db
+            .conn
+            .query_row(
+                "SELECT consumed_at_ms FROM _auth_verification_codes WHERE challenge_id = ?1",
+                [proof.challenge_id.as_str()],
+                |row| row.get(0),
+            )
+            .expect("read unconsumed generic proof");
+        assert_eq!(consumed, None);
     }
 
     #[test]
@@ -2022,6 +2367,7 @@ mod tests {
         database_a.conn.execute_batch(TABLE_SQL).unwrap();
         database_a.conn.execute_batch(APPROVER_INDEX_SQL).unwrap();
         database_a.conn.execute_batch(EXPIRY_INDEX_SQL).unwrap();
+        seed_effect_scope_requirement(&database_a, false);
         let authority_a = database_a
             .claim_kernel_commit_authority()
             .expect("claim producer authority for database A");
@@ -2066,6 +2412,7 @@ mod tests {
     #[test]
     fn approver_deny_and_lazy_expiry_are_closed_transitions() {
         let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, false);
         let denied = db
             .create_pending_effect(admit_creation(&db, &authority, request(10, 100)))
             .unwrap();
