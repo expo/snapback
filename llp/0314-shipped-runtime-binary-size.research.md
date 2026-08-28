@@ -220,6 +220,86 @@ collapse to strip, when fat LTO alone did more than half of it
 measurement row; Phase 1d's Cargo `strip = "symbols"` is the primary
 policy and may differ.
 
+## Phase 1 landed (2026-08-28) — measured on both platforms
+
+LLP 0314.000 Phase 1a+1c landed as `3b2597b0e4c8c619aa34c93456139b3c9641e75e`:
+manufacture moved to `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build
+--profile production --bin snapback`, and the binary now carries a
+build-authored `buildRecipe` stamp that public-package assembly requires. Both
+platforms were measured at that exact revision, pre and post, with the
+canonical public-package command.
+
+### Darwin arm64
+
+| | `--release` (pre) | `--profile production` + `strip = "symbols"` (post) | delta |
+|---|---:|---:|---:|
+| binary bytes | 157,217,120 | 102,674,304 | **−54,542,816 (−34.7%)** |
+| `__TEXT` | 115,310,592 | 99,270,656 | −16,039,936 |
+| `__text` | 74,690,336 | 65,687,928 | −9,002,408 |
+| `__const` (`__TEXT`) | 23,367,224 | 22,231,368 | −1,135,856 |
+| `__LINKEDIT` | 38,912,000 | 1,163,264 | −37,748,736 |
+| `LC_SYMTAB` `nsyms` | 264,545 | 630 | −263,915 |
+
+sha256 `633ff6fa…` (release) and `925f88fe…` (production). Runtime tarball
+49,335,582 bytes; unpacked runtime package 131,534,848 bytes.
+
+### Linux x64 (`expo-build-450b`)
+
+| | `--release` (pre) | `--profile production` + `strip = "symbols"` (post) | delta |
+|---|---:|---:|---:|
+| binary bytes | 185,272,752 | 122,606,616 | **−62,666,136 (−33.8%)** |
+| `.text` | 90,790,720 | 82,618,432 | −8,172,288 |
+| `.rodata` | 27,133,432 | 25,862,821 | −1,270,611 |
+| `.eh_frame` | 8,891,832 | 5,473,104 | −3,418,728 |
+| `.symtab` | 7,132,272 | absent | — |
+| `.strtab` | 36,959,216 | absent | — |
+| `.symtab` entries | 297,178 | none (626 `.dynsym`) | — |
+
+sha256 `afda1a0d…` (release) and `aae7e3d2…` (production, byte-identical to the
+packed `packages/snapback-runtime-linux-x64/bin/snapback`).
+
+### What the numbers correct in LLP 0314.000
+
+1. **The binary band is beaten on both platforms.** Phase 1's stated
+   ~110–130 MB Darwin success band is cleared at 102.7 MB, landing in what the
+   plan called LTO upside.
+2. **The tarball band was optimistic.** The plan predicted the Darwin runtime
+   tarball would fall from ~52 MB to ~30–40 MB. Measured: 49.3 MB. A symbol
+   table is highly compressible, so removing 37.7 MB of `__LINKEDIT` buys far
+   less in the gzip than it does on disk. Phase 1's win is disk, dyld, and
+   honesty about the profile — not download size, which LLP 0314.000 already
+   said was acceptable.
+3. **The unpacked package beats its band**, at 131.5 MB against a predicted
+   140–160 MB.
+
+### Qualified-path evidence, and the one red
+
+Green on both platforms at that revision: `runtime-qualify` returns
+`ok: true` on the stripped binary with the dynamic-loader environment scrubbed
+(`DYLD_*` on Darwin, `LD_LIBRARY_PATH` absent on Linux); the packers pack
+`target/production/snapback` by default and seal it; `package.test.mjs` passes
+on both, including the public-package identity assertion against the packed
+binary; the Linux ELF portability allowlist passes; the cross-host artifact
+attestation carries the recipe stamp
+(`{"profile":"production","cargoProfileClass":"release","optLevel":"3","lto":"fat","codegenUnits":1,"incremental":false,"strip":"symbols"}`);
+and both checkouts stay clean after packaging.
+
+1c's premise was confirmed directly rather than argued: at the same revision
+the **release** binary reports
+`"buildProfile":"release"` with `"buildRecipe":{"profile":"release", …}` and
+every declared field `null`, while the **production** binary reports the same
+`"buildProfile":"release"` with the full attested recipe. Without the recipe
+block the two are indistinguishable in the identity.
+
+**Red, inherited:** the packaged cold-install comparator fails
+`native-live-delivery` and `atomic-declared-writes` with
+`SNAPBACK_OUTBOX_NOT_WRITER`, identically on both platforms and on repeat runs.
+That diagnostic is raised inside `packages/snapback-client`, which Phase 1 does
+not touch, and it matches the standing report in
+`issues/20260825-cron-authored-delta-not-outbox-writer.md`. Filed as
+`issues/20260828-cold-install-comparator-outbox-not-writer.md`; Phase 1's
+exit evidence records the cold-install leg as red rather than claiming it green.
+
 ## Evidence
 
 | Source | What it binds |
