@@ -528,6 +528,14 @@ Open questions:
 
 ## Exit criterion
 
+**Status note, 2026-08-28.** Criteria 1, 2 and 5 are satisfied. This document
+**stays `Review`** because 3 and 4 are not, and 4 cannot be satisfied by
+document work at all: it requires the three F-rows to be checked against a
+*coherent published package/template pin*, and the fixes they describe are
+landed but unpublished. The next publication is what moves this to `Active`, not
+another revision. Its child RFC, LLP 0317.000, is `Accepted` as of the same
+date; the plan is agreed, the evidence claim is not yet closable.
+
 This research can move from Review to Active after:
 
 1. ~~the current matrix artifacts and diaries are imported into the
