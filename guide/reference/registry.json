@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "snapback-symbol-registry.v1",
+  "schemaVersion": "snapback-symbol-registry.v2",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:f8258692b8bc003b0fdd075205a086a0e95ce270e9559e9b370a0fea1d9cc50e",
+    "sourceDigest": "sha256:efe43382508bcd59b1c7318eafad2a831b74e226c7dd56964babbceb8b9d0b01",
     "publishedClosureVersion": "0.1.29",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.29",
@@ -401,7 +401,51 @@
         "npm:@expo/snapback-client#VectorPageV1",
         "npm:@expo/snapback-client#VectorRequestV1",
         "npm:@expo/snapback-client#verifyPersistedResumeEntry"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:76ce63002c049204c372ec1b9866d5aedfa69d3f0b03bfb05225b0423196755b",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/agent-authority.d.mts",
+            "packages/snapback-client/app-client-defaults.d.mts",
+            "packages/snapback-client/app-client.d.mts",
+            "packages/snapback-client/argument-normalization.d.mts",
+            "packages/snapback-client/assets.d.mts",
+            "packages/snapback-client/authority-transition.d.mts",
+            "packages/snapback-client/canonical-client-value.d.mts",
+            "packages/snapback-client/client-diagnostics.d.mts",
+            "packages/snapback-client/commands.d.mts",
+            "packages/snapback-client/diagnostic-codes.d.mts",
+            "packages/snapback-client/diagnostic-error.d.mts",
+            "packages/snapback-client/external-store.d.mts",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/index.mjs",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/provider-entry.d.mts",
+            "packages/snapback-client/remediation.d.mts",
+            "packages/snapback-client/rqs-preload-core.d.mts",
+            "packages/snapback-client/rqs-store-default.d.mts",
+            "packages/snapback-client/rqs-store-expo.d.mts",
+            "packages/snapback-client/rqs-store-file.d.mts",
+            "packages/snapback-client/rqs-store.d.mts",
+            "packages/snapback-contract/result-contract-validator.d.mts",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": [
+            "npm:@expo/snapback-client#AuthPasswordSetStepUpV1.identityId",
+            "npm:@expo/snapback-client#PreparedReactBinding.data",
+            "npm:@expo/snapback-client#preparedReactBindingData",
+            "npm:@expo/snapback-client#SnapbackFunctionReference.argumentCapabilityRefusals",
+            "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.serverOrigin",
+            "npm:@expo/snapback-client#SnapbackOwnershipTupleInspection.settledAuthority"
+          ]
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -440,7 +484,24 @@
         "npm:@expo/snapback-client/agent-authority#AgentTerminalHandle",
         "npm:@expo/snapback-client/agent-authority#AgentTerminationDisposition",
         "npm:@expo/snapback-client/agent-authority#createMemoryAgentAuthorityCustodyStorage"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:ec70f8f0339202fb337451c9b333a2797de8170fc732b313cdf5ab76802a019e",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/agent-authority.d.mts",
+            "packages/snapback-client/agent-authority.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -473,7 +534,24 @@
         "npm:@expo/snapback-client/app-client-internal#deploymentIdentitiesEqual",
         "npm:@expo/snapback-client/app-client-internal#normalizeDeploymentIdentity",
         "npm:@expo/snapback-client/app-client-internal#stampedDeclaredDevIdentity"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:e37299a3c025b3ef10838728cc0c0e7725c99c2ced9e2b184be3d9c0febeaced",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/app-client-internal.d.mts",
+            "packages/snapback-client/app-client-internal.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -504,7 +582,24 @@
         "npm:@expo/snapback-client/app-data#SnapbackAppDataClient",
         "npm:@expo/snapback-client/app-data#SnapbackAppDataClientOptions",
         "npm:@expo/snapback-client/app-data#SnapbackAppDataSurface"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:2bde3f0c3236efa6f3573efe220a8e82742273f0879916de0d5f036f0c891a36",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/app-data.d.mts",
+            "packages/snapback-client/app-data.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -532,7 +627,24 @@
         "npm:@expo/snapback-client/argument-normalization#normalizeArgumentsAgainstContractV1",
         "npm:@expo/snapback-client/argument-normalization#normalizeGeneratedArgumentsV1",
         "npm:@expo/snapback-client/argument-normalization#optionalPropertyPathsV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:86bf23a41895af7fced73eeaa47c0299eb8180a500a343cc42c3779dd6e8f35e",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/argument-normalization.d.mts",
+            "packages/snapback-client/argument-normalization.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -588,7 +700,24 @@
         "npm:@expo/snapback-client/assets#MyMembershipRow",
         "npm:@expo/snapback-client/assets#PERSISTED_RESUME_FACT_MEMBERS",
         "npm:@expo/snapback-client/assets#SnapbackAssetClient"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:cd5e1abc90bb98c0445cd90b633d76c7762c99766ed4663d864f37836d4e05fa",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/assets.d.mts",
+            "packages/snapback-client/assets.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -620,7 +749,24 @@
         "npm:@expo/snapback-client/authority-transition#ClientAuthorityState",
         "npm:@expo/snapback-client/authority-transition#ClientAuthoritySurface",
         "npm:@expo/snapback-client/authority-transition#ClientAuthorityTerminal"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:66844cc7584e77cfa8d0066ea753e1f5c89084b5827df3640dfd1833d2c66273",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/authority-transition.d.mts",
+            "packages/snapback-client/authority-transition.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -646,7 +792,24 @@
         "npm:@expo/snapback-client/canonical-client-value#CanonicalClientValueV1Limits",
         "npm:@expo/snapback-client/canonical-client-value#canonicalizeClientValueV1",
         "npm:@expo/snapback-client/canonical-client-value#canonicalReactStoreKeyV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:b6ed6d7d44afb161271285cac012681179b6b283db128994da19fdf15003e0ef",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/canonical-client-value.d.mts",
+            "packages/snapback-client/canonical-client-value.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -684,7 +847,24 @@
         "npm:@expo/snapback-client/client-diagnostics#SnapbackDiagnosticOccurrence",
         "npm:@expo/snapback-client/client-diagnostics#SnapbackDiagnosticV1Projection",
         "npm:@expo/snapback-client/client-diagnostics#SnapbackOutboxDiagnosticHeadFact"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:96048fb35d909f5fbb547ad148f5197e35ad37f95c600d28da8bfb50238d3ca6",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/client-diagnostics.d.mts",
+            "packages/snapback-client/client-diagnostics.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -734,7 +914,25 @@
         "npm:@expo/snapback-client/commands#SnapbackCommandClient",
         "npm:@expo/snapback-client/commands#SnapbackCommandDiagnostic",
         "npm:@expo/snapback-client/commands#TypedRemediation"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:96d919e89298a816d3eb0b6270cb4149d577ddace3061aebeba73ed7b9fb45a7",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/assets.d.mts",
+            "packages/snapback-client/commands.d.mts",
+            "packages/snapback-client/commands.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -765,7 +963,24 @@
         "npm:@expo/snapback-client/diagnostic-error#SnapbackDiagnosticErrorFacts",
         "npm:@expo/snapback-client/diagnostic-error#SnapbackDiagnosticLike",
         "npm:@expo/snapback-client/diagnostic-error#SnapbackDiagnosticOperation"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:cb4a68c1e9b8a7011d3fe92f8bb93f0cadd8aae1b7a33baabd44798390de7e97",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/diagnostic-error.d.mts",
+            "packages/snapback-client/diagnostic-error.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -793,7 +1008,24 @@
         "npm:@expo/snapback-client/evaluation-floor#refuseLocalEvaluation",
         "npm:@expo/snapback-client/evaluation-floor#SNAPBACK_LOCAL_EVALUATION_DIAGNOSTICS",
         "npm:@expo/snapback-client/evaluation-floor#SNAPBACK_LOCAL_EVALUATION_UNADMITTED"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:63c14d496fc67723a4ab487927d09415134ce01230553912152299f1148a1d12",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/evaluation-floor.d.mts",
+            "packages/snapback-client/evaluation-floor.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -830,7 +1062,24 @@
         "npm:@expo/snapback-client/external-store#ExternalStoreSnapshot",
         "npm:@expo/snapback-client/external-store#ExternalStoreStatus",
         "npm:@expo/snapback-client/external-store#SNAPBACK_EXTERNAL_STORE_PROTOCOL"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:08e2020c0b6b18f32a3f2eb8387dbdf0f25783612b9db8ab20a250c454cf10c1",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/external-store.d.mts",
+            "packages/snapback-client/external-store.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -854,7 +1103,24 @@
       "symbolIds": [
         "npm:@expo/snapback-client/hosted-browser#HostedBrowserSnapbackClient",
         "npm:@expo/snapback-client/hosted-browser#HostedBrowserSnapbackClientOptions"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:6b42af199698afe804168bcc723f3b0314eb899f72c8e6979d2489cf968835d5",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/hosted-browser.d.mts",
+            "packages/snapback-client/hosted-browser.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -880,7 +1146,24 @@
         "npm:@expo/snapback-client/internal/declared-dev-mint#mintDeclaredDevCapability",
         "npm:@expo/snapback-client/internal/declared-dev-mint#SnapbackDeploymentIdentity",
         "npm:@expo/snapback-client/internal/declared-dev-mint#unsafeInstallDeclaredDevCapabilityForGeneratedCode"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:7676e95d18aba2e4b4cfb0d961bbeeb69218845e55be383b2e83fe0315bba54c",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/internal/declared-dev-mint.d.mts",
+            "packages/snapback-client/internal/declared-dev-mint.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -919,7 +1202,24 @@
         "npm:@expo/snapback-client/ir-evaluator#classifyLocalMutationIrV1",
         "npm:@expo/snapback-client/ir-evaluator#evaluateBrowserIrPlanV1",
         "npm:@expo/snapback-client/ir-evaluator#evaluateLocalMutationIrV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:9bc3a4dc36f755f93f84784b2e02b33a60ed0b19954dcbadafd6e0eae4bd23df",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/ir-evaluator.d.mts",
+            "packages/snapback-client/ir-evaluator.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -947,7 +1247,24 @@
         "npm:@expo/snapback-client/lease-convergence#LeaseConvergenceSuccessorOwner",
         "npm:@expo/snapback-client/lease-convergence#SNAPBACK_LEASE_CONVERGENCE_CONNECTION_REQUIRED",
         "npm:@expo/snapback-client/lease-convergence#SNAPBACK_LEASE_CONVERGENCE_PENDING_INTENT"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:29b737839a06dc4d8e02161e9ca50a7d850eb48011e257de03f2d3121c1d020e",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/lease-convergence.d.mts",
+            "packages/snapback-client/lease-convergence.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -989,7 +1306,24 @@
         "npm:@expo/snapback-client/local-read-admission#LocalReadMaterializationIdentityV1",
         "npm:@expo/snapback-client/local-read-admission#LocalReadOperationV1",
         "npm:@expo/snapback-client/local-read-admission#prepareLocalReadCoverageV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:a12b75c14063ce6bb007b9055067645569adb31bb46fcca7c32f43b19d518c4a",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/local-read-admission.d.mts",
+            "packages/snapback-client/local-read-admission.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1035,7 +1369,24 @@
         "npm:@expo/snapback-client/materialization-store#RequestedCompletenessScopeV1",
         "npm:@expo/snapback-client/materialization-store#resultDigestV1",
         "npm:@expo/snapback-client/materialization-store#verifyFiniteCompletenessCarrierV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:d5efaa7fff163c2e60d72d56e4235b8c5616b2c580bcede68396df230a032b2d",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/materialization-store.d.mts",
+            "packages/snapback-client/materialization-store.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1066,7 +1417,25 @@
         "npm:@expo/snapback-client/micro#MicroOperationDescriptor",
         "npm:@expo/snapback-client/micro#MicroQueryOutput",
         "npm:@expo/snapback-client/micro#MicroRuntimeOptions"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f40c4953275ffabaf11b3444382095cedd2e6a2af92f805d5709296686e190e0",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/micro-core.d.mts",
+            "packages/snapback-client/micro.d.mts",
+            "packages/snapback-client/micro.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1104,7 +1473,24 @@
         "npm:@expo/snapback-client/micro/core#MicroOperationDescriptor",
         "npm:@expo/snapback-client/micro/core#MicroQueryOutput",
         "npm:@expo/snapback-client/micro/core#MicroRuntimeOptions"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:d34df6744d2a29bd8cee0aa0591c0e8f1c11d70e4ec132ba87ea25fb4ec329ef",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/micro-core.d.mts",
+            "packages/snapback-client/micro-core.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1130,7 +1516,24 @@
         "npm:@expo/snapback-client/micro/live#MicroLiveHandle",
         "npm:@expo/snapback-client/micro/live#MicroRuntime",
         "npm:@expo/snapback-client/micro/live#withMicroLive"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:a3d42e429c53b6e729203ca7796bd0ebbce6d529f5dcb30f66430710bca90ad7",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/micro-live.d.mts",
+            "packages/snapback-client/micro-live.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1156,7 +1559,25 @@
         "npm:@expo/snapback-client/online#createExternalSessionClient",
         "npm:@expo/snapback-client/online#SnapbackClient",
         "npm:@expo/snapback-client/online#SnapbackClientOptions"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:3c6007d677ba8dd4988d0e2c026e672d430e587fc1a9aa0930195ed8040f87a3",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/online.d.mts",
+            "packages/snapback-client/online.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1190,7 +1611,24 @@
         "npm:@expo/snapback-client/optimistic-rebase#OptimisticRebaseOutcomeV1",
         "npm:@expo/snapback-client/optimistic-rebase#OptimisticRebaseSnapshotV1",
         "npm:@expo/snapback-client/optimistic-rebase#OptimisticReplayEntryV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:27e2a547934016b05daf433b7a3158d4d58293ac95c5c37e5fffc1610760a620",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/optimistic-rebase.d.mts",
+            "packages/snapback-client/optimistic-rebase.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1239,7 +1677,24 @@
         "npm:@expo/snapback-client/outbox-shared#StoredOutboxRecord",
         "npm:@expo/snapback-client/outbox-shared#unresolvedOutboxRecords",
         "npm:@expo/snapback-client/outbox-shared#validateOutboxState"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:3360d6567d15861c2d26c95a89b06f4f9fd5dcbc4a6a587688d2e21ea2161ff7",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/outbox-shared.d.mts",
+            "packages/snapback-client/outbox-shared.mjs",
+            "packages/snapback-client/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1281,7 +1736,25 @@
         "npm:@expo/snapback-client/provider-entry#resolveDeclaredProviderEntries",
         "npm:@expo/snapback-client/provider-entry#ResolvedProviderEntryV1",
         "npm:@expo/snapback-client/provider-entry#resolveProviderEntry"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:5df5818bdc4eb35f099e37b9cd5238057c8c4e50185c64f63e81df4f38632963",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/app-client.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/provider-entry.d.mts",
+            "packages/snapback-client/provider-entry.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1307,7 +1780,24 @@
         "npm:@expo/snapback-client/push-installation-expo#ExpoPushFileSystemModuleLike",
         "npm:@expo/snapback-client/push-installation-expo#ExpoPushInstallationDirectoryLike",
         "npm:@expo/snapback-client/push-installation-expo#ExpoPushInstallationFileLike"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:917274f6f89a80a0742e7df6bd30f4d4d6e27ad0629b5077901d5a5955ab7ef1",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/push-installation-expo.d.mts",
+            "packages/snapback-client/push-installation-expo.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1336,7 +1826,24 @@
         "npm:@expo/snapback-client/push-registry#PushRegistrySurface",
         "npm:@expo/snapback-client/push-registry#PushTokenRegistration",
         "npm:@expo/snapback-client/push-registry#PushTokenUnregistration"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f39b81713b27cdb0968c1407512be03ee10f40a38511d019733a7a2943e262ee",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/push-registry.d.mts",
+            "packages/snapback-client/push-registry.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1379,7 +1886,28 @@
         "npm:@expo/snapback-client/react-binding#prepareReactQueryGroupForBinding",
         "npm:@expo/snapback-client/react-binding#QueryGroupParams",
         "npm:@expo/snapback-client/react-binding#RegeneratedReferenceGeneration"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:e7fa9374f9e12d24cbbf504412facd670779edce3b06bceb7152e8b48c626493",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/react-binding.d.mts",
+            "packages/snapback-client/react-binding.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": [
+            "npm:@expo/snapback-client/react-binding#PreparedReactBinding.data",
+            "npm:@expo/snapback-client/react-binding#preparedReactBindingData"
+          ]
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1405,7 +1933,24 @@
         "npm:@expo/snapback-client/reference-kinds#CLIENT_REFERENCE_KIND_GUIDE",
         "npm:@expo/snapback-client/reference-kinds#CLIENT_REFERENCE_KIND_MISMATCH_CODE",
         "npm:@expo/snapback-client/reference-kinds#CLIENT_REFERENCE_PROFILE_MISMATCH_CODE"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:ac836ea644b919e63eeab8e541c36ee4900580881b5088495fc2b04f22d29d84",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/reference-kinds.d.mts",
+            "packages/snapback-client/reference-kinds.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1436,7 +1981,24 @@
         "npm:@expo/snapback-client/remediation#RemediationItemV1",
         "npm:@expo/snapback-client/remediation#RemediationKindV1",
         "npm:@expo/snapback-client/remediation#RemediationSetV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:b57020470892dec1011bb4536849b5e17b2b0ed6d24cc9a277309cb94caa9a71",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/remediation.d.mts",
+            "packages/snapback-client/remediation.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1480,7 +2042,24 @@
         "npm:@expo/snapback-client/result-transform#transformHashV1",
         "npm:@expo/snapback-client/result-transform#TransformPlanV1",
         "npm:@expo/snapback-client/result-transform#validateTransformPlanV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:170dd7b1089cc01c2b514b47d62ee5ce1cdb26ee1db9585d82733b541b5bd601",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/result-transform.d.mts",
+            "packages/snapback-client/result-transform.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1531,7 +2110,24 @@
         "npm:@expo/snapback-client/rqs#seq1Digest",
         "npm:@expo/snapback-client/rqs#sha256",
         "npm:@expo/snapback-client/rqs#tokenTranscript"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f96af97d0f6bd3c2a4b97acc1278d5a72e1dbeb16dc3fb0a2406e2de83e27520",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs.d.mts",
+            "packages/snapback-client/rqs.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1564,7 +2160,25 @@
         "npm:@expo/snapback-client/rqs-preload#RqsPreloadRegistry",
         "npm:@expo/snapback-client/rqs-preload#RqsRegisteredRegistry",
         "npm:@expo/snapback-client/rqs-preload#RqsRegisteredSubscription"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:c5817e3958d105372517a3dc3ce39e579b5295a1f0f284a2c470298d906fa656",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-preload-core.d.mts",
+            "packages/snapback-client/rqs-preload-core.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1601,7 +2215,25 @@
         "npm:@expo/snapback-client/rqs-registered#RqsPreloadRegistry",
         "npm:@expo/snapback-client/rqs-registered#RqsRegisteredRegistry",
         "npm:@expo/snapback-client/rqs-registered#RqsRegisteredSubscription"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:7234db925f0de06a15953b0131be1dbe0c0ce20c9203bb8169a656ac99b33886",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-preload.d.mts",
+            "packages/snapback-client/rqs-preload.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1650,7 +2282,24 @@
         "npm:@expo/snapback-client/rqs-store#RqsStoreInspection",
         "npm:@expo/snapback-client/rqs-store#RqsStoreMetaV3",
         "npm:@expo/snapback-client/rqs-store#verifyPersistedResumeEntry"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f04b74dc939b5b2cd5f998d41332427fe7e3861ea66e1760befe118a824ed019",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-store.d.mts",
+            "packages/snapback-client/rqs-store.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1686,7 +2335,24 @@
         "npm:@expo/snapback-client/rqs-store-default#registeredNativeRqsFiles",
         "npm:@expo/snapback-client/rqs-store-default#registerNativeRqsFiles",
         "npm:@expo/snapback-client/rqs-store-default#resolveDefaultRqsStore"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:bc3b6e1baad35d82807e5e5ae7279caace10ce273ae6b5e4a94775dc5e9d7a12",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-store-default.d.mts",
+            "packages/snapback-client/rqs-store-default.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1715,7 +2381,24 @@
         "npm:@expo/snapback-client/rqs-store-expo#ExpoFileLike",
         "npm:@expo/snapback-client/rqs-store-expo#ExpoFileSystemModuleLike",
         "npm:@expo/snapback-client/rqs-store-expo#registerExpoFileSystemRqsFiles"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:9c89f86c855b61079b210b1f2a6556c3a5ede76aec09bcd8152e9b394e49669d",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-store-expo.d.mts",
+            "packages/snapback-client/rqs-store-expo.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1749,7 +2432,24 @@
         "npm:@expo/snapback-client/rqs-store-file#RQS_STORE_GC_DEFAULT_MAX_AGE_MS",
         "npm:@expo/snapback-client/rqs-store-file#RqsFilesAdapter",
         "npm:@expo/snapback-client/rqs-store-file#sweepStaleRqsBlobs"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:1231315289bcd8df052d35b8d1015e27762499ac9ae3397652047b757b4466c1",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-store-file.d.mts",
+            "packages/snapback-client/rqs-store-file.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1780,7 +2480,24 @@
         "npm:@expo/snapback-client/rqs-store-sqlite#SqliteModuleNamespace",
         "npm:@expo/snapback-client/rqs-store-sqlite#SqliteQualificationFacts",
         "npm:@expo/snapback-client/rqs-store-sqlite#SqliteRqsResumeStore"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:18250617541405a690ee5d9390f1c0d89d46a08d2140fefb677ce6cef18cdb53",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/rqs-store-sqlite.d.mts",
+            "packages/snapback-client/rqs-store-sqlite.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1813,7 +2530,25 @@
         "npm:@expo/snapback-client/search#SearchPageV1",
         "npm:@expo/snapback-client/search#SearchQueryAstV1",
         "npm:@expo/snapback-client/search#SearchRequestV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:fe9b55a51f818cd741f6d22fe93d83f1ef4dc6609286bbc15ad61987243266b8",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/search.d.mts",
+            "packages/snapback-client/search.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1849,7 +2584,24 @@
         "npm:@expo/snapback-client/shared-development-auth#sharedDevelopmentAuthRefusal",
         "npm:@expo/snapback-client/shared-development-auth#SharedDevelopmentAuthStart",
         "npm:@expo/snapback-client/shared-development-auth#startSharedDevelopmentAuth"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:6eec37c1e90069ee4e4637e8cdf7dca633a1669b4e5d6219425aed37cf0bd271",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/shared-development-auth.d.mts",
+            "packages/snapback-client/shared-development-auth.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-client",
@@ -1876,7 +2628,25 @@
         "npm:@expo/snapback-client/vector-search#VectorItemV1",
         "npm:@expo/snapback-client/vector-search#VectorPageV1",
         "npm:@expo/snapback-client/vector-search#VectorRequestV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:1c7675ff886dcb26a3aa98435116ce44de0fbd3c5ab890718972ba49f79e7743",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/index.d.mts",
+            "packages/snapback-client/package.json",
+            "packages/snapback-client/vector-search.d.mts",
+            "packages/snapback-client/vector-search.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-react",
@@ -2049,7 +2819,39 @@
         "npm:@expo/snapback-react#useSnapbackQuery",
         "npm:@expo/snapback-react#useSnapbackSettledMutation",
         "npm:@expo/snapback-react#useSurface"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:9c3bf07d31c3a8ad72b2c3d8f05bb9f09e952be94efc57b54b514dffed84941b",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/argument-normalization.d.mts",
+            "packages/snapback-client/assets.d.mts",
+            "packages/snapback-client/authority-transition.d.mts",
+            "packages/snapback-client/commands.d.mts",
+            "packages/snapback-client/diagnostic-error.d.mts",
+            "packages/snapback-react/index.d.mts",
+            "packages/snapback-react/index.mjs",
+            "packages/snapback-react/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": [
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.clientMutationId",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.code",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.constructor",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.diagnostic",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.mutation",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.name",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.queued",
+            "npm:@expo/snapback-react#SnapbackQueuedMutationError.sequence"
+          ]
+        }
+      }
     },
     {
       "package": "@expo/snapback-react",
@@ -2139,7 +2941,35 @@
         "npm:@expo/snapback-react/core#useSnapbackQueries",
         "npm:@expo/snapback-react/core#useSnapbackQuery",
         "npm:@expo/snapback-react/core#useSnapbackSettledMutation"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f398760aff967d3a856dcc9cf2424b82e4c69d7e4e5578b63ced8358d8481015",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-react/core.d.mts",
+            "packages/snapback-react/core.mjs",
+            "packages/snapback-react/index.d.mts",
+            "packages/snapback-react/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": [
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.clientMutationId",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.code",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.constructor",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.diagnostic",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.mutation",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.name",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.queued",
+            "npm:@expo/snapback-react/core#SnapbackQueuedMutationError.sequence"
+          ]
+        }
+      }
     },
     {
       "package": "@expo/snapback-react",
@@ -2180,7 +3010,26 @@
         "npm:@expo/snapback-react/familiar#useMutation",
         "npm:@expo/snapback-react/familiar#useQuery",
         "npm:@expo/snapback-react/familiar#useQueryState"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:4600e6bbbe5a1b2352a9354320e3b45fcfb9786c68265152c7493c7782176631",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/diagnostic-error.d.mts",
+            "packages/snapback-react/familiar.d.mts",
+            "packages/snapback-react/familiar.mjs",
+            "packages/snapback-react/index.d.mts",
+            "packages/snapback-react/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-react",
@@ -2207,7 +3056,24 @@
         "npm:@expo/snapback-react/thumbhash#thumbHashToApproximateAspectRatio",
         "npm:@expo/snapback-react/thumbhash#thumbHashToDataURL",
         "npm:@expo/snapback-react/thumbhash#thumbHashToRGBA"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:f351633ebb3fcddd15de4442727010bec25e1da78f3594cbdce3991fb8cc2269",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-react/package.json",
+            "packages/snapback-react/thumbhash.d.mts",
+            "packages/snapback-react/thumbhash.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2441,7 +3307,45 @@
         "npm:@expo/snapback-expo#useSnapbackSettledMutation",
         "npm:@expo/snapback-expo#useSurface",
         "npm:@expo/snapback-expo#validateAppBindingV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:5fb926a92ee6a4a53d310669bb1691450f7fcfca1d95fa31d33db2ff98f283bd",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/app-client.d.mts",
+            "packages/snapback-client/argument-normalization.d.mts",
+            "packages/snapback-client/assets.d.mts",
+            "packages/snapback-client/authority-transition.d.mts",
+            "packages/snapback-client/commands.d.mts",
+            "packages/snapback-client/diagnostic-error.d.mts",
+            "packages/snapback-expo/activity-presence.d.mts",
+            "packages/snapback-expo/app.plugin.js",
+            "packages/snapback-expo/asset-source.d.mts",
+            "packages/snapback-expo/index.d.mts",
+            "packages/snapback-expo/index.mjs",
+            "packages/snapback-expo/package.json",
+            "packages/snapback-expo/supervised-environment.d.mts",
+            "packages/snapback-react/index.d.mts",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": [
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.clientMutationId",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.code",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.constructor",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.diagnostic",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.mutation",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.name",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.queued",
+            "npm:@expo/snapback-expo#SnapbackQueuedMutationError.sequence"
+          ]
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2477,7 +3381,25 @@
         "npm:@expo/snapback-expo/app-binding#ReleaseAppBindingV1",
         "npm:@expo/snapback-expo/app-binding#SupervisedDevAppBindingV1",
         "npm:@expo/snapback-expo/app-binding#validateAppBindingV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:82299abc88d4e3b8117c67c49d9928deb35022d04e20f6ef6653978abfcad792",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-expo/app-binding.d.mts",
+            "packages/snapback-expo/app-binding.mjs",
+            "packages/snapback-expo/index.d.mts",
+            "packages/snapback-expo/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2507,7 +3429,24 @@
         "npm:@expo/snapback-expo/app.plugin#SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT",
         "npm:@expo/snapback-expo/app.plugin#SnapbackExpoConfigPlugin",
         "npm:@expo/snapback-expo/app.plugin#withSnapbackExpo"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:93076844a8735d6738697f6d79e28a688ed0ab0ffe694ae0c0623af9fc94bf26",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-expo/app.plugin.js",
+            "packages/snapback-expo/config-plugin.d.mts",
+            "packages/snapback-expo/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2536,7 +3475,24 @@
         "npm:@expo/snapback-expo/asset-source#ExpoFetchResponseLike",
         "npm:@expo/snapback-expo/asset-source#ExpoPickerAssetSource",
         "npm:@expo/snapback-expo/asset-source#resolveExpoFetch"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:dfca1c664886435f9289c8d8924177d563c59f8a3741f3c537ffa9ef3d52f3b5",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-expo/asset-source.d.mts",
+            "packages/snapback-expo/asset-source.mjs",
+            "packages/snapback-expo/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2566,7 +3522,24 @@
         "npm:@expo/snapback-expo/config-plugin#SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT",
         "npm:@expo/snapback-expo/config-plugin#SnapbackExpoConfigPlugin",
         "npm:@expo/snapback-expo/config-plugin#withSnapbackExpo"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:4a7ec2b342cc9d7a79c7538dda9b3700098cc5ba6d8d99d8dec1e50032e69d78",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-expo/config-plugin.cjs",
+            "packages/snapback-expo/config-plugin.d.mts",
+            "packages/snapback-expo/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2593,7 +3566,25 @@
         "npm:@expo/snapback-expo/shared-browser-adapter#selectSharedAuthReturnTarget",
         "npm:@expo/snapback-expo/shared-browser-adapter#SharedDevelopmentAuthError",
         "npm:@expo/snapback-expo/shared-browser-adapter#SharedDevelopmentAuthProjection"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:bbdd1e6a3ec7fdaa5052b21867343c0729ae1c2e8e722e90faaa465c89085435",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-client/shared-development-auth.d.mts",
+            "packages/snapback-expo/package.json",
+            "packages/snapback-expo/shared-browser-adapter.d.mts",
+            "packages/snapback-expo/shared-browser-adapter.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-expo",
@@ -2627,7 +3618,24 @@
         "npm:@expo/snapback-expo/supervised-environment#SupervisedBindingCache",
         "npm:@expo/snapback-expo/supervised-environment#SupervisedBindingCacheRecord",
         "npm:@expo/snapback-expo/supervised-environment#SupervisedSnapbackExpoEnvironmentV1"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:76b2a482abd28363faa335bf65f8ebf7bc7d197bfda3fffe6ef00a1cef4a0d7e",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-expo/package.json",
+            "packages/snapback-expo/supervised-environment.d.mts",
+            "packages/snapback-expo/supervised-environment.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-cli",
@@ -2677,7 +3685,24 @@
         "npm:@expo/snapback-cli/verify#VerifyIdentityContext",
         "npm:@expo/snapback-cli/verify#VerifyPathKind",
         "npm:@expo/snapback-cli/verify#writeVerifyReceipt"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:8d426f1a2120619e4dba9fa4c9f4fd79fd48de181897efef51c3cc728bd6bb65",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-cli/package.json",
+            "packages/snapback-cli/verify.d.mts",
+            "packages/snapback-cli/verify.mjs",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     },
     {
       "package": "@expo/snapback-codegen",
@@ -2740,7 +3765,23 @@
         "npm:@expo/snapback-codegen/ctx#SequenceContext",
         "npm:@expo/snapback-codegen/ctx#StreamAttemptContext",
         "npm:@expo/snapback-codegen/ctx#UniqueIndexKeysOf"
-      ]
+      ],
+      "projectionIdentity": {
+        "algorithm": "snapback-symbol-registry-projection.v1",
+        "sourceDigest": "sha256:106f69fe15729e04ba2799afebf471ef726ddae6f90070bea5aaba5c0914ce1a",
+        "inputs": {
+          "files": [
+            "guide/reference/lifecycle.schema.json",
+            "llp/0194-generated-api-reference.rfc.md",
+            "packages/snapback-codegen/ctx.d.mts",
+            "packages/snapback-codegen/package.json",
+            "scripts/generate-symbol-registry.mjs",
+            "scripts/guide-lib.mjs",
+            "scripts/symbol-lifecycle.mjs"
+          ],
+          "lifecycleIdentities": []
+        }
+      }
     }
   ],
   "symbols": [

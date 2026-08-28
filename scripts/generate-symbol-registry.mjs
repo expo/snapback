@@ -394,7 +394,7 @@ function createRegistry(modules) {
   }
   const packageNames = [...new Set(modules.map((entry) => entry.package))].sort();
   return {
-    schemaVersion: 'snapback-symbol-registry.v1',
+    schemaVersion: 'snapback-symbol-registry.v2',
     generatedBy: 'scripts/generate-symbol-registry.mjs',
     buildIdentity: {
       sourceDigest: `sha256:${sourceDigest}`,
@@ -598,6 +598,87 @@ function removedSymbolLine(symbol) {
   return `- \`${symbol.identity}\` — removed in ${symbol.lifecycle.removedIn}${replacement}`;
 }
 
+// @ref LLP 0194#amendment-2026-08-28-module-local-projection-identities —
+// the global buildIdentity was doing two jobs: identifying the whole registry
+// and stamping every module page. A declaration edit in one module therefore
+// rewrote all 57 leaves byte-for-byte unchanged. A module page is now
+// identified by the inputs that can actually change it.
+const projectionAlgorithm = 'snapback-symbol-registry-projection.v1';
+const sharedProjectionAuthorities = [
+  'llp/0194-generated-api-reference.rfc.md',
+  'scripts/generate-symbol-registry.mjs',
+  'scripts/guide-lib.mjs',
+  'scripts/symbol-lifecycle.mjs',
+  lifecycleSchemaPath,
+];
+
+// Every declaration source the module actually renders — including sources
+// reached only through a re-export from the selected `.d.mts`, and member
+// declarations, which may live in other files. The digest may not silently
+// omit a transitive declaration (LLP 0194 amendment, acceptance 4).
+function moduleProjectionFiles(registry, moduleRecord) {
+  const files = new Set(sharedProjectionAuthorities);
+  files.add(moduleRecord.manifest);
+  files.add(moduleRecord.typesTarget);
+  if (moduleRecord.runtimeTarget !== null) files.add(moduleRecord.runtimeTarget);
+  for (const path of Object.values(moduleRecord.conditionalRuntimeTargets)) files.add(path);
+  for (const symbol of registry.symbols) {
+    if (symbol.module !== moduleRecord.module) continue;
+    for (const record of [symbol.source, ...symbol.sources]) files.add(record.file);
+    for (const member of symbol.members) {
+      for (const record of member.sources) files.add(record.file);
+    }
+  }
+  return [...files].sort();
+}
+
+// Lifecycle facts filtered to this module, plus any predecessor this module's
+// pages actually render: `lifecycleLines` resolves `replaces` against
+// registry.removedSymbols, which can name a symbol owned by another module.
+function moduleLifecycleFacts(registry, moduleRecord) {
+  const entries = new Map();
+  const add = (symbol) => {
+    if (symbol?.lifecycle) entries.set(symbol.identity, symbol.lifecycle);
+  };
+  for (const symbol of registry.symbols) {
+    if (symbol.module !== moduleRecord.module) continue;
+    add(symbol);
+    if (symbol.lifecycle?.replaces) {
+      add(registry.removedSymbols.find(({ identity }) => identity === symbol.lifecycle.replaces));
+    }
+  }
+  for (const symbol of registry.removedSymbols) {
+    if (symbol.module === moduleRecord.module) add(symbol);
+  }
+  return [...entries.entries()].sort(([left], [right]) => left.localeCompare(right));
+}
+
+function attachModuleProjectionIdentities(registry) {
+  for (const moduleRecord of registry.modules) {
+    const files = moduleProjectionFiles(registry, moduleRecord);
+    const lifecycleFacts = moduleLifecycleFacts(registry, moduleRecord);
+    const payload = [
+      `algorithm\0${projectionAlgorithm}\0`,
+      `module\0${moduleRecord.module}\0`,
+      // runtime export target and conditions: the page claims build-bound parity
+      `parity\0${JSON.stringify({
+        runtimeTarget: moduleRecord.runtimeTarget,
+        conditions: moduleRecord.parity.applicableConditions,
+      })}\0`,
+      `lifecycle\0${JSON.stringify(lifecycleFacts)}\0`,
+      ...files.map((path) => `file\0${path}\0${readFileSync(join(root, path))}\0`),
+    ].join('');
+    moduleRecord.projectionIdentity = {
+      algorithm: projectionAlgorithm,
+      sourceDigest: `sha256:${sha256(payload)}`,
+      inputs: {
+        files,
+        lifecycleIdentities: lifecycleFacts.map(([identity]) => identity),
+      },
+    };
+  }
+}
+
 function modulePage(registry, moduleRecord, order) {
   const symbols = registry.symbols.filter((symbol) => symbol.module === moduleRecord.module);
   const removedSymbols = registry.removedSymbols.filter((symbol) => symbol.module === moduleRecord.module);
@@ -627,8 +708,8 @@ function modulePage(registry, moduleRecord, order) {
     '',
     `# ${moduleRecord.module}`,
     '',
-    `Build-bound public API projection for \`${moduleRecord.module}\`. Canonical registry identity:`,
-    `\`${registry.buildIdentity.sourceDigest}\`.`,
+    `Build-bound public API projection for \`${moduleRecord.module}\`. Module projection identity:`,
+    `\`${moduleRecord.projectionIdentity.sourceDigest}\`.`,
     ...(moduleRecord.runtimeTarget === null
       ? ['This package subpath is type-only; runtime export parity is not applicable.']
       : [
@@ -778,6 +859,9 @@ const lifecycle = validateSymbolLifecycle({
   currentIdentities: registrySymbolIdentities(registry),
 });
 integrateSymbolLifecycle(registry, lifecycle);
+// Module projection identities depend on lifecycle facts and removedSymbols,
+// so they are computed after integration, not inside createRegistry.
+attachModuleProjectionIdentities(registry);
 const publishedSymbols = validatePublishedSymbolsSnapshot(
   readJson(join(root, publishedSymbolsPath)),
 );

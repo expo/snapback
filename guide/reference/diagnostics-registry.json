@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:0a07121dd84279b0e1f21acc9cd7614275ec0f8300ffae444a52d2cd0a70e486"
+    "sourceDigest": "sha256:c60d2b615eb64a65ed8683afa40cebbdb598a26b56ff6b6f67bf4ead509e599d"
   },
   "limits": {
     "lookupBytes": 16384
@@ -30545,22 +30545,22 @@
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 136,
+          "line": 140,
           "column": 19
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 285,
+          "line": 289,
           "column": 19
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 368,
+          "line": 372,
           "column": 19
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 475,
+          "line": 479,
           "column": 10
         },
         {
@@ -48266,22 +48266,22 @@
       "sites": [
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 164,
+          "line": 168,
           "column": 10
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 257,
+          "line": 261,
           "column": 14
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 354,
+          "line": 358,
           "column": 10
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 440,
+          "line": 444,
           "column": 14
         },
         {
@@ -48366,12 +48366,12 @@
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 64,
+          "line": 68,
           "column": 10
         },
         {
           "file": "crates/snapback-server/src/guide_reference.rs",
-          "line": 76,
+          "line": 80,
           "column": 10
         },
         {

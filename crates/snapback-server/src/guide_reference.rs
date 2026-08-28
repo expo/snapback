@@ -55,8 +55,12 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
     let registry: Value = serde_json::from_slice(registry_file.bytes)
         .context("embedded Snapback Guide symbol registry is invalid")?;
     anyhow::ensure!(
-        registry.get("schemaVersion").and_then(Value::as_str)
-            == Some("snapback-symbol-registry.v1"),
+        matches!(
+            registry.get("schemaVersion").and_then(Value::as_str),
+            // @ref LLP 0194#amendment-2026-08-28-module-local-projection-identities
+            // v2 adds per-module projectionIdentity; v1 snapshots stay readable.
+            Some("snapback-symbol-registry.v2" | "snapback-symbol-registry.v1")
+        ),
         "embedded Snapback Guide symbol registry schema is unsupported"
     );
     anyhow::ensure!(

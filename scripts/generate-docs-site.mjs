@@ -833,7 +833,7 @@ function loadInputs(root) {
   if (!/^[0-9a-f]{64}$/u.test(manifest.contentHash ?? '')) {
     fail(`${MANIFEST_PATH}: contentHash must be a SHA-256 hex digest`);
   }
-  if (registry.schemaVersion !== 'snapback-symbol-registry.v1') {
+  if (!['snapback-symbol-registry.v2', 'snapback-symbol-registry.v1'].includes(registry.schemaVersion)) {
     fail(`${SYMBOL_REGISTRY_PATH}: unsupported schemaVersion`);
   }
   if (diagnostics.schemaVersion !== 'snapback-diagnostics-registry.v1') {

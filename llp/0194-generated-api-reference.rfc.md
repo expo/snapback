@@ -5,6 +5,10 @@
 **Systems:** Guide, Documentation, Client packages, Types, Build
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
+**Revised:** 2026-08-28 (module-local projection-identity amendment: retain one
+global registry identity, add a semantic source digest per module, and stop
+embedding the global digest in every generated module page so an unrelated
+package-module edit no longer restamps all 57 Markdown leaves.)
 **Revised:** 2026-08-10 (flipped to Implemented: acceptance 1–4 landed at
 dd4126140; item 5 completed when the LLP 0195 public projection deployed —
 https://snapback.expo.app serves the generated reference pages and
@@ -30,7 +34,8 @@ narrows to the ctx declaration file.) 2026-08-08 (r4/r3/r1 — see
 llp/reviews/0193-*.run.md for the full round ledger.)
 **Related:** LLP 0061 (guide design — intent-indexed by choice), LLP 0186
 (measurement evidence), LLP 0193 (diagnostic remediations), LLP 0195
-(public projection), diaries 0068-0069
+(public projection), LLP 0326 (adjacent diagnostic-coordinate churn),
+diaries 0068-0069
 
 ## Summary
 
@@ -190,3 +195,132 @@ facts from `packages/snapback-cli/reference-lookup.mjs`, and successful
 publication refresh is wired through `scripts/snapback-publish-core.mjs` and
 `scripts/snapback-publish.mjs`. No tombstone or `whatsnew` consumer projection
 was added.
+
+## Amendment (2026-08-28): module-local projection identities
+
+### Problem
+
+Design 2 correctly requires one canonical registry, but the implementation
+uses one global `buildIdentity.sourceDigest` for two different jobs:
+
+1. identity of the whole machine-readable registry; and
+2. identity printed into every module-scoped Markdown page.
+
+The generator computes that digest over every in-scope manifest, declaration
+target, runtime target, lifecycle authority, publication-closure record, and
+generator support file. It then prints the same digest into all 57 generated
+Markdown pages under `guide/reference/`. A runtime or declaration edit in one
+module therefore rewrites every unrelated module page even when its symbols,
+signatures, sources, and rendered text are byte-for-byte unchanged.
+
+The history shows the fan-out. In the 30 days ending 2026-08-28, the global
+registry has 393 commits. Long-lived unrelated leaves such as
+`expo-snapback-client--assets.md` and `expo-snapback-react.md` have 342 and 343
+commits respectively; many newer leaves have changed on nearly every registry
+generation since they were introduced. This is different from LLP 0326's
+diagnostic-coordinate problem: the registry really is global, but its global
+identity does not need to be copied into every local projection.
+
+### Decision
+
+Keep the canonical registry global and add a second, module-local identity.
+
+The registry's top-level `buildIdentity.sourceDigest` remains the digest of the
+complete registry input closure. `registry.json`, the compact index, exact
+lookup, MCP/CLI serving, and the guide manifest continue to use it when they
+need to identify the whole joined API surface.
+
+Each module record additionally carries:
+
+```json
+{
+  "projectionIdentity": {
+    "sourceDigest": "sha256:..."
+  }
+}
+```
+
+The module digest covers exactly the semantic inputs capable of changing that
+module page:
+
+- the generator/projection algorithm version and shared rendering support;
+- the package manifest and the selected export entry;
+- the public declaration target and every declaration source reached by the
+  module's rendered symbols;
+- applicable runtime export target bytes and conditions, because the page
+  claims build-bound runtime parity;
+- lifecycle facts filtered to identities in that module, including removed
+  symbols; and
+- any module-scoped closure fact actually rendered on the page.
+
+Input enumeration is emitted in the registry and tested; the digest may not
+silently omit a transitive declaration merely because it is re-exported from
+the selected `.d.mts` file.
+
+A generated module page prints its module projection identity and a link to the
+global registry. It no longer prints the global registry digest. The compact
+index continues to print the global identity because it summarizes all modules.
+Stable symbol identities and anchors do not change.
+
+The served join remains exact: the registry carries both global and per-module
+identities, and the guide manifest carries each page's content hash. A consumer
+can prove that a leaf belongs to a registry build without making the leaf's
+bytes depend on every sibling module.
+
+Advance the machine-readable registry schema to
+`snapback-symbol-registry.v2`. Current consumers accept v2; retained historical
+v1 snapshots remain readable. This is an additive identity refinement, not a
+rename of any symbol or route.
+
+### Intended and unintended fan-out
+
+After this amendment:
+
+- changing one module's declaration or runtime target changes the global
+  registry, compact index, that module's page, and the normal global guide
+  manifest/flat projections;
+- unrelated module Markdown pages remain byte-identical;
+- changing shared rendering code or LLP 0194 may still change every leaf,
+  because every leaf's meaning genuinely depends on that authority; and
+- changing the currently global `lifecycle.json` may still rotate generated
+  frontmatter authority digests on unrelated leaves even though the rendered
+  lifecycle facts are filtered. That is a known, narrower guide-freshness
+  exception, not a reason to retain the much larger per-build fan-out. If it
+  becomes material, LLP 0061 should gain a checked module-scoped authority
+  digest or lifecycle shards rather than letting this generator invent a
+  private freshness grammar.
+
+The amendment does not promise that `registry.json` is local; it is the
+canonical global join and should change when its source closure changes. The
+goal is review locality for the 57 module leaves.
+
+### Acceptance
+
+1. A fixture changes one symbol in module A and proves that `registry.json`,
+   `index.md`, and module A's page change while an unrelated module B page is
+   byte-identical.
+2. Module A's projection digest and the global registry digest rotate; module
+   B's projection digest does not.
+3. A runtime-export-only change in module A either fails parity or rotates only
+   A's module identity among leaf pages.
+4. Re-exported declaration sources participate in the module input census and
+   a mutation to one rotates every module that actually renders a symbol from
+   it.
+5. Lifecycle facts remain attached to the same stable symbol identities and
+   removed-symbol sections; no undeclared-removal enforcement is weakened.
+6. Exact lookup, CLI/MCP serving, public routes, stable anchors, and module page
+   budgets retain their LLP 0194 acceptance behavior under registry schema v2.
+7. The generator's check mode rejects stale global or local identities and
+   orphaned module pages; `check-inventories` validates the chained guide
+   manifest after regeneration.
+
+### Non-goals
+
+- No split into independently authored registries.
+- No uncommitted generated reference surface.
+- No change to symbol identity, lifecycle policy, page slicing, or lookup
+  budgets.
+- No claim to solve LLP 0326's diagnostic coordinate churn.
+- No custom exception to the Guide's reviewed-authority semantics. The narrow
+  global lifecycle-authority remainder is explicit until LLP 0061 owns a
+  general representation.
