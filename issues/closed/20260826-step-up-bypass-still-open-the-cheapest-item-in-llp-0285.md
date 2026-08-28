@@ -111,3 +111,29 @@ fix, then verifies the downgrade is stale, an authority-creating effect reaches
 `StepUpConsumption::Verified` and durably consumes its proof, an ordinary effect
 still approves without proof, and a missing pin refuses without consuming a
 generic valid proof.
+
+## Scope of this closure — what it does and does NOT establish (supervisor note, 2026-08-28)
+
+This ticket is closed for exactly the defect LLP 0285 §5.1 named: **`requires_step_up` is no
+longer a caller-supplied parameter**, and the derived requirement is fenced against the
+reconcile-downgrade attack by the generation pin. Two blind reviews (codex gpt-5.6-sol and
+grok-4.6, both xhigh) confirmed on the second revision that missing pins, stale pins,
+`present != 1`, and malformed flags all fail closed, and that proof consumption is reached and
+checked for `Verified` only on the required branch.
+
+It does **not** establish "step-up is enforced for pending-effect approval." Two residuals were
+found during review and are tracked separately:
+
+1. `issues/20260828-step-up-proofs-are-not-operation-bound.md` — **pre-existing** (verified on
+   `origin/main`). `consume_step_up_proof_on` takes only `(proof, now_ms)`; `StepUpProof` carries
+   no operation or session binding, so a proof minted for another operation can be redirected to
+   approve an effect. Until that lands, the gate proves a human answered *a* challenge, not that
+   a human approved *this effect*.
+2. `issues/20260828-scope-basis-reconciliation-is-cfg-gated-not-authority-gated.md` — the
+   "approver cannot write the classification" property rests on a compile-time feature graph
+   (`#[cfg(any(test, feature = "test-support"))]`) rather than a runtime authority check. Verified
+   as **not** a production bypass today (all `test-support` enablements are `[dev-dependencies]`),
+   but it is an assumption rather than an enforcement.
+
+Do not cite this closure as evidence that F-1's forgery half is addressed; LLP 0285 §6 is explicit
+that steps 2–4 alone must not be reported as closing F-1.
