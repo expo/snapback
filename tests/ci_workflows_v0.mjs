@@ -54,6 +54,21 @@ assert.deepEqual(
   'ref-check must preserve cheap direct-main and pull-request feedback',
 );
 
+const requiredSurfaceBuildsWorkflow = readFileSync(
+  join(workflowDir, 'required-surface-builds.yml'),
+  'utf8',
+);
+assert.doesNotMatch(
+  requiredSurfaceBuildsWorkflow,
+  /^  push:/mu,
+  'LLP 0316 Phase 6 proves selectors but must not restore push without author direction',
+);
+assert.match(
+  requiredSurfaceBuildsWorkflow,
+  /scripts\/required-surface-build-paths\.v1\.json[\s\S]*tests\/required_surface_builds_v0\.mjs/u,
+  'the manual workflow must point future restoration at the machine-tested selector authority',
+);
+
 const deploymentIdentityWorkflow = readFileSync(
   join(workflowDir, 'deployment-identity.yml'),
   'utf8',

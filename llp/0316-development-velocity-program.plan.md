@@ -8,6 +8,8 @@
 **Revised:** 2026-08-27 (Phase 4 implemented and measured, including the
 literal Git-ref transition and the controlling server edit loops;
 Phase 8's frozen-record census and regeneration-candidate ratchet adopted;
+Phase 6's affected-path selector authority and restoration precondition 3
+implemented and proved without restoring automatic execution;
 Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
 integration link targets, 0 semantic change) and its cargo-nextest tail is
@@ -545,13 +547,42 @@ snippets).
 The low-noise posture is an explicit author ruling with its own restoration
 ticket and preconditions; this plan does not re-decide it. What it adds:
 
+**Implemented 2026-08-27 (restoration precondition 3 only; no trigger
+activation).** `scripts/required-surface-build-paths.v1.json` is now the
+durable, ordered affected-path authority for any eventual restoration of
+`required-surface-builds` on push. Its fixed selectors cover the workflow,
+Node/Bun and frozen-install inputs, generator and build runtime closure,
+shared demo adapters, and the production-artifact hygiene check. Its surface
+selectors are not a hand-maintained prose inventory: the gate derives every
+required web surface from `demos/*/demo.snapback.json`, requires the authority
+to equal the corresponding backend and product-surface roots exactly, and
+refuses to install or build when they drift. The wildcard manifest selector
+selects a new or reclassified demo on its introducing change, while the exact
+comparison forces the new roots into the authority before the gate can pass.
+
+`tests/required_surface_builds_v0.mjs` proves representative positive closure,
+unrelated-change negatives, ordered exclusions, all three current required
+surfaces, and the future-surface refusal/recovery case.
+`tests/ci_workflows_v0.mjs` proves that the workflow points at this authority
+and remains exactly manual-only. The focused selector tests, syntax check, and
+list-only inventory proof pass; the canonical gate frozen-installed,
+materialized and drift-checked all three generated graphs, then
+production-built `all-aboard/contract`, `cursors-web/contract`, and
+`pointing-room/contract` successfully in **27.46 s wall** on the measurement
+machine. The initial local attempts could not
+write Bun's sandbox-external default cache; rerunning with an isolated
+`/private/tmp` cache passed without changing the proof. No `push:` trigger is
+present. LLP 0189 precondition 5 still requires explicit author direction
+before anyone may activate this selector.
+
 - The 130-runs-per-hour figure that motivated the ruling is a *fan-out*
   problem (one heavyweight copy per commit, inherited reds repeated per
   push), not a reason for the cheap required check to be silent. The
   restoration ticket's precondition 3 (path selectors so a stale artifact is
   checked without repeating an inherited red per push) is the velocity
-  deliverable here: `required-surface-builds` runs on push in 35 s and must
-  be first to come back.
+  deliverable here: an eventual affected restoration of
+  `required-surface-builds` should run on push in about 35 s and be first to
+  come back.
 - A stale committed generated artifact needs a standing repair owner before
   the trigger returns: the next landing touching the area, or a scheduled
   regeneration commit — never a red left for a day. Phase 8 decides which
@@ -742,6 +773,7 @@ maximum is four, this decision landing creates no migration ticket.
 | Phase 7B3 — route-assembly carve | closed, nothing kept | **17.21 → 18.32 s** | **16.31 → 18.75 s**; fresh unit **46.22 → 51.67 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 113.53 s; all controlling clocks regressed; 1,131-line Rust move discarded before full failing-suite proof |
 | Phase 7B4 — auth/operator-control carve | closed, nothing kept; Phase 7 closed partial | **17.21 → 16.58 s** | **16.31 → 16.93 s**; fresh unit **46.22 → 56.30 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 125.91 s; warm unit 6.48 → 6.49 s; server-test acceptance failed; 405-line move discarded before full failing-suite proof |
 | Phase 8 — frozen-record ratchet | this landing | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | **864** governed generated artifacts; 30-day filename census **115** tickets (**41 open / 74 closed**); automated `main-drift-*` subset **32** (**21 / 11**); no determinate surface reached the **≥5 in 30 days** candidate threshold. |
+| Phase 6 — required-signal selector | this landing (precondition 3 only) | unchanged (selector-only) | unchanged (selector-only) | unchanged (selector-only) | unchanged (selector-only) | **40** ordered patterns; exact manifest-derived roots for **3** required web surfaces; positive, negative, and future-inventory proofs pass; canonical affected gate **27.46 s wall**; workflow remains manual-only. |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
@@ -771,5 +803,7 @@ day. Phase 7 Stage A landed next and reduced the server test unit without yet
 removing it from the critical path. Phase 4's Guide-edit, literal Git-ref, and
 controlling server-edit acceptance measurements are proven in this landing.
 Phase 8's frozen-record ratchet is adopted in its own decision landing. The
-only remaining program work is Phase 6 precondition 3; restoring the `push:`
-trigger remains the author's separate precondition 5 decision.
+Phase 6 selector authority now completes restoration precondition 3. No
+automatic execution was restored: ticket preconditions 1, 2, and 4 remain
+open, and restoring any `push:` trigger remains the author's separate
+precondition 5 decision under LLP 0189.

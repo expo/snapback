@@ -10,11 +10,13 @@
 // shipped silently behind a green dev loop. The structural fix is a gate that
 // production-builds EVERY required web surface on every Exact pin bump, so this
 // class cannot recur silently. Every surface now pins Exact through its own
-// committed bun.lock; this gate runs on every push/PR, which covers every
-// package-version bump. These surfaces also bundle Snapback source through
-// demos/_kit, so the gate first performs one frozen root-workspace install;
-// that makes package-to-package `workspace:*` edges available in a clean
-// checkout without weakening each surface's independent Exact registry lock.
+// committed bun.lock. The LLP 0189 low-noise posture currently keeps this gate
+// explicit-only; scripts/required-surface-build-paths.v1.json is the proved
+// affected-path authority for an eventual author-directed push restoration.
+// These surfaces also bundle Snapback source through demos/_kit, so the gate
+// first performs one frozen root-workspace install; that makes package-to-
+// package `workspace:*` edges available in a clean checkout without weakening
+// each surface's independent Exact registry lock.
 //
 // Surface set is DERIVED from the demo manifests (demos/*/demo.snapback.json),
 // not from whichever package.json files happen to survive in the checkout: a
@@ -52,6 +54,7 @@ export { signalProcessTree } from './lib/process-tree.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEMOS_DIR = join(ROOT, 'demos');
+const PATH_POLICY_PATH = join(ROOT, 'scripts', 'required-surface-build-paths.v1.json');
 const BUILD_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_BUILD_TIMEOUT_MS ?? 300_000);
 const INSTALL_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_INSTALL_TIMEOUT_MS ?? 180_000);
 const CODEGEN_TIMEOUT_MS = Number(process.env.SNAPBACK_SURFACE_CODEGEN_TIMEOUT_MS ?? 120_000);
@@ -70,6 +73,138 @@ function log(msg) {
 function fail(msg) {
   process.stderr.write(`[required-surface-builds] FAIL: ${msg}\n`);
   process.exit(1);
+}
+
+export function loadRequiredSurfaceBuildPathPolicy({ policyPath = PATH_POLICY_PATH } = {}) {
+  return JSON.parse(readFileSync(policyPath, 'utf8'));
+}
+
+function validateUniquePathPatterns(patterns, label) {
+  if (!Array.isArray(patterns) || patterns.length === 0) {
+    throw new Error(`${label} must be a non-empty array`);
+  }
+  const seen = new Set();
+  for (const pattern of patterns) {
+    if (
+      typeof pattern !== 'string'
+      || pattern.length === 0
+      || pattern.startsWith('/')
+      || pattern.split('/').includes('..')
+      || !/^!?[A-Za-z0-9._/*-]+$/u.test(pattern)
+    ) {
+      throw new Error(`${label} contains invalid GitHub path pattern ${JSON.stringify(pattern)}`);
+    }
+    if (seen.has(pattern)) throw new Error(`${label} contains duplicate pattern ${pattern}`);
+    seen.add(pattern);
+  }
+}
+
+function expectedRequiredSurfacePaths(surfaces) {
+  const paths = new Set();
+  for (const { demoId, surfaceName } of surfaces) {
+    paths.add(`demos/${demoId}/snapback/**`);
+    paths.add(`demos/${demoId}/surfaces/${surfaceName}/**`);
+  }
+  return [...paths].sort();
+}
+
+/**
+ * Validate the eventual GitHub `paths` authority against the live manifest
+ * inventory. A newly required web surface cannot land behind a stale selector:
+ * its manifest path selects the introducing change, and this exact comparison
+ * then requires its backend and surface roots to join the authority.
+ */
+// @ref LLP 0316#phase-6--the-required-signal — prove the affected selector
+// independently; restoring automatic push execution remains author-gated.
+export function validateRequiredSurfaceBuildPathPolicy(
+  policy,
+  { surfaces = collectRequiredWebSurfaces() } = {},
+) {
+  if (policy?.schemaVersion !== 'snapback.required-surface-build-paths.v1') {
+    throw new Error('required-surface-build path policy has an unsupported schemaVersion');
+  }
+  validateUniquePathPatterns(policy.fixedPaths, 'required-surface-build fixed paths');
+  validateUniquePathPatterns(
+    policy.requiredSurfacePaths,
+    'required-surface-build manifest-derived paths',
+  );
+  if (policy.requiredSurfacePaths.some((pattern) => pattern.startsWith('!'))) {
+    throw new Error('manifest-derived required-surface paths may not be negated');
+  }
+  const requiredFixedPaths = [
+    '.github/workflows/required-surface-builds.yml',
+    'demos/*/demo.snapback.json',
+    'scripts/check-required-surface-builds.mjs',
+    'scripts/required-surface-build-paths.v1.json',
+  ];
+  for (const pattern of requiredFixedPaths) {
+    if (!policy.fixedPaths.includes(pattern)) {
+      throw new Error(`required-surface-build fixed paths omit ${pattern}`);
+    }
+  }
+  const expected = expectedRequiredSurfacePaths(surfaces);
+  const actual = [...policy.requiredSurfacePaths].sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(
+      'required-surface-build manifest-derived paths drifted: '
+      + `expected ${JSON.stringify(expected)}, found ${JSON.stringify(actual)}`,
+    );
+  }
+  const paths = [...policy.fixedPaths, ...policy.requiredSurfacePaths];
+  if (new Set(paths).size !== paths.length) {
+    throw new Error('required-surface-build fixed and manifest-derived paths overlap');
+  }
+  return paths;
+}
+
+function githubPathPatternRegExp(pattern) {
+  let source = '';
+  for (let index = 0; index < pattern.length; index += 1) {
+    const character = pattern[index];
+    if (character === '*') {
+      if (pattern[index + 1] === '*') {
+        source += '.*';
+        index += 1;
+      } else {
+        source += '[^/]*';
+      }
+      continue;
+    }
+    source += '\\^$.*+?()[]{}|'.includes(character) ? `\\${character}` : character;
+  }
+  return new RegExp(`^${source}$`, 'u');
+}
+
+/** Apply the checked, ordered GitHub-path subset used by the policy. */
+export function selectRequiredSurfaceBuildPaths(
+  changedPaths,
+  {
+    policy = loadRequiredSurfaceBuildPathPolicy(),
+    surfaces = collectRequiredWebSurfaces(),
+  } = {},
+) {
+  if (!Array.isArray(changedPaths)) throw new Error('changed paths must be an array');
+  const patterns = validateRequiredSurfaceBuildPathPolicy(policy, { surfaces });
+  return changedPaths.map((path) => {
+    if (
+      typeof path !== 'string'
+      || path.length === 0
+      || path.startsWith('/')
+      || path.split('/').includes('..')
+    ) {
+      throw new Error(`invalid changed repository path ${JSON.stringify(path)}`);
+    }
+    let selected = false;
+    const matchingPatterns = [];
+    for (const declared of patterns) {
+      const negated = declared.startsWith('!');
+      const pattern = negated ? declared.slice(1) : declared;
+      if (!githubPathPatternRegExp(pattern).test(path)) continue;
+      selected = !negated;
+      matchingPatterns.push(declared);
+    }
+    return { path, selected, matchingPatterns };
+  });
 }
 
 // Collect the gated surfaces from the demo manifests (single source of truth).
@@ -591,6 +726,14 @@ async function main() {
     const [error] = requiredSurfaceStructuralErrors(surface);
     if (error) fail(error);
   }
+  const selectorPatterns = validateRequiredSurfaceBuildPathPolicy(
+    loadRequiredSurfaceBuildPathPolicy(),
+    { surfaces },
+  );
+  log(
+    `path selector authority: scripts/required-surface-build-paths.v1.json `
+    + `(${selectorPatterns.length} ordered pattern(s))`,
+  );
   if (LIST_ONLY) return;
 
   const workspaceInstall = await ensureWorkspaceInstall();

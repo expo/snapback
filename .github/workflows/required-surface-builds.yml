@@ -17,6 +17,12 @@ name: required-surface-builds
 #
 # @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — retain
 # this heavyweight proof for explicit qualification while its baseline is red.
+# LLP 0316 Phase 6 precondition 3 is proved independently of activation:
+# scripts/required-surface-build-paths.v1.json is the eventual ordered `paths`
+# authority, validated against the manifest-derived required surface inventory
+# by scripts/check-required-surface-builds.mjs and
+# tests/required_surface_builds_v0.mjs. Do not add `push` without LLP 0189's
+# separate author-direction precondition.
 
 on:
   workflow_dispatch:
