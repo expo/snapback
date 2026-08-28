@@ -12,6 +12,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { resolveAuthoringProfileScopes } from './guide-authoring-profiles.mjs';
 
@@ -601,6 +602,25 @@ export function extractFences(body, path) {
 }
 
 const normalize = (text) => text.split('\n').map((line) => line.replace(/\s+$/, '')).join('\n');
+
+// Guide generators that import TypeScript or Ajv die with a raw
+// ERR_MODULE_NOT_FOUND in a fresh worktree. Name `bun install` the same way
+// missing demo artifacts name `scripts/check-generated-artifacts`.
+export const GUIDE_GENERATOR_JS_PACKAGES = Object.freeze(['typescript', 'ajv']);
+
+export function rootJsInstallPrecondition(root, packages = GUIDE_GENERATOR_JS_PACKAGES) {
+  const require = createRequire(import.meta.url);
+  const missing = [];
+  for (const name of packages) {
+    try {
+      require.resolve(name, { paths: [root] });
+    } catch {
+      missing.push(name);
+    }
+  }
+  if (missing.length === 0) return null;
+  return `required packages unavailable: ${missing.join(', ')}; run \`bun install --frozen-lockfile\``;
+}
 
 // Guide pages transclude from demo-generated output, which a fresh
 // worktree/clone does not have yet — this docs-only fast path never runs

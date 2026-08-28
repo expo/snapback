@@ -19,9 +19,15 @@ import {
   listFlatSectionPaths,
   parseCapabilityIndex,
   repoRoot,
+  rootJsInstallPrecondition,
 } from './guide-lib.mjs';
 
 const root = repoRoot();
+const rootJsPrecondition = rootJsInstallPrecondition(root);
+if (rootJsPrecondition) {
+  console.error(`[guide-manifest] environment precondition: ${rootJsPrecondition}`);
+  process.exit(1);
+}
 // @ref LLP 0193#program — diagnostics and their typed code vocabulary are one
 // generated Guide resource, checked before the manifest binds their bytes.
 execFileSync(process.execPath, [join(root, 'scripts/generate-diagnostics-registry.mjs')], {

@@ -64,8 +64,9 @@ keeps its own LLP corpus under [`llp/`](./llp/).
   including explicit GAP rows for what the guide doesn't cover yet.
 - Guide checks run in the local proof; the docs-only fast path is
   `node scripts/check-guide.mjs`. Conventions (frontmatter, snippet classes,
-  freshness) are in [`guide/conventions.md`](./guide/conventions.md); the
-  governing design is LLP 0061.
+  freshness, fresh-tree generator bootstrap) are in
+  [`guide/conventions.md`](./guide/conventions.md); the governing design is
+  LLP 0061.
 - **Engineering Snapback itself: read the guide page for any authoring
   surface you are about to change or reason about.** The routing at the top
   of this file sends *app builders* to the guide and Snapback engineers to
@@ -250,6 +251,13 @@ silent wedge trap (ENG-22659).
   the docs the demo touches) before each demo lands; the complete corpus
   audit runs on LLP 0016's reconcile cadence and after each LLP 0032 phase,
   not as a landing precondition (LLP 0189 D-2).
+- A fresh checkout or worktree needs `bun install --frozen-lockfile` and
+  `scripts/check-generated-artifacts` before the JS guide generators
+  (`node scripts/generate-guide-manifest.mjs`, `node scripts/check-guide.mjs`)
+  will run; the named sequence is in
+  [`guide/conventions.md`](./guide/conventions.md) ("Running the checks in a
+  fresh tree"). This is the JS counterpart of `scripts/bootstrap-ibex-runtime`
+  below.
 - Before running `cargo build`, `cargo test`, or `cargo run` on a clean checkout,
   run `scripts/bootstrap-ibex-runtime`. Snapback links the vendored
   `ibex-runtime` crate, which needs ignored Hermes headers/frameworks and tools.

@@ -14,19 +14,25 @@ import {
   writeFileSync,
   mkdirSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import ts from 'typescript';
-import {
+import { authoritiesDigest, rootJsInstallPrecondition } from './guide-lib.mjs';
+
+const root = resolve(dirname(new URL(import.meta.url).pathname), '..');
+const rootJsPrecondition = rootJsInstallPrecondition(root);
+if (rootJsPrecondition) {
+  console.error(`[symbol-registry] environment precondition: ${rootJsPrecondition}`);
+  process.exit(1);
+}
+const ts = createRequire(import.meta.url)('typescript');
+const {
   assertNoUndeclaredSymbolRemovals,
   integrateSymbolLifecycle,
   registrySymbolIdentities,
   validatePublishedSymbolsSnapshot,
   validateSymbolLifecycle,
-} from './symbol-lifecycle.mjs';
-import { authoritiesDigest } from './guide-lib.mjs';
-
-const root = resolve(dirname(new URL(import.meta.url).pathname), '..');
+} = await import('./symbol-lifecycle.mjs');
 const outputDirectory = join(root, 'guide/reference');
 const registryPath = join(outputDirectory, 'registry.json');
 const publishedClosurePath = 'guide/published-closure.json';
