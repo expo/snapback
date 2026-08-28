@@ -165,6 +165,23 @@ no longer mixed into Rust rodata.
 Section movement: `__text` 74,674,852 → 65,682,080; `__LINKEDIT`
 38,912,000 → 18,284,544 → 1,409,024; symbols 264,500 → 118,109 → 6,254.
 
+Phase 1d's primary policy — Cargo `[profile.production] strip =
+"symbols"` — was then measured directly and is slightly better than the
+`strip -x` row above: **102,641,248 bytes**, `__LINKEDIT` 1,163,264, and
+**630** remaining symbols (against `strip -x`'s 102,905,288 / 1,409,024 /
+6,254). Full stack: **157,178,768 → 102,641,248, −54,537,520 (−34.7%)**.
+
+The stripped binary was confirmed to still load Hermes with `DYLD_*`
+scrubbed: `snapback runtime-qualify` returns `ok: true` on the
+`restricted-no-eval-handler-vm` probe, and the `@rpath/hermesvm.framework`
+load command survives stripping.
+
+That same receipt also demonstrates why Phase 1c is necessary rather
+than bookkeeping: a **production** binary reports
+`"buildProfile":"release"`, because `BinaryIdentity.build_profile` is
+derived from `cfg!(debug_assertions)`. Profile and recipe are today
+indistinguishable in the identity, exactly as 1c states.
+
 This **beats LLP 0314.000 Phase 1's stated ~110–130 MB success band**
 and lands in what that plan called LTO upside. Two of the plan's
 expectations need correcting: it predicted `__text` would shrink 15–25 MB
