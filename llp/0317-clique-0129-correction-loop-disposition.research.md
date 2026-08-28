@@ -271,6 +271,42 @@ recurrence across independent models is the strongest signal available.
 | O45 | **New in r2.** Two lanes wanted one Expo-web sentence Snapback could cheaply own even though the defect belongs to React Native Web: `accessibilityValue` is dropped and images become CSS-background descendants. See N8 for why the defect itself is out of scope. | Snapback ships the Expo start packet; a known renderer behaviour that every web lane hits belongs in it. | One paragraph in the Expo/web start packet naming the RNW semantic drops and the app-owned bridge pattern. |
 | O46 | **Split out of N5 in r2.** After successful credential adoption, a **full navigation** returned to the auth surface while client-side routing retained the session (`sol-snapback-explicit` `1787857420`). The lane's workaround avoided full reload and never diagnosed why durable authentication disappeared across it. | Durable web custody surviving a full page load is the core promise of durable custody. An unexplained loss is either a defect or a documented boundary — it cannot stay unclassified. | Reproduce sign-in followed by a full document navigation and establish whether durable custody survives. Fix or document the boundary; add an acceptance case. Related to O7 and O33, which also involve boot-time binding state. |
 
+## Already-ships sweep (2026-08-28)
+
+All 46 backlog rows were audited read-only against current `main` to establish,
+per row, whether the capability the row asks for **already exists**. Four codex
+`gpt-5.6-sol` @ xhigh batches partitioned the rows one-to-one; the seven rows
+that came back open were then cross-checked by `grok-4.6` @ xhigh instructed to
+falsify. Full record: `issues/20260828-already-ships-sweep.md`, per-batch
+reports under `issues/sweep-20260828/`.
+
+| Verdict | Count | Rows |
+|---|---|---|
+| Already ships | 9 | O11, O16, O18, O23, O30, O34, O36, O39, O42 |
+| Already ships (repair present; observed failure unexplained) | 2 | O10, O12 |
+| Partially ships | 19 | O1, O2, O3, O4, O9, O13, O15, O17, O19, O20, O22, O24, O25, O27, O28, O37, O40, O41, O44 |
+| Genuinely open | 7 | O8, O26, O31, O32, O38, O43, O45 |
+| Needs reproduction | 7 | O5, O6, O7, O14, O21, O33, O46 |
+| Confirmed defect | 1 | O29 |
+| Not reproducible | 1 | O35 |
+
+**Only seven rows are genuinely new capability work.** Eleven already ship and
+nineteen are partial — a named delta rather than a build. This is the same
+finding the retrieval rows reached from the other side, and it promotes O44
+from one row among forty-six to the program's load-bearing item: the dominant
+failure mode in this corpus is a capable agent not finding a capability that
+exists.
+
+Three framings were corrected by the cross-check. **O31** duplicates
+LLP 0252 Phase 3, which already plans paired Familiar templates, so it is
+unshipped planned work rather than an unrecognised gap. **O38**'s mechanism is
+wrong: the scaffold never emits `babel.config.js` — the lanes added it during
+ordinary Expo Router conversion — though the prevention gap is real. **O32** is
+not literally "Explicit examples only"; `guide/backend/assets.md` already
+transcludes a Familiar fixture, and what is missing is the corpus policy.
+**O26** narrows to the absent codegen-required-vs-every-platform comparison in
+publication qualification, not the capability, which current source registers.
+
 ## Priority synthesis
 
 The backlog should not be implemented in table order. The evidence suggests
@@ -468,6 +504,10 @@ membership scoping ships for table reads and ephemeral state, leaving only an
 asset-union residual; **O42**'s headless page exists and documents the exact
 APIs the row asked for. All three are retrieval failures, which strengthens
 O44 from one row among many into the mechanism behind several.
+
+**r2.3 — 2026-08-28.** Added §Already-ships sweep: all 46 rows audited against
+current main, with O31/O38/O32/O26 reframed by the cross-check. Seven rows are
+genuinely new work; eleven already ship.
 
 **r1 — 2026-08-27.** Initial synthesis of the published-0.1.29 Clique matrix
 Snapback lanes as then understood (four lanes); the sol-explicit scale tail was
