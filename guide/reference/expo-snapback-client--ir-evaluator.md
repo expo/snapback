@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:5fc17dcb81082e847612a187ec9103e433c15ec71c57
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Module projection identity:
-`sha256:9bc3a4dc36f755f93f84784b2e02b33a60ed0b19954dcbadafd6e0eae4bd23df`.
+`sha256:19bde4da351e6d056073b3fbc89cab80d0aee238401a77155eb4515722308079`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
