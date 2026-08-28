@@ -51,6 +51,15 @@ impl LocalDatabase {
     /// Reconcile the complete active function set in one protected-catalog
     /// transaction. Rows are never deleted. A malformed stored row fails
     /// closed before any update commits.
+    ///
+    /// Production reconciliation is owned by the deployment activation
+    /// transaction. This direct seam exists only for the kernel corpus and
+    /// explicit test-support consumers.
+    ///
+    /// @ref LLP 0303#the-governing-principle — an ordinary serving caller
+    /// cannot publish a replacement authority classification beside an
+    /// approval request.
+    #[cfg(any(test, feature = "test-support"))]
     pub fn reconcile_auth_scope_bases(
         &mut self,
         manifest: &FunctionManifest,
@@ -58,6 +67,7 @@ impl LocalDatabase {
         self.with_auth_transaction(|tx| reconcile_auth_scope_bases_on(tx, manifest))
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn reconcile_auth_scope_bases_with_schema(
         &mut self,
         manifest: &FunctionManifest,
@@ -577,12 +587,14 @@ mod tests {
     }
 }
 impl super::ServingDatabase {
+    #[cfg(any(test, feature = "test-support"))]
     pub fn reconcile_auth_scope_bases(
         &mut self,
         manifest: &FunctionManifest,
     ) -> SnapbackResult<ScopeBasisReconciliation> {
         self.db.reconcile_auth_scope_bases(manifest)
     }
+    #[cfg(any(test, feature = "test-support"))]
     pub fn reconcile_auth_scope_bases_with_schema(
         &mut self,
         manifest: &FunctionManifest,

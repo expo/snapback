@@ -6129,7 +6129,7 @@ impl LocalSnapback {
         approval: &PreparedEffectApproval,
         original: Option<&PreparedAuthority>,
         now_ms: u64,
-    ) -> SnapbackResult<FunctionDefinition> {
+    ) -> SnapbackResult<()> {
         let effect = approval.pending.effect();
         let function = self
             .function_definition(&effect.function_name)
@@ -6193,7 +6193,10 @@ impl LocalSnapback {
         if let Some(original) = original {
             InvocationGate::validate_current_function_policy(original, &function)?;
         }
-        Ok(function)
+        // Step-up classification is intentionally not returned from this
+        // process-local manifest check. The kernel owns that decision through
+        // the exact durable scope generation pinned at effect creation.
+        Ok(())
     }
 
     /// @ref LLP 0303#the-governing-principle — the approver is derived from

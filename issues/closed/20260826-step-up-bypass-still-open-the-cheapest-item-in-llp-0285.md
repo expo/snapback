@@ -76,16 +76,38 @@ Resolved 2026-08-28 by deleting `requires_step_up` from the public
 approval command. The engine no longer supplies the function declaration's
 boolean beside the prepared effect.
 
-The implementation uses derivation option (b), so no pending-effect schema
-migration was needed. Inside the approval transaction, after re-reading and
-matching the exact durable pending-effect row, the kernel resolves that row's
-`function_id` and `function_kind` against the protected durable
-`_auth_scope_bases` catalog. Only an exact present basis with
-`authority_creating = 0` permits approval without step-up. A missing, removed,
-mismatched, malformed, or authority-creating basis requires a valid step-up
-proof. The approver remains the session principal already derived into the
-database-bound `PendingEffectOwner`.
+The first implementation's unpinned `_auth_scope_bases` lookup was not a safe
+source: the same serving caller could reconcile an authority-creating function
+to `false` after intent creation and then approve without proof. The completed
+fix creates `_snapback_pending_effect_scopes` and atomically records the exact
+scope-basis generation beside each new pending effect. Approval re-reads
+`authority_creating` only from the present `_auth_scope_bases` row whose
+function id, kind, **and generation** match that immutable pin. Reconciliation
+advances the generation whenever kind or authority class changes, so a
+downgraded row cannot match the pending effect's predecessor pin.
 
-Regression coverage records the former bypass failing first, then verifies
-that an authority-creating effect is refused without proof, an ordinary effect
-still approves with no proof, and an unknown durable requirement fails closed.
+The source of truth is therefore the kernel-written per-effect generation pin
+plus the generation-fenced scope basis. Production deployment/auth activation
+reconciliation writes scope bases; the pending-effect creation transaction is
+the only writer of pins. The former direct `LocalDatabase` and
+`ServingDatabase` reconciliation methods are now compiled only for unit tests
+and explicit `test-support` consumers, so an ordinary production caller cannot
+pre-seed or rewrite the classification. The approving session principal can
+write neither component. During tests, a direct reconciliation can only
+produce a successor generation, which makes an already-prepared effect stale
+instead of changing its step-up requirement.
+
+Missing pins, missing exact-generation bases, malformed rows, and SQL failures
+now refuse approval outright before proof consumption; they are not treated as
+"requires step-up," because an unrelated valid proof cannot establish an
+undeterminable function classification. Existing in-flight rows created before
+the sibling pin table was installed consequently fail stale and must be
+re-created. The engine's current-manifest check now returns only validation,
+making the kernel's generation-fenced catalog the single authority for the
+step-up classification.
+
+Regression coverage records the reconcile-downgrade exploit failing before the
+fix, then verifies the downgrade is stale, an authority-creating effect reaches
+`StepUpConsumption::Verified` and durably consumes its proof, an ordinary effect
+still approves without proof, and a missing pin refuses without consuming a
+generic valid proof.
