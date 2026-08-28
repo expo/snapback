@@ -9,6 +9,7 @@ import { EventEmitter } from 'node:events';
 import {
   existsSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -30,7 +31,6 @@ import {
   functionToolName,
   requireMatchingControlCatalogIdentity,
 } from './mcp-control.mjs';
-import { decodeRemediationSet } from '../snapback-client/remediation.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
@@ -49,6 +49,44 @@ assert.ok(
   const missing = buildAppDataCatalog(join(tmpdir(), 'snapback-mcp-no-such-backend'));
   assert.equal(missing.catalog, null);
   assert.equal(missing.diagnostics[0].code, 'SNAPBACK_MCP_CATALOG_ARTIFACTS_MISSING');
+
+  const corruptBackend = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-mcp-corrupt-catalog-')));
+  const corruptManifestPath = join(corruptBackend, 'generated', 'functions.manifest.json');
+  mkdirSync(join(corruptBackend, 'generated'), { recursive: true });
+  writeFileSync(corruptManifestPath, '{"functions": [not-json}\n');
+  try {
+    let corruptServer;
+    assert.doesNotThrow(() => {
+      corruptServer = new McpControlServer({
+        backendDirectory: corruptBackend,
+        projectRoot: corruptBackend,
+      });
+    });
+    assert.equal(corruptServer.catalog, null);
+    assert.equal(
+      corruptServer.catalogDiagnostics[0].code,
+      'SNAPBACK_MCP_FUNCTION_MANIFEST_INVALID',
+    );
+    assert.equal(corruptServer.catalogDiagnostics[0].details.manifestPath, corruptManifestPath);
+    assert.ok(corruptServer.catalogDiagnostics[0].details.parseError.length > 0);
+
+    let corruptCatalogDispatches = 0;
+    corruptServer.servedResult = async () => {
+      corruptCatalogDispatches += 1;
+      throw new Error('corrupt catalog must refuse before function dispatch');
+    };
+    const corruptRun = await corruptServer.callTool('snapback_run_function', {
+      function: 'demo:createTodo',
+      args: {},
+    });
+    assert.equal(
+      corruptRun.structuredContent.diagnostics[0].code,
+      'SNAPBACK_MCP_FUNCTION_MANIFEST_INVALID',
+    );
+    assert.equal(corruptCatalogDispatches, 0);
+  } finally {
+    rmSync(corruptBackend, { recursive: true, force: true });
+  }
 
   assert.throws(
     () => requireMatchingControlCatalogIdentity(
@@ -76,6 +114,38 @@ assert.ok(
     unavailable.result._meta['snapback/resourceDiagnostics'][0].message,
     /no compatible co-installed native Snapback binary/,
   );
+
+  let unclassifiedDispatches = 0;
+  missingNative.servedResult = async () => {
+    unclassifiedDispatches += 1;
+    throw new Error('missing or stale catalog must refuse before function dispatch');
+  };
+  const missingCatalogRun = await missingNative.callTool('snapback_run_function', {
+    function: 'demo:createTodo',
+    args: {},
+  });
+  assert.equal(
+    missingCatalogRun.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_CATALOG_ARTIFACTS_MISSING',
+  );
+  assert.equal(unclassifiedDispatches, 0);
+
+  missingNative.catalog = {
+    entries: [],
+    functionManifestHash: `sha256:${'c'.repeat(64)}`,
+  };
+  missingNative.catalogDiagnostics = [];
+  const staleCatalogRun = await missingNative.callTool('snapback_run_function', {
+    function: 'demo:createTodo',
+    args: {},
+    authority: { mode: 'devAdminBypass', reason: 'prove catalog classification remains mandatory' },
+  });
+  assert.equal(
+    staleCatalogRun.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_FUNCTION_CATALOG_MISS',
+  );
+  assert.equal(staleCatalogRun.structuredContent.next[0].command, 'snapback generate');
+  assert.equal(unclassifiedDispatches, 0);
 
   let catalogDigest = `sha256:${'a'.repeat(64)}`;
   let nativeGuideSpawns = 0;
@@ -746,56 +816,19 @@ try {
     assert.ok(Array.isArray(entry.diagnostics));
   }
 
-  // LLP 0146 D7 option B: MCP preserves the unchanged host-op Diagnostic,
-  // including the ruled nested carrier, without adding an MCP-only wrapper.
-  let unknownFunction;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    unknownFunction = await client.call('snapback_run_function', {
-      function: 'listTods',
-      args: {},
-    });
-  }
+  // A generic function reference absent from the generated catalog is
+  // authority-ambiguous. Refuse locally instead of asking the server to run
+  // what could be a mutation omitted by a stale catalog.
+  const unknownFunction = await client.call('snapback_run_function', {
+    function: 'listTods',
+    args: {},
+  });
   assert.equal(unknownFunction.structuredContent.ok, false);
   assert.equal(
     unknownFunction.structuredContent.diagnostics[0].code,
-    'SNAPBACK_HOST_OP_FUNCTION_UNKNOWN',
+    'SNAPBACK_MCP_FUNCTION_CATALOG_MISS',
   );
-  const unknownFunctionDetails = unknownFunction.structuredContent.diagnostics[0].details;
-  assert.equal(unknownFunctionDetails.candidateFunctions[0].name, 'listTodos');
-  assert.equal(unknownFunctionDetails.candidateFunctions[0].kind, 'LiveQuery');
-  assert.equal(typeof unknownFunctionDetails.artifactHash, 'string');
-  const remediation = decodeRemediationSet(unknownFunctionDetails);
-  assert.equal(remediation.artifactHash, unknownFunctionDetails.artifactHash);
-  assert.equal(remediation.items[0].action.replacement, 'listTodos');
-  assert.equal(
-    remediation.items[0].precondition.artifactHash,
-    unknownFunctionDetails.artifactHash,
-  );
-  const appliedRemediation = await client.call('snapback_remediation_apply', {
-    schemaVersion: 'snapback.remediation-apply.v1',
-    artifactHash: remediation.artifactHash,
-    item: remediation.items[0],
-  });
-  assert.equal(appliedRemediation.structuredContent.ok, true, JSON.stringify(appliedRemediation));
-  assert.deepEqual(
-    appliedRemediation.structuredContent.data.replacement,
-    { target: 'function', value: 'listTodos' },
-  );
-  const staleArtifactHash = `sha256:${'a'.repeat(16)}`;
-  const staleItem = structuredClone(remediation.items[0]);
-  staleItem.precondition.artifactHash = staleArtifactHash;
-  const staleRemediation = await client.call('snapback_remediation_apply', {
-    schemaVersion: 'snapback.remediation-apply.v1',
-    artifactHash: staleArtifactHash,
-    item: staleItem,
-  });
-  assert.equal(staleRemediation.structuredContent.ok, false);
-  assert.equal(
-    staleRemediation.structuredContent.diagnostics[0].code,
-    'SNAPBACK_REMEDIATION_ARTIFACT_STALE',
-  );
-  assert.ok(unknownFunctionDetails.localMissSummary.sameMissCount >= 3);
-  assert.equal(unknownFunctionDetails.localMissSummary.capacity, 128);
+  assert.equal(unknownFunction.structuredContent.next[0].command, 'snapback generate');
   assert.doesNotMatch(JSON.stringify(unknownFunction.structuredContent), /listTods/);
 
   const unknownArgumentField = await client.call(mutationTool.name, {
