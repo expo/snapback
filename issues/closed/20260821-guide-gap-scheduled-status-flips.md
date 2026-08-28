@@ -1,6 +1,6 @@
 # guide-gap: show scheduled expiry and status-flip workflows
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -42,3 +42,14 @@ bounded-scan, idempotency, retry, overlap, and test-tick semantics.
   delivery of the status change.
 - Notification wording does not claim unshipped production delivery adapters.
 
+## Resolution
+
+Added `guide/recipes/scheduled-expiry.md`, backed by the executable
+`tests/fixtures/guide-scheduled-expiry` example and the cron acceptance suite.
+The recipe shows a cron action calling a bounded, idempotent mutation; pins
+system authority, `NoOverlap`, `NextTick`, and request-time expiry semantics;
+and verifies test-tick execution plus stream delivery without sleeping. It also
+contrasts transactional one-off jobs and separates daily-digest selection from
+app-owned external delivery without claiming generic production email/SMS
+adapters. The capability aliases and retrieval eval now cover the three product
+phrases recorded by the diary.

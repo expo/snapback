@@ -9,8 +9,9 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:f69a89f211633bef6232851c37e3da506b4548cba2b8deeb3bd45fedc373e870
+reviewed-authorities-digest: sha256:193d82a23f9e4bda1a74ee40d7d2d3a7ddc2507cee0b29ee95e34308443e2b8a
 ---
 
 # Scheduled execution with cron
@@ -26,6 +27,10 @@ as user-triggered work. Cron owns only recurring, source-declared schedules;
 one-off delayed work — the `runAfter` shape a mutation enqueues at runtime —
 is [one-off durable jobs](./jobs.md), a separate subsystem with a separate
 ledger (LLP 0028's 2026-07-30 boundary amendment).
+
+For the complete action → bounded mutation pattern behind “expire stale
+rows,” “flip a link to expired,” and daily selection work, use the executable
+[scheduled expiry and status flips recipe](../recipes/scheduled-expiry.md).
 
 ## Define the job
 

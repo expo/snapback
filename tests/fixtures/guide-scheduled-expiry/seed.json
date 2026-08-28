@@ -1,0 +1,12 @@
+{
+  "tables": {
+    "links": [
+      { "_id": "link_due_a", "slug": "due-a", "status": "active", "expiresAt": 1000 },
+      { "_id": "link_due_b", "slug": "due-b", "status": "active", "expiresAt": 2000 },
+      { "_id": "link_due_c", "slug": "due-c", "status": "active", "expiresAt": 3000 },
+      { "_id": "link_due_d", "slug": "due-d", "status": "active", "expiresAt": 4000 },
+      { "_id": "link_already_expired", "slug": "already-expired", "status": "expired", "expiresAt": 500 },
+      { "_id": "link_future", "slug": "future", "status": "active", "expiresAt": 8000000000000000 }
+    ]
+  }
+}

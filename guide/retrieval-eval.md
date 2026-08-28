@@ -9,8 +9,9 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
+reviewed-authorities-digest: sha256:f928289eea2aee480bb689d12d9732f8d2d145407dc146305f256b6ad1b465e9
 ---
 
 # Retrieval eval protocol
@@ -1527,6 +1528,18 @@ spellings and repairs appear only under Required guidance.
      Route terms: "supervised Expo web wants stdin detached or the owner dies on pipe EOF".
      Required guidance: "stdin EOF now closes only the optional command channel",
      "leaves the supervisor and its children live", "may use `/dev/null`".
+
+134. **Scheduled expiry, status flips, and daily digests:** "Expire stale rows,
+     flip a link to expired, or send a daily digest without sleeping in tests."
+     The run fails if it invents a privileged expiry helper, uses an unbounded
+     scan, treats the stored status as the exact-time security boundary, or
+     claims a generic production email/SMS adapter.
+     Expected pages: `recipes/scheduled-expiry.md`.
+     Route terms: "expire stale rows", "flip a link to expired",
+     "send a daily digest".
+     Required guidance: "one bounded, idempotent mutation",
+     "request-time expiry check",
+     "does **not** currently ship generic production email or SMS delivery adapters".
 
 
 
