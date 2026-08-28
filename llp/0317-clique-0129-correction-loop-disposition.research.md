@@ -1,0 +1,451 @@
+# LLP 0317: Clique 0.1.29 correction-loop disposition
+
+**Type:** Research
+**Status:** Review
+**Systems:** Agent experience, Developer experience, Benchmarks, Guide,
+Diagnostics, React/Expo, Local server lifecycle, Auth, Client integration,
+Live queries, Assets, Code generation, Packaging, Testing
+**Author:** Charlie Cheever / Codex
+**Date:** 2026-08-27
+**Revised:** 2026-08-28 (r2: super-refine round 1. Evidence base corrected
+from four lanes to all eight Snapback lanes in the matrix; F2 narrowed; O10
+and O12 re-diagnosed against published 0.1.29; N5 and N16 corrected; rows
+O31–O46 and N18–N20 added. See §Revision history.)
+**Related:** LLP 0061, LLP 0186, LLP 0193, LLP 0196, LLP 0198, LLP 0200,
+LLP 0201, LLP 0208, LLP 0219, LLP 0253, LLP 0295, LLP 0310, LLP 0310.000,
+LLP 0316, `diaries/0114-clique-published-0129-matrix.diary.md`,
+`benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md`,
+`issues/20260825-clock-dependent-visibility-authoring-friction.md`,
+`issues/20260827-defineauth-successor-silent-refusal.md`,
+`issues/20260827-live-query-cross-client-fanout-staleness.md`,
+`issues/20260827-media-collection-capability-skew-published-runtime.md`,
+`issues/20260827-snapback-expo-metro-generations-watcher-crash.md`
+
+## Summary
+
+The 2026-08-27 Clique matrix ran **eight autonomous Snapback lanes** — four
+models (`gpt-5.6-sol`, `grok-4.6`, `gpt-5.6-terra`, `GLM-5.3-flash`) across the
+Explicit and Familiar authoring profiles — against published Snapback 0.1.29.
+They exposed the difference between *eventual completion* and a one-shot paved
+authoring loop. This document inventories every distinct correction cause found
+in those lanes' diaries and, where needed to recover the exact event, their run
+logs, essays, and final reports. Repeated retries with the same cause are folded
+into one row.
+
+The inventory has exactly the three dispositions requested by the author:
+
+1. **Fixed or plausibly fixed** — current `main` contains a product, guide, or
+   diagnostic change aimed at the observed cause. These rows still need a
+   published rerun before they become proven closure.
+2. **Not a Snapback problem** — benchmark-instrument, renderer-contract,
+   host-environment, or ordinary application/test mistakes for which changing
+   Snapback would be the wrong response.
+3. **Snapback prevention backlog** — everything else. This includes genuine
+   defects, subpar surfaces, missing diagnostics, missing recipes, and
+   correctly refused mistakes that a strong agent should have been guided away
+   from before spending a correction loop.
+
+The dominant open clusters are client authority/custody, reactive-read
+causality, media path coherence, mutation settlement across navigation,
+Explicit/Familiar grammar discoverability, **Familiar-profile parity**, and
+end-to-end application recipes. The lesson is not merely to fix thrown errors.
+Per LLP 0310's author standard, when a capable agent repeatedly chooses a wrong
+shape, the product should ask what made that shape natural and cheaply prevent
+it.
+
+## Scope and method
+
+### Included evidence
+
+This document's evidence base is **all eight Snapback lane cells** of the
+matrix, whose diaries, run logs, essays, and score files are retained in the
+repository at:
+
+```text
+benchmarks/runs/2026-08-27-clique-published-0129-matrix/lanes/
+  sol-snapback-explicit/    sol-snapback-familiar/
+  grok-snapback-explicit/   grok-snapback-familiar/
+  terra-snapback-explicit/  terra-snapback-familiar/
+  glm-snapback-explicit/    glm-snapback-familiar/
+```
+
+Live copies of the four lanes that ran on `expo-build-450b` also remain under
+`/home/ccheever/clique-matrix-0129/lanes/`; the `sol-snapback-explicit`
+copy there is still growing (see §Exclusions).
+
+For each lane this pass read `diary.md`; it used `run-log.md`, `essay.md`,
+`scores.json`, and `final-report.md` to distinguish a root cause from the
+model's workaround or a later retry artifact.
+
+Lane depth is uneven, and the inventory weights it accordingly:
+
+| Lane | Model | Depth reached | Weight in this inventory |
+|---|---|---|---|
+| `sol-snapback-explicit` | gpt-5.6-sol @ xhigh | M1–M8 + unsealed scale tail | Richest single source |
+| `grok-snapback-explicit` | grok-4.6 @ xhigh | M1–M4 green, M5/M6/M8 partial (4/8, the deepest **scored** Snapback lane) | Second richest |
+| `sol-snapback-familiar` | gpt-5.6-sol @ xhigh | M1–M2 green, M3 instrument abort (2/8) | Rich on realtime/custody |
+| `grok-snapback-familiar` | grok-4.6 @ xhigh | M1–M2 green, M3+ partial (2/8) | Rich on Familiar parity |
+| `glm-snapback-explicit` | GLM-5.3-flash | M1 green, then OpenCode harness hang | One milestone, precise |
+| `glm-snapback-familiar` | GLM-5.3-flash | M1 green, then OpenCode harness hang | One milestone, precise |
+| `terra-snapback-explicit` | gpt-5.6-terra @ medium | Premature stop at 220 s | Non-signal (see N16) |
+| `terra-snapback-familiar` | gpt-5.6-terra @ medium | Premature stop at 348 s | Non-signal (see N16) |
+
+This is qualitative N=1-per-cell existence evidence under LLP 0201, not a
+frequency or magnitude claim. Where a cause appears in more than one lane the
+row says so, because cross-lane recurrence is the strongest available signal
+that a surface — not a model — is at fault.
+
+Lane self-attribution is evidence, not the final disposition. A row labeled
+`agent-error` remains a Snapback prevention item when a type, diagnostic,
+template, or guide sentence could cheaply have prevented it. Conversely, a row
+the lane labeled `snapback-defect` is moved out when Snapback is not the owner
+(N14 is the worked example).
+
+### Exclusions and cutoff
+
+- The `sol-snapback-explicit` lane's M5 scale replay **was still running when
+  this revision was written** (its codex process was alive and its `run-log.md`
+  still growing at 2026-08-28T00:20Z). Its correction tail is not classified
+  here; §Scale tail preview records what it has already produced, because two
+  independent reviewers established that the tail contains causes that are not
+  scale variants of existing rows. Import it properly in a revision after the
+  lane seals.
+- The `glm-snapback-explicit` and `glm-snapback-familiar` lanes stalled on
+  OpenCode harness hangs after M1. Their M1 evidence is inventoried; their
+  absence of later evidence is not read as a Snapback fact.
+- Native iOS/Xcode/Hermes legs were environment-null on Linux and made no
+  Snapback capability claim.
+- Repeated frozen-choreography attempts are collapsed to the underlying cause.
+- A workaround becoming green does not prove that the underlying Snapback
+  issue is fixed.
+
+### Disposition standard
+
+`Fixed or plausibly fixed` means a directly relevant change is present on
+`origin/main` as of 2026-08-28. It does **not** mean that change is published,
+that the exact matrix has rerun, or that every existing app inherits a template
+change. `Not a Snapback problem` means Snapback should not change to accommodate
+the incident; another owner may still owe work. All uncertain cases go to the
+prevention backlog rather than being dismissed.
+
+Where this document names a repair that *already exists in the version the lane
+ran*, the row is a **misdiagnosis** and says so: the observed failure is real,
+but its stated cause is not, and it needs a focused reproduction before anyone
+implements against it. O10 and O12 are the two such rows.
+
+## 1. Fixed or plausibly fixed
+
+| ID | Observed correction cause | Evidence and present disposition | Closure still owed |
+|---|---|---|---|
+| F1 | Metro's fallback watcher raced `.snapback/generations/.tmp-*`, crashed with `ENOENT`, and caused `SNAPBACK_EXPO_METRO_EXITED` in both sol profiles. | Commit `21684e9cc` adds a `.snapback/generations` block-list rule to the `expo-chat` and `media-feed` Metro templates — the only two CLI templates that carry a Metro config, so template coverage is complete. This directly implements the workaround both lanes discovered. | Publish the template change; scaffold both templates from the published version; prove repeated schema/function successors do not kill Metro. **The product-side root cause is unaddressed:** codegen still writes and atomically removes transients inside the watched project tree, so any app not built from these two templates, any other bundler, and every existing app stay exposed. Either move the transient workspace outside the project tree or make the write pattern non-racing, and keep a retrofit note in the guide/ticket. Reconcile the still-open ticket metadata. |
+| F2 | **Narrowed in r2.** Multiple Node/headless personas implicitly shared the default durable auth partition, restored one principal, and produced outbox identity/writer refusals. | Commits `a6ab002e0` and `2b1bb1f15` **retarget and qualify** the pre-existing `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` warning and multi-persona recipe (both originated in `94e1c1fff` / `144e4c9cf`), add live-query routing and retrieval evaluation. The Node/headless mechanism is real and repaired: `sol-snapback-explicit` `1787853600`→`1787853610`. | Rerun a two-persona fixture and prove the warning fires before misleading product assertions. **This row no longer claims shared custody as the dominant cause of the matrix's broad fanout report.** The warning is Node-gated by construction (`packages/snapback-client/app-client.mjs`: it returns unless `typeof globalThis.process?.versions?.node === 'string'`), so it cannot fire for a browser client, and the broadest fanout evidence is from Playwright browser contexts. The residual now lives in O14, widened. |
+| F3 | `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` stopped protected time-windowed and typing-lease live queries; the lane moved expiry projection client-side. Corroborated in `grok-snapback-familiar` M5. | The time-windowed-read recipe now covers load-pinned clocks, server-authored row times, lease expiry, refresh boundaries, range scans, and busy windows (`0b9d7e9e7`, `f3cde9050`, `8f6c21494`). | Verify the served 0.1.30-or-later guide routes the exact typing query to the recipe. **The heavier primitive question stays open in `issues/20260825-clock-dependent-visibility-authoring-friction.md`, not in O15** — O15 is about causal subscription diagnostics, which is a different problem. `grok-snapback-familiar` states the primitive gap precisely: "query results cannot depend on `RuntimeNow`, so disappearing expiry cannot be a server query filter without a scheduled purge." The recipe is also Explicit-shaped; see O32. |
+
+These are the only rows this revision treats as already addressed. In
+particular, a precise refusal in the 0.1.29 lane is not called fixed merely
+because the agent eventually understood it.
+
+## 2. Not a Snapback problem
+
+### Benchmark, harness, and ordinary test mistakes
+
+| ID | Correction cause | Why it is out of Snapback scope | Proper owner/action |
+|---|---|---|---|
+| N1 | Models guessed obsolete or nonexistent instrument, UI-kit, fixture, and choreography paths before resolving the checked-in files. | These are benchmark packet paths, not Snapback APIs. | Instrument packet/index and runner preflight. |
+| N2 | A shared placeholder password overrode the four fixture personas' distinct credentials. | Harness invocation error. | Benchmark launcher should validate persona credential completeness. |
+| N3 | A helper dereferenced an actor wrapper as the raw app client; another test expected an internal actor label rather than the server display name; another used `dm-alice-bob` instead of canonical `d-alice-bob`. | Ordinary acceptance-code bugs with authoritative fixtures available. | Benchmark test code. |
+| N4 | Tests assumed exactly nine total group messages after choreography had legitimately added messages, or allowed retained high-like posts to displace the intended Trending tie rows. | Retained-state and test-isolation mistakes. | Assertions should bind exact fixture identities and run-scoped facts. |
+| N5 | Browser proofs sampled before React mounted, expected a deep link to survive login, started from a route that retained an inactive stack entry, targeted the wrong quote ancestor, selected duplicate inactive bubbles, or read reply order before the reply rendered. | Playwright/Router test construction errors, not backend behavior. **Narrowed in r2:** the reload-after-sign-in event previously folded here is not one of these; it is now O46. | Choreography readiness and locator design. |
+| N6 | Feed/follow/like/repost tests failed to traverse pagination, acted before profile state hydrated, or targeted old retained rows rather than retry-safe current fixtures. | Application/test observation mistakes. | Benchmark assertion helpers. |
+| N7 | The M3 starter already added Dave, one check computed aggregate-read without Dave, and the next check required Dave to be addable. | The frozen instrument contradicted its own send-time-recipient invariant. Sol Familiar correctly aborted instead of falsifying product behavior. `grok-snapback-familiar` M3 hit the same contradiction independently. | Fix and version the Clique instrument; preflight starter state against choreography preconditions. This contradiction cost `sol-snapback-familiar` its entire M4–M8 remainder. |
+| N18 | The lane packet asked for a `_generated/` directory; published 0.1.29 refuses that alias and requires `snapback/generated`. Hit by `sol-snapback-familiar` (`1787853002`) and `grok-snapback-familiar` M1. | The product spelling is correct and documented; the benchmark packet carried the wrong one. | Fix the instrument packet. Tracked separately as a guide papercut in `issues/20260825-guide-gap-generated-directory-spelling.md`. |
+| N19 | A profile-creation UI showed a generic refusal instead of the declared `HANDLE_TAKEN` application code, repaired with `projectAppRefusal` (`sol-snapback-familiar` `1787853539`). | `projectAppRefusal` exists, is exported, and the lane found it from the served guide in one lookup. This is an ordinary application wiring step, not a missing surface. | No product change. Consider one line in the template's error path so the shape is copied rather than discovered. |
+
+### Renderer and frozen-UI contract mismatches
+
+| ID | Correction cause | Why it is out of Snapback scope | Proper owner/action |
+|---|---|---|---|
+| N8 | React Native Web dropped the frozen kit's `accessibilityValue`/selected semantics and represented images as CSS-background descendants. Hit by all four deep lanes. | Renderer-to-instrument semantic mismatch. Snapback neither owns React Native Web nor the frozen kit contract. | Social UI kit or choreography should provide/test a web adapter. **But** four independent lanes each rebuilt the same web semantic bridge, and `sol-snapback-familiar` asked for "a renderer-compatibility warning for dropped accessibility values." One sentence in the Expo start packet naming this RNW behaviour is cheap and is owed even though the defect is not Snapback's — see O44. |
+| N9 | Expo Router retained inactive screens, creating duplicate hidden composers and message bubbles that confused global locators. | Router rendering plus unscoped harness locators. | App/harness route scoping; do not change Snapback data semantics. |
+| N10 | The kit placed reaction chips beside the bubble while the harness required them below it; the background preview put observable state on a descendant while the harness inspected its root. | Frozen UI and frozen observer disagreed structurally. | Align the kit and benchmark contract. |
+| N11 | Re-selecting identical fixture image bytes yielded identical observable state until the app versioned the URI. | Retry-observability artifact in the fixture/UI contract. | Instrument should provide distinct selections or compare authoritative state. |
+
+### Host, tool-safety, and lane-execution facts
+
+| ID | Correction cause | Why it is out of Snapback scope | Proper owner/action |
+|---|---|---|---|
+| N12 | The vendored read-only UI kit could not materialize its own `node_modules`; the frozen choreography directory was read-only and had to be mirrored. | Instrument packaging/permissions issue. | Materialize dependencies before freezing or provide a writable lane-local copy. |
+| N13 | A combined adoption command attempted recursive deletion and was refused by the agent safety layer. | Correct tool-safety behavior. | Agent should use a recoverable copy/move, as it did. |
+| N14 | React Native DevTools could not launch Chrome because of Linux SUID sandbox ownership/mode. The lane tagged this `snapback-defect`; that attribution is overridden here. | Optional host-tool setup; Metro and the product stayed ready. | Host image or React Native DevTools packaging. |
+| N15 | Linux had no iOS Simulator, Xcode, or Hermes export environment. | Registered environment-null leg, not a failure. | Run native evidence on a qualified macOS host. |
+| N16 | **Corrected in r2.** Both terra lanes stopped after **220 s** (explicit) and **348 s** (familiar) with M1 `capability-failure` and everything downstream `blocked-by-M1`. The earlier claim that Terra Explicit ran "until its time budget expired" is wrong. | `gpt-5.6-terra` @ medium self-aborted almost immediately in all five of its matrix cells. The matrix record classifies every terra lane **`premature-stop, non-signal`** and excludes them from capability reads. | Model/harness outcome, not a product refusal. Their one usable contribution is corroboration for O22 and O5; do not read their scores as Snapback evidence. |
+| N17 | Invalid staging name `.scaffold` was immediately and accurately refused; the model retried with `clique-app`. Terra Explicit separately had `npm create snapback-app` refuse an existing lane target and guessed a nonexistent `expo-router` template before selecting the documented `expo-chat`. | The bad inputs were cheap, local, and self-explanatory. | No product change for the staging name. The guessed template name argues for the start packet naming the available templates — folded into O1. |
+| N20 | Three glm lanes and one glm cell never produced post-M1 evidence because the OpenCode harness hung. | Harness/runner fault outside Snapback. | Benchmark runner; do not read glm silence as a Snapback fact. |
+
+## 3. Snapback prevention backlog
+
+This group is intentionally broad. Some rows are bugs. Some are correct safety
+boundaries whose paved spelling was not discoverable early enough. Some are
+application mistakes that repeated because Snapback lacks an end-to-end recipe.
+Every row asks for the cheapest intervention that makes the next strong agent
+avoid the loop. **Lane counts are given where a cause recurred**, because
+recurrence across independent models is the strongest signal available.
+
+### Setup, templates, and lifecycle
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O1 | Sol Familiar first looked for unscoped `snapback@0.1.29`; Sol Explicit guessed an incompatible Expo Router major; Terra Explicit guessed a nonexistent `expo-router` template name. | Published package family, Expo tuple, and available template names should be generated facts, not registry archaeology. | Scaffold owns all compatible pins; start packet names scoped packages **and enumerates the templates**; diagnostic for mixed Expo tuple. |
+| O2 | Both sol lanes **and `grok-snapback-explicit`** started supervised Expo with some default ports outside their assigned block because `--port-range` was omitted (grok: "Metro's inner port escaped 4287–4387 until `--port-range 48100-48119`"). *3 lanes.* | A primary lifecycle should not silently escape an otherwise explicit backend/client/bootstrap allocation. | Make a declared range encompass every child by default, or warn/refuse when explicit child pins and the implicit Metro range disagree; put the complete command in the start packet. |
+| O3 | Explicit auth required two codegen loops: `externalSessionEntry: false` is invalid, and disabled auth still needs `guestPolicy: {enabled:false}`. Familiar needed unprompted policy metadata (`CODEGEN_POLICY_INVALID`) and fixed `durable-required` custody. **`grok-snapback-familiar` independently:** "the familiar-profile page never showed a complete password `defineAuth` example; `entryMechanisms: []` until we copied the explicit program." *3 lanes.* | These are minimal-password-app basics. Types and a focused example should make the only valid minimal shape obvious before generate. | Add a copyable minimal password-only `defineAuth` example **on the familiar-profile page as well as the explicit one**, improve optional-true typing, generate disabled defaults where safe. Route the broad module-evaluation code and `CODEGEN_POLICY_INVALID` to exact field recipes — `CODEGEN_POLICY_INVALID` currently has **no** guide page at all. |
+| O4 | Replacing the scaffold seed required `SNAPBACK_SEED_MIGRATION_REQUIRED` and a reset before M1. | The refusal is correct, but template-to-real-app transition should be anticipated. | Start packet should say when the starter seed becomes active and offer a one-command pre-data replacement/reset path with an explicit preservation warning. |
+| O5 | Terra Familiar activated an Explicit template store, converted source profiles, generated a Familiar manifest, then never received application readiness; destructive reset was forbidden. **Root cause identified in r2 (see O31): there is no Familiar template, so every Familiar app must begin as an Explicit one and convert.** | Cross-profile local adoption is not an exotic path — it is currently the *only* path to a Familiar app, and it must either succeed as a successor or fail loudly with a repair. | Reproduce the exact Explicit→Familiar transition; add a coded successor-status diagnostic and a profile-conversion/reset recipe. Do not leave a live parent with no application-ready conclusion. Shipping O31 removes most of the need for this path. |
+| O6 | Sol Explicit's sole supervised owner and all children disappeared during M2 hot reload (`1787854310`) with the database preserved and no causal terminal receipt — no `ENOENT`, no closure receipt, distinct from and earlier than the first named Metro crash at `1787854616`. | Even if distinct from the fixed Metro race, unexplained owner loss is a dev-loop defect/observability gap. | Correlate owner/Metro/backend exit cause in the closure receipt; add preserved-store restart guidance and a focused reproduction. **Check O33 first** — `generate` removing the application-ready receipt mid-lifecycle is a newly identified mechanism that could explain this event. |
+| O7 | An authenticated warm web app taken offline at `DOMContentLoaded` rendered terminal `SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE`; the documented cached binding was absent and online recovery did not occur. `grok-snapback-explicit` M3 needed the same shape: "a layout-level network-recovery reload so Bob could `markDelivered`." *2 lanes.* | This contradicts the paved supervised cold/offline boot story. | Reproduce against current main, fix binding cache/reconnect if confirmed, and add an acceptance case for warm-auth offline boot followed by online recovery. |
+| O8 | Obsolete template screens remained in the TypeScript include set after the lane replaced the starter schema. | Template extension should not make dead starter code an ambient compilation liability. | Narrow template includes, separate optional starter screens, or provide a generated removal checklist. |
+| O31 | **New in r2.** There is no Familiar-native template. `glm-snapback-familiar`: "a Familiar-native starter (the packaged template is explicit-profile only)." Every Familiar lane therefore scaffolded an Explicit template and converted it by hand; that conversion is exactly what killed `terra-snapback-familiar` (O5). *All 4 Familiar lanes.* | A first-class authoring profile with no starter is not a paved path. The conversion step is unpaved, destructive-adjacent, and is the single largest Familiar-profile setup cost in the matrix. | Ship a Familiar template (`expo-chat-familiar` or a `--profile familiar` flag on the existing templates) so a Familiar app never has to begin as an Explicit one. |
+| O32 | **New in r2.** Guide pages outside `backend/familiar-profile.md` show Explicit-profile examples only. `glm-snapback-familiar`: "assets/grants/membership pages all show explicit-profile examples, so every media decision required translation." `grok-snapback-familiar` echoes it for conversation media, offline queues, clock-dependent visibility, and 7-day bucket math. *2 lanes, 4 topics.* | Familiar authors pay a translation tax on every recipe outside one page. That is a parity gap, not a documentation nicety. | Decide and record a Familiar-parity policy for the guide: either dual-profile snippets on every recipe page, or a generated Familiar transliteration, or an explicit scoped statement of which pages are Explicit-only. F3's own recipe is subject to this. |
+| O33 | **New in r2.** `snapback generate` removes the application-ready receipt mid-lifecycle and breaks Expo bootstrap until it is reminted. `grok-snapback-familiar` M4: "Expo bootstrap exchange going 503 whenever `application-ready` vanished mid-generate"; M6: "Application-ready file deleted during generate broke Expo boot until remint"; M5: "Bootstrap remint after generate." *3 sightings, 1 lane.* | The receipt is the client's boot contract. Deleting it during a routine codegen turns an ordinary edit into a boot failure with a 503 and no explanation. | Make the receipt update atomic (write-new-then-swap) rather than delete-then-write, or hold the previous receipt valid until the successor is ready; emit a coded diagnostic if a client boots during the window. Test against O6. |
+| O37 | **New in r2.** Supervised `snapback dev` dies when its stdin pipe reaches EOF; the start packet does not say so. `grok-snapback-explicit` M1: "supervised Expo web wants stdin detached or the owner dies on pipe EOF … the start packet never says `snapback dev` over a pipe EOF stops the owner." | Every non-interactive agent runs commands over a pipe. A lifecycle that silently dies under the default agent invocation is a first-contact trap. | Either keep the owner alive when stdin closes (or require an explicit `--control-channel`), or refuse loudly at startup naming the fix. Put the non-interactive invocation in the start packet. Reconcile with `issues/20260825-dev-control-channel-requires-stdin.md`. |
+| O38 | **New in r2.** A `babel.config.js` under `"type": "module"` breaks the Metro transformer until renamed `.cjs`. `grok-snapback-explicit` M1 and `grok-snapback-familiar` M1. *2 lanes.* | The scaffold produces the package.json; the scaffold should produce a transformer config that works with it. | Emit `babel.config.cjs` from the templates, or set `"type"` so the pair is consistent, and add a diagnostic mapping the Metro transformer error to this cause. |
+
+### Explicit/Familiar grammar and diagnostics
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O9 | Inline handlers repeatedly refused natural JavaScript: computed array access for pagination and result correlation, computed `uniqueMany` association (`1787867160`), and module-level free identifiers (`grok-snapback-explicit`: "`HANDLE_RE` as a const is refused"). *2 lanes.* | Repetition across independent features and models means the dialect's admitted replacement is not natural enough. | Diagnostic must show a compilable `for...of`/ID-carrying rewrite; add a linter/code action and put the restriction in the first handler packet. Reconcile with `issues/20260826-inline-handler-free-identifier-recovery.md`. |
+| O10 | **Re-diagnosed in r2.** Reads used `take(1,200)`/`take(2,048)` above the 1,024 ceiling — that part stands. The lane then attributed one empty history page to a runtime `take(limit)` and repaired it with a fixed bound plus slicing (`1787864590`). **The stated cause is wrong:** published 0.1.29 types `take(limit: number)`, its codegen admits non-literal bounds, and `8f6c21494` — one of F3's own cited commits — ships a guide example using `.take(args.limit)`. The previous recommendation to "refuse dynamic `take` at generate time" would have broken a supported, documented shape and contradicted F3. | A numeric ceiling can be type/diagnostic-visible. But the empty-projection event has no established cause. | Expose generated maximums and name the 1,024 ceiling with a fixed-bound-then-slice repair where the ceiling is the issue. **Reproduce the empty projection through the real runtime first.** If dynamic `take` is genuinely broken, fix it and qualify F3's recipe; if it works, correct the record and do not remove the API shape. |
+| O11 | A one-record Explicit JS query returned an object instead of a rows array. | The surface looks scalar-shaped but the runtime requires records. | Generated signature/example should make `[{...}]` unavoidable; diagnostic should include the exact one-row pattern. |
+| O12 | **Re-diagnosed in r2.** The lane repeatedly added aliases and assertions because `ctx.refuse()` did not narrow nullable TypeScript results (`1787853979`, `1787856034`). **The proposed repair already shipped:** `refuse(code, details?): never` is the declared type in **published 0.1.29's** `@expo/snapback-codegen/ctx.d.mts` (lines 313 and 371), verified against the registry tarball, and Familiar contexts derive from it. | Familiar code should preserve familiar control-flow narrowing — and by declaration it already does, so something else defeated it. | Do **not** implement "type `ctx.refuse` as `never`"; it is already true. Build a minimal pinned-declaration reproduction to establish whether the real cause is generated-type skew, a helper wrapper widening the return, editor/tsserver staleness, or the lane's particular control-flow shape. |
+| O13 | Structured IDs inside arrays, `v.media` in anonymous results, unsupported `minItems`, one-member literal/union shapes, ambient `Date`, and empty-write read-model mutations each forced separate generate loops. `grok-snapback-familiar` adds `v.union([v.null(), v.string()])` being opaque JSON and unindexable; `grok-snapback-explicit` adds `recipientIds` degraded to a CSV string; the `Date` refusal recurs in `grok-snapback-familiar` M5/M8. *3 lanes.* (The computed `uniqueMany` case moved to O9, where it belongs.) | Each refusal may be principled, but together they make ordinary code a grammar-discovery exercise. | Build an "ordinary TypeScript → admitted Snapback spelling" diagnostic table with executable snippets; improve types to reject impossible validator shapes before codegen; consider a first-class read model/action result that does not lie about writes. |
+| O39 | **New in r2.** Elevated reads are refused in helper modules and on inline handlers. `glm-snapback-familiar` M1: "elevated reads can't hide in helper modules"; `grok-snapback-explicit` M8: "`defineJsQuery elevatedReads` refused on inline handlers." *2 lanes.* | The composition rule is defensible; discovering it by refusal after structuring the code around helpers is not. | State the elevated-read placement rule in the handler packet with the admitted shape; make the diagnostic name the module boundary it objected to. |
+| O40 | **New in r2.** `ctx.db.patch` is table-first; the row-id-only spelling yields `SNAPBACK_UNKNOWN_TABLE`. `glm-snapback-explicit` M1. | A generated ID carries its table; a patch taking only that ID is the shape an author expects, and the failure names a missing table rather than the wrong arity. | Either accept the row-id-only spelling, or make the diagnostic say "patch is table-first; call `ctx.db.patch(table, id, …)`" instead of reporting an unknown table. |
+| O41 | **New in r2.** Result contracts require `null` rather than absence for optional fields, and asset fields require `ctx.assets.attach` rather than a raw id. `grok-snapback-familiar` M1: "optional asset fields still must serialize as `null`" — "learned from a runtime refusal, not the Guide"; M3: "result-contract `requiredField` on optional document columns." | Null-vs-absent is the classic serialization trap, and here it is learned at runtime after the contract is written. | Make the generated result type reject the absent-field shape at compile time, and document null-vs-optional on the result-contract page with both profiles. |
+
+### Live queries, authority, and client custody
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O14 | **Widened in r2.** Committed rows were visible to one-shot reads but did not wake already-subscribed live queries, in three distinct shapes: (a) child-row reaction inserts/patches woke neither the encompassing JS query nor a dedicated declarative subscription (`sol-snapback-explicit` `1787860576`/`1787861040`); (b) a settled mutation was absent from the **same** client's live hook for 3 s and present after a fresh query (`sol-snapback-familiar` `1787857038`, `manual-playwright`); (c) cross-client fanout stayed stale under two Playwright contexts **while the same-client projection updated** (`sol-snapback-familiar` `1787857472`). `grok-snapback-explicit` M3 adds (d): an unscoped `allMessages` live query "went silent" on a 179-row thread. `grok-snapback-familiar` M3 adds receipt ticks never advancing to `delivered`. *4 lanes.* | Shapes (b) and (d) are single-client and shape (c) is browser-to-browser, so **none of them can be explained by the Node-gated shared-partition mechanism in F2.** `sol-snapback-explicit` M5 supplies the sharpest discriminator: "nested or custom live-query dependencies remained stale while direct row queries converged." | Run the ticket's clean repro **with two partitions and two browser contexts**, and separately test a direct row query against a nested/child-row dependency and an unscoped large-result query. Fix matching/invalidation if reproduced. Correct `issues/20260827-live-query-cross-client-fanout-staleness.md`, `diaries/0114`, and `benchmarks/.../record.md` §6, all three of which currently assert the harness-artifact explanation as settled. |
+| O15 | Agents could not trace hook → authority generation → commit → invalidation publication → subscriber revision, so they tried nonce churn, polling, skip cycles, revision rows, presence, reloads, and snapshot mutations. | Missing causal observability turned one uncertainty into hours of destructive workaround exploration. | Implement the LLP 0219-style client diagnostic join/receipt; teach a bounded diagnostic ladder before any refresh-argument workaround. This is the single highest-leverage row in the document: it is what would have prevented most of O14's workaround spiral. |
+| O16 | Nonce-based refresh accumulated subscriptions until `SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT`. | The API let a likely workaround create a new live handle per refresh without an early causal warning. | Diagnose unstable/churning subscription identity with current/limit counts and point to one-shot/read delivery or stable args before the cap. |
+| O17 | Foreground and background clients/effects hit writer, identity, authorization-suspended, stale-result, and commit-reentrant states; same-principal browser contexts sometimes stranded hooks while direct headless calls stayed fast. `glm-snapback-explicit` M1 independently: "the first authenticated mutation after a signup/sign-in can race the custody adoption barrier (`SNAPBACK_AUTH_STALE_RESULT`, `SNAPBACK_OUTBOX_NOT_WRITER`)." *3 lanes.* | Single-writer and authority transitions are soundness boundaries, but the app cannot tell which owner or operation is blocking it. | Emit owner/authority generation, conflicting operation, effect-may-have-committed, and exact leave/close repair at the call site; provide a same-account multi-context recipe and conformance demo. |
+| O18 | Replay needed unique store identities, offline-queue disablement, per-attempt transport IDs, client closure, and separation of transport idempotency from domain idempotency. A recorded transport intent survived a client-side refusal. | Ordered online replay is a first-party benchmark/agent use case and should not require discovering five custody rules independently. | Add a canonical multi-persona ordered-replay client factory/recipe that makes these choices explicit and validated. Separately establish whether a client-side refusal should be able to leave durable transport intent recorded. |
+| O19 | A direct conversation route could wait indefinitely for an authenticated profile live query; a mutation was used to resolve/create the DM atomically. | Route readiness should not depend on a fragile client-side join when the product has an authoritative server operation. | Add an "open by natural key" route recipe and diagnostic for route gates waiting on unsettled protected queries. |
+| O34 | **New in r2.** Membership-scoped access is not expressible. `glm-snapback-familiar` M1: "`access.read: 'members'` isn't in the closed union." `sol-snapback-explicit` M3: "the public typing rule is broader than the desired membership scope because I did not find a generated ephemeral authorization composition that could share the custom membership check." `grok-snapback-familiar` M3: "membership-scoped `allow.members()` was too expensive to adopt in-budget; we used a durable typing table instead." *3 lanes.* | Group messaging is the canonical case, and in all three lanes the app **widened its visibility** to ship. That is a security-relevant cost paid because the narrow spelling was unavailable or unaffordable. | Establish whether membership-scoped read/ephemeral authorization is expressible today. If it is, route it from the ephemeral and protecting-data pages with a worked group-typing example; if it is not, this is a primitive gap and needs an RFC under the authorization LLP. |
+| O42 | **New in r2.** Driving the generated API from Node is under-documented: headless `liveQuery` requires a `connectionId` (`grok-snapback-explicit` M6); wire-route shapes and the positioned `baseUrl` constructor arg "were only fully visible in package type sources"; "the command-client input shape is documented only via tests" (`glm-snapback-explicit` M1, which asks for "a 'drive the generated API from Node' page in the Guide" and estimates it "would have saved an hour"). *2 lanes.* | The headless client is a first-party arm and an agent's primary automation surface. | Add the headless "drive the generated API from Node" page: client construction, auth, `connectionId` for live queries, command-client input shape, and the wire routes. |
+| O43 | **New in r2.** There is no "mark delivered when this principal's live query fetches" primitive, so delivery receipts must be client-acked. `grok-snapback-familiar` M3. | Read/delivery receipts are a defining feature of the messaging shape the benchmark and most real apps need, and a client-ack is a weaker trust story than a server-observed fetch. | Decide whether server-observed delivery is in scope. If yes it is a primitive proposal under the live-query LLP; if no, publish the client-ack pattern as the supported answer with its trust boundary stated. |
+
+### Mutation settlement, offline UI, and retained state
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O20 | Full navigation immediately after Remove or disappearance selection abandoned the component's mutation promise; the destination could send before authoritative state changed. | This repeated in two milestones and is a predictable Expo Router + durable mutation seam. | Provide a settled-navigation helper/recipe: persist intent synchronously, resume idempotently at destination, and gate the next authority-sensitive action on a server witness. |
+| O21 | Transport loss blanked an active query and unmounted the composer even though retained messages existed. `grok-snapback-explicit` M5/M6 independently: "retainable `allMessages` still empty on the search surface after `goto('/search')` + `setOffline`" and offline send control unclickable. `grok-snapback-familiar` M6: "warm-offline compose depends on the Snapback web provider remaining mounted with the network cut; it did not" and "no documented web-offline mutation queue for familiar React." *3 lanes, every deep lane that reached offline.* | A local-first product should make retained-vs-current projection state explicit enough that an app does not throw away usable UI. Three independent lanes each hand-built an outbox. | End-to-end Expo Web offline conversation/outbox recipe with retained snapshot, pending rows, reconnection, and composer readiness; a hook state that distinguishes retained data from unavailable transport. Establish why a retained query is empty offline — that is a defect claim, not only a recipe gap. |
+| O22 | Terra Explicit could not find a short product-shaped route from the chat template to profiles, graph, feeds, group roles, media, offline, aggregates, and cron; it asked for "a concise capability map for server schedules, durable web custody, and the benchmark's aggregate/read-model needs" and "an end-to-end migration recipe for this benchmark's many relational tables." | The template proves a narrow chat, but agents building the canonical social shape repeatedly reconstruct the same architecture. | Add a relational-social application recipe/capability map or a richer maintained reference app. This is docs/template work, not a request for generic endpoints. |
+| O23 | The custom-client snapshot workaround exceeded the 65,536-byte durable mutation result cap at 165,844 bytes. | The limit was discovered after building the fallback and the error did not provide a product-shaped paging projection. | Surface result budgets in generated types/docs; diagnostic should recommend query/paging/streaming and estimate the admitted row bound before execution where possible. |
+| O24 | Repeated retained tests needed optimistic sender echo, atomic delivered receipts, authority-independent receipt projections, and bounded idempotent retries before same-account messaging converged. | These are common messaging semantics, and each workaround changes trust or consistency. | Provide a maintained messaging convergence recipe that separates optimistic local echo, durable settlement, delivery/read authority, and same-account multi-device observation. |
+
+### Assets and media
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O25 | Both sol lanes first represented fixture media as base64 strings and only then hit the 32 KiB structured-value ceiling, after other M2 writes had settled. Sol Familiar reached the right answer only "after the single M1→M2 schema successor was already active," so it shipped with typed media as a candid gap. | The wrong shape is the easiest web-fixture shape; discovering the limit mid-successor is expensive and can be unrecoverable within a successor budget. | Put "bytes are assets, never structured strings" in the template/start packet; refuse data-URI-looking stored strings early with the typed-asset repair; expose the ceiling before replay. |
+| O26 | The documented generated media collection compiled but published Linux 0.1.29 lacked `assets.media-collection.v1`. | Codegen and the co-published runtime were incoherent. | Resolve the open capability-skew ticket; publication qualification must compare every codegen-required capability against every platform runtime. If experimental, codegen must refuse before output and the guide must route to the fallback. |
+| O27 | Trying the generated collection forced owner-visible parent semantics, host-stamped-owner omission, static insert shapes, unique-conflict disclosure, and then blocked cross-author post reads; after O26 the lane reversed much of the design. | The happy path exposed a large, non-obvious policy bundle before runtime capability admission. | Add a generated preflight explaining all parent-table consequences before schema activation; provide side-by-side "collection" and "typed child row" designs for public social media. |
+| O28 | Media kind and typed delivery arrived through separate projections, so a bubble could be considered ready before the harness/app knew it was video; view-once could appear before bytes were available. `grok-snapback-familiar` M4: video bytes "never became observable" and splitting text-then-media still left photo live-render red. *2 lanes.* | Split metadata/delivery readiness is legitimate but needs a standard render contract. | Asset UI recipe should define metadata-ready, delivery-ready, openable, and terminal states and show how to gate controls without hiding the whole message. |
+| O35 | **New in r2.** Asset and live-query surfaces fail by returning empty rather than by refusing. `grok-snapback-explicit` M1: "`useSnapbackAssetImage` stays empty without `maxWidth`"; M3: an unscoped `allMessages` live query "went silent" on a 179-row thread. | Silent emptiness is the worst failure mode for an agent: there is nothing to search for and nothing to route to a guide page. It is the same class as O29's silent successor refusal. | Make the asset hook refuse or warn when a required sizing argument is absent; make an over-bound live query emit a coded diagnostic naming the bound rather than delivering nothing. Sweep the client surface for other silent-empty paths. |
+| O36 | **New in r2.** `defineCommand` carries one asset, so every media send is a separate upload intent plus a mutate (`grok-snapback-explicit` M2/M4). `grok-snapback-familiar` M4: `useSnapbackAssetUpload` "blocked send long enough that Bob never saw the caption." *2 lanes.* | Multi-attachment messages and posts are ordinary; the one-asset command turns them into two-phase application state that must then be made idempotent and non-blocking. | Either admit multiple assets per command or publish the two-phase upload-then-mutate pattern as the supported recipe with its ordering, idempotency, and non-blocking-send requirements spelled out. |
+
+### Auth/schema successors and silent degradation
+
+| ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
+|---|---|---|---|
+| O29 | **Provenance corrected in r2.** `glm-snapback-explicit` changed `defineAuth.minimumLength`; the successor silently retained the old value until a full store reset (signup kept returning the old bound). This event is from the glm lane, which r1 did not declare as in scope; it is in scope in r2. | Silent non-application is worse than refusal. | Reproduce the open ticket. Apply the change or emit a specific successor/auth diagnostic naming reset/migration; add conformance coverage. |
+| O30 | Owner-policy correction patches were easy to apply to the wrong table, and generated collection ownership temporarily broke ordinary cross-author reads. | Security-shaped schema changes need a before/after policy projection, not source-text surgery and runtime discovery. | Generate a policy diff/preview naming each table, owner field, stamped inputs, read visibility, and unique disclosures before activation. |
+| O44 | **New in r2.** Guide retrieval fails on broad queries even when the right page exists. `sol-snapback-explicit` essay: "Its biggest weakness was discoverability: broad searches frequently returned no result even when a relevant page existed"; M1: "the Guide search returned no entry for the broad module-evaluation code." `sol-snapback-familiar`: `CODEGEN_POLICY_INVALID` "lacked a working exact diagnostic page." *2 lanes, and it is the mechanism behind several other rows.* | Every other guide fix in this document is worth less if the page cannot be found from the words a failing agent actually types. This is the cheapest high-leverage row here. | Add diagnostic-code → page routing for every emitted code that lacks one (`CODEGEN_POLICY_INVALID` and `SNAPBACK_AUTH_THROTTLED` are confirmed missing; audit the whole registry), and add broad-query retrieval cases to `guide/retrieval-eval.md` drawn from the exact phrases these lanes searched. |
+| O45 | **New in r2.** Two lanes wanted one Expo-web sentence Snapback could cheaply own even though the defect belongs to React Native Web: `accessibilityValue` is dropped and images become CSS-background descendants. See N8 for why the defect itself is out of scope. | Snapback ships the Expo start packet; a known renderer behaviour that every web lane hits belongs in it. | One paragraph in the Expo/web start packet naming the RNW semantic drops and the app-owned bridge pattern. |
+| O46 | **Split out of N5 in r2.** After successful credential adoption, a **full navigation** returned to the auth surface while client-side routing retained the session (`sol-snapback-explicit` `1787857420`). The lane's workaround avoided full reload and never diagnosed why durable authentication disappeared across it. | Durable web custody surviving a full page load is the core promise of durable custody. An unexplained loss is either a defect or a documented boundary — it cannot stay unclassified. | Reproduce sign-in followed by a full document navigation and establish whether durable custody survives. Fix or document the boundary; add an acceptance case. Related to O7 and O33, which also involve boot-time binding state. |
+
+## Priority synthesis
+
+The backlog should not be implemented in table order. The evidence suggests
+six priority bundles:
+
+1. **Authority and reactive causality:** O14–O19, O34, O43, O46. These consumed
+   the most debugging time and drove semantically costly polling and
+   public-read fallbacks. **O15 first** — the causal trace is what turns the
+   rest of this bundle from speculation into diagnosis.
+2. **Published media coherence:** O25–O28, O35, O36. Fix codegen/runtime skew
+   first, then make the two admitted media models and readiness states obvious.
+3. **Paved mutation/offline application patterns:** O20, O21, O24. These are
+   common app requirements, not Clique trivia.
+4. **Generate-time prevention:** O3, O9, O11, O13, O23, O29, O30, O39–O41.
+   Prefer types, preflight, and exact repair diagnostics over prose discovered
+   after failure. O10 and O12 are **excluded from this bundle** until their
+   reproductions establish a real cause.
+5. **Template/start-packet closure:** O1, O2, O4, O5, O6, O7, O8, O22, O33,
+   O37, O38, O45. A builder should be able to start, evolve, reconnect, and
+   convert the maintained template without repo archaeology.
+6. **Familiar-profile parity:** O31, O32, plus the Familiar halves of O3, O13,
+   O21, and F3. Familiar is presented as a first-class profile but has no
+   template and one documentation page; every Familiar lane paid for that.
+
+Two rows sit outside the bundles by design: **O44** (guide retrieval) is a
+prerequisite multiplier for every documentation intervention in bundles 2–6 and
+should land first among the cheap items; **O42** is a single missing page whose
+absence is measured in hours per lane.
+
+## Proposed proof and routing
+
+This Research document does not itself authorize product design. Follow-up
+owners should route work as follows:
+
+- Straightforward diagnostics, guide gaps, template changes, and focused bugs
+  become filesystem tickets under `issues/` and cite the relevant O-row.
+- O14, O17, and O21 require faithful focused reproductions before a design
+  claim. O10, O12, O33, and O46 require reproductions before *any*
+  implementation, because their stated causes are unestablished or refuted.
+- O26 is publication/coherence work and must remain fail-closed.
+- O29 is a silent-degradation defect and should be reproduced urgently; O35 is
+  the same class and should be swept alongside it.
+- Any new primitive proposed for O15, O17, O20, O34, O43, or the open half of
+  F3 needs an RFC/spec amendment under its governing subsystem LLP.
+- **Three sibling artifacts inherit F2's superseded framing and must be
+  corrected with it:** `diaries/0114-clique-published-0129-matrix.diary.md`
+  ("the cross-client fanout reports were a test-harness artifact, not a
+  Snapback bug"), `benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md`
+  §6, and `issues/20260827-live-query-cross-client-fanout-staleness.md`.
+- LLP 0186/0198 should measure closure as fewer Snapback-attributable correction
+  loops in a fresh published Clique pin, not merely as tickets closed on main.
+
+The next published rerun should record, for every row exercised:
+
+1. whether the bad path was impossible, refused before costly work, or merely
+   documented;
+2. whether the agent found the correct repair from the served guide without
+   package-source inspection;
+3. correction-loop count and elapsed time;
+4. whether the fix changed application trust, visibility, or consistency; and
+5. the exact published package/runtime/template identities.
+
+## Scale tail preview
+
+The `sol-snapback-explicit` scale replay is still running and is formally out
+of scope, but both round-1 reviewers independently established that it contains
+causes which are **not** scale variants of O10, O18, O23, or client retention.
+Recorded here so the follow-up plan can size the work; classify properly when
+the lane seals.
+
+- `SNAPBACK_SCHEMA_FIELD_RETYPED` refuses raising an array validator's
+  `maxItems` from 32 to 64 **on a fresh pre-replay store** (`1787868970`,
+  `attribution=snapback-defect`). A general successor defect, not a scale fact.
+- `SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` at a global 10,000 records; the
+  saturated durable mutation ledger then **refused mutation-backed Insights and
+  Trending reads** (`1787872963`, `1787875370`).
+- Replay mint-by-email issued a principal distinct from the local-password
+  identity, causing `PROFILE_REQUIRED` (`1787872045`).
+- The published ordered mutation runner cannot carry asset-upload references
+  (`1787872227`).
+- `SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` then `SNAPBACK_QUERY_FILTER_BINDINGS_EXCEEDED`
+  at `maxInItems`/`maxFilterBindings` = 500 (`1787875220`) — the O10 ceiling
+  family, different limits.
+- `SNAPBACK_AUTH_THROTTLED` at 16 concurrent password entries (`1787870680`);
+  this code has no guide route (see O44).
+- `SNAPBACK_REPLAY_DEFINITION_INVALID` for pool 512 against a published max of
+  64 (`1787873130`).
+
+## Confidence and open questions
+
+Confidence is high that the listed events occurred: each is stated in a lane
+diary, essay, or structured run log. Confidence in causal attribution varies:
+
+- F1 is directly repaired in current template source; its product-side root
+  cause is not.
+- F2 is now scoped to the Node/headless mechanism it can actually explain. The
+  broad fanout claim is **withdrawn**, not merely qualified.
+- F3 is a guide closure, not proof that the best primitive exists.
+- O10 and O12 are **refuted as diagnosed**: the repairs they proposed already
+  exist in the exact published version the lanes ran. The failures are real;
+  the causes are unknown.
+- O14, O17, O21, O33, and O46 require focused reproduction before
+  implementation claims.
+- O6 may collapse into F1 or into O33; it remains separate because its retained
+  event names neither the Metro temporary-file race nor a generate window.
+- Rows sourced from a single glm lane (O29, O40) rest on one milestone of
+  evidence from a lane that later hung; they are precise but thin.
+
+Open questions:
+
+1. Which O-rows already have tickets under different wording and should be
+   linked rather than duplicated? Known candidates:
+   `20260825-metro-exit-on-codegen-tmp.md` (F1),
+   `20260825-dev-control-channel-requires-stdin.md` (O37),
+   `20260826-inline-handler-free-identifier-recovery.md` (O9),
+   `20260825-guide-gap-generated-directory-spelling.md` (N18).
+2. Which current-main fixes are absent from the next published package set?
+3. **Answered in r2, provisionally:** the sealed sol-explicit scale tail adds
+   new root causes, not only scale variants — see §Scale tail preview. The
+   question that remains is how many more it adds before it seals.
+4. Should the social reference path be a richer template, a maintained demo,
+   or an intent-routed guide packet under LLP 0061/0196? O31 makes this
+   sharper: whatever the answer, it needs a Familiar edition.
+5. What minimal causal receipt would let an agent distinguish auth custody,
+   subscription matching, and renderer staleness without reading source?
+   This is O15, and it is the question the whole authority bundle turns on.
+
+## Exit criterion
+
+This research can move from Review to Active after:
+
+1. ~~the current matrix artifacts and diaries are imported into the
+   repository~~ — **satisfied** before r2: commits `77b621623` and `44fcd1263`
+   imported all twenty lane cells under
+   `benchmarks/runs/2026-08-27-clique-published-0129-matrix/`;
+2. the sol-explicit scale tail is classified in a dated revision;
+3. each O-row is linked to an existing owner or a new filesystem ticket, with
+   duplicates reconciled;
+4. the three F-rows are verified against a coherent published package/template
+   pin or moved back to the prevention backlog; and
+5. the three sibling artifacts carrying F2's superseded framing are corrected
+   (see §Proposed proof and routing).
+
+## Revision history
+
+**r2 — 2026-08-28 (super-refine round 1; reviewers: codex `gpt-5.6-sol` @ ultra
+and `grok-4.6` @ xhigh, both NOT READY; artifacts under `llp/reviews/0317-*`).**
+
+- **Evidence base corrected.** r1 declared four Snapback lanes; the matrix ran
+  **eight**, all retained in-repo. The four r1 omitted include
+  `grok-snapback-explicit`, the deepest *scored* Snapback lane (4/8 greens),
+  and both glm lanes. Rows O31–O46 and N18–N20 come from that import, and
+  seven pre-existing rows gained cross-lane corroboration.
+- **F2 narrowed** (both families MATERIAL). The shared-partition mechanism is
+  Node-gated and cannot explain the browser and same-client evidence; the
+  "dominant cause of the broad fanout report" claim is withdrawn and the
+  residual moved into a widened O14. Three sibling artifacts inherit the old
+  framing and are now listed for correction.
+- **O10 and O12 re-diagnosed** (codex MATERIAL, orchestrator-verified against
+  the published 0.1.29 tarball). Both prescribed repairs that already ship in
+  the version the lanes ran; both are now reproduction-first.
+- **O29 provenance disclosed** (both families MATERIAL) — it is glm-sourced,
+  which r1's four-lane scope excluded.
+- **N5 split**; the reload-after-sign-in event became O46 (codex MATERIAL).
+- **N16 corrected** — the terra lanes stopped at 220 s and 348 s and are
+  classified `premature-stop, non-signal` by the matrix record; "time budget
+  expired" was wrong.
+- **N18, N19 added** from codex MATERIAL M6; **O9** absorbed the computed
+  `uniqueMany` case from O13 (grok m4); **O3** now names
+  `CODEGEN_POLICY_INVALID` (grok m2); **F3**'s cross-reference corrected from
+  O15 to the clock ticket (codex m1); **O6** bundled (both families);
+  **exit criterion 1** marked satisfied (codex m3).
+- A sixth priority bundle (Familiar parity) and a §Scale tail preview were
+  added. Growth exceeds the loop's ~20% budget by design: the round's finding
+  was that half the evidence base was missing, and the author's brief was
+  completeness.
+- **Status set `Draft` → `Review`** at loop start, the one transition the
+  refine loop is authorized to apply.
+
+**r1 — 2026-08-27.** Initial synthesis of the published-0.1.29 Clique matrix
+Snapback lanes as then understood (four lanes); the sol-explicit scale tail was
+still running and was excluded.
