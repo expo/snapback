@@ -14,6 +14,7 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:0776ae1ed843d8f89ef62bbd3d5e0197c43d3641e4295d6c619c85281b2c6929
 ---
@@ -420,6 +421,10 @@ proof command, and honest nonclaims without opening every demo.
   managers and stores, settle authority, deduplicate snapshots, inspect, and
   enforce the 16-warning/64-hard subscription budget while preserving bounded
   independent subscriptions.
+- [Read receipts (client-ack)](./recipes/read-receipts.md) — the supported
+  shape for "seen"/"read" state: one row per (message, recipient), a monotonic
+  idempotent advance, session-derived asserter identity, a bounded watermark,
+  and the trust boundary a client-asserted receipt must not carry.
 - [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
   — the honest row-visibility workaround for a private column such as
   Messtimate's phone number, with separate-read, owner-only join, and
@@ -2763,6 +2768,21 @@ spellings and repairs appear only under Required guidance.
      Required guidance per page:
      `start/expo-chat.md`: "4,096-node `CanonicalClientValueV1` ceiling", "Do not export unused table queries", "optional `before` argument".
      `clients/react-expo.md`: "4,096-node ceiling", "Do not export unused table queries", "optional `before` argument", "SNAPBACK_REACT_ARGS_INVALID".
+
+136. **Read receipts with no server-observed fetch primitive:** "There is no
+     obvious mark-delivered-when-this-principal's-live-query-fetches
+     primitive, so we had to client-ack." The run fails if it presents the
+     client-ack as an unsupported workaround, omits the trust boundary, gates
+     access/entitlement/deletion on the acknowledgement, takes the recipient
+     from a mutation argument, or claims `hasFreshClient` witnesses that a
+     query fetched rows.
+     Expected pages: `recipes/read-receipts.md`.
+     Route terms: "read receipt", "mark as read", "mark delivered when this principal's live query fetches", "seen by".
+     Required guidance: "The server is taking the client's word",
+     "if a lying client would gain something, a read receipt must not be the gate",
+     "Never revoke, expire, or delete on a read-ack",
+     "hasFreshClient({ principalId }) is connectedness",
+     "no primitive yet".
 
 
 

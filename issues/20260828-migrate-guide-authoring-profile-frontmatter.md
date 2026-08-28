@@ -11,10 +11,14 @@
 ## Summary
 
 The Familiar parity-policy survey classified the 100 authored Guide pages as
-5 Familiar-covered, 52 Explicit-only, and 43 profile-neutral. Three pages now
-declare their scope directly: the original `guide/conventions.md` exemplar plus
-`guide/backend/schema-evolution.md` and `guide/clients/react-expo.md`, migrated
-during integration. The active legacy inventory therefore contains 97 rows.
+5 Familiar-covered, 52 Explicit-only, and 43 profile-neutral. Seven pages now
+declare their scope directly: the original `guide/conventions.md` exemplar,
+`guide/backend/schema-evolution.md` and `guide/clients/react-expo.md` (migrated
+during integration), `guide/auth/passwords.md` and `guide/auth/scoped-roles.md`,
+and — migrated 2026-08-28 when the read-receipt recipe landed — `guide/index.md`
+and `guide/retrieval-eval.md`, both `[]` per their surveyed neutral scope. The
+active legacy inventory therefore contains **93 rows**, the one-way ledger
+holds 6, and the two partition the frozen 99 exactly.
 
 The immutable authority remains the original 99 `(path, scope, SHA-256)` tuples
 in `scripts/guide-authoring-profiles-baseline.mjs`. The active subset lives in

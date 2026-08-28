@@ -1,6 +1,6 @@
 # Decide how non-`SNAPBACK_*` diagnostics enter the errors-as-docs ledger
 
-**Status:** Open
+**Status:** Closed
 **Owner:** Charlie Cheever / Claude (LLP 0193 owner)
 **Systems:** Diagnostics, Guide, Codegen, Testing
 **Date:** 2026-08-28
@@ -59,3 +59,43 @@ Choose and document one owned completeness path that:
 
 The choice belongs to LLP 0193 because it changes the population and grading
 unit of that program, not merely one guide route.
+
+## Resolution (2026-08-28)
+
+**Decided: they join the existing registry and ledger. No parallel extractor,
+no parallel ledger, no second completeness check.** Recorded as a dated
+amendment in `llp/0193-errors-as-docs-completeness.plan.md`
+(§"Dated amendment — 2026-08-28: non-`SNAPBACK_*` product diagnostics join this
+ledger"), which is where the population and grading unit of that program are
+owned.
+
+The deciding reason is exit criteria 2 and 4: they range over "every ledger
+entry classified agent-triggerable" and are validated by a benchmark run
+encountering zero B/C refusals. A second ledger lets a run be clean against the
+`SNAPBACK_*` half while the author's actual experience is ungraded. Lexical
+prefix is not a property of the set LLP 0186 W3's bar is about.
+
+**The rule that makes it safe** is that intake changes, not the pattern. The
+`SNAPBACK_*` sweep is untouched. Non-`SNAPBACK_*` codes enter through a second,
+disjoint, **emitter-scoped** rule: a code is admitted where a *declared product
+diagnostic emitter* constructs it — currently only the codegen diagnostic
+channel in `packages/snapback-codegen/` — from a checked allowlist.
+Prefix-widening is refused because SCREAMING_SNAKE is also the **application**
+refusal namespace (`ctx.refuse('MESSAGE_NOT_FOUND')`, `refusals: [...]`), and
+an app-authored code is indistinguishable from a product code by shape. Emitter
+scope makes the population decidable by construction instead of by a growing
+exclusion list.
+
+All five observed codes are dispositioned in the amendment's table: all are
+codegen-channel emissions, all are agent-triggerable, and all five already
+carry the checked author-facing route lane L8 landed
+(`guide/getting-started/generated-artifacts.md#recover-from-policy-parse-and-broad-module-evaluation-failures`,
+`guide/getting-started/your-first-backend.md#structured-stored-values`,
+`guide/operating/diagnostics.md#anti-patterns`). They enter at Phase 1 intake
+with those anchors; grades belong to the grading lane and are not asserted in
+the amendment.
+
+**Follow-up filed:**
+`issues/20260828-0193-emitter-scoped-diagnostic-intake.md` — the extractor,
+`codeNamespace` field, registry-chain regeneration, ratchet extension, and the
+negative test proving an application's `ctx.refuse` codes stay out.

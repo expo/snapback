@@ -85,7 +85,9 @@ Every new `SNAPBACK_*` route has a `diagnostic-primary` marker. The five
 prefix-invisible product codes cannot receive registry primaries because
 `DIAGNOSTIC_CODE_PATTERN` recognizes only `SNAPBACK_*`; they have direct
 lexical routes and the general ownership question is filed in
-`issues/20260828-non-snapback-diagnostic-registry-scope.md` for LLP 0193.
+`issues/closed/20260828-non-snapback-diagnostic-registry-scope.md` for LLP 0193
+(answered 2026-08-28; the implementation is
+`issues/20260828-0193-emitter-scoped-diagnostic-intake.md`).
 
 The other 14 lane-hit codes already had source-Guide anchors and were left in
 place: `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS`,

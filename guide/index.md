@@ -9,6 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:0776ae1ed843d8f89ef62bbd3d5e0197c43d3641e4295d6c619c85281b2c6929
 ---
@@ -415,6 +416,10 @@ proof command, and honest nonclaims without opening every demo.
   managers and stores, settle authority, deduplicate snapshots, inspect, and
   enforce the 16-warning/64-hard subscription budget while preserving bounded
   independent subscriptions.
+- [Read receipts (client-ack)](./recipes/read-receipts.md) — the supported
+  shape for "seen"/"read" state: one row per (message, recipient), a monotonic
+  idempotent advance, session-derived asserter identity, a bounded watermark,
+  and the trust boundary a client-asserted receipt must not carry.
 - [Split a sensitive field into its own table](./recipes/split-sensitive-fields.md)
   — the honest row-visibility workaround for a private column such as
   Messtimate's phone number, with separate-read, owner-only join, and

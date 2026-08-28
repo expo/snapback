@@ -117,6 +117,7 @@ export const MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS = Object.freeze([
   'guide/backend/schema-evolution.md',
   'guide/capabilities.md',
   'guide/clients/react-expo.md',
+  'guide/index.md',
   'guide/realtime/live-queries.md',
   'guide/retrieval-eval.md',
   'guide/start/expo-chat.md',

@@ -5,7 +5,7 @@
 **Systems:** Diagnostics, Error handling, Guide, Agent experience, CI
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-08
-**Revised:** 2026-08-10 (amendment: grading unit for shared codes tightened
+**Revised:** 2026-08-28 (amendment: non-`SNAPBACK_*` product diagnostics join this ledger through an emitter-scoped second discovery rule rather than a parallel check — answers the LLP 0317.000 L8 escalation; the five observed codegen codes get intake dispositions.) 2026-08-10 (amendment: grading unit for shared codes tightened
 per LLP 0223 ticket 4 — per emitting context, (code, operation) under
 fan-out; first entry `SNAPBACK_AUTH_REQUEST_INVALID` recorded ahead of the
 Phase 1 ledger.) 2026-08-10 (amendment: accepts ownership of the `snapback
@@ -84,7 +84,9 @@ bar structural, so it can never regress.
 
 ## Program
 
-**Phase 1 — enumerate and grade.** Extract the complete `SNAPBACK_*`
+**Phase 1 — enumerate and grade.** (Extended by the 2026-08-28 amendment
+below: intake also covers emitter-scoped non-`SNAPBACK_*` product diagnostics,
+so the inventory is the union of both discovery rules.) Extract the complete `SNAPBACK_*`
 code inventory (a raw identifier sweep finds ~2,700 `SNAPBACK_*` symbols
 including env vars and test constants; the diagnostic subset is the
 real population and Phase 1 establishes its size) from the diagnostic registry
@@ -308,6 +310,124 @@ has not landed yet; per LLP 0223 ticket 4, this amendment records the
 grading and the ledger entry follows with Phase 1. The generated
 diagnostics registry is not hand-annotated; any registry change rides
 ticket 2's generated fields.
+
+### Dated amendment — 2026-08-28: non-`SNAPBACK_*` product diagnostics join this ledger
+
+Answers the escalation LLP 0317.000 lane L8 filed as
+`issues/closed/20260828-non-snapback-diagnostic-registry-scope.md`. L8 routed
+the five prefix-invisible codes its eight benchmark lanes actually hit and
+deliberately left the population question to this Plan's owner.
+
+**Ruling. Stable non-`SNAPBACK_*` product diagnostics enter the existing
+registry and this ledger. There is no parallel extractor, no parallel ledger,
+and no second completeness check.**
+
+Three reasons, in the order that decided it:
+
+1. **A second ledger would fork this Plan's grading unit.** Exit criterion 2
+   ranges over "every ledger entry classified agent-triggerable"; criterion 4
+   validates it by observing that a benchmark run "encounters zero B- or
+   C-grade refusals". An author who hits `CODEGEN_POLICY_INVALID` does not know
+   or care which extractor owns it — but a split population lets a run be clean
+   against the `SNAPBACK_*` ledger while the author's actual experience is
+   ungraded. The bar LLP 0186 W3 states is about what an authoring agent can
+   trigger, and lexical prefix is not a property of that set.
+2. **The consumer is already single.** `guide/reference/diagnostics-registry.json`
+   is what `crates/snapback-guide-embed` embeds, what the errors-as-docs anchor
+   join runs over, and what `scripts/check-retrieval-eval.mjs` reads for exact
+   diagnostic targets and pin dispositions. A parallel check needs a parallel
+   registry, a parallel anchor join, and a parallel Phase 3 ratchet — three
+   copies of the machinery whose whole value is being the only one.
+3. **The cost is in the discovery rule, not the machinery.** Grading, ledger
+   fields, anchor resolution, and the drift gate are namespace-independent
+   already. Only intake has to change.
+
+#### The discovery rule
+
+The existing sweep is unchanged and is not weakened. `DIAGNOSTIC_CODE_PATTERN`
+over `DIAGNOSTICS_PRODUCTION_ROOTS`, with the same source-site classification
+that keeps environment names, protocol vocabulary, and reservations out, keeps
+owning `SNAPBACK_*` exactly as it does today.
+
+Non-`SNAPBACK_*` codes enter through a **second, disjoint, emitter-scoped
+rule** — never through a widened prefix pattern:
+
+- A code is admitted where it is constructed by a **declared product
+  diagnostic emitter**. The first and currently only entry is the codegen
+  diagnostic channel in `packages/snapback-codegen/`: the
+  `{ code, severity, subsystem, message, … }` records pushed onto `diagnostics`
+  and the `err`/`warn`/`fail`/`refuse` helpers that build them
+  (`packages/snapback-codegen/index.mjs`,
+  `packages/snapback-codegen/generate-worker.mjs`).
+- The emitter list is an explicit checked allowlist in
+  `scripts/diagnostics-registry-source.mjs`. Adding an emitter is a reviewed
+  change with the same bar as a grade regression, so the population cannot grow
+  by accident.
+
+**Why prefix-widening is refused**, in the order that decides it:
+
+1. **No prefix names the population.** The five observed codes span three
+   prefixes — `CODEGEN_*`, `SCHEMA_*`, and `FUNCTION_JS_*`. Widening to
+   `CODEGEN_*` would miss two of the five; there is no next prefix that
+   generalizes without becoming the next case of this same question.
+2. **The unprefixed shape is not distinctive inside production roots.**
+   SCREAMING_SNAKE there is also protocol vocabulary, bundler error codes,
+   `codePrefix:` fragments, and reservations — the very classes the existing
+   source-site classification was built to exclude. A pattern wide enough to
+   catch the five would re-admit them.
+3. **The shape is *also* the application refusal namespace, so it can never
+   become the rule.** `ctx.refuse('MESSAGE_NOT_FOUND')` and
+   `refusals: ['CHAT_MEMBERSHIP_REQUIRED', …]` are app-owned codes Snapback
+   must never grade, own, or route, and nothing about an app-authored code
+   distinguishes it from a product code by shape. Today that is latent rather
+   than live — application source is outside `DIAGNOSTICS_PRODUCTION_ROOTS`,
+   so no app refusal is currently reachable — but app backends *do* live under
+   a production root (`packages/snapback-cli/templates/*/snapback/`), and a
+   template declaring its first refusal code would make it live without anyone
+   touching the extractor.
+
+Emitter scope answers all three at once: it makes the population decidable by
+construction rather than by a growing exclusion list, and it does not care what
+a code is spelled.
+
+#### Ledger consequences
+
+- One ledger, one grade vocabulary, one baseline, one ratchet. Entries carry a
+  reporting-only `codeNamespace` field (`snapback` | `codegen`) recording which
+  rule admitted them; it forks no gate and no exit criterion.
+- Exit criteria 1–5 are unchanged in wording and now range over the union.
+- Phase 3's ratchet applies to a new agent-triggerable non-`SNAPBACK_*` code
+  exactly as to a `SNAPBACK_*` one.
+- OQ1's migration cadence covers both namespaces; there is no separate cadence.
+- The `snapback feedback` intake (Phase 4 amendment) needs no change: it
+  reports whatever code the author saw.
+
+#### Dispositions for the five observed codes
+
+All five are emitted by the codegen channel, all five are agent-triggerable by
+ordinary authoring, and all five already carry a checked author-facing route
+that LLP 0317.000 lane L8 landed with retrieval-eval coverage. They enter at
+Phase 1 intake with those routes as their anchors; **grades are assigned by the
+grading lane, not asserted here.**
+
+| Code | Route landed by L8 | Ledger disposition |
+| --- | --- | --- |
+| `CODEGEN_POLICY_INVALID` | `guide/getting-started/generated-artifacts.md#recover-from-policy-parse-and-broad-module-evaluation-failures` | Admit at Phase 1 intake; agent-triggerable; anchor as landed. |
+| `CODEGEN_MODULE_PARSE_FAILED` | same section | Admit; agent-triggerable; anchor as landed. |
+| `CODEGEN_MODULE_EVALUATION_FAILED` | same section | Admit; agent-triggerable. It is a documented **wrapper** with no narrower stable code, so its Phase 2 target is the message's `path` plus the wrapper's own routing rule, not an inline fix. |
+| `SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED` | `guide/getting-started/your-first-backend.md#structured-stored-values` | Admit; agent-triggerable; anchor as landed. |
+| `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` | `guide/operating/diagnostics.md#anti-patterns` | Admit; agent-triggerable. Already emits an inline repair ("Wrap a point read as `[row]`…") and is the likeliest A on intake. |
+
+L8's routes closed the observed retrieval misses. This amendment closes the
+population question those routes left open; the extractor work that implements
+the emitter-scoped rule is tracked in
+`issues/20260828-0193-emitter-scoped-diagnostic-intake.md`.
+
+#### What this amendment does not decide
+
+Whether the **codegen** namespace should eventually be renamed into
+`SNAPBACK_*` is a separate compatibility question with published-closure
+consequences and is not opened here. The ledger grades codes as emitted.
 
 ## Exit criteria
 

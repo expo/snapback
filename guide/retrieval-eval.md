@@ -1552,6 +1552,21 @@ spellings and repairs appear only under Required guidance.
      `start/expo-chat.md`: "4,096-node `CanonicalClientValueV1` ceiling", "Do not export unused table queries", "optional `before` argument".
      `clients/react-expo.md`: "4,096-node ceiling", "Do not export unused table queries", "optional `before` argument", "SNAPBACK_REACT_ARGS_INVALID".
 
+136. **Read receipts with no server-observed fetch primitive:** "There is no
+     obvious mark-delivered-when-this-principal's-live-query-fetches
+     primitive, so we had to client-ack." The run fails if it presents the
+     client-ack as an unsupported workaround, omits the trust boundary, gates
+     access/entitlement/deletion on the acknowledgement, takes the recipient
+     from a mutation argument, or claims `hasFreshClient` witnesses that a
+     query fetched rows.
+     Expected pages: `recipes/read-receipts.md`.
+     Route terms: "read receipt", "mark as read", "mark delivered when this principal's live query fetches", "seen by".
+     Required guidance: "The server is taking the client's word",
+     "if a lying client would gain something, a read receipt must not be the gate",
+     "Never revoke, expire, or delete on a read-ack",
+     "hasFreshClient({ principalId }) is connectedness",
+     "no primitive yet".
+
 
 
 ## Static routing check

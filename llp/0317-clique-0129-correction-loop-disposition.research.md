@@ -7,6 +7,12 @@ Diagnostics, React/Expo, Local server lifecycle, Auth, Client integration,
 Live queries, Assets, Code generation, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-27
+**Revised:** 2026-08-28 (r4: §Scale tail's two routed questions answered — the
+durable client-mutation ledger refuses durable-id mutation submission, not
+reads, so the read blast radius is O13/C5's authoring coupling and raises C5 to
+bundle 3; codegen should refuse `grants: true` over `public-immutable` delivery
+(new **O54**) and should not sniff application view-once vocabulary. O43's read
+half shipped as `guide/recipes/read-receipts.md`. See §Revision history.)
 **Revised:** 2026-08-28 (r2.4: Wave 1 O14 harness and scoped verdict landed.
 The reported invalidation shapes remain inconclusive; the past-1,024 arm
 confirmed a bound-refusal/quarantine mechanism rather than a matcher miss. See
@@ -297,8 +303,9 @@ under `benchmarks/runs/2026-08-27-clique-published-0129-matrix/lanes/sol-snapbac
 | O47 | `SNAPBACK_SCHEMA_FIELD_RETYPED` refuses widening an array validator's `maxItems` from 32 to 64 — **on a fresh pre-replay store with no stored data to migrate**. The lane worked around it with an additive `recipientPrincipalIdsV2(max64)` plus legacy-fallback reads. | Widening a bound is a compatible change, and on an empty store there is nothing to retype. activation calls `reject_field_retypes` **before** any row-sensitive check (`crates/snapback-kernel/src/storage/auth_mode.rs:579`), which is why an empty store does not help; the test is an exact `FieldType` inequality (`crates/snapback-kernel/src/storage.rs:14308`) in which the complete structured contract participates, so a widened bound is unequal. Note `field_type_name` does *not* carry the bound — it returns the constant `"Structured"` (`storage.rs:14567`) — so the message cannot even name what changed. Forcing a V2 field and dual-read logic for a widened maximum is a large tax on a safe edit. | Treat a widened bound as compatible. This is not free: contract-hash and storage-generation identity must be reconciled before a widening can be admitted without breaking successor identity, so the row is a design question, not a one-line predicate change. At minimum the diagnostic must name the differing contract rather than reporting an unnameable `Structured`→`Structured` retype. |
 | O49 | The documented mint-by-email path issued an email-code principal **distinct from the existing local-password identity for the same person**, so `ensureDm` refused `PROFILE_REQUIRED`. The lane added a replay-only canonical actor bridge. | The fork is **deliberate pre-hijack containment**: a password identity does not prove ownership of an address, so a later email-code exchange must not inherit the password principal's data (LLP 0227 §300). The path is also documented (`guide/operating/host-ops.md:110`, `guide/auth/sessions-and-principals.md:217`). What is missing is the *relationship* — an app offering both entry paths gets two principals for one human and learns it from a downstream `PROFILE_REQUIRED`. | **Do not auto-adopt on a matching address** — that is exactly the hijack LLP 0227 contains against. Document the relationship where multi-entry and replay apps meet it, warn in the ordered-replay recipe that mint-by-email does not adopt a local-password identity, and consider a diagnostic at the point of divergence. Revisiting LLP 0227's displacement protocol is the only path to actual adoption and needs that document's owner. |
 | O52 | **Reclassified from N22 in review.** The ordered replay runner injects a pagination argument into every query it dispatches: `pagedQuery` defaults `pageSizeKey` to `'limit'` and adds it unconditionally (`packages/snapback-acceptance/replay.mjs:1484,1492`), and the public options expose no one-shot / no-pagination mode (`packages/snapback-acceptance/index.d.mts:308`). The lane's only recourse was to widen four generated query contracts to accept an argument they did not want (`run-log.md:254`). | This is Snapback's own first-party replay helper, not lane code. It makes a correctly-typed generated contract wrong by dispatching against it, and the repair pushes the runner's implementation detail into the application's public surface. | Give `pagedQuery` a one-shot mode, or omit the page-size argument when the resolved contract does not declare it. Adjacent to O18's replay-custody work. |
-| O53 | **Reclassified from an already-ships dismissal in review.** Once the durable client-mutation ledger saturates at its 10,000-record global ceiling, the documented recovery requires re-entering the **predecessor authority cohort** (`guide/sync/offline-and-retention.md:981,1037`). An application that has lost those ACK obligations — the lane lost them to an OOM — has no paved path. The recovery that fits, an admin-gated purge (LLP 0043 §824, `crates/snapback-server/src/server.rs:27315`), ships but is exposed only as `client-mutations.purge`, `apiOnly` and `internal` (`guide/operating/agent-controls.md:396`), and it trades away exactly-once retention. | Saturation from unacknowledgeable retention is reachable by ordinary means (a crashed or replaced client), and the state is terminal for the author: the paved recovery cannot apply and the applicable recovery is not paved. | Pave an author-facing recovery for unacknowledgeable retention, stating the exactly-once cost plainly, or make the routine path cover the lost-cohort case. See also the read-blast-radius question in `issues/20260828-scale-tail-two-open-questions.md`. |
+| O53 | **Reclassified from an already-ships dismissal in review.** Once the durable client-mutation ledger saturates at its 10,000-record global ceiling, the documented recovery requires re-entering the **predecessor authority cohort** (`guide/sync/offline-and-retention.md:981,1037`). An application that has lost those ACK obligations — the lane lost them to an OOM — has no paved path. The recovery that fits, an admin-gated purge (LLP 0043 §824, `crates/snapback-server/src/server.rs:27315`), ships but is exposed only as `client-mutations.purge`, `apiOnly` and `internal` (`guide/operating/agent-controls.md:396`), and it trades away exactly-once retention. | Saturation from unacknowledgeable retention is reachable by ordinary means (a crashed or replaced client), and the state is terminal for the author: the paved recovery cannot apply and the applicable recovery is not paved. | Pave an author-facing recovery for unacknowledgeable retention, stating the exactly-once cost plainly, or make the routine path cover the lost-cohort case. See also the read-blast-radius question, **answered 2026-08-28** in §Scale-tail questions answered: the ledger refuses durable-id mutation submission, not reads, so O53 is the availability row and the read coupling is O13/C5's. |
 | O50 | The published ordered mutation runner **cannot carry asset-upload references**, so any replay touching media must fabricate a scale-only representation. | Ordered replay is a first-party benchmark and agent surface (O18), and media is in the canonical social shape. A replay path that cannot express the product's own asset writes forces every media-bearing fixture into a fiction. | Either carry asset references through the ordered runner, or state the limitation where replay is documented so it is a known boundary rather than a discovery. |
+| O54 | **New 2026-08-28, from the scale-tail question round.** Codegen admits `grants: true` on a `defineAssetUpload` whose `delivery.kind` is `public-immutable`. Delivery profile is validated against the target's advertised profiles (`packages/snapback-codegen/index.mjs:7590`) and `grants` is validated independently; nothing couples them. **Probed 2026-08-28:** adding `grants: true` and `access: { read: 'owner-only' }` to `demos/file-drop/snapback`'s existing `delivery: { kind: 'public-immutable' }` intent generates clean — `codegen ok`, no error and no warning about the combination. | A grant edge is authority over a **governed** byte request, and public-immutable delivery has no governed read to gate, so the declared grant can never deny a byte. The two facts sit in one declaration and are visible together at generate time. The same coupling already exists one subsystem over in the other direction: `SNAPBACK_MEDIA_COLLECTION_SHARING_GRANTS_UNDECLARED` refuses a recipient sharing plan whose intent omits `grants: true` (`index.mjs:12224`). | Refuse at generate time with the exact repair — `private-strict` for next-request denial, `private-signed` when a TTL-bounded bearer URL is acceptable — and state that neither retracts bytes already delivered. Second half: a revoke/close call against an intent declared `public-immutable` should be a typed refusal rather than a silent no-op. **Explicitly not in scope:** refusing an application-level view-once feature that declares no revocation at all — see the answer below. Ticketed as `issues/20260828-codegen-refuse-grants-on-public-immutable-delivery.md`. |
 
 **O48 and O51 were drafted and withdrawn in review.** O48 claimed the
 `maxInItems`/`maxFilterBindings` ceilings were unexposed; they are documented in
@@ -341,15 +348,117 @@ asset URLs) is an authoring choice against documented guidance:
 so* close or delete denies the next governed byte request. The lane used
 public-immutable delivery, which cannot revoke by construction.
 
-Both remain worth acting on, in the program's cheapest register: a saturated
-ledger blocking **reads** deserves its own question (see the ticket), and
-codegen refusing a view-once-shaped surface on a public-immutable asset is a
-generate-time prevention candidate rather than a documentation one.
+Both remain worth acting on, in the program's cheapest register. Both
+questions are now **answered below** in §Scale-tail questions answered: the
+ledger never blocked reads (the refused probes were reads authored as
+mutations, which is O13/C5's coupling), and the codegen refusal is worth
+building for *declared* revocation over non-revocable delivery (**O54**) but
+not for application-level view-once vocabulary.
 
 **Candid gap 1 is security-relevant and is ticketed**: the table-native
 conversation and receipt projections adopted to survive same-principal
 reentrancy are broader than membership-filtered private reads, so an opaque
 chat ID can expose data. That is the measured cost of the O17 workaround.
+
+### Scale-tail questions answered (2026-08-28)
+
+The two questions this section routed to
+`issues/closed/20260828-scale-tail-two-open-questions.md` are answered here.
+Both are design questions; neither answer implements anything.
+
+#### 1. A saturated durable mutation ledger does not block reads
+
+**The premise does not hold at the ledger.**
+`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` is raised on the path that admits **a
+durable client-mutation id** (`crates/snapback-kernel/src/storage.rs:24216`),
+and its message says so: "acknowledge consumed results before submitting
+another durable id". It gates durable-id mutation submission. It does not
+participate in query evaluation.
+
+The lane's own record separates the two cleanly: at the 50% checkpoint "query
+probes completed at p95 57.2-106.6ms" **while** "celebrity/small post
+acknowledgements plus Insights and Trending were refused by
+`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL`" (`run-log.md:281`). Reads were
+healthy throughout. Everything refused was on the wire as a durable mutation.
+
+So the two questions resolve as:
+
+- **Intended or incidental?** Refusing a new durable id on a saturated
+  exactly-once replay ledger is **intended** — it is what the retention promise
+  means, and the alternative is silently dropping replay obligations. The
+  coupling to *reads* is **incidental**, and it is not created by the ledger.
+  It is created upstream at the authoring boundary: the explicit JS mutation
+  contract rejects an empty write set (O13), so an analytical read had to be
+  authored as a mutation — and a mutation submitted with a durable
+  client-mutation id takes a ledger record, whatever it semantically does.
+  Insights and Trending were reads wearing a mutation.
+- **Does C5 remove the class?** **Yes — but only in the shape that carries the
+  witness**, and this is the strongest available argument for C5's priority. A
+  handler that may declare no writes is dispatched as a read, takes no durable
+  client-mutation id, and is therefore outside the ledger and its saturation
+  permanently, without tuning any limit — P2's top rung rather than its second.
+  What does *not* achieve that is a C5 that merely permits `writes: []` while
+  the handler still dispatches on the durable mutation lane; that shape hits
+  the same ceiling. So the removal is load-bearing on C5's second acceptance
+  witness — **a read-model handler must not consume a durable client-mutation
+  record** — not on the empty-write permission alone.
+
+**Scope of that claim, so it is not overstated.** C5 does not fix O53: a
+saturated ledger is still terminal for genuine writes when the predecessor ACK
+cohort is gone, and O53 remains the row for that. C5 does not raise the
+ceiling, and it does nothing for an application whose real *writes* saturate.
+It removes exactly the class where a read was refused because it had to be
+declared as a write.
+
+**Priority consequence.** C5 was commissioned as an authoring-ergonomics
+sub-row of O13 (bundle 4, generate-time prevention). It now has a measured
+availability consequence at scale, so it should be ranked with **bundle 3**
+(paved mutation/offline application patterns) while keeping its LLP 0108 owner
+and its unchanged question. It also acquires a second acceptance witness: a
+read-model handler must not consume a durable client-mutation record.
+
+#### 2. Codegen should refuse declared revocation over non-revocable delivery — and should not sniff application vocabulary
+
+The question splits into two shapes that look alike and are not.
+
+**(a) `grants: true` over `public-immutable` delivery — refuse.** This is a
+declaration-internal contradiction, both halves of it authored in the same
+`defineAssetUpload`, and codegen admits it today — probed on
+`demos/file-drop/snapback`, which generates clean with no error or warning.
+Recorded as **O54** above with its repair, its precedent, and the probe. This
+is the cheap, precise, generate-time prevention the P2 ladder asks for.
+
+**(b) An application-level view-once feature that declares no revocation — do
+not refuse.** This is what the lane actually shipped: public-immutable delivery
+plus an application `expiresAt`/viewed flag and UI hiding (`run-log.md:167`;
+`final-report.md:113`, "UI facts hide them"). Codegen sees no revocation
+declaration at all. The only remaining signal is *application vocabulary* — a
+field named `expiresAt`, a mutation named `markViewed`, a table named
+`disappearingMessages` — and a rule that sniffs authored names is one Snapback
+should not write. It cannot be stated precisely; it fires on legitimate designs
+(an expiring **text** message needs no asset revocation); and it converts an
+author's naming choice into a generate-time failure. The decisive test is that
+such a rule would refuse Snapback's own paved work: the read-receipt recipe's
+`markRead` is exactly a "mark viewed" mutation over content, and a
+vocabulary sniff broad enough to catch this lane would generate-fail it.
+Refusing (b) buys one case at the cost of a rule no author could predict.
+
+**The residue of (b), stated plainly.** After O54's second half lands — a
+revoke/close call against a `public-immutable` intent becoming a typed refusal
+rather than a silent no-op — an application that never reaches for revocation
+at all is still unprevented. That residue is documentation-shaped, and **the
+documentation already exists and was read**: `run-log.md:131` records this lane
+confirming from the served guide that "public immutable deletion cannot retract
+already cached responses", and it shipped the feature anyway.
+`guide/recipes/view-once-media.md:313,335` prescribes the working shape and
+states the boundary. So this specific failure was **not** a knowledge gap, and
+more prose is not the intervention. The honest disposition is: O54 catches every
+case where revocation is declared or attempted; the case where an app silently
+means "view once" and declares nothing is out of reach of both codegen and the
+guide, and should be recorded as such rather than papered over.
+
+Nothing here reopens the existing view-once recipe, whose guidance the review
+already confirmed correct.
 
 ## Already-ships sweep (2026-08-28)
 
@@ -553,6 +662,30 @@ This research can move from Review to Active after:
    (see §Proposed proof and routing).
 
 ## Revision history
+
+**r4 — 2026-08-28 (scale-tail question round; no review round — this revision
+answers two questions the r3 scale-tail classification deliberately routed out,
+and adds no new evidence).**
+
+- **The saturated-ledger read blast radius is not the ledger's.**
+  `SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` gates admission of a durable
+  client-mutation id (`crates/snapback-kernel/src/storage.rs:24216`), not query
+  evaluation, and the lane's own 50% checkpoint records healthy query probes
+  beside the refused mutation-backed ones (`run-log.md:281`). The refusal of
+  Insights and Trending is O13's empty-write-set coupling surfacing at scale,
+  which raises **C5** from an ergonomics sub-row to bundle 3 and gives it a
+  second acceptance witness. O53 is unchanged and remains the availability row.
+- **O54 added.** Codegen admits `grants: true` on a `public-immutable` upload
+  intent — a declaration-internal contradiction visible at generate time, with
+  an existing precedent for the coupling in
+  `SNAPBACK_MEDIA_COLLECTION_SHARING_GRANTS_UNDECLARED`. Refusing an
+  *application-level* view-once feature that declares no revocation is
+  explicitly **declined**: the only signal is authored vocabulary, and the
+  residue is documentation-shaped documentation the lane had already read
+  (`run-log.md:131`).
+- **O43's read half shipped** as `guide/recipes/read-receipts.md` with its
+  trust boundary, and the delivered half now has durable custody in
+  `issues/20260828-server-observed-delivery-primitive.md`.
 
 **r2 — 2026-08-28 (super-refine round 1; reviewers: codex `gpt-5.6-sol` @ ultra
 and `grok-4.6` @ xhigh, both NOT READY; artifacts under `llp/reviews/0317-*`).**
