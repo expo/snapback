@@ -182,6 +182,35 @@ than bookkeeping: a **production** binary reports
 derived from `cfg!(debug_assertions)`. Profile and recipe are today
 indistinguishable in the identity, exactly as 1c states.
 
+### Linux, measured (2026-08-28)
+
+Measured on an idle Hetzner fleet host (`expo-build-450b`, Ubuntu 24.04,
+12 cores), same commit, same canonical public-package command:
+
+| Build | bytes | `.text` | `.rodata` | symbols | dynsyms |
+|---|---:|---:|---:|---:|---:|
+| `--release` | 185,253,424 | 90,780,064 | 27,131,256 | 292,628 | 636 |
+| `--profile production` + strip | 122,595,864 | 82,608,640 | 25,862,821 | **0** | 625 |
+
+**−62,657,560 bytes (−33.8%)**, proportionally consistent with Darwin's
+−34.7%. Linux is heavier in absolute terms, as F1 already recorded.
+
+Two 1d requirements are confirmed on this platform:
+
+- **The dynamic symbols Hermes needs survive.** `strip = "symbols"`
+  removes the full symbol table (292,628 → 0) while leaving the dynamic
+  symbol table nearly intact (636 → 625).
+- **The stripped binary still loads Hermes.** `runtime-qualify` on the
+  stripped Linux binary returns `ok: true` on the
+  `restricted-no-eval-handler-vm` probe, from a clean tree
+  (`gitDirty: false`).
+
+Guide artifact in that build: 3,703,242 bytes.
+
+This is the platform half of Phase 1's exit evidence for 1d only. The
+full Phase 1 exit still requires 1a and 1c, plus package/tarball bytes,
+attestation, seal verification, and cold install on both platforms.
+
 This **beats LLP 0314.000 Phase 1's stated ~110–130 MB success band**
 and lands in what that plan called LTO upside. Two of the plan's
 expectations need correcting: it predicted `__text` would shrink 15–25 MB
