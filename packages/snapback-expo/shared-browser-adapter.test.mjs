@@ -253,3 +253,50 @@ test('resolving the web modules completes a pending callback, and only on web', 
     delete globalThis.location;
   }
 });
+
+// Hermes has no `globalThis.crypto` at all — not the digest, not even
+// `getRandomValues` — so on native the verifier cannot come from the global.
+// `expo-crypto` provides both halves, and it is the package the supervised
+// client already resolves for native auth custody.
+test('the verifier finds WebCrypto on a runtime that has none', async () => {
+  const digested = [];
+  const expoCrypto = {
+    CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+    getRandomValues: (array) => { array.fill(7); return array; },
+    digest: async (algorithm, data) => {
+      digested.push(algorithm);
+      return new Uint8Array(32).fill(3).buffer;
+    },
+  };
+  const modules = {
+    'expo-web-browser': { openAuthSessionAsync: async () => ({ type: 'success', url: RETURN_TO }) },
+    'expo-linking': { createURL: () => RETURN_TO },
+    'expo-crypto': expoCrypto,
+  };
+  // Node has WebCrypto globally; Hermes does not, so the absence is simulated
+  // rather than assumed.
+  const nodeCrypto = globalThis.crypto;
+  delete globalThis.crypto;
+  assert.equal(globalThis.crypto, undefined);
+  let resolved;
+  try {
+    resolved = await resolveExpoSharedBrowserModules(async (specifier) => modules[specifier]);
+  } finally {
+    globalThis.crypto = nodeCrypto;
+  }
+  assert.equal(typeof resolved.cryptoObject.getRandomValues, 'function');
+
+  // The shim is WebCrypto-shaped for the one algorithm the verifier uses, and
+  // refuses anything else rather than digesting with the wrong one.
+  const bytes = new Uint8Array(await resolved.cryptoObject.subtle.digest('SHA-256', new Uint8Array([1])));
+  assert.equal(bytes.length, 32);
+  assert.deepEqual(digested, ['SHA-256']);
+  await assert.rejects(
+    () => resolved.cryptoObject.subtle.digest('SHA-512', new Uint8Array([1])),
+    (error) => error.reason === 'digest-algorithm-unsupported',
+  );
+
+  // A runtime that does have WebCrypto keeps using it untouched.
+  const onWeb = await resolveExpoSharedBrowserModules(async (specifier) => modules[specifier]);
+  assert.equal(onWeb.cryptoObject, globalThis.crypto);
+});

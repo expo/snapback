@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v2",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:acbda53867d400ba60d6b5f2363e3301edc708c069db8f29bfb02c306d4505fa",
+    "sourceDigest": "sha256:5184e442caddecaec4686b0640ce60ab6abe5a24d4fb1b3b3cb1b91d79d8fc0f",
     "publishedClosureVersion": "0.1.29",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.29",
@@ -3569,7 +3569,7 @@
       ],
       "projectionIdentity": {
         "algorithm": "snapback-symbol-registry-projection.v1",
-        "sourceDigest": "sha256:f98f8d5e52b694d5d6a415078ac27dcb05726033ebabf8c06079c53e4627627e",
+        "sourceDigest": "sha256:7d94214cc2e551e0607e39330e5860279b39aaa2992df04f3cb70f52d340a27f",
         "inputs": {
           "files": [
             "guide/reference/lifecycle.schema.json",
@@ -121774,7 +121774,7 @@
           "import"
         ]
       },
-      "signature": "export declare function createSharedBrowserAdapter(input: Readonly<{\n  projection: SharedDevelopmentAuthProjection;\n  appId: string;\n  /** `WebBrowser.openAuthSessionAsync`. */\n  openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;\n  /** `Linking.createURL`. */\n  createUrl: (path: string) => string;\n  path?: string;\n  timeoutMs?: number;\n}>): (entry: ResolvedProviderEntryV1) => Promise<Readonly<{\n  exchange: Readonly<{ challengeId: string; code: string }>;\n}>>;",
+      "signature": "export declare function createSharedBrowserAdapter(input: Readonly<{\n  projection: SharedDevelopmentAuthProjection;\n  appId: string;\n  /** `WebBrowser.openAuthSessionAsync`. */\n  openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;\n  /** `Linking.createURL`. */\n  createUrl: (path: string) => string;\n  /**\n   * WebCrypto for the PKCE verifier. Defaults to `globalThis.crypto`; native\n   * runtimes without one are served by `resolveExpoSharedBrowserModules`.\n   */\n  cryptoObject?: Crypto;\n  path?: string;\n  timeoutMs?: number;\n}>): (entry: ResolvedProviderEntryV1) => Promise<Readonly<{\n  exchange: Readonly<{ challengeId: string; code: string }>;\n}>>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -121785,14 +121785,14 @@
         "file": "packages/snapback-expo/shared-browser-adapter.d.mts",
         "line": 20,
         "column": 1,
-        "endLine": 31
+        "endLine": 36
       },
       "sources": [
         {
           "file": "packages/snapback-expo/shared-browser-adapter.d.mts",
           "line": 20,
           "column": 1,
-          "endLine": 31
+          "endLine": 36
         }
       ],
       "publicDeclaration": {
@@ -121822,7 +121822,7 @@
           "import"
         ]
       },
-      "signature": "export declare function resolveExpoSharedBrowserModules(\n  load?: (specifier: string) => Promise<unknown>,\n): Promise<Readonly<{\n  openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;\n  createUrl: (path: string) => string;\n}> | null>;",
+      "signature": "export declare function resolveExpoSharedBrowserModules(\n  load?: (specifier: string) => Promise<unknown>,\n): Promise<Readonly<{\n  openAuthSession: (url: string, returnTo: string) => Promise<{ type: string; url?: string }>;\n  createUrl: (path: string) => string;\n  cryptoObject: Crypto;\n}> | null>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -121831,16 +121831,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/shared-browser-adapter.d.mts",
-        "line": 33,
+        "line": 38,
         "column": 1,
-        "endLine": 38
+        "endLine": 44
       },
       "sources": [
         {
           "file": "packages/snapback-expo/shared-browser-adapter.d.mts",
-          "line": 33,
+          "line": 38,
           "column": 1,
-          "endLine": 38
+          "endLine": 44
         }
       ],
       "publicDeclaration": {

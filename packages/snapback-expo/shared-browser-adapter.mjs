@@ -65,6 +65,7 @@ export function createSharedBrowserAdapter({
   appId,
   openAuthSession,
   createUrl,
+  cryptoObject = globalThis.crypto,
   path = 'auth/shared',
   timeoutMs,
 }) {
@@ -84,7 +85,7 @@ export function createSharedBrowserAdapter({
   const options = timeoutMs === undefined ? {} : { timeoutMs };
 
   return async function signInWithSharedBrowser(entry) {
-    const { verifier, codeChallenge } = await createSharedDevelopmentVerifier();
+    const { verifier, codeChallenge } = await createSharedDevelopmentVerifier(cryptoObject);
     const returnTo = selectSharedAuthReturnTarget(projection, createUrl(`/${path}`));
     const started = await startSharedDevelopmentAuth(projection.origin, {
       appId,
@@ -148,7 +149,47 @@ function loadOptionalExpoSharedBrowserModule(specifier) {
   if (specifier === 'expo-linking') {
     return import('expo-linking').catch((error) => Promise.reject(error));
   }
+  if (specifier === 'expo-crypto') {
+    return import('expo-crypto').catch((error) => Promise.reject(error));
+  }
   return Promise.reject(new TypeError(`unsupported Expo shared browser module: ${specifier}`));
+}
+
+/**
+ * The WebCrypto surface the redemption verifier needs, on a runtime that may
+ * not have one.
+ *
+ * Hermes has no `globalThis.crypto` at all — not the digest, not even
+ * `getRandomValues` — so on native the Adapter cannot mint its PKCE verifier
+ * from the global. `expo-crypto` provides both halves natively, and this is the
+ * same package the supervised client already resolves for native auth custody.
+ * A runtime that does have WebCrypto keeps using it untouched.
+ */
+async function resolveSharedAuthCrypto(load) {
+  const global = globalThis.crypto;
+  if (typeof global?.getRandomValues === 'function'
+    && typeof global?.subtle?.digest === 'function') return global;
+  const expoCrypto = await load('expo-crypto');
+  const digest = expoCrypto?.digest ?? expoCrypto?.default?.digest;
+  const getRandomValues = expoCrypto?.getRandomValues ?? expoCrypto?.default?.getRandomValues;
+  const algorithms = expoCrypto?.CryptoDigestAlgorithm ?? expoCrypto?.default?.CryptoDigestAlgorithm;
+  if (typeof digest !== 'function' || typeof getRandomValues !== 'function') return null;
+  return Object.freeze({
+    getRandomValues: (array) => getRandomValues(array),
+    subtle: Object.freeze({
+      digest: async (algorithm, data) => {
+        const name = typeof algorithm === 'string' ? algorithm : algorithm?.name;
+        if (name !== 'SHA-256') {
+          throw sharedDevelopmentAuthRefusal(
+            'digest-algorithm-unsupported',
+            'the native shared development digest adapter implements SHA-256 only',
+            { requested: name ?? null },
+          );
+        }
+        return digest(algorithms?.SHA256 ?? 'SHA-256', data);
+      },
+    }),
+  });
 }
 
 export async function resolveExpoSharedBrowserModules(load = loadOptionalExpoSharedBrowserModule) {
@@ -177,9 +218,12 @@ export async function resolveExpoSharedBrowserModules(load = loadOptionalExpoSha
     const openAuthSession = webBrowser?.openAuthSessionAsync ?? webBrowser?.default?.openAuthSessionAsync;
     const createUrl = linking?.createURL ?? linking?.default?.createURL;
     if (typeof openAuthSession !== 'function' || typeof createUrl !== 'function') return null;
+    const cryptoObject = await resolveSharedAuthCrypto(load);
+    if (cryptoObject === null) return null;
     return Object.freeze({
       openAuthSession: (...args) => openAuthSession(...args),
       createUrl: (...args) => createUrl(...args),
+      cryptoObject,
     });
   } catch {
     return null;

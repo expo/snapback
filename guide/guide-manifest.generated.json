@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:d24c6f13c3ca9f9ed8226e52a5fde2b4b66ff5bbcd5696f2835c9e6008de345e"
+    "sourceDigest": "sha256:3792bc55139a02473ed8cbe3eaa17556a1c03a0f028b1e95c47e21c67b0ec9c5"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -6371,7 +6371,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:09f6d76e67c04d55f8506d486d1024851f1b065cf439c94b0e74a5f31b3824fe",
-      "sha256": "7b93dce8b6ce2d3adc03925ef16c788fa89d5b281e1b5440b44c274251e4d59c",
+      "sha256": "4ffec318d12092ec70c36bf4de0c7dd61c8364a23313bb3152b09a52482399a9",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -11561,8 +11561,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:572b8baa23ed2947da59669285ec422f4fe1182195e0e02f2866328a22bd79a6",
-      "sha256": "a26e6986ab92c2d8f83a83cb6deeda58fac794f14f51eebdd8e269cba36ae1b6",
+      "reviewedAuthoritiesDigest": "sha256:7db10b33e4ac0a1b375400e01879493c34b888441dc74bfe0d94ec298ce5fcc8",
+      "sha256": "632b21a861ae083652fb672d14c90e73f7ccb6c45cdb6d63bf3cef51ab940e91",
       "snippets": [
         {
           "lang": "ts",
@@ -13585,7 +13585,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a4570be9b11619b2bbfea22",
-      "sha256": "1332759a1533cdaadcdc5b0ee6fc832e7cab4abf1dd64469c2598a06b914ca04",
+      "sha256": "56f65de31a7e48d889a544e0093585c9d81a3f7490d255232825e1b9cdfb5075",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -14165,8 +14165,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 5207850,
-      "sha256": "1d5a369284db43d78aece01e08f3d180a00871c7f706af2d8e8009c6cb3793c4",
+      "bytes": 5208070,
+      "sha256": "4cd9efe62a8ab686d472580b73e0530fbb153d4950673f572caff6be82cdc510",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -14175,7 +14175,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v2",
-      "sourceDigest": "sha256:acbda53867d400ba60d6b5f2363e3301edc708c069db8f29bfb02c306d4505fa",
+      "sourceDigest": "sha256:5184e442caddecaec4686b0640ce60ab6abe5a24d4fb1b3b3cb1b91d79d8fc0f",
       "modules": 56,
       "symbols": 1461
     },
@@ -14184,7 +14184,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2532971,
-      "sha256": "3cff5e6a953393fec22ca2b491aa4e7f49e4973d8f93eca0b7c3d868a84b801c",
+      "sha256": "e881532316fe7cbe450435dcdafd67e70a0aa974634addd0a64dcd12273697ac",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -14193,7 +14193,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:e4e00c842a3740d1b1061a3af5a1b82b3e2dd4dc0ed3d699a103bac7267363a0",
+      "sourceDigest": "sha256:546a6fe18441a6af9408beaf4dfe06fbc8c15b45bb69c7def72bc8ca34466108",
       "codes": 3581,
       "emittingSites": 9617,
       "receivedSites": 378,
@@ -14343,8 +14343,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 4168834,
-      "sha256": "c236722576e0f90d0e05bdcdd3499479b5dc9459589b32cac771b784399902ba"
+      "bytes": 4169048,
+      "sha256": "e51891c2c88b0d6ac47c25fafb13fb826eb83ac1d09ba47eb828a02eae6e4e6d"
     },
     "sections": {
       "meta": {
@@ -14421,8 +14421,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2292317,
-        "sha256": "2cc28905f2d2f11a0b61e803da08a8edcf6d0ca8e4b387ae265dc2464f028d51"
+        "bytes": 2292531,
+        "sha256": "61118397c4177dcd02dd89b0fb86de8cfaab29c45205c456f2962710b7ef5e62"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -14447,5 +14447,5 @@
       }
     }
   },
-  "contentHash": "d24c6f13c3ca9f9ed8226e52a5fde2b4b66ff5bbcd5696f2835c9e6008de345e"
+  "contentHash": "3792bc55139a02473ed8cbe3eaa17556a1c03a0f028b1e95c47e21c67b0ec9c5"
 }

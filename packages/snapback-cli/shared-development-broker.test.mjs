@@ -460,10 +460,14 @@ test('the authorization page permits the completion redirect it depends on', asy
     assert.match(formAction, /'self'/u);
     assert.match(formAction, new RegExp(`http://127\\.0\\.0\\.1:${METRO_PORT}`, 'u'));
     assert.match(formAction, new RegExp(`http://localhost:${METRO_PORT}`, 'u'));
-    // Still closed: no wildcard, and the exp:// deep-link target is not a form
-    // destination a browser could post to.
+    // The native completion redirects to the `exp://` deep link, so that target
+    // belongs here too — omitting it blocks the redirect inside
+    // ASWebAuthenticationSession exactly as an http-only policy blocked Expo
+    // web. Still closed: exact targets only, no wildcard.
+    assert.match(formAction, new RegExp(`exp://127\\.0\\.0\\.1:${METRO_PORT}`, 'u'));
+    assert.match(formAction, new RegExp(`exp://localhost:${METRO_PORT}`, 'u'));
     assert.doesNotMatch(formAction, /\*/u);
-    assert.doesNotMatch(formAction, /exp:/u);
+    assert.doesNotMatch(formAction, /'unsafe/u);
     assert.match(policy, /default-src 'none'/u);
     assert.match(policy, /frame-ancestors 'none'/u);
   } finally {
