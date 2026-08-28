@@ -5,11 +5,12 @@ order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
 authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/_kit/tests/live-query-invalidation-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-27
+authoring-profiles: [explicit]
+reviewed: 2026-08-28
 reviewed-authorities-digest: sha256:63fc6585854a340747d6ce85561a0f1606d2a32b4afcb7ce8a2053b68d2de1c8
 ---
 
@@ -186,6 +187,16 @@ kit case uses a second client, keeps a `SnapbackProvisionalId`/outbox identity
 distinct from the canonical row id, records the raw Add operations, and
 observes `snapshot` before `live_delta`.
 
+The retained React characterization is shape `(e)` in
+`demos/_kit/tests/live-query-invalidation-e2e.mjs`. It mounts generated
+`postById` and `repliesForPost` hooks, invokes a generated JS `writePost` that
+inserts the reply and patches the parent in one mutation, then exercises both
+an id change and a StrictMode remount. Its report keeps query identities,
+subscription and settlement versions, raw durable frames, authorization
+events, and component renders. A passing run narrows the investigation to
+boundaries that run does reproduce; it does not stand in for Clique's missing
+browser/Metro probe trace.
+
 **Clique still observed a blank.** Its React thread used `postById` and
 `repliesForPost` around a JS `writePost`, then recovered after switching to
 `defineJsLiveQuery` plus a local cache. The available diary is an application
@@ -226,11 +237,21 @@ While the faithful trace remains open, `defineJsLiveQuery` plus a local cache
 remains the documented application workaround for the Clique symptom. It
 changes the server lane to handler re-run/replacement and changes application
 cache timing; its success is useful mitigation, not proof of which boundary
-caused the blank and not disproven physics. For new code without the symptom,
-the ordinary selection rule still applies: keep `defineLiveQuery` when the
-table plan expresses the read, and choose JS for bounded logic or computed
-results the declarative and relational carriers cannot express. See
-[Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
+caused the blank and not disproven physics.
+
+Choose the execution form from the read, not from the frame shape you hope to
+receive:
+
+| Definition | Delivery after a relevant write | Choose it when |
+| --- | --- | --- |
+| `defineLiveQuery` | The server may apply an incremental `live_delta`, or conservatively recompute and replace the result. | A declarative table plan expresses the read. This is the ordinary choice for `_id` points, parent lists, filters, ordering, and limits. |
+| `defineJsLiveQuery` | The server re-runs the handler and publishes an authoritative replacement. On an authenticated session lane, the client may observe that replacement inside an `authorization_snapshot`. | The bounded result needs computed logic, aggregation, or another operation the declarative and relational carriers cannot express. |
+
+Both forms have the same correctness obligation: after convergence, their rows
+must equal the query result. Do not switch to JS merely to hide a membership
+defect. For the still-unexplained Clique symptom, the JS-plus-local-cache lane
+above remains a temporary, named exception while you retain the probe evidence.
+See [Queries](../backend/queries.md#choose-declarative-or-javascript-execution).
 
 Key options: `transport: 'stream'` for durable WebSocket push (`'poll'` is
 the default, cadence `pollCadenceMs`, with `fallbackToPoll` when a stream

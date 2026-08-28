@@ -9,7 +9,7 @@
 // into a pass.
 //
 //   SNAPBACK_RUNTIME_BINARY=/path/to/snapback \
-//     node demos/_kit/tests/live-query-invalidation-e2e.mjs --shape a,b,c --runs 10
+//     node demos/_kit/tests/live-query-invalidation-e2e.mjs --shape e --runs 10
 //
 // @ref LLP 0317.000#design-principles — verdicts stay per shape, retain
 // negative evidence, and name the platform/client-arm limits they actually prove.
@@ -29,9 +29,18 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { IDBFactory } from 'fake-indexeddb';
+import React, { StrictMode, useEffect } from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
 
 import { createSnapbackAppClient } from '../../../packages/snapback-client/app-client.mjs';
+import { prepareReactBindingForClient } from '../../../packages/snapback-client/react-binding.mjs';
 import { generate } from '../../../packages/snapback-codegen/index.mjs';
+import {
+  SnapbackProvider,
+  createSnapbackReactProvider,
+  useSnapbackMutation,
+  useSnapbackQuery,
+} from '../../../packages/snapback-react/index.mjs';
 import { SnapbackClient } from '../client.mjs';
 import { createSuite, runAcceptance } from '../harness.mjs';
 import { startServer } from '../server-process.mjs';
@@ -44,7 +53,9 @@ const checkoutCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).trim();
 const defineUrl = pathToFileURL(join(repoRoot, 'packages', 'snapback-codegen', 'define.mjs')).href;
 
-const SHAPE_ORDER = Object.freeze(['a', 'b', 'c', 'd']);
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const SHAPE_ORDER = Object.freeze(['a', 'b', 'c', 'd', 'e']);
 const SHAPES = new Set(SHAPE_ORDER);
 const DEFAULT_DELIVERY_DEADLINE_MS = 2_500;
 const REPORTED_STALE_WINDOW_MS = 3_000;
@@ -78,6 +89,7 @@ function parseArgs(argv) {
   const options = {
     allowRuntimeMismatch: false,
     deadlineMs: DEFAULT_DELIVERY_DEADLINE_MS,
+    developmentSmoke: false,
     reportFile: null,
     runs: 1,
     shapes: [...SHAPE_ORDER],
@@ -86,7 +98,7 @@ function parseArgs(argv) {
     const flag = argv[index];
     if (flag === '--shape') {
       const raw = argv[++index];
-      if (!raw) throw new Error('--shape requires a, b, c, d, all, or a comma-separated list');
+      if (!raw) throw new Error('--shape requires a, b, c, d, e, all, or a comma-separated list');
       const requested = raw === 'all' ? [...SHAPE_ORDER] : raw.split(',');
       for (const shape of requested) {
         if (!SHAPES.has(shape)) throw new Error(`unknown shape ${JSON.stringify(shape)}`);
@@ -105,16 +117,20 @@ function parseArgs(argv) {
       if (!options.reportFile) throw new Error('--report-file requires a path');
     } else if (flag === '--allow-runtime-mismatch') {
       options.allowRuntimeMismatch = true;
+    } else if (flag === '--development-smoke') {
+      options.developmentSmoke = true;
     } else if (flag === '--help' || flag === '-h') {
       console.log(`Usage: node demos/_kit/tests/live-query-invalidation-e2e.mjs [options]
 
 Options:
-  --shape a|b|c|d|all   Shape(s) to run; comma-separated values accepted (default: all)
+  --shape a|b|c|d|e|all Shape(s) to run; comma-separated values accepted (default: all)
   --runs N              Fresh-server consecutive runs (default: 1; use 10 for negative evidence)
   --deadline-ms N       Original-subscription delivery deadline (default: ${DEFAULT_DELIVERY_DEADLINE_MS}; must be <= ${DEFAULT_DELIVERY_DEADLINE_MS}, strictly under the reported ${REPORTED_STALE_WINDOW_MS}ms stale window)
   --report-file PATH    Atomically retain the machine-readable report after cleanup
   --allow-runtime-mismatch
                         Development smoke only; dirty binaries are still refused
+  --development-smoke   Permit a dirty or mismatched binary for local debugging;
+                        the report remains ineligible as checkout-bound evidence
 `);
       process.exit(0);
     } else {
@@ -523,11 +539,21 @@ export default defineSchema({
     .visibility({ kind: 'public-read' })
     .index('by_sequence', ['sequence'])
     .sync(),
+  posts: defineTable({
+    parentId: v.optional(v.id('posts')),
+    body: v.string(),
+    replyCount: v.integer(),
+    createdAt: v.integer(),
+  })
+    .visibility({ kind: 'public-read' })
+    .index('by_parent_created', ['parentId', 'createdAt'])
+    .sync(),
 }, { auth: { mode: 'sessions' }, authProgram });
 `;
 
   const functions = `
 import {
+  asc,
   arg,
   defineJsLiveQuery,
   defineJsMutation,
@@ -605,6 +631,23 @@ export const latestMessage = defineLiveQuery({
   limit: 1,
 });
 
+export const postById = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'posts',
+  args: { id: v.id('posts') },
+  filter: [eq('_id', arg('id'))],
+  limit: 1,
+});
+
+export const repliesForPost = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'posts',
+  args: { parentId: v.id('posts') },
+  filter: [eq('parentId', arg('parentId'))],
+  order: [asc('createdAt')],
+  index: 'by_parent_created',
+});
+
 export const createParent = defineJsMutation({
   auth: 'authenticated',
   args: { name: v.string() },
@@ -650,6 +693,45 @@ export const insertMessageBatch = defineJsMutation({
     return { inserted: args.count, lastSequence: args.startSequence + args.count - 1 };
   },
 });
+
+export const createThread = defineJsMutation({
+  auth: 'authenticated',
+  args: { body: v.string(), createdAt: v.integer() },
+  result: results.value(v.id('posts')),
+  writes: ['posts'],
+  handler: async (ctx, args) => ctx.db.insert('posts', {
+    parentId: null,
+    body: args.body,
+    replyCount: 0,
+    createdAt: args.createdAt,
+  }),
+});
+
+export const writePost = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    parentId: v.id('posts'),
+    body: v.string(),
+    createdAt: v.integer(),
+  },
+  result: results.value(v.id('posts')),
+  reads: ['posts'],
+  writes: ['posts'],
+  handler: async (ctx, args) => {
+    const parent = await ctx.db.get('posts', args.parentId);
+    if (!parent) throw new Error('parent post not found');
+    const replyId = await ctx.db.insert('posts', {
+      parentId: args.parentId,
+      body: args.body,
+      replyCount: 0,
+      createdAt: args.createdAt,
+    });
+    await ctx.db.patch('posts', args.parentId, {
+      replyCount: parent.replyCount + 1,
+    });
+    return replyId;
+  },
+});
 `;
 
   return { functions, schema };
@@ -661,7 +743,7 @@ async function prepareBackend(scratch) {
   const sources = backendSources();
   writeFileSync(join(backendDir, 'schema.mjs'), sources.schema);
   writeFileSync(join(backendDir, 'functions.mjs'), sources.functions);
-  writeFileSync(join(backendDir, 'seed.json'), '{"tables":{"parents":[],"children":[],"messages":[]}}\n');
+  writeFileSync(join(backendDir, 'seed.json'), '{"tables":{"parents":[],"children":[],"messages":[],"posts":[]}}\n');
   const generated = await generate(backendDir);
   if (!generated.ok) {
     throw diagnosticError(
@@ -706,7 +788,12 @@ function bindingFor(app, origin, runKey) {
   });
 }
 
-async function readAndValidateRuntimeIdentity(server, runtimeBinary, allowRuntimeMismatch) {
+async function readAndValidateRuntimeIdentity(
+  server,
+  runtimeBinary,
+  allowRuntimeMismatch,
+  developmentSmoke,
+) {
   const response = await fetch(`${server.baseUrl}/health`);
   if (!response.ok) {
     throw diagnosticError(
@@ -730,14 +817,14 @@ async function readAndValidateRuntimeIdentity(server, runtimeBinary, allowRuntim
       { binary: binary ?? null, runtimeBinary },
     );
   }
-  if (binary.gitDirty !== false) {
+  if (binary.gitDirty !== false && !developmentSmoke) {
     throw diagnosticError(
       'O14_RUNTIME_DIRTY_REFUSED',
       `runtime ${binary.gitCommit} was built from a dirty tree`,
       { binary, runtimeBinary },
     );
   }
-  if (binary.gitCommit !== checkoutCommit && !allowRuntimeMismatch) {
+  if (binary.gitCommit !== checkoutCommit && !allowRuntimeMismatch && !developmentSmoke) {
     throw diagnosticError(
       'O14_RUNTIME_COMMIT_MISMATCH',
       `runtime ${binary.gitCommit} does not match checkout ${checkoutCommit}`,
@@ -784,6 +871,7 @@ async function startIteration(prepared, runtimeBinary, shape, runKey, options) {
       server,
       runtimeBinary,
       options.allowRuntimeMismatch,
+      options.developmentSmoke,
     );
     const needsPersonaA = shape !== 'd';
     const needsPersonaB = shape === 'a' || shape === 'c';
@@ -1343,7 +1431,475 @@ async function shapeD(iteration, run, deadlineMs) {
   }
 }
 
-const shapeFunctions = Object.freeze({ a: shapeA, b: shapeB, c: shapeC, d: shapeD });
+const flushReact = () => new Promise((resolveFlush) => setImmediate(resolveFlush));
+
+async function waitForReact(predicate, label, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error(`timed out waiting for ${label}`);
+    await act(async () => {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+      await flushReact();
+    });
+  }
+}
+
+function summarizePostQuery(query) {
+  const data = Array.isArray(query?.data) ? query.data : null;
+  return {
+    status: query?.status ?? null,
+    connection: query?.connection ?? null,
+    freshness: query?.freshness ?? null,
+    authoritativeRevision: query?.authoritativeRevision ?? null,
+    rows: data === null
+      ? null
+      : data.map(({ _id, parentId, replyCount, body }) => ({
+          _id,
+          parentId: parentId ?? null,
+          replyCount,
+          body,
+        })),
+  };
+}
+
+function summarizePrincipal(principal) {
+  if (principal?.status === 'authenticated') {
+    return {
+      status: principal.status,
+      userId: principal.userId,
+      sessionClass: principal.sessionClass,
+      authorityInstanceId: principal.authorityInstanceId,
+      sessionGeneration: principal.sessionGeneration,
+      authorizationStreamIncarnation: principal.authorizationStreamIncarnation,
+    };
+  }
+  if (principal?.status === 'refreshing') {
+    return {
+      status: principal.status,
+      principal: summarizePrincipal(principal.principal),
+    };
+  }
+  return structuredClone(principal ?? null);
+}
+
+function installReactTrace(client) {
+  const subscriptions = [];
+  const deliveries = [];
+  const subscriptionEvents = [];
+  const authorizationEvents = [];
+  const connectionEvents = [];
+  const mutations = [];
+  const originalStartLiveQuery = client.startLiveQuery.bind(client);
+  const originalMutate = client.mutate.bind(client);
+
+  client.startLiveQuery = (reference, options = {}) => {
+    const functionName = reference?.name ?? reference;
+    const record = {
+      at: Date.now(),
+      functionName,
+      args: structuredClone(options.args ?? {}),
+      subscriptionId: null,
+      snapshotVersion: null,
+      snapshotRows: null,
+    };
+    subscriptions.push(record);
+    const handle = originalStartLiveQuery(reference, {
+      ...options,
+      onUpdate(rows, detail = {}) {
+        deliveries.push({
+          at: Date.now(),
+          functionName,
+          kind: detail.kind ?? null,
+          version: detail.version ?? null,
+          rows: summarizeRows(rows),
+        });
+        options.onUpdate?.(rows, detail);
+      },
+      onConnectionChange(connection, detail = {}) {
+        connectionEvents.push({
+          at: Date.now(),
+          functionName,
+          connection,
+          previous: detail.previous ?? null,
+          error: detail.error?.message ?? null,
+        });
+        options.onConnectionChange?.(connection, detail);
+      },
+      onSubscriptionEvent(event) {
+        subscriptionEvents.push({ at: Date.now(), functionName, ...event });
+        options.onSubscriptionEvent?.(event);
+      },
+      onAuthorizationBoundary(rows, detail = {}) {
+        authorizationEvents.push({
+          at: Date.now(),
+          functionName,
+          channel: 'boundary',
+          kind: detail.kind ?? null,
+          version: detail.version ?? null,
+          disposition: detail.authorization?.kind ?? null,
+          rows: summarizeRows(rows),
+        });
+        options.onAuthorizationBoundary?.(rows, detail);
+      },
+      onAuthorizationError(error) {
+        authorizationEvents.push({
+          at: Date.now(),
+          functionName,
+          channel: 'error',
+          code: error?.diagnostic?.code ?? error?.code ?? null,
+          message: error?.message ?? String(error),
+        });
+        options.onAuthorizationError?.(error);
+      },
+    });
+    void handle.started().then(() => {
+      record.subscriptionId = handle.current?.subscriptionId ?? null;
+      record.snapshotVersion = handle.current?.version ?? null;
+      record.snapshotRows = summarizeRows(handle.current?.rows);
+    });
+    return handle;
+  };
+
+  client.mutate = async (reference, options = {}) => {
+    const record = {
+      requestedAt: Date.now(),
+      functionName: reference?.name ?? reference,
+      args: structuredClone(options.args ?? {}),
+      requestedClientMutationId: options.clientMutationId ?? null,
+      settledAt: null,
+      status: null,
+      result: null,
+      version: null,
+      clientMutationId: null,
+      idMap: null,
+      phaseCosts: null,
+    };
+    mutations.push(record);
+    const outcome = await originalMutate(reference, options);
+    record.settledAt = Date.now();
+    record.status = outcome?.status ?? null;
+    record.result = outcome?.result ?? null;
+    record.version = outcome?.version ?? outcome?.settlement?.version ?? null;
+    record.clientMutationId = outcome?.clientMutationId ?? null;
+    record.idMap = structuredClone(outcome?.receipt?.idMap ?? outcome?.settlement?.receipt?.idMap ?? null);
+    record.phaseCosts = structuredClone(client.mutationPhaseCostInspection?.() ?? null);
+    return outcome;
+  };
+
+  return {
+    authorizationEvents,
+    connectionEvents,
+    deliveries,
+    mutations,
+    subscriptionEvents,
+    subscriptions,
+    restore() {
+      client.startLiveQuery = originalStartLiveQuery;
+      client.mutate = originalMutate;
+    },
+  };
+}
+
+// Faithful Diary 0106 boundary: generated table live queries are consumed by
+// React while a generated JS writePost inserts a reply into the same table and
+// patches the subscribed parent. This is intentionally above the engine and
+// headless-kit characterizations: the retained evidence includes canonical vs
+// provisional identities, subscription/settlement versions, raw durable
+// frames, authorization callbacks, and component mount/remount state.
+//
+// @ref LLP 0008#reactivity-and-read-sets — a matching same-table insert and
+// parent patch must preserve the authoritative point/list memberships.
+// @ref LLP 0200#21-settlement-is-decoupled-from-subscriber-work — the test
+// records settlement and then waits for each subscription's later convergence.
+async function shapeE(iteration, run, deadlineMs, prepared) {
+  const client = iteration.clientA.client;
+  const api = prepared.app.api;
+  const references = {
+    postById: api.queries.postById,
+    repliesForPost: api.queries.repliesForPost,
+    writePost: api.mutations.writePost,
+  };
+  if (Object.values(references).some((reference) => reference == null)) {
+    throw diagnosticError(
+      'O14_E_GENERATED_REFERENCE_MISSING',
+      'shape (e) requires generated postById, repliesForPost, and writePost references',
+      { availableQueries: Object.keys(api.queries), availableMutations: Object.keys(api.mutations) },
+    );
+  }
+
+  const parent = await client.mutate(api.mutations.createThread, {
+    args: { body: `shape-e-parent-${run}`, createdAt: 1 },
+  });
+  if (parent.status !== 'settled' || typeof parent.result !== 'string') {
+    throw diagnosticError(
+      'O14_E_PARENT_CONTROL_FAILED',
+      'shape (e) could not establish its parent post',
+      { parent },
+    );
+  }
+  const parentId = parent.result;
+  const connectionId = `o14_e_react_${run}`;
+  const wire = createWitness(client, connectionId);
+  const trace = installReactTrace(client);
+  const mountEvents = [];
+  const renders = [];
+  let latest = null;
+  let dispatchWritePost = null;
+  let provider = null;
+  let renderer = null;
+
+  function ThreadScreen({ pointId, mountKey }) {
+    const point = useSnapbackQuery(references.postById, { id: pointId });
+    const replies = useSnapbackQuery(references.repliesForPost, { parentId });
+    const writePost = useSnapbackMutation(references.writePost);
+    useEffect(() => {
+      mountEvents.push({ at: Date.now(), event: 'mount', mountKey, pointId });
+      return () => mountEvents.push({ at: Date.now(), event: 'unmount', mountKey, pointId });
+    }, [mountKey]);
+    latest = { point, replies, pointId };
+    dispatchWritePost = () => writePost({
+      parentId,
+      body: `shape-e-reply-${run}`,
+      createdAt: 2,
+    });
+    renders.push({
+      at: Date.now(),
+      mountKey,
+      pointId,
+      point: summarizePostQuery(point),
+      replies: summarizePostQuery(replies),
+    });
+    return React.createElement('output', {
+      mountKey,
+      pointId,
+      pointStatus: point.status,
+      replyStatus: replies.status,
+    });
+  }
+
+  const renderTree = (pointId, mountKey) => React.createElement(
+    StrictMode,
+    null,
+    React.createElement(
+      SnapbackProvider,
+      { provider },
+      React.createElement(ThreadScreen, { key: mountKey, mountKey, pointId }),
+    ),
+  );
+
+  try {
+    const binding = await prepareReactBindingForClient(client, {
+      generatedManifest: prepared.app,
+    });
+    provider = createSnapbackReactProvider(binding, { connectionId });
+    await act(async () => {
+      renderer = TestRenderer.create(renderTree(parentId, 'thread'));
+      await flushReact();
+    });
+    await waitForReact(
+      () => latest?.point?.status === 'ready'
+        && latest.point.data?.[0]?._id === parentId
+        && latest.point.data?.[0]?.replyCount === 0
+        && latest?.replies?.status === 'ready'
+        && latest.replies.data?.length === 0,
+      'shape (e) initial React thread snapshot',
+      deadlineMs,
+    );
+    await wire.waitFor(
+      () => provider.inspection().subscriptions.filter(({ functionName }) => (
+        functionName === 'postById' || functionName === 'repliesForPost'
+      )).every(({ subscriptionId, state }) => typeof subscriptionId === 'string' && state === 'ready')
+        && provider.inspection().subscriptions.filter(({ functionName }) => (
+          functionName === 'postById' || functionName === 'repliesForPost'
+        )).length === 2
+        && wire.manager.isOpen(),
+      'shape (e) React subscriptions established on push',
+      deadlineMs,
+    );
+
+    const initialSubscriptions = provider.inspection().subscriptions
+      .filter(({ functionName }) => (
+        functionName === 'postById' || functionName === 'repliesForPost'
+      ))
+      .map((subscription) => structuredClone(subscription));
+    const mutationRequestedAt = Date.now();
+    let hookOutcome = null;
+    await act(async () => {
+      hookOutcome = await dispatchWritePost();
+      await flushReact();
+    });
+    const mutation = trace.mutations.find(({ functionName }) => functionName === 'writePost') ?? null;
+    const canonicalId = hookOutcome?.result ?? mutation?.result ?? null;
+    const settlementVersion = mutation?.version ?? null;
+    await waitForReact(
+      () => latest?.point?.status === 'ready'
+        && latest.point.data?.[0]?._id === parentId
+        && latest.point.data?.[0]?.replyCount === 1
+        && latest?.replies?.status === 'ready'
+        && latest.replies.data?.some((row) => row._id === canonicalId),
+      'shape (e) React point/list convergence after writePost',
+      deadlineMs,
+    );
+    await wire.waitFor(
+      () => initialSubscriptions.every(({ subscriptionId, snapshotVersion }) => (
+        wire.frames.some(({ frame }) => {
+          const carrier = authoritativeCarrier(frame);
+          return carrier?.subscriptionId === subscriptionId
+            && Number.isSafeInteger(carrier.version)
+            && carrier.version > snapshotVersion
+            && (!Number.isSafeInteger(settlementVersion) || carrier.version >= settlementVersion);
+        })
+      )),
+      'shape (e) raw durable convergence frames',
+      deadlineMs,
+    );
+
+    const blankParentRenders = renders.filter((render) => (
+      render.at >= mutationRequestedAt
+      && render.pointId === parentId
+      && ['ready', 'refreshing'].includes(render.point.status)
+      && render.point.rows?.length === 0
+    ));
+    const afterWriteSubscriptions = provider.inspection().subscriptions
+      .filter(({ functionName }) => (
+        functionName === 'postById' || functionName === 'repliesForPost'
+      ))
+      .map((subscription) => structuredClone(subscription));
+    const convergedParent = summarizePostQuery(latest.point);
+    const convergedReplies = summarizePostQuery(latest.replies);
+
+    // Exercise both routing cuts from the Guide: change the mounted point
+    // query to the canonical settled id, then force a component remount using
+    // that same canonical id. Neither cut can receive the earlier insert frame;
+    // each must establish from an authoritative snapshot containing the row.
+    await act(async () => {
+      renderer.update(renderTree(canonicalId, 'thread'));
+      await flushReact();
+    });
+    await waitForReact(
+      () => latest?.pointId === canonicalId
+        && latest?.point?.status === 'ready'
+        && latest.point.data?.[0]?._id === canonicalId,
+      'shape (e) canonical post-settlement route snapshot',
+      deadlineMs,
+    );
+    await act(async () => {
+      renderer.update(renderTree(canonicalId, 'remount'));
+      await flushReact();
+    });
+    await waitForReact(
+      () => latest?.pointId === canonicalId
+        && latest?.point?.status === 'ready'
+        && latest.point.data?.[0]?._id === canonicalId,
+      'shape (e) canonical remount snapshot',
+      deadlineMs,
+    );
+    const afterRemountSubscriptions = provider.inspection().subscriptions
+      .filter(({ functionName }) => (
+        functionName === 'postById' || functionName === 'repliesForPost'
+      ))
+      .map((subscription) => structuredClone(subscription));
+    await act(async () => {
+      renderer.unmount();
+      renderer = null;
+      await flushReact();
+    });
+
+    const publicClientMutationId = mutation?.clientMutationId ?? null;
+    const settlementIdMap = mutation?.idMap ?? null;
+    const provisionalRowIds = settlementIdMap === null ? [] : Object.keys(settlementIdMap);
+    const principal = iteration.clientA.auth.currentPrincipal();
+    const details = {
+      identity: {
+        principalId: principal.userId ?? null,
+        parentId,
+        canonicalRowId: canonicalId,
+        provisionalRowIds,
+        publicClientMutationId,
+        publicOutboxIdentityExposed: publicClientMutationId !== null,
+        provisionalRowIdentityExposed: provisionalRowIds.length > 0,
+        phaseCostClientMutationIdPseudonyms: (mutation?.phaseCosts?.records ?? [])
+          .filter(({ functionId }) => functionId === references.writePost.name)
+          .map(({ clientMutationId }) => clientMutationId),
+      },
+      settlement: {
+        requestedAt: mutation?.requestedAt ?? null,
+        settledAt: mutation?.settledAt ?? null,
+        status: hookOutcome?.status ?? mutation?.status ?? null,
+        version: settlementVersion,
+        idMap: settlementIdMap,
+        phaseCosts: mutation?.phaseCosts ?? null,
+      },
+      subscriptions: {
+        initial: initialSubscriptions,
+        afterWrite: afterWriteSubscriptions,
+        afterRemount: afterRemountSubscriptions,
+        starts: trace.subscriptions,
+        events: trace.subscriptionEvents,
+      },
+      delivery: {
+        callbacks: trace.deliveries,
+        rawDurableFrames: wire.frames.map(({ at, frame }) => ({ at, frame })),
+        managerStates: wire.managerStates,
+        connectionEvents: trace.connectionEvents,
+      },
+      authorization: {
+        principal: summarizePrincipal(principal),
+        events: trace.authorizationEvents,
+      },
+      component: {
+        mounts: mountEvents,
+        renders,
+        blankParentRenders,
+      },
+      final: {
+        parent: convergedParent,
+        replies: convergedReplies,
+        canonicalPointId: latest?.point?.data?.[0]?._id ?? null,
+        repliesContainCanonical: renders.some((render) => (
+          render.replies.rows?.some((row) => row._id === canonicalId)
+        )),
+      },
+    };
+    const initialNames = new Set(initialSubscriptions.map(({ functionName }) => functionName));
+    const rawSubscriptionIds = new Set(wire.frames.map(({ frame }) => (
+      authoritativeCarrier(frame)?.subscriptionId ?? null
+    )));
+    const valid = hookOutcome?.status === 'settled'
+      && typeof canonicalId === 'string'
+      && Number.isSafeInteger(settlementVersion)
+      && initialNames.has('postById')
+      && initialNames.has('repliesForPost')
+      && initialSubscriptions.every(({ subscriptionId }) => rawSubscriptionIds.has(subscriptionId))
+      && blankParentRenders.length === 0
+      && details.final.repliesContainCanonical
+      && details.final.canonicalPointId === canonicalId
+      && mountEvents.some(({ event }) => event === 'mount')
+      && mountEvents.some(({ event }) => event === 'unmount');
+    if (!valid) {
+      throw diagnosticError(
+        blankParentRenders.length > 0
+          ? 'O14_E_REACT_WRITE_POST_BLANK_CONFIRMED'
+          : 'O14_E_REACT_WRITE_POST_EVIDENCE_INCOMPLETE',
+        'shape (e) failed the faithful React/JS writePost point/list invariant',
+        details,
+      );
+    }
+    return details;
+  } finally {
+    if (renderer !== null) {
+      await act(async () => {
+        renderer.unmount();
+        await flushReact();
+      });
+    }
+    await provider?.dispose();
+    trace.restore();
+    wire.stop();
+  }
+}
+
+const shapeFunctions = Object.freeze({ a: shapeA, b: shapeB, c: shapeC, d: shapeD, e: shapeE });
 const options = parseArgs(process.argv.slice(2));
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY;
 if (typeof runtimeBinary !== 'string' || runtimeBinary.length === 0) {
@@ -1366,11 +1922,12 @@ const execution = {
   checkoutCommit,
   runtimeBinary: resolve(runtimeBinary),
   allowRuntimeMismatch: options.allowRuntimeMismatch,
+  developmentSmoke: options.developmentSmoke,
   evidenceEligibleForCurrentCheckout: false,
   deadlineMs: options.deadlineMs,
-  platform: { os: process.platform, arch: process.arch, clientArm: 'headless-browser-shaped' },
+  platform: { os: process.platform, arch: process.arch, clientArm: 'headless-browser-shaped + React renderer' },
   scopeLimitations: [
-    'headless browser-shaped clients, not real browser contexts',
+    'headless browser-shaped clients and React renderer, not a real browser/Metro context',
     'macOS arm64, not the reported Linux x86_64 platform',
     'source checkout client packages, not the published 0.1.29 client bundle',
   ],
@@ -1395,6 +1952,7 @@ await runAcceptance(suite, async () => {
         execution.serverBinaries.push(iteration.binary);
         if (
           !options.allowRuntimeMismatch
+          && !options.developmentSmoke
           && iteration.binary.gitCommit === checkoutCommit
           && iteration.binary.gitDirty === false
         ) {
@@ -1402,7 +1960,7 @@ await runAcceptance(suite, async () => {
         }
         await suite.check(`shape (${shape}) run ${run}/${options.runs}`, async () => {
           try {
-            return await shapeFunctions[shape](iteration, run, options.deadlineMs);
+            return await shapeFunctions[shape](iteration, run, options.deadlineMs, prepared);
           } catch (error) {
             failed = true;
             throw error;
