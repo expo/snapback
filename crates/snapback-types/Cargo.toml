@@ -13,6 +13,10 @@ path = "src/lib.rs"
 test-support = []
 
 [dependencies]
+# Pure-Rust backend pinned so the shared Guide-artifact encoder is a pure
+# function of its input: LLP 0314.000 Phase 2 hashes one container produced by
+# two callers. @ref LLP 0314.002#32-a-bit-stable-encoder-normatively-required
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 base64 = "0.22"
 crc32fast = "1"
 getrandom = "0.3"

@@ -13,9 +13,10 @@ use sha2::{Digest as _, Sha256};
 use std::sync::LazyLock;
 
 use snapback_types::guide_artifact::{
-    CONTENT_HASH_DIAGNOSTICS_REGISTRY_LABEL, CONTENT_HASH_REGISTRY_LABEL,
-    CONTENT_HASH_RESOURCE_SEPARATOR, DIAGNOSTICS_REGISTRY_PATH, MANIFEST_PATH, REGISTRY_PATH,
-    REQUIRED_GUIDE_PATHS,
+    ARTIFACT_MAGIC_V2, CONTENT_HASH_DIAGNOSTICS_REGISTRY_LABEL, CONTENT_HASH_REGISTRY_LABEL,
+    CONTENT_HASH_RESOURCE_SEPARATOR, DIAGNOSTICS_REGISTRY_PATH, MANIFEST_PATH,
+    MAX_RECORD_DECODED_BYTES, MAX_TOTAL_DECODED_BYTES, RECORD_ENCODING_DEFLATE,
+    RECORD_ENCODING_STORED, RECORD_HEADER_BYTES, REGISTRY_PATH, REQUIRED_GUIDE_PATHS,
 };
 
 unsafe extern "C" {
@@ -25,7 +26,7 @@ unsafe extern "C" {
     fn snapback_committed_guide_manifest_len_v1() -> usize;
 }
 
-const ARTIFACT_MAGIC: &[u8] = b"SNAPBACK_EMBEDDED_GUIDE\0\x01";
+const ARTIFACT_MAGIC: &[u8] = ARTIFACT_MAGIC_V2;
 const CONTENT_HASH_LENGTH: usize = 64;
 
 #[derive(Clone, Copy, Debug)]
@@ -132,6 +133,61 @@ pub fn served_file(path: &str) -> Option<EmbeddedGuideFile> {
 /// or item are data.
 // @ref LLP 0284#37-what-is-not-an-invariant-honest-limits — the generated
 // boundary is inert data rather than expansion-visible Rust tokens.
+/// Expand one record payload to the bytes every other consumer sees.
+///
+/// A stored record is returned as a zero-copy slice of the embedded artifact,
+/// exactly as v1 behaved. A deflated record is expanded into an owned buffer
+/// that is then leaked: the Guide is decoded once per process inside a
+/// `LazyLock` and lives as long as the process would have held the
+/// `include_bytes!` blob it replaces, so the leak has the same lifetime the
+/// borrowed slice had. Keeping the `&'static [u8]` is what lets every existing
+/// consumer — HTTP bodies, MCP resources, the CLI, the reference registries —
+/// stay untouched.
+// @ref LLP 0314.002#4-open-questions — OQ2's eager-retain branch: an evicting
+// cache cannot back the outstanding `'static` borrows this API hands out.
+fn decode_guide_record(
+    encoding: u8,
+    stored: &'static [u8],
+    decoded_length: usize,
+    index: usize,
+    path: &str,
+) -> Result<&'static [u8], String> {
+    match encoding {
+        RECORD_ENCODING_STORED => {
+            if stored.len() != decoded_length {
+                return Err(format!(
+                    "file {index} stored record for {path} declares a different decoded length"
+                ));
+            }
+            Ok(stored)
+        }
+        RECORD_ENCODING_DEFLATE => {
+            use std::io::Read;
+            // Capacity is the already-bounded declared length, and the reader
+            // is capped one byte beyond it so a stream that expands past its
+            // declaration is refused rather than grown into.
+            let mut decoded = Vec::with_capacity(decoded_length);
+            let limit = u64::try_from(decoded_length)
+                .map_err(|_| format!("file {index} decoded length exceeds u64"))?
+                .saturating_add(1);
+            flate2::read::DeflateDecoder::new(stored)
+                .take(limit)
+                .read_to_end(&mut decoded)
+                .map_err(|error| format!("file {index} for {path} failed to inflate: {error}"))?;
+            if decoded.len() != decoded_length {
+                return Err(format!(
+                    "file {index} for {path} inflated to {} bytes, not the declared {decoded_length}",
+                    decoded.len()
+                ));
+            }
+            Ok(Box::leak(decoded.into_boxed_slice()))
+        }
+        other => Err(format!(
+            "file {index} for {path} uses unknown record encoding {other}"
+        )),
+    }
+}
+
 fn parse_embedded_guide(bytes: &'static [u8]) -> Result<EmbeddedGuideData, String> {
     let committed_manifest: serde_json::Value =
         serde_json::from_slice(committed_guide_manifest_bytes())
@@ -197,17 +253,34 @@ fn parse_embedded_guide_with_expected_content_hash(
     if file_count == 0 {
         return Err("file table is empty".to_owned());
     }
-    if file_count > input.remaining() / 12 {
+    if file_count > input.remaining() / RECORD_HEADER_BYTES {
         return Err("file count exceeds the remaining artifact".to_owned());
     }
 
     let mut files = Vec::with_capacity(file_count);
     let mut previous_path: Option<&str> = None;
+    let mut total_decoded: u64 = 0;
     for index in 0..file_count {
         let path_length = input.read_u32("path length")? as usize;
-        let content_length_u64 = input.read_u64("content length")?;
-        let content_length = usize::try_from(content_length_u64)
-            .map_err(|_| format!("file {index} content length exceeds usize"))?;
+        let encoding = input.read_u8("record encoding")?;
+        let stored_length_u64 = input.read_u64("stored length")?;
+        let decoded_length_u64 = input.read_u64("decoded length")?;
+        let stored_length = usize::try_from(stored_length_u64)
+            .map_err(|_| format!("file {index} stored length exceeds usize"))?;
+        let decoded_length = usize::try_from(decoded_length_u64)
+            .map_err(|_| format!("file {index} decoded length exceeds usize"))?;
+        // Bound the declared expansion before allocating anything for it: a
+        // stored length is bounded by the artifact, a decoded length is not.
+        // @ref LLP 0314.002#34-bounded-decoding
+        if decoded_length_u64 > MAX_RECORD_DECODED_BYTES {
+            return Err(format!(
+                "file {index} decoded length {decoded_length_u64} exceeds the per-record ceiling"
+            ));
+        }
+        total_decoded = total_decoded.saturating_add(decoded_length_u64);
+        if total_decoded > MAX_TOTAL_DECODED_BYTES {
+            return Err("decoded corpus exceeds the aggregate ceiling".to_owned());
+        }
         let path_bytes = input.read_exact(path_length, "path")?;
         let path = std::str::from_utf8(path_bytes)
             .map_err(|_| format!("file {index} path is not UTF-8"))?;
@@ -215,7 +288,14 @@ fn parse_embedded_guide_with_expected_content_hash(
         if previous_path.is_some_and(|previous| previous >= path) {
             return Err(format!("file {index} path is not strictly sorted: {path}"));
         }
-        let file_bytes = input.read_exact(content_length, "file content")?;
+        let stored_bytes = input.read_exact(stored_length, "file content")?;
+        let file_bytes = decode_guide_record(
+            encoding,
+            stored_bytes,
+            decoded_length,
+            index,
+            path,
+        )?;
         let content_type = guide_content_type(path);
         if content_type != "application/octet-stream" {
             std::str::from_utf8(file_bytes)
@@ -384,6 +464,10 @@ impl ArtifactReader {
         Ok(value)
     }
 
+    fn read_u8(&mut self, label: &str) -> Result<u8, String> {
+        Ok(self.read_exact(1, label)?[0])
+    }
+
     fn read_u32(&mut self, label: &str) -> Result<u32, String> {
         let bytes: [u8; 4] = self
             .read_exact(4, label)?
@@ -427,12 +511,119 @@ mod tests {
         bytes.extend_from_slice(content_hash.as_bytes());
         bytes.extend_from_slice(&(files.len() as u32).to_be_bytes());
         for (path, content) in files {
+            let (encoding, stored) = snapback_types::guide_artifact::encode_guide_record(content);
             bytes.extend_from_slice(&(path.len() as u32).to_be_bytes());
+            bytes.push(encoding);
+            bytes.extend_from_slice(&(stored.len() as u64).to_be_bytes());
             bytes.extend_from_slice(&(content.len() as u64).to_be_bytes());
             bytes.extend_from_slice(path.as_bytes());
-            bytes.extend_from_slice(content);
+            bytes.extend_from_slice(&stored);
         }
         Box::leak(bytes.into_boxed_slice())
+    }
+
+    /// Build one v2 record with fully caller-controlled header fields, so a
+    /// test can express shapes the honest encoder never emits.
+    fn raw_record(path: &str, encoding: u8, stored: &[u8], decoded_length: u64) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&(path.len() as u32).to_be_bytes());
+        bytes.push(encoding);
+        bytes.extend_from_slice(&(stored.len() as u64).to_be_bytes());
+        bytes.extend_from_slice(&decoded_length.to_be_bytes());
+        bytes.extend_from_slice(path.as_bytes());
+        bytes.extend_from_slice(stored);
+        bytes
+    }
+
+    fn artifact_with_raw_records(records: &[Vec<u8>]) -> &'static [u8] {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(ARTIFACT_MAGIC);
+        bytes.extend_from_slice(ZERO_CONTENT_HASH.as_bytes());
+        bytes.extend_from_slice(&(records.len() as u32).to_be_bytes());
+        for record in records {
+            bytes.extend_from_slice(record);
+        }
+        Box::leak(bytes.into_boxed_slice())
+    }
+
+    // @ref LLP 0314.002#32-a-bit-stable-encoder-normatively-required — Phase 2
+    // authenticates the container with one digest produced by two callers, so
+    // the encoder must be a pure function of its input.
+    #[test]
+    fn record_encoder_is_bit_stable_and_round_trips() {
+        let payload = "# Guide\n".repeat(4096);
+        let payload = payload.as_bytes();
+        let (first_encoding, first) = snapback_types::guide_artifact::encode_guide_record(payload);
+        let (second_encoding, second) = snapback_types::guide_artifact::encode_guide_record(payload);
+        assert_eq!(first_encoding, RECORD_ENCODING_DEFLATE);
+        assert_eq!(first_encoding, second_encoding);
+        assert_eq!(first, second, "encoder is not bit-stable across invocations");
+        assert!(first.len() < payload.len());
+
+        let stored: &'static [u8] = Box::leak(first.into_boxed_slice());
+        let decoded =
+            decode_guide_record(first_encoding, stored, payload.len(), 0, "index.md").unwrap();
+        assert_eq!(decoded, payload, "round trip changed the bytes");
+    }
+
+    #[test]
+    fn incompressible_records_are_stored_verbatim() {
+        // A short payload cannot be shrunk by deflate framing.
+        let payload = b"x";
+        let (encoding, stored) = snapback_types::guide_artifact::encode_guide_record(payload);
+        assert_eq!(encoding, RECORD_ENCODING_STORED);
+        assert_eq!(stored, payload);
+    }
+
+    // @ref LLP 0314.002#34-bounded-decoding — a declared decoded length is an
+    // expansion bomb unless every one of these shapes is refused.
+    #[test]
+    fn hostile_record_headers_are_refused() {
+        let unknown = artifact_with_raw_records(&[raw_record("index.md", 7, b"abc", 3)]);
+        assert!(
+            parse_embedded_guide(unknown)
+                .unwrap_err()
+                .contains("unknown record encoding 7"),
+            "unknown encoding tag must be refused"
+        );
+
+        let lying = artifact_with_raw_records(&[raw_record(
+            "index.md",
+            RECORD_ENCODING_STORED,
+            b"abc",
+            99,
+        )]);
+        assert!(
+            parse_embedded_guide(lying)
+                .unwrap_err()
+                .contains("declares a different decoded length"),
+            "stored record must agree with its declared decoded length"
+        );
+
+        let oversized = artifact_with_raw_records(&[raw_record(
+            "index.md",
+            RECORD_ENCODING_DEFLATE,
+            b"abc",
+            MAX_RECORD_DECODED_BYTES + 1,
+        )]);
+        assert!(
+            parse_embedded_guide(oversized)
+                .unwrap_err()
+                .contains("exceeds the per-record ceiling"),
+            "per-record decoded ceiling must bound the declared length"
+        );
+
+        // A real deflate stream whose expansion is larger than declared.
+        let payload = vec![b'a'; 4096];
+        let (encoding, stored) = snapback_types::guide_artifact::encode_guide_record(&payload);
+        assert_eq!(encoding, RECORD_ENCODING_DEFLATE);
+        let understated =
+            artifact_with_raw_records(&[raw_record("index.md", encoding, &stored, 16)]);
+        let error = parse_embedded_guide(understated).unwrap_err();
+        assert!(
+            error.contains("not the declared") || error.contains("failed to inflate"),
+            "an over-expanding stream must be refused, got: {error}"
+        );
     }
 
     fn complete_test_files(index: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {

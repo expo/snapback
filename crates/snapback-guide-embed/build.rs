@@ -74,7 +74,7 @@ fn emit_embedded_guide() -> PathBuf {
     let artifact_path = out_dir.join("embedded-guide.v1.bin");
     let mut output = fs::File::create(&artifact_path).expect("create embedded Guide data artifact");
     output
-        .write_all(b"SNAPBACK_EMBEDDED_GUIDE\0\x01")
+        .write_all(artifact::ARTIFACT_MAGIC_V2)
         .expect("write embedded Guide artifact magic");
     output
         .write_all(content_hash.as_bytes())
@@ -87,13 +87,18 @@ fn emit_embedded_guide() -> PathBuf {
             fs::read(guide_dir.join(&path))
                 .unwrap_or_else(|error| panic!("read embedded Guide file {path}: {error}"))
         };
+        let (encoding, stored) = artifact::encode_guide_record(&bytes);
         write_u32(&mut output, path.len(), "embedded Guide path length");
-        write_u64(&mut output, bytes.len(), "embedded Guide file length");
+        output
+            .write_all(&[encoding])
+            .expect("write embedded Guide record encoding");
+        write_u64(&mut output, stored.len(), "embedded Guide stored length");
+        write_u64(&mut output, bytes.len(), "embedded Guide decoded length");
         output
             .write_all(path.as_bytes())
             .expect("write embedded Guide path");
         output
-            .write_all(&bytes)
+            .write_all(&stored)
             .expect("write embedded Guide file bytes");
     }
     output.flush().expect("flush embedded Guide data artifact");
