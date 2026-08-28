@@ -15360,25 +15360,19 @@ fn sessions_activation_pair(
 }
 
 fn enable_open_agent_registration(schema: &mut SchemaManifest) {
-    match schema.auth.as_mut() {
-        Some(auth) => {
-            auth.agents = Some(crate::manifest::AgentsManifest::explicit(
-                crate::manifest::AgentsMode::Open,
-                crate::manifest::InvitedBy::Operators,
-            ));
-        }
-        None => {
-            schema.auth = Some(crate::manifest::AuthManifest {
-                mode: AuthMode::Dev,
-                agents: Some(crate::manifest::AgentsManifest::explicit(
-                    crate::manifest::AgentsMode::Open,
-                    crate::manifest::InvitedBy::Operators,
-                )),
-                password_identifier_mode: None,
-                password_minimum_length: None,
-            });
-        }
-    }
+    let auth = schema
+        .auth
+        .as_mut()
+        .expect("agent registration requires a sessions auth fixture");
+    assert_eq!(
+        auth.mode,
+        AuthMode::Sessions,
+        "auth.agents is meaningful only in sessions mode"
+    );
+    auth.agents = Some(crate::manifest::AgentsManifest::explicit(
+        crate::manifest::AgentsMode::Open,
+        crate::manifest::InvitedBy::Operators,
+    ));
 }
 
 // @ref LLP 0081#4-execution-journaling-and-crash-recovery — no
@@ -32367,18 +32361,12 @@ impl GrantDenialFixture {
     fn new() -> Self {
         use crate::storage::auth_grants::{GrantScopeRequest, ScopedFunctionKind};
 
-        let mut snapback = LocalSnapback::memory().expect("grant denial memory fixture");
-        let mut schema = SchemaManifest::default();
+        let (mut schema, functions) = sessions_activation_pair('d', false);
         enable_open_agent_registration(&mut schema);
-        snapback
-            .apply_schema(schema)
-            .expect("install open agent registration policy");
+        let mut snapback = settled_sessions_activation_snapback(schema, functions);
         let random = CounterRandom::new();
         let pairing_requests = {
             let database = snapback.auth_database_mut();
-            database
-                .activate_current_auth_catalog()
-                .expect("activate grant denial auth catalog");
             for user_id in DENY_USERS {
                 database
                     .auth_catalog()
@@ -33398,18 +33386,12 @@ fn grant_approval_derives_exact_user_and_session_from_management_authority() {
 
     impl Fixture {
         fn new() -> Self {
-            let mut snapback = LocalSnapback::memory().expect("grant approval memory fixture");
-            let mut schema = SchemaManifest::default();
+            let (mut schema, functions) = sessions_activation_pair('d', false);
             enable_open_agent_registration(&mut schema);
-            snapback
-                .apply_schema(schema)
-                .expect("install open agent registration policy");
+            let mut snapback = settled_sessions_activation_snapback(schema, functions);
             let random = CounterRandom::new();
             let (pairing_rows, pending_requests) = {
                 let database = snapback.auth_database_mut();
-                database
-                    .activate_current_auth_catalog()
-                    .expect("activate grant approval auth catalog");
                 for user_id in [
                     "usr_00000000000000000000000010",
                     FIRST_GRANTOR,
@@ -36056,8 +36038,8 @@ fn authorized_lease_reservation_recheck_is_scoped_to_the_lease_target() {
 }
 
 /// ENG-24990: refiring one exhausted retry key while 10,000 episodes are
-/// retained must not monopolize the app SQLite writer; unrelated
-/// mutations continue within the local runtime latency budget.
+/// retained must stay key-local instead of monopolizing the app SQLite
+/// writer; unrelated mutations must continue to commit during the churn.
 #[test]
 fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
     let mut snapback = live_limit_snapback();
@@ -36104,14 +36086,17 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
     // Interleave production-shaped exhausted refires (initial reattach,
     // then automatic exhaustion — the exact transactions
     // invoke_authorization_resolution performs) with unrelated mutations.
-    // LLP 0035 benchmarks the local target against a ~10ms interactive
-    // budget; the pre-fix full-table rewrite spent two 10,000-row
-    // rewrite transactions per refire on this same writer.
-    let budget = Duration::from_millis(100);
+    // Wall-clock thresholds make this unit test host-load dependent. The
+    // starvation regression's deterministic signature is the write set: the
+    // pre-fix path rewrote all 10,000 episodes twice per refire, while the
+    // key-local path touches at most the episode, counter, and clock rows.
     let mut now = 1_000_000_u64;
     for round in 0..5 {
+        let changes_before = snapback
+            .auth_database_mut()
+            .total_row_changes_for_test()
+            .expect("read retry write count before refire");
         now += 1;
-        let churn_started = Instant::now();
         let initial = snapback
             .auth_database_mut()
             .reserve_invalidation_retry_episode(
@@ -36139,27 +36124,25 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
             automatic,
             crate::auth::invalidation::RetryReservation::Exhausted(_)
         ));
-        let churn_elapsed = churn_started.elapsed();
+        let retry_row_writes = snapback
+            .auth_database_mut()
+            .total_row_changes_for_test()
+            .expect("read retry write count after refire")
+            - changes_before;
         assert!(
-            churn_elapsed < budget,
-            "round {round}: exhausted refire held the writer for {churn_elapsed:?}",
+            retry_row_writes <= 6,
+            "round {round}: exhausted refire wrote {retry_row_writes} rows instead of staying key-local",
         );
 
-        let mutation_started = Instant::now();
-        invoke_test_session_mutation(
-            &mut snapback,
-            "insertItem",
-            HandlerInput {
-                args: json!({ "value": format!("row-{round}") }),
-                ..HandlerInput::default()
-            },
-        )
-        .expect("unrelated mutation under retry churn");
-        let mutation_elapsed = mutation_started.elapsed();
-        assert!(
-            mutation_elapsed < budget,
-            "round {round}: unrelated mutation took {mutation_elapsed:?} under churn",
-        );
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": format!("row-{round}") }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("unrelated mutation under retry churn");
     }
     assert_eq!(
         snapback
