@@ -10,12 +10,12 @@
 **Battery gate:** `snapback-codegen-package`
 **Failure signature:** `sha256:038c5c0f4dd7c67b34fcb672029c488587b63b547847c71672a69ddcd5520b55`
 **First observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last observed run:** `local.20260828T032832Z.2fbb5bd35a5d`
-**Last processed run:** `local.20260828T032832Z.2fbb5bd35a5d`
+**Last observed run:** `local.20260828T114709Z.095880f16775`
+**Last processed run:** `local.20260828T114709Z.095880f16775`
 **Detected at revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Last observed revision:** `2fbb5bd35a5d7355b5bf9abf3dc6417ea7a02473`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `095880f167755431165137247bd51844b8c29e09`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ bun run --cwd packages/snapback-codegen test
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

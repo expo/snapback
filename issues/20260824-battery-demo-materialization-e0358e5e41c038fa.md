@@ -11,7 +11,7 @@
 **Failure signature:** `sha256:e0358e5e41c038fa89fcf0a54715f7731ff01a0c952f8ecaffcb18cd9b2bc6bb`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
 **Last observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last processed run:** `local.20260828T032832Z.2fbb5bd35a5d`
+**Last processed run:** `local.20260828T114709Z.095880f16775`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
 **Last observed revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
 **Consecutive red runs:** `0`
