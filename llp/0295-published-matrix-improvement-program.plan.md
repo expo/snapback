@@ -113,7 +113,7 @@ Diary 0104, Diary 0105,
 `issues/20260821-fixed-origin-external-client-dev-lifecycle.md`,
 `issues/20260809-per-milestone-token-metering.md`,
 `issues/20260822-declared-refusal-client-code-preservation.md`,
-`issues/20260822-guide-derived-where-applicable-index-fact.md`,
+`issues/closed/20260822-guide-derived-where-applicable-index-fact.md`,
 `benchmarks/runs/2026-08-22-clique-local-main-0125/README.md`,
 `/Users/ccheever/clique-main-20260821/lanes/sol-high-clique-explicit/diary.md`,
 `/Users/ccheever/clique-main-20260821/lanes/sol-high-clique-familiar/diary.md`
@@ -312,7 +312,7 @@ Move 5 instruments all of them and supplies the evidence for Phase 3.
 
 | Move | Landed on `main` | Still open |
 | --- | --- | --- |
-| 1. Vertical contract defects | 1A closed as a batch (five tickets); 1B four of five closed; 1C seven of eight closed; the Familiar `v.doc` and handler-dialect receipts landed | `issues/20260822-declared-refusal-client-code-preservation.md`; `issues/20260822-guide-derived-where-applicable-index-fact.md`; the W3 packed fixture catalogue and entrypoint export parity in `issues/20260821-authoring-profile-vertical-contract-fixtures.md` |
+| 1. Vertical contract defects | 1A closed as a batch (five tickets); 1B four of five closed; 1C seven of eight closed; the Familiar `v.doc` and handler-dialect receipts landed | `issues/20260822-declared-refusal-client-code-preservation.md`; `issues/closed/20260822-guide-derived-where-applicable-index-fact.md`; the W3 packed fixture catalogue and entrypoint export parity in `issues/20260821-authoring-profile-vertical-contract-fixtures.md` |
 | 2. Fixed-origin lifecycle | W1 closed 2026-08-21 (`15efbe6cb`, `7a2903ae6`, `a3a2d8725`, `e98961ad3`, `70e2b9af4`); Guide recipe ticket closed | none owned here; R1 verifies the packed journey |
 | 3. Authority transitions and live composition | W2 conformance closed (`cebbf5c1a`, `f22cd67d6`, `94d4d8546`, `ea062befb`, `411334ae5`); 1D classified the six-subscription case as an LLP 0200 composition bound; LLP 0267 §7's owner acceptance landed at v0.15 | the pre-inconsistency client diagnostic in `issues/20260820-familiar-live-subscription-contention.md`, owned by `issues/20260822-client-runtime-cost-and-delivery-inspection.md` |
 | 4. Safe private composition | W4 closed 2026-08-22 (`a0bb35684`, `0b0bbaac7`, `810eacd2c`); D0.5 closed with four implementation records | none owned here |
@@ -616,7 +616,7 @@ bisection.
 
 ### 1C. High-value guide routes
 
-- `issues/20260822-guide-derived-where-applicable-index-fact.md`
+- `issues/closed/20260822-guide-derived-where-applicable-index-fact.md`
 - `issues/closed/20260818-guide-gap-fixed-origin-dev-attach-recipe.md`
 - `issues/closed/20260818-guide-gap-node-client-storage-partition-default.md`
 - `issues/closed/20260818-guide-gap-background-writes-during-auth-transitions.md`

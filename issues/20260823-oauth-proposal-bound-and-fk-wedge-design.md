@@ -2,7 +2,7 @@
 
 Status: Partially implemented — cap landed; cascade and rebuild deferred
 Created: 2026-08-23
-Related: issues/20260822-oauth-proposal-pairing-sweep-fk-wedge.md (the defect),
+Related: issues/closed/20260822-oauth-proposal-pairing-sweep-fk-wedge.md (the defect),
 issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted it),
 issues/20260823-oauth-pairing-fk-wedge-deferred.md
 

@@ -72,7 +72,7 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // exact diary vocabulary, owner, review date, filing pointer, and workaround.
 // Bumped 61440 -> 63488 on 2026-08-22 because LLP 0061 requires the shipped
 // guest-session row and restoring unrelated prose dishonestly truncated to
-// make room; see issues/20260822-capability-index-guest-session-row-budget.md.
+// make room; see issues/closed/20260822-capability-index-guest-session-row-budget.md.
 const CAPABILITIES_SIZE_BUDGET_BYTES = 63488;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer

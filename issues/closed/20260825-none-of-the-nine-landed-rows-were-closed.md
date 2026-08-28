@@ -1,6 +1,6 @@
 # None of the nine rows reported as landed were closed
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: snapback-sync, snapback-engine, snapback-kernel, snapback-auth
 Related: llp/0303-subject-authority-correlation-policy.decision.md,
@@ -79,3 +79,7 @@ features". Witnesses ran at `baacaa209`; no intervening change touched the five 
 - **A landing is not evidence.** Only an executed refusal at current `origin/main` is. The trailer rule
   already says a trailer counts once a review verifies it; this adds that *reviews of the fix are not
   interchangeable with attacks on the row*, because every one of these fixes passed its review.
+
+## Resolution
+
+Closed 2026-08-28. Point-in-time audit that nine claimed closures were still open. Superseded as a board by `issues/20260825-eight-rows-verified-closed-by-two-instruments.md` (eight of those later verified closed; F170 left open). The standing process lesson lives in `issues/20260825-a-closes-rows-trailer-is-a-claim-not-a-label.md`.

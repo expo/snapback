@@ -1,6 +1,6 @@
 # Lane work must survive a build-host reboot
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: fleet operations
 Related: issues/20260824-linux-build-hosts-for-snapback-crates.md,
@@ -54,3 +54,7 @@ self-reports were destroyed. They are explicitly told to treat each commit messa
 than a record. That is arguably a stronger review than one primed by the implementer's own account
 of what it did — and it is worth considering whether review briefs should withhold the lane's report
 by default.
+
+## Resolution
+
+Closed 2026-08-28. Fleet postmortem for an unattended EPYC kernel upgrade that killed nine mid-round lanes. The recovery practices (commit lane work early; do not keep the only copy in `/tmp`) are recorded here as evidence. No remaining repository-scoped engineering action.

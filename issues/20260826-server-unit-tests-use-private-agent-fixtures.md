@@ -3,7 +3,7 @@
 Status: open
 Date: 2026-08-26
 Systems: snapback-server, snapback-kernel, Testing
-Related: issues/20260825-engine-unit-tests-do-not-compile-on-main.md
+Related: issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md
 
 ## The defect
 

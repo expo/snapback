@@ -1,6 +1,6 @@
 # OAuth proposals were uncapped; their child FK still wedges the pairing sweep
 
-Status: Open — proposal cap implemented; FK wedge deferred
+Status: Closed
 Created: 2026-08-22
 Related: issues/20260822-residual-findings-4-9-disposition.md (which wrongly accepted this),
 issues/20260823-oauth-pairing-fk-wedge-deferred.md
@@ -59,3 +59,7 @@ independent of this cause.
 The disposition ticket accepted this artifact on the reasoning that pairing rows are "capped per
 user". They are — but not on the path OAuth uses. This is a good example of an acceptance argument
 that is correct about the mechanism it cites and wrong about whether that mechanism applies.
+
+## Resolution
+
+Closed 2026-08-28. The uncapped OAuth-proposal creation half landed (shared ten-slot unresolved-consent cap). The remaining `ON DELETE RESTRICT` pairing-parent wedge is the whole of `issues/20260823-oauth-pairing-fk-wedge-deferred.md`; keeping both open duplicated the remainder.

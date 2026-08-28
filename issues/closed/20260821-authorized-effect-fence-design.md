@@ -1,7 +1,6 @@
 # Design decision: split-phase authorized-effect fence
 
-**Status:** Implemented 2026-08-21 (`138d24164`, `1b0d76425`); migration of
-remaining call sites tracked in the remedy classification
+**Status:** Closed
 **Filed:** 2026-08-21
 **Decides:** `issues/20260821-effect-guard-does-not-fence-logout.md`
 **Governs:** the remaining fences, now scoped by
@@ -97,3 +96,7 @@ demonstrates the same `BeforeHandler` race structure with an unchanged durable c
 
 This should be absorbed into the LLP governing the admission gate algorithm (LLP 0058)
 once implemented.
+
+## Resolution
+
+Closed 2026-08-28. The design question is answered and implemented (`138d24164`, `1b0d76425`). Remaining call-site migration is owned by `issues/20260821-authorized-effect-remedy-classification.md` and `issues/20260822-authorized-effect-program-status.md`. The finding this decides is already `issues/closed/20260821-effect-guard-does-not-fence-logout.md`.

@@ -5,7 +5,7 @@ Date: 2026-08-24
 Systems: snapback-sync, snapback-engine, snapback-kernel
 Related: issues/20260823-mandatory-authority-correlation-design.md,
   issues/20260823-uncorrelated-authority-axes-are-systemic-153-sites.md,
-  issues/20260823-capsule-landing1-fix-moved-the-seam-not-closed-it.md
+  issues/closed/20260823-capsule-landing1-fix-moved-the-seam-not-closed-it.md
 
 ## Gate result: adopt with changes (both reviewers)
 

@@ -4,7 +4,7 @@ Status: open
 Date: 2026-08-25
 Systems: snapback-sync, snapback-auth, snapback-engine
 Related: llp/0291-authority-forgery-surface.research.md,
-  issues/20260825-none-of-the-nine-landed-rows-were-closed.md,
+  issues/closed/20260825-none-of-the-nine-landed-rows-were-closed.md,
   issues/20260825-llp-0291-r14-r16-is-the-root-under-everything.md,
   issues/20260825-a-closes-rows-trailer-is-a-claim-not-a-label.md
 

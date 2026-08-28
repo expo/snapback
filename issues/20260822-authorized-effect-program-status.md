@@ -90,7 +90,7 @@ historical alternatives, but their current status lines were reconciled on
   `issues/20260821-check-inventories-has-no-mechanical-enforcement.md`. Four distinct reds on main
   in two days.
 - OAuth proposals are uncapped and can wedge the pairing sweep —
-  `issues/20260822-oauth-proposal-pairing-sweep-fk-wedge.md`.
+  `issues/closed/20260822-oauth-proposal-pairing-sweep-fk-wedge.md`.
 - Orphan blobs after a partial reset wipe are never reclaimed, and a partial wipe is
   indistinguishable from a complete one —
   `issues/20260821-orphan-blob-reclamation-after-reset.md`.

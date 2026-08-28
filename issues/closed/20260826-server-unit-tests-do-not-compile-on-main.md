@@ -3,7 +3,7 @@
 Status: open
 Created: 2026-08-26
 Systems: Server, Auth, Kernel, Test support
-Related: `issues/20260825-engine-unit-tests-do-not-compile-on-main.md`, LLP 0303
+Related: `issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md`, LLP 0303
 
 ## Finding
 

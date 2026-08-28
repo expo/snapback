@@ -5,7 +5,7 @@ Date: 2026-08-25
 Systems: snapback-sync, snapback-auth, snapback-engine
 Related: llp/0291-authority-forgery-surface.research.md,
   llp/0303-subject-authority-correlation-policy.decision.md,
-  issues/20260825-none-of-the-nine-landed-rows-were-closed.md,
+  issues/closed/20260825-none-of-the-nine-landed-rows-were-closed.md,
   issues/20260825-the-privilege-ratchet-cannot-measure-this-defect-class.md
 
 ## The connection

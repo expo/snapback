@@ -1,11 +1,11 @@
 # Landing protocol for the pending row batch: source first, regenerate once
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: Tooling, Testing
 Related: llp/0232-green-pointer-development-model.rfc.md,
   issues/20260825-a-closes-rows-trailer-is-a-claim-not-a-label.md,
-  issues/20260825-none-of-the-nine-landed-rows-were-closed.md
+  issues/closed/20260825-none-of-the-nine-landed-rows-were-closed.md
 
 ## The measurement
 
@@ -110,3 +110,7 @@ Better still: **when source conflicts appear, do not resolve them in the shared 
 rebase back to the lane worktree that owns the commit, with instructions to keep both sides' intent and
 to re-run its own witnesses afterwards — a rebase that silently changes a refusal is the failure this
 protocol exists to prevent.
+
+## Resolution
+
+Closed 2026-08-28. Session protocol for ten named pending lanes against `origin/main` at `9d0a69f41` ("land source only, regenerate once"). That batch is no longer pending. The useful standing rule — do not land per-lane generated `guide/` / diagnostics-registry restamps — is already the diagnostics/0326 conversation, not this cherry-pick recipe.

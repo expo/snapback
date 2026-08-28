@@ -67,4 +67,4 @@ digests.
   `OAuthConsentBeginCase::AbsentUser`, missing
   `LiveInvalidationIssuer::with_authenticator`, and two authority-coordinator
   borrow conflicts. A detached clean worktree reproduced the exact same six
-  errors. See `issues/20260825-engine-unit-tests-do-not-compile-on-main.md`.
+  errors. See `issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md`.

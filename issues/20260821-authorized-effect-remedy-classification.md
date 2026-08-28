@@ -4,7 +4,7 @@ Status: Open
 Created: 2026-08-21
 Related: LLP 0283 F-1, issues/20260821-unguarded-durable-writes-admission-fence.md,
 issues/20260821-nonsql-durable-effects-unguarded.md,
-issues/20260821-authorized-effect-fence-design.md
+issues/closed/20260821-authorized-effect-fence-design.md
 
 ## Why this exists
 

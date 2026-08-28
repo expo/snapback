@@ -133,7 +133,7 @@ Irreversible effects use a durable authority handoff:
 6. Perform the filesystem/provider cut using only that ticket.
 7. Settle the outcome from the handoff record, not from the original live caller.
 
-`PreparedAuthority` contains session and service publication carriers, while `effect_guard` delegates only to the admission lease, so the current mode-only guard cannot itself implement this transfer ([invocation.rs:1182](crates/snapback-sync/src/auth/invocation.rs:1182), [invocation.rs:1608](crates/snapback-sync/src/auth/invocation.rs:1608)). The split-phase ordering—authority reservation outside `LocalSnapback`, mode guard last, retention only through commit—is already the recorded SQLite design ([authorized-effect-fence-design.md:21](issues/20260821-authorized-effect-fence-design.md:21)).
+`PreparedAuthority` contains session and service publication carriers, while `effect_guard` delegates only to the admission lease, so the current mode-only guard cannot itself implement this transfer ([invocation.rs:1182](crates/snapback-sync/src/auth/invocation.rs:1182), [invocation.rs:1608](crates/snapback-sync/src/auth/invocation.rs:1608)). The split-phase ordering—authority reservation outside `LocalSnapback`, mode guard last, retention only through commit—is already the recorded SQLite design ([authorized-effect-fence-design.md:21](issues/closed/20260821-authorized-effect-fence-design.md:21)).
 
 The durable record must bind, as applicable:
 

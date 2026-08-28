@@ -1,6 +1,6 @@
 # Capsule landing 1: the fix moved the seam instead of closing it
 
-Status: open
+Status: Closed
 Date: 2026-08-23
 Systems: snapback-server, snapback-engine
 Related: issues/20260823-uncorrelated-authority-axes-are-systemic-153-sites.md,
@@ -84,3 +84,7 @@ level like every other site.
 Preserve on the branch: the private typestate, the kernel seals, the recovery owner, the real
 narrowings above, and the `{B,B,B,A,A}` reproduction machinery (a working two-fixture recipe
 that reaches a real durable assertion — that took three runs to get right and must not be lost).
+
+## Resolution
+
+Closed 2026-08-28. Verdict was "do not land branch `lane/capsule-landing1` (`e720ac3c3`)". That branch is dead and the commit is not on `origin/main`. The underlying two-axis defect remains tracked by the later correlation/chokepoint tickets, not this rejected landing.

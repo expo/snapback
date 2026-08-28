@@ -31391,7 +31391,7 @@ oauth_consent_begin_case_test!(
     OAuthConsentBeginCase::WrongSource
 );
 // Intentionally disabled until the absent-user case has a durable seed and
-// expected refusal. See issues/20260825-engine-unit-tests-do-not-compile-on-main.md.
+// expected refusal. See issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md.
 /*
 oauth_consent_begin_case_test!(
     oauth_consent_request_derives_the_durable_user_from_authority_absent_user,

@@ -197,5 +197,5 @@ component, exactly as the corrected hypothesis above states.
 
 Read-only against `5c2650d7526f65a60211057db50b97a9bf2a3551`, rechecked unchanged at the end. These
 five rows were briefly promoted to P1-SHIP and have since been corrected back to P2/P3
-(`issues/20260825-i-over-escalated-five-p3-rows-to-p1-ship.md`); the enumeration is unaffected by
+(`issues/closed/20260825-i-over-escalated-five-p3-rows-to-p1-ship.md`); the enumeration is unaffected by
 that severity correction, since it describes reachability rather than severity.

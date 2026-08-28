@@ -8507,7 +8507,7 @@ async fn bounded_commit_capsule_queue_and_handoff_unwinds_release_reservation_an
 }
 
 /// Regression for `issues/20260821-effect-guard-does-not-fence-logout.md`
-/// and `issues/20260821-authorized-effect-fence-design.md`: a real logout,
+/// and `issues/closed/20260821-authorized-effect-fence-design.md`: a real logout,
 /// without a mode-epoch retirement, must defeat authority prepared before the
 /// handler reserves its authorized work.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

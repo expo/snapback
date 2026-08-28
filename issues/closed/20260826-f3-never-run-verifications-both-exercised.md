@@ -1,9 +1,9 @@
 # F-3: both never-run verifications are now exercised
 
-**Status:** open (one green, one red with a named defect)
+**Status:** Closed
 **Date:** 2026-08-26
 **Systems:** publication, packaging, runtime attestation, cold clone
-**Related:** LLP 0283 F-3, LLP 0041, `issues/20260826-cold-clone-cron-delta-outbox-not-writer.md`
+**Related:** LLP 0283 F-3, LLP 0041, `issues/closed/20260826-cold-clone-cron-delta-outbox-not-writer.md`
 
 LLP 0283 F-3 lists seven verification items, of which two had **genuinely never been
 exercised**: the cold clone, and the npm closure pack plus install witness. Both have now
@@ -16,7 +16,7 @@ a genuine cold clone, no sibling checkout, no pin file) passes cleanly, so a str
 build this repo from nothing. The single failure is
 `SNAPBACK_OUTBOX_NOT_WRITER` on "cron-authored delta reaches the browser through the
 bindings (no pump)", tracked separately in
-[`issues/20260826-cold-clone-cron-delta-outbox-not-writer.md`](20260826-cold-clone-cron-delta-outbox-not-writer.md).
+[`issues/closed/20260826-cold-clone-cron-delta-outbox-not-writer.md`](20260826-cold-clone-cron-delta-outbox-not-writer.md).
 
 ## Item 3 — npm closure pack: GREEN
 
@@ -56,3 +56,7 @@ than overwriting or saying "output exists; remove it or pass `--output-dir`". Pa
 Item 3 is green. Item 2 is red by exactly one named check with a precise diagnostic, now in a
 fix lane. Neither may be described as unexercised any longer, and item 2 may not be described
 as green.
+
+## Resolution
+
+Closed 2026-08-28. The ticket's job was to record that F-3's two never-run verifications (cold clone, npm closure pack) have now been exercised. Pack is green; the one named cold-clone red was filed separately as `issues/closed/20260826-cold-clone-cron-delta-outbox-not-writer.md`. Neither item may be described as unexercised. The `build-linux-runtime-release` EEXIST papercut is leftover hygiene, not this ticket.

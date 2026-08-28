@@ -78,7 +78,7 @@ not regressions or claims.
 6. **Guide-vs-codegen index fact drift — new finding.** The Guide describes an
    index option the codegen rejects (`CODEGEN_MODULE_EVALUATION_FAILED:
    index-options-unknown-field`, Explicit, snapback-attributed). Filed as
-   `issues/20260822-guide-derived-where-applicable-index-fact.md`.
+   `issues/closed/20260822-guide-derived-where-applicable-index-fact.md`.
 7. **Consumer skill body exceeds LLP 0259's ceiling — staging finding.**
    Filed as
    `issues/20260822-consumer-skill-body-exceeds-0259-ceiling.md`; lanes

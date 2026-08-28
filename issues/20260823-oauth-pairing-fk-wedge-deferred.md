@@ -2,7 +2,7 @@
 
 Status: Open — proposal growth is bounded; the database-wide wedge and destructive-parent blockers remain
 Created: 2026-08-23
-Related: issues/20260822-oauth-proposal-pairing-sweep-fk-wedge.md,
+Related: issues/closed/20260822-oauth-proposal-pairing-sweep-fk-wedge.md,
 issues/20260823-oauth-proposal-bound-and-fk-wedge-design.md
 
 ## What is still broken

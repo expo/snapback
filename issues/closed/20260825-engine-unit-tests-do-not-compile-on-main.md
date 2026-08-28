@@ -1,6 +1,6 @@
 # The engine unit-test cell does not compile on main
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: snapback-engine, Testing
 Related: issues/20260825-the-two-inherited-reds-every-lane-re-derives.md
@@ -85,3 +85,7 @@ source. Whoever restores it should supply the intent, not guess it.
 lanes have been landing on affected-scope tests plus separately-executed regressions. That is
 acceptable under LLP 0189 but it is a standing tax, and the two `E0624` errors are in **production**
 `engine.rs`, not in test code — those deserve a look on their own merits.
+
+## Resolution
+
+Closed 2026-08-28. The engine lib-test target compiles again (`55a8354e0` and follow-ups). The six compile errors named here are gone: `AbsentUser` is commented pending intended semantics, the private-agent helpers are gone from engine.rs, `with_authenticator` is no longer called, and the admission borrow errors were re-shaped. The subsequently discovered runtime reds were tracked and resolved in `issues/closed/20260826-engine-unit-test-residual-reds.md`. Restoring the AbsentUser case still needs the original author's expected-error intent; that is coverage, not a compile block.

@@ -1,10 +1,10 @@
 # Landing order for the five pending lane commits
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: snapback-auth, snapback-engine, snapback-kernel, snapback-server, snapback-sync
 Related: issues/20260824-lane-staleness-is-a-second-gate.md,
-  issues/20260825-lane-work-must-survive-a-build-host-reboot.md
+  issues/closed/20260825-lane-work-must-survive-a-build-host-reboot.md
 
 ## Why decide this before the verdicts arrive
 
@@ -79,3 +79,7 @@ that sees the whole generated chain), `./ref-check --verbose`, the affected crat
 
 This order is provisional on the verdicts. A lane that returns DO NOT LAND drops out and the rest
 shift up.
+
+## Resolution
+
+Closed 2026-08-28. Session landing-order for five named commits (`4d141de83`, `2e62af7f5`, `f22e9507d`, `50f62a07d`, `7da9567da`) against `origin/main` at `484021b09`. Those objects are not in this repository; the batch is no longer pending. Not a standing work item.

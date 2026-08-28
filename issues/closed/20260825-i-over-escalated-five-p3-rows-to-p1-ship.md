@@ -1,6 +1,6 @@
 # I over-escalated five P3 rows to P1-SHIP
 
-Status: open
+Status: Closed
 Date: 2026-08-25
 Systems: snapback-engine, snapback-sync, snapback-kernel
 Related: issues/20260825-twelve-of-seventeen-p3-rows-need-execution.md,
@@ -69,3 +69,7 @@ quoted approvingly and then failed to apply:
 
 Every count in this inventory has now been checked by someone other than its author. This is the
 first *judgement* to get the same treatment, and it did not survive either.
+
+## Resolution
+
+Closed 2026-08-28. Self-correction of a severity call. The five rows are not P1-SHIP under the programme's own definition; real remaining work is tracked on the row tickets and later A–E landings, not this count-correction note.

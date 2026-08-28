@@ -1,6 +1,6 @@
 # Guide must not present derived `whereApplicable` as an author option
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-22
 **Impact:** 3
 **Urgency:** 4
@@ -49,3 +49,6 @@ Guide spelling causes a needless first-generation correction loop.
 - Authoring `whereApplicable` either reaches a targeted remediation or the
   first-read Guide prevents the mistake in a cold retrieval probe.
 
+## Resolution
+
+Closed 2026-08-28. Every required change is in tree: `guide/backend/queries.md` teaches `{ unique: true }` only and states that `whereApplicable` is not an `.index(...)` option; retrieval-eval cases 90–91 cover the mistaken authoring; codegen rewrites the unknown-option diagnostic (`packages/snapback-codegen/index.mjs`) and pins it in `authoring-validation.test.mjs`.

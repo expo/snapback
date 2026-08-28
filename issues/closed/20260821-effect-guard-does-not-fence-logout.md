@@ -117,7 +117,7 @@ so it "sees" logout may not address this at all, because the refusal is already
 being produced; what is missing is that the refusal does not prevent — or does
 not roll back — the write.
 
-The remedy in `issues/20260821-authorized-effect-fence-design.md` should be
+The remedy in `issues/closed/20260821-authorized-effect-fence-design.md` should be
 re-examined against this: a split-phase authorized-effect reservation prevents
 work from STARTING, but this write starts before logout lands and commits after
 a refusal is already computed. Determine whether the correct fix is reservation,
@@ -170,7 +170,7 @@ Case by case:
 
 ### The recorded design does address this
 
-`issues/20260821-authorized-effect-fence-design.md` stands. Its premise was
+`issues/closed/20260821-authorized-effect-fence-design.md` stands. Its premise was
 questioned when this turned out to be a refusal-with-side-effect; the premise is
 correct, because the regression pauses **before** handler/work reservation, not
 after the durable write began.

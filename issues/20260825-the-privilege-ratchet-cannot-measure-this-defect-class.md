@@ -6,7 +6,7 @@ Systems: scripts/security-gates-rust, snapback-kernel
 Related: llp/0303-subject-authority-correlation-policy.decision.md,
   llp/0284-workspace-security-gate-threat-model.spec.md,
   issues/20260825-what-the-107-ratchet-violations-actually-are.md,
-  issues/20260825-none-of-the-nine-landed-rows-were-closed.md
+  issues/closed/20260825-none-of-the-nine-landed-rows-were-closed.md
 
 ## What happened
 
@@ -52,7 +52,7 @@ Three consequences, all of which this programme has already hit:
 
 - Keep the gate. Stop quoting the number as programme progress. Any capability claim needs an executed
   refusal at current `origin/main`, per
-  `issues/20260825-none-of-the-nine-landed-rows-were-closed.md`.
+  `issues/closed/20260825-none-of-the-nine-landed-rows-were-closed.md`.
 - If the gate is to detect this class at all, it needs to follow **generic bounds and trait-implementing
   types**, not a literal name — `MembershipWriterAccess` and `AdmittedMembershipWriter` are the worked
   example. That is a real change to `scripts/security-gates-rust`, not a config tweak, and LLP 0284

@@ -8,7 +8,7 @@
 ## Context
 
 The engine unit-test target had not compiled at all for most of a day (six errors, recorded in
-`issues/20260825-engine-unit-tests-do-not-compile-on-main.md`). With those fixed the target runs, and
+`issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md`). With those fixed the target runs, and
 the failures behind them become visible for the first time.
 
 The review characterised the run precisely: **0 introduced, 26 inherited or ambient.** That
@@ -74,5 +74,5 @@ change on main because the engine test binary did not provide five `snapback_bui
 symbols. Baseline and verification runs used an uncommitted test-only dependency shim; that shim is
 not part of this resolution.
 
-Related: `issues/20260825-engine-unit-tests-do-not-compile-on-main.md`,
+Related: `issues/closed/20260825-engine-unit-tests-do-not-compile-on-main.md`,
 `issues/20260824-backup-image-fd-path-fails-on-linux.md`.
