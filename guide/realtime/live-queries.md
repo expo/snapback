@@ -82,6 +82,18 @@ side table for live delivery (see [Assets](../backend/assets.md#put-typed-photos
 
 ## Subscribe
 
+<!-- diagnostic-primary: SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT -->
+
+`SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT` means one connection owns more durable
+subscription handles than its admitted ceiling. Reuse stable generated
+reference/argument/`connectionId` bindings, dispose handles when their consumer
+unmounts or a test ends, and remove nonce-style “refresh” arguments that create
+a new logical subscription on every render. Do not open another connection to
+hide leaked ownership. The limit and cleanup contract are the same for
+Explicit and Familiar references. If the caller deliberately polls a changing
+nonce, make that operation a one-shot read rather than accumulating live
+handles.
+
 `client.liveQuery(ref, options)` returns a handle with the snapshot already
 applied — `rows`, `connection`, `poll()`, `dispose()`:
 

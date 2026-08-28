@@ -74,6 +74,32 @@ plans and ordinary `ctx.db` calls automatically admit members and hide the same
 rows from strangers. Keep the roster private and use `ctx.permissions` for
 imperative authorization questions.
 
+### Route one membership boundary across tables, presence, and assets
+
+Search vocabulary: membership-scoped authorization; membership-scoped reads that hide rows from a removed group member without a client-side `recipientIds` CSV.
+
+Membership-scoped authorization is declared once and lowered across the
+server-authoritative surfaces below.
+
+If the requirement is “membership-scoped reads that hide rows from a removed
+group member without a client-side `recipientIds` CSV,” the table declaration
+above is the shipped boundary. Do not widen the row to `public-read` or copy a
+roster into every row.
+
+The same declaration can govern all three authoring surfaces:
+
+- table reads use
+  `{ kind: 'membership', declaration, resourceField, roles }` here;
+- ephemeral publish and subscribe use
+  [`allow.members(declarationId, { roles? })`](../realtime/ephemeral-state.md#authorize-publish-and-subscribe-separately);
+- asset reads use intent `access: { read: 'via-references' }` plus table
+  [`.assetSharing({ kind: 'membership', membership, roles })`](../backend/assets.md#declare-the-upload-intent-and-the-reference-field).
+
+Explicit and Familiar source lower these same normalized declarations; only
+their import and export spelling differs. A settled membership removal or
+allowed-to-disallowed role change is therefore an authorization boundary on
+all three surfaces, not a client-side visibility convention.
+
 Use `anyOf` for the common “owner or relationship” row boundary:
 
 ```js fragment reason="bounded relationship visibility declaration"

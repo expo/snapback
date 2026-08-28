@@ -135,6 +135,30 @@ allocated through `ctx.sequence.allocate`
 ([sequences](./sequences.md)) and durable follow-up work enqueued through
 `ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
 
+### Compose owner-policy generic writes
+
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED -->
+
+Owner-visible tables install a host-owned write boundary in both authoring
+profiles:
+
+- `SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED`: omit the installed owner field
+  from generic insert values. The host stamps the authenticated owner; even a
+  caller value equal to that principal is refused.
+- `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`: keep declarative value shapes
+  statically classifiable. For an opaque JavaScript writer, declare
+  `opaqueWritePosture: 'conservative-v1'` and a closed
+  `declaredTableCeiling` that exactly matches its generic write set.
+- `SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED`: when the write can reach
+  a global unique constraint, add its value-free, operation-bound
+  `discloseUniqueConflicts` entry naming `table`, `writeForm`, `constraint`,
+  and the current operation in `operations`.
+
+These declarations compose authorization and disclosure; they do not ask the
+client to supply ownership or conflict values.
+
 <!-- since: 0.1.15 -->
 
 ## Derive a replay-stable effect key
@@ -191,6 +215,14 @@ enforces the exact permission-backing write dynamically.
 
 ## Read and delete through `ctx.db`
 
+<!-- diagnostic-primary: SNAPBACK_UNKNOWN_TABLE -->
+
+`SNAPBACK_UNKNOWN_TABLE` names the table value the host could not resolve. For
+generic handler calls, use the table-first forms shown below—such as
+`ctx.db.patch('todos', id, values)` and `ctx.db.delete('todos', id)`—and make
+sure the literal table exists in the current generated schema. Both profiles
+use this same handler database grammar.
+
 The mutation context exposes the same bounded query builder used by JS
 queries. Start with `query(table)`, select a declared index with
 `withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
@@ -241,6 +273,19 @@ handler genuinely needs a bounded list. `delete` remains buffered until the
 mutation commits, so a later refusal or conflict removes nothing.
 
 ## Consume the structured result
+
+<!-- diagnostic-primary: SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID -->
+
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` is a declaration or activation
+error, not the runtime value mismatch
+`SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`. Use the supported `results.*`
+contract for the operation. Search and vector queries must keep the exact
+schema-derived result projection named by their declaration; ordinary
+Explicit `result` and Familiar `returns` validators lower to the same frozen
+contract. In particular, a stored top-level media validator is not an
+anonymous JavaScript result validator: project the generated typed media child
+rows through their declarative query instead of repeating that validator in a
+JS result shape.
 
 Successful direct mutations return one closed envelope:
 `version`, `changed_count`, `result`, the server-derived

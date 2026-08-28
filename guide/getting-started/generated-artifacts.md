@@ -118,6 +118,26 @@ the hash-addressed cache, verifies it, then atomically materializes
 `snapback/generated/` for import compatibility. A hard generation or write
 failure leaves the previously serveable graph intact.
 
+## Recover from policy, parse, and broad module-evaluation failures
+
+Search vocabulary: CODEGEN_POLICY_INVALID and committedProjections policy field;
+CODEGEN_MODULE_PARSE_FAILED; CODEGEN_MODULE_EVALUATION_FAILED; broad module-evaluation code.
+
+These routes apply to both Explicit and Familiar authoring. They diagnose the
+authored input before either profile is normalized; fix the named source or
+policy and rerun `snapback generate snapback --check --json`.
+
+| Code | Meaning and repair |
+| --- | --- |
+| `CODEGEN_POLICY_INVALID` | `snapback/codegen.policy.json` is unreadable JSON or not a closed `snapback.codegen-policy.v1` record. Start with `schemaVersion` and the required `committedProjections` array shown above, preserve any projections the repository needs, and then add only supported optional fields. |
+| `CODEGEN_MODULE_PARSE_FAILED` | A definition module could not be parsed. Repair the diagnostic's file and source location; the prior generated graph remains in place. |
+| `CODEGEN_MODULE_EVALUATION_FAILED` | This is the broad module-evaluation code: an isolated definition module threw or produced a failure that has no narrower stable code. Read the diagnostic message and `path`, repair the authored declaration or forbidden evaluation-time behavior there, and rerun preflight. Do not treat this wrapper as one specific schema rule. |
+
+If “the Guide search returned no entry for the broad module-evaluation code,”
+this is the route. For the isolation and attribution boundary behind an
+evaluation failure, continue to [Handler runtime — Diagnostic
+attribution](../backend/handler-runtime.md#diagnostic-attribution).
+
 ## Consume through the manifest
 
 The packaged dev loop, runtime load, release builder, app CLI, Vite lifecycle,

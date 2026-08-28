@@ -144,6 +144,18 @@ at send time, but Snapback never derives current membership, row visibility,
 asset access, or another grant from that opaque array. Put current authority in
 a first-class principal field, membership row, or grant.
 
+`SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED` means an opaque `v.array(...)` or
+`v.object({...})` contains `v.id()`, whose referential-integrity lifecycle
+requires an addressable top-level field. For current references, use a
+first-class top-level `v.id()` field or child row. If a receipt or message
+needs only a historical, non-authoritative snapshot of identifier text, store
+that snapshot as a bounded `v.string()` instead and do not use it for current
+existence, membership, or authorization decisions. This is the same normalized
+schema rule in Explicit and Familiar authoring.
+
+Search vocabulary: SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays;
+nested `v.id()` in a structured value.
+
 The runtime carrier is `canonical-json-text.v1`: the server validates the
 whole value, normalizes integral Reals, writes canonical JSON `TEXT`, and
 reloads a logical object or array. Admission is atomic and bounded at 32 KiB
@@ -1109,6 +1121,26 @@ Generation writes a temporary complete graph, digests it, atomically publishes
 the hash-addressed cache, verifies it, then atomically materializes
 `snapback/generated/` for import compatibility. A hard generation or write
 failure leaves the previously serveable graph intact.
+
+## Recover from policy, parse, and broad module-evaluation failures
+
+Search vocabulary: CODEGEN_POLICY_INVALID and committedProjections policy field;
+CODEGEN_MODULE_PARSE_FAILED; CODEGEN_MODULE_EVALUATION_FAILED; broad module-evaluation code.
+
+These routes apply to both Explicit and Familiar authoring. They diagnose the
+authored input before either profile is normalized; fix the named source or
+policy and rerun `snapback generate snapback --check --json`.
+
+| Code | Meaning and repair |
+| --- | --- |
+| `CODEGEN_POLICY_INVALID` | `snapback/codegen.policy.json` is unreadable JSON or not a closed `snapback.codegen-policy.v1` record. Start with `schemaVersion` and the required `committedProjections` array shown above, preserve any projections the repository needs, and then add only supported optional fields. |
+| `CODEGEN_MODULE_PARSE_FAILED` | A definition module could not be parsed. Repair the diagnostic's file and source location; the prior generated graph remains in place. |
+| `CODEGEN_MODULE_EVALUATION_FAILED` | This is the broad module-evaluation code: an isolated definition module threw or produced a failure that has no narrower stable code. Read the diagnostic message and `path`, repair the authored declaration or forbidden evaluation-time behavior there, and rerun preflight. Do not treat this wrapper as one specific schema rule. |
+
+If “the Guide search returned no entry for the broad module-evaluation code,”
+this is the route. For the isolation and attribution boundary behind an
+evaluation failure, continue to [Handler runtime — Diagnostic
+attribution](../backend/handler-runtime.md#diagnostic-attribution).
 
 ## Consume through the manifest
 

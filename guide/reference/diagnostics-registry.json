@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:795b374303300e3d37ed87cf21a1f9236ac59a2dc64c30506600ec09707d5e31"
+    "sourceDigest": "sha256:2a558e0a1d5e73f123503605954c96444de74ef3310bd02c72bb38d4aa36defb"
   },
   "limits": {
     "lookupBytes": 16384
@@ -14,7 +14,7 @@
     "receivedSites": 378,
     "reservedSites": 11,
     "httpClassified": 1702,
-    "guideAnchored": 456,
+    "guideAnchored": 472,
     "environmentVariables": 188,
     "environmentSites": 356
   },
@@ -4110,7 +4110,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21082,
+          "line": 21101,
           "column": 4,
           "kind": "received"
         }
@@ -4171,7 +4171,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21083,
+          "line": 21102,
           "column": 4,
           "kind": "received"
         }
@@ -4327,7 +4327,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21084,
+          "line": 21103,
           "column": 4,
           "kind": "received"
         }
@@ -4383,7 +4383,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21085,
+          "line": 21104,
           "column": 4,
           "kind": "received"
         }
@@ -4519,7 +4519,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21086,
+          "line": 21105,
           "column": 4,
           "kind": "received"
         }
@@ -4832,7 +4832,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21081,
+          "line": 21100,
           "column": 4,
           "kind": "received"
         }
@@ -10220,8 +10220,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/assets.md#declare-location-metadata-handling-for-image-and-video",
+      "guideAnchors": [
+        "/_snapback/guide/backend/assets.md#declare-location-metadata-handling-for-image-and-video"
+      ]
     },
     "SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED": {
       "code": "SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED",
@@ -12853,7 +12855,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 22595,
+          "line": 22614,
           "column": 8
         }
       ],
@@ -14646,17 +14648,17 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21986,
+          "line": 22005,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21997,
+          "line": 22016,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 22011,
+          "line": 22030,
           "column": 10
         },
         {
@@ -20009,9 +20011,9 @@
       ],
       "httpStatus": 409,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation",
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program",
       "guideAnchors": [
-        "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation"
+        "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program"
       ]
     },
     "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_INVALID": {
@@ -20046,9 +20048,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation",
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program",
       "guideAnchors": [
-        "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation"
+        "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program"
       ]
     },
     "SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID": {
@@ -20073,9 +20075,9 @@
       ],
       "httpStatus": 500,
       "httpStatusClass": "5xx",
-      "guideAnchor": "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation",
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program",
       "guideAnchors": [
-        "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation"
+        "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program"
       ]
     },
     "SNAPBACK_AUTH_PASSWORD_POLICY": {
@@ -20090,9 +20092,9 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation",
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program",
       "guideAnchors": [
-        "/_snapback/guide/auth/passwords.md#declare-email-identifiers-before-activation"
+        "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program"
       ]
     },
     "SNAPBACK_AUTH_PASSWORD_REQUIRES_V4": {
@@ -20886,8 +20888,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program",
+      "guideAnchors": [
+        "/_snapback/guide/auth/passwords.md#recover-from-an-invalid-auth-program"
+      ]
     },
     "SNAPBACK_AUTH_PROGRAM_VERSION_UNSUPPORTED": {
       "code": "SNAPBACK_AUTH_PROGRAM_VERSION_UNSUPPORTED",
@@ -21943,7 +21947,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21070,
+          "line": 21089,
           "column": 4,
           "kind": "received"
         }
@@ -24132,9 +24136,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_AUTH_THROTTLED": {
@@ -24180,8 +24184,10 @@
       ],
       "httpStatus": 429,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/auth/passwords.md#back-off-when-auth-work-is-throttled",
+      "guideAnchors": [
+        "/_snapback/guide/auth/passwords.md#back-off-when-auth-work-is-throttled"
+      ]
     },
     "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE": {
       "code": "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
@@ -29418,8 +29424,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/headless.md#keep-auth-commit-participants-synchronous-and-non-reentrant",
+      "guideAnchors": [
+        "/_snapback/guide/clients/headless.md#keep-auth-commit-participants-synchronous-and-non-reentrant"
+      ]
     },
     "SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED": {
       "code": "SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED",
@@ -29781,8 +29789,10 @@
       ],
       "httpStatus": 503,
       "httpStatusClass": "5xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#free-consumed-settlement-retention-before-submitting-more-durable-ids",
+      "guideAnchors": [
+        "/_snapback/guide/sync/offline-and-retention.md#free-consumed-settlement-retention-before-submitting-more-durable-ids"
+      ]
     },
     "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID": {
       "code": "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
@@ -30932,7 +30942,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 22536,
+          "line": 22555,
           "column": 18
         }
       ],
@@ -31008,7 +31018,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21010,
+          "line": 21029,
           "column": 8
         }
       ],
@@ -31078,7 +31088,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19712,
+          "line": 19731,
           "column": 8
         }
       ],
@@ -31095,7 +31105,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21490,
+          "line": 21509,
           "column": 10
         }
       ],
@@ -31162,7 +31172,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21172,
+          "line": 21191,
           "column": 140
         }
       ],
@@ -31177,7 +31187,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21665,
+          "line": 21684,
           "column": 25
         }
       ],
@@ -31192,7 +31202,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21663,
+          "line": 21682,
           "column": 40
         }
       ],
@@ -31207,7 +31217,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21653,
+          "line": 21672,
           "column": 23
         }
       ],
@@ -31222,7 +31232,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21657,
+          "line": 21676,
           "column": 23
         }
       ],
@@ -31237,7 +31247,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21648,
+          "line": 21667,
           "column": 74
         }
       ],
@@ -31252,7 +31262,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21696,
+          "line": 21715,
           "column": 61
         }
       ],
@@ -31272,7 +31282,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21075,
+          "line": 21094,
           "column": 4,
           "kind": "received"
         }
@@ -31291,7 +31301,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21643,
+          "line": 21662,
           "column": 23
         }
       ],
@@ -31306,7 +31316,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21682,
+          "line": 21701,
           "column": 25
         }
       ],
@@ -31321,7 +31331,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21673,
+          "line": 21692,
           "column": 23
         }
       ],
@@ -31336,7 +31346,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21686,
+          "line": 21705,
           "column": 27
         }
       ],
@@ -31351,7 +31361,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21692,
+          "line": 21711,
           "column": 25
         }
       ],
@@ -31366,7 +31376,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21198,
+          "line": 21217,
           "column": 21
         }
       ],
@@ -31381,13 +31391,13 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21076,
+          "line": 21095,
           "column": 4,
           "kind": "received"
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21647,
+          "line": 21666,
           "column": 47
         }
       ],
@@ -31420,12 +31430,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18606,
+          "line": 18625,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18621,
+          "line": 18640,
           "column": 12
         }
       ],
@@ -31462,7 +31472,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21071,
+          "line": 21090,
           "column": 4,
           "kind": "received"
         }
@@ -31485,7 +31495,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21072,
+          "line": 21091,
           "column": 4,
           "kind": "received"
         }
@@ -31503,7 +31513,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18658,
+          "line": 18677,
           "column": 10
         }
       ],
@@ -31520,7 +31530,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18709,
+          "line": 18728,
           "column": 10
         }
       ],
@@ -31537,17 +31547,17 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19004,
+          "line": 19023,
           "column": 44
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19021,
+          "line": 19040,
           "column": 36
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19078,
+          "line": 19097,
           "column": 15
         }
       ],
@@ -31582,7 +31592,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21073,
+          "line": 21092,
           "column": 4,
           "kind": "received"
         }
@@ -31600,12 +31610,12 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18685,
+          "line": 18704,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18721,
+          "line": 18740,
           "column": 12
         }
       ],
@@ -31627,7 +31637,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18738,
+          "line": 18757,
           "column": 10
         }
       ],
@@ -31644,7 +31654,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18669,
+          "line": 18688,
           "column": 10
         }
       ],
@@ -31671,7 +31681,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21074,
+          "line": 21093,
           "column": 4,
           "kind": "received"
         }
@@ -31690,7 +31700,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19407,
+          "line": 19426,
           "column": 10
         }
       ],
@@ -31720,7 +31730,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21267,
+          "line": 21286,
           "column": 12
         }
       ],
@@ -31798,7 +31808,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18642,
+          "line": 18661,
           "column": 10
         }
       ],
@@ -32322,7 +32332,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 18930,
+          "line": 18949,
           "column": 16
         },
         {
@@ -36656,7 +36666,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21077,
+          "line": 21096,
           "column": 4,
           "kind": "received"
         }
@@ -36677,7 +36687,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21078,
+          "line": 21097,
           "column": 4,
           "kind": "received"
         },
@@ -36800,7 +36810,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21079,
+          "line": 21098,
           "column": 4,
           "kind": "received"
         }
@@ -36823,7 +36833,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21080,
+          "line": 21099,
           "column": 4,
           "kind": "received"
         }
@@ -37182,7 +37192,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21087,
+          "line": 21106,
           "column": 4,
           "kind": "received"
         }
@@ -37205,7 +37215,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21088,
+          "line": 21107,
           "column": 4,
           "kind": "received"
         }
@@ -42388,8 +42398,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/react-expo.md#recover-when-supervised-metro-exits",
+      "guideAnchors": [
+        "/_snapback/guide/clients/react-expo.md#recover-when-supervised-metro-exits"
+      ]
     },
     "SNAPBACK_EXPO_METRO_RELOAD_FAILED": {
       "code": "SNAPBACK_EXPO_METRO_RELOAD_FAILED",
@@ -42438,9 +42450,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns",
+      "guideAnchor": "/_snapback/guide/clients/react-expo.md#recover-when-supervised-metro-exits",
       "guideAnchors": [
-        "/_snapback/guide/clients/react-expo.md#know-what-the-supervisor-owns",
+        "/_snapback/guide/clients/react-expo.md#recover-when-supervised-metro-exits",
         "/_snapback/guide/getting-started/the-authoring-loop.md#the-authoring-loop"
       ]
     },
@@ -43224,7 +43236,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19504,
+          "line": 19523,
           "column": 8
         }
       ],
@@ -43241,7 +43253,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19639,
+          "line": 19658,
           "column": 57
         }
       ],
@@ -43258,7 +43270,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19635,
+          "line": 19654,
           "column": 324
         },
         {
@@ -43281,7 +43293,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19638,
+          "line": 19657,
           "column": 55
         }
       ],
@@ -43298,32 +43310,32 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19146,
+          "line": 19165,
           "column": 8
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19596,
+          "line": 19615,
           "column": 70
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19603,
+          "line": 19622,
           "column": 51
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19604,
+          "line": 19623,
           "column": 61
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19614,
+          "line": 19633,
           "column": 172
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19616,
+          "line": 19635,
           "column": 55
         }
       ],
@@ -43350,7 +43362,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21089,
+          "line": 21108,
           "column": 4,
           "kind": "received"
         }
@@ -43388,7 +43400,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21090,
+          "line": 21109,
           "column": 4,
           "kind": "received"
         }
@@ -43438,7 +43450,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21091,
+          "line": 21110,
           "column": 4,
           "kind": "received"
         }
@@ -46158,7 +46170,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21092,
+          "line": 21111,
           "column": 4,
           "kind": "received"
         }
@@ -46661,7 +46673,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21097,
+          "line": 21116,
           "column": 4,
           "kind": "received"
         }
@@ -46727,7 +46739,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21096,
+          "line": 21115,
           "column": 4,
           "kind": "received"
         }
@@ -46778,7 +46790,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21098,
+          "line": 21117,
           "column": 4,
           "kind": "received"
         }
@@ -46904,12 +46916,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20582,
+          "line": 20601,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21099,
+          "line": 21118,
           "column": 4,
           "kind": "received"
         }
@@ -46955,22 +46967,22 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20533,
+          "line": 20552,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20614,
+          "line": 20633,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20637,
+          "line": 20656,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21100,
+          "line": 21119,
           "column": 4,
           "kind": "received"
         }
@@ -47176,72 +47188,72 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20484,
+          "line": 20503,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20492,
+          "line": 20511,
           "column": 10
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20505,
+          "line": 20524,
           "column": 12
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20514,
+          "line": 20533,
           "column": 15
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20543,
+          "line": 20562,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20547,
+          "line": 20566,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20556,
+          "line": 20575,
           "column": 18
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20590,
+          "line": 20609,
           "column": 14
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20602,
+          "line": 20621,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20607,
+          "line": 20626,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20622,
+          "line": 20641,
           "column": 21
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20633,
+          "line": 20652,
           "column": 17
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20640,
+          "line": 20659,
           "column": 15
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21101,
+          "line": 21120,
           "column": 4,
           "kind": "received"
         }
@@ -47297,7 +47309,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21102,
+          "line": 21121,
           "column": 4,
           "kind": "received"
         }
@@ -47388,7 +47400,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21103,
+          "line": 21122,
           "column": 4,
           "kind": "received"
         }
@@ -47429,7 +47441,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21104,
+          "line": 21123,
           "column": 4,
           "kind": "received"
         }
@@ -47520,7 +47532,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21105,
+          "line": 21124,
           "column": 4,
           "kind": "received"
         }
@@ -47561,7 +47573,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21106,
+          "line": 21125,
           "column": 4,
           "kind": "received"
         }
@@ -47652,12 +47664,12 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 20555,
+          "line": 20574,
           "column": 18
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21107,
+          "line": 21126,
           "column": 4,
           "kind": "received"
         }
@@ -47748,7 +47760,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21108,
+          "line": 21127,
           "column": 4,
           "kind": "received"
         }
@@ -47799,7 +47811,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21109,
+          "line": 21128,
           "column": 4,
           "kind": "received"
         }
@@ -47830,7 +47842,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21110,
+          "line": 21129,
           "column": 4,
           "kind": "received"
         }
@@ -47861,7 +47873,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21111,
+          "line": 21130,
           "column": 4,
           "kind": "received"
         }
@@ -47917,7 +47929,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21112,
+          "line": 21131,
           "column": 4,
           "kind": "received"
         }
@@ -48143,7 +48155,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21113,
+          "line": 21132,
           "column": 4,
           "kind": "received"
         }
@@ -49214,8 +49226,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/mutations.md#consume-the-structured-result",
+      "guideAnchors": [
+        "/_snapback/guide/backend/mutations.md#consume-the-structured-result"
+      ]
     },
     "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION": {
       "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION",
@@ -57060,8 +57074,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/media-happy-paths.md#path-2-attach-a-bounded-media-collection",
+      "guideAnchors": [
+        "/_snapback/guide/backend/media-happy-paths.md#path-2-attach-a-bounded-media-collection"
+      ]
     },
     "SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_UNKNOWN": {
       "code": "SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_UNKNOWN",
@@ -64242,8 +64258,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/sync/offline-and-retention.md#keep-one-mutation-id-bound-to-one-durable-replay-identity",
+      "guideAnchors": [
+        "/_snapback/guide/sync/offline-and-retention.md#keep-one-mutation-id-bound-to-one-durable-replay-identity"
+      ]
     },
     "SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED": {
       "code": "SNAPBACK_OUTBOX_LEGACY_PRINCIPAL_QUARANTINED",
@@ -70245,8 +70263,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/react.md#publish-and-observe-ephemeral-presence",
+      "guideAnchors": [
+        "/_snapback/guide/clients/react.md#publish-and-observe-ephemeral-presence"
+      ]
     },
     "SNAPBACK_REACT_PRESENCE_CONSUMER_LIMIT": {
       "code": "SNAPBACK_REACT_PRESENCE_CONSUMER_LIMIT",
@@ -72593,8 +72613,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/testing/large-fixtures.md#general-bulk-path-headless-replay",
+      "guideAnchors": [
+        "/_snapback/guide/testing/large-fixtures.md#general-bulk-path-headless-replay"
+      ]
     },
     "SNAPBACK_REPLAY_DETACH_CONFIG_INVALID": {
       "code": "SNAPBACK_REPLAY_DETACH_CONFIG_INVALID",
@@ -77656,7 +77678,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21114,
+          "line": 21133,
           "column": 4,
           "kind": "received"
         }
@@ -78364,7 +78386,7 @@
       "sites": [
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 22157,
+          "line": 22176,
           "column": 21
         }
       ],
@@ -78630,7 +78652,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 22169,
+          "line": 22188,
           "column": 21
         }
       ],
@@ -81539,8 +81561,10 @@
       ],
       "httpStatus": 429,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/realtime/live-queries.md#subscribe",
+      "guideAnchors": [
+        "/_snapback/guide/realtime/live-queries.md#subscribe"
+      ]
     },
     "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT_EXCEEDED": {
       "code": "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT_EXCEEDED",
@@ -82963,7 +82987,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21115,
+          "line": 21134,
           "column": 4,
           "kind": "received"
         }
@@ -82994,7 +83018,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21116,
+          "line": 21135,
           "column": 4,
           "kind": "received"
         }
@@ -83035,7 +83059,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21117,
+          "line": 21136,
           "column": 4,
           "kind": "received"
         }
@@ -83061,7 +83085,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21118,
+          "line": 21137,
           "column": 4,
           "kind": "received"
         }
@@ -83082,7 +83106,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21119,
+          "line": 21138,
           "column": 4,
           "kind": "received"
         }
@@ -83103,7 +83127,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21120,
+          "line": 21139,
           "column": 4,
           "kind": "received"
         }
@@ -83349,7 +83373,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21121,
+          "line": 21140,
           "column": 4,
           "kind": "received"
         }
@@ -83370,7 +83394,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21122,
+          "line": 21141,
           "column": 4,
           "kind": "received"
         }
@@ -83396,16 +83420,16 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21123,
+          "line": 21142,
           "column": 4,
           "kind": "received"
         }
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID": {
@@ -83424,7 +83448,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21124,
+          "line": 21143,
           "column": 4,
           "kind": "received"
         }
@@ -83450,16 +83474,16 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21125,
+          "line": 21144,
           "column": 4,
           "kind": "received"
         }
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID": {
@@ -83940,7 +83964,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21126,
+          "line": 21145,
           "column": 4,
           "kind": "received"
         }
@@ -83966,16 +83990,16 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21127,
+          "line": 21146,
           "column": 4,
           "kind": "received"
         }
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH": {
@@ -84384,7 +84408,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21128,
+          "line": 21147,
           "column": 4,
           "kind": "received"
         }
@@ -84410,7 +84434,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21129,
+          "line": 21148,
           "column": 4,
           "kind": "received"
         }
@@ -84436,16 +84460,16 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21130,
+          "line": 21149,
           "column": 4,
           "kind": "received"
         }
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_TABLE_VISIBILITY_SPEC_INVALID": {
@@ -84469,7 +84493,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21131,
+          "line": 21150,
           "column": 4,
           "kind": "received"
         }
@@ -84491,9 +84515,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table",
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets",
       "guideAnchors": [
-        "/_snapback/guide/auth/protecting-data.md#declare-who-can-read-each-table"
+        "/_snapback/guide/auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets"
       ]
     },
     "SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE": {
@@ -84623,8 +84647,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes",
+      "guideAnchors": [
+        "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes"
+      ]
     },
     "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE": {
       "code": "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE",
@@ -84787,8 +84813,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes",
+      "guideAnchors": [
+        "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes"
+      ]
     },
     "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED": {
       "code": "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED",
@@ -84848,8 +84876,10 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes",
+      "guideAnchors": [
+        "/_snapback/guide/backend/mutations.md#compose-owner-policy-generic-writes"
+      ]
     },
     "SNAPBACK_TARGET_ALREADY_REGISTERED": {
       "code": "SNAPBACK_TARGET_ALREADY_REGISTERED",
@@ -86298,8 +86328,10 @@
       ],
       "httpStatus": 404,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/backend/mutations.md#read-and-delete-through-ctxdb",
+      "guideAnchors": [
+        "/_snapback/guide/backend/mutations.md#read-and-delete-through-ctxdb"
+      ]
     },
     "SNAPBACK_UNSUPPORTED_BLOB": {
       "code": "SNAPBACK_UNSUPPORTED_BLOB",
@@ -86806,7 +86838,7 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 21132,
+          "line": 21151,
           "column": 4,
           "kind": "received"
         }
@@ -90071,13 +90103,13 @@
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19832,
+          "line": 19851,
           "column": 19,
           "kind": "read"
         },
         {
           "file": "packages/snapback-codegen/index.mjs",
-          "line": 19832,
+          "line": 19851,
           "column": 71,
           "kind": "read"
         }

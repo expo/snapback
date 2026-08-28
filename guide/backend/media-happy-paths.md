@@ -88,6 +88,16 @@ It is a different contract and does not return `MediaRef`.
 
 ## Path 2 — attach a bounded media collection
 
+<!-- diagnostic-primary: SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_INELIGIBLE -->
+
+`SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_INELIGIBLE` means `ownerTable` is not
+an ordinary owner-visible application table. Use a parent with
+`.visibility({ kind: 'owner', field: <required principal/string field> })`.
+Framework-owned, permission-backing, membership, authority-profile, and
+public-read parents are not eligible for `assetCollection`; do not widen the
+parent to work around the refusal. This normalized eligibility rule applies
+to both authoring profiles.
+
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse

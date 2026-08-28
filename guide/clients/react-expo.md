@@ -541,6 +541,19 @@ Use the generic arm for independently configured clients; use `--expo` whenever
 `SnapbackExpoProvider` should discover the supervisor without an app-authored
 origin.
 
+### Recover when supervised Metro exits
+
+<!-- diagnostic-primary: SNAPBACK_EXPO_METRO_EXITED -->
+
+`SNAPBACK_EXPO_METRO_EXITED` means the owned Metro child terminated; inspect
+its reported cause, exit code or signal, and Metro stderr before restarting it.
+If stderr names `ENOENT` below `.snapback/generations/.tmp-*`, exclude
+`.snapback/generations` from Metro's crawl with `resolver.blockList`; current
+Expo chat and media-feed template configs already carry that exclusion, so
+preserve it when retrofitting or replacing `metro.config.*`. Then use the
+owner's `reload-metro` control instead of killing processes by pattern. The
+transient directory and recovery are authoring-profile independent.
+
 When Metro's file watching is inert — the project under a watcher-blind root such as `/private/tmp`, or `CI` truthy in the effective Metro environment of a bundler you started yourself — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The supervised `--expo` loop strips `CI` from its owned Metro child (the supervised loop is a watch loop by contract), so a headless controller with `CI=1` no longer disables watching there. On unsupervised `snapback dev` invocations that own their client (`--client-command`), the same code is still printed as an advisory, not a refusal, when the CLI process has a truthy `CI`: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
 Metro receives the credential-free rendezvous origin and, on web, the backend

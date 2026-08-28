@@ -180,6 +180,31 @@ Declaring `access: { read: 'via-references' }` on an intent whose fields
 can land in tables without the declaration emits
 `SNAPBACK_ASSET_SHARING_UNDECLARED` at generation, listing the tables.
 
+Search vocabulary: access.read: 'members' isn't in the closed union; membership
+asset sharing; `via-references`.
+
+If you tried `access.read: 'members'`, that spelling is not in the closed
+union. Membership asset sharing composes two shipped declarations:
+`access: { read: 'via-references' }` on the upload intent and
+`.assetSharing({ kind: 'membership', membership, roles })` on every table
+whose reference may confer access. Use the same membership declaration for
+[table visibility](../auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets)
+and [`allow.members(...)`](../realtime/ephemeral-state.md#authorize-publish-and-subscribe-separately)
+when the resource also has ephemeral state. This is the same normalized
+security boundary in Explicit and Familiar source; do not fall back to a
+public asset URL or a client-maintained allowlist.
+
+### Declare location metadata handling for image and video
+
+<!-- diagnostic-primary: SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED -->
+
+`SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED` means an accepted image or
+video media type can carry location metadata but its intent omitted the
+corresponding policy. Declare `image: { location: 'strip' | 'retain' }` and/or
+`video: { location: 'strip' | 'retain' }` exactly as the diagnostic's
+`policyFields` requires. There is no implicit fallback. The declaration and
+privacy choice are identical in Explicit and Familiar source.
+
 ## Upload and attach
 
 **A dev/test server with no real client session can never complete a

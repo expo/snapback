@@ -139,6 +139,18 @@ at send time, but Snapback never derives current membership, row visibility,
 asset access, or another grant from that opaque array. Put current authority in
 a first-class principal field, membership row, or grant.
 
+`SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED` means an opaque `v.array(...)` or
+`v.object({...})` contains `v.id()`, whose referential-integrity lifecycle
+requires an addressable top-level field. For current references, use a
+first-class top-level `v.id()` field or child row. If a receipt or message
+needs only a historical, non-authoritative snapshot of identifier text, store
+that snapshot as a bounded `v.string()` instead and do not use it for current
+existence, membership, or authorization decisions. This is the same normalized
+schema rule in Explicit and Familiar authoring.
+
+Search vocabulary: SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays;
+nested `v.id()` in a structured value.
+
 The runtime carrier is `canonical-json-text.v1`: the server validates the
 whole value, normalizes integral Reals, writes canonical JSON `TEXT`, and
 reloads a logical object or array. Admission is atomic and bounded at 32 KiB

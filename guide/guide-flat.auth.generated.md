@@ -1139,6 +1139,19 @@ const authProgram = defineAuth({
 });
 ```
 
+### Recover from an invalid auth program
+
+<!-- diagnostic-primary: SNAPBACK_AUTH_PROGRAM_INVALID -->
+
+`SNAPBACK_AUTH_PROGRAM_INVALID` means the closed `defineAuth` program and the
+schema's sessions posture cannot normalize together. Start from the complete
+password-only record above rather than a partial object, pass it beside
+`auth: { mode: 'sessions' }`, and repair the diagnostic's named field. The
+Familiar profile imports the same constructor from `./generated/server` and
+fixes `custody` to `durable-required`; select the Explicit profile if the app
+requires `volatile-explicit`. All other normalized auth-program rules are
+shared by both profiles.
+
 Codegen derives the non-secret `app.authBootstrap` policy from that normalized
 auth program and adds `auth.application-bootstrap.v1` to the generated app's
 required capabilities. Do not hand-author either fact. Binding admission
@@ -1612,6 +1625,17 @@ constant**, so acceptance suites and benchmark envelopes can raise them:
 An operator can clear a lock early with the AdminWrite unlock verb; otherwise
 the lock expires on its own with no intervention.
 
+### Back off when auth work is throttled
+
+<!-- diagnostic-primary: SNAPBACK_AUTH_THROTTLED -->
+
+`SNAPBACK_AUTH_THROTTLED` is a server-owned auth budget refusal, including
+concurrent provider work or local capture-mailbox capacity. It is not evidence
+that a password is wrong. Bound concurrent signup/signin/code requests and
+honor the diagnostic's `retryAfter` guidance before retrying; do not spin or
+switch identities to evade the budget. This runtime recovery is identical for
+Explicit and Familiar applications.
+
 ## Capability boundaries — read before shipping
 
 These are not shipped, and Snapback says so rather than pretending:
@@ -2033,6 +2057,32 @@ That declaration removes repeated handler checks for direct reads: ordinary
 plans and ordinary `ctx.db` calls automatically admit members and hide the same
 rows from strangers. Keep the roster private and use `ctx.permissions` for
 imperative authorization questions.
+
+### Route one membership boundary across tables, presence, and assets
+
+Search vocabulary: membership-scoped authorization; membership-scoped reads that hide rows from a removed group member without a client-side `recipientIds` CSV.
+
+Membership-scoped authorization is declared once and lowered across the
+server-authoritative surfaces below.
+
+If the requirement is “membership-scoped reads that hide rows from a removed
+group member without a client-side `recipientIds` CSV,” the table declaration
+above is the shipped boundary. Do not widen the row to `public-read` or copy a
+roster into every row.
+
+The same declaration can govern all three authoring surfaces:
+
+- table reads use
+  `{ kind: 'membership', declaration, resourceField, roles }` here;
+- ephemeral publish and subscribe use
+  [`allow.members(declarationId, { roles? })`](../realtime/ephemeral-state.md#authorize-publish-and-subscribe-separately);
+- asset reads use intent `access: { read: 'via-references' }` plus table
+  [`.assetSharing({ kind: 'membership', membership, roles })`](../backend/assets.md#declare-the-upload-intent-and-the-reference-field).
+
+Explicit and Familiar source lower these same normalized declarations; only
+their import and export spelling differs. A settled membership removal or
+allowed-to-disallowed role change is therefore an authorization boundary on
+all three surfaces, not a client-side visibility convention.
 
 Use `anyOf` for the common “owner or relationship” row boundary:
 

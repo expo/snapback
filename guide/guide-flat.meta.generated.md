@@ -2346,6 +2346,95 @@ blanking all history is not an equivalent answer.
      Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
      `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
+Cases 107–113 absorb the exact failed-search language from the published
+0.1.29 benchmark lanes. They turn the observations “the Guide search returned
+no entry for the broad module-evaluation code” and “broad searches frequently
+returned no result even when a relevant page existed” into routes for the
+specific Codegen, schema, Node-client, and membership surfaces those lanes
+missed.
+
+107. **Broad module-evaluation code:** "The Guide search returned no entry for
+     the broad module-evaluation code." The run fails if it treats the wrapper
+     as one specific schema rule, edits generated output, or omits either
+     authoring profile.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "the Guide search returned no entry for the broad module-evaluation code",
+     "broad module-evaluation code", "CODEGEN_MODULE_EVALUATION_FAILED".
+     Required guidance: "These routes apply to both Explicit and Familiar authoring",
+     "Read the diagnostic message and `path`",
+     "Do not treat this wrapper as one specific schema rule".
+
+108. **Incomplete Codegen policy:** "CODEGEN_POLICY_INVALID and
+     committedProjections policy field." The run fails if it invents a partial
+     record, discards repository-required projections, or hand-edits the
+     generated graph.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "CODEGEN_POLICY_INVALID and committedProjections policy field",
+     "CODEGEN_POLICY_INVALID", "committedProjections policy field".
+     Required guidance: "`schemaVersion` and the required `committedProjections` array",
+     "preserve any projections the repository needs".
+
+109. **Drive the generated API from Node:** "A 'drive the generated API from
+     Node' page in the Guide would have saved at least an hour. The
+     command-client input shape is flat args plus asset source." The run fails
+     if it adds a second Node API, wraps command inputs in `{ args: ... }`, or
+     omits `baseUrl` and the live-query `connectionId`.
+     Expected pages: `clients/headless.md`.
+     Route terms: "drive the generated API from Node",
+     "command-client input shape".
+     Required guidance: "construct with `baseUrl`",
+     "pass a stable `connectionId` to `liveQuery`",
+     "Command inputs are flat",
+     "descriptor-owned media field receives the supported asset source",
+     "There is no second Node-only generated API",
+     "Both authoring profiles generate the same command descriptor and input type".
+
+110. **Membership-scoped table reads:** "membership-scoped reads that hide
+     rows from a removed group member without a client-side `recipientIds`
+     CSV." The run fails if it makes rows public or materializes a recipient
+     list on every row.
+     Expected pages: `auth/protecting-data.md`.
+     Route terms: "membership-scoped reads that hide rows from a removed group member without a client-side `recipientIds` CSV",
+     "membership-scoped reads", "removed group member".
+     Required guidance: "`{ kind: 'membership', declaration, resourceField, roles }`",
+     "Do not widen the row to `public-read`",
+     "Explicit and Familiar source lower these same normalized declarations".
+
+111. **Membership-scoped ephemeral authorization:** "I did not find a
+     generated ephemeral authorization composition that could share the custom
+     membership check." The run fails if it substitutes a public room, a
+     client permission list in Sessions mode, or a durable typing table.
+     Expected pages: `realtime/ephemeral-state.md`.
+     Route terms: "generated ephemeral authorization composition that could share the custom membership check",
+     "custom membership check".
+     Required guidance: "`allow.members` binds the room to the same generated declaration",
+     "Explicit and Familiar source lower the identical policy",
+     "neither needs a client-maintained recipient list".
+
+112. **Membership-scoped asset reads:** "`access.read: 'members'` isn't in the
+     closed union." The run fails if it concludes membership asset sharing is
+     missing, makes the asset public, or teaches that wrong spelling as an
+     alias accepted by code.
+     Expected pages: `backend/assets.md`.
+     Route terms: "access.read: 'members' isn't in the closed union",
+     "access.read: 'members'", "closed union".
+     Required guidance: "that spelling is not in the closed union",
+     "`access: { read: 'via-references' }`",
+     "`.assetSharing({ kind: 'membership', membership, roles })`",
+     "same normalized security boundary in Explicit and Familiar source".
+
+113. **IDs inside structured receipt arrays:**
+     "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays."
+     The run fails if it hides a lifecycle-bearing ID inside an opaque
+     structured value, weakens current referential state into an unchecked
+     snapshot, or omits the profile-neutral boundary.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays",
+     "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED", "messages receipt arrays".
+     Required guidance: "whose referential-integrity lifecycle requires an addressable top-level field",
+     "use a first-class top-level `v.id()` field or child row",
+     "same normalized schema rule in Explicit and Familiar authoring".
+
 
 ## Static routing check
 

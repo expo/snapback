@@ -951,6 +951,17 @@ assert.deepEqual(queued.map((entry) => entry.function), [
 assert.deepEqual(queued.map((entry) => entry.sequence), [1, 2, 3]);
 ```
 
+### Keep one mutation id bound to one durable replay identity
+
+<!-- diagnostic-primary: SNAPBACK_OUTBOX_IDENTITY_MISMATCH -->
+
+`SNAPBACK_OUTBOX_IDENTITY_MISMATCH` means an existing `clientMutationId` is
+already bound to different function, canonical arguments, or authorization
+cohort bytes. Reuse the id only for an exact retry of that original replay
+identity. Mint a fresh id for a different semantic or post-auth-change attempt;
+do not overwrite the durable outbox record. Explicit and Familiar references
+share this same client replay contract.
+
 ## Replay and settle without guessing
 
 Reconnect delivers records in sequence with the original mutation id, ledger,
@@ -1016,6 +1027,23 @@ already committed result. Until ACK, the server can recover it through the
 exact current-authority-bound settlement identity without dispatching removed
 code. After ACK garbage collection, the same call follows ordinary function
 selection and returns `SNAPBACK_UNKNOWN_FUNCTION`.
+
+### Free consumed settlement retention before submitting more durable ids
+
+<!-- diagnostic-primary: SNAPBACK_CLIENT_MUTATION_RETENTION_FULL -->
+
+`SNAPBACK_CLIENT_MUTATION_RETENTION_FULL` means the server's bounded durable
+client-mutation ledger is full globally or for the current auth cohort. Read
+`client.settledMutations()`, durably consume the application-visible results,
+call `markMutationSettlementsConsumed(ids)`, and deliver their ACKs (directly
+with `acknowledgeMutations(...)` or on later same-authority work) before adding
+more durable ids. Bound replay concurrency while ACKs catch up. The diagnostic
+details identify the `scope` and record/byte ceilings; both authoring profiles
+use the same ledger. If retained records belong to a predecessor auth cohort,
+re-enter that authority to acknowledge them; do not forge an ACK under the
+successor. Replay with `transportCustody: 'none'` is appropriate only when the
+application owns independent idempotency and accepts receipt-level at-most-once
+delivery.
 
 ## Equivalent-work diagnostics
 
