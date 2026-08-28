@@ -52,7 +52,8 @@ session — harness behavior, not human steering):
    Every field then refused with `SNAPBACK_UNKNOWN_FIELD`; the lane used a
    JS-side sort as a workaround. Current source and Guide support server-side
    `.order()`, so the candidate behavior is filed for packed-current
-   revalidation in `issues/20260823-js-query-order-poisons-result-serving.md`.
+   revalidation in
+   `issues/closed/20260823-js-query-order-poisons-result-serving.md`.
 3. **Password floor mismatch (candidate-pin observation):** the lane saw a
    12-byte floor despite declaring `minimumLength: 8`. Current `main` tests the
    configured eight-byte floor; re-reproduce before treating this as open.
