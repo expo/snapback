@@ -1,6 +1,6 @@
 # The step-up bypass is still open — LLP 0285 called it the cheapest, highest-value item
 
-**Status:** open
+**Status:** Resolved
 **Verified:** 2026-08-26 against `main`, by reading the public signature and the gate it feeds.
 
 LLP 0285 §5.1 says, verbatim:
@@ -68,3 +68,24 @@ effect's durable row without introducing the new type.
   of the nine unrowed defects.
 - LLP 0285 §5.1, §6 — the specification and the migration order.
 - LLP 0303 — derive over verify.
+
+## Resolution
+
+Resolved 2026-08-28 by deleting `requires_step_up` from the public
+`ServingDatabase` approval method, the kernel admission, and the internal
+approval command. The engine no longer supplies the function declaration's
+boolean beside the prepared effect.
+
+The implementation uses derivation option (b), so no pending-effect schema
+migration was needed. Inside the approval transaction, after re-reading and
+matching the exact durable pending-effect row, the kernel resolves that row's
+`function_id` and `function_kind` against the protected durable
+`_auth_scope_bases` catalog. Only an exact present basis with
+`authority_creating = 0` permits approval without step-up. A missing, removed,
+mismatched, malformed, or authority-creating basis requires a valid step-up
+proof. The approver remains the session principal already derived into the
+database-bound `PendingEffectOwner`.
+
+Regression coverage records the former bypass failing first, then verifies
+that an authority-creating effect is refused without proof, an ordinary effect
+still approves with no proof, and an unknown durable requirement fails closed.

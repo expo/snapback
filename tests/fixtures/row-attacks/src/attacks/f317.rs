@@ -15,7 +15,7 @@ async fn main() -> Result<(), String> {
     let approval_owner = fixture.resolve_owner(NOW + 202)?;
     let approved = fixture
         .serving
-        .approve_pending_effect_admitted(approval_owner, preparation, false, None, NOW + 202)
+        .approve_pending_effect_admitted(approval_owner, preparation, None, NOW + 202)
         .map_err(|error| format!("settlement approval: {error:?}"))?;
     let (_, genuine_ticket) = approved.into_parts();
 

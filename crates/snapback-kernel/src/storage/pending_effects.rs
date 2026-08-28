@@ -456,7 +456,6 @@ impl PreparedPendingEffectApproval {
 
 pub struct ApprovePendingEffectCommand {
     approval: PreparedPendingEffectApproval,
-    requires_step_up: bool,
     step_up: Option<crate::auth::crypto::StepUpProof>,
     now_ms: u64,
     owner: PendingEffectOwner,
@@ -544,7 +543,6 @@ impl crate::storage::KernelCommitAuthority {
         &self,
         owner: PendingEffectOwner,
         approval: PreparedPendingEffectApproval,
-        requires_step_up: bool,
         step_up: Option<&crate::auth::crypto::StepUpProof>,
         now_ms: u64,
     ) -> SnapbackResult<ApprovePendingEffectCommand> {
@@ -556,7 +554,6 @@ impl crate::storage::KernelCommitAuthority {
         }
         Ok(ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up: step_up.cloned(),
             now_ms,
             owner,
@@ -691,6 +688,32 @@ fn parse_function_kind(value: &str) -> SnapbackResult<FunctionKind> {
         "action" => Ok(FunctionKind::Action),
         _ => Err(catalog_corrupt()),
     }
+}
+
+/// Derive the approval requirement from the exact function named by the
+/// freshly loaded durable effect. Only a present, canonical non-authority-
+/// creating scope basis permits approval without step-up; every unknown or
+/// malformed catalog shape fails closed.
+///
+/// @ref LLP 0285#51-defect-1--the-publicly-claimable-authority-root — pending-
+/// effect decisions cannot accept a caller-selected step-up requirement.
+/// @ref LLP 0303#the-governing-principle — the effect supplies its own exact
+/// durable function subject instead of accepting the fact beside it.
+fn pending_effect_requires_step_up(tx: &Transaction<'_>, effect: &PendingEffectRecord) -> bool {
+    let Ok(kind) = function_kind_name(&effect.function_kind) else {
+        return true;
+    };
+    !matches!(
+        tx.query_row(
+            "SELECT present, authority_creating
+             FROM _auth_scope_bases
+             WHERE function_id = ?1 AND kind = ?2",
+            params![effect.function_id, kind],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional(),
+        Ok(Some((1, 0)))
+    )
 }
 
 fn args_digest(args_json: &str) -> String {
@@ -1106,7 +1129,6 @@ impl LocalDatabase {
         verify_command_identity(&command.approval.database_binding, &self.binding())?;
         let ApprovePendingEffectCommand {
             approval,
-            requires_step_up,
             step_up,
             now_ms,
             owner,
@@ -1133,7 +1155,7 @@ impl LocalDatabase {
             if current != prepared {
                 return Err(state_invalid());
             }
-            if requires_step_up {
+            if pending_effect_requires_step_up(tx, &current) {
                 let proof = step_up
                     .as_ref()
                     .ok_or_else(crate::auth::crypto::step_up_required_error)?;
@@ -1424,6 +1446,21 @@ mod tests {
         test_owner(db, PendingEffectAuthority::Anonymous, Some(principal_id))
     }
 
+    fn seed_effect_scope_requirement(db: &LocalDatabase, authority_creating: bool) {
+        db.conn
+            .execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:write', 'mutation', 0, 1, ?1)
+                 ON CONFLICT(function_id) DO UPDATE SET
+                   kind = excluded.kind,
+                   present = excluded.present,
+                   authority_creating = excluded.authority_creating",
+                [i64::from(authority_creating)],
+            )
+            .expect("seed pending-effect scope requirement");
+    }
+
     fn request(now_ms: u64, ttl_ms: u64) -> CreatePendingEffect {
         CreatePendingEffect {
             function_id: "fn:write".to_owned(),
@@ -1511,8 +1548,9 @@ mod tests {
     }
 
     #[test]
-    fn disclosed_intent_is_bounded_and_journals_approve_execute() {
+    fn non_authority_creating_intent_approves_without_step_up_and_journals_execute() {
         let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, false);
         let created = db
             .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
             .unwrap();
@@ -1532,7 +1570,6 @@ mod tests {
                     .admit_pending_effect_approval(
                         management_owner(&db, "human-a"),
                         approval,
-                        false,
                         None,
                         20,
                     )
@@ -1624,6 +1661,57 @@ mod tests {
         assert_eq!(
             durable.22,
             serde_json::to_string(&executed.journal).unwrap()
+        );
+    }
+
+    #[test]
+    fn authority_creating_effect_requires_step_up_from_durable_scope() {
+        let (mut db, authority) = ready();
+        seed_effect_scope_requirement(&db, true);
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+
+        let error = match db.approve_pending_effect(
+            authority
+                .admit_pending_effect_approval(management_owner(&db, "human-a"), approval, None, 20)
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("durable authority-creating effect bypassed step-up"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
+        );
+    }
+
+    #[test]
+    fn effect_with_unknown_scope_requirement_fails_closed() {
+        let (mut db, authority) = ready();
+        let created = db
+            .create_pending_effect(admit_creation(&db, &authority, request(10, DEFAULT_TTL_MS)))
+            .unwrap();
+        let approval = db
+            .prepare_pending_effect_approval(&created.id, "human-a", 20)
+            .unwrap();
+
+        let error = match db.approve_pending_effect(
+            authority
+                .admit_pending_effect_approval(management_owner(&db, "human-a"), approval, None, 20)
+                .unwrap(),
+        ) {
+            Ok(_) => panic!("effect with no durable scope basis bypassed step-up"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_STEP_UP_REQUIRED");
+        assert_eq!(
+            db.pending_effect(&created.id, 20).unwrap().status,
+            PendingEffectStatus::Pending
         );
     }
 

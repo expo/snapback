@@ -42,7 +42,7 @@ async fn main() -> Result<(), String> {
     let decision_owner = approval.resolve_owner(NOW + 202)?;
     let approved = approval
         .serving
-        .approve_pending_effect_admitted(decision_owner, prepared, false, None, NOW + 202)
+        .approve_pending_effect_admitted(decision_owner, prepared, None, NOW + 202)
         .map_err(|error| format!("legitimate approval: {error:?}"))?;
     require_status(
         approved.record.status,
@@ -161,7 +161,6 @@ async fn main() -> Result<(), String> {
         approval_database.serving.approve_pending_effect_admitted(
             foreign_approval_owner,
             prepared.clone(),
-            false,
             None,
             NOW + 202,
         ),
@@ -169,7 +168,7 @@ async fn main() -> Result<(), String> {
     )?;
     let approved = approval_database
         .serving
-        .approve_pending_effect_admitted(approval_database_owner, prepared, false, None, NOW + 202)
+        .approve_pending_effect_admitted(approval_database_owner, prepared, None, NOW + 202)
         .map_err(|error| format!("approval after foreign-owner refusal: {error:?}"))?;
     require_status(
         approved.record.status,
@@ -193,7 +192,6 @@ async fn main() -> Result<(), String> {
         .approve_pending_effect_admitted(
             settlement_a_decision_owner,
             settlement_a_prepared,
-            false,
             None,
             NOW + 202,
         )
@@ -253,7 +251,6 @@ async fn main() -> Result<(), String> {
             .approve_pending_effect_admitted(
                 fork_settlement_decision_owner,
                 fork_settlement_prepared,
-                false,
                 None,
                 NOW + 202,
             )
@@ -285,7 +282,6 @@ async fn main() -> Result<(), String> {
                 .approve_pending_effect_admitted(
                     fork_decision_owner,
                     fork_prepared,
-                    false,
                     None,
                     NOW + 202,
                 )

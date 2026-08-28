@@ -7,5 +7,5 @@ fn main() {
         .prepare_pending_effect_approval("effect", "approver", 1)
         .unwrap();
     // @attack
-    let _ = serving.approve_pending_effect_admitted(approval, false, None, 1);
+    let _ = serving.approve_pending_effect_admitted(approval, None, 1);
 }

@@ -6392,19 +6392,14 @@ impl LocalSnapback {
         {
             return Err(effect_original_authority_mismatch());
         }
-        let function =
-            self.validate_prepared_effect_current(&approval, Some(&original.authority), now_ms)?;
+        self.validate_prepared_effect_current(&approval, Some(&original.authority), now_ms)?;
         let _effect = approval
             .management
             .effect_guard("pending-effect approval transaction")?;
         let owner = self.pending_effect_owner(&approval.management, now_ms)?;
-        let approved = self.db.approve_pending_effect_admitted(
-            owner,
-            approval.pending,
-            function.authority_creating,
-            step_up,
-            now_ms,
-        )?;
+        let approved =
+            self.db
+                .approve_pending_effect_admitted(owner, approval.pending, step_up, now_ms)?;
         drop(_effect);
         let (record, execution) = approved.into_parts();
         Ok(ApprovedEffectDispatch {
