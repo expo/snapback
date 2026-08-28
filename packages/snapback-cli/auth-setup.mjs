@@ -627,14 +627,14 @@ const EXPO_SUPERVISOR_DESCRIPTOR_FORMAT = 'snapback.expo-supervisor.v1';
 const SHARED_AUTH_PROJECTION_FORMAT = 'snapback.shared-development-auth-projection.v1';
 
 /**
- * The recorded start time of a live process, in the same `ps lstart` spelling
- * the supervisor recorded, or `null` when no such process is running.
+ * The recorded start time of a live process, in the `ps lstart` spelling used
+ * by lifecycle descriptors, or `null` when no such process is running.
  *
  * A pid alone does not identify a process: pids are reused, so a descriptor
- * left behind by a crashed supervisor can name a pid that now belongs to
- * something else. The start time settles it.
+ * left behind by a crashed owner can name a pid that now belongs to something
+ * else. Callers with a recorded start time use it to settle that ambiguity.
  */
-function supervisorProcessStartTime(pid) {
+export function processStartTime(pid) {
   if (!Number.isSafeInteger(pid) || pid < 1) return null;
   const result = spawnSync('/bin/ps', ['-o', 'lstart=', '-p', String(pid)], {
     encoding: 'utf8',
@@ -688,7 +688,7 @@ export function observeSharedDevelopmentAuth({
   const supervisor = descriptor.supervisor ?? null;
   if (!Number.isSafeInteger(supervisor?.pid)
       || typeof supervisor?.startTime !== 'string'
-      || supervisorProcessStartTime(supervisor.pid) !== supervisor.startTime) {
+      || processStartTime(supervisor.pid) !== supervisor.startTime) {
     return unavailable('supervisor-not-running');
   }
   const projection = descriptor.sharedAuth ?? null;

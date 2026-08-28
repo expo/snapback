@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,6 +72,85 @@ assert.equal(unpinnedRunDevCalled, false);
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-dev-diagnostics-')));
 try {
+  const staleProject = join(root, 'stale-ready-app');
+  const staleScaffold = scaffoldApp(staleProject, { template: 'todo-contract' });
+  assert.equal(staleScaffold.ok ?? true, true, `scaffold failed: ${JSON.stringify(staleScaffold)}`);
+  const staleStateRoot = join(staleProject, '.snapback');
+  const staleReadyFile = join(staleStateRoot, 'dev.ready.json');
+  const staleDatabase = join(staleStateRoot, 'dev.sqlite3');
+  const stalePid = 2_147_483_647;
+  const staleOrigin = 'http://127.0.0.1:9';
+  mkdirSync(staleStateRoot, { recursive: true });
+  writeFileSync(staleReadyFile, `${JSON.stringify({
+    schemaVersion: 'snapback.v0',
+    descriptorKind: 'snapbackHostReady',
+    ready: true,
+    pid: stalePid,
+    serverUrl: staleOrigin,
+    database: { mode: 'file', path: staleDatabase },
+  })}\n`, { mode: 0o600 });
+
+  const stalePlain = spawnSync(process.execPath, [
+    cli,
+    'dev', 'snapback',
+    '--attach',
+    '--no-watch',
+    '--ready-file', staleReadyFile,
+    '--db', staleDatabase,
+    '--json',
+  ], {
+    cwd: staleProject,
+    encoding: 'utf8',
+    env: { ...process.env },
+    timeout: 120_000,
+  });
+  assert.equal(stalePlain.status, 1, `${stalePlain.stdout}\n${stalePlain.stderr}`);
+  const stalePlainOutput = `${stalePlain.stdout}\n${stalePlain.stderr}`;
+  assert.doesNotMatch(stalePlainOutput, /SNAPBACK_CLIENT_REFUSED|fetch failed/u);
+  const stalePlainEnvelope = stalePlainOutput.split('\n').flatMap((line) => {
+    try { return [JSON.parse(line)]; } catch { return []; }
+  }).find((value) => value?.diagnostics?.[0]?.code === 'SNAPBACK_DEV_READY_FILE_STALE');
+  assert.ok(stalePlainEnvelope, `plain dev did not surface the stale-owner diagnostic: ${stalePlainOutput}`);
+  assert.deepEqual(stalePlainEnvelope.diagnostics[0].details, {
+    descriptorFile: staleReadyFile,
+    pid: stalePid,
+    origin: staleOrigin,
+    recovery: {
+      standalone: `remove ${staleReadyFile} and rerun snapback dev`,
+      supervised: 'rerun snapback dev --attach --ready-file <path> against a descriptor published by a live development loop',
+    },
+  });
+
+  const staleExpo = spawnSync(process.execPath, [
+    cli,
+    'dev', 'snapback',
+    '--attach',
+    '--expo',
+    '--expo-platform', 'web',
+    '--ready-file', staleReadyFile,
+    '--db', staleDatabase,
+    '--json',
+  ], {
+    cwd: staleProject,
+    encoding: 'utf8',
+    env: { ...process.env },
+    timeout: 120_000,
+  });
+  assert.equal(staleExpo.status, 1, `${staleExpo.stdout}\n${staleExpo.stderr}`);
+  const staleExpoOutput = `${staleExpo.stdout}\n${staleExpo.stderr}`;
+  assert.doesNotMatch(staleExpoOutput, /SNAPBACK_CLIENT_REFUSED|fetch failed/u);
+  const staleExpoEvents = staleExpo.stdout.split('\n').flatMap((line) => {
+    try { return [JSON.parse(line)]; } catch { return []; }
+  });
+  assert.equal(
+    staleExpoEvents.some((event) => event.state === 'device-selected'),
+    true,
+    'Expo regression must reach the same post-device-selection attach path',
+  );
+  const staleExpoFailure = staleExpoEvents.find((event) => event.state === 'startup-failed');
+  assert.equal(staleExpoFailure?.diagnostics?.[0]?.code, 'SNAPBACK_DEV_READY_FILE_STALE');
+  assert.deepEqual(staleExpoFailure?.diagnostics?.[0]?.details, stalePlainEnvelope.diagnostics[0].details);
+
   const project = join(root, 'broken-app');
   const scaffolded = scaffoldApp(project, { template: 'todo-contract' });
   assert.equal(scaffolded.ok ?? true, true, `scaffold failed: ${JSON.stringify(scaffolded)}`);
@@ -185,7 +264,7 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
     /profile has owners: backend/u,
   );
 
-  console.log('dev-cli-diagnostics.test.mjs: 19 CLI refusal/help and environment-pin validation cases passed');
+  console.log('dev-cli-diagnostics.test.mjs: stale ready-owner, CLI refusal/help, and environment-pin cases passed');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

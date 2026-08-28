@@ -1,6 +1,6 @@
 # A stale `dev.ready.json` makes every `snapback dev` fail with a bare "fetch failed"
 
-- Status: Open
+- Status: Resolved
 - Date: 2026-08-25
 - Systems: `packages/snapback-cli` (dev attach path)
 - Found by: smoke testing the shared-development auth walkthrough on
@@ -44,3 +44,15 @@ uses. A liveness check on the recorded pid is enough to tell "stale file" from
 "server refused"; `observeSharedDevelopmentAuth` in `auth-setup.mjs` does
 exactly that check against the supervisor descriptor and can serve as the
 pattern.
+
+## Resolution
+
+Resolved 2026-08-28. The package dev attach path now checks the ready
+descriptor's recorded PID with the same process-start probe used by
+`observeSharedDevelopmentAuth` and refuses a dead owner before runtime setup,
+code generation, or a network health fetch can obscure the stale state. The
+new `SNAPBACK_DEV_READY_FILE_STALE` diagnostic names the descriptor file, dead
+PID, recorded origin, and standalone/supervised recovery paths. Because the
+check lives in shared `runDev`, plain and `--expo` development surface the same
+code; regression coverage verifies both the terminal envelope and the Expo
+`startup-failed` event and excludes the former bare `SNAPBACK_CLIENT_REFUSED`.

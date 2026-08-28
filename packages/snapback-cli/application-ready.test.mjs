@@ -358,12 +358,17 @@ try {
   await fixedOwner.close();
   handles.splice(handles.indexOf(fixedOwner), 1);
 
-  // A dead process can leave a syntactically valid descriptor behind. When
-  // the pinned port refuses the connection at probe time, the diagnostic
-  // names the descriptor and exact remediation without inventing a listener.
+  // A live but unrelated PID cannot prove a descriptor's server is reachable.
+  // When the pinned port refuses the connection at probe time, the diagnostic
+  // still names the descriptor and exact remediation without inventing a
+  // listener. Dead owner PIDs are classified earlier by the dev attach path.
   const deadReadyFile = join(stateRoot, 'dead.ready.json');
   const deadApplicationReadyFile = `${deadReadyFile}.application-ready`;
-  writeFileSync(deadReadyFile, `${JSON.stringify(liveReadyDescriptor, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(
+    deadReadyFile,
+    `${JSON.stringify({ ...liveReadyDescriptor, pid: process.pid }, null, 2)}\n`,
+    { mode: 0o600 },
+  );
   await assert.rejects(
     () => runDev({
       backendDirectory: backendRoot,
