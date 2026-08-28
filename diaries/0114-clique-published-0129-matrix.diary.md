@@ -55,16 +55,31 @@ The genuine Snapback friction clustered in four areas — realtime, the dev-loop
 media storage, and multi-client auth custody. Several turned into landed fixes
 during the run:
 
-- **The "cross-client fanout is broken" reports were a test-harness artifact,
-  not a Snapback bug.** Headless personas shared the default durable auth
+- **The "cross-client fanout is broken" reports were *partly* a test-harness
+  artifact — corrected 2026-08-28, see LLP 0317 r2 F2/O14.** The
+  harness half is real: headless personas shared the default durable auth
   `storagePartition` and collided (the "second client" restored the first
-  principal), which *looks* exactly like broken live fanout. Core cross-client
-  fanout is CI-green with separate partitions and worked sub-second in the
-  0.1.24 coterie runs. Because agents kept mis-attributing this, we landed
-  **symptom→cause routing** so a builder debugging "stale live updates" is
-  pointed at `storagePartition` (guide `realtime/live-queries.md` troubleshooting
-  + retrieval routing + a qualified client warning that names the symptom
-  without false-alarming legitimate same-principal sharing).
+  principal), which *looks* exactly like broken live fanout, and core
+  cross-client fanout is CI-green with separate partitions. We landed
+  **symptom→cause routing** for it (guide `realtime/live-queries.md`
+  troubleshooting + retrieval routing + a qualified client warning).
+
+  **What that explanation does not cover, and this diary previously claimed it
+  did.** The implicit-reuse warning is Node-gated by construction
+  (`packages/snapback-client/app-client.mjs` returns unless
+  `typeof globalThis.process?.versions?.node === 'string'`), so the mechanism
+  cannot apply to a browser client. Three of the four reported shapes are
+  outside it: a settled mutation absent from the **same** client's live hook
+  for 3 s (`sol-snapback-familiar` `1787857038`, recorded by
+  `manual-playwright`); cross-client staleness under two Playwright contexts
+  *while the same-client projection updated* (`1787857472`); and an unscoped
+  live query going silent on a 179-row thread (`grok-snapback-explicit` M3).
+  `sol-snapback-explicit` M5 supplies the discriminator: "nested or custom
+  live-query dependencies remained stale while direct row queries converged."
+  Those are **open and unexplained**, tracked as LLP 0317 O14 and scheduled as
+  lane L1 of LLP 0317.000. Do not read this run as evidence that Snapback's
+  live invalidation is sound; read it as evidence that one confound was found
+  and removed, leaving a narrower question.
 - **Metro ↔ codegen watch race** (`SNAPBACK_EXPO_METRO_EXITED`): Metro's
   watcher crashed on the transient `.snapback/generations/.tmp-*` churn. Fixed
   by excluding that path from Metro's crawl in the templates.

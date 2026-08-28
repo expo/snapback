@@ -44,7 +44,48 @@ publication → subscriber revision — and none exists.
    workarounds points the same way. Under this hypothesis the "staleness" is a
    test-harness custody artifact, not a core fanout regression.
 
-## Classification (investigation 2026-08-27): ARTIFACT of shared-custody test setup — NOT a regression
+## Classification — REVISED 2026-08-28 (LLP 0317 r2 F2/O14; supersedes the 2026-08-27 verdict below)
+
+**Revised verdict: the shared-custody artifact is real but is *not* established as the
+dominant cause. Three of the four reported shapes lie outside the mechanism entirely and
+remain open and unexplained.**
+
+The 2026-08-27 investigation (retained verbatim below, and its evidence 1–4 still stands)
+concluded that hypothesis 2 was dominant. Two independent model families reviewing LLP 0317
+found that conclusion over-generalized from a Node-only mechanism to browser evidence. The
+decisive fact: `warnImplicitDefaultPartitionReuse` in
+`packages/snapback-client/app-client.mjs` returns unless
+`typeof globalThis.process?.versions?.node === 'string'` — durable-custody partition reuse
+is a Node/headless phenomenon and **cannot occur between two Playwright browser contexts**.
+
+**Four shapes, only one of which the artifact explains:**
+
+| # | Shape | Evidence | Covered by shared partition? |
+|---|---|---|---|
+| a | Headless personas restoring one principal; outbox identity/writer refusals | `sol-snapback-explicit` `1787853600`→`1787853610` | **Yes** — real, and repaired |
+| b | A settled mutation absent from the **same** client's live hook for 3 s, present after a fresh query | `sol-snapback-familiar` `1787857038`, recorded by `manual-playwright` | **No** — one client |
+| c | Cross-client staleness under two Playwright contexts *while the same-client projection updated* | `sol-snapback-familiar` `1787857472` | **No** — browser contexts |
+| d | An unscoped `allMessages` live query "went silent" on a 179-row thread | `grok-snapback-explicit` M3 | **No** — bound-related, one client |
+
+`sol-snapback-explicit` M5 supplies the sharpest discriminator to test first: "nested or
+custom live-query dependencies remained stale while direct row queries converged."
+
+**Required repro (this is lane L1 of LLP 0317.000, and it is the highest-value lane in that
+program).** Two partitions **and** two browser contexts, plus a direct-row-query control
+against a nested/child-row dependency, plus an over-bound query. Per LLP 0317.000 P1, a
+"not reproducible" verdict requires ≥10 consecutive passing runs on the reported platform and
+shape; anything less is `inconclusive`.
+
+**Blast radius of the earlier verdict.** It was also asserted as settled in
+`diaries/0114-clique-published-0129-matrix.diary.md` and
+`benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md` §6, where it justified
+discounting the familiar lanes' O2/B3/B4 realtime scores. Both are corrected in the same
+landing and that discount is now provisional: if L1 confirms an invalidation defect, those
+scores must be restated.
+
+---
+
+## Original classification (2026-08-27) — retained verbatim; evidence 1–4 still stands, the dominance verdict does not
 
 Verdict: **hypothesis 2 (test-harness artifact) is the dominant cause; not a clean
 regression.** One residual, pre-existing JS-live-query matcher question remains that only a
