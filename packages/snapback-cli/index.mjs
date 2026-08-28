@@ -7080,6 +7080,10 @@ export async function runDev(options = {}) {
         );
         await stopProcessGroup(child);
       }
+      await options.afterManagedRestartPreviousStopped?.({
+        previousPid,
+        serverUrl: descriptor.serverUrl,
+      });
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
       removeApplicationReadyReceipt();
       refreshStartupArtifacts();
@@ -7145,7 +7149,7 @@ export async function runDev(options = {}) {
         pid: descriptor.pid ?? null,
         serverUrl: descriptor.serverUrl,
       });
-      return await forceRegenerateAndLoad('(restart)', { ...tag });
+      return await forceRegenerateAndLoad('(restart)', { verb: 'restart', ...tag });
     } catch (error) {
       let refined = refineGeneratedArtifactFailure(error, {
         binary: runtime.binary,

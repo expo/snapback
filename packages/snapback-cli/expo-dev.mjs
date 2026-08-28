@@ -3955,7 +3955,13 @@ export async function runExpoDev(options = {}) {
       watch: true,
       serverStdio: options.serverStdio ?? ['ignore', 'ignore', 'ignore'],
       onEvent(event) {
-        const bindingRotation = rotateBindingAfterLoad(event);
+        // Backend rebind verbs reconcile their successor route before issuing
+        // the binding. Rotating here would still see the predecessor origin
+        // because runDev emits generated-and-loaded before its verb settles.
+        const bindingRotation = event?.state === 'generated-and-loaded'
+          && (event.verb === 'restart' || event.verb === 'dev-fresh')
+          ? null
+          : rotateBindingAfterLoad(event);
         emit({
           ok: event.ok !== false,
           state: 'backend-event',
@@ -4358,10 +4364,11 @@ export async function runExpoDev(options = {}) {
     // supervisor expose a binding for the successor descriptor identity.
     // @ref LLP 0181#appbinding-v1 — the binding remint keeps the supervised
     // route/provenance but must carry the exact newly imported descriptor.
-    rotateBindingAfterLoad = (event) => {
+    rotateBindingAfterLoad = (event, { force = false } = {}) => {
       if (closed || event?.ok !== true || event.state !== 'generated-and-loaded') return null;
       const successor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
-      if (successor.identity.descriptor === descriptor.identity.descriptor) return null;
+      const descriptorChanged = successor.identity.descriptor !== descriptor.identity.descriptor;
+      if (!descriptorChanged && !force) return null;
       const previousDescriptorIdentity = descriptor.identity.descriptor;
       descriptor = successor;
       const rotatedBinding = bindingPublisher.issue({
@@ -4381,7 +4388,8 @@ export async function runExpoDev(options = {}) {
       // client-side retry (A2) is what makes the remaining window survivable.
       // The reload goes through the shared control lane so it serializes with
       // operator verbs rather than racing them.
-      queueSuccessorMetroReload(descriptor.identity.descriptor);
+      if (descriptorChanged) queueSuccessorMetroReload(descriptor.identity.descriptor);
+      if (!descriptorChanged) return null;
       return {
         ok: true,
         state: 'binding-rotated',
@@ -4847,6 +4855,121 @@ export async function runExpoDev(options = {}) {
       if (!closed && event?.ok === true) refreshLiveBackendListenerTarget();
       return event;
     };
+    const reconcileBackendAfterRebind = async (event) => {
+      // @ref LLP 0299#4-ranges — an unpinned backend may select a different
+      // port after its previous listener stops, so every supervisor projection
+      // and device route must be rebuilt from the successor ready descriptor.
+      const refreshedReady = readReadyDescriptor(dev.readyFile);
+      backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
+      const refreshedBackendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
+      portPlan = materializeDevPortPlan(
+        portPlan,
+        { backend: backendRoute.port },
+        refreshedBackendProvenance === null ? {} : {
+          backend: {
+            source: refreshedBackendProvenance.source,
+            declaredBy: refreshedBackendProvenance.declaredBy,
+          },
+        },
+      );
+      if (!isLoopbackHost(backendRoute.host)) {
+        throw diagnosticError(
+          'SNAPBACK_EXPO_LISTENER_EXPOSED',
+          'the refreshed supervised backend is not loopback-bound',
+        );
+      }
+      // A backend restart rotates startupNonce and the dev-identity sidecar,
+      // so both the pending delivery and every issued nonce are invalid. The
+      // opt-in own-bundle path below issues a replacement only after the
+      // refreshed listeners and sidecar are current.
+      checkoutRegistry?.invalidate();
+      checkoutNonce = null;
+      nativeCheckoutLaunch = null;
+      route = createExpoRoutingPlan({
+        platform: options.platform ?? 'ios',
+        backendPort: backendRoute.port,
+        metroPort,
+        bootstrapPort: bootstrap.port,
+        androidTransport: options.androidTransport ?? 'adb-reverse',
+        androidSerial: selectedDevice.serial,
+        androidDeviceClass: selectedDevice.class,
+      });
+      forwarding?.remove?.();
+      forwarding = installAndroidPortForwarding(route, {
+        adbBinary: options.adbBinary,
+        run: options.adbRun,
+        env: childEnv,
+      });
+      listeners = await waitForListenerInventory({
+        backendPid: refreshedReady.pid,
+        metroPid: metro.child.pid,
+        metroProcess: metro.child,
+        webFrontPort: metroFront?.port ?? null,
+        expected: [
+          { owner: 'backend', port: backendRoute.port },
+          { owner: 'metro', port: metroProcessPort },
+          ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
+          { owner: 'bootstrap', port: bootstrap.port },
+        ],
+        timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
+      });
+      emit({ ok: true, state: 'listeners-verified', listeners });
+      updateSupervisorDescriptor({
+        portPlan,
+        listeners,
+      });
+      const bindingRotation = rotateBindingAfterLoad(event, { force: true });
+      if (bindingRotation !== null) emit(bindingRotation);
+      if (authorityRequested) mintAndSwapAuthority(authorityEmail, { pending: true });
+      else authority = Object.freeze({ status: 'unavailable' });
+      if (shouldLaunchExpoNativeCheckout(route, options)) {
+        checkoutNonce = checkoutRegistry.issue({
+          platform: route.platform,
+          device: route.device,
+        });
+        if (checkoutNonce !== null) {
+          nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
+            xcrunBinary: options.xcrunBinary,
+            adbBinary: options.adbBinary,
+            iosSimulator: options.iosSimulator,
+            iosBundleIdentifier: options.iosBundleIdentifier,
+            androidComponent: options.androidComponent,
+            expoAppScheme: options.expoAppScheme,
+            run: options.nativeLaunchRun ?? spawnSync,
+            env: childEnv,
+          });
+          checkoutNonce = null;
+          emit({
+            ok: true,
+            state: 'native-checkout-launched',
+            reason: 'backend-rotation',
+            nativeCheckout: nativeCheckoutLaunch,
+          });
+        }
+      }
+      return refreshedReady;
+    };
+    const supervisedRestartVerb = async ({ requestId } = {}) => {
+      const event = await runBackendLifecycleVerb('restart', { requestId });
+      if (event?.ok !== true) return event;
+      try {
+        await reconcileBackendAfterRebind(event);
+        return event;
+      } catch (error) {
+        return Object.freeze({
+          schemaVersion: EXPO_DEV_EVENT_FORMAT,
+          ok: false,
+          state: 'restart-failed',
+          verb: 'restart',
+          diagnostics: [error?.diagnostic ?? clientDiagnostic(
+            error,
+            'SNAPBACK_EXPO_CONTROL_FAILED',
+            'the supervised restart refresh did not complete',
+          )],
+          ...(requestId === undefined ? {} : { requestId }),
+        });
+      }
+    };
     const supervisedDevFreshVerb = async ({ requestId } = {}) => {
       const event = await runBackendLifecycleVerb('dev-fresh', { requestId });
       if (event?.ok !== true) {
@@ -4870,96 +4993,7 @@ export async function runExpoDev(options = {}) {
         // before listener verification, binding replacement, forwarding, and
         // authority remint all settle.
         await options.beforeDevFreshExpoRefresh?.();
-        const refreshedReady = readReadyDescriptor(dev.readyFile);
-        backendRoute = portFromOrigin(refreshedReady.serverUrl, 'Snapback backend');
-        const refreshedBackendProvenance = devPortPlanOwner(dev.portPlan, 'backend');
-        portPlan = materializeDevPortPlan(
-          portPlan,
-          { backend: backendRoute.port },
-          refreshedBackendProvenance === null ? {} : {
-            backend: {
-              source: refreshedBackendProvenance.source,
-              declaredBy: refreshedBackendProvenance.declaredBy,
-            },
-          },
-        );
-        if (!isLoopbackHost(backendRoute.host)) {
-          throw diagnosticError(
-            'SNAPBACK_EXPO_LISTENER_EXPOSED',
-            'the refreshed supervised backend is not loopback-bound',
-          );
-        }
-        descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
-        // A backend restart rotates startupNonce and the dev-identity
-        // sidecar, so both the pending delivery and every issued nonce are
-        // invalid. The opt-in own-bundle path below issues a replacement
-        // only after the refreshed listeners and sidecar are current.
-        checkoutRegistry?.invalidate();
-        checkoutNonce = null;
-        nativeCheckoutLaunch = null;
-        route = createExpoRoutingPlan({
-          platform: options.platform ?? 'ios',
-          backendPort: backendRoute.port,
-          metroPort,
-          bootstrapPort: bootstrap.port,
-          androidTransport: options.androidTransport ?? 'adb-reverse',
-          androidSerial: selectedDevice.serial,
-          androidDeviceClass: selectedDevice.class,
-        });
-        const refreshedBinding = bindingPublisher.issue({
-          descriptor,
-          capabilityManifest: currentCapabilityManifest(),
-          origin: appOrigin(route.appHost, backendRoute.port),
-          routing: route.bindingRouting,
-        });
-        publishBindingProjection(refreshedBinding);
-        forwarding?.remove?.();
-        forwarding = installAndroidPortForwarding(route, {
-          adbBinary: options.adbBinary,
-          run: options.adbRun,
-          env: childEnv,
-        });
-        listeners = await waitForListenerInventory({
-          backendPid: refreshedReady.pid,
-          metroPid: metro.child.pid,
-          metroProcess: metro.child,
-          webFrontPort: metroFront?.port ?? null,
-          expected: [
-            { owner: 'backend', port: backendRoute.port },
-            { owner: 'metro', port: metroProcessPort },
-            ...(metroFront === null ? [] : [{ owner: 'metro-front', port: metroPort }]),
-            { owner: 'bootstrap', port: bootstrap.port },
-          ],
-          timeoutMs: options.metroReadyTimeoutMs ?? 30_000,
-        });
-        emit({ ok: true, state: 'listeners-verified', listeners });
-        if (authorityRequested) mintAndSwapAuthority(authorityEmail, { pending: true });
-        else authority = Object.freeze({ status: 'unavailable' });
-        if (shouldLaunchExpoNativeCheckout(route, options)) {
-          checkoutNonce = checkoutRegistry.issue({
-            platform: route.platform,
-            device: route.device,
-          });
-          if (checkoutNonce !== null) {
-            nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
-              xcrunBinary: options.xcrunBinary,
-              adbBinary: options.adbBinary,
-              iosSimulator: options.iosSimulator,
-              iosBundleIdentifier: options.iosBundleIdentifier,
-              androidComponent: options.androidComponent,
-              expoAppScheme: options.expoAppScheme,
-              run: options.nativeLaunchRun ?? spawnSync,
-              env: childEnv,
-            });
-            checkoutNonce = null;
-            emit({
-              ok: true,
-              state: 'native-checkout-launched',
-              reason: 'backend-rotation',
-              nativeCheckout: nativeCheckoutLaunch,
-            });
-          }
-        }
+        await reconcileBackendAfterRebind(event);
         return Object.freeze({
           schemaVersion: 'snapback.reset-dev-fresh.v1',
           ok: true,
@@ -4990,7 +5024,7 @@ export async function runExpoDev(options = {}) {
     };
     controlDispatcher = createDevControlDispatcher({
       reload: (context) => runBackendLifecycleVerb('reload', context),
-      restart: (context) => runBackendLifecycleVerb('restart', context),
+      restart: supervisedRestartVerb,
       'dev-fresh': supervisedDevFreshVerb,
       'reload-metro': reloadMetroVerb,
       'stop-children': stopChildrenVerb,
