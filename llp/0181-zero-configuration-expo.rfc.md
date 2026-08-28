@@ -6,6 +6,11 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-28 (ad) — The Expo facade's Snapback client and React
+edges are exact-version peers, so the generated app, facade, and React adapter
+resolve one physical package instance instead of admitting a nested skewed
+copy. The packed lifecycle now proves that closure and selects the URL-first
+declared-dev arm through it.
 **Revised:** 2026-08-25 (ac) — Aligns the optional supervised Expo carrier
 with LLP 0300 P4 and LLP 0262 D2: web Metro receives the backend data/auth
 origin plus the supervisor rendezvous, the bootstrap GET is binding-only,
@@ -986,6 +991,14 @@ Before local Metro starts and before EAS submission, the verifier checks:
 - inclusion of every local package and generated artifact in the EAS archive;
   and
 - the monorepo/nested-app root selected by the build.
+
+`@expo/snapback-expo` declares `@expo/snapback-client` and
+`@expo/snapback-react` as required exact-version peers. They are application
+closure owners, not private facade implementation copies: package managers
+must resolve the generated app, Expo facade, and React adapter through the same
+physical instances or refuse the incompatible install. This is the package-
+metadata constraint behind the first check above; runtime admission does not
+bridge independently loaded copies.
 
 A failure names the package, selected resolution path/version, expected fact,
 and an LLP 0146-compatible remediation. A clean consumer should never need an

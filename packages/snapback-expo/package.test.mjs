@@ -44,6 +44,8 @@ for (const target of Object.values(appStateImports)) {
 }
 
 assert.equal(manifest.name, '@expo/snapback-expo');
+assert.equal(manifest.peerDependencies['@expo/snapback-client'], 'workspace:*');
+assert.equal(manifest.peerDependencies['@expo/snapback-react'], 'workspace:*');
 assert.equal(manifest.peerDependencies['expo-file-system'], '>=57.0.0 <58.0.0');
 assert.equal(manifest.peerDependencies['react-native-web'], '>=0.21.0 <0.22.0');
 assert.equal(manifest.peerDependenciesMeta['react-native-web'].optional, true);
@@ -51,8 +53,6 @@ const webAppStateSource = readFileSync(new URL('./app-state.web.mjs', import.met
 assert.match(webAppStateSource, /react-native-web\/dist\/exports\/AppState/u);
 assert.doesNotMatch(webAppStateSource, /import\('react-native'\)/u);
 assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
-  '@expo/snapback-client',
-  '@expo/snapback-react',
   'expo-crypto',
   'expo-device',
   'expo-sqlite',

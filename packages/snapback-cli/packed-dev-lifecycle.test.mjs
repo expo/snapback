@@ -186,6 +186,22 @@ function materializePackedPackages() {
       '--quiet',
     ], { cwd: source.root });
     assert.ok(existsSync(artifact), `${name} produced a package tarball`);
+    if (name === '@expo/snapback-expo') {
+      const packedManifest = JSON.parse(run(
+        'tar',
+        ['-xzOf', artifact, 'package/package.json'],
+      ).stdout);
+      assert.equal(packedManifest.dependencies?.['@expo/snapback-client'], undefined);
+      assert.equal(packedManifest.dependencies?.['@expo/snapback-react'], undefined);
+      assert.equal(
+        packedManifest.peerDependencies?.['@expo/snapback-client'],
+        source.manifest.version,
+      );
+      assert.equal(
+        packedManifest.peerDependencies?.['@expo/snapback-react'],
+        source.manifest.version,
+      );
+    }
     specifiers[name] = localSpecifier(externalRoot, artifact);
     tarballs[name] = artifact;
   }
@@ -200,8 +216,11 @@ function materializePackedPackages() {
       '@expo/snapback-cli': specifiers['@expo/snapback-cli'],
       '@expo/snapback-client': specifiers['@expo/snapback-client'],
       '@expo/snapback-expo': specifiers['@expo/snapback-expo'],
+      '@expo/snapback-react': specifiers['@expo/snapback-react'],
       '@expo/snapback-vite': specifiers['@expo/snapback-vite'],
       'fake-indexeddb': '^6.2.5',
+      'react': '19.2.3',
+      'react-dom': '19.2.3',
       'vite': '^8.0.0',
     },
     overrides: specifiers,
@@ -339,6 +358,56 @@ function installScaffoldLane(lane, packedTarballs) {
     assert.ok(existsSync(installed), `${lane.name} install materializes ${name}`);
     assert.equal(lstatSync(installed).isSymbolicLink(), false, `${name} must not be a workspace link`);
   }
+
+  // @ref LLP 0181#metro-and-package-closure — the scaffold is a nested test
+  // project, not a second runtime closure. Hoist the module-private client and
+  // its React adapter to the packed consumer's already-materialized copies;
+  // leave codegen/tooling local so their project-root custody remains honest.
+  for (const name of ['@expo/snapback-client', '@expo/snapback-react']) {
+    const nested = join(lane.projectRoot, 'node_modules', ...name.split('/'));
+    const hoisted = join(externalRoot, 'node_modules', ...name.split('/'));
+    assert.ok(existsSync(hoisted), `packed consumer materializes ${name}`);
+    assert.notEqual(realpathSync(nested), realpathSync(hoisted));
+    rmSync(nested, { recursive: true });
+    assert.equal(
+      realpathSync(createRequire(manifestPath).resolve(`${name}/package.json`)),
+      realpathSync(join(hoisted, 'package.json')),
+      `${lane.name} resolves hoisted ${name}`,
+    );
+  }
+}
+
+function assertSinglePackedClientInstance(lane) {
+  // Resolve from every package that can load client code, not merely from the
+  // two application roots. Equal versions are insufficient for LLP 0302's
+  // module-private mint; all importers must converge on one real path.
+  const consumerRequire = createRequire(join(externalRoot, 'package.json'));
+  const importers = [
+    ['external consumer', externalRoot],
+    [lane.name, lane.projectRoot],
+    ...[
+      '@expo/snapback-cli',
+      '@expo/snapback-expo',
+      '@expo/snapback-react',
+    ].map((name) => [
+      name,
+      dirname(consumerRequire.resolve(`${name}/package.json`)),
+    ]),
+  ];
+  const resolutions = Object.fromEntries(importers.map(([label, root]) => {
+    const importerRequire = createRequire(join(root, 'package.json'));
+    return [
+      label,
+      realpathSync(importerRequire.resolve('@expo/snapback-client/package.json')),
+    ];
+  }));
+  assert.equal(
+    new Set(Object.values(resolutions)).size,
+    1,
+    `packed consumer must load one physical @expo/snapback-client: ${JSON.stringify(resolutions)}`,
+  );
+  const [clientManifest] = new Set(Object.values(resolutions));
+  assert.ok(existsSync(join(dirname(clientManifest), 'declared-dev-capability.mjs')));
 }
 
 function configureAuthoringProfile(lane) {
@@ -562,6 +631,7 @@ async function proveM1ToM2({
   createSnapbackAppClient,
   readApplicationReadyReceipt,
   binding,
+  clientBindingInput = (_app, selectedBinding) => ({ binding: selectedBinding }),
   refreshBinding = async () => {},
   reload,
   events,
@@ -599,13 +669,13 @@ async function proveM1ToM2({
   });
   let appClientA = await createSnapbackAppClient({
     app: m1Generated.app,
-    binding: m1Binding,
+    ...clientBindingInput(m1Generated.app, m1Binding),
     platform: platformA,
     storagePartition: `${lane.name}:r1:writer`,
   });
   let appClientB = await createSnapbackAppClient({
     app: m1Generated.app,
-    binding: m1Binding,
+    ...clientBindingInput(m1Generated.app, m1Binding),
     platform: platformB,
     storagePartition: `${lane.name}:r1:observer`,
   });
@@ -715,13 +785,13 @@ async function proveM1ToM2({
   const m2References = journeyReferences(m2Generated);
   appClientA = await createSnapbackAppClient({
     app: m2Generated.app,
-    binding: m2Binding,
+    ...clientBindingInput(m2Generated.app, m2Binding),
     platform: platformA,
     storagePartition: `${lane.name}:r1:writer`,
   });
   appClientB = await createSnapbackAppClient({
     app: m2Generated.app,
-    binding: m2Binding,
+    ...clientBindingInput(m2Generated.app, m2Binding),
     platform: platformB,
     storagePartition: `${lane.name}:r1:observer`,
   });
@@ -858,6 +928,7 @@ try {
   if (runArm('headless')) {
     const lane = scaffoldLane(cli.scaffoldApp, 'react');
     installScaffoldLane(lane, packedTarballs);
+    assertSinglePackedClientInstance(lane);
     configureAuthoringProfile(lane);
     const events = [];
     activeOwner = await cli.runDev({
@@ -894,6 +965,7 @@ try {
       createSnapbackAppClient: client.createSnapbackAppClient,
       readApplicationReadyReceipt: cli.readApplicationReadyReceipt,
       binding: () => cli.readApplicationReadyReceipt(`${lane.readyFile}.application-ready`).binding,
+      clientBindingInput: (_app, selectedBinding) => ({ url: selectedBinding.target.origin }),
       reload: activeConsumer.verbs.reload,
       events,
       expectedClientOrigins: [],
