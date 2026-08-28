@@ -16,6 +16,65 @@ export interface VerifyConformanceReport {
   readonly writeProvenance: 'complete' | 'incomplete' | 'unsupported';
 }
 
+export interface VerifyProfileOutcome {
+  readonly ok: boolean;
+  readonly context?: VerifyIdentityContext;
+  readonly diagnostics?: readonly {
+    readonly code: `SNAPBACK_${string}`;
+    readonly severity: string;
+    readonly subsystem: string;
+    readonly message: string;
+    readonly details?: unknown;
+  }[];
+  readonly conformance?: readonly {
+    readonly pathId: string;
+    readonly status: 'observed' | 'unsupported';
+    readonly report?: VerifyConformanceReport;
+  }[];
+}
+
+export interface VerifyProfileResult extends VerifyProfileOutcome {
+  readonly schemaVersion: 'snapback.verify-profile-result.v1';
+}
+
+export interface VerifyCommand {
+  readonly executable: string;
+  readonly args?: readonly string[];
+  readonly cwd?: string;
+  readonly expectedExitCode?: number;
+  readonly resultFile?: string;
+}
+
+export interface VerifyProfileBase {
+  readonly id: string;
+  readonly title?: string;
+  readonly timeoutMs?: number;
+  readonly testFiles?: readonly string[];
+  readonly requiredCapabilities?: readonly string[];
+  readonly paths?: readonly {
+    readonly id: string;
+    readonly kind: VerifyPathKind;
+    readonly targetProfileId: string;
+    readonly functionId?: string | null;
+  }[];
+  readonly coverageCapability?: {
+    readonly claim: 'identity-bound-path-observation';
+    readonly baselinePathIds: readonly string[];
+  };
+}
+
+export interface VerifyRunProfile extends VerifyProfileBase {
+  readonly command?: never;
+  run(context: Readonly<Record<string, unknown>>): Promise<VerifyProfileOutcome> | VerifyProfileOutcome;
+}
+
+export interface VerifyCommandProfile extends VerifyProfileBase {
+  readonly run?: never;
+  readonly command: VerifyCommand;
+}
+
+export type VerifyProfile = VerifyRunProfile | VerifyCommandProfile;
+
 export interface VerifyConfig {
   readonly schemaVersion: 'snapback.verify-config.v1';
   readonly backendDirectory?: string;
@@ -28,24 +87,7 @@ export interface VerifyConfig {
     readonly timeoutMs?: number;
   };
   readonly context?: Partial<VerifyIdentityContext>;
-  readonly profiles?: readonly {
-    readonly id: string;
-    readonly title?: string;
-    readonly timeoutMs?: number;
-    readonly testFiles?: readonly string[];
-    readonly requiredCapabilities?: readonly string[];
-    readonly paths?: readonly {
-      readonly id: string;
-      readonly kind: VerifyPathKind;
-      readonly targetProfileId: string;
-      readonly functionId?: string | null;
-    }[];
-    readonly coverageCapability?: {
-      readonly claim: 'identity-bound-path-observation';
-      readonly baselinePathIds: readonly string[];
-    };
-    run(context: Readonly<Record<string, unknown>>): Promise<Readonly<Record<string, unknown>>>;
-  }[];
+  readonly profiles?: readonly VerifyProfile[];
 }
 
 export interface StarterVerifyProfileOptions {
@@ -85,9 +127,9 @@ export const DEFAULT_VERIFY_PROFILE_TIMEOUT_MS: 300000;
 export const CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION: 'snapback.cloudflare-acceptance.v1';
 export const VERIFY_STAGE_IDS: readonly string[];
 export function defineVerifyConfig<T extends VerifyConfig>(config: T): T;
-export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): NonNullable<VerifyConfig['profiles']>[number];
-export function defineCloudflareVerifyProfile(options: CloudflareVerifyProfileOptions): NonNullable<VerifyConfig['profiles']>[number];
-export function defineRepositoryVerifyProfiles(options: RepositoryVerifyProfilesOptions): readonly NonNullable<VerifyConfig['profiles']>[number][];
+export function defineStarterVerifyProfile(options: StarterVerifyProfileOptions): VerifyRunProfile;
+export function defineCloudflareVerifyProfile(options: CloudflareVerifyProfileOptions): VerifyRunProfile;
+export function defineRepositoryVerifyProfiles(options: RepositoryVerifyProfilesOptions): readonly VerifyRunProfile[];
 export function loadVerifyConfig(path: string, options?: { readonly backendDirectory?: string | null }): Promise<VerifyConfig>;
 export function discoverVerifyConfig(directory?: string): string | null;
 export function defaultVerifyConfig(options?: { readonly backendDirectory?: string }): VerifyConfig;

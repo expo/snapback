@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -36,11 +37,14 @@ import {
   validatePassingStarterReceipt as validatePassingStarterReceiptFromPackage,
 } from '@expo/snapback-acceptance';
 
+import { spawnLeasedProcess, stopProcessGroup } from './process-teardown.mjs';
+
 export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
 export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
 export const VERIFY_CONFIG_CONVENTION = 'snapback.verify.config.mjs';
 export const DEFAULT_VERIFY_PROFILE_TIMEOUT_MS = 300_000;
 export const CLOUDFLARE_ACCEPTANCE_SCHEMA_VERSION = 'snapback.cloudflare-acceptance.v1';
+const VERIFY_PROFILE_RESULT_SCHEMA_VERSION = 'snapback.verify-profile-result.v1';
 
 export const VERIFY_STAGE_IDS = Object.freeze([
   'artifact-freshness',
@@ -268,7 +272,10 @@ function normalizeCoverageCapability(value, profileId, paths) {
 function normalizeProfile(profile, index, configDirectory) {
   assert(plainObject(profile), `profiles[${index}] must be an object`);
   assert(typeof profile.id === 'string' && profile.id.length > 0, `profiles[${index}].id must be a non-empty string`);
-  assert(typeof profile.run === 'function', `profiles[${profile.id}].run must be a function`);
+  const hasRun = profile.run !== undefined;
+  const hasCommand = profile.command !== undefined;
+  assert(hasRun !== hasCommand, `profiles[${profile.id}] must define exactly one of run or command`);
+  if (hasRun) assert(typeof profile.run === 'function', `profiles[${profile.id}].run must be a function`);
   const paths = (profile.paths ?? []).map((path, pathIndex) => normalizePath(path, profile.id, pathIndex));
   assert(new Set(paths.map(({ id }) => id)).size === paths.length, `profiles[${profile.id}].paths must have unique ids`);
   if (profile.timeoutMs !== undefined) {
@@ -284,6 +291,59 @@ function normalizeProfile(profile, index, configDirectory) {
       foreignCauseDetails(error, { profileId: profile.id }),
     );
   }
+  let command = null;
+  if (hasCommand) {
+    assert(plainObject(profile.command), `profiles[${profile.id}].command must be an object`);
+    assert(
+      typeof profile.command.executable === 'string' && profile.command.executable.length > 0,
+      `profiles[${profile.id}].command.executable must be a non-empty string`,
+    );
+    const args = profile.command.args ?? [];
+    assert(Array.isArray(args), `profiles[${profile.id}].command.args must be an array`);
+    assert(
+      args.every((arg) => typeof arg === 'string'),
+      `profiles[${profile.id}].command.args must contain only strings`,
+    );
+    const authoredCwd = profile.command.cwd ?? '.';
+    assert(
+      typeof authoredCwd === 'string' && authoredCwd.length > 0,
+      `profiles[${profile.id}].command.cwd must be a non-empty string`,
+    );
+    let cwd;
+    try {
+      cwd = realpathSync(resolve(configDirectory, authoredCwd));
+    } catch (error) {
+      throw verifyError(
+        'SNAPBACK_VERIFY_CONFIG_INVALID',
+        `profiles[${profile.id}].command.cwd is unavailable`,
+        foreignCauseDetails(error, { profileId: profile.id }),
+      );
+    }
+    const expectedExitCode = profile.command.expectedExitCode ?? 0;
+    assert(
+      Number.isSafeInteger(expectedExitCode) && expectedExitCode >= 0 && expectedExitCode <= 255,
+      `profiles[${profile.id}].command.expectedExitCode must be an integer from 0 through 255`,
+    );
+    const authoredResultFile = profile.command.resultFile ?? null;
+    assert(
+      authoredResultFile === null
+        || (typeof authoredResultFile === 'string' && authoredResultFile.length > 0),
+      `profiles[${profile.id}].command.resultFile must be a non-empty string`,
+    );
+    assert(
+      expectedExitCode === 0 || authoredResultFile !== null,
+      `profiles[${profile.id}].command.resultFile is required when expectedExitCode is nonzero`,
+    );
+    command = Object.freeze({
+      executable: profile.command.executable,
+      args: Object.freeze([...args]),
+      cwd,
+      expectedExitCode,
+      resultFile: authoredResultFile === null
+        ? null
+        : resolve(configDirectory, authoredResultFile),
+    });
+  }
   return Object.freeze({
     id: profile.id,
     title: typeof profile.title === 'string' && profile.title.length > 0 ? profile.title : profile.id,
@@ -292,7 +352,8 @@ function normalizeProfile(profile, index, configDirectory) {
     paths: Object.freeze(paths),
     coverageCapability: normalizeCoverageCapability(profile.coverageCapability, profile.id, paths),
     timeoutMs: profile.timeoutMs ?? null,
-    run: profile.run,
+    run: hasRun ? profile.run : null,
+    command,
   });
 }
 
@@ -1541,6 +1602,302 @@ export function aggregateConformance(profiles, results, {
   });
 }
 
+function profileResultError(code, message, details = undefined) {
+  return verifyError(code, message, details);
+}
+
+function normalizeProfileResultDiagnostics(value, profileId) {
+  if (value === undefined) return Object.freeze([]);
+  if (!Array.isArray(value)) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profileId} result diagnostics must be an array`,
+      { profileId },
+    );
+  }
+  return Object.freeze(value.map((entry, index) => {
+    if (!plainObject(entry)
+        || typeof entry.code !== 'string'
+        || !/^SNAPBACK_[A-Z0-9_]+$/u.test(entry.code)
+        || typeof entry.severity !== 'string'
+        || entry.severity.length === 0
+        || typeof entry.subsystem !== 'string'
+        || entry.subsystem.length === 0
+        || typeof entry.message !== 'string'
+        || entry.message.length === 0) {
+      throw profileResultError(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+        `acceptance command ${profileId} result diagnostics[${index}] is malformed`,
+        { profileId, path: `$.diagnostics[${index}]` },
+      );
+    }
+    return Object.freeze({ ...entry });
+  }));
+}
+
+function normalizeProfileResultConformance(value, profile) {
+  if (value === undefined) return Object.freeze(unsupportedConformance(profile.paths));
+  if (!Array.isArray(value)) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} result conformance must be an array`,
+      { profileId: profile.id, path: '$.conformance' },
+    );
+  }
+  const registeredPathIds = new Set(profile.paths.map(({ id }) => id));
+  const observedPathIds = new Set();
+  return Object.freeze(value.map((entry, index) => {
+    const label = `acceptance command ${profile.id} result conformance[${index}]`;
+    if (!plainObject(entry)
+        || typeof entry.pathId !== 'string'
+        || entry.pathId.length === 0
+        || !registeredPathIds.has(entry.pathId)
+        || observedPathIds.has(entry.pathId)
+        || !['observed', 'unsupported'].includes(entry.status)) {
+      throw profileResultError(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+        `${label} is malformed or names an unregistered path`,
+        { profileId: profile.id, path: `$.conformance[${index}]` },
+      );
+    }
+    observedPathIds.add(entry.pathId);
+    if (entry.status === 'unsupported') {
+      if (entry.report !== undefined && entry.report !== null) {
+        throw profileResultError(
+          'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+          `${label}.report must be absent for unsupported evidence`,
+          { profileId: profile.id, path: `$.conformance[${index}].report` },
+        );
+      }
+      return Object.freeze({ pathId: entry.pathId, status: 'unsupported' });
+    }
+    let report;
+    try {
+      report = normalizeReport(entry.report, label);
+    } catch (error) {
+      throw profileResultError(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+        `${label}.report is malformed`,
+        {
+          profileId: profile.id,
+          path: `$.conformance[${index}].report`,
+          causeCode: error?.code ?? null,
+        },
+      );
+    }
+    return Object.freeze({ pathId: entry.pathId, status: 'observed', report });
+  }));
+}
+
+function readProfileCommandResult(profile) {
+  const resultFile = profile.command.resultFile;
+  let metadata;
+  try {
+    metadata = lstatSync(resultFile);
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      throw profileResultError(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_MISSING',
+        `acceptance command ${profile.id} did not write its required machine result`,
+        { profileId: profile.id, resultFile },
+      );
+    }
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} machine result is unavailable`,
+      foreignCauseDetails(error, { profileId: profile.id, resultFile }),
+    );
+  }
+  if (!metadata.isFile() || metadata.isSymbolicLink()
+      || metadata.size > STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} machine result must be a bounded regular file`,
+      {
+        profileId: profile.id,
+        resultFile,
+        bytes: metadata.size,
+        maxBytes: STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES,
+      },
+    );
+  }
+  let value;
+  try {
+    value = JSON.parse(readFileSync(resultFile, 'utf8'));
+  } catch (error) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} machine result is not one JSON object`,
+      foreignCauseDetails(error, { profileId: profile.id, resultFile }),
+    );
+  }
+  const allowedKeys = new Set(['schemaVersion', 'ok', 'context', 'diagnostics', 'conformance']);
+  if (!plainObject(value)
+      || value.schemaVersion !== VERIFY_PROFILE_RESULT_SCHEMA_VERSION
+      || typeof value.ok !== 'boolean'
+      || Object.keys(value).some((key) => !allowedKeys.has(key))) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} machine result does not match ${VERIFY_PROFILE_RESULT_SCHEMA_VERSION}`,
+      { profileId: profile.id, resultFile },
+    );
+  }
+  let context;
+  try {
+    context = value.context === undefined ? undefined : normalizeContext(value.context);
+  } catch (error) {
+    throw profileResultError(
+      'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+      `acceptance command ${profile.id} machine result context is malformed`,
+      { profileId: profile.id, resultFile, causeCode: error?.code ?? null },
+    );
+  }
+  return Object.freeze({
+    ok: value.ok,
+    ...(context === undefined ? {} : { context }),
+    diagnostics: normalizeProfileResultDiagnostics(value.diagnostics, profile.id),
+    conformance: normalizeProfileResultConformance(value.conformance, profile),
+  });
+}
+
+// @ref LLP 0146#d2-snapback-verify--the-done-oracle — CLI-entrypoint suites
+// remain one registered acceptance profile and feed the same portable receipt;
+// a second verifier or CLI-specific downstream receipt would split the oracle.
+async function runProfileCommand(profile, context, timeoutMs) {
+  const { command } = profile;
+  if (command.resultFile !== null) {
+    try {
+      rmSync(command.resultFile, { force: true });
+    } catch (error) {
+      throw profileResultError(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_INVALID',
+        `acceptance command ${profile.id} stale machine result could not be removed`,
+        foreignCauseDetails(error, { profileId: profile.id, resultFile: command.resultFile }),
+      );
+    }
+  }
+
+  let child;
+  try {
+    child = spawnLeasedProcess([command.executable, ...command.args], {
+      cwd: command.cwd,
+      env: {
+        ...process.env,
+        SNAPBACK_VERIFY_PROFILE: profile.id,
+        ...(command.resultFile === null ? {} : {
+          SNAPBACK_VERIFY_PROFILE_RESULT_FILE: command.resultFile,
+        }),
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (error) {
+    return Object.freeze({
+      ok: false,
+      context: context.identityContext,
+      conformance: Object.freeze([]),
+      diagnostics: Object.freeze([diagnostic(
+        'SNAPBACK_VERIFY_PROFILE_COMMAND_FAILED',
+        `acceptance command ${profile.id} could not be spawned`,
+        foreignCauseDetails(error, {
+          profileId: profile.id,
+          executable: command.executable,
+          cwd: command.cwd,
+        }),
+      )]),
+    });
+  }
+
+  let outputBytes = 0;
+  let overflow = false;
+  let timedOut = false;
+  let termination = null;
+  const terminate = () => {
+    if (termination === null) {
+      termination = stopProcessGroup(child, {
+        processGroup: process.platform !== 'win32',
+        graceMs: 1_000,
+        killWaitMs: 2_000,
+      }).then(() => null, (error) => error);
+    }
+    return termination;
+  };
+  const observeOutput = (chunk) => {
+    outputBytes += chunk.byteLength;
+    if (outputBytes <= STARTER_ACCEPTANCE_MAX_OUTPUT_BYTES || overflow) return;
+    overflow = true;
+    void terminate();
+  };
+  child.stdout.on('data', observeOutput);
+  child.stderr.on('data', observeOutput);
+  const timer = setTimeout(() => {
+    timedOut = true;
+    void terminate();
+  }, timeoutMs);
+  const exit = await new Promise((resolveExit) => {
+    let spawnError = null;
+    child.once('error', (error) => { spawnError = error; });
+    child.once('close', (code, signal) => resolveExit({ code, signal, error: spawnError }));
+  });
+  clearTimeout(timer);
+  // Even a successful CLI may leave a background npm/shell descendant after
+  // its leader exits. Discharge the complete owned group before accepting its
+  // exit status so verify never leaks an acceptance process tree.
+  const terminationError = await terminate();
+  const executedConformance = unsupportedConformance(profile.paths);
+  if (timedOut || overflow || exit.error !== null || exit.signal !== null
+      || exit.code !== command.expectedExitCode || terminationError !== null) {
+    const code = timedOut
+      ? 'SNAPBACK_VERIFY_PROFILE_TIMEOUT'
+      : overflow
+        ? 'SNAPBACK_VERIFY_PROFILE_OUTPUT_LIMIT'
+        : 'SNAPBACK_VERIFY_PROFILE_COMMAND_FAILED';
+    const message = timedOut
+      ? `acceptance profile ${profile.id} exceeded its ${timeoutMs}ms timeout`
+      : overflow
+        ? `acceptance command ${profile.id} exceeded its bounded output limit`
+        : `acceptance command ${profile.id} did not exit as declared`;
+    return Object.freeze({
+      ok: false,
+      context: context.identityContext,
+      conformance: Object.freeze(exit.error === null ? executedConformance : []),
+      diagnostics: Object.freeze([diagnostic(code, message, {
+        profileId: profile.id,
+        executable: command.executable,
+        cwd: command.cwd,
+        expectedExitCode: command.expectedExitCode,
+        exitCode: exit.code,
+        signal: exit.signal,
+        outputBytes,
+        ...(exit.error === null ? {} : foreignCauseDetails(exit.error)),
+        ...(terminationError === null ? {} : {
+          cleanupCode: terminationError?.code ?? null,
+        }),
+      })]),
+    });
+  }
+
+  if (command.resultFile === null) {
+    return Object.freeze({
+      ok: true,
+      context: context.identityContext,
+      conformance: Object.freeze(executedConformance),
+      diagnostics: Object.freeze([]),
+    });
+  }
+  const result = readProfileCommandResult(profile);
+  return Object.freeze({
+    ...result,
+    context: result.context ?? context.identityContext,
+    diagnostics: result.ok || result.diagnostics.length > 0
+      ? result.diagnostics
+      : Object.freeze([diagnostic(
+        'SNAPBACK_VERIFY_PROFILE_RESULT_FAILED',
+        `acceptance command ${profile.id} returned a failing machine result`,
+        { profileId: profile.id, resultFile: command.resultFile },
+      )]),
+  });
+}
+
 function runWithTimeout(work, timeoutMs, profileId) {
   let timer;
   return Promise.race([
@@ -1566,17 +1923,20 @@ async function runProfiles(config, context, options) {
     let returned;
     try {
       const timeoutMs = options.profileTimeoutMs ?? profile.timeoutMs ?? DEFAULT_VERIFY_PROFILE_TIMEOUT_MS;
-      returned = await runWithTimeout(
-        () => profile.run(Object.freeze({
-          artifact: context.artifact,
-          backendDirectory: config.backendDirectory,
-          generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
-          identityContext: context.identityContext,
-          profileId: profile.id,
-        })),
-        timeoutMs,
-        profile.id,
-      );
+      const profileContext = Object.freeze({
+        artifact: context.artifact,
+        backendDirectory: config.backendDirectory,
+        generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
+        identityContext: context.identityContext,
+        profileId: profile.id,
+      });
+      returned = profile.command === null || profile.command === undefined
+        ? await runWithTimeout(
+          () => profile.run(profileContext),
+          timeoutMs,
+          profile.id,
+        )
+        : await runProfileCommand(profile, profileContext, timeoutMs);
       assert(plainObject(returned), `profile ${profile.id} must return an object`);
       assert(typeof returned.ok === 'boolean', `profile ${profile.id} must return boolean ok`);
     } catch (error) {

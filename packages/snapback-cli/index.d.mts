@@ -116,9 +116,16 @@ export type {
   CloudflareVerifyProfileOptions,
   StarterVerifyProfileOptions,
   VerifyConfig,
+  VerifyCommand,
+  VerifyCommandProfile,
   VerifyConformanceReport,
   VerifyIdentityContext,
   VerifyPathKind,
+  VerifyProfileOutcome,
+  VerifyProfile,
+  VerifyProfileBase,
+  VerifyProfileResult,
+  VerifyRunProfile,
 } from './verify.mjs';
 export type {
   ComparatorProfile,

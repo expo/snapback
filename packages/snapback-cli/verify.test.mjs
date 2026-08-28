@@ -1082,6 +1082,8 @@ process.stdout.write('human output\\n' + JSON.stringify(receipt) + '\\n');
   }
 }
 
+await commandProfileCases();
+
 for (const [template, expectedPathIds, expectedBaselinePathIds] of [
   [
     'todo-contract',
@@ -1240,6 +1242,143 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
     assert.equal(discoverVerifyConfig(scratch), conventional);
     assert.equal(discoverVerifyConfig(join(scratch, 'missing')), null);
     cases += 1;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+async function commandProfileCases() {
+  const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'snapback-verify-command-profile-')));
+  const acceptanceFile = join(scratch, 'acceptance-cli.mjs');
+  const packageFile = join(scratch, 'package.json');
+  const configFile = join(scratch, 'snapback.verify.config.mjs');
+  const resultFile = join(scratch, 'profile-result.json');
+  const markerFile = join(scratch, 'milestone.txt');
+  writeFileSync(packageFile, `${JSON.stringify({
+    private: true,
+    scripts: { acceptance: 'node acceptance-cli.mjs' },
+  }, null, 2)}\n`);
+  writeFileSync(acceptanceFile, `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const args = process.argv.slice(2);
+const milestoneIndex = args.indexOf('--milestone');
+const milestone = milestoneIndex === -1 ? null : args[milestoneIndex + 1];
+writeFileSync(join(process.cwd(), 'milestone.txt'), String(milestone));
+if (milestone !== 'm8') process.exit(2);
+const failing = args.includes('--failing-result');
+if (process.env.SNAPBACK_VERIFY_PROFILE_RESULT_FILE && !args.includes('--omit-result')) {
+  writeFileSync(process.env.SNAPBACK_VERIFY_PROFILE_RESULT_FILE, JSON.stringify({
+    schemaVersion: 'snapback.verify-profile-result.v1',
+    ok: !failing,
+    ...(failing ? {} : {
+      conformance: [{
+        pathId: 'query-success',
+        status: 'observed',
+        report: {
+          missingReads: [], missingWrites: [], extraReads: [], extraWrites: [],
+          readProvenance: 'complete', writeProvenance: 'complete',
+        },
+      }],
+    }),
+  }));
+}
+process.exit(failing ? 7 : 0);
+`);
+  const writeCommandConfig = ({
+    extraArgs = [],
+    expectedExitCode = 0,
+    resultFile: configuredResultFile = null,
+  } = {}) => {
+    writeFileSync(configFile, `
+export default {
+  schemaVersion: 'snapback.verify-config.v1',
+  backendDirectory: '.',
+  context: {
+    data: { kind: 'sqlite-fixture', identity: 'sha256:data-1' },
+    authority: { kind: 'dev-asserted', identity: 'actor-1', principalClass: 'dev' },
+    seed: { kind: 'authored-seed-bytes', identity: 'sha256:seed' },
+  },
+  profiles: [{
+    id: 'milestone-m8',
+    testFiles: ['./acceptance-cli.mjs', './package.json'],
+    paths: [{
+      id: 'query-success',
+      kind: 'success',
+      targetProfileId: 'local-dev-sqlite-ibex',
+      functionId: 'app:list',
+    }],
+    command: {
+      executable: 'npm',
+      args: ${JSON.stringify(['run', 'acceptance', '--', '--milestone', 'm8', ...extraArgs])},
+      cwd: '.',
+      expectedExitCode: ${expectedExitCode},
+      ${configuredResultFile === null ? '' : `resultFile: ${JSON.stringify(configuredResultFile)},`}
+    },
+  }],
+};
+`);
+  };
+  try {
+    writeCommandConfig();
+    const exitOnlyConfig = await loadVerifyConfig(configFile);
+    assert.equal(exitOnlyConfig.profiles[0].run, null);
+    assert.equal(exitOnlyConfig.profiles[0].command.executable, 'npm');
+    assert.deepEqual(
+      exitOnlyConfig.profiles[0].command.args,
+      ['run', 'acceptance', '--', '--milestone', 'm8'],
+    );
+    assert.equal(exitOnlyConfig.profiles[0].command.cwd, scratch);
+    const exitOnlyReceipt = await runVerify(exitOnlyConfig, passOptions());
+    assert.equal(exitOnlyReceipt.ok, true, JSON.stringify(exitOnlyReceipt));
+    assert.equal(exitOnlyReceipt.acceptanceProfiles[0].status, 'passed');
+    assert.equal(
+      exitOnlyReceipt.stages[2].evidence.conformance.pathEvidence[0].status,
+      'unsupported',
+    );
+    assert.equal(readFileSync(markerFile, 'utf8'), 'm8');
+    assert.equal(validateReceiptSchema(exitOnlyReceipt), true, JSON.stringify(validateReceiptSchema.errors));
+
+    writeFileSync(resultFile, '{"schemaVersion":"stale"}\n');
+    writeCommandConfig({ resultFile: './profile-result.json' });
+    const resultConfig = await loadVerifyConfig(configFile);
+    const resultReceipt = await runVerify(resultConfig, passOptions());
+    assert.equal(resultReceipt.ok, true, JSON.stringify(resultReceipt));
+    assert.equal(resultReceipt.stages[2].evidence.conformance.status, 'passed');
+    assert.equal(
+      resultReceipt.stages[2].evidence.conformance.pathEvidence[0].status,
+      'authoritative',
+    );
+    assert.equal(validateReceiptSchema(resultReceipt), true, JSON.stringify(validateReceiptSchema.errors));
+
+    writeCommandConfig({ extraArgs: ['--omit-result'], resultFile: './profile-result.json' });
+    const missingResultReceipt = await runVerify(await loadVerifyConfig(configFile), passOptions());
+    assert.equal(missingResultReceipt.ok, false);
+    assert.equal(
+      missingResultReceipt.acceptanceProfiles[0].diagnostics[0].code,
+      'SNAPBACK_VERIFY_PROFILE_RESULT_MISSING',
+    );
+
+    writeCommandConfig({
+      extraArgs: ['--failing-result'],
+      expectedExitCode: 7,
+      resultFile: './profile-result.json',
+    });
+    const failingResultReceipt = await runVerify(await loadVerifyConfig(configFile), passOptions());
+    assert.equal(failingResultReceipt.ok, false);
+    assert.equal(failingResultReceipt.stages[2].status, 'passed');
+    assert.equal(
+      failingResultReceipt.acceptanceProfiles[0].diagnostics[0].code,
+      'SNAPBACK_VERIFY_PROFILE_RESULT_FAILED',
+    );
+
+    writeCommandConfig({ expectedExitCode: 7 });
+    await assert.rejects(
+      () => loadVerifyConfig(configFile),
+      /resultFile is required when expectedExitCode is nonzero/u,
+    );
+    cases += 5;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
