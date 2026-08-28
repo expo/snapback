@@ -104,6 +104,7 @@ import {
 } from './runtime-readiness.mjs';
 import { maskInitSourceCommentsAndStrings } from './source-mask.mjs';
 import { DEV_IDENTITY_ENFORCEMENT_FLIP } from './dev-identity.mjs';
+import { processStartTime } from './auth-setup.mjs';
 import { createSupervisedBindingPublisher } from './expo-binding-refresh.mjs';
 import {
   loadComparatorProfile,
@@ -6132,6 +6133,32 @@ function devBackendManagedByReadyFile(readyFileExisted) {
   return readyFileExisted === false;
 }
 
+// @ref LLP 0030#readiness-and-port-discovery — stale ready files are never
+// accepted as current readiness, and refusal precedes any attach mutation.
+function assertLiveDevReadyDescriptorOwner(descriptor, readyFile) {
+  if (processStartTime(descriptor.pid) !== null) return descriptor;
+  let origin = descriptor.serverUrl;
+  try {
+    origin = new URL(descriptor.serverUrl).origin;
+  } catch {
+    // readReadyDescriptor owns URL-shape validation downstream. Preserve the
+    // recorded value here so a dead owner remains the actionable first fact.
+  }
+  throw diagnosticError(
+    'SNAPBACK_DEV_READY_FILE_STALE',
+    'the development readiness descriptor names an owner process that is no longer running',
+    {
+      descriptorFile: resolve(readyFile),
+      pid: descriptor.pid,
+      origin,
+      recovery: {
+        standalone: `remove ${resolve(readyFile)} and rerun snapback dev`,
+        supervised: 'rerun snapback dev --attach --ready-file <path> against a descriptor published by a live development loop',
+      },
+    },
+  );
+}
+
 export async function runDev(options = {}) {
   const spawnRuntime = options.spawnManagedRuntime ?? spawnManagedRuntime;
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
@@ -6139,6 +6166,13 @@ export async function runDev(options = {}) {
   const stateRoot = join(projectRoot, '.snapback');
   mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
   const readyFile = resolve(options.readyFile ?? join(stateRoot, 'dev.ready.json'));
+  if (existsSync(readyFile)) {
+    // Refuse stale persistent state before runtime qualification or codegen can
+    // obscure it. This is a negative-only preflight: the authoritative attach
+    // rereads below so a live loop that rotates its descriptor during
+    // generation is never frozen to this earlier snapshot.
+    assertLiveDevReadyDescriptorOwner(readReadyDescriptor(readyFile), readyFile);
+  }
   if (options.controlSocket === true) {
     const controlStateRoot = dirname(readyFile);
     const controlStateRelation = relative(stateRoot, controlStateRoot);
@@ -6355,7 +6389,10 @@ export async function runDev(options = {}) {
   let descriptor;
   let initialStartupSuccessor = null;
   if (readyFileExisted) {
-    descriptor = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+    descriptor = validateDevTarget(
+      assertLiveDevReadyDescriptorOwner(readReadyDescriptor(readyFile), readyFile),
+      { readyFile, database },
+    );
     const attachAdminToken = managedAdminToken(descriptor, database);
     await verifyDevAttach({
       descriptor,
