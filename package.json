@@ -25,6 +25,7 @@
     "check:surfaces": "scripts/check-demo-surfaces",
     "workout": "node scripts/run-workout-apps.mjs",
     "verify": "scripts/verify-local-proof",
+    "check": "scripts/local-proof-check",
     "cf:accept": "node targets/cloudflare/test/local-suite.mjs",
     "cf:index-scaling": "node targets/cloudflare/test/index-scaling.mjs",
     "cf:measure": "node targets/cloudflare/test/measure.mjs",

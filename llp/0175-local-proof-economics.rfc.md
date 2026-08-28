@@ -5,12 +5,11 @@
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
-**Revised:** 2026-08-27 (LLP 0316 Phase 5 adopts cargo-nextest 0.9.143 as
-the canonical Rust runner: the checked `local-proof` profile retains
-non-fail-fast workspace coverage, per-test process isolation, bounded
-concurrency, and deterministic JUnit; missing tooling is a typed refusal with
-no `cargo test` fallback, while a separate `rust-doc-tests` gate preserves the
-doctest coverage nextest 0.9.143 does not execute.)
+**Revised:** 2026-08-28 (local worktree affected-proof amendment: the local
+operator path selects the union of the committed base-to-HEAD diff and staged,
+unstaged, deleted, renamed, untracked, and dirty-submodule paths; receipts bind
+the path/status and content snapshot, refuse a green completion if it changes
+mid-run, and leave committed CI/push/release selection unchanged.)
 **Revised:** 2026-08-21 (gate-execution honesty correction and review closure:
 every selected gate now has a finite wall-clock budget parsed by one canonical
 decimal contract, timeout is structurally distinct from a natural exit 124,
@@ -109,6 +108,7 @@ Rust-source and published-package owners. Additive Rust ownership preserves
 the file's ordinary affected suite, while narrow Rust-toolchain and JavaScript-
 dependency requirements provision only what the selected fast gate needs.)
 **Related:** LLP 0010, LLP 0032, LLP 0109, LLP 0115, LLP 0145, LLP 0154,
+LLP 0287, LLP 0327, LLP 0327.000,
 issues/closed/20260802-local-proof-is-cancelled-before-it-can-finish-on-main.md,
 issues/closed/20260802-verify-local-proof-stops-at-the-first-failure.md,
 issues/closed/20260802-main-proof-greening-18-gates.md,
@@ -377,11 +377,8 @@ cannot present escaped-writer contamination as clean. The authoritative v3
 JSONL uses `terminationReason: "exit" | "timeout" |
 "timeout-cleanup-failed"` for executing gates, distinguishing a natural exit
 124 from enforcement. Timeout signatures bind both that structural reason and
-the captured timeout marker. The `rust-tests` command separately uses
-cargo-nextest's `local-proof` profile with `fail-fast = false`, so one failing
-test cannot hide unrun workspace tests. Cargo-nextest 0.9.143 does not execute
-doctests; the separate `rust-doc-tests` gate retains them explicitly and does
-not satisfy, replace, or mask the nextest gate.
+the captured timeout marker. The `rust-tests` command separately uses Cargo
+`--no-fail-fast`, so one failing target cannot hide unrun workspace targets.
 
 The dependency graph itself is test inventory. A newly added real-server test
 that omits the current-binary prerequisite fails the inventory check.
@@ -759,6 +756,103 @@ No test is moved to nightly merely because it is slow. Its cadence follows the
 risk it covers: a seed change still runs seed compatibility before landing; an
 unrelated LLP prose change does not.
 
+#### D2.5 Local worktree affected proof (amendment 2026-08-28)
+
+The committed affected selector is correct for CI and pushes and incomplete for
+the most common local question: “do the changes in front of me pass?” The
+implemented selector resolves commits and computes only
+`requested-base...HEAD`. A developer with staged, unstaged, deleted, or
+untracked source can therefore run `--affected` successfully while none of
+those bytes participated in selection.
+
+Add an explicit worktree inclusion mode:
+
+```sh
+scripts/verify-local-proof --affected origin/main --include-worktree
+```
+
+The mode selects the union of:
+
+1. the existing merge-base-to-`HEAD` committed diff;
+2. staged changes relative to `HEAD`;
+3. unstaged tracked changes relative to the index;
+4. deleted, renamed, copied, type-changed, and intent-to-add paths represented
+   by those two Git views;
+5. non-ignored untracked files from the superproject; and
+6. a submodule root path when that submodule's recorded commit, index entry, or
+   worktree is dirty.
+
+Ignored files and ignored submodule byproducts do not participate. The mode
+does not run `git add`, create a temporary commit, stash, clean, fetch, or
+otherwise mutate the checkout. Unknown paths retain D2's fail-broad behavior.
+The same path may appear from several sources and is classified once after a
+deterministic union.
+
+The selector receipt gains:
+
+- `worktreeIncluded: true`;
+- separate committed and worktree path/status inventories;
+- a digest of the canonical path/status selection input; and
+- a content digest over the changed worktree inputs, using deletion,
+  symlink-target, Git-link, and ordinary-file markers as appropriate.
+
+The receipt retains repo-relative paths but never file contents. Before the
+outer proof writes a successful completion receipt, it recomputes both
+worktree digests. A mismatch emits a stable
+`SNAPBACK_PROOF_WORKTREE_CHANGED_DURING_RUN` refusal and withholds a green
+completion: the selected proof may have been correct for the opening snapshot,
+but it cannot claim the closing one. This is completion-receipt invalidation,
+not a sixth gate terminal result.
+
+The checked fixture corpus covers staged-only, unstaged-only, untracked,
+deletion, rename, intent-to-add, dirty-submodule, ignored-file, unknown-path,
+and mid-run-change cases. It also proves that ordinary committed `--affected`,
+selection-receipt replay, complete cadence, hooks, CI, backstops, release, and
+claim qualification retain their existing commit-bound semantics.
+
+**Implementation record (2026-08-28).** Landed as `--include-worktree` on
+`scripts/verify-local-proof`, backed by a root-parameterized union collector in
+`scripts/select-local-proof.mjs` (`worktreeSnapshot`) and a
+`recheck-worktree` command for the completion gate. The union is assembled from
+the enumerated views only, deduplicated, and classified once; `--no-renames` is
+deliberately not used so both sides of a rename select, matching D2's
+fail-broad posture. Receipts gain `worktreeIncluded`, separate committed and
+worktree inventories, and the two digests; committed-only receipts keep their
+exact prior shape, which is asserted by fixture so replay, hooks, CI,
+backstops, release, and claim qualification are provably untouched. The
+mid-run recomputation runs in the supervisor before a green completion is
+allowed to stand and emits `SNAPBACK_PROOF_WORKTREE_CHANGED_DURING_RUN`,
+invalidating the retained completion pair rather than adding a gate terminal
+result. The corpus covers clean, staged-only, unstaged-only, untracked,
+ignored, deletion, rename, intent-to-add, multi-view dedupe, dirty submodule,
+digest stability and sensitivity, file-to-symlink replacement, the
+paths-not-contents guarantee, committed-only shape, complete-cadence refusal,
+mid-run change, and committed-only inertness.
+
+Demonstrated on the landing checkout, with two modified files present:
+committed-only selection reported 0 changed files and 14 gates (`FAST_ONLY`)
+while the worktree-inclusive selection reported 2 changed files and 183 gates
+(`FAIL_CLOSED_FULL`). That gap is the silent false green this amendment closes.
+
+Make the obvious root command:
+
+```sh
+bun run check
+```
+
+expand to the worktree-aware affected proof against the existing local
+`origin/main` tracking ref. It never fetches implicitly and prints the resolved
+base/head identities. If that ref is absent, it refuses with the direct
+`scripts/verify-local-proof --affected <REV> --include-worktree` form rather
+than guessing a base. `bun run verify` remains the explicit complete proof.
+
+This local result is iteration evidence, not a publication or capability-claim
+digest: uncommitted bytes have no durable revision identity. Once committed,
+ordinary landing and claim paths continue through LLP 0189's scoped,
+commit-bound receipts. LLP 0287 must carry this union mode and its snapshot
+fields into the canonical inventory rather than reimplementing a second
+selector.
+
 ### D3 — remove redundant execution within a full proof
 
 #### D3.1 Suppress the disposable doctor link after an authoritative build
@@ -828,10 +922,9 @@ it is a large mechanical change with test-selection, module-state, `@ref`, and
 failure-isolation consequences. Instrument link time first. Pursue
 consolidation only if D1–D3 leave it among the dominant costs.
 
-`mold`/`lld`, codegen-unit tuning, and remote build caching remain valid
-experiments, not assumed conclusions. Cargo-nextest moved from this experiment
-list to the documented canonical Rust runner in LLP 0316 Phase 5; its
-controlled wall comparison remains measurement-owned there.
+`cargo-nextest`, `mold`/`lld`, codegen-unit tuning, and remote build caching are
+valid experiments, not assumed conclusions. Each changes a toolchain or
+execution boundary and needs its own measured acceptance.
 
 ### D5 — make test economics part of the inventory
 
@@ -1017,9 +1110,8 @@ executable code:
   timeout identity, bounded capture with a surviving double-forked writer,
   same-group TERM resistance, and signal cleanup of a genuine `setsid()`
   descendant, while `tests/local_proof_inventory_v0.mjs` proves unknown edges,
-  duplicate ids, missing producers, the bounded non-fail-fast nextest Rust
-  workspace command, its typed missing-runner refusal without fallback, the
-  explicit workspace doctest complement, and a new direct real-server gate without
+  duplicate ids, missing producers, the bounded non-fail-fast Rust workspace
+  command, and a new direct real-server gate without
   current-binary readiness fail closed;
 - CI uploads the result artifact even when the proof is red;
 - the canonical proof builds/qualifies the ordinary binary before invoking

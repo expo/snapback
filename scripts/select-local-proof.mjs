@@ -10,7 +10,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
+  lstatSync,
   readFileSync,
+  readlinkSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -25,6 +27,7 @@ import {
 } from './check-local-proof-gates.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
+let submodulePathCache = null;
 const POLICY_PATH = resolve(ROOT, 'scripts/local-proof-selection-policy.v1.json');
 const PROOF_PATH = resolve(ROOT, 'scripts/verify-local-proof');
 
@@ -374,21 +377,38 @@ export function selectGate(gateId, context = loadSelectionContext()) {
   return context.inventory.canonicalGates.filter((gate) => selected.has(gate));
 }
 
-export function planSelection({ cadence, base = null, head = 'HEAD' }) {
+export function planSelection({
+  cadence,
+  base = null,
+  head = 'HEAD',
+  includeWorktree = false,
+}) {
   const context = loadSelectionContext();
   const headRevision = resolveCommit(head);
   let requestedBaseRevision = null;
   let baseRevision = null;
   let changedFiles = [];
+  let committedChangedFiles = [];
+  let worktree = null;
   let selection;
   if (cadence === 'complete') {
     assert(base === null, 'complete cadence does not accept a base');
+    assert(includeWorktree === false, 'complete cadence does not accept --include-worktree');
     selection = completeSelection(context);
   } else if (cadence === 'affected') {
     assert(typeof base === 'string' && base.length > 0, 'affected cadence requires a base');
     requestedBaseRevision = resolveCommit(base);
     baseRevision = mergeBase(requestedBaseRevision, headRevision);
-    changedFiles = changedPaths(requestedBaseRevision, headRevision);
+    committedChangedFiles = changedPaths(requestedBaseRevision, headRevision);
+    // @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+    // the union is deduplicated and classified once, so a path present in both
+    // the committed diff and the worktree selects exactly like any other path.
+    if (includeWorktree) {
+      worktree = worktreeSnapshot();
+      changedFiles = [...new Set([...committedChangedFiles, ...worktree.paths])].sort();
+    } else {
+      changedFiles = committedChangedFiles;
+    }
     selection = selectChangedPaths(changedFiles, context);
   } else {
     fail(`unsupported cadence ${cadence}`);
@@ -402,6 +422,16 @@ export function planSelection({ cadence, base = null, head = 'HEAD' }) {
     baseRevision,
     headRevision,
     changedFiles,
+    // Committed-only receipts keep their exact v1 shape; the worktree fields
+    // appear only when the mode is requested, so commit-bound consumers,
+    // replay, CI, hooks, backstops, and claim qualification are untouched.
+    worktreeIncluded: includeWorktree,
+    ...(includeWorktree ? {
+      committedChangedFiles,
+      worktreeChangedFiles: worktree.inventory,
+      worktreeSelectionDigest: worktree.selectionDigest,
+      worktreeContentDigest: worktree.contentDigest,
+    } : {}),
     canonicalGateCount: context.inventory.canonicalGates.length,
     selectedGateCount: selection.selectedGates.length,
     selectedGateDigest: digestSelectedGateIds(selection.selectedGates),
@@ -437,6 +467,36 @@ export function materializeSelectedGates(gateIds, output) {
   };
 }
 
+// @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+// recomputed before the outer proof writes a successful completion receipt.
+// A selected proof may have been correct for the opening snapshot; it cannot
+// claim the closing one. This is completion-receipt invalidation, not a sixth
+// gate terminal result, so it returns a verdict rather than failing a gate.
+export function recheckWorktreeSnapshot(receipt) {
+  return recheckWorktreeSnapshotIn(ROOT, receipt);
+}
+
+export function recheckWorktreeSnapshotIn(root, receipt) {
+  if (receipt?.worktreeIncluded !== true) return { checked: false, unchanged: true };
+  const current = worktreeSnapshot(root);
+  const selectionUnchanged = current.selectionDigest === receipt.worktreeSelectionDigest;
+  const contentUnchanged = current.contentDigest === receipt.worktreeContentDigest;
+  return {
+    checked: true,
+    unchanged: selectionUnchanged && contentUnchanged,
+    selectionUnchanged,
+    contentUnchanged,
+    opening: {
+      selectionDigest: receipt.worktreeSelectionDigest,
+      contentDigest: receipt.worktreeContentDigest,
+    },
+    closing: {
+      selectionDigest: current.selectionDigest,
+      contentDigest: current.contentDigest,
+    },
+  };
+}
+
 export function validateSelectionReceipt(receipt) {
   assert(receipt?.schemaVersion === 'snapback.local-proof-selection.v1', 'selection receipt schema');
   assert(receipt.headRevision === resolveCommit('HEAD'), 'selection receipt matches current HEAD');
@@ -444,6 +504,7 @@ export function validateSelectionReceipt(receipt) {
     cadence: receipt.cadence,
     base: receipt.cadence === 'affected' ? receipt.requestedBaseRevision : null,
     head: receipt.headRevision,
+    includeWorktree: receipt.worktreeIncluded === true,
   });
   assert(JSON.stringify(receipt) === JSON.stringify(expected), 'selection receipt is exact and current');
   return receipt;
@@ -454,16 +515,23 @@ function main() {
   if (command === 'plan') {
     validateOptionArgs(args, [
       '--cadence', '--output', '--base', '--head', '--github-output',
-    ]);
+    ], ['--include-worktree']);
     const cadence = requiredArg(args, '--cadence');
     const output = requiredArg(args, '--output');
     const base = optionalArg(args, '--base');
     const head = optionalArg(args, '--head') ?? 'HEAD';
     const githubOutput = optionalArg(args, '--github-output');
-    const receipt = planSelection({ cadence, base, head });
+    const receipt = planSelection({
+      cadence, base, head, includeWorktree: args.includes('--include-worktree'),
+    });
     writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`);
     if (githubOutput) writeGitHubOutputs(githubOutput, receipt);
     process.stdout.write(`${JSON.stringify(summary(receipt))}\n`);
+  } else if (command === 'recheck-worktree') {
+    const path = onlyPathArg(args);
+    const verdict = recheckWorktreeSnapshot(readJson(path));
+    process.stdout.write(`${JSON.stringify(verdict)}\n`);
+    if (verdict.checked && !verdict.unchanged) process.exit(3);
   } else if (command === 'validate') {
     const path = onlyPathArg(args);
     const receipt = validateSelectionReceipt(readJson(path));
@@ -553,6 +621,160 @@ function validRepositoryPath(path) {
     && path.length > 0
     && !path.startsWith('/')
     && !path.split('/').includes('..');
+}
+
+// @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+// the committed selector answers "what did these commits change?". The most
+// common local question is "do the changes in front of me pass?", and staged,
+// unstaged, deleted, renamed, intent-to-add, untracked, and dirty-submodule
+// bytes never participated in that answer. This mode adds them.
+//
+// Read-only by construction: every command below is a query. Nothing here runs
+// `git add`, commits, stashes, cleans, or fetches.
+
+function nulSeparated(output) {
+  return output.split('\0').filter(Boolean);
+}
+
+// `-z` name-status output is a flat NUL stream of alternating status and path,
+// except renames/copies which carry two paths. `--no-renames` is deliberately
+// NOT used: both sides of a rename must select, which is the fail-broad
+// posture D2 already takes for unknown inputs.
+function gitIn(root, args) {
+  return execFileSync('git', args, { cwd: root, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' });
+}
+
+function nameStatusPairs(root, args) {
+  const fields = nulSeparated(gitIn(root, args));
+  const entries = [];
+  for (let index = 0; index < fields.length;) {
+    const status = fields[index];
+    index += 1;
+    if (status === undefined) break;
+    const isRenameOrCopy = /^[RC]/u.test(status);
+    const from = fields[index];
+    index += 1;
+    if (from === undefined) break;
+    if (isRenameOrCopy) {
+      const to = fields[index];
+      index += 1;
+      entries.push({ path: from, status });
+      if (to !== undefined) entries.push({ path: to, status });
+    } else {
+      entries.push({ path: from, status });
+    }
+  }
+  return entries;
+}
+
+function worktreeEntries(root) {
+  const entries = [];
+  // 2. staged relative to HEAD
+  for (const entry of nameStatusPairs(root, ['diff', '--name-status', '--cached', '-z', 'HEAD'])) {
+    entries.push({ ...entry, source: 'staged' });
+  }
+  // 3. unstaged tracked relative to the index (also surfaces intent-to-add)
+  for (const entry of nameStatusPairs(root, ['diff', '--name-status', '-z'])) {
+    entries.push({ ...entry, source: 'unstaged' });
+  }
+  // 5. non-ignored untracked files from the superproject only
+  for (const path of nulSeparated(gitIn(root, ['ls-files', '--others', '--exclude-standard', '-z']))) {
+    entries.push({ path, status: '?', source: 'untracked' });
+  }
+  // 6. a submodule root whose recorded commit, index entry, or worktree is
+  //    dirty. Ignored submodule byproducts do not participate, which is why
+  //    this uses --ignore-submodules=untracked rather than =none.
+  for (const line of nulSeparated(gitIn(
+    root, ['status', '--porcelain=v1', '-z', '--ignore-submodules=untracked'],
+  ))) {
+    const path = line.slice(3);
+    if (!path || !submodulePaths(root).has(path)) continue;
+    entries.push({ path, status: line.slice(0, 2).trim() || 'M', source: 'submodule' });
+  }
+  return entries;
+}
+
+function submodulePaths(root) {
+  if (root === ROOT && submodulePathCache) return submodulePathCache;
+  let output = '';
+  try {
+    output = gitIn(root, ['ls-files', '--stage', '-z']);
+  } catch {
+    output = '';
+  }
+  const paths = new Set();
+  for (const record of nulSeparated(output)) {
+    // mode SP sha SP stage TAB path; gitlinks are mode 160000
+    if (record.startsWith('160000 ')) paths.add(record.slice(record.indexOf('\t') + 1));
+  }
+  if (root === ROOT) submodulePathCache = paths;
+  return paths;
+}
+
+// The canonical selection input: one deterministic line per (path, status),
+// deduplicated, sorted. The same path arriving from several sources is
+// classified once.
+function canonicalWorktreeInventory(entries) {
+  const byPath = new Map();
+  for (const { path, status } of entries) {
+    const statuses = byPath.get(path) ?? new Set();
+    statuses.add(status);
+    byPath.set(path, statuses);
+  }
+  return [...byPath.entries()]
+    .map(([path, statuses]) => ({ path, status: [...statuses].sort().join('') }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+}
+
+function worktreeSelectionDigest(inventory) {
+  const hash = createHash('sha256');
+  for (const { path, status } of inventory) hash.update(`${path}\0${status}\0`);
+  return `sha256:${hash.digest('hex')}`;
+}
+
+// A content digest over the changed worktree inputs. Repo-relative paths and
+// content *digests* only — never file contents. Deletion, symlink-target,
+// Git-link, and ordinary-file markers keep distinct states distinct, so a file
+// replaced by a symlink to the same bytes still rotates the digest.
+function worktreeContentDigest(root, inventory) {
+  const hash = createHash('sha256');
+  for (const { path } of inventory) {
+    const absolute = resolve(root, path);
+    let stats = null;
+    try {
+      stats = lstatSync(absolute);
+    } catch {
+      hash.update(`d\0${path}\0`);
+      continue;
+    }
+    if (stats.isSymbolicLink()) {
+      hash.update(`l\0${path}\0${readlinkSync(absolute)}\0`);
+    } else if (stats.isDirectory()) {
+      // a gitlink: identify by the submodule's currently checked-out commit
+      let recorded = '';
+      try {
+        recorded = execFileSync('git', ['rev-parse', 'HEAD'], {
+          cwd: absolute, encoding: 'utf8',
+        }).trim();
+      } catch {
+        recorded = 'unresolved';
+      }
+      hash.update(`g\0${path}\0${recorded}\0`);
+    } else {
+      hash.update(`f\0${path}\0${createHash('sha256').update(readFileSync(absolute)).digest('hex')}\0`);
+    }
+  }
+  return `sha256:${hash.digest('hex')}`;
+}
+
+export function worktreeSnapshot(root = ROOT) {
+  const inventory = canonicalWorktreeInventory(worktreeEntries(root));
+  return {
+    inventory,
+    paths: inventory.map(({ path }) => path),
+    selectionDigest: worktreeSelectionDigest(inventory),
+    contentDigest: worktreeContentDigest(root, inventory),
+  };
 }
 
 function changedPaths(base, head) {
@@ -648,14 +870,20 @@ function optionalArg(args, name) {
   return args[index + 1];
 }
 
-function validateOptionArgs(args, allowed) {
-  assert(args.length % 2 === 0, 'plan arguments are name/value pairs');
+function validateOptionArgs(args, allowed, booleans = []) {
+  // Boolean flags carry no value; strip them before the pair check so the
+  // name/value contract still holds for everything else.
+  for (const flag of booleans) {
+    assert(args.filter((arg) => arg === flag).length <= 1, `duplicate option ${flag}`);
+  }
+  const pairArgs = args.filter((arg) => !booleans.includes(arg));
+  assert(pairArgs.length % 2 === 0, 'plan arguments are name/value pairs');
   const seen = new Set();
-  for (let index = 0; index < args.length; index += 2) {
-    const name = args[index];
+  for (let index = 0; index < pairArgs.length; index += 2) {
+    const name = pairArgs[index];
     assert(allowed.includes(name), `unknown option ${name}`);
     assert(!seen.has(name), `duplicate option ${name}`);
-    assert(args[index + 1] && !args[index + 1].startsWith('--'), `missing value for ${name}`);
+    assert(pairArgs[index + 1] && !pairArgs[index + 1].startsWith('--'), `missing value for ${name}`);
     seen.add(name);
   }
 }

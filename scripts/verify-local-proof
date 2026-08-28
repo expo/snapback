@@ -70,6 +70,31 @@ process.stdout.write(value.selectedGateDigest);
             SNAPBACK_PROOF_SELECTED_GATES="$parent_selected" \
             /bin/bash "$ROOT/scripts/verify-local-proof" "$@" \
         || proof_supervisor_status=$?
+    # @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+    # a worktree-inclusive run selected against an opening snapshot. Before that
+    # run is allowed to stand as a green completion, both worktree digests are
+    # recomputed. A mismatch withholds the green: the proof may have been
+    # correct for the snapshot it selected, but it cannot claim the closing one.
+    # This is completion-receipt invalidation, not a sixth gate terminal result,
+    # so it does not touch the per-gate results stream.
+    parent_selection_receipt="${SNAPBACK_PROOF_SELECTION_RESULTS:-$ROOT/target/proof/local-proof-selection.json}"
+    if [ "$proof_supervisor_status" -eq 0 ] && [ -f "$parent_selection_receipt" ]; then
+        worktree_recheck=0
+        node "$ROOT/scripts/select-local-proof.mjs" recheck-worktree \
+            "$parent_selection_receipt" >/dev/null 2>&1 || worktree_recheck=$?
+        if [ "$worktree_recheck" -eq 3 ]; then
+            printf 'SNAPBACK_PROOF_WORKTREE_CHANGED_DURING_RUN: the worktree changed while the proof ran.\n' >&2
+            printf '[snapback-verify] the selected proof was correct for its opening snapshot but cannot claim the closing one.\n' >&2
+            printf '[snapback-verify] re-run: scripts/verify-local-proof --affected <REV> --include-worktree\n' >&2
+            proof_runner_invalidate_retained_evidence \
+                "$SNAPBACK_PROOF_COMPLETION_RECEIPT" "$parent_results" || true
+            proof_supervisor_status=3
+        elif [ "$worktree_recheck" -ne 0 ]; then
+            printf '[snapback-verify] worktree recheck could not run (exit %s); withholding a green completion\n' \
+                "$worktree_recheck" >&2
+            proof_supervisor_status=2
+        fi
+    fi
     exit "$proof_supervisor_status"
 fi
 if [ "$PROOF_RUNNER_SELECTION_ONLY" != "1" ] \
@@ -99,6 +124,13 @@ Usage: scripts/verify-local-proof [OPTIONS]
 Options:
   --complete                 Run the complete canonical gate inventory (default).
   --affected REV             Run gates selected by changes since Git revision REV.
+  --include-worktree         With --affected, also select staged, unstaged,
+                             untracked, deleted, renamed, intent-to-add, and
+                             dirty-submodule paths. Read-only: never stages,
+                             commits, stashes, cleans, or fetches. Local
+                             iteration evidence only -- uncommitted bytes have
+                             no durable revision identity, so this never
+                             qualifies a publication or capability claim.
   --gate ID                  Re-run one gate and its prerequisite closure.
   --selection-receipt FILE   Reopen an exact selector receipt for the current HEAD.
   --keep-going               Continue independent gates after a root failure.
@@ -120,6 +152,7 @@ EOF
 # dozens of repeated server-start timeouts (LLP 0175 D1).
 KEEP_GOING=0
 PROOF_CADENCE="complete"
+PROOF_INCLUDE_WORKTREE=0
 PROOF_BASE_REVISION=""
 PROOF_SELECTION_RECEIPT=""
 PROOF_GATE_ID=""
@@ -146,6 +179,11 @@ while [ "$#" -gt 0 ]; do
             PROOF_CADENCE="affected"
             PROOF_BASE_REVISION="$2"
             shift 2
+            ;;
+        --include-worktree)
+            # @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28
+            PROOF_INCLUDE_WORKTREE=1
+            shift
             ;;
         --selection-receipt)
             [ "$#" -ge 2 ] || {
@@ -210,6 +248,9 @@ else
     )
     if [ "$PROOF_CADENCE" = "affected" ]; then
         selection_args+=(--base "$PROOF_BASE_REVISION")
+        if [ "$PROOF_INCLUDE_WORKTREE" = "1" ]; then
+            selection_args+=(--include-worktree)
+        fi
     fi
     node "$ROOT/scripts/select-local-proof.mjs" "${selection_args[@]}"
     PROOF_SELECTION_RECEIPT="$PROOF_SELECTION_RESULTS"

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -11,6 +20,8 @@ import {
   selectChangedPaths,
   selectDriftProneGates,
   validateSelectionReceipt,
+  worktreeSnapshot,
+  recheckWorktreeSnapshotIn,
 } from '../scripts/select-local-proof.mjs';
 import { DIAGNOSTICS_PRODUCTION_ROOTS } from '../scripts/diagnostics-registry-source.mjs';
 
@@ -500,4 +511,190 @@ test('selection receipts bind the exact policy, inventory, diff, and current HEA
     () => validateSelectionReceipt(tampered),
     /selection receipt is exact and current/u,
   );
+});
+
+// @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+// the worktree union corpus. Every case runs against a throwaway repository so
+// the fixtures can stage, delete, rename, and dirty a submodule without ever
+// touching the checkout under test.
+
+function tempRepo() {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-worktree-fixture-'));
+  const run = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  run('init', '--quiet', '-b', 'main');
+  run('config', 'user.email', 'fixture@example.invalid');
+  run('config', 'user.name', 'fixture');
+  run('config', 'commit.gpgsign', 'false');
+  writeFileSync(join(root, 'tracked.txt'), 'one\n');
+  writeFileSync(join(root, 'renamed-from.txt'), 'rename me\n');
+  writeFileSync(join(root, 'deleted.txt'), 'delete me\n');
+  writeFileSync(join(root, '.gitignore'), 'ignored-byproduct.txt\n');
+  run('add', '-A');
+  run('commit', '--quiet', '-m', 'base');
+  return { root, run };
+}
+
+function pathsOf(root) {
+  return worktreeSnapshot(root).paths;
+}
+
+test('worktree union: a clean tree selects nothing', () => {
+  const { root } = tempRepo();
+  assert.deepEqual(pathsOf(root), []);
+});
+
+test('worktree union: staged-only changes participate', () => {
+  const { root, run } = tempRepo();
+  writeFileSync(join(root, 'tracked.txt'), 'staged\n');
+  run('add', 'tracked.txt');
+  assert.deepEqual(pathsOf(root), ['tracked.txt']);
+});
+
+test('worktree union: unstaged-only changes participate', () => {
+  const { root } = tempRepo();
+  writeFileSync(join(root, 'tracked.txt'), 'unstaged\n');
+  assert.deepEqual(pathsOf(root), ['tracked.txt']);
+});
+
+test('worktree union: untracked files participate', () => {
+  const { root } = tempRepo();
+  writeFileSync(join(root, 'brand-new.txt'), 'new\n');
+  assert.deepEqual(pathsOf(root), ['brand-new.txt']);
+});
+
+test('worktree union: ignored files do not participate', () => {
+  const { root } = tempRepo();
+  writeFileSync(join(root, 'ignored-byproduct.txt'), 'noise\n');
+  assert.deepEqual(pathsOf(root), []);
+});
+
+test('worktree union: deletions participate', () => {
+  const { root } = tempRepo();
+  rmSync(join(root, 'deleted.txt'));
+  assert.deepEqual(pathsOf(root), ['deleted.txt']);
+});
+
+test('worktree union: a rename selects both sides', () => {
+  const { root, run } = tempRepo();
+  run('mv', 'renamed-from.txt', 'renamed-to.txt');
+  assert.deepEqual(pathsOf(root), ['renamed-from.txt', 'renamed-to.txt']);
+});
+
+test('worktree union: intent-to-add participates', () => {
+  const { root, run } = tempRepo();
+  writeFileSync(join(root, 'intent.txt'), 'intent\n');
+  run('add', '-N', 'intent.txt');
+  assert.deepEqual(pathsOf(root), ['intent.txt']);
+});
+
+test('worktree union: a path in several views is classified once', () => {
+  const { root, run } = tempRepo();
+  writeFileSync(join(root, 'tracked.txt'), 'staged\n');
+  run('add', 'tracked.txt');
+  writeFileSync(join(root, 'tracked.txt'), 'and then unstaged\n');
+  const snapshot = worktreeSnapshot(root);
+  assert.deepEqual(snapshot.paths, ['tracked.txt']);
+  assert.equal(snapshot.inventory.length, 1, 'the union deduplicates by path');
+});
+
+test('worktree union: a dirty submodule selects its root, ignored byproducts do not', () => {
+  const inner = mkdtempSync(join(tmpdir(), 'snapback-worktree-submodule-'));
+  const runInner = (...args) => execFileSync('git', args, { cwd: inner, encoding: 'utf8' });
+  runInner('init', '--quiet', '-b', 'main');
+  runInner('config', 'user.email', 'fixture@example.invalid');
+  runInner('config', 'user.name', 'fixture');
+  writeFileSync(join(inner, 'inner.txt'), 'inner\n');
+  runInner('add', '-A');
+  runInner('commit', '--quiet', '-m', 'inner base');
+
+  const { root, run } = tempRepo();
+  run('-c', 'protocol.file.allow=always', 'submodule', '--quiet', 'add', inner, 'vendor/inner');
+  run('commit', '--quiet', '-m', 'add submodule');
+  assert.deepEqual(pathsOf(root), [], 'a clean submodule does not select');
+
+  writeFileSync(join(root, 'vendor/inner/inner.txt'), 'dirty\n');
+  assert.deepEqual(pathsOf(root), ['vendor/inner'], 'a dirty submodule worktree selects its root');
+});
+
+test('worktree digests: selection and content digests are stable and change-sensitive', () => {
+  const { root } = tempRepo();
+  const before = worktreeSnapshot(root);
+  assert.equal(worktreeSnapshot(root).selectionDigest, before.selectionDigest, 'stable');
+  assert.equal(worktreeSnapshot(root).contentDigest, before.contentDigest, 'stable');
+
+  writeFileSync(join(root, 'tracked.txt'), 'changed\n');
+  const afterSelection = worktreeSnapshot(root);
+  assert.notEqual(afterSelection.selectionDigest, before.selectionDigest, 'path set moved');
+
+  // Same selected path set, different bytes: the content digest must still move.
+  const contentOnly = worktreeSnapshot(root);
+  writeFileSync(join(root, 'tracked.txt'), 'changed again\n');
+  const afterContent = worktreeSnapshot(root);
+  assert.equal(afterContent.selectionDigest, contentOnly.selectionDigest, 'same path set');
+  assert.notEqual(afterContent.contentDigest, contentOnly.contentDigest, 'content moved');
+});
+
+test('worktree digests: a file replaced by a symlink is not the same state', () => {
+  const { root } = tempRepo();
+  writeFileSync(join(root, 'target.txt'), 'payload\n');
+  const asFile = worktreeSnapshot(root).contentDigest;
+  rmSync(join(root, 'target.txt'));
+  symlinkSync('tracked.txt', join(root, 'target.txt'));
+  assert.notEqual(worktreeSnapshot(root).contentDigest, asFile, 'symlink marker distinguishes');
+});
+
+test('worktree digests: paths are recorded, contents never are', () => {
+  const { root } = tempRepo();
+  const secret = 'SUPER-SECRET-PAYLOAD-SHOULD-NOT-APPEAR';
+  writeFileSync(join(root, 'secret.txt'), `${secret}\n`);
+  const snapshot = worktreeSnapshot(root);
+  const serialized = JSON.stringify(snapshot);
+  assert.ok(serialized.includes('secret.txt'), 'the path is recorded');
+  assert.ok(!serialized.includes(secret), 'the content is not');
+});
+
+test('committed-only --affected keeps its exact commit-bound shape', () => {
+  // The worktree fields must be absent from an ordinary receipt, so replay,
+  // hooks, CI, backstops, release, and claim qualification are untouched.
+  const committed = planSelection({ cadence: 'affected', base: 'HEAD', head: 'HEAD' });
+  assert.equal(committed.worktreeIncluded, false);
+  assert.equal(committed.committedChangedFiles, undefined);
+  assert.equal(committed.worktreeChangedFiles, undefined);
+  assert.equal(committed.worktreeSelectionDigest, undefined);
+  assert.equal(committed.worktreeContentDigest, undefined);
+  assert.equal(committed.schemaVersion, 'snapback.local-proof-selection.v1');
+});
+
+test('complete cadence refuses --include-worktree', () => {
+  assert.throws(
+    () => planSelection({ cadence: 'complete', includeWorktree: true }),
+    /complete cadence does not accept --include-worktree/u,
+  );
+});
+
+test('worktree recheck detects a mid-run change and passes an unchanged tree', () => {
+  const { root } = tempRepo();
+  writeFileSync(join(root, 'tracked.txt'), 'opening\n');
+  const opening = worktreeSnapshot(root);
+  const receipt = {
+    worktreeIncluded: true,
+    worktreeSelectionDigest: opening.selectionDigest,
+    worktreeContentDigest: opening.contentDigest,
+  };
+  const stable = recheckWorktreeSnapshotIn(root, receipt);
+  assert.equal(stable.checked, true);
+  assert.equal(stable.unchanged, true);
+
+  writeFileSync(join(root, 'tracked.txt'), 'closing\n');
+  const moved = recheckWorktreeSnapshotIn(root, receipt);
+  assert.equal(moved.checked, true);
+  assert.equal(moved.unchanged, false);
+  assert.equal(moved.selectionUnchanged, true, 'the path set did not move');
+  assert.equal(moved.contentUnchanged, false, 'the bytes did');
+});
+
+test('worktree recheck is inert for a committed-only receipt', () => {
+  const verdict = recheckWorktreeSnapshotIn(root, { worktreeIncluded: false });
+  assert.equal(verdict.checked, false);
+  assert.equal(verdict.unchanged, true);
 });

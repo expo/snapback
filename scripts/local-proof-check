@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# @ref LLP 0175#d25-local-worktree-affected-proof-amendment-2026-08-28 —
+# `bun run check` is the obvious root command for "do the changes in front of
+# me pass?". It expands to the worktree-aware affected proof against the
+# existing local origin/main tracking ref.
+#
+# It NEVER fetches implicitly: a proof that silently moved its own base would
+# answer a different question than the one asked. If the tracking ref is
+# absent it refuses and names the direct form rather than guessing a base.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BASE_REF="${SNAPBACK_CHECK_BASE:-origin/main}"
+
+if ! git -C "$ROOT" rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+    printf '[snapback-check] refusing: no local %s tracking ref.\n' "$BASE_REF" >&2
+    printf '[snapback-check] this command never fetches implicitly. Either fetch it yourself,\n' >&2
+    printf '[snapback-check] or name a base directly:\n' >&2
+    printf '[snapback-check]   scripts/verify-local-proof --affected <REV> --include-worktree\n' >&2
+    exit 2
+fi
+
+base_commit="$(git -C "$ROOT" rev-parse "$BASE_REF^{commit}")"
+head_commit="$(git -C "$ROOT" rev-parse HEAD)"
+merge_base="$(git -C "$ROOT" merge-base "$base_commit" "$head_commit")"
+
+printf '[snapback-check] base %s = %s\n' "$BASE_REF" "${base_commit:0:12}"
+printf '[snapback-check] head            = %s\n' "${head_commit:0:12}"
+printf '[snapback-check] merge-base      = %s\n' "${merge_base:0:12}"
+printf '[snapback-check] worktree included (staged, unstaged, untracked, submodules)\n'
+
+exec "$ROOT/scripts/verify-local-proof" --affected "$BASE_REF" --include-worktree "$@"
