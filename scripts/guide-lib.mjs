@@ -606,14 +606,19 @@ const normalize = (text) => text.split('\n').map((line) => line.replace(/\s+$/, 
 // Guide generators that import TypeScript or Ajv die with a raw
 // ERR_MODULE_NOT_FOUND in a fresh worktree. Name `bun install` the same way
 // missing demo artifacts name `scripts/check-generated-artifacts`.
-export const GUIDE_GENERATOR_JS_PACKAGES = Object.freeze(['typescript', 'ajv']);
+export const GUIDE_GENERATOR_JS_PACKAGES = Object.freeze([
+  { name: 'typescript', specifier: 'typescript' },
+  { name: 'ajv', specifier: 'ajv/dist/2020.js' },
+]);
 
 export function rootJsInstallPrecondition(root, packages = GUIDE_GENERATOR_JS_PACKAGES) {
   const require = createRequire(import.meta.url);
   const missing = [];
-  for (const name of packages) {
+  for (const entry of packages) {
+    const name = typeof entry === 'string' ? entry : entry.name;
+    const specifier = typeof entry === 'string' ? entry : entry.specifier;
     try {
-      require.resolve(name, { paths: [root] });
+      require.resolve(specifier, { paths: [root] });
     } catch {
       missing.push(name);
     }

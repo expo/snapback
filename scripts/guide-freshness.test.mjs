@@ -381,10 +381,10 @@ test('rootJsInstallPrecondition is silent when typescript resolves', () => {
 
 test('generate-guide-manifest checks JS deps before spawning registries', () => {
   const source = readFileSync(new URL('./generate-guide-manifest.mjs', import.meta.url), 'utf8');
-  const depCheck = source.indexOf('rootJsInstallPrecondition');
+  const depCheck = source.indexOf('rootJsInstallPrecondition(root)');
   const diagnostics = source.indexOf('generate-diagnostics-registry.mjs');
   const symbols = source.indexOf('generate-symbol-registry.mjs');
-  assert.notEqual(depCheck, -1);
+  assert.notEqual(depCheck, -1, 'must invoke rootJsInstallPrecondition(root)');
   assert.ok(depCheck < diagnostics, 'JS dep check must run before diagnostics generation');
   assert.ok(depCheck < symbols, 'JS dep check must run before symbol generation');
 });
@@ -393,10 +393,10 @@ test('generate-symbol-registry names bun install before loading typescript', () 
   const source = readFileSync(new URL('./generate-symbol-registry.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /^import ts from 'typescript';/mu);
   assert.doesNotMatch(source, /^import .* from '\.\/symbol-lifecycle\.mjs';/mu);
-  const depCheck = source.indexOf('rootJsInstallPrecondition');
+  const depCheck = source.indexOf('rootJsInstallPrecondition(root)');
   const load = source.indexOf("('typescript')");
   const lifecycle = source.indexOf("import('./symbol-lifecycle.mjs')");
-  assert.notEqual(depCheck, -1);
+  assert.notEqual(depCheck, -1, 'must invoke rootJsInstallPrecondition(root)');
   assert.notEqual(load, -1);
   assert.notEqual(lifecycle, -1);
   assert.ok(depCheck < load, 'JS dep check must run before requiring typescript');

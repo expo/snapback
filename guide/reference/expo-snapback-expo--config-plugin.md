@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0c448892d769bee67bde5e7f10b7ca72dc628aeb8567
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Module projection identity:
-`sha256:4a9d8519281264f8ee8fdd79e334c2c14262cce5f77db42557f334296dd8fa61`.
+`sha256:3e39c4d6a4f3bed7e1f7870a0346ce11ee73fea87ed8e96e93092ae711523043`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
