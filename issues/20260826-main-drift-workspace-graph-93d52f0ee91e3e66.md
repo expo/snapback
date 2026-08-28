@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:93d52f0ee91e3e66963e0dc99e413a4bc67e802422c7cbc732433fa7bcf552a0`
 **Causal landing:** `ac20e30a64c706f895987ce8619af7de34f00864` (fix(auth): bind resolved app authority to its producer)
 **Detected at:** `625f3bb9845490cb767a81c79debc2bb639ba1f7`
-**Last observed:** `784babd50de1f9f66ac3f9b155a8105f2886e6ac`
+**Last observed:** `9292bb876ee0281d745933b4181bdd782dcc2511`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
