@@ -116,6 +116,16 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
   for (const flag of ['--client-port', '--bootstrap-port', '--port-range']) {
     assert.match(helpSurfaced, new RegExp(flag, 'u'), `help must expose ${flag}`);
   }
+  assert.match(
+    helpSurfaced,
+    /EOF closes only the optional stdin command channel/u,
+    'help recovery must agree that stdin EOF leaves the dev-loop owner live',
+  );
+  assert.doesNotMatch(
+    helpSurfaced,
+    /EOF or SIGINT\/SIGTERM ends this dev-loop attachment/u,
+    'help must not retain the pre-repair EOF shutdown claim',
+  );
   assert.match(helpSurfaced, /own bundle\/component and URL scheme/u, 'help must explain the development-client boundary');
   for (const platform of ['ios', 'android', 'web']) {
     assert.match(

@@ -1987,7 +1987,7 @@ examples: [packages/snapback-react/optimistic-create-types.fixture.ts, packages/
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec
 ---
 
@@ -2004,6 +2004,16 @@ canonical query store. The lower-level
 `SnapbackClient.createOptimisticMutationView` remains available for headless
 compositions. Both paths use the durable outbox, the same locally executable
 generated mutation IR, and the same LLP 0133 logical-mint settlement.
+
+> **If you searched for “same-account live messaging, cross-device unread clearing, and dual-client offline convergence”:** there is no single maintained recipe or proof that combines all four boundaries.
+> Start here for
+> optimistic sender echo and canonical-id reconciliation; use
+> [offline retention and mutation replay](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
+> for durable exact settlement and offline replay, and
+> [multiple surfaces](./optimistic-toggle.md#the-same-record-on-multiple-surfaces)
+> for authoritative convergence outside the touched surface. Current messaging receipt examples are client-authored acknowledgements, not a server-observed fetch primitive.
+> The client reconciliation route applies to both Explicit and Familiar generated references; each profile still authors its receipt
+> mutation in that profile's source.
 
 The React package tests prove typed provisional presentation, filtering,
 ordering, relationship projection, both response/query orderings, overlapping
@@ -2787,6 +2797,19 @@ first-class recipient grant edge. The grant surface is claimed only on the
 local target, so this page is partial: a hosted deployment must capability-gate
 the feature rather than infer support from the local recipe.
 
+If you searched for **metadata-ready**, **openable**, or why **video bytes never became observable**,
+join the message's product state to the closed
+`MediaState` returned by `useSnapbackMedia`. A non-empty state is
+metadata-ready because its `MediaRef` already carries the server-admitted
+coarse kind. For view-once product state, `openable` means an unconsumed
+recipient row plus that non-empty reference; it does not require a delivery
+URL before the activation mutation. After activation, only `ready` and
+`refreshing` are delivery-ready and expose a URL; `issuing` waits,
+`unavailable` may show retry, and `denied` is terminal for that authorized
+delivery attempt. Gate only the open/retry/media controls—keep the surrounding
+message and caption rendered. This consumer contract is the same for Explicit
+and Familiar authoring; the declaration examples below are Explicit.
+
 Read [Grant and revoke per-recipient access](../backend/assets.md#grant-and-revoke-per-recipient-access)
 for the complete operation, authorization, GC, quota, and delivery semantics.
 If a target lacks first-class grants or the application needs filterable grant
@@ -3502,6 +3525,14 @@ classic “every persona wrote as Henry” failure.
 
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
+
+> **Scope boundary — Node actor isolation.** This recipe is for different
+> personas represented by clients in one Node process. It is not a
+> same-principal browser multi-context or multi-tab recipe, and its acceptance
+> fixture is not conformance evidence for two browser contexts signed in as the
+> same account. For browser provider ownership and transition state, start with
+> [provider lifecycle](./provider-lifecycle.md); owner/operation/generation
+> attribution for the blocking call remains a gap.
 
 > **Multiple clients can mean the same session.** If personas share login, a
 > second client can have the same user because both calls omitted
@@ -5153,7 +5184,7 @@ examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-reac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:cb5e02859abd85c24cbcce91cb00673c057e42b4d444f21c54d3701bb3a6d6b1
 ---
 
@@ -5186,6 +5217,15 @@ Exact retrieval vocabulary from provider failures:
 - N cells imply N transport connections
 - provider lifecycle budget
 - too many websockets
+
+> **If you searched for “which provider operation stranded which hook”:** this route applies to both Explicit and Familiar clients.
+> Inspect the ownership tuple and current barrier first, then use the state/repair vocabulary in
+> [writes during authentication transitions](./auth-transition-writes.md).
+> The current refusal does not attribute the conflicting owner, operation, or authority generation.
+> The shipped
+> [multi-persona recipe](./multi-persona-clients.md) isolates Node actors; it is
+> not a same-principal browser multi-context recipe, and that browser case plus
+> call-site attribution remains a documented gap.
 
 ## Own one manager above all provider cells
 

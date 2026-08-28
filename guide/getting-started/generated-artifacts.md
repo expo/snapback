@@ -4,13 +4,13 @@ id: getting-started.generated-artifacts
 order: 3
 audience: agent-first
 capabilities: [backend.codegen]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/authorization-review.schema.json, packages/snapback-codegen/write-policy.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
 examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-codegen/familiar-phase-a.test.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/contract-output-mode.test.mjs, packages/snapback-cli/templates/react, demos/todo-v2/snapback/codegen.policy.json]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:88e5be1e178a53be282e824c2f4d83697cba481474c140c0fa180880c2fe48ca
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:4da054aa2fbf6c471cdab08fa3e18c81cc7dfe243cf6e479a3a3860d1fe211d2
 ---
 
 # Generated artifact custody and review
@@ -269,6 +269,37 @@ inputs produce byte-identical review manifests and summaries.
 If a consumer truly cannot regenerate, declare its exact projection path in
 `snapback/codegen.policy.json`; do not commit the whole graph. Re-run codegen and
 the review manifest will record the new custody.
+
+### Preview authorization policy changes before activation
+
+Search vocabulary: owner-visible collection parents interacted with cross-author feed reads; The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post.
+
+If you searched because “owner-visible collection parents interacted with
+cross-author feed reads,” or because “The owner-visible parent required by the
+now-abandoned generated collection also scoped ordinary handler reads, so Bob
+could not resolve Alice's parent post,” review the generated policy projection
+before starting the new graph.
+
+Run generation, then inspect and diff
+`snapback/generated/authorization-review.json`. It is an always
+consumer-committed projection built and validated from the same candidate graph
+as the executable artifacts. Check these table-named facts instead of applying
+an owner-policy patch by source-text proximity:
+
+- `tablePolicies[]` names every table and its effective read policy, including
+  the owner field or membership declaration.
+- `operations[].effectiveTablePolicies[]` shows which table policy each read
+  surface actually composes, so a cross-author read becoming owner-only is
+  visible before activation.
+- `writePolicyChecks[]` names `operation`, `table`, `ownerField`,
+  `ownerInputDisposition`, and `uniqueConflictDisposition`, including declared
+  unique-conflict disclosures.
+
+Use `snapback generate snapback --check --json` first when you want candidate
+validation without publication, then run ordinary generation to materialize
+the review file and inspect its Git diff before `snapback dev` or another
+activation path. These normalized artifacts are shared by Explicit and
+Familiar authoring.
 
 ## Anti-patterns
 

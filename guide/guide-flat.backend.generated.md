@@ -14,8 +14,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1070c66f2dd1c631160d60ebfd0cde4399572cf90d1bc048ce64215542ef3131
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
 ---
 
 # Queries
@@ -165,6 +165,29 @@ Declare what that array contains:
   nested document. A top-level `results.records(v.doc('todos'))` is
   hash-identical to `results.documents('todos')`.
 
+Search vocabulary: v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator.
+
+If you searched for “v.media is restricted to stored top-level fields and
+cannot be repeated as an anonymous JS result validator,” keep the media field
+attached to its stored source. `v.media()` is schema-only because its projected
+`MediaRef` is derived from that table and field. Return the containing document
+with `results.documents(table)`, `results.document(table)`, or `v.doc(table)`;
+for a computed record, nest that `v.doc(table)` rather than redeclaring the
+media field anonymously. Both authoring profiles lower to this same result
+contract rule.
+
+Search vocabulary: Optional asset fields still must serialize as null in document results; Result-contract requiredField on optional document columns; document results still demand null for requiredField.
+
+If you searched for “Optional asset fields still must serialize as `null` in
+document results,” “Result-contract `requiredField` on optional document
+columns,” or “document results still demand `null` for `requiredField`,” the
+rule is: every stored optional field is a **present document key** whose value
+is `T | null`. Omitting the key violates the result contract; return `null`
+when the stored value is absent. This applies to `results.documents`,
+`results.document`, and every nested `v.doc` in both Explicit and Familiar
+authoring. It is a result/document rule, separate from whether a mutation
+argument may be omitted.
+
 `v.doc` is result-only. Codegen expands it against the current schema before
 hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
@@ -244,6 +267,31 @@ types both the input keys and the resulting `Array<HandlerRow | null>`.
           ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
           keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
 ```
+
+Search vocabulary: used dynamic array indexing while correlating bounded getMany results; Computed array lookup used to associate uniqueMany media.
+
+If you searched for “used dynamic array indexing while correlating bounded
+getMany results” or “Computed array lookup used to associate uniqueMany
+media,” do not recover correlation with `rows[i]`. Carry the request identity
+into every output record and match the returned row by that identity with an
+array method:
+
+```js fragment reason="ID-carrying correlation rewrite for both batch forms"
+const media = await ctx.db.uniqueMany(
+  'messageMedia',
+  'byMessage',
+  messages.map((message) => ({ messageId: message._id })),
+);
+return messages.map((message) => ({
+  messageId: message._id,
+  media: media.find((row) => row?.messageId === message._id) ?? null,
+}));
+```
+
+The same rewrite works for `getMany`: match each returned document's `_id`
+against the ID carried by the source record. It avoids forbidden computed
+member access, preserves the ID even when a lookup is hidden or missing, and
+uses the same inline-handler grammar in Explicit and Familiar authoring.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
@@ -498,13 +546,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
 ---
 
 # Mutations
@@ -717,6 +765,14 @@ generic handler calls, use the table-first forms shown below—such as
 sure the literal table exists in the current generated schema. Both profiles
 use this same handler database grammar.
 
+Search vocabulary: SNAPBACK_UNKNOWN_TABLE when given row id only.
+
+If you hit `SNAPBACK_UNKNOWN_TABLE` after passing only a row id,
+`ctx.db.patch` is table-first: call
+`ctx.db.patch(table, id, values)`. A generated ID remains table-branded in
+TypeScript, but the runtime host call still requires the table as its first
+argument in both authoring profiles.
+
 The mutation context exposes the same bounded query builder used by JS
 queries. Start with `query(table)`, select a declared index with
 `withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
@@ -736,6 +792,15 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
+> depend on that client-side join. The shipped `startDirectMessage` example is
+> an authenticated server mutation that resolves the two-person natural key,
+> returns the existing canonical conversation id, or creates the conversation
+> and both memberships atomically. Settle it with `queue: false` before navigating.
+> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
+> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
+> equivalent.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit
@@ -1118,7 +1183,7 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.27
-reviewed: 2026-08-24
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292966cd38b68dfe215b075
 ---
 
@@ -1132,6 +1197,15 @@ Use the runtime-cost snapshot when a mutation appears stuck, a live projection
 does not advance, a query examines surprising work, or a framework-owned hook
 multiplies equivalent work. It joins existing client and server inspection
 facts; it is not a telemetry or profiling stream.
+
+> **If you searched for a causal join:** a production tool needs a “single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision.”
+> This route applies to clients generated from both Explicit and Familiar authoring.
+> Use `joinPendingDeliveryInspectionV1` below
+> to join one current subscription to its server registry row and delivery
+> wave. It does not join the originating mutation to its committed version, and
+> it is not one backend-spanning causal receipt. Do not mistake that missing
+> correlation for evidence that nonce churn, polling, skip cycles, revision
+> rows, presence, reloads, or snapshot mutations are the next diagnostic step.
 
 ## Pull one local snapshot
 
@@ -4699,6 +4773,16 @@ public-read parents are not eligible for `assetCollection`; do not widen the
 parent to work around the refusal. This normalized eligibility rule applies
 to both authoring profiles.
 
+If you searched for **owner-visible collection parents interacted with cross-author feed reads**,
+choose the relationship before declaring it. An
+`assetCollection` deliberately bundles an owner-visible parent with generated
+bounded children and operations; a public social parent that must be readable
+across authors instead uses the explicit
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts).
+That design choice is profile-neutral. The collection declarations below are
+Snapback extension/Explicit vocabulary; the typed child-row model can be
+authored in either profile.
+
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
@@ -4713,6 +4797,15 @@ The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or
 `image1`…`imageN` fields. This post declaration caps the relation at four and
 the generated command binds one-to-four ordered uploads to its append:
+
+If you arrived after **no multi-asset command (`defineCommand` is one asset)**
+or `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED`, that refusal belongs to the
+legacy `defineCommand` primitive. The successor spelling is
+`defineMediaCommand`: it owns the bounded ordered uploads and the one atomic
+parent/collection commit shown below. Familiar v1 does not rename this
+Snapback extension; opt into the extension vocabulary or author this
+declaration in the Explicit profile. Both profiles consume the same generated
+command task.
 
 ```js source=tests/acceptance/fixtures/media-profile/snapback/functions.mjs
 // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation

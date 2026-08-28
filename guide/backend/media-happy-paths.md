@@ -98,6 +98,16 @@ public-read parents are not eligible for `assetCollection`; do not widen the
 parent to work around the refusal. This normalized eligibility rule applies
 to both authoring profiles.
 
+If you searched for **owner-visible collection parents interacted with cross-author feed reads**,
+choose the relationship before declaring it. An
+`assetCollection` deliberately bundles an owner-visible parent with generated
+bounded children and operations; a public social parent that must be readable
+across authors instead uses the explicit
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts).
+That design choice is profile-neutral. The collection declarations below are
+Snapback extension/Explicit vocabulary; the typed child-row model can be
+authored in either profile.
+
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
@@ -112,6 +122,15 @@ The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or
 `image1`…`imageN` fields. This post declaration caps the relation at four and
 the generated command binds one-to-four ordered uploads to its append:
+
+If you arrived after **no multi-asset command (`defineCommand` is one asset)**
+or `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED`, that refusal belongs to the
+legacy `defineCommand` primitive. The successor spelling is
+`defineMediaCommand`: it owns the bounded ordered uploads and the one atomic
+parent/collection commit shown below. Familiar v1 does not rename this
+Snapback extension; opt into the extension vocabulary or author this
+declaration in the Explicit profile. Both profiles consume the same generated
+command task.
 
 ```js source=tests/acceptance/fixtures/media-profile/snapback/functions.mjs
 // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation

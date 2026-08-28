@@ -30,6 +30,14 @@ classic “every persona wrote as Henry” failure.
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
 
+> **Scope boundary — Node actor isolation.** This recipe is for different
+> personas represented by clients in one Node process. It is not a
+> same-principal browser multi-context or multi-tab recipe, and its acceptance
+> fixture is not conformance evidence for two browser contexts signed in as the
+> same account. For browser provider ownership and transition state, start with
+> [provider lifecycle](./provider-lifecycle.md); owner/operation/generation
+> attribution for the blocking call remains a gap.
+
 > **Multiple clients can mean the same session.** If personas share login, a
 > second client can have the same user because both calls omitted
 > `storagePartition` and selected the default owner. Separate JavaScript

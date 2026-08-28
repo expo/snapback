@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.27
-reviewed: 2026-08-24
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292966cd38b68dfe215b075
 ---
 
@@ -24,6 +24,15 @@ Use the runtime-cost snapshot when a mutation appears stuck, a live projection
 does not advance, a query examines surprising work, or a framework-owned hook
 multiplies equivalent work. It joins existing client and server inspection
 facts; it is not a telemetry or profiling stream.
+
+> **If you searched for a causal join:** a production tool needs a “single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision.”
+> This route applies to clients generated from both Explicit and Familiar authoring.
+> Use `joinPendingDeliveryInspectionV1` below
+> to join one current subscription to its server registry row and delivery
+> wave. It does not join the originating mutation to its committed version, and
+> it is not one backend-spanning causal receipt. Do not mistake that missing
+> correlation for evidence that nonce churn, polling, skip cycles, revision
+> rows, presence, reloads, or snapshot mutations are the next diagnostic step.
 
 ## Pull one local snapshot
 

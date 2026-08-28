@@ -9,8 +9,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:c35a028d2c4bbacdddd4e09c92b5f49e60f00db705a68e799a47fd40dda53a06
 ---
 
 # Your first backend
@@ -79,6 +79,12 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
+If you searched for **base64 video**, data-URI media, or a fixture photo stored
+as a string, route the bytes out of the document before authoring the field.
+A `v.string()` or `v.json()` value is still row data and the structured form
+has the independent 32 KiB per-value ceiling described below. This storage
+boundary is the same in Explicit and Familiar authoring.
+
 **Storing media is an asset workflow, not a string-field shortcut.** If a
 field will hold an uploaded photo, video, or file, stop here and follow
 [Assets](../backend/assets.md): declare an asset intent, upload and finalize
@@ -113,6 +119,15 @@ and commits nothing — which is why authorization-relevant fields belong here
 rather than in a hand-written guard. Seven, not eight, because an optional
 field's result contract adds a `null` variant against the eight-variant union
 bound.
+
+Search vocabulary: A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union; v.union requires at least two validators.
+
+If you searched for “A schema field with a single literal compiled as
+unsupported Json; represented the closed digest identity as a one-member
+union” or “v.union requires at least two validators,” use
+`v.literal(value)` directly. `v.union` is only for 2–8 alternatives; wrapping
+one literal in a union adds no domain information and is refused. Explicit and
+Familiar schema source share this normalized validator rule.
 
 Changing a domain is a schema change with a data rule. Widening one (or going
 back to `v.string()`) applies without a scan. Narrowing one — including
@@ -312,6 +327,17 @@ Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation.
+
+Search vocabulary: elevated reads can't hide in helper modules; defineJsQuery elevatedReads refused on inline handlers.
+
+If you searched for “elevated reads can't hide in helper modules” or
+“`defineJsQuery elevatedReads` refused on inline handlers,” keep each
+`ctx.db.elevated.{get,getMany,uniqueMany,query}` call directly in the named
+query or mutation handler expression, after its `ctx.permissions` check.
+`elevatedReads:` metadata is module-form only; an inline definition gets its
+review facts from the direct calls instead. This placement rule is identical
+after Explicit and Familiar source normalize. Follow the complete
+[authorize-then-elevate recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read).
 
 ### What the subset refuses, and the standard rewrites
 

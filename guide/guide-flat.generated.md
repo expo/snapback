@@ -1168,7 +1168,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-27
+reviewed: 2026-08-28
 reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
 ---
 
@@ -2331,9 +2331,14 @@ blanking all history is not an equivalent answer.
      wake the other client's live hook; the second client's live query stays
      stale, so cross-client fanout looks broken in my acceptance test." The run
      fails if it diagnoses the live-delivery lane before first reaching
-     `realtime/live-queries.md#troubleshoot-stale-or-absent-cross-client-updates`,
+     `realtime/live-queries.md#troubleshoot-apparent-cross-persona-live-update-failures`,
      or if it omits the shared-auth-custody collision and its stable-partition
-     repair.
+     repair for the Node/headless case. It also fails if it presents that
+     collision as the explanation for *separate* browser contexts (for example
+     Playwright's `browser.newContext()`, which do not share storage) or for a
+     hook stale on the same client that issued the write. Same-origin tabs do
+     share the default partition; it is the *warning* that is Node-gated
+     (LLP 0317 r2 F2/O14).
      Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`,
      `realtime/live-queries.md`.
      Route terms: "second client does not receive live updates",
@@ -2342,16 +2347,25 @@ blanking all history is not an equivalent answer.
      "committed write does not wake the other client's live hook",
      "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
      Required guidance: "one stable explicit storagePartition per persona or worker",
-     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE",
+     "cannot explain separate browser contexts or same-client staleness".
      Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
      `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
 
-Cases 107–113 absorb the exact failed-search language from the published
+Cases 107–133 absorb the exact failed-search language from the published
 0.1.29 benchmark lanes. They turn the observations “the Guide search returned
 no entry for the broad module-evaluation code” and “broad searches frequently
 returned no result even when a relevant page existed” into routes for the
-specific Codegen, schema, Node-client, and membership surfaces those lanes
-missed.
+specific Codegen, schema, Node-client, membership, policy-review, elevated-read,
+handler-write, and result-contract surfaces those lanes missed.
+
+These are **static lexical routes**: they prove the failed vocabulary reaches
+the right page, not that a fresh agent takes the route. `sol-snapback-explicit`
+reported that "broad searches frequently returned no result even when a
+relevant page existed"; only an instrumented cold-agent run — expected page and
+answer-side vocabulary withheld, complete tool transcript retained, one
+Explicit and one Familiar cell — would settle that. No seed case can assert it,
+because the only page such a case could expect is this one.
 
 107. **Broad module-evaluation code:** "The Guide search returned no entry for
      the broad module-evaluation code." The run fails if it treats the wrapper
@@ -2435,6 +2449,245 @@ missed.
      "use a first-class top-level `v.id()` field or child row",
      "same normalized schema rule in Explicit and Familiar authoring".
 
+114. **Batch-result correlation in inline handlers:** "A feed handler used
+     dynamic array indexing while correlating bounded getMany results; later a
+     computed array lookup was used to associate uniqueMany media." The run
+     fails if it reads a batch response with `rows[i]`, loses the source ID on
+     a hidden/missing row, or silently switches authoring profiles.
+     Expected pages: `backend/queries.md`.
+     Route terms: "used dynamic array indexing while correlating bounded getMany results",
+     "Computed array lookup used to associate uniqueMany media".
+     Required guidance: "Carry the request identity into every output record",
+     "match the returned row by that identity with an array method",
+     "same inline-handler grammar in Explicit and Familiar authoring".
+
+115. **Anonymous media result validator:** "v.media is restricted to stored
+     top-level fields and cannot be repeated as an anonymous JS result
+     validator." The run fails if it redeclares `v.media()` inside a computed
+     result or loses the stored field's projected media authority.
+     Expected pages: `backend/queries.md`.
+     Route terms: "v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator".
+     Required guidance: "`v.media()` is schema-only",
+     "`results.documents(table)`, `results.document(table)`, or `v.doc(table)`",
+     "Both authoring profiles lower to this same result contract rule".
+
+116. **Single-literal validator:** "A schema field with a single literal
+     compiled as unsupported Json; represented the closed digest identity as a
+     one-member union." The run fails if it widens the field to `v.string()`
+     or constructs a one-entry `v.union`.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union",
+     "v.union requires at least two validators".
+     Required guidance: "use `v.literal(value)` directly",
+     "`v.union` is only for 2–8 alternatives",
+     "Explicit and Familiar schema source share this normalized validator rule".
+
+117. **Wrong-table owner policy review:** "The owner-visible parent required
+     by the now-abandoned generated collection also scoped ordinary handler
+     reads, so Bob could not resolve Alice's parent post." The run fails if it
+     applies another policy patch by nearby source text or waits for runtime to
+     discover the effective read boundary.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "owner-visible collection parents interacted with cross-author feed reads",
+     "The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post".
+     Required guidance: "`snapback/generated/authorization-review.json`",
+     "`tablePolicies[]` names every table and its effective read policy",
+     "`operations[].effectiveTablePolicies[]`",
+     "`ownerInputDisposition`",
+     "`uniqueConflictDisposition`".
+
+118. **Elevated-read placement:** "Elevated reads can't hide in helper
+     modules; defineJsQuery elevatedReads refused on inline handlers." The run
+     fails if it moves an elevated call into a helper, adds `elevatedReads:` to
+     an inline definition, or omits the permission check.
+     Expected pages: `getting-started/your-first-backend.md`,
+     `auth/protecting-data.md`.
+     Route terms: "elevated reads can't hide in helper modules",
+     "defineJsQuery elevatedReads refused on inline handlers".
+     Required guidance per page:
+     `getting-started/your-first-backend.md`: "keep each `ctx.db.elevated.{get,getMany,uniqueMany,query}` call directly", "`elevatedReads:` metadata is module-form only".
+     `auth/protecting-data.md`: "keep every `ctx.db.elevated...` call directly in the handler expression", "`elevatedReads:` is metadata for module-form handlers".
+
+119. **Patch row-id-only refusal:** "ctx.db.patch requires table-first
+     spelling (SNAPBACK_UNKNOWN_TABLE when given row id only)." The run fails if it treats the generated row ID as
+     the first runtime argument or reports only that the ID is not a table.
+     Expected pages: `backend/mutations.md`.
+     Route terms: "SNAPBACK_UNKNOWN_TABLE when given row id only".
+     Required guidance: "`ctx.db.patch` is table-first",
+     "`ctx.db.patch(table, id, values)`",
+     "both authoring profiles".
+     Exact diagnostic target: `SNAPBACK_UNKNOWN_TABLE` ->
+     `/_snapback/guide/backend/mutations.md#read-and-delete-through-ctxdb`.
+
+120. **Stored optional fields in document results:** "Optional asset fields
+     still must serialize as null in document results; result-contract
+     requiredField appeared on optional document columns." The run fails if it
+     omits an optional stored key, confuses write-argument omission with a
+     document result, or scopes the rule to one profile.
+     Expected pages: `backend/queries.md`.
+     Route terms: "Optional asset fields still must serialize as null in document results".
+     Required guidance: "every stored optional field is a present document key",
+     "Omitting the key violates the result contract",
+     "both Explicit and Familiar authoring".
+Cases 121–126 absorb the live-query, authority, navigation, and application-
+journey phrasing from the published 0.1.29 Clique lanes. Their route terms are
+only sentences the stuck lanes used; answer-side symbols and repairs remain in
+required guidance.
+
+121. **Causal live-query trace:** "The diagnostics were weaker at causal
+     joins: I need a single trace from the hook through authority, commit,
+     invalidation, and subscriber delivery." The run fails if it claims the
+     current subscription/delivery-wave join correlates the originating
+     mutation or invents an end-to-end receipt that does not ship.
+     Expected pages: `backend/query-costs.md`.
+     Route terms: "single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision".
+     Required guidance: "joinPendingDeliveryInspectionV1",
+     "applies to clients generated from both Explicit and Familiar authoring",
+     "does not join the originating mutation to its committed version",
+     "not one backend-spanning causal receipt".
+
+122. **Authority blocker attribution:** "The runtime surfaced the code but not
+     which provider operation stranded which hook." The run fails if it claims
+     a current refusal names the conflicting owner/generation, or substitutes
+     the Node multi-persona recipe for same-principal browser contexts.
+     Expected pages: `recipes/provider-lifecycle.md`.
+     Route terms: "which provider operation stranded which hook".
+     Required guidance: "applies to both Explicit and Familiar clients",
+     "Inspect the ownership tuple and current barrier first",
+     "does not attribute the conflicting owner, operation, or authority generation",
+     "not a same-principal browser multi-context recipe".
+
+123. **Open a direct conversation without a profile gate:** "Alice1
+     direct-route bootstrap still intermittently waited on a same-principal
+     profile live query." The run fails if it keeps the client-side route gate,
+     creates the conversation in multiple requests, or omits settlement and
+     repeated-open idempotence.
+     Expected pages: `backend/mutations.md`.
+     Route terms: "Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query".
+     Required guidance: "`startDirectMessage`",
+     "Settle it with `queue: false` before navigating",
+     "repeated opens reuse the canonical conversation id",
+     "The shipped example is Explicit",
+     "Familiar authors use the same one-mutation server-side shape".
+
+124. **Remove or disappear, then navigate:** "I need a Router-navigation
+     recipe for a settled mutation that survives page replacement." The run
+     fails if it treats component-promise settlement or navigation as the
+     server witness, or claims a first-class helper already ships.
+     Expected pages: `realtime/live-queries.md`.
+     Route terms: "Router-navigation recipe for settled mutations that must survive page replacement".
+     Required guidance: "this client-side composition is profile-neutral",
+     "does not currently ship a `settledNavigation` helper",
+     "Persist the navigation intent synchronously before page replacement",
+     "resume the same idempotent operation at the destination",
+     "gate the next authority-sensitive action on a server witness".
+
+125. **From chat template to social product:** "I need a short,
+     product-shaped path from that chat to the canonical social schema." The
+     run fails if it sends the agent to the flat capability registry without a
+     journey, claims a maintained social recipe exists, or applies the Explicit
+     template directly to Familiar authoring.
+     Expected pages: `start/index.md`.
+     Route terms: "short, product-shaped path from that chat to the canonical social schema".
+     Required guidance: "the `expo-chat` template is Explicit",
+     "no maintained end-to-end relational-social recipe",
+     "profiles →",
+     "graph →",
+     "feeds →",
+     "roles →",
+     "media →",
+     "offline →",
+     "aggregates and schedules →",
+     "Familiar is not covered by this template".
+
+126. **Messaging convergence as one answer:** "I need same-account live
+     messaging, cross-device unread clearing, and dual-client offline
+     convergence." The run fails if it claims one maintained recipe/proof
+     exists, equates mutation settlement with receipt authority, or claims the
+     existing client acknowledgements prove server-observed fetch.
+     Expected pages: `recipes/optimistic-create.md`.
+     Route terms: "same-account live messaging, cross-device unread clearing, and dual-client offline convergence".
+     Required guidance: "there is no single maintained recipe or proof",
+     "optimistic sender echo",
+     "durable exact settlement and offline replay",
+     "client-authored acknowledgements, not a server-observed fetch primitive",
+     "applies to both Explicit and Familiar generated references".
+Cases 127–133 route the remaining Lane C media/setup phrases from the same
+published 0.1.29 benchmark. Route terms deliberately contain only vocabulary
+recorded by the stuck lanes or the audit of their failed searches; successor
+spellings and repairs appear only under Required guidance.
+
+127. **Base64 media reaches the structured ceiling:** "A base64 video hit the
+     structured-value ceiling after earlier writes had settled." The run fails
+     if it stores bytes in a string/JSON field, omits the pre-authoring ceiling,
+     or scopes the rule to only one authoring profile.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "base64 video".
+     Required guidance: "route the bytes out of the document before authoring the field",
+     "32 KiB per-value ceiling", "same in Explicit and Familiar authoring".
+
+128. **Public social media relationship choice:** "Owner-visible collection
+     parents interacted with cross-author feed reads." The run fails if it
+     widens an owner parent to public, hides the policy bundle until runtime,
+     or treats the two relationship models as interchangeable.
+     Expected pages: `backend/media-happy-paths.md`.
+     Route terms: "owner-visible collection parents interacted with cross-author feed reads".
+     Required guidance: "choose the relationship before declaring it",
+     "public social parent that must be readable across authors",
+     "typed child-row pattern", "design choice is profile-neutral".
+
+129. **Media readiness for view-once UI:** "Video bytes never became
+     observable, and view-once could appear before bytes were available." The
+     run fails if it hides the whole message while delivery settles, guesses
+     kind from a MIME type, or treats every non-empty reference as a usable URL.
+     Expected pages: `recipes/view-once-media.md`.
+     Route terms: "video bytes never became observable".
+     Required guidance: "A non-empty state is metadata-ready",
+     "only `ready` and `refreshing` are delivery-ready and expose a URL",
+     "keep the surrounding message and caption rendered",
+     "same for Explicit and Familiar authoring".
+
+130. **Legacy one-asset command refusal:** "No multi-asset command
+     (`defineCommand` is one asset), so uploads are a separate intent plus a
+     mutate." The run fails if it preserves the two-phase workaround without
+     checking the shipped successor or claims legacy `defineCommand` changed
+     its contract.
+     Expected pages: `backend/media-happy-paths.md`.
+     Route terms: "no multi-asset command (`defineCommand` is one asset)".
+     Required guidance: "The successor spelling is `defineMediaCommand`",
+     "bounded ordered uploads", "one atomic parent/collection commit",
+     "Both profiles consume the same generated command task".
+
+131. **Package, template, and Expo-tuple guesses:** "The lane made a mistaken
+     unscoped package lookup, guessed an unknown template, and chose a legacy
+     router major." The run fails if it recommends `snapback@0.1.29`, invents
+     an `expo-router` template, or repairs one Expo dependency independently.
+     Expected pages: `start/index.md`.
+     Route terms: "mistaken unscoped `snapback@0.1.29` lookup",
+     "published CLI rejected unknown `expo-router` template",
+     "assumed legacy `expo-router` major 7 for Expo 57".
+     Required guidance: "published CLI package is `@expo/snapback-cli`",
+     "choose one of the five template names above",
+     "let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and React Native pins",
+     "current template registry is Explicit-scoped and has no Familiar-named template".
+
+132. **Metro listener outside the assigned lane:** "Metro's inner port escaped
+     4287–4387." The run fails if it assumes backend/client/bootstrap pins
+     redefine the range or omits the complete constrained-lane command shape.
+     Expected pages: `start/expo-chat.md`.
+     Route terms: "Metro's inner port escaped 4287–4387".
+     Required guidance: "one `--port-range <lo>-<hi>` that contains every owned listener",
+     "shared by Explicit and Familiar backends".
+
+133. **Pipe EOF under supervised dev:** "Supervised Expo web wants stdin
+     detached or the owner dies on pipe EOF." The run fails if it repeats the
+     stale shutdown claim or treats a command-channel EOF as owner shutdown.
+     Expected pages: `start/expo-chat.md`.
+     Route terms: "supervised Expo web wants stdin detached or the owner dies on pipe EOF".
+     Required guidance: "stdin EOF now closes only the optional command channel",
+     "leaves the supervisor and its children live", "may use `/dev/null`".
+
+
 
 ## Static routing check
 
@@ -2463,6 +2716,15 @@ case-specific static guidance fence; it does not execute the documented
 runtime behavior. Whether an agent takes the route and applies the guidance
 remains the manual/W1-instrument protocol below, with transcripts under
 `guide/eval-runs/`.
+
+Only an instrumented cold-agent run proves route-taking. Give a fresh agent
+the repository steer, one failed-lane intent, and the same tool budget, but
+withhold the expected page and answer-side vocabulary. Retain the complete
+tool transcript and score the first page load, the proposed technique, and
+the rejected anti-patterns. For a profile-neutral route, run one Explicit and
+one Familiar cell. The static checker remains the cheap per-change regression;
+this behavioral run is the claim gate, not something a substring check can
+simulate.
 
 ## Budget
 
@@ -4485,13 +4747,13 @@ id: auth.protecting-data
 order: 4
 audience: agent-first
 capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases, authority.profile.v1]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-auth/src/auth/invalidation.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/service_fence.rs, crates/snapback-engine/src/local.rs, crates/snapback-engine/src/local/authorization_acceptance.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-auth/src/auth/invalidation.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/service_fence.rs, crates/snapback-engine/src/local.rs, crates/snapback-engine/src/local/authorization_acceptance.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:f73ec7e0c4e7ca412f4bc311d1cfffbe2c01a15063310fef3f0c512854166485
 ---
 
 # Protecting live and retained data
@@ -4640,9 +4902,21 @@ cannot carry the table policy, codegen refuses it with
 
 ### Authorize first, then elevate the exact handler read
 
+<!-- diagnostic-primary: SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE -->
+
 Named JavaScript queries and mutations are trusted server code, but ordinary
 `ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
 check, owner or membership visibility still hides the row.
+
+Search vocabulary: elevated reads can't hide in helper modules; defineJsQuery elevatedReads refused on inline handlers.
+
+If you searched for “elevated reads can't hide in helper modules” or
+“`defineJsQuery elevatedReads` refused on inline handlers,” the admitted inline
+shape is below: perform the permission check and keep every
+`ctx.db.elevated...` call directly in the handler expression. Do not move the
+read behind a helper; codegen cannot classify that authority site.
+`elevatedReads:` is metadata for module-form handlers, not an inline-handler
+repair. Explicit and Familiar handlers normalize to this same placement rule.
 
 <!-- since: 0.1.23 -->
 
@@ -6357,8 +6631,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1070c66f2dd1c631160d60ebfd0cde4399572cf90d1bc048ce64215542ef3131
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
 ---
 
 # Queries
@@ -6508,6 +6782,29 @@ Declare what that array contains:
   nested document. A top-level `results.records(v.doc('todos'))` is
   hash-identical to `results.documents('todos')`.
 
+Search vocabulary: v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator.
+
+If you searched for “v.media is restricted to stored top-level fields and
+cannot be repeated as an anonymous JS result validator,” keep the media field
+attached to its stored source. `v.media()` is schema-only because its projected
+`MediaRef` is derived from that table and field. Return the containing document
+with `results.documents(table)`, `results.document(table)`, or `v.doc(table)`;
+for a computed record, nest that `v.doc(table)` rather than redeclaring the
+media field anonymously. Both authoring profiles lower to this same result
+contract rule.
+
+Search vocabulary: Optional asset fields still must serialize as null in document results; Result-contract requiredField on optional document columns; document results still demand null for requiredField.
+
+If you searched for “Optional asset fields still must serialize as `null` in
+document results,” “Result-contract `requiredField` on optional document
+columns,” or “document results still demand `null` for `requiredField`,” the
+rule is: every stored optional field is a **present document key** whose value
+is `T | null`. Omitting the key violates the result contract; return `null`
+when the stored value is absent. This applies to `results.documents`,
+`results.document`, and every nested `v.doc` in both Explicit and Familiar
+authoring. It is a result/document rule, separate from whether a mutation
+argument may be omitted.
+
 `v.doc` is result-only. Codegen expands it against the current schema before
 hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
@@ -6587,6 +6884,31 @@ types both the input keys and the resulting `Array<HandlerRow | null>`.
           ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
           keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
 ```
+
+Search vocabulary: used dynamic array indexing while correlating bounded getMany results; Computed array lookup used to associate uniqueMany media.
+
+If you searched for “used dynamic array indexing while correlating bounded
+getMany results” or “Computed array lookup used to associate uniqueMany
+media,” do not recover correlation with `rows[i]`. Carry the request identity
+into every output record and match the returned row by that identity with an
+array method:
+
+```js fragment reason="ID-carrying correlation rewrite for both batch forms"
+const media = await ctx.db.uniqueMany(
+  'messageMedia',
+  'byMessage',
+  messages.map((message) => ({ messageId: message._id })),
+);
+return messages.map((message) => ({
+  messageId: message._id,
+  media: media.find((row) => row?.messageId === message._id) ?? null,
+}));
+```
+
+The same rewrite works for `getMany`: match each returned document's `_id`
+against the ID carried by the source record. It avoids forbidden computed
+member access, preserves the ID even when a lookup is hidden or missing, and
+uses the same inline-handler grammar in Explicit and Familiar authoring.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
@@ -6841,13 +7163,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
 ---
 
 # Mutations
@@ -7060,6 +7382,14 @@ generic handler calls, use the table-first forms shown below—such as
 sure the literal table exists in the current generated schema. Both profiles
 use this same handler database grammar.
 
+Search vocabulary: SNAPBACK_UNKNOWN_TABLE when given row id only.
+
+If you hit `SNAPBACK_UNKNOWN_TABLE` after passing only a row id,
+`ctx.db.patch` is table-first: call
+`ctx.db.patch(table, id, values)`. A generated ID remains table-branded in
+TypeScript, but the runtime host call still requires the table as its first
+argument in both authoring profiles.
+
 The mutation context exposes the same bounded query builder used by JS
 queries. Start with `query(table)`, select a declared index with
 `withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
@@ -7079,6 +7409,15 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
+> depend on that client-side join. The shipped `startDirectMessage` example is
+> an authenticated server mutation that resolves the two-person natural key,
+> returns the existing canonical conversation id, or creates the conversation
+> and both memberships atomically. Settle it with `queue: false` before navigating.
+> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
+> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
+> equivalent.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit
@@ -7461,7 +7800,7 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.27
-reviewed: 2026-08-24
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292966cd38b68dfe215b075
 ---
 
@@ -7475,6 +7814,15 @@ Use the runtime-cost snapshot when a mutation appears stuck, a live projection
 does not advance, a query examines surprising work, or a framework-owned hook
 multiplies equivalent work. It joins existing client and server inspection
 facts; it is not a telemetry or profiling stream.
+
+> **If you searched for a causal join:** a production tool needs a “single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision.”
+> This route applies to clients generated from both Explicit and Familiar authoring.
+> Use `joinPendingDeliveryInspectionV1` below
+> to join one current subscription to its server registry row and delivery
+> wave. It does not join the originating mutation to its committed version, and
+> it is not one backend-spanning causal receipt. Do not mistake that missing
+> correlation for evidence that nonce churn, polling, skip cycles, revision
+> rows, presence, reloads, or snapshot mutations are the next diagnostic step.
 
 ## Pull one local snapshot
 
@@ -11042,6 +11390,16 @@ public-read parents are not eligible for `assetCollection`; do not widen the
 parent to work around the refusal. This normalized eligibility rule applies
 to both authoring profiles.
 
+If you searched for **owner-visible collection parents interacted with cross-author feed reads**,
+choose the relationship before declaring it. An
+`assetCollection` deliberately bundles an owner-visible parent with generated
+bounded children and operations; a public social parent that must be readable
+across authors instead uses the explicit
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts).
+That design choice is profile-neutral. The collection declarations below are
+Snapback extension/Explicit vocabulary; the typed child-row model can be
+authored in either profile.
+
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
@@ -11056,6 +11414,15 @@ The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or
 `image1`…`imageN` fields. This post declaration caps the relation at four and
 the generated command binds one-to-four ordered uploads to its append:
+
+If you arrived after **no multi-asset command (`defineCommand` is one asset)**
+or `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED`, that refusal belongs to the
+legacy `defineCommand` primitive. The successor spelling is
+`defineMediaCommand`: it owns the bounded ordered uploads and the one atomic
+parent/collection commit shown below. Familiar v1 does not rename this
+Snapback extension; opt into the extension vocabulary or author this
+declaration in the Explicit profile. Both profiles consume the same generated
+command task.
 
 ```js source=tests/acceptance/fixtures/media-profile/snapback/functions.mjs
 // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
@@ -20091,8 +20458,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:c35a028d2c4bbacdddd4e09c92b5f49e60f00db705a68e799a47fd40dda53a06
 ---
 
 # Your first backend
@@ -20161,6 +20528,12 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
+If you searched for **base64 video**, data-URI media, or a fixture photo stored
+as a string, route the bytes out of the document before authoring the field.
+A `v.string()` or `v.json()` value is still row data and the structured form
+has the independent 32 KiB per-value ceiling described below. This storage
+boundary is the same in Explicit and Familiar authoring.
+
 **Storing media is an asset workflow, not a string-field shortcut.** If a
 field will hold an uploaded photo, video, or file, stop here and follow
 [Assets](../backend/assets.md): declare an asset intent, upload and finalize
@@ -20195,6 +20568,15 @@ and commits nothing — which is why authorization-relevant fields belong here
 rather than in a hand-written guard. Seven, not eight, because an optional
 field's result contract adds a `null` variant against the eight-variant union
 bound.
+
+Search vocabulary: A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union; v.union requires at least two validators.
+
+If you searched for “A schema field with a single literal compiled as
+unsupported Json; represented the closed digest identity as a one-member
+union” or “v.union requires at least two validators,” use
+`v.literal(value)` directly. `v.union` is only for 2–8 alternatives; wrapping
+one literal in a union adds no domain information and is refused. Explicit and
+Familiar schema source share this normalized validator rule.
 
 Changing a domain is a schema change with a data rule. Widening one (or going
 back to `v.string()`) applies without a scan. Narrowing one — including
@@ -20394,6 +20776,17 @@ Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation.
+
+Search vocabulary: elevated reads can't hide in helper modules; defineJsQuery elevatedReads refused on inline handlers.
+
+If you searched for “elevated reads can't hide in helper modules” or
+“`defineJsQuery elevatedReads` refused on inline handlers,” keep each
+`ctx.db.elevated.{get,getMany,uniqueMany,query}` call directly in the named
+query or mutation handler expression, after its `ctx.permissions` check.
+`elevatedReads:` metadata is module-form only; an inline definition gets its
+review facts from the direct calls instead. This placement rule is identical
+after Explicit and Familiar source normalize. Follow the complete
+[authorize-then-elevate recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read).
 
 ### What the subset refuses, and the standard rewrites
 
@@ -21085,13 +21478,13 @@ id: getting-started.generated-artifacts
 order: 3
 audience: agent-first
 capabilities: [backend.codegen]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/authorization-review.schema.json, packages/snapback-codegen/write-policy.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
 examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-codegen/familiar-phase-a.test.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/contract-output-mode.test.mjs, packages/snapback-cli/templates/react, demos/todo-v2/snapback/codegen.policy.json]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:88e5be1e178a53be282e824c2f4d83697cba481474c140c0fa180880c2fe48ca
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:4da054aa2fbf6c471cdab08fa3e18c81cc7dfe243cf6e479a3a3860d1fe211d2
 ---
 
 # Generated artifact custody and review
@@ -21350,6 +21743,37 @@ inputs produce byte-identical review manifests and summaries.
 If a consumer truly cannot regenerate, declare its exact projection path in
 `snapback/codegen.policy.json`; do not commit the whole graph. Re-run codegen and
 the review manifest will record the new custody.
+
+### Preview authorization policy changes before activation
+
+Search vocabulary: owner-visible collection parents interacted with cross-author feed reads; The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post.
+
+If you searched because “owner-visible collection parents interacted with
+cross-author feed reads,” or because “The owner-visible parent required by the
+now-abandoned generated collection also scoped ordinary handler reads, so Bob
+could not resolve Alice's parent post,” review the generated policy projection
+before starting the new graph.
+
+Run generation, then inspect and diff
+`snapback/generated/authorization-review.json`. It is an always
+consumer-committed projection built and validated from the same candidate graph
+as the executable artifacts. Check these table-named facts instead of applying
+an owner-policy patch by source-text proximity:
+
+- `tablePolicies[]` names every table and its effective read policy, including
+  the owner field or membership declaration.
+- `operations[].effectiveTablePolicies[]` shows which table policy each read
+  surface actually composes, so a cross-author read becoming owner-only is
+  visible before activation.
+- `writePolicyChecks[]` names `operation`, `table`, `ownerField`,
+  `ownerInputDisposition`, and `uniqueConflictDisposition`, including declared
+  unique-conflict disclosures.
+
+Use `snapback generate snapback --check --json` first when you want candidate
+validation without publication, then run ordinary generation to materialize
+the review file and inspect its Git diff before `snapback dev` or another
+activation path. These normalized artifacts are shared by Explicit and
+Familiar authoring.
 
 ## Anti-patterns
 
@@ -25318,6 +25742,25 @@ follow the [multiple Node personas recipe](../recipes/multi-persona-clients.md);
 the [headless client](../clients/headless.md#construct-one-client-per-backend-and-custody-context)
 explains the custody owner contract.
 
+**Search vocabulary.** Builders hit this as "cross-client", not
+"cross-persona". All of these describe the case above:
+
+- *a committed write does not wake the other client's live hook*
+- *the second client does not receive live updates*
+- *the query stays stale on the other client*
+- *cross-client fanout then looks broken*
+
+**The warning is Node-gated; the collision is not.**
+`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` only fires under Node, so a
+browser client never emits it — but two same-origin tabs *do* share the
+implicit `"default"` durable partition, so the collision itself is still
+possible there and you have to check for it by hand. Isolated browser contexts
+(for example Playwright's `browser.newContext()`) get separate storage and
+cannot collide this way. In short, this mechanism **cannot explain separate
+browser contexts or same-client staleness** — for those, keep reading. And if the stale hook belongs to the **same** client
+that issued the write, this is never the cause — one client cannot collide with
+itself. In both of those cases, go to the next paragraph.
+
 If each client already uses a distinct `storagePartition` and updates are still
 stale, this is a different issue: use the
 [client/server snapshot join](../backend/query-costs.md) for the connection-axis
@@ -25361,6 +25804,14 @@ Keep these three create-and-navigate cuts separate:
    It cannot receive the earlier delta because it did not exist then. If its
    authoritative initial snapshot is empty, that is a defect—do not wait for a
    future live frame to repair it.
+
+> **If you searched for a “Router-navigation recipe for settled mutations that must survive page replacement”:** this client-side composition is profile-neutral.
+> Snapback does not currently ship a `settledNavigation` helper.
+> Persist the navigation intent synchronously before page replacement,
+> resume the same idempotent operation at the destination, and gate the next authority-sensitive action on a server witness.
+> For remove/disappear flows,
+> that witness can be roster absence or the authoritative disappearance
+> setting; an abandoned component promise and navigation alone prove neither.
 
 For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
 query args and canonical/provisional identity at each render, the mutation
@@ -28242,7 +28693,7 @@ examples: [packages/snapback-react/optimistic-create-types.fixture.ts, packages/
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-10
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec
 ---
 
@@ -28259,6 +28710,16 @@ canonical query store. The lower-level
 `SnapbackClient.createOptimisticMutationView` remains available for headless
 compositions. Both paths use the durable outbox, the same locally executable
 generated mutation IR, and the same LLP 0133 logical-mint settlement.
+
+> **If you searched for “same-account live messaging, cross-device unread clearing, and dual-client offline convergence”:** there is no single maintained recipe or proof that combines all four boundaries.
+> Start here for
+> optimistic sender echo and canonical-id reconciliation; use
+> [offline retention and mutation replay](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
+> for durable exact settlement and offline replay, and
+> [multiple surfaces](./optimistic-toggle.md#the-same-record-on-multiple-surfaces)
+> for authoritative convergence outside the touched surface. Current messaging receipt examples are client-authored acknowledgements, not a server-observed fetch primitive.
+> The client reconciliation route applies to both Explicit and Familiar generated references; each profile still authors its receipt
+> mutation in that profile's source.
 
 The React package tests prove typed provisional presentation, filtering,
 ordering, relationship projection, both response/query orderings, overlapping
@@ -29042,6 +29503,19 @@ first-class recipient grant edge. The grant surface is claimed only on the
 local target, so this page is partial: a hosted deployment must capability-gate
 the feature rather than infer support from the local recipe.
 
+If you searched for **metadata-ready**, **openable**, or why **video bytes never became observable**,
+join the message's product state to the closed
+`MediaState` returned by `useSnapbackMedia`. A non-empty state is
+metadata-ready because its `MediaRef` already carries the server-admitted
+coarse kind. For view-once product state, `openable` means an unconsumed
+recipient row plus that non-empty reference; it does not require a delivery
+URL before the activation mutation. After activation, only `ready` and
+`refreshing` are delivery-ready and expose a URL; `issuing` waits,
+`unavailable` may show retry, and `denied` is terminal for that authorized
+delivery attempt. Gate only the open/retry/media controls—keep the surrounding
+message and caption rendered. This consumer contract is the same for Explicit
+and Familiar authoring; the declaration examples below are Explicit.
+
 Read [Grant and revoke per-recipient access](../backend/assets.md#grant-and-revoke-per-recipient-access)
 for the complete operation, authorization, GC, quota, and delivery semantics.
 If a target lacks first-class grants or the application needs filterable grant
@@ -29757,6 +30231,14 @@ classic “every persona wrote as Henry” failure.
 
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
+
+> **Scope boundary — Node actor isolation.** This recipe is for different
+> personas represented by clients in one Node process. It is not a
+> same-principal browser multi-context or multi-tab recipe, and its acceptance
+> fixture is not conformance evidence for two browser contexts signed in as the
+> same account. For browser provider ownership and transition state, start with
+> [provider lifecycle](./provider-lifecycle.md); owner/operation/generation
+> attribution for the blocking call remains a gap.
 
 > **Multiple clients can mean the same session.** If personas share login, a
 > second client can have the same user because both calls omitted
@@ -31408,7 +31890,7 @@ examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-reac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:cb5e02859abd85c24cbcce91cb00673c057e42b4d444f21c54d3701bb3a6d6b1
 ---
 
@@ -31441,6 +31923,15 @@ Exact retrieval vocabulary from provider failures:
 - N cells imply N transport connections
 - provider lifecycle budget
 - too many websockets
+
+> **If you searched for “which provider operation stranded which hook”:** this route applies to both Explicit and Familiar clients.
+> Inspect the ownership tuple and current barrier first, then use the state/repair vocabulary in
+> [writes during authentication transitions](./auth-transition-writes.md).
+> The current refusal does not attribute the conflicting owner, operation, or authority generation.
+> The shipped
+> [multi-persona recipe](./multi-persona-clients.md) isolates Node actors; it is
+> not a same-principal browser multi-context recipe, and that browser case plus
+> call-site attribution remains a documented gap.
 
 ## Own one manager above all provider cells
 
@@ -31840,7 +32331,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | --- | --- | --- | ---: | --- | --- | ---: |
 | <a id="diagnostic-snapback-accepted-socket-limit"></a>`SNAPBACK_ACCEPTED_SOCKET_LIMIT` | emitted | snapback | — | — | `targets/cloudflare/src/coordinator.js:5452` | 2 |
 | <a id="diagnostic-snapback-action-capacity-exceeded"></a>`SNAPBACK_ACTION_CAPACITY_EXCEEDED` | emitted, received | server | 503 | — | `crates/snapback-server/src/server.rs:310` | 2 |
-| <a id="diagnostic-snapback-action-context-unavailable"></a>`SNAPBACK_ACTION_CONTEXT_UNAVAILABLE` | emitted, received | harness | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:5402` | 11 |
+| <a id="diagnostic-snapback-action-context-unavailable"></a>`SNAPBACK_ACTION_CONTEXT_UNAVAILABLE` | emitted, received | harness | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:5417` | 11 |
 | <a id="diagnostic-snapback-action-generation-conflict"></a>`SNAPBACK_ACTION_GENERATION_CONFLICT` | emitted | server | 409 | — | `crates/snapback-engine/src/local/engine.rs:5443` | 2 |
 | <a id="diagnostic-snapback-action-host-missing"></a>`SNAPBACK_ACTION_HOST_MISSING` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:1285` | 1 |
 | <a id="diagnostic-snapback-action-metadata-serialize-failed"></a>`SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:4607` | 1 |
@@ -32343,7 +32834,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-authority-projection-row-invalid"></a>`SNAPBACK_AUTHORITY_PROJECTION_ROW_INVALID` | emitted | server | 500 | — | `crates/snapback-kernel/src/storage.rs:12406` | 5 |
 | <a id="diagnostic-snapback-authority-projection-serialization-failed"></a>`SNAPBACK_AUTHORITY_PROJECTION_SERIALIZATION_FAILED` | emitted | server | 500 | — | `crates/snapback-kernel/src/storage.rs:19693` | 1 |
 | <a id="diagnostic-snapback-authority-recipient-ceiling-exceeded"></a>`SNAPBACK_AUTHORITY_RECIPIENT_CEILING_EXCEEDED` | emitted | server | 500 | [guide](../recipes/membership-roster-projection.md#freeze-recipients-inside-the-sending-mutation) | `crates/snapback-kernel/src/membership_rules.rs:704` | 1 |
-| <a id="diagnostic-snapback-authority-recipient-sink-frozen"></a>`SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN` | emitted | server | 500 | [guide](../recipes/membership-roster-projection.md#freeze-recipients-inside-the-sending-mutation) | `crates/snapback-engine/src/runtime/host_glue.rs:5385` | 1 |
+| <a id="diagnostic-snapback-authority-recipient-sink-frozen"></a>`SNAPBACK_AUTHORITY_RECIPIENT_SINK_FROZEN` | emitted | server | 500 | [guide](../recipes/membership-roster-projection.md#freeze-recipients-inside-the-sending-mutation) | `crates/snapback-engine/src/runtime/host_glue.rs:5400` | 1 |
 | <a id="diagnostic-snapback-authority-recipient-sink-invalid"></a>`SNAPBACK_AUTHORITY_RECIPIENT_SINK_INVALID` | emitted | codegen | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:3328` | 2 |
 | <a id="diagnostic-snapback-authority-recipient-sink-public-read"></a>`SNAPBACK_AUTHORITY_RECIPIENT_SINK_PUBLIC_READ` | emitted | codegen | — | [guide](../recipes/membership-roster-projection.md#freeze-recipients-inside-the-sending-mutation) | `packages/snapback-codegen/index.mjs:4120` | 1 |
 | <a id="diagnostic-snapback-authority-recipient-snapshot-invalid"></a>`SNAPBACK_AUTHORITY_RECIPIENT_SNAPSHOT_INVALID` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:3262` | 1 |
@@ -32748,9 +33239,9 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-backup-state-changed"></a>`SNAPBACK_BACKUP_STATE_CHANGED` | emitted | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2779` | 1 |
 | <a id="diagnostic-snapback-backup-subcommand-unimplemented"></a>`SNAPBACK_BACKUP_SUBCOMMAND_UNIMPLEMENTED` | emitted | cli | — | — | `packages/snapback-cli/index.mjs:9223` | 1 |
 | <a id="diagnostic-snapback-batch-read-index-invalid"></a>`SNAPBACK_BATCH_READ_INDEX_INVALID` | emitted, received | codegen | 400 | — | `crates/snapback-kernel/src/storage.rs:9690` | 4 |
-| <a id="diagnostic-snapback-batch-read-input-bytes-exceeded"></a>`SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED` | emitted, received | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7002` | 2 |
-| <a id="diagnostic-snapback-batch-read-input-invalid"></a>`SNAPBACK_BATCH_READ_INPUT_INVALID` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6902` | 10 |
-| <a id="diagnostic-snapback-batch-read-items-exceeded"></a>`SNAPBACK_BATCH_READ_ITEMS_EXCEEDED` | emitted, received | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6982` | 3 |
+| <a id="diagnostic-snapback-batch-read-input-bytes-exceeded"></a>`SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED` | emitted, received | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7017` | 2 |
+| <a id="diagnostic-snapback-batch-read-input-invalid"></a>`SNAPBACK_BATCH_READ_INPUT_INVALID` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6917` | 10 |
+| <a id="diagnostic-snapback-batch-read-items-exceeded"></a>`SNAPBACK_BATCH_READ_ITEMS_EXCEEDED` | emitted, received | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6997` | 3 |
 | <a id="diagnostic-snapback-batch-read-key-invalid"></a>`SNAPBACK_BATCH_READ_KEY_INVALID` | emitted, received | codegen | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2582` | 7 |
 | <a id="diagnostic-snapback-batch-read-response-bytes-exceeded"></a>`SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED` | emitted, received | harness | 413 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2428` | 2 |
 | <a id="diagnostic-snapback-batch-read-unique-invariant-corrupt"></a>`SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT` | emitted, received | harness | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2656` | 3 |
@@ -32837,7 +33328,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-broker-partition-mismatch"></a>`SNAPBACK_BROKER_PARTITION_MISMATCH` | emitted | client | — | — | `packages/snapback-client/demand-broker.mjs:111` | 3 |
 | <a id="diagnostic-snapback-broker-stale-writer-generation"></a>`SNAPBACK_BROKER_STALE_WRITER_GENERATION` | emitted | client | — | — | `packages/snapback-client/demand-broker.mjs:430` | 1 |
 | <a id="diagnostic-snapback-browser-ir-untyped-error"></a>`SNAPBACK_BROWSER_IR_UNTYPED_ERROR` | emitted | client | — | — | `packages/snapback-client/ir-evaluator.mjs:324` | 1 |
-| <a id="diagnostic-snapback-buffered-write-limit-exceeded"></a>`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED` | emitted, received | acceptance | 400 | [guide](../backend/mutations.md#bound-and-resume-bulk-work) | `crates/snapback-engine/src/runtime/host_glue.rs:5349` | 4 |
+| <a id="diagnostic-snapback-buffered-write-limit-exceeded"></a>`SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED` | emitted, received | acceptance | 400 | [guide](../backend/mutations.md#bound-and-resume-bulk-work) | `crates/snapback-engine/src/runtime/host_glue.rs:5364` | 4 |
 | <a id="diagnostic-snapback-build-identity-mismatch"></a>`SNAPBACK_BUILD_IDENTITY_MISMATCH` | emitted | cli | — | — | `packages/snapback-cli/index.mjs:299` | 1 |
 | <a id="diagnostic-snapback-bundle-entry-invalid"></a>`SNAPBACK_BUNDLE_ENTRY_INVALID` | declaration, emitted | server | 400 | — | `crates/snapback-activation/src/bundle.rs:24` | 44 |
 | <a id="diagnostic-snapback-bundle-idempotency-expired"></a>`SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED` | declaration, emitted | server | 409 | — | `crates/snapback-activation/src/bundle.rs:37` | 2 |
@@ -32883,7 +33374,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-capability-miniflare-missing"></a>`SNAPBACK_CAPABILITY_MINIFLARE_MISSING` | emitted | capabilities | 503 | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:810` | 1 |
 | <a id="diagnostic-snapback-capability-unsupported"></a>`SNAPBACK_CAPABILITY_UNSUPPORTED` | emitted | capabilities | 503 | [guide](../backend/streamed-actions.md#read-the-refusal-codes) | `crates/snapback-engine/src/local/engine.rs:8939` | 22 |
 | <a id="diagnostic-snapback-capability-workerd-missing"></a>`SNAPBACK_CAPABILITY_WORKERD_MISSING` | emitted | capabilities | 503 | — | `crates/snapback-conformance/src/bin/snapback-conformance-twin.rs:790` | 2 |
-| <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7049` | 6 |
+| <a id="diagnostic-snapback-captured-read-invalid"></a>`SNAPBACK_CAPTURED_READ_INVALID` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7064` | 6 |
 | <a id="diagnostic-snapback-captured-read-serialize-failed"></a>`SNAPBACK_CAPTURED_READ_SERIALIZE_FAILED` | emitted | server | 500 | — | `crates/snapback-engine/src/graph_evaluator.rs:572` | 4 |
 | <a id="diagnostic-snapback-carrier-supervisor-state-unsafe"></a>`SNAPBACK_CARRIER_SUPERVISOR_STATE_UNSAFE` | emitted | cli | — | — | `packages/snapback-cli/carrier-kit.mjs:381` | 3 |
 | <a id="diagnostic-snapback-cf-deploy-admin-secret-conflict"></a>`SNAPBACK_CF_DEPLOY_ADMIN_SECRET_CONFLICT` | emitted | snapback | — | — | `targets/cloudflare/deploy.sh:512` | 1 |
@@ -33075,7 +33566,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-command-input-collision"></a>`SNAPBACK_COMMAND_INPUT_COLLISION` | emitted | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:16259` | 1 |
 | <a id="diagnostic-snapback-command-invalid-identifier"></a>`SNAPBACK_COMMAND_INVALID_IDENTIFIER` | emitted | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:16148` | 1 |
 | <a id="diagnostic-snapback-command-mapping-ambiguous"></a>`SNAPBACK_COMMAND_MAPPING_AMBIGUOUS` | emitted | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:16174` | 2 |
-| <a id="diagnostic-snapback-command-multi-asset-unsupported"></a>`SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | emitted | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:16190` | 1 |
+| <a id="diagnostic-snapback-command-multi-asset-unsupported"></a>`SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED` | emitted | codegen | — | [guide](../backend/media-happy-paths.md#path-2-attach-a-bounded-media-collection) | `packages/snapback-codegen/index.mjs:16190` | 1 |
 | <a id="diagnostic-snapback-command-mutation-ambiguous"></a>`SNAPBACK_COMMAND_MUTATION_AMBIGUOUS` | emitted | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:507` | 1 |
 | <a id="diagnostic-snapback-command-mutation-cardinality-invalid"></a>`SNAPBACK_COMMAND_MUTATION_CARDINALITY_INVALID` | emitted | codegen | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-codegen/index.mjs:16158` | 1 |
 | <a id="diagnostic-snapback-command-mutation-failed"></a>`SNAPBACK_COMMAND_MUTATION_FAILED` | emitted | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/commands.mjs:507` | 1 |
@@ -33405,7 +33896,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-effect-not-found"></a>`SNAPBACK_EFFECT_NOT_FOUND` | emitted | server | 404 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1327` | 1 |
 | <a id="diagnostic-snapback-effect-state-invalid"></a>`SNAPBACK_EFFECT_STATE_INVALID` | emitted | server | 409 | — | `crates/snapback-kernel/src/storage/pending_effects.rs:1343` | 1 |
 | <a id="diagnostic-snapback-elevated-read-capability-undeclared"></a>`SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED` | emitted | codegen | 500 | — | `crates/snapback-types/src/manifest/types.rs:4764` | 2 |
-| <a id="diagnostic-snapback-elevated-read-site-unclassifiable"></a>`SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE` | emitted | codegen | — | — | `packages/snapback-codegen/define.mjs:330` | 10 |
+| <a id="diagnostic-snapback-elevated-read-site-unclassifiable"></a>`SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE` | emitted | codegen | — | [guide](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read) | `packages/snapback-codegen/define.mjs:330` | 10 |
 | <a id="diagnostic-snapback-embed-app-state-already-owned"></a>`SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED` | emitted | server | 500 | — | `crates/snapback-engine/src/local/engine.rs:8099` | 1 |
 | <a id="diagnostic-snapback-embed-app-state-busy"></a>`SNAPBACK_EMBED_APP_STATE_BUSY` | emitted | server | 500 | — | `crates/snapback-server/src/admin.rs:3132` | 3 |
 | <a id="diagnostic-snapback-embed-entropy-unavailable"></a>`SNAPBACK_EMBED_ENTROPY_UNAVAILABLE` | emitted | server | 500 | — | `crates/snapback-server/src/admin.rs:3994` | 1 |
@@ -33718,36 +34209,36 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-guide-registry-identity-mismatch"></a>`SNAPBACK_GUIDE_REGISTRY_IDENTITY_MISMATCH` | emitted | guide | 500 | — | `crates/snapback-server/src/guide_reference.rs:43` | 8 |
 | <a id="diagnostic-snapback-guide-unavailable"></a>`SNAPBACK_GUIDE_UNAVAILABLE` | emitted | guide | — | — | `packages/snapback-admin-client/index.mjs:315` | 2 |
 | <a id="diagnostic-snapback-handler-ambient-capability-denied"></a>`SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED` | emitted, received | harness | 400 | [guide](../backend/handler-runtime.md#globals-and-operation-kinds) | `crates/snapback-engine/src/runtime/host_glue.rs:4647` | 13 |
-| <a id="diagnostic-snapback-handler-capability-denied"></a>`SNAPBACK_HANDLER_CAPABILITY_DENIED` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7092` | 4 |
-| <a id="diagnostic-snapback-handler-did-not-settle"></a>`SNAPBACK_HANDLER_DID_NOT_SETTLE` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6673` | 5 |
+| <a id="diagnostic-snapback-handler-capability-denied"></a>`SNAPBACK_HANDLER_CAPABILITY_DENIED` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7107` | 4 |
+| <a id="diagnostic-snapback-handler-did-not-settle"></a>`SNAPBACK_HANDLER_DID_NOT_SETTLE` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6688` | 5 |
 | <a id="diagnostic-snapback-handler-eval-output-too-large"></a>`SNAPBACK_HANDLER_EVAL_OUTPUT_TOO_LARGE` | emitted, received | server | 413 | — | `crates/snapback-runtime/src/runtime.rs:598` | 2 |
-| <a id="diagnostic-snapback-handler-export-missing"></a>`SNAPBACK_HANDLER_EXPORT_MISSING` | emitted, received | harness | 400 | [guide](../backend/actions-and-fetch.md#the-handler-file-is-a-closed-script) | `crates/snapback-engine/src/runtime/host_glue.rs:6181` | 6 |
-| <a id="diagnostic-snapback-handler-failed"></a>`SNAPBACK_HANDLER_FAILED` | emitted | harness | 400 | [guide](../backend/mutations.md#debug-snapbackhandlerfailed-under-the-dev-supervisor) | `crates/snapback-engine/src/runtime/host_glue.rs:6545` | 14 |
+| <a id="diagnostic-snapback-handler-export-missing"></a>`SNAPBACK_HANDLER_EXPORT_MISSING` | emitted, received | harness | 400 | [guide](../backend/actions-and-fetch.md#the-handler-file-is-a-closed-script) | `crates/snapback-engine/src/runtime/host_glue.rs:6196` | 6 |
+| <a id="diagnostic-snapback-handler-failed"></a>`SNAPBACK_HANDLER_FAILED` | emitted | harness | 400 | [guide](../backend/mutations.md#debug-snapbackhandlerfailed-under-the-dev-supervisor) | `crates/snapback-engine/src/runtime/host_glue.rs:6560` | 14 |
 | <a id="diagnostic-snapback-handler-harness-init-failed"></a>`SNAPBACK_HANDLER_HARNESS_INIT_FAILED` | emitted | harness | — | — | `packages/snapback-harness/ctx-bootstrap.js:160` | 13 |
 | <a id="diagnostic-snapback-handler-host-call-body-too-large"></a>`SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE` | emitted | server | 413 | — | `crates/snapback-runtime/src/workerd_exec.rs:1168` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-failed"></a>`SNAPBACK_HANDLER_HOST_CALL_FAILED` | emitted | harness | — | — | `packages/snapback-harness/workerd/handler-server.mjs:481` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-headers-too-large"></a>`SNAPBACK_HANDLER_HOST_CALL_HEADERS_TOO_LARGE` | emitted | server | 500 | — | `crates/snapback-runtime/src/workerd_exec.rs:1164` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-invalid"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:3062` | 15 |
-| <a id="diagnostic-snapback-handler-host-call-invalid-json"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6721` | 4 |
-| <a id="diagnostic-snapback-handler-host-call-malformed"></a>`SNAPBACK_HANDLER_HOST_CALL_MALFORMED` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6706` | 6 |
-| <a id="diagnostic-snapback-handler-host-call-panic"></a>`SNAPBACK_HANDLER_HOST_CALL_PANIC` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6759` | 1 |
+| <a id="diagnostic-snapback-handler-host-call-invalid-json"></a>`SNAPBACK_HANDLER_HOST_CALL_INVALID_JSON` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6736` | 4 |
+| <a id="diagnostic-snapback-handler-host-call-malformed"></a>`SNAPBACK_HANDLER_HOST_CALL_MALFORMED` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6721` | 6 |
+| <a id="diagnostic-snapback-handler-host-call-panic"></a>`SNAPBACK_HANDLER_HOST_CALL_PANIC` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6774` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-serialize-failed"></a>`SNAPBACK_HANDLER_HOST_CALL_SERIALIZE_FAILED` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:2421` | 3 |
 | <a id="diagnostic-snapback-handler-host-call-unauthorized"></a>`SNAPBACK_HANDLER_HOST_CALL_UNAUTHORIZED` | emitted | server | 500 | — | `crates/snapback-runtime/src/workerd_exec.rs:1160` | 1 |
 | <a id="diagnostic-snapback-handler-host-call-unknown"></a>`SNAPBACK_HANDLER_HOST_CALL_UNKNOWN` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:5012` | 2 |
-| <a id="diagnostic-snapback-handler-host-call-without-context"></a>`SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT` | emitted | harness | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6732` | 3 |
-| <a id="diagnostic-snapback-handler-input-serialize-failed"></a>`SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7299` | 1 |
+| <a id="diagnostic-snapback-handler-host-call-without-context"></a>`SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT` | emitted | harness | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6747` | 3 |
+| <a id="diagnostic-snapback-handler-input-serialize-failed"></a>`SNAPBACK_HANDLER_INPUT_SERIALIZE_FAILED` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:7314` | 1 |
 | <a id="diagnostic-snapback-handler-invalid-character"></a>`SNAPBACK_HANDLER_INVALID_CHARACTER` | emitted | harness | — | — | `packages/snapback-harness/allowlist-install.js:338` | 4 |
 | <a id="diagnostic-snapback-handler-invocation-epoch-exhausted"></a>`SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED` | emitted | server | 503 | — | `crates/snapback-runtime/src/runtime.rs:429` | 1 |
-| <a id="diagnostic-snapback-handler-rejection-detection-unavailable"></a>`SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6252` | 1 |
-| <a id="diagnostic-snapback-handler-rejection-inspection-invalid"></a>`SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6270` | 1 |
+| <a id="diagnostic-snapback-handler-rejection-detection-unavailable"></a>`SNAPBACK_HANDLER_REJECTION_DETECTION_UNAVAILABLE` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6267` | 1 |
+| <a id="diagnostic-snapback-handler-rejection-inspection-invalid"></a>`SNAPBACK_HANDLER_REJECTION_INSPECTION_INVALID` | emitted | server | 500 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6285` | 1 |
 | <a id="diagnostic-snapback-handler-result-contract-degraded"></a>`SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED` | emitted | codegen | — | — | `packages/snapback-codegen/index.mjs:7181` | 1 |
 | <a id="diagnostic-snapback-handler-result-contract-invalid"></a>`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` | emitted | codegen | 400 | [guide](../backend/mutations.md#consume-the-structured-result) | `crates/snapback-engine/src/local/engine.rs:39464` | 8 |
 | <a id="diagnostic-snapback-handler-result-contract-violation"></a>`SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` | emitted | server | 400 | [guide](../backend/mutations.md#consume-the-structured-result) | `crates/snapback-engine/src/runtime/host_glue.rs:470` | 4 |
 | <a id="diagnostic-snapback-handler-result-invalid"></a>`SNAPBACK_HANDLER_RESULT_INVALID` | emitted, received | harness | 400 | [guide](../backend/queries.md#choose-declarative-or-javascript-execution) | `crates/snapback-engine/src/runtime/host_glue.rs:1053` | 4 |
-| <a id="diagnostic-snapback-handler-stale-continuation"></a>`SNAPBACK_HANDLER_STALE_CONTINUATION` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6746` | 6 |
+| <a id="diagnostic-snapback-handler-stale-continuation"></a>`SNAPBACK_HANDLER_STALE_CONTINUATION` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6761` | 6 |
 | <a id="diagnostic-snapback-handler-undeclared-read"></a>`SNAPBACK_HANDLER_UNDECLARED_READ` | emitted | server | 400 | — | `crates/snapback-kernel/src/conformance.rs:243` | 1 |
 | <a id="diagnostic-snapback-handler-undeclared-write"></a>`SNAPBACK_HANDLER_UNDECLARED_WRITE` | emitted | server | 400 | — | `crates/snapback-kernel/src/conformance.rs:274` | 1 |
-| <a id="diagnostic-snapback-handler-unhandled-rejection"></a>`SNAPBACK_HANDLER_UNHANDLED_REJECTION` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6493` | 3 |
+| <a id="diagnostic-snapback-handler-unhandled-rejection"></a>`SNAPBACK_HANDLER_UNHANDLED_REJECTION` | emitted | server | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:6508` | 3 |
 | <a id="diagnostic-snapback-handler-wall-clock-exceeded"></a>`SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED` | emitted, received | server | 504 | — | `crates/snapback-runtime/src/workerd_exec.rs:841` | 2 |
 | <a id="diagnostic-snapback-handler-write-in-query"></a>`SNAPBACK_HANDLER_WRITE_IN_QUERY` | emitted, received | harness | 400 | — | `crates/snapback-engine/src/runtime/host_glue.rs:1298` | 6 |
 | <a id="diagnostic-snapback-history-authorization-denied"></a>`SNAPBACK_HISTORY_AUTHORIZATION_DENIED` | emitted | server | 403 | — | `crates/snapback-kernel/src/proof_checkpoint.rs:1357` | 1 |
@@ -35311,7 +35802,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-unknown-field"></a>`SNAPBACK_UNKNOWN_FIELD` | emitted, received | harness | 404 | — | `crates/snapback-kernel/src/storage.rs:23309` | 7 |
 | <a id="diagnostic-snapback-unknown-function"></a>`SNAPBACK_UNKNOWN_FUNCTION` | emitted, received | server | 404 | [guide](../clients/headless.md#subscribe-to-durable-state) | `crates/snapback-types/src/authoring_suggestion.rs:213` | 3 |
 | <a id="diagnostic-snapback-unknown-subscription"></a>`SNAPBACK_UNKNOWN_SUBSCRIPTION` | emitted | server | 404 | — | `crates/snapback-engine/src/local/engine.rs:24372` | 2 |
-| <a id="diagnostic-snapback-unknown-table"></a>`SNAPBACK_UNKNOWN_TABLE` | emitted, received | client | 404 | [guide](../backend/mutations.md#read-and-delete-through-ctxdb) | `crates/snapback-engine/src/runtime/host_glue.rs:5096` | 9 |
+| <a id="diagnostic-snapback-unknown-table"></a>`SNAPBACK_UNKNOWN_TABLE` | emitted, received | client | 404 | [guide](../backend/mutations.md#read-and-delete-through-ctxdb) | `crates/snapback-engine/src/runtime/host_glue.rs:5098` | 9 |
 | <a id="diagnostic-snapback-unsupported-blob"></a>`SNAPBACK_UNSUPPORTED_BLOB` | reserved | server | 400 | — | `crates/snapback-server/src/server/api_error.rs:1546` | 1 |
 | <a id="diagnostic-snapback-untrusted-seed"></a>`SNAPBACK_UNTRUSTED_SEED` | emitted | snapback | — | — | `targets/cloudflare/src/coordinator.js:5059` | 1 |
 | <a id="diagnostic-snapback-upgrade-required"></a>`SNAPBACK_UPGRADE_REQUIRED` | emitted, received | client | — | — | `packages/snapback-client/index.mjs:254` | 6 |
@@ -35511,7 +36002,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="environment-snapback-graph-exec-disabled"></a>`SNAPBACK_GRAPH_EXEC_DISABLED` | read | `crates/snapback-engine/src/local/engine.rs:9358` | 3 |
 | <a id="environment-snapback-handler-backend"></a>`SNAPBACK_HANDLER_BACKEND` | read | `crates/snapback-runtime/src/workerd_exec.rs:76` | 1 |
 | <a id="environment-snapback-handler-console"></a>`SNAPBACK_HANDLER_CONSOLE` | read | `crates/snapback-engine/src/runtime/host_glue.rs:154` | 1 |
-| <a id="environment-snapback-handler-error-exposure"></a>`SNAPBACK_HANDLER_ERROR_EXPOSURE` | indirect-read, write | `crates/snapback-engine/src/runtime/host_glue.rs:5468` | 2 |
+| <a id="environment-snapback-handler-error-exposure"></a>`SNAPBACK_HANDLER_ERROR_EXPOSURE` | indirect-read, write | `crates/snapback-engine/src/runtime/host_glue.rs:5483` | 2 |
 | <a id="environment-snapback-host-token"></a>`SNAPBACK_HOST_TOKEN` | read | `packages/snapback-harness/workerd/handler-server.mjs:440` | 1 |
 | <a id="environment-snapback-ibex"></a>`SNAPBACK_IBEX` | read | `crates/snapback-runtime/src/runtime.rs:932` | 1 |
 | <a id="environment-snapback-invoke-token"></a>`SNAPBACK_INVOKE_TOKEN` | read | `packages/snapback-harness/workerd/handler-server.mjs:368` | 1 |
@@ -75101,11 +75592,38 @@ open the packet's named edit targets, and escalate one page at a time with
 - [media-feed](./media-feed.md) — stub: mental model first.
 - [todo-contract](./todo-contract.md) — stub: mental model first.
 
+If you arrived after a **mistaken unscoped `snapback@0.1.29` lookup**, the
+published CLI package is `@expo/snapback-cli`; `create-snapback-app` is the
+`npm create snapback-app` wrapper. If the **published CLI rejected unknown `expo-router` template**,
+or you **assumed legacy `expo-router` major 7 for Expo 57**, do not repair the tuple by registry archaeology: run the installed
+CLI's `snapback new --help`, choose one of the five template names above, and
+let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and
+React Native pins. Package discovery is profile-neutral; the current template
+registry is Explicit-scoped and has no Familiar-named template.
+
 Scaffolded apps carry their packet transcluded into `AGENTS.md` with a
 digest comment — reading either copy counts once. The
 [capability index](../capabilities.md) is the completeness registry with
 explicit GAP rows: look terms up in it; do not linear-read it before the
 first edit.
+
+## From the chat template to a social product
+
+If you searched for a **short, product-shaped path from that chat to the canonical social schema**:
+there is no maintained end-to-end relational-social recipe today. Take this journey instead — profiles →
+[app identity](../auth/app-identity-binding.md), graph →
+[relational queries](../backend/relational-queries.md), feeds →
+[chunked membership feeds](../recipes/chunked-semijoin-feed.md), roles →
+[scoped roles](../auth/scoped-roles.md), media →
+[assets](../backend/assets.md), offline →
+[retention and replay](../sync/offline-and-retention.md), aggregates and
+schedules → [bounded queries](../backend/queries.md) plus
+[cron](../backend/cron.md).
+
+The `expo-chat` template is Explicit, and Familiar is not covered by this
+template. For Familiar, start at the
+[Familiar handler dialect](../backend/familiar-profile.md) and keep the same
+normalized data and authority boundaries in Familiar source.
 
 ---
 
@@ -75315,16 +75833,15 @@ examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:560723c3d50af032b129a79451faf7bf891f34dc3de8504df6f7f09a4a568a4f
 ---
 
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This is the first read (LLP 0259 Rung A). Use edit targets; open one page
-only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
-`snapback guide <query>`.
+First read (LLP 0259 Rung A): use edit targets. For a brief, `SNAPBACK_*`
+refusal, or failed `prove`, open one result from `snapback guide <query>`.
 
 ## The loop
 
@@ -75334,91 +75851,87 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 `dev:supervised` is optional; it never launches a device or simulator — use
 Expo Go, a dev client, or `expo run:ios|android`.
 
+If **Metro's inner port escaped 4287–4387**, the pins did not redefine its
+range. Use one `--port-range <lo>-<hi>` that contains every owned listener,
+shared by Explicit and Familiar backends.
+
+If **supervised Expo web wants stdin detached or the owner dies on pipe EOF**:
+pre-repair behavior. stdin EOF now closes only the optional command channel and
+leaves the supervisor and its children live; launchers may use `/dev/null`.
+
 Android emulator: set printed `androidEmulatorUrl` (`10.0.2.2`) as
-`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, leave its managed block
-commented. Remove stale `SNAPBACK_DEV_CLIENT_PORT` /
-`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses both with
-`SNAPBACK_CLI_ARGUMENT_INVALID`.
+`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, leave its managed block commented.
+Remove stale `SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT`; plain
+dev refuses both with `SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 Before proof edits, read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`prove`: only done-oracle; writes the aggregate `snapback verify` receipt.
-`npm test`: raw acceptance debug. `test:static`: no-server
-coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
-observations after `prove`; `carry:self-check`: wiring only. Removed
-`test:live` → `npm test`.
+`prove`: done-oracle; writes the aggregate `snapback verify` receipt. `npm
+test`: raw acceptance debug. `test:static`: no-server coherence. `carry:*`:
+post-`prove` observations; `carry:self-check`: wiring only. Removed `test:live`
+→ `npm test`.
 <!-- script-glossary:end -->
 
-The native carrier owns simulator boot, drive, and screenshots; self-started
-Metro must not inherit `CI=1`, which disables watching.
+The native carrier owns simulator boot/drive/screenshots. Self-started Metro
+must not inherit `CI=1`; it disables watching.
 
 ## Edit targets (listed, not charged)
 
-- `snapback/schema.mjs` — sessions auth; user/conversation/membership/message/
-  reaction tables; ephemeral `typing`.
-- `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
-  `sendReply` / `react` mutations, and the bound `send` command.
-- `snapback/seed.json` — seeded demo personas and conversations.
-- `App.tsx` — generated `app` → `SnapbackExpoProvider`; retained files; password
-  and provider entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
-- `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
-  `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
-  typing, upload) from `@expo/snapback-expo`.
-- `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
+- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}` — auth, tables,
+  queries/mutations/commands, ephemeral `typing`, and seeded personas.
+- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx` — provider,
+  auth entry, inbox, thread, replies, reactions, typing, and upload.
+- Proof: `acceptance.mjs`, `snapback.verify.config.mjs`.
 
-`snapback/generated/` is codegen-owned: regenerate, commit
-`generated/artifacts.json`, never hand-edit outputs.
-The `_generated/` spelling is a refused alias, not a compatibility alias; use
-only `generated/`.
+`snapback/generated/` is codegen-owned: regenerate and commit
+`generated/artifacts.json`; never hand-edit. The `_generated/` spelling is a
+refused alias.
 
 ## Posture
 
-- **Auth: sessions, guest-first, password, Apple/Google.** From anonymous `ready`, use
-  the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
-  before sends/uploads. Recovery codes appear once. Web starts sessionless;
-  native auto-adopts. `adoptSupervisedSession` opts web in/native out.
-  After `signUpWithPassword` / `signInWithPassword`, do not call an
+- **Auth: sessions, guest-first, password, Apple/Google.** One
+  `useSnapbackAuth()` owner handles guest/password/provider entry. Web starts
+  sessionless; native auto-adopts; `adoptSupervisedSession` opts web in/native
+  out. After `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
   until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
   outside a tree that unmounts on auth change.
-- **Custody: `volatile-explicit`.** Native restarts return anonymous. Use
-  `durable-required` only on an admitted platform. Node `memory` refuses
-  `durable-required` custody with
-  `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
-  [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
-  under “Recover when durable auth custody is unavailable.”
+- **Custody: `volatile-explicit`.** Native restart is anonymous.
+  `durable-required` needs an admitted platform. Node `memory` refuses
+  `durable-required` custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`.
+  See the [`expo-web` + `fake-indexeddb` acceptance helper — Recover when durable auth custody is unavailable](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable).
 - **Security:** **TEST PERSONA** `senderId`/`userId` is not a boundary. Real apps
   derive the sender from `ctx.auth.userId`; personas are display-only.
 
 ## Safety traps (reconciled at landing)
 
-1. Declare each function's `auth` explicitly in sessions mode: omitting it
-   gets legacy `optional-user` widening plus the
-   `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` advisory.
+1. In sessions mode, declare each function's `auth`; omission gets legacy
+   `optional-user` plus `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT`.
 2. Inline args objects churn `useSnapbackQuery` — the subscription keys on
    args identity; hoist or memoize.
-3. Structured stored fields (`v.array(...)`, `v.object({...})`) are typed
-   but opaque (experimental): interiors are not queryable, and a nested
-   `v.principal()` is a snapshot, not membership.
-4. A changed seed identity never silently resets data: expect
-   `SNAPBACK_SEED_MIGRATION_REQUIRED`, then migrate or reset-install.
-5. Every `SNAPBACK_*` refusal names its rule and fix (inline handlers
-   capture nothing: hoist to a `function`, not a `const`);
-   `snapback guide <CODE>` has its entry.
+3. Structured fields are typed but opaque: interiors are not queryable and a
+   nested principal is a snapshot, not membership. A base64 video or data-URI
+   photo is row data under the 32 KiB structured-value ceiling; use the
+   generated asset/media upload path. See
+   [Structured stored values](../getting-started/your-first-backend.md#structured-stored-values).
+4. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
+   migrate or reset-install.
+5. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate
 
-`snapback guide <query>` finds symbols, codes, and anchors. The
-[capability index](../capabilities.md) is a lookup, not a first read. On trigger:
-[react-expo clients](../clients/react-expo.md),
-[surfaces](../clients/surfaces.md),
-[sessions and principals](../auth/sessions-and-principals.md),
-[assets](../backend/assets.md),
+`snapback guide <query>` finds symbols, codes, and anchors; the
+[capability index](../capabilities.md) is lookup-only. Trigger pages:
+[clients](../clients/react-expo.md), [surfaces](../clients/surfaces.md),
+[auth](../auth/sessions-and-principals.md), [assets](../backend/assets.md),
 [ephemeral state](../realtime/ephemeral-state.md).
+
+> **If you searched for a “short, product-shaped path from that chat to the canonical social schema”:** see
+> [From the chat template to a social product](./index.md#from-the-chat-template-to-a-social-product).
 
 <!-- llp0259:stop-fence -->
 **Stop sign.** Familiar `query()` / `useQuery` is experimental and outside
@@ -75496,19 +76009,18 @@ whole first read.
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
-`npm test`: acceptance debug path. `test:static`: no-server coherence.
-`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the `snapback verify` receipt. `npm test`:
+acceptance debug. `test:static`: no-server. `carry:*`: post-proof observations.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
 `pagination.mjs` → `generate` → `dev` (backend + env) and `dev:client` (Metro)
-in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: paste
-printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
-restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
-`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
-`SNAPBACK_CLI_ARGUMENT_INVALID`. `publishEntry` owns upload/finalize/attach;
-paginate on immutable `pageKey`. Escalate: `snapback guide <query>`.
+in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: set
+printed `androidEmulatorUrl` as `EXPO_PUBLIC_SNAPBACK_URL`; restart Metro.
+Plain dev refuses stale `SNAPBACK_DEV_{CLIENT,BOOTSTRAP}_PORT` pins.
+`publishEntry` owns upload/finalize/attach. Base64 video or data-URI media is
+row data under the 32 KiB ceiling, not an upload. Paginate on immutable
+`pageKey`; escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---

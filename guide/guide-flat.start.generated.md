@@ -36,11 +36,38 @@ open the packet's named edit targets, and escalate one page at a time with
 - [media-feed](./media-feed.md) — stub: mental model first.
 - [todo-contract](./todo-contract.md) — stub: mental model first.
 
+If you arrived after a **mistaken unscoped `snapback@0.1.29` lookup**, the
+published CLI package is `@expo/snapback-cli`; `create-snapback-app` is the
+`npm create snapback-app` wrapper. If the **published CLI rejected unknown `expo-router` template**,
+or you **assumed legacy `expo-router` major 7 for Expo 57**, do not repair the tuple by registry archaeology: run the installed
+CLI's `snapback new --help`, choose one of the five template names above, and
+let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and
+React Native pins. Package discovery is profile-neutral; the current template
+registry is Explicit-scoped and has no Familiar-named template.
+
 Scaffolded apps carry their packet transcluded into `AGENTS.md` with a
 digest comment — reading either copy counts once. The
 [capability index](../capabilities.md) is the completeness registry with
 explicit GAP rows: look terms up in it; do not linear-read it before the
 first edit.
+
+## From the chat template to a social product
+
+If you searched for a **short, product-shaped path from that chat to the canonical social schema**:
+there is no maintained end-to-end relational-social recipe today. Take this journey instead — profiles →
+[app identity](../auth/app-identity-binding.md), graph →
+[relational queries](../backend/relational-queries.md), feeds →
+[chunked membership feeds](../recipes/chunked-semijoin-feed.md), roles →
+[scoped roles](../auth/scoped-roles.md), media →
+[assets](../backend/assets.md), offline →
+[retention and replay](../sync/offline-and-retention.md), aggregates and
+schedules → [bounded queries](../backend/queries.md) plus
+[cron](../backend/cron.md).
+
+The `expo-chat` template is Explicit, and Familiar is not covered by this
+template. For Familiar, start at the
+[Familiar handler dialect](../backend/familiar-profile.md) and keep the same
+normalized data and authority boundaries in Familiar source.
 
 ---
 
@@ -250,16 +277,15 @@ examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:560723c3d50af032b129a79451faf7bf891f34dc3de8504df6f7f09a4a568a4f
 ---
 
 # Start packet: the `expo-chat` template
 
 <!-- start-packet:begin expo-chat -->
-This is the first read (LLP 0259 Rung A). Use edit targets; open one page
-only for a brief, `SNAPBACK_*` refusal, or failed `prove`, via
-`snapback guide <query>`.
+First read (LLP 0259 Rung A): use edit targets. For a brief, `SNAPBACK_*`
+refusal, or failed `prove`, open one result from `snapback guide <query>`.
 
 ## The loop
 
@@ -269,91 +295,87 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 `dev:supervised` is optional; it never launches a device or simulator — use
 Expo Go, a dev client, or `expo run:ios|android`.
 
+If **Metro's inner port escaped 4287–4387**, the pins did not redefine its
+range. Use one `--port-range <lo>-<hi>` that contains every owned listener,
+shared by Explicit and Familiar backends.
+
+If **supervised Expo web wants stdin detached or the owner dies on pipe EOF**:
+pre-repair behavior. stdin EOF now closes only the optional command channel and
+leaves the supervisor and its children live; launchers may use `/dev/null`.
+
 Android emulator: set printed `androidEmulatorUrl` (`10.0.2.2`) as
-`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, leave its managed block
-commented. Remove stale `SNAPBACK_DEV_CLIENT_PORT` /
-`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses both with
-`SNAPBACK_CLI_ARGUMENT_INVALID`.
+`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, leave its managed block commented.
+Remove stale `SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT`; plain
+dev refuses both with `SNAPBACK_CLI_ARGUMENT_INVALID`.
 
 Before proof edits, read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
 
-`prove`: only done-oracle; writes the aggregate `snapback verify` receipt.
-`npm test`: raw acceptance debug. `test:static`: no-server
-coherence. `carry:headless`, `carry:web-browser`, `carry:native-simulator`:
-observations after `prove`; `carry:self-check`: wiring only. Removed
-`test:live` → `npm test`.
+`prove`: done-oracle; writes the aggregate `snapback verify` receipt. `npm
+test`: raw acceptance debug. `test:static`: no-server coherence. `carry:*`:
+post-`prove` observations; `carry:self-check`: wiring only. Removed `test:live`
+→ `npm test`.
 <!-- script-glossary:end -->
 
-The native carrier owns simulator boot, drive, and screenshots; self-started
-Metro must not inherit `CI=1`, which disables watching.
+The native carrier owns simulator boot/drive/screenshots. Self-started Metro
+must not inherit `CI=1`; it disables watching.
 
 ## Edit targets (listed, not charged)
 
-- `snapback/schema.mjs` — sessions auth; user/conversation/membership/message/
-  reaction tables; ephemeral `typing`.
-- `snapback/functions.mjs` — inbox and thread live queries, `sendText` /
-  `sendReply` / `react` mutations, and the bound `send` command.
-- `snapback/seed.json` — seeded demo personas and conversations.
-- `App.tsx` — generated `app` → `SnapbackExpoProvider`; retained files; password
-  and provider entry via `useSnapbackCurrentPrincipal` / `useSnapbackAuth`.
-- `src/screens/inbox-screen.tsx` / `src/screens/chat-screen.tsx` — the
-  `useSnapbackQuery` inbox and `useSurface` thread (replies, reactions,
-  typing, upload) from `@expo/snapback-expo`.
-- `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
+- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}` — auth, tables,
+  queries/mutations/commands, ephemeral `typing`, and seeded personas.
+- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx` — provider,
+  auth entry, inbox, thread, replies, reactions, typing, and upload.
+- Proof: `acceptance.mjs`, `snapback.verify.config.mjs`.
 
-`snapback/generated/` is codegen-owned: regenerate, commit
-`generated/artifacts.json`, never hand-edit outputs.
-The `_generated/` spelling is a refused alias, not a compatibility alias; use
-only `generated/`.
+`snapback/generated/` is codegen-owned: regenerate and commit
+`generated/artifacts.json`; never hand-edit. The `_generated/` spelling is a
+refused alias.
 
 ## Posture
 
-- **Auth: sessions, guest-first, password, Apple/Google.** From anonymous `ready`, use
-  the same `useSnapbackAuth()` owner for `enterAsGuest()` or password entry
-  before sends/uploads. Recovery codes appear once. Web starts sessionless;
-  native auto-adopts. `adoptSupervisedSession` opts web in/native out.
-  After `signUpWithPassword` / `signInWithPassword`, do not call an
+- **Auth: sessions, guest-first, password, Apple/Google.** One
+  `useSnapbackAuth()` owner handles guest/password/provider entry. Web starts
+  sessionless; native auto-adopts; `adoptSupervisedSession` opts web in/native
+  out. After `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
   until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
   outside a tree that unmounts on auth change.
-- **Custody: `volatile-explicit`.** Native restarts return anonymous. Use
-  `durable-required` only on an admitted platform. Node `memory` refuses
-  `durable-required` custody with
-  `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`; see existing
-  [`expo-web` + `fake-indexeddb` acceptance helper](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable)
-  under “Recover when durable auth custody is unavailable.”
+- **Custody: `volatile-explicit`.** Native restart is anonymous.
+  `durable-required` needs an admitted platform. Node `memory` refuses
+  `durable-required` custody with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE`.
+  See the [`expo-web` + `fake-indexeddb` acceptance helper — Recover when durable auth custody is unavailable](../testing/acceptance.md#recover-when-durable-auth-custody-is-unavailable).
 - **Security:** **TEST PERSONA** `senderId`/`userId` is not a boundary. Real apps
   derive the sender from `ctx.auth.userId`; personas are display-only.
 
 ## Safety traps (reconciled at landing)
 
-1. Declare each function's `auth` explicitly in sessions mode: omitting it
-   gets legacy `optional-user` widening plus the
-   `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` advisory.
+1. In sessions mode, declare each function's `auth`; omission gets legacy
+   `optional-user` plus `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT`.
 2. Inline args objects churn `useSnapbackQuery` — the subscription keys on
    args identity; hoist or memoize.
-3. Structured stored fields (`v.array(...)`, `v.object({...})`) are typed
-   but opaque (experimental): interiors are not queryable, and a nested
-   `v.principal()` is a snapshot, not membership.
-4. A changed seed identity never silently resets data: expect
-   `SNAPBACK_SEED_MIGRATION_REQUIRED`, then migrate or reset-install.
-5. Every `SNAPBACK_*` refusal names its rule and fix (inline handlers
-   capture nothing: hoist to a `function`, not a `const`);
-   `snapback guide <CODE>` has its entry.
+3. Structured fields are typed but opaque: interiors are not queryable and a
+   nested principal is a snapshot, not membership. A base64 video or data-URI
+   photo is row data under the 32 KiB structured-value ceiling; use the
+   generated asset/media upload path. See
+   [Structured stored values](../getting-started/your-first-backend.md#structured-stored-values).
+4. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
+   migrate or reset-install.
+5. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate
 
-`snapback guide <query>` finds symbols, codes, and anchors. The
-[capability index](../capabilities.md) is a lookup, not a first read. On trigger:
-[react-expo clients](../clients/react-expo.md),
-[surfaces](../clients/surfaces.md),
-[sessions and principals](../auth/sessions-and-principals.md),
-[assets](../backend/assets.md),
+`snapback guide <query>` finds symbols, codes, and anchors; the
+[capability index](../capabilities.md) is lookup-only. Trigger pages:
+[clients](../clients/react-expo.md), [surfaces](../clients/surfaces.md),
+[auth](../auth/sessions-and-principals.md), [assets](../backend/assets.md),
 [ephemeral state](../realtime/ephemeral-state.md).
+
+> **If you searched for a “short, product-shaped path from that chat to the canonical social schema”:** see
+> [From the chat template to a social product](./index.md#from-the-chat-template-to-a-social-product).
 
 <!-- llp0259:stop-fence -->
 **Stop sign.** Familiar `query()` / `useQuery` is experimental and outside
@@ -431,19 +453,18 @@ whole first read.
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
-`npm test`: acceptance debug path. `test:static`: no-server coherence.
-`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the `snapback verify` receipt. `npm test`:
+acceptance debug. `test:static`: no-server. `carry:*`: post-proof observations.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
 `pagination.mjs` → `generate` → `dev` (backend + env) and `dev:client` (Metro)
-in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: paste
-printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
-restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
-`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
-`SNAPBACK_CLI_ARGUMENT_INVALID`. `publishEntry` owns upload/finalize/attach;
-paginate on immutable `pageKey`. Escalate: `snapback guide <query>`.
+in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: set
+printed `androidEmulatorUrl` as `EXPO_PUBLIC_SNAPBACK_URL`; restart Metro.
+Plain dev refuses stale `SNAPBACK_DEV_{CLIENT,BOOTSTRAP}_PORT` pins.
+`publishEntry` owns upload/finalize/attach. Base64 video or data-URI media is
+row data under the 32 KiB ceiling, not an upload. Paginate on immutable
+`pageKey`; escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ---

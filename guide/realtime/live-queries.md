@@ -143,6 +143,25 @@ follow the [multiple Node personas recipe](../recipes/multi-persona-clients.md);
 the [headless client](../clients/headless.md#construct-one-client-per-backend-and-custody-context)
 explains the custody owner contract.
 
+**Search vocabulary.** Builders hit this as "cross-client", not
+"cross-persona". All of these describe the case above:
+
+- *a committed write does not wake the other client's live hook*
+- *the second client does not receive live updates*
+- *the query stays stale on the other client*
+- *cross-client fanout then looks broken*
+
+**The warning is Node-gated; the collision is not.**
+`SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` only fires under Node, so a
+browser client never emits it — but two same-origin tabs *do* share the
+implicit `"default"` durable partition, so the collision itself is still
+possible there and you have to check for it by hand. Isolated browser contexts
+(for example Playwright's `browser.newContext()`) get separate storage and
+cannot collide this way. In short, this mechanism **cannot explain separate
+browser contexts or same-client staleness** — for those, keep reading. And if the stale hook belongs to the **same** client
+that issued the write, this is never the cause — one client cannot collide with
+itself. In both of those cases, go to the next paragraph.
+
 If each client already uses a distinct `storagePartition` and updates are still
 stale, this is a different issue: use the
 [client/server snapshot join](../backend/query-costs.md) for the connection-axis
@@ -186,6 +205,14 @@ Keep these three create-and-navigate cuts separate:
    It cannot receive the earlier delta because it did not exist then. If its
    authoritative initial snapshot is empty, that is a defect—do not wait for a
    future live frame to repair it.
+
+> **If you searched for a “Router-navigation recipe for settled mutations that must survive page replacement”:** this client-side composition is profile-neutral.
+> Snapback does not currently ship a `settledNavigation` helper.
+> Persist the navigation intent synchronously before page replacement,
+> resume the same idempotent operation at the destination, and gate the next authority-sensitive action on a server witness.
+> For remove/disappear flows,
+> that witness can be roster absence or the authoritative disappearance
+> setting; an abandoned component promise and navigation alone prove neither.
 
 For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
 query args and canonical/provisional identity at each render, the mutation

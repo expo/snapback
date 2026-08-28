@@ -1988,13 +1988,13 @@ id: auth.protecting-data
 order: 4
 audience: agent-first
 capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases, authority.profile.v1]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-auth/src/auth/invalidation.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/service_fence.rs, crates/snapback-engine/src/local.rs, crates/snapback-engine/src/local/authorization_acceptance.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-auth/src/auth/invalidation.rs, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/service_fence.rs, crates/snapback-engine/src/local.rs, crates/snapback-engine/src/local/authorization_acceptance.rs, crates/snapback-engine/src/manifest.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-server/src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:f73ec7e0c4e7ca412f4bc311d1cfffbe2c01a15063310fef3f0c512854166485
 ---
 
 # Protecting live and retained data
@@ -2143,9 +2143,21 @@ cannot carry the table policy, codegen refuses it with
 
 ### Authorize first, then elevate the exact handler read
 
+<!-- diagnostic-primary: SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE -->
+
 Named JavaScript queries and mutations are trusted server code, but ordinary
 `ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
 check, owner or membership visibility still hides the row.
+
+Search vocabulary: elevated reads can't hide in helper modules; defineJsQuery elevatedReads refused on inline handlers.
+
+If you searched for “elevated reads can't hide in helper modules” or
+“`defineJsQuery elevatedReads` refused on inline handlers,” the admitted inline
+shape is below: perform the permission check and keep every
+`ctx.db.elevated...` call directly in the handler expression. Do not move the
+read behind a helper; codegen cannot classify that authority site.
+`elevatedReads:` is metadata for module-form handlers, not an inline-handler
+repair. Explicit and Familiar handlers normalize to this same placement rule.
 
 <!-- since: 0.1.23 -->
 

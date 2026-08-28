@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:428aa197d62f20cf2f75e2e653a306c5e563638de961bfec1413a99cd2fd402a"
+    "sourceDigest": "sha256:ca49e4818b53670ee19b261624fce3d515be440409caea0d664e65ddd5ebeea2"
   },
   "limits": {
     "lookupBytes": 16384
@@ -14,7 +14,7 @@
     "receivedSites": 378,
     "reservedSites": 11,
     "httpClassified": 1702,
-    "guideAnchored": 472,
+    "guideAnchored": 473,
     "environmentVariables": 188,
     "environmentSites": 356
   },
@@ -66,7 +66,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5402,
+          "line": 5417,
           "column": 14
         },
         {
@@ -13133,7 +13133,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5385,
+          "line": 5400,
           "column": 14
         }
       ],
@@ -14460,7 +14460,7 @@
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5118,
+          "line": 5133,
           "column": 14
         },
         {
@@ -20257,7 +20257,7 @@
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6110,
+          "line": 6125,
           "column": 49
         },
         {
@@ -24628,7 +24628,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7002,
+          "line": 7017,
           "column": 14
         },
         {
@@ -24649,42 +24649,42 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6902,
-          "column": 14
-        },
-        {
-          "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6909,
+          "line": 6917,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
           "line": 6924,
+          "column": 14
+        },
+        {
+          "file": "crates/snapback-engine/src/runtime/host_glue.rs",
+          "line": 6939,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6934,
+          "line": 6949,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6945,
+          "line": 6960,
           "column": 22
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6958,
+          "line": 6973,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6969,
+          "line": 6984,
           "column": 22
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6995,
+          "line": 7010,
           "column": 14
         },
         {
@@ -24710,7 +24710,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6982,
+          "line": 6997,
           "column": 14
         },
         {
@@ -26620,7 +26620,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5349,
+          "line": 5364,
           "column": 18
         },
         {
@@ -27999,7 +27999,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7049,
+          "line": 7064,
           "column": 14
         },
         {
@@ -30953,7 +30953,6 @@
         "/_snapback/guide/clients/react-expo.md#start-the-url-first-development-loop",
         "/_snapback/guide/start/crud-dashboard.md#scripts",
         "/_snapback/guide/start/expo-chat.md#the-loop",
-        "/_snapback/guide/start/media-feed.md#scripts",
         "/_snapback/guide/start/react.md#the-loop"
       ]
     },
@@ -32680,8 +32679,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/surfaces.md#act-on-every-surface-refusal",
+      "guideAnchor": "/_snapback/guide/backend/media-happy-paths.md#path-2-attach-a-bounded-media-collection",
       "guideAnchors": [
+        "/_snapback/guide/backend/media-happy-paths.md#path-2-attach-a-bounded-media-collection",
         "/_snapback/guide/clients/surfaces.md#act-on-every-surface-refusal"
       ]
     },
@@ -39890,8 +39890,10 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read",
+      "guideAnchors": [
+        "/_snapback/guide/auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read"
+      ]
     },
     "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED": {
       "code": "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED",
@@ -48485,7 +48487,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7092,
+          "line": 7107,
           "column": 58
         },
         {
@@ -48516,7 +48518,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6673,
+          "line": 6688,
           "column": 14
         },
         {
@@ -48573,12 +48575,12 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6181,
+          "line": 6196,
           "column": 30
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6206,
+          "line": 6221,
           "column": 14
         },
         {
@@ -48618,17 +48620,17 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6545,
+          "line": 6560,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6630,
+          "line": 6645,
           "column": 25
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7190,
+          "line": 7205,
           "column": 15
         },
         {
@@ -48850,27 +48852,27 @@
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6867,
+          "line": 6882,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6879,
+          "line": 6894,
           "column": 14
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6892,
+          "line": 6907,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7023,
+          "line": 7038,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7037,
+          "line": 7052,
           "column": 26
         },
         {
@@ -48910,7 +48912,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6721,
+          "line": 6736,
           "column": 18
         },
         {
@@ -48940,12 +48942,12 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6706,
+          "line": 6721,
           "column": 18
         },
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6713,
+          "line": 6728,
           "column": 18
         },
         {
@@ -48980,7 +48982,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6759,
+          "line": 6774,
           "column": 41
         }
       ],
@@ -49055,7 +49057,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6732,
+          "line": 6747,
           "column": 22
         },
         {
@@ -49080,7 +49082,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 7299,
+          "line": 7314,
           "column": 10
         }
       ],
@@ -49140,7 +49142,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6252,
+          "line": 6267,
           "column": 22
         }
       ],
@@ -49155,7 +49157,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6270,
+          "line": 6285,
           "column": 10
         }
       ],
@@ -49303,7 +49305,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6746,
+          "line": 6761,
           "column": 22
         },
         {
@@ -49374,7 +49376,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 6493,
+          "line": 6508,
           "column": 10
         },
         {
@@ -86280,7 +86282,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5096,
+          "line": 5098,
           "column": 18
         },
         {
@@ -90205,7 +90207,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/runtime/host_glue.rs",
-          "line": 5468,
+          "line": 5483,
           "column": 43,
           "kind": "indirect-read"
         },
