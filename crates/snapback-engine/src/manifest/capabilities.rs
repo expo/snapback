@@ -160,6 +160,7 @@ pub(crate) struct PackagedStoreBinaryIdentityV1 {
     pub(crate) git_commit: String,
     pub(crate) git_dirty: bool,
     pub(crate) build_profile: String,
+    pub(crate) build_recipe: crate::identity::CargoBuildRecipe,
     pub(crate) build_distribution: String,
 }
 
@@ -260,6 +261,7 @@ pub(super) fn packaged_store_identity_facts_are_qualified(
     git_commit: &str,
     git_dirty: bool,
     build_profile: &str,
+    build_recipe: &crate::identity::CargoBuildRecipe,
     build_distribution: &str,
 ) -> bool {
     crate_version == env!("CARGO_PKG_VERSION")
@@ -267,6 +269,7 @@ pub(super) fn packaged_store_identity_facts_are_qualified(
         && git_commit.bytes().all(|byte| byte.is_ascii_hexdigit())
         && !git_dirty
         && build_profile == "release"
+        && build_recipe.is_public_package_ship_recipe()
         && build_distribution == crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE
 }
 
@@ -279,6 +282,7 @@ pub fn packaged_store_runtime_identity_is_qualified(
         &identity.git_commit,
         identity.git_dirty,
         &identity.build_profile,
+        &identity.build_recipe,
         build_distribution,
     )
 }
@@ -306,6 +310,7 @@ pub fn stamp_packaged_store_qualification_receipt(
             git_commit: identity.git_commit.clone(),
             git_dirty: identity.git_dirty,
             build_profile: identity.build_profile.clone(),
+            build_recipe: identity.build_recipe.clone(),
             build_distribution: build_distribution.to_owned(),
         },
         embedded_carrier_sha256: sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES),
@@ -320,6 +325,7 @@ pub(super) fn packaged_store_qualification_receipt_is_qualified(
     git_commit: &str,
     git_dirty: bool,
     build_profile: &str,
+    build_recipe: &crate::identity::CargoBuildRecipe,
     build_distribution: &str,
 ) -> bool {
     if !packaged_store_identity_facts_are_qualified(
@@ -327,6 +333,7 @@ pub(super) fn packaged_store_qualification_receipt_is_qualified(
         git_commit,
         git_dirty,
         build_profile,
+        build_recipe,
         build_distribution,
     ) {
         return false;
@@ -342,6 +349,11 @@ pub(super) fn packaged_store_qualification_receipt_is_qualified(
         && receipt.binary_identity.git_commit == git_commit
         && receipt.binary_identity.git_dirty == git_dirty
         && receipt.binary_identity.build_profile == build_profile
+        && receipt.binary_identity.build_recipe == *build_recipe
+        && receipt
+            .binary_identity
+            .build_recipe
+            .is_public_package_ship_recipe()
         && receipt.binary_identity.build_distribution == build_distribution
         && receipt.embedded_carrier_sha256
             == sha256_prefixed(LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES)
@@ -834,6 +846,7 @@ pub(super) fn local_persistent_store_publication_verified_for(
     git_commit: &str,
     git_dirty: bool,
     build_profile: &str,
+    build_recipe: &crate::identity::CargoBuildRecipe,
     qualification_receipt_bytes: Option<&[u8]>,
     carrier_bytes: &[u8],
     anchor_bytes: &[u8],
@@ -862,6 +875,7 @@ pub(super) fn local_persistent_store_publication_verified_for(
                     git_commit,
                     git_dirty,
                     build_profile,
+                    build_recipe,
                     build_distribution,
                 )
             }),
@@ -1154,6 +1168,7 @@ pub(super) fn local_persistent_store_publication_verified() -> bool {
         "unknown",
         true,
         "debug",
+        &crate::identity::binary_identity().build_recipe,
         None,
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -1172,6 +1187,7 @@ pub trait TargetCapabilityFactsExt: Sized {
         git_commit: &str,
         git_dirty: bool,
         build_profile: &str,
+        build_recipe: &crate::identity::CargoBuildRecipe,
         qualification_receipt_bytes: Option<&[u8]>,
         qualification_mode: bool,
     ) -> Self;
@@ -1201,6 +1217,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
             &identity.git_commit,
             identity.git_dirty,
             &identity.build_profile,
+            &identity.build_recipe,
             qualification_receipt_bytes,
             qualification_mode,
         )
@@ -1213,6 +1230,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
             "unknown",
             true,
             "debug",
+            &crate::identity::binary_identity().build_recipe,
             None,
             false,
         )
@@ -1223,6 +1241,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
         git_commit: &str,
         git_dirty: bool,
         build_profile: &str,
+        build_recipe: &crate::identity::CargoBuildRecipe,
         qualification_receipt_bytes: Option<&[u8]>,
         qualification_mode: bool,
     ) -> Self {
@@ -1253,6 +1272,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
             git_commit,
             git_dirty,
             build_profile,
+            build_recipe,
             qualification_receipt_bytes,
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
             LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -1270,6 +1290,7 @@ impl TargetCapabilityFactsExt for TargetCapabilityFacts {
                 git_commit,
                 git_dirty,
                 build_profile,
+                build_recipe,
                 build_distribution,
             )
             && local_persistent_store_contributor_chain_verified(

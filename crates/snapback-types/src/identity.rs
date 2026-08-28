@@ -20,6 +20,36 @@ use serde::{Deserialize, Serialize};
 pub const BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE: &str = "contributor-source";
 pub const BUILD_DISTRIBUTION_PUBLIC_PACKAGE: &str = "public-package";
 
+/// Cargo's build-originated recipe stamp. `build_profile` retains its
+/// historical debug/release meaning; this fact carries the named Cargo
+/// profile and the closed settings a public package must prove separately.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CargoBuildRecipe {
+    pub schema_version: String,
+    pub cargo_profile: String,
+    pub inherits: Option<String>,
+    pub incremental: Option<bool>,
+    pub lto: Option<String>,
+    pub codegen_units: Option<u32>,
+    pub opt_level: Option<u32>,
+    pub strip: Option<String>,
+}
+
+impl CargoBuildRecipe {
+    /// Whether these build-originated facts are the closed public ship recipe.
+    pub fn is_public_package_ship_recipe(&self) -> bool {
+        self.schema_version == "snapback.cargo-build-recipe.v1"
+            && self.cargo_profile == "production"
+            && self.inherits.as_deref() == Some("release")
+            && self.incremental == Some(false)
+            && self.lto.as_deref() == Some("fat")
+            && self.codegen_units == Some(1)
+            && self.opt_level == Some(3)
+            && self.strip.as_deref() == Some("symbols")
+    }
+}
+
 /// The server-binary identity carried on the ungated `/health` payload.
 ///
 /// Fields are camelCase on the wire to match the camelCase inspect payload the
@@ -39,6 +69,9 @@ pub struct BinaryIdentity {
     pub git_dirty: bool,
     /// `"debug"` or `"release"`.
     pub build_profile: String,
+    /// Actual Cargo profile plus its declared ship-recipe settings. This is
+    /// stamped by the build-identity leaf and copied by receipts and seals.
+    pub build_recipe: CargoBuildRecipe,
     /// A per-process boot id: distinct on every process start, so a restart of
     /// the same binary is observable (the nonce changes) even when the build
     /// identity is unchanged. Not part of the "is this my binary?" verdict — a

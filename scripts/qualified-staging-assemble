@@ -36,12 +36,12 @@ cp -R "$SNAPBACK_STAGING_LINUX_ARTIFACT/." "$artifact_root/linux/"
 cp -R "$SNAPBACK_STAGING_DARWIN_ARTIFACT/." "$artifact_root/darwin/"
 
 darwin_identity="$("$artifact_root/darwin/bin/snapback" build-identity)"
-DARWIN_IDENTITY="$darwin_identity" SOURCE_REVISION="$source_revision" node -e '
+DARWIN_IDENTITY="$darwin_identity" SOURCE_REVISION="$source_revision" node --input-type=module -e '
+  import { assertPublicPackageBuildIdentity } from "./scripts/runtime-package-authority.mjs";
   const identity = JSON.parse(process.env.DARWIN_IDENTITY);
+  assertPublicPackageBuildIdentity(identity);
   if (identity?.binary?.gitCommit !== process.env.SOURCE_REVISION
-      || identity.binary.gitDirty !== false
-      || identity.binary.buildProfile !== "release"
-      || identity.buildDistribution !== "public-package") {
+      || identity.binary.gitDirty !== false) {
     throw new Error("transported macOS runtime identity drifted");
   }
 '

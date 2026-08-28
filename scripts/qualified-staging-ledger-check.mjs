@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PACKAGE_INVENTORY } from './snapback-publish-core.mjs';
+import { assertPublicPackageBuildRecipe } from './runtime-package-authority.mjs';
 
 const RECEIPT_ENTRY = 'package/bin/packaged-store-qualification.receipt.json';
 const RECEIPT_SCHEMA_VERSION = 'snapback.packaged-store-qualification.v1';
@@ -47,6 +48,13 @@ function assertRuntimeReceipt({ packageOut, packageRow }) {
       || receipt?.capabilityId !== RECEIPT_CAPABILITY_ID) {
     throw new Error(
       `qualified staging runtime package ${packageName} store qualification receipt must have schemaVersion '${RECEIPT_SCHEMA_VERSION}' and capabilityId '${RECEIPT_CAPABILITY_ID}'`,
+    );
+  }
+  try {
+    assertPublicPackageBuildRecipe(receipt?.binaryIdentity?.buildRecipe);
+  } catch (error) {
+    throw new Error(
+      `qualified staging runtime package ${packageName} store qualification receipt does not carry the production build recipe: ${error.message}`,
     );
   }
 }

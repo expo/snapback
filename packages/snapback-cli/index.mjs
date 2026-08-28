@@ -249,12 +249,8 @@ function sourceCheckoutRoot(cliPackageRoot = packageRoot) {
   }
 }
 
-function sourceRuntimeRepairCommands(root, binary) {
-  return [
-    join(root, 'scripts', 'bootstrap-ibex-runtime'),
-    `cargo build --release --bin snapback --manifest-path ${JSON.stringify(join(root, 'Cargo.toml'))}`,
-    `node ${JSON.stringify(join(root, 'packages/snapback-cli/runtime-readiness.mjs'))} issue --root ${JSON.stringify(root)} --binary ${JSON.stringify(binary)}`,
-  ];
+function sourceRuntimeRepairCommands(root, _binary) {
+  return [join(root, 'scripts', 'assemble-runtime-package')];
 }
 
 // A committed external workspace containing the CLI package is visible repository state, unlike
@@ -9941,6 +9937,7 @@ export const __test = {
   runtimePackages: Object.fromEntries(RUNTIME_PACKAGES),
   runtimeReadinessRoot,
   sourceCheckoutRoot,
+  sourceRuntimeRepairCommands,
   runtimeSpawnEnvironment,
   scrubDynamicLoaderEnvironment,
   withExternalClientOrigins,

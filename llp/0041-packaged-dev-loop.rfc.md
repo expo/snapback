@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (ship/source custody split repaired):** 2026-08-28
+(`assemble-runtime-package` now rebuilds and sibling-qualifies the ordinary
+release source runtime before building the separate production package image;
+public-package identity carries and enforces the build-originated production
+recipe.)
 **Revised (0.1.29 published-closure catch-up):** 2026-08-28 (`newestPublished`
 advances to already-published 0.1.29; `newestQualified` stays 0.1.27 because
 0.1.28/0.1.29 have no holding tag and 0.1.28 shipped receiptless. The
@@ -540,9 +545,11 @@ Recovery follows custody. An installed-package seal refusal names the exact
 platform runtime package to reinstall from the consumer's lockfile; package
 bytes are not requalified or rebuilt in place. A contributor/source-checkout
 refusal names `scripts/assemble-runtime-package`, which refuses a dirty tree
-up front and performs bootstrap, a clean production-profile build, locked admin
-install and build, then staged host-package assembly. This keeps the binary,
-console manifest, and package seal bound to one source revision.
+up front and performs bootstrap, a clean ordinary-release build plus sibling
+readiness qualification for source custody, then a separate production-profile
+build, locked admin install/build, and staged host-package assembly. This keeps
+the source receipt and the package binary, console manifest, and package seal
+on their distinct custody lanes while binding both to one source revision.
 
 ### Package boundaries
 

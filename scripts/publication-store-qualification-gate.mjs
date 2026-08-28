@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { validateAdminConsoleSnapshot } from '../packages/snapback-cli/admin-snapshot.mjs';
 import { codegenRequiredTargetCapabilityIdsCanonicalJson } from '../packages/snapback-codegen/index.mjs';
+import { assertPublicPackageBuildRecipe } from './runtime-package-authority.mjs';
 
 export const STORE_RECEIPT_ENTRY =
   'package/bin/packaged-store-qualification.receipt.json';
@@ -494,6 +495,14 @@ export function assertStagedRuntimeStoreQualification({ stagedDir, ledger }) {
     const bytes = extractReceipt(join(resolve(stagedDir), row.tarball), row.name);
     const receipt = parseReceipt(bytes, row.name);
     const identity = receipt.binaryIdentity;
+    try {
+      assertPublicPackageBuildRecipe(identity?.buildRecipe);
+    } catch (error) {
+      throw codedError(
+        'SNAPBACK_PUBLICATION_STORE_RECEIPT_IDENTITY_DRIFTED',
+        `staged runtime package ${row.name} store qualification receipt does not carry the production build recipe: ${error.message}`,
+      );
+    }
     if (identity?.gitCommit !== ledger.revision
         || identity?.gitDirty !== false
         || identity?.buildProfile !== 'release'

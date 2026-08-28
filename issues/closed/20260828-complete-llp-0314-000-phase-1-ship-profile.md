@@ -35,3 +35,15 @@ bytes and `cargo build --profile production --bin snapback` produced
 102,657,760 bytes: 54,538,160 bytes smaller (34.69%). The production binary
 passed the restricted no-eval handler-VM `runtime-qualify` probe with dynamic
 loader overrides scrubbed.
+
+A follow-up blind review found two material closure gaps and they were repaired
+before integration. `assemble-runtime-package` now rebuilds and sibling-
+qualifies `target/release/snapback` for linked source custody before building
+the distinct production package image. The binary identity now carries a
+closed `snapback.cargo-build-recipe.v1` fact sourced by the build-identity leaf;
+public-package authority, qualification bindings, runtime seals, and Linux
+cross-host attestation transport preserve and verify it. Packaged-store
+receipts and staging-ledger runtime rows copy the same fact, and both
+publication and installed-closure validators recheck the closed recipe. An
+ordinary release identity and every Phase 1c override class are covered by
+negative tests.

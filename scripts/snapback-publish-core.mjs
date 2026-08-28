@@ -15,6 +15,7 @@ import {
   PROMOTION_PACKAGE_NAMES,
 } from '../packages/snapback-publication-authority/protocol.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import { assertPublicPackageBuildRecipe } from './runtime-package-authority.mjs';
 
 export {
   LEGACY_PROMOTION_PACKAGE_NAMES,
@@ -219,6 +220,7 @@ const QUALIFIED_PACKAGE_KEYS = [
   'peerDependencies',
   'publicationOrder',
   'runtimeBinarySha256',
+  'runtimeBuildRecipe',
   'runtimeSupportSha256',
   'sha256',
   'sourceName',
@@ -240,6 +242,7 @@ const CANDIDATE_PACKAGE_KEYS = [
   'registrySha256',
   'registryShasum',
   'runtimeBinarySha256',
+  'runtimeBuildRecipe',
   'runtimeSupportSha256',
   'sha256',
   'sourceName',
@@ -1049,6 +1052,10 @@ function validatePackageRows(ledger, keys, statuses) {
     ]) {
       if (runtime) assertSha256(value, `${row.name}.${field}`);
       else if (value !== null) throw new TypeError(`${row.name}.${field} must be null`);
+    }
+    if (runtime) assertPublicPackageBuildRecipe(row.runtimeBuildRecipe);
+    else if (row.runtimeBuildRecipe !== null) {
+      throw new TypeError(`${row.name}.runtimeBuildRecipe must be null`);
     }
     validateInternalDependencyClosure(row, ledger.version, ledger.scopePreset);
   }

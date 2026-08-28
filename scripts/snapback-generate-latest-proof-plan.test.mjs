@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -46,7 +47,15 @@ const rowsByName = new Map(historicalLedger.packages.map((row) => [row.name, row
 const ledger = structuredClone(historicalLedger);
 ledger.packages = PACKAGE_INVENTORY.map(([sourceName, name], publicationOrder) => {
   const existing = rowsByName.get(name);
-  if (existing) return { ...existing, publicationOrder };
+  if (existing) {
+    return {
+      ...existing,
+      publicationOrder,
+      runtimeBuildRecipe: sourceName.startsWith('@expo/snapback-runtime-')
+        ? PUBLIC_PACKAGE_BUILD_RECIPE
+        : null,
+    };
+  }
   const sha256 = '5'.repeat(64);
   return {
     publicationOrder,
@@ -60,6 +69,7 @@ ledger.packages = PACKAGE_INVENTORY.map(([sourceName, name], publicationOrder) =
     tarball: 'expo-snapback-expo-0.1.7.tgz',
     sha256,
     runtimeBinarySha256: null,
+    runtimeBuildRecipe: null,
     runtimeSupportSha256: null,
     files: 1,
     unpackedSize: 1,

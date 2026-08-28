@@ -3,6 +3,16 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 export const PUBLIC_PACKAGE_BUILD_DISTRIBUTION = 'public-package';
+export const PUBLIC_PACKAGE_BUILD_RECIPE = Object.freeze({
+  schemaVersion: 'snapback.cargo-build-recipe.v1',
+  cargoProfile: 'production',
+  inherits: 'release',
+  incremental: false,
+  lto: 'fat',
+  codegenUnits: 1,
+  optLevel: 3,
+  strip: 'symbols',
+});
 const CONTRIBUTOR_SOURCE_BUILD_DISTRIBUTION = 'contributor-source';
 export const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
   'packaged-store-qualification.receipt.json';
@@ -270,6 +280,26 @@ export function assertRuntimePackageBuildIdentity(identity) {
   return identity;
 }
 
+export function assertPublicPackageBuildRecipe(recipe) {
+  if (
+    recipe === null
+    || typeof recipe !== 'object'
+    || Array.isArray(recipe)
+    || Object.keys(recipe).sort().join(',')
+      !== Object.keys(PUBLIC_PACKAGE_BUILD_RECIPE).sort().join(',')
+    || !Object.entries(PUBLIC_PACKAGE_BUILD_RECIPE).every(
+      ([key, expected]) => Object.is(recipe[key], expected),
+    )
+  ) {
+    throw packageIdentityError(
+      'native runtime does not carry the build-originated production recipe; '
+      + 'public package assembly requires Cargo profile production with the declared '
+      + 'LTO, stripping, codegen-unit, optimization, and incremental settings',
+    );
+  }
+  return recipe;
+}
+
 export function assertPublicPackageBuildIdentity(identity) {
   assertRuntimePackageBuildIdentity(identity);
   if (identity.buildDistribution !== PUBLIC_PACKAGE_BUILD_DISTRIBUTION) {
@@ -278,5 +308,6 @@ export function assertPublicPackageBuildIdentity(identity) {
       + 'without PackageCapabilityAttestationV1 the package must retain relation/activity GAPs',
     );
   }
+  assertPublicPackageBuildRecipe(identity.binary.buildRecipe);
   return identity;
 }

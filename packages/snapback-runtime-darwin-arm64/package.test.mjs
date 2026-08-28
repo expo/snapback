@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import {
   PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
   PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
+  PUBLIC_PACKAGE_BUILD_RECIPE,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   assertPublicPackageBuildIdentity,
 } from '../../scripts/runtime-package-authority.mjs';
@@ -51,6 +52,7 @@ const buildIdentity = {
     gitCommit: sourceRevision,
     gitDirty: false,
     buildProfile: 'release',
+    buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
     startupNonce: 'build-identity-process',
   },
   buildDistribution: 'public-package',
@@ -82,7 +84,8 @@ console.log(JSON.stringify({
   ok,
   binary: {
     crateVersion: '0.1.0', gitCommit: '${sourceRevision}', gitDirty: false,
-    buildProfile: 'release', startupNonce: 'qualification-process'
+    buildProfile: 'release', buildRecipe: ${JSON.stringify(PUBLIC_PACKAGE_BUILD_RECIPE)},
+    startupNonce: 'qualification-process'
   },
   ...(ok ? {} : { diagnostic: { code: 'SNAPBACK_RUNTIME_CREATE_FAILED', message: 'fixture refusal' } })
 }));
@@ -378,6 +381,7 @@ process.exit(ok ? 0 : 1);
 
   const publicPackageIdentity = structuredClone(fixtureIdentity);
   publicPackageIdentity.buildDistribution = 'public-package';
+  publicPackageIdentity.binary.buildRecipe = PUBLIC_PACKAGE_BUILD_RECIPE;
   writeFileSync(sourceBinary, fixtureBinarySourceFor(publicPackageIdentity));
   chmodSync(sourceBinary, 0o755);
   const nativePrepared = prepareDarwinRuntimePackage({

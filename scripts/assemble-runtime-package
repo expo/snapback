@@ -2,15 +2,16 @@
 
 set -euo pipefail
 
-# @ref LLP 0041#runtime-distribution — contributor repair rebuilds one clean,
-# source-matched binary/admin/native closure before the runtime package swaps.
+# @ref LLP 0041#runtime-distribution — contributor repair rebuilds the clean
+# release source-custody binary and the separate production package closure.
 
 usage() {
   cat <<'EOF'
 Usage: scripts/assemble-runtime-package [--help]
 
 Rebuild and assemble the host platform runtime package from a clean Snapback
-checkout. The public package seal refuses dirty or source-mismatched inputs.
+checkout. This also repairs and qualifies the linked CLI's ordinary release
+binary. The public package seal refuses dirty or source-mismatched inputs.
 EOF
 }
 
@@ -54,29 +55,49 @@ case "$(uname -s):$(uname -m)" in
     ;;
 esac
 
-log 'step 1/4: preparing and qualifying the vendored Ibex/Hermes runtime'
+log 'step 1/5: preparing and qualifying the vendored Ibex/Hermes runtime'
 if ! scripts/bootstrap-ibex-runtime; then
-  fail 'step 1/4 failed: scripts/bootstrap-ibex-runtime did not prepare a qualified runtime'
+  fail 'step 1/5 failed: scripts/bootstrap-ibex-runtime did not prepare a qualified runtime'
 fi
 
-log 'step 2/4: building the clean production binary'
+log 'step 2/5: building and qualifying the clean release source runtime'
+if ! cargo build --release --bin snapback; then
+  fail 'step 2/5 failed: cargo build --release --bin snapback did not produce the release source runtime'
+fi
+if [ "$(uname -s)" = 'Linux' ]; then
+  mkdir -p target/lib
+  cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so
+fi
+if ! node packages/snapback-cli/runtime-readiness.mjs issue \
+    --root "$ROOT" \
+    --binary "$ROOT/target/release/snapback" \
+    --issuer source-runtime-repair; then
+  fail 'step 2/5 failed: the release source runtime did not qualify or receive its sibling readiness receipt'
+fi
+if ! node packages/snapback-cli/runtime-readiness.mjs verify \
+    --root "$ROOT" \
+    --binary "$ROOT/target/release/snapback"; then
+  fail 'step 2/5 failed: the release source runtime readiness receipt did not reopen'
+fi
+
+log 'step 3/5: building the clean production package binary'
 if ! cargo build --profile production --bin snapback; then
-  fail 'step 2/4 failed: cargo build --profile production --bin snapback did not produce the production runtime'
+  fail 'step 3/5 failed: cargo build --profile production --bin snapback did not produce the production package runtime'
 fi
 
-log 'step 3/4: installing the locked admin console dependencies'
+log 'step 4/5: installing the locked admin console dependencies'
 if ! bun install --frozen-lockfile --cwd admin-ui; then
-  fail 'step 3/4 failed: the locked admin-ui dependency install failed'
+  fail 'step 4/5 failed: the locked admin-ui dependency install failed'
 fi
-log 'step 3/4: building the source-matched admin console snapshot'
+log 'step 4/5: building the source-matched admin console snapshot'
 if ! bun run --cwd admin-ui build; then
-  fail 'step 3/4 failed: the source-matched admin-ui build failed'
+  fail 'step 4/5 failed: the source-matched admin-ui build failed'
 fi
 
-log "step 4/4: validating and swapping ${runtime_package}"
+log "step 5/5: validating and swapping ${runtime_package}"
 if ! node "${runtime_package}/prepare-runtime.mjs" \
     --source-test-staging --strict-clean-release; then
-  fail "step 4/4 failed: ${runtime_package} was not assembled; any prior valid assembly was retained"
+  fail "step 5/5 failed: ${runtime_package} was not assembled; any prior valid assembly was retained"
 fi
 
 log "assembled ${runtime_package}"

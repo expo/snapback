@@ -721,12 +721,26 @@ fn single_table_publication_is_experimental_and_evidence_gated() {
 
 const PACKAGED_STORE_TEST_GIT_COMMIT: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+fn packaged_store_test_recipe() -> crate::identity::CargoBuildRecipe {
+    crate::identity::CargoBuildRecipe {
+        schema_version: "snapback.cargo-build-recipe.v1".to_owned(),
+        cargo_profile: "production".to_owned(),
+        inherits: Some("release".to_owned()),
+        incremental: Some(false),
+        lto: Some("fat".to_owned()),
+        codegen_units: Some(1),
+        opt_level: Some(3),
+        strip: Some("symbols".to_owned()),
+    }
+}
+
 fn packaged_store_test_receipt_bytes() -> Vec<u8> {
     let identity = crate::identity::BinaryIdentity {
         crate_version: env!("CARGO_PKG_VERSION").to_owned(),
         git_commit: PACKAGED_STORE_TEST_GIT_COMMIT.to_owned(),
         git_dirty: false,
         build_profile: "release".to_owned(),
+        build_recipe: packaged_store_test_recipe(),
         startup_nonce: "test-nonce".to_owned(),
     };
     let receipt = stamp_packaged_store_qualification_receipt(
@@ -760,6 +774,7 @@ fn public_packaged_store_verified(
         git_commit,
         git_dirty,
         build_profile,
+        &packaged_store_test_recipe(),
         receipt,
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -780,6 +795,7 @@ fn receipt_qualified_public_package_matches_contributor_core_capabilities() {
         PACKAGED_STORE_TEST_GIT_COMMIT,
         false,
         "release",
+        &packaged_store_test_recipe(),
         Some(&receipt),
         false,
     );
@@ -828,6 +844,21 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         false,
         "release",
     ));
+    let mut ordinary_release_recipe = packaged_store_test_recipe();
+    ordinary_release_recipe.cargo_profile = "release".to_owned();
+    assert!(!local_persistent_store_publication_verified_for(
+        crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+        PACKAGED_STORE_TEST_GIT_COMMIT,
+        false,
+        "release",
+        &ordinary_release_recipe,
+        Some(&valid_receipt),
+        LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+        LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
+        LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+        LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+        LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+    ));
     // @ref LLP 0110#single-table-public-package-advertisement-amendment--2026-08-06
     // — public packages without the qualification receipt still fail.
     assert!(!public_packaged_store_verified(
@@ -844,6 +875,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         "ignored",
         true,
         "debug",
+        &packaged_store_test_recipe(),
         None,
         &tampered_carrier,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -858,6 +890,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         "ignored",
         true,
         "debug",
+        &packaged_store_test_recipe(),
         None,
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
         &tampered_anchor,
@@ -881,6 +914,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
             "ignored",
             true,
             "debug",
+            &packaged_store_test_recipe(),
             None,
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
             &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
@@ -893,6 +927,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
             PACKAGED_STORE_TEST_GIT_COMMIT,
             false,
             "release",
+            &packaged_store_test_recipe(),
             Some(&valid_receipt),
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
             &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
@@ -906,6 +941,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         PACKAGED_STORE_TEST_GIT_COMMIT,
         false,
         "release",
+        &packaged_store_test_recipe(),
         Some(&valid_receipt),
         &tampered_carrier,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -941,7 +977,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         "debug",
     ));
 
-    let receipt_mutations: [fn(&mut Value); 17] = [
+    let receipt_mutations: [fn(&mut Value); 18] = [
         |receipt| receipt["schemaVersion"] = json!("snapback.packaged-store-qualification.v2"),
         |receipt| receipt["capabilityId"] = json!("bounded_children_v1"),
         |receipt| receipt["date"] = json!("2026-02-30"),
@@ -949,6 +985,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         |receipt| receipt["binaryIdentity"]["gitCommit"] = json!("b".repeat(40)),
         |receipt| receipt["binaryIdentity"]["gitDirty"] = json!(true),
         |receipt| receipt["binaryIdentity"]["buildProfile"] = json!("debug"),
+        |receipt| receipt["binaryIdentity"]["buildRecipe"]["cargoProfile"] = json!("release"),
         |receipt| {
             receipt["binaryIdentity"]["buildDistribution"] =
                 json!(crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE)
@@ -982,6 +1019,7 @@ fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
         PACKAGED_STORE_TEST_GIT_COMMIT,
         false,
         "release",
+        &packaged_store_test_recipe(),
         Some(&valid_receipt),
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
         LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
@@ -1047,6 +1085,7 @@ fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest(
         PACKAGED_STORE_TEST_GIT_COMMIT,
         false,
         "release",
+        &packaged_store_test_recipe(),
         None,
         true,
     );
@@ -1085,6 +1124,7 @@ fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest(
             PACKAGED_STORE_TEST_GIT_COMMIT,
             false,
             "release",
+            &packaged_store_test_recipe(),
             None,
             false,
         ),
@@ -1104,6 +1144,7 @@ fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest(
             PACKAGED_STORE_TEST_GIT_COMMIT,
             false,
             "release",
+            &packaged_store_test_recipe(),
             None,
             true,
         ),
@@ -1115,6 +1156,7 @@ fn packaged_store_qualification_mode_is_public_package_only_and_manifest_honest(
             "unknown",
             true,
             "debug",
+            &packaged_store_test_recipe(),
             None,
             false,
         ),

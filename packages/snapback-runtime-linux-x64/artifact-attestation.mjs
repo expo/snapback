@@ -32,6 +32,7 @@ const BUILD_IDENTITY_KEYS = [
 ];
 const BINARY_IDENTITY_KEYS = [
   'buildProfile',
+  'buildRecipe',
   'crateVersion',
   'gitCommit',
   'gitDirty',
@@ -157,6 +158,7 @@ function stableBinaryIdentity(identity) {
     gitCommit: identity?.gitCommit ?? null,
     gitDirty: identity?.gitDirty ?? null,
     buildProfile: identity?.buildProfile ?? null,
+    buildRecipe: identity?.buildRecipe ?? null,
   };
 }
 

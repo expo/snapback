@@ -14,6 +14,7 @@ import test from 'node:test';
 
 import { writeAdminConsoleSnapshotManifest } from '../packages/snapback-cli/admin-snapshot.mjs';
 import { produceRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 import { verifyPackedRuntimeSeal } from './snapback-publish.mjs';
 
 test('publication refuses mismatched and legacy Linux catalog proofs', () => {
@@ -50,6 +51,7 @@ test('publication refuses mismatched and legacy Linux catalog proofs', () => {
         gitCommit: sourceRevision,
         gitDirty: false,
         buildProfile: 'release',
+        buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
         startupNonce: 'build-identity-fixture',
       },
     };

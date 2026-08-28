@@ -35,6 +35,7 @@ import {
   verifyRuntimePackageSeal,
   verifyRuntimeReadinessReceipt,
 } from '../packages/snapback-cli/runtime-readiness.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from '../scripts/runtime-package-authority.mjs';
 
 const CLI = new URL('../packages/snapback-cli/runtime-readiness.mjs', import.meta.url).pathname;
 
@@ -83,6 +84,7 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       gitCommit: sourceRevision,
       gitDirty: false,
       buildProfile: 'release',
+      buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
       startupNonce: 'build-identity-process',
     },
     buildDistribution: 'public-package',

@@ -12,12 +12,16 @@ import test from 'node:test';
 
 import { checkQualifiedStagingLedger } from './qualified-staging-ledger-check.mjs';
 import { PACKAGE_INVENTORY } from './snapback-publish-core.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 
 const SOURCE_REVISION = 'a'.repeat(40);
 const CANDIDATE_TAG = `bakeoff-0-1-99-${SOURCE_REVISION.slice(0, 12)}`;
 const VALID_RECEIPT = Object.freeze({
   schemaVersion: 'snapback.packaged-store-qualification.v1',
   capabilityId: 'single_table_v1',
+  binaryIdentity: Object.freeze({
+    buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
+  }),
 });
 
 function writeRuntimeTarball(packageOut, packageName, receipt) {
@@ -120,6 +124,18 @@ test('valid store receipts in every runtime tarball close the ledger', () => {
 for (const [label, receipt] of [
   ['wrong schemaVersion', { ...VALID_RECEIPT, schemaVersion: 'snapback.packaged-store-qualification.v2' }],
   ['wrong capabilityId', { ...VALID_RECEIPT, capabilityId: 'bounded_children_v1' }],
+  [
+    'ordinary release recipe',
+    {
+      ...VALID_RECEIPT,
+      binaryIdentity: {
+        buildRecipe: {
+          ...PUBLIC_PACKAGE_BUILD_RECIPE,
+          cargoProfile: 'release',
+        },
+      },
+    },
+  ],
 ]) {
   test(`${label} is refused`, () => {
     withFixture((packageOut) => {
@@ -132,7 +148,10 @@ for (const [label, receipt] of [
           [runtimeNames[1], VALID_RECEIPT],
         ]),
       });
-      assert.throws(() => check(packageOut), /store qualification receipt must have/u);
+      assert.throws(
+        () => check(packageOut),
+        /store qualification receipt (?:must have|does not carry)/u,
+      );
     });
   });
 }

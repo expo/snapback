@@ -50,6 +50,7 @@ import {
 } from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 import {
+  assertPublicPackageBuildRecipe,
   assertRuntimeCatalogBuildIdentityProof,
   inspectRuntimeCatalogBuildIdentity,
 } from './runtime-package-authority.mjs';
@@ -472,6 +473,14 @@ function stage(options) {
           fail(error.message, 1, error.code);
         }
       }
+      const runtimeBuildRecipe = runtimePlatform === null
+        ? null
+        : JSON.parse(execFileSync(
+          'tar',
+          ['-xzOf', tarballPath, 'package/runtime-readiness.json'],
+          { encoding: 'utf8' },
+        )).buildIdentity?.binary?.buildRecipe;
+      if (runtimePlatform !== null) assertPublicPackageBuildRecipe(runtimeBuildRecipe);
       rows.push({
         publicationOrder: rows.length,
         sourceName: sourceManifest.name,
@@ -486,6 +495,7 @@ function stage(options) {
         runtimeBinarySha256: directory.startsWith('snapback-runtime-')
           ? sha256TarEntry(tarballPath, 'package/bin/snapback')
           : null,
+        runtimeBuildRecipe,
         runtimeSupportSha256: directory === 'snapback-runtime-darwin-arm64'
           ? sha256TarEntry(
             tarballPath,

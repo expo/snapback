@@ -71,6 +71,7 @@ import {
   validateQualifiedTarballs,
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 import { stopOwnedProcessTree } from './lib/process-tree.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
@@ -1579,6 +1580,9 @@ function closedCandidateFixture() {
       runtimeBinarySha256: sourceName.startsWith('@expo/snapback-runtime-')
         ? 'b'.repeat(64)
         : null,
+      runtimeBuildRecipe: sourceName.startsWith('@expo/snapback-runtime-')
+        ? PUBLIC_PACKAGE_BUILD_RECIPE
+        : null,
       runtimeSupportSha256: sourceName.startsWith('@expo/snapback-runtime-')
         ? 'c'.repeat(64)
         : null,
@@ -1936,6 +1940,7 @@ test('qualified staging bytes require clean proofs from both platforms', () => {
       tarball: row.tarball,
       sha256: row.sha256,
       runtimeBinarySha256: row.runtimeBinarySha256,
+      runtimeBuildRecipe: row.runtimeBuildRecipe,
       runtimeSupportSha256: row.runtimeSupportSha256,
       files: row.files,
       unpackedSize: row.unpackedSize,
@@ -2193,6 +2198,7 @@ test('real publication consumes the exact qualified tarballs without restaging',
         tarball: row.tarball,
         sha256: digest,
         runtimeBinarySha256: row.runtimeBinarySha256,
+        runtimeBuildRecipe: row.runtimeBuildRecipe,
         runtimeSupportSha256: row.runtimeSupportSha256,
         files: row.files,
         unpackedSize: row.unpackedSize,

@@ -5,11 +5,14 @@
 **Systems:** Packaging, Build, Runtime, Distribution, Developer experience
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-25
-**Revised:** 2026-08-28 (Phase 1 ship-path closure: F3 is resolved across
-the public-package producer/consumer inventory; the implementation rerun
-measured 157,195,920-byte release and 102,657,760-byte stripped production
-binaries, a 54,538,160-byte / 34.69% reduction, with runtime qualification
-green.)
+**Revised:** 2026-08-28 (Phase 1 ship-path closure correction: public package
+authority now refuses an ordinary release or override-tainted production
+substitution using the build-originated `buildRecipe`; the assembler restores
+the separate release source receipt before producing the package image.)
+2026-08-28 (Phase 1 ship-path closure: F3 is resolved across the public-package
+producer/consumer inventory; the implementation rerun measured
+157,195,920-byte release and 102,657,760-byte stripped production binaries, a
+54,538,160-byte / 34.69% reduction, with runtime qualification green.)
 2026-08-25 (r3 — round-2 delta fold: F3 split into public
 manufacture vs source-repair custody, F6 jsonschema sites corrected to
 the two normal-dep crates, F7 PocketBase row corrected to the

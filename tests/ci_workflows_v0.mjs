@@ -677,10 +677,24 @@ assert.match(
   /cargo build --profile production --bin snapback/u,
   'the host runtime assembler must build the production-profile binary',
 );
-assert.doesNotMatch(
-  runtimeAssembler,
-  /cargo build --release --bin snapback/u,
-  'the host runtime assembler must not package an ordinary release-profile binary',
+const assemblerReleaseBuildIndex = runtimeAssembler.indexOf(
+  'cargo build --release --bin snapback',
+);
+const assemblerSourceReceiptIndex = runtimeAssembler.indexOf(
+  '--issuer source-runtime-repair',
+);
+const assemblerSourceVerifyIndex = runtimeAssembler.indexOf(
+  'runtime-readiness.mjs verify',
+);
+const assemblerProductionBuildIndex = runtimeAssembler.indexOf(
+  'cargo build --profile production --bin snapback',
+);
+assert(
+  assemblerReleaseBuildIndex >= 0
+    && assemblerSourceReceiptIndex > assemblerReleaseBuildIndex
+    && assemblerSourceVerifyIndex > assemblerSourceReceiptIndex
+    && assemblerProductionBuildIndex > assemblerSourceVerifyIndex,
+  'the host runtime assembler must repair and reopen release source custody before building the separate production package binary',
 );
 const linuxRuntimeBuilder = readFileSync(
   join(ROOT, 'scripts', 'build-linux-runtime-release'),

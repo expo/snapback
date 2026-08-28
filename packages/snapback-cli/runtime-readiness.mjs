@@ -279,6 +279,7 @@ function stableBinaryIdentity(identity) {
     gitCommit: identity.gitCommit ?? null,
     gitDirty: identity.gitDirty ?? null,
     buildProfile: identity.buildProfile ?? null,
+    buildRecipe: identity.buildRecipe ?? null,
   };
 }
 

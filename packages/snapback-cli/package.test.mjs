@@ -340,6 +340,11 @@ try {
     'a linked CLI package must recognize its owning Snapback source checkout',
   );
   assert.equal(__test.sourceCheckoutRoot(root), null);
+  assert.deepEqual(
+    __test.sourceRuntimeRepairCommands(root, join(root, 'target', 'release', 'snapback')),
+    [join(root, 'scripts', 'assemble-runtime-package')],
+    'linked source-runtime repair uses the one assembler that rebuilds release custody and production packaging separately',
+  );
 
   const capabilityReady = join(root, 'dev-identity.ready.json');
   const capabilityDatabase = join(root, 'dev-identity.sqlite3');

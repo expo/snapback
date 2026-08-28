@@ -2,16 +2,65 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "src/build_recipe.rs"]
+mod build_recipe;
+
+use build_recipe::{CargoBuildRecipe, ambient_cargo_configs, validate_public_package_environment};
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_DISTRIBUTION");
+    println!("cargo:rerun-if-env-changed=CARGO_INCREMENTAL");
+    println!("cargo:rerun-if-env-changed=CARGO_HOME");
+    println!("cargo:rerun-if-env-changed=RUSTFLAGS");
+    println!("cargo:rerun-if-env-changed=CARGO_ENCODED_RUSTFLAGS");
+    println!("cargo:rerun-if-env-changed=CARGO_BUILD_RUSTFLAGS");
+    println!("cargo:rerun-if-env-changed=RUSTC");
+    println!("cargo:rerun-if-env-changed=CARGO_BUILD_RUSTC");
+    println!("cargo:rerun-if-env-changed=RUSTC_WRAPPER");
+    println!("cargo:rerun-if-env-changed=RUSTC_WORKSPACE_WRAPPER");
+    for profile in ["PRODUCTION", "RELEASE"] {
+        for setting in [
+            "CODEGEN_UNITS",
+            "DEBUG",
+            "DEBUG_ASSERTIONS",
+            "INCREMENTAL",
+            "LTO",
+            "OPT_LEVEL",
+            "OVERFLOW_CHECKS",
+            "PANIC",
+            "RPATH",
+            "SPLIT_DEBUGINFO",
+            "STRIP",
+        ] {
+            println!("cargo:rerun-if-env-changed=CARGO_PROFILE_{profile}_{setting}");
+        }
+    }
+    if let Ok(target) = std::env::var("TARGET") {
+        let target = target.replace('-', "_").to_ascii_uppercase();
+        println!("cargo:rerun-if-env-changed=CARGO_TARGET_{target}_RUSTFLAGS");
+    }
 
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
     let repo_root = manifest_dir.join("../..");
+    println!("cargo:rerun-if-changed=../../Cargo.toml");
+
+    // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — the
+    // build leaf, rather than a packaging ceremony, stamps Cargo's actual
+    // named profile plus the closed root production recipe and rejects
+    // override channels that could make that declaration false. Cargo's
+    // `PROFILE` collapses a custom profile inheriting release to `release`, so
+    // the named profile comes from the profile component of Cargo's OUT_DIR.
+    let profile = cargo_profile_from_out_dir()
+        .expect("Cargo OUT_DIR carries the named profile for build scripts");
+    let root_manifest =
+        fs::read_to_string(repo_root.join("Cargo.toml")).expect("root Cargo.toml is readable");
+    let recipe = CargoBuildRecipe::for_profile(&profile, &root_manifest)
+        .unwrap_or_else(|error| panic!("public package build recipe is invalid: {error}"));
 
     // The stamp tracks the binary's real input closure. Cargo otherwise reuses
     // a cached clean stamp after an uncommitted source edit (ENG-23365).
@@ -71,7 +120,57 @@ fn main() {
         ),
         "SNAPBACK_BUILD_DISTRIBUTION must be contributor-source or public-package"
     );
+    if distribution == "public-package" {
+        recipe
+            .assert_ship_recipe()
+            .unwrap_or_else(|error| panic!("public package build recipe is invalid: {error}"));
+        let environment = std::env::vars().collect::<Vec<_>>();
+        let configs = ambient_cargo_configs(&repo_root, &environment);
+        validate_public_package_environment(
+            &profile,
+            &environment,
+            parent_command_line().as_deref(),
+            &configs,
+        )
+        .unwrap_or_else(|error| panic!("public package build recipe is invalid: {error}"));
+    }
     println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
+    println!("cargo:rustc-env=SNAPBACK_BUILD_RECIPE={}", recipe.json());
+}
+
+fn cargo_profile_from_out_dir() -> Option<String> {
+    let out_dir = PathBuf::from(std::env::var_os("OUT_DIR")?);
+    out_dir
+        .ancestors()
+        .nth(3)?
+        .file_name()?
+        .to_str()
+        .map(str::to_owned)
+}
+
+fn parent_command_line() -> Option<String> {
+    let parent = Command::new("ps")
+        .args(["-o", "ppid=", "-p", &std::process::id().to_string()])
+        .output()
+        .ok()?;
+    if !parent.status.success() {
+        return None;
+    }
+    let parent_pid = String::from_utf8(parent.stdout).ok()?.trim().to_owned();
+    if parent_pid.is_empty() {
+        return None;
+    }
+    let command = Command::new("ps")
+        .args(["-o", "command=", "-p", &parent_pid])
+        .output()
+        .ok()?;
+    if !command.status.success() {
+        return None;
+    }
+    String::from_utf8(command.stdout)
+        .ok()
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
 }
 
 /// Track only Git facts that can change this worktree's reported revision.

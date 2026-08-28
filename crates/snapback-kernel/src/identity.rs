@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 pub use snapback_types::identity::{
     BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE, BUILD_DISTRIBUTION_PUBLIC_PACKAGE, BinaryIdentity,
+    CargoBuildRecipe,
 };
 
 unsafe extern "C" {
@@ -17,6 +18,8 @@ unsafe extern "C" {
     fn snapback_build_git_dirty_v1() -> u8;
     fn snapback_build_distribution_ptr_v1() -> *const u8;
     fn snapback_build_distribution_len_v1() -> usize;
+    fn snapback_build_recipe_ptr_v1() -> *const u8;
+    fn snapback_build_recipe_len_v1() -> usize;
 }
 
 /// Compile-time distribution class used by capability authorities whose trust
@@ -58,6 +61,19 @@ pub fn git_dirty() -> bool {
     unsafe { snapback_build_git_dirty_v1() != 0 }
 }
 
+fn build_recipe() -> CargoBuildRecipe {
+    // SAFETY: the identity leaf exports a process-lifetime JSON byte string
+    // and its exact length under this versioned symbol pair.
+    let json = unsafe {
+        static_utf8(
+            snapback_build_recipe_ptr_v1(),
+            snapback_build_recipe_len_v1(),
+            "build recipe",
+        )
+    };
+    serde_json::from_str(json).expect("identity leaf returned an invalid build recipe")
+}
+
 /// The identity of this running server binary/process.
 ///
 /// @ref LLP 0031#server-binary-identity-on-health — the public health identity
@@ -74,6 +90,7 @@ pub fn binary_identity() -> BinaryIdentity {
         } else {
             "release".to_owned()
         },
+        build_recipe: build_recipe(),
         startup_nonce: startup_nonce().to_owned(),
     }
 }
@@ -114,6 +131,11 @@ mod tests {
             assert_ne!(a.git_commit, "unknown");
         }
         assert!(matches!(a.build_profile.as_str(), "debug" | "release"));
+        assert_eq!(
+            a.build_recipe.schema_version,
+            "snapback.cargo-build-recipe.v1"
+        );
+        assert!(!a.build_recipe.cargo_profile.is_empty());
         assert!(matches!(
             build_distribution(),
             BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE | BUILD_DISTRIBUTION_PUBLIC_PACKAGE

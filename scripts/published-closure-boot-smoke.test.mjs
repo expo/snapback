@@ -10,6 +10,7 @@ import {
   validateRuntimeReceiptShape,
   waitForReadyFile,
 } from './published-closure-boot-smoke.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 
 test('argument parsing accepts exact versions and optional controls', () => {
   const parsed = parseArguments([
@@ -40,11 +41,18 @@ test('runtime receipt shape requires v1 single_table_v1 qualification', () => {
   const valid = {
     schemaVersion: 'snapback.packaged-store-qualification.v1',
     capabilityId: 'single_table_v1',
+    binaryIdentity: { buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE },
   };
   assert.equal(validateRuntimeReceiptShape(valid), valid);
   for (const invalid of [
     { ...valid, schemaVersion: 'snapback.packaged-store-qualification.v2' },
     { ...valid, capabilityId: 'bounded_children_v1' },
+    {
+      ...valid,
+      binaryIdentity: {
+        buildRecipe: { ...PUBLIC_PACKAGE_BUILD_RECIPE, cargoProfile: 'release' },
+      },
+    },
     null,
   ]) {
     assert.throws(

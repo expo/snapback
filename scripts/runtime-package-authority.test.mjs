@@ -12,6 +12,7 @@ import test from 'node:test';
 
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
+  PUBLIC_PACKAGE_BUILD_RECIPE,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
@@ -32,12 +33,31 @@ const valid = {
     gitCommit: 'a'.repeat(40),
     gitDirty: false,
     buildProfile: 'release',
+    buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
     startupNonce: 'fixture',
   },
 };
 
 test('admits only a clean release binary compiled for public packaging', () => {
   assert.equal(assertPublicPackageBuildIdentity(valid), valid);
+});
+
+test('refuses an ordinary release binary substituted into public-package assembly', () => {
+  const ordinaryRelease = structuredClone(valid);
+  ordinaryRelease.binary.buildRecipe = {
+    schemaVersion: 'snapback.cargo-build-recipe.v1',
+    cargoProfile: 'release',
+    inherits: null,
+    incremental: null,
+    lto: null,
+    codegenUnits: null,
+    optLevel: null,
+    strip: null,
+  };
+  assert.throws(
+    () => assertPublicPackageBuildIdentity(ordinaryRelease),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+  );
 });
 
 test('admits a control catalog minted from the enclosing binary identity', () => {
@@ -188,6 +208,8 @@ for (const [name, mutate] of [
   ['dirty binary', (value) => { value.binary.gitDirty = true; }],
   ['unknown source', (value) => { value.binary.gitCommit = 'unknown'; }],
   ['debug binary', (value) => { value.binary.buildProfile = 'debug'; }],
+  ['production recipe drift', (value) => { value.binary.buildRecipe.strip = 'none'; }],
+  ['missing production recipe', (value) => { delete value.binary.buildRecipe; }],
   ['tampered identity shape', (value) => { value.schemaVersion = 'snapback.binary-identity.v2'; }],
 ]) {
   test(`refuses ${name} before runtime package assembly`, () => {

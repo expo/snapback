@@ -23,6 +23,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 
 import { validateAdminConsoleSnapshot } from '../packages/snapback-cli/admin-snapshot.mjs';
 import { assertCodegenRuntimeCapabilityCoherence } from './publication-store-qualification-gate.mjs';
+import { assertPublicPackageBuildRecipe } from './runtime-package-authority.mjs';
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const RECEIPT_SCHEMA_VERSION = 'snapback.packaged-store-qualification.v1';
@@ -124,6 +125,14 @@ export function validateRuntimeReceiptShape(receipt) {
     throw codedError(
       'SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT',
       `installed runtime receipt must have schemaVersion '${RECEIPT_SCHEMA_VERSION}' and capabilityId '${RECEIPT_CAPABILITY_ID}'`,
+    );
+  }
+  try {
+    assertPublicPackageBuildRecipe(receipt?.binaryIdentity?.buildRecipe);
+  } catch (error) {
+    throw codedError(
+      'SNAPBACK_PUBLISHED_SMOKE_RECEIPT_ABSENT',
+      `installed runtime receipt does not carry the production build recipe: ${error.message}`,
     );
   }
   return receipt;

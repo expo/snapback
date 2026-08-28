@@ -13,6 +13,7 @@ import {
   publicationCodegenRequiredCapabilities,
 } from './publication-store-qualification-gate.mjs';
 import { writeAdminConsoleSnapshotManifest } from '../packages/snapback-cli/admin-snapshot.mjs';
+import { PUBLIC_PACKAGE_BUILD_RECIPE } from './runtime-package-authority.mjs';
 
 const VERSION = '0.1.17';
 const REVISION = 'a'.repeat(40);
@@ -29,6 +30,7 @@ function validReceipt(overrides = {}) {
       gitCommit: REVISION,
       gitDirty: false,
       buildProfile: 'release',
+      buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
       buildDistribution: 'public-package',
     },
     packageClosure: RUNTIME_NAMES.map((name) => ({ name, version: VERSION })),
@@ -207,6 +209,22 @@ for (const [label, receipt] of [
 for (const [label, binaryIdentity] of [
   ['wrong gitCommit', { ...validReceipt().binaryIdentity, gitCommit: 'b'.repeat(40) }],
   ['dirty binary', { ...validReceipt().binaryIdentity, gitDirty: true }],
+  [
+    'ordinary release recipe',
+    {
+      ...validReceipt().binaryIdentity,
+      buildRecipe: {
+        schemaVersion: 'snapback.cargo-build-recipe.v1',
+        cargoProfile: 'release',
+        inherits: null,
+        incremental: null,
+        lto: null,
+        codegenUnits: null,
+        optLevel: null,
+        strip: null,
+      },
+    },
+  ],
 ]) {
   test(`${label} drifts identity`, () => {
     withFixture((root) => {

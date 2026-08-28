@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import {
   PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
   PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION,
+  PUBLIC_PACKAGE_BUILD_RECIPE,
   assertPublicPackageBuildIdentity,
   installPackagedStoreQualificationReceipt,
 } from '../../scripts/runtime-package-authority.mjs';
@@ -347,7 +348,8 @@ console.log(JSON.stringify({
   schemaVersion: 'snapback.runtime-qualify.v1', probe: 'restricted-no-eval-handler-vm', ok: true,
   binary: {
     crateVersion: '0.1.0', gitCommit: '${sourceRevision}', gitDirty: false,
-    buildProfile: 'release', startupNonce: 'qualification-process'
+    buildProfile: 'release', buildRecipe: ${JSON.stringify(PUBLIC_PACKAGE_BUILD_RECIPE)},
+    startupNonce: 'qualification-process'
   }
 }));
 `;
@@ -364,6 +366,7 @@ console.log(JSON.stringify({
       gitCommit: sourceRevision,
       gitDirty: false,
       buildProfile: 'release',
+      buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
       startupNonce: '0198f865-9f71-7d7a-9bab-7ae3637b7d58',
     },
     buildDistribution: 'public-package',
@@ -556,7 +559,8 @@ console.log(JSON.stringify({
   schemaVersion: 'snapback.runtime-qualify.v1', probe: 'restricted-no-eval-handler-vm', ok,
   binary: {
     crateVersion: '0.1.0', gitCommit: '${sourceRevision}', gitDirty: false,
-    buildProfile: 'release', startupNonce: 'qualification-process'
+    buildProfile: 'release', buildRecipe: ${JSON.stringify(PUBLIC_PACKAGE_BUILD_RECIPE)},
+    startupNonce: 'qualification-process'
   },
   ...(ok ? {} : { diagnostic: { code: 'SNAPBACK_RUNTIME_CREATE_FAILED', message: 'fixture refusal' } })
 }));
@@ -582,6 +586,7 @@ process.exit(ok ? 0 : 1);
       gitCommit: sourceRevision,
       gitDirty: false,
       buildProfile: 'release',
+      buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
       startupNonce: 'build-identity-process',
     },
     buildDistribution: 'public-package',
@@ -698,6 +703,7 @@ try {
       gitCommit: sourceRevision,
       gitDirty: false,
       buildProfile: 'release',
+      buildRecipe: PUBLIC_PACKAGE_BUILD_RECIPE,
       startupNonce: 'build-identity-process',
     },
     buildDistribution: 'public-package',

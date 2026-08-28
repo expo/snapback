@@ -5,6 +5,9 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
+**Revised:** 2026-08-28 (LLP 0314.000 Phase 1c adds the build-originated
+`buildRecipe` identity fact: Cargo's actual named profile plus the closed
+production settings, copied through package receipts and seals.)
 **Revised:** 2026-08-27 (LLP 0316 Phase 4 moves the sole Git stamp into
 `snapback-build-identity`; binary, health, Guide, control-catalog, and tool
 provenance read that one conservative runtime identity through stable native
@@ -750,13 +753,18 @@ server can never be verified and are always refused:
 
 To shrink that unverifiable set, `/health` carries a **server-binary identity**
 block (ENG-22798): `{ crateVersion, gitCommit, gitDirty, buildProfile,
-startupNonce }`. `crateVersion` is `CARGO_PKG_VERSION`; `gitCommit`/`gitDirty` are
+buildRecipe, startupNonce }`. `crateVersion` is `CARGO_PKG_VERSION`;
+`gitCommit`/`gitDirty` are
 stamped by the leaf `crates/snapback-build-identity/build.rs` at build time and
 read through versioned native symbols by the kernel's stable runtime projection
 (overridable via the
 `SNAPBACK_BUILD_GIT_COMMIT`/`SNAPBACK_BUILD_GIT_DIRTY` env vars for a
 deterministic CI stamp); `startupNonce` is a per-process UUIDv7 boot id. Together
 they answer "is this MY checkout's binary?" before any app is provisioned.
+`buildProfile` retains its compatibility-facing `debug`/`release` meaning;
+`buildRecipe` separately carries Cargo's actual named profile and, for the
+production profile, the exact declared LTO, strip, codegen-unit, optimization,
+and incremental tuple required by LLP 0314.000 Phase 1c.
 The stamp tracks the binary's real inputs (`scripts/runtime-build-inputs.txt`)
 and only the identity-bearing Git facts: the worktree `HEAD` and `logs/HEAD`,
 the resolved loose current-branch ref, and common `packed-refs`. Thus an
