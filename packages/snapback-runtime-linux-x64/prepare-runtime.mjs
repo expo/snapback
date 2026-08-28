@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // @ref LLP 0041#runtime-distribution — assemble one relocatable Linux native
-// package from a bootstrapped release binary and its Hermes shared library;
+// package from a bootstrapped production binary and its Hermes shared library;
 // never compile Hermes during npm installation.
 
 import {
@@ -47,7 +47,7 @@ import {
 
 const defaultPackageRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(defaultPackageRoot, '..', '..');
-const defaultSourceBinary = join(repositoryRoot, 'target', 'release', 'snapback');
+const defaultSourceBinary = join(repositoryRoot, 'target', 'production', 'snapback');
 const defaultSourceHermes = join(
   repositoryRoot,
   'vendor',
@@ -216,7 +216,7 @@ export function prepareLinuxRuntimePackage(options = {}) {
   if (!existsSync(sourceBinary)) {
     throw codedError(
       'SNAPBACK_RUNTIME_BINARY_MISSING',
-      `Linux release binary is missing at ${sourceBinary}; build snapback --release on linux-x64`,
+      `Linux production binary is missing at ${sourceBinary}; build snapback --profile production on linux-x64`,
     );
   }
   if (!existsSync(sourceHermes)) {

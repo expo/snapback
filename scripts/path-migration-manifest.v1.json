@@ -533,7 +533,7 @@
       "consumerFiles": [
         "scripts/assemble-runtime-package"
       ],
-      "currentPathExpression": "cargo build --release --bin snapback",
+      "currentPathExpression": "cargo build --profile production --bin snapback",
       "targetExpression": "unchanged; pin -p snapback",
       "verification": "linux-runtime-package flow, packaged-store qualification",
       "changeKind": "verify-unchanged",
@@ -659,7 +659,7 @@
       "consumerFiles": [
         "scripts/packaged-store-qualification.mjs"
       ],
-      "currentPathExpression": "default binary target/release/snapback",
+      "currentPathExpression": "default binary target/production/snapback",
       "targetExpression": "unchanged",
       "verification": "packaged-store-qualification.test.mjs",
       "changeKind": "verify-unchanged",
@@ -827,7 +827,7 @@
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
-      "currentPathExpression": "SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback",
+      "currentPathExpression": "SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback",
       "targetExpression": "unchanged; pin -p snapback",
       "verification": "the workflow itself",
       "changeKind": "verify-unchanged",
@@ -841,7 +841,7 @@
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
-      "currentPathExpression": "target/lib/libhermesvm.so, $GITHUB_WORKSPACE/target/release/snapback",
+      "currentPathExpression": "target/lib/libhermesvm.so, $GITHUB_WORKSPACE/target/production/snapback; separate target/release/snapback source-custody receipt",
       "targetExpression": "unchanged",
       "verification": "same",
       "changeKind": "verify-unchanged",
@@ -2763,7 +2763,7 @@
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
-      "currentPathExpression": "cargo build --release --bin snapback; target/…",
+      "currentPathExpression": "cargo build --profile production --bin snapback; target/production/snapback; separate release source-custody build and receipt",
       "targetExpression": "unchanged (see §1)",
       "verification": "workflow run",
       "changeKind": "verify-unchanged",

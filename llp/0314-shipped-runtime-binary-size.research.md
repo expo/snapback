@@ -5,7 +5,12 @@
 **Systems:** Packaging, Build, Runtime, Distribution, Developer experience
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-25
-**Revised:** 2026-08-25 (r3 — round-2 delta fold: F3 split into public
+**Revised:** 2026-08-28 (Phase 1 ship-path closure: F3 is resolved across
+the public-package producer/consumer inventory; the implementation rerun
+measured 157,195,920-byte release and 102,657,760-byte stripped production
+binaries, a 54,538,160-byte / 34.69% reduction, with runtime qualification
+green.)
+2026-08-25 (r3 — round-2 delta fold: F3 split into public
 manufacture vs source-repair custody, F6 jsonschema sites corrected to
 the two normal-dep crates, F7 PocketBase row corrected to the
 executable. r2 — round-1 fold; units unified to decimal MB, F3 widened
@@ -26,14 +31,14 @@ Hermes and the admin snapshot, into a **~52 MB** tarball. Linux is heavier:
 **~248 MB** unpacked / **~70 MB** tarball, because ICU and `libhermesvm.so`
 ride next to the binary.
 
-This is not a mistaken debug build. The qualified developer binary is
+At diagnosis this was not a mistaken debug build. The qualified developer binary is
 *supposed* to be fat (LLP 0010 policy; measured **~490 MB** in
 `scripts/binary-size-baseline.json`, **~530 MB** for this checkout's
 `target/debug/snapback`). The shipped artifact is a `--release` Mach-O
 that still carries **241k symbols**, **~20 MB of embedded Guide**, and
 **no fat LTO**, even though the workspace already defines
-`[profile.production]` for the ship path (LLP 0276) and already sidecars
-the admin UI in the npm package (LLP 0041).
+`[profile.production]` for the ship path (LLP 0276) and already carried the
+admin UI as a sidecar in the npm package (LLP 0041).
 
 This document is diagnosis only. It does not authorize a size program,
 a landing veto, or a change to debug-binary policy. The reduction plan
@@ -48,7 +53,8 @@ is [LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md).
   package* consumers download.
 - **Not LLP 0276’s architecture program.** That RFC already named
   `cargo build --profile production -p snapback` as the shipped shape.
-  The finding here is that the publish path does not run that command.
+  The finding here was that the publish path did not run that command;
+  Phase 1 resolved that drift on 2026-08-28.
 - **Not a Hermes / Ibex indictment.** LLP 0000 picked Ibex “anywhere
   binary size matters.” The packaged Darwin `hermesvm.framework` is
   **~9.4 MB**. That is cheap next to 67 MB of Snapback `__text` and 35 MB
@@ -182,6 +188,13 @@ than bookkeeping: a **production** binary reports
 derived from `cfg!(debug_assertions)`. Profile and recipe are today
 indistinguishable in the identity, exactly as 1c states.
 
+The Phase 1 implementation rerun at `ed8aad5e6a90b39a2dc996a6232bd315433ce475`
+measured the exact commands that now back the ship path: `cargo build
+--release --bin snapback` produced **157,195,920 bytes** and `cargo build
+--profile production --bin snapback` produced **102,657,760 bytes**, a
+**54,538,160-byte (34.69%)** reduction. The compiler-stripped production
+binary again passed `runtime-qualify` with `DYLD_*` overrides scrubbed.
+
 This **beats LLP 0314.000 Phase 1's stated ~110–130 MB success band**
 and lands in what that plan called LTO upside. Two of the plan's
 expectations need correcting: it predicted `__text` would shrink 15–25 MB
@@ -202,8 +215,8 @@ policy and may differ.
 | `size -m` / `otool -l` on that binary | Sections in Finding 2 |
 | `scripts/binary-size-baseline.json` | Debug: 489,895,784 bytes (2026-08-22); `nsyms` 3,173,196 |
 | `target/debug/snapback` in this checkout | 530,235,976 bytes |
-| `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs` | Copies `target/release/snapback`, not `target/production/snapback` |
-| `tests/ci_workflows_v0.mjs` | Canonical public-package command is `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback` |
+| `packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs` | Before Phase 1, copied `target/release/snapback`; now defaults to `target/production/snapback` |
+| `tests/ci_workflows_v0.mjs` | Pins `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback` across the ship workflows |
 | `Cargo.toml` `[profile.production]` | `lto = "fat"`, `codegen-units = 1`, `incremental = false` |
 | `crates/snapback-server/build.rs` `emit_embedded_guide` | Packs the checked `guide/` corpus (except `eval-runs/`) into `embedded-guide.v1.bin` |
 | `crates/snapback-server/src/guide.rs` | `include_bytes!(…/embedded-guide.v1.bin)` |
@@ -269,7 +282,7 @@ The ~530 MB debug binary is the same program plus ~278 MB of
 number). That is the correct developer shape. It is not evidence that
 the *ship* path is healthy.
 
-### F3. The publish path does not use the production profile the workspace already defined
+### F3. Resolved 2026-08-28 — the publish path did not use the production profile
 
 **Confidence:** high (packager + CI pin + Cargo.toml).
 
@@ -280,29 +293,29 @@ LLP 0276 and root `Cargo.toml` split two release shapes:
 - `[profile.production]` — inherits release, `incremental = false`,
   `lto = "fat"`, `codegen-units = 1`. For the shipped binary.
 
-The packer (`packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs`)
-copies `target/release/snapback` by default (env override
+At diagnosis the packer (`packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs`)
+copied `target/release/snapback` by default (env override
 `SNAPBACK_RUNTIME_SOURCE_BINARY`). The public-package identity command
-pinned in `tests/ci_workflows_v0.mjs` is `cargo build --release --bin
+pinned in `tests/ci_workflows_v0.mjs` was `cargo build --release --bin
 snapback` under `SNAPBACK_BUILD_DISTRIBUTION=public-package`.
 
-The miss is the whole **public manufacture** graph, not one packer
+The miss was the whole **public manufacture** graph, not one packer
 default: the Linux packer defaults the same way
 (`SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY`),
 `.github/workflows/linux-runtime-package.yml` both builds `--release`
 and issues source receipts on `target/release/snapback`, both native
 jobs in `.eas/workflows/qualified-package-staging.yml` build
 `--release`, and so does `scripts/build-linux-runtime-release`.
-Distinct from that graph, `scripts/assemble-runtime-package` also
-builds `--release` — but *intentionally*: it is the contributor
-source-checkout repair path (`--source-test-staging
---strict-clean-release`), whose custody LLP 0010/0041 and the linked
-CLI deliberately keep on ordinary release. It is not ship-profile
-drift.
+The Phase 1 landing switched both platform preparer defaults, the GHA and
+EAS producers, `scripts/assemble-runtime-package`, the standalone Linux
+release builder, the packaged-store qualifier default, and every associated
+public-package receipt/path pin to `production`. Linux CI retains a separate
+ordinary-release build and sibling receipt solely for the linked source CLI's
+LLP 0010 custody lane.
 
-So the npm binary is an incremental-friendly release link, not the
-fat-LTO image the architecture RFC named. That is packaging drift, not
-a missing design.
+The npm manufacture graph now selects the fat-LTO, compiler-stripped image the
+architecture RFC named. The linked source CLI remains incremental-friendly
+ordinary release by design.
 
 ### F4. The entire Guide corpus is compiled into the server — by design, at a cost now worth revisiting
 

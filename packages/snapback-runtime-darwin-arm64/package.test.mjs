@@ -568,6 +568,11 @@ if (existsSync(binary)) {
   });
   assert.equal(identity.status, 0, identity.stderr);
   assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
-  assert.equal(resolveRuntimeBinary().binary, binary);
+  // Passing a non-CLI package root models packed/installed custody and keeps
+  // this package proof independent of the source checkout's release binary.
+  assert.equal(
+    resolveRuntimeBinary({ cliPackageRoot: packageRoot }).binary,
+    binary,
+  );
 }
 console.log('package.test.mjs: stamped assembly accepted; unstamped executable rejected; Darwin arm64 seal + custody repair pass');

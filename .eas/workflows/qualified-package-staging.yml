@@ -57,7 +57,7 @@ jobs:
             --timeout-ms 900000 \
             --target-dir "$PWD/target" \
             --keep-target
-          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
+          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs \
             --native-artifact-staging
           test -f packages/snapback-runtime-linux-x64/lib/libhermesvm.so
@@ -136,7 +136,7 @@ jobs:
             --timeout-ms 900000 \
             --target-dir "$PWD/target" \
             --keep-target
-          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
+          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback
           node packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs \
             --native-artifact-staging
           packages/snapback-runtime-darwin-arm64/bin/snapback build-identity

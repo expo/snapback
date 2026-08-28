@@ -70,17 +70,33 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
-      - name: Build and launch-test the relocatable Linux runtime
+      - name: Build and launch-test the relocatable Linux production runtime
         run: |
           scripts/bootstrap-ibex-runtime
           bun run --cwd admin-ui build
-          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
+          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback
+
+      # @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — the
+      # package receipt must bind the compiler-stripped bytes that are sealed
+      # and shipped, never an ordinary release-profile sibling.
+      - name: Qualify and reopen the production package runtime receipt
+        run: |
+          mkdir -p target/lib
+          cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so
+          node packages/snapback-cli/runtime-readiness.mjs issue \
+            --root "$GITHUB_WORKSPACE" \
+            --binary "$GITHUB_WORKSPACE/target/production/snapback" \
+            --issuer linux-runtime-package-production
+          node packages/snapback-cli/runtime-readiness.mjs verify \
+            --root "$GITHUB_WORKSPACE" \
+            --binary "$GITHUB_WORKSPACE/target/production/snapback"
 
       # @ref LLP 0010#native-runtime-bootstrap — the linked source CLI selects
       # this exact release binary and therefore requires its own sibling
       # receipt; the staged package seal remains separate custody.
-      - name: Qualify and reopen the release source runtime receipt
+      - name: Build, qualify, and reopen the release source runtime receipt
         run: |
+          cargo build --release --bin snapback
           mkdir -p target/lib
           cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so
           node packages/snapback-cli/runtime-readiness.mjs issue \

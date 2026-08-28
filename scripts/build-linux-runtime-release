@@ -212,8 +212,8 @@ export async function main(
     '--keep-target',
   ], { cwd, env: environment });
 
-  logStep(output, 'building the public-package release binary');
-  runner('cargo', ['build', '--release', '--bin', 'snapback'], {
+  logStep(output, 'building the public-package production binary');
+  runner('cargo', ['build', '--profile', 'production', '--bin', 'snapback'], {
     cwd,
     env: {
       ...environment,

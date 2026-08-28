@@ -540,9 +540,9 @@ Recovery follows custody. An installed-package seal refusal names the exact
 platform runtime package to reinstall from the consumer's lockfile; package
 bytes are not requalified or rebuilt in place. A contributor/source-checkout
 refusal names `scripts/assemble-runtime-package`, which refuses a dirty tree
-up front and performs bootstrap, clean release build, locked admin install and
-build, then staged host-package assembly. This keeps the binary, console
-manifest, and package seal bound to one source revision.
+up front and performs bootstrap, a clean production-profile build, locked admin
+install and build, then staged host-package assembly. This keeps the binary,
+console manifest, and package seal bound to one source revision.
 
 ### Package boundaries
 

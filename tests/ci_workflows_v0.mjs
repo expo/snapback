@@ -587,19 +587,32 @@ const coldClone = readFileSync(join(workflowDir, 'all-aboard-cold-clone.yml'), '
 assertExactHermesCache(coldClone, 'all-aboard-cold-clone');
 const linuxRuntimePackage = readFileSync(join(workflowDir, 'linux-runtime-package.yml'), 'utf8');
 assertExactHermesCache(linuxRuntimePackage, 'linux-runtime-package');
-// @ref LLP 0010#native-runtime-bootstrap — the fresh release build is a
-// source-custody binary until package assembly copies and separately seals it.
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — public
+// packaging qualifies and seals the production-profile bytes. The second,
+// ordinary release build exists only for linked source-checkout custody.
+const linuxProductionBuildIndex = linuxRuntimePackage.indexOf(
+  'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback',
+);
+const linuxProductionReceiptIssueIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-cli/runtime-readiness.mjs issue',
+);
+const linuxProductionLoaderClosureIndex = linuxRuntimePackage.indexOf(
+  'cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so',
+);
+const linuxProductionReceiptVerifyIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-cli/runtime-readiness.mjs verify',
+);
 const linuxReleaseBuildIndex = linuxRuntimePackage.indexOf(
-  'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback',
+  'cargo build --release --bin snapback',
+  linuxProductionReceiptVerifyIndex,
 );
 const linuxSourceReceiptIssueIndex = linuxRuntimePackage.indexOf(
   'node packages/snapback-cli/runtime-readiness.mjs issue',
-);
-const linuxSourceLoaderClosureIndex = linuxRuntimePackage.indexOf(
-  'cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so',
+  linuxReleaseBuildIndex,
 );
 const linuxSourceReceiptVerifyIndex = linuxRuntimePackage.indexOf(
   'node packages/snapback-cli/runtime-readiness.mjs verify',
+  linuxSourceReceiptIssueIndex,
 );
 const linuxPackagePreparationIndex = linuxRuntimePackage.indexOf(
   'node packages/snapback-runtime-linux-x64/prepare-runtime.mjs',
@@ -608,13 +621,21 @@ const linuxPackageTestIndex = linuxRuntimePackage.indexOf(
   'node packages/snapback-runtime-linux-x64/package.test.mjs',
 );
 assert(
-  linuxReleaseBuildIndex >= 0
-    && linuxSourceLoaderClosureIndex > linuxReleaseBuildIndex
-    && linuxSourceReceiptIssueIndex > linuxSourceLoaderClosureIndex
+  linuxProductionBuildIndex >= 0
+    && linuxProductionLoaderClosureIndex > linuxProductionBuildIndex
+    && linuxProductionReceiptIssueIndex > linuxProductionLoaderClosureIndex
+    && linuxProductionReceiptVerifyIndex > linuxProductionReceiptIssueIndex
+    && linuxReleaseBuildIndex > linuxProductionReceiptVerifyIndex
+    && linuxSourceReceiptIssueIndex > linuxReleaseBuildIndex
     && linuxSourceReceiptVerifyIndex > linuxSourceReceiptIssueIndex
     && linuxPackagePreparationIndex > linuxSourceReceiptVerifyIndex
     && linuxPackageTestIndex > linuxPackagePreparationIndex,
-  'Linux runtime workflow must stage the loader-relative source closure, then issue and reopen the exact release binary sibling receipt before package preparation and tests',
+  'Linux runtime workflow must qualify the production package bytes, retain separate release source custody, then prepare and test the package',
+);
+assert.match(
+  linuxRuntimePackage,
+  /--binary "\$GITHUB_WORKSPACE\/target\/production\/snapback"[\s\S]*--issuer linux-runtime-package-production/u,
+  'Linux runtime workflow must bind package qualification to target/production/snapback with a named issuer',
 );
 assert.match(
   linuxRuntimePackage,
@@ -637,6 +658,51 @@ const qualifiedPackageStaging = readFileSync(
   join(ROOT, '.eas', 'workflows', 'qualified-package-staging.yml'),
   'utf8',
 );
+assert.equal(
+  qualifiedPackageStaging.match(/SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback/g)?.length,
+  2,
+  'both EAS native runtime jobs must build the public package with the production profile',
+);
+assert.doesNotMatch(
+  qualifiedPackageStaging,
+  /SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback/u,
+  'EAS public-package jobs must not build an ordinary release-profile binary',
+);
+const runtimeAssembler = readFileSync(
+  join(ROOT, 'scripts', 'assemble-runtime-package'),
+  'utf8',
+);
+assert.match(
+  runtimeAssembler,
+  /cargo build --profile production --bin snapback/u,
+  'the host runtime assembler must build the production-profile binary',
+);
+assert.doesNotMatch(
+  runtimeAssembler,
+  /cargo build --release --bin snapback/u,
+  'the host runtime assembler must not package an ordinary release-profile binary',
+);
+const linuxRuntimeBuilder = readFileSync(
+  join(ROOT, 'scripts', 'build-linux-runtime-release'),
+  'utf8',
+);
+assert.match(
+  linuxRuntimeBuilder,
+  /runner\('cargo', \['build', '--profile', 'production', '--bin', 'snapback'\]/u,
+  'the standalone Linux runtime builder must use the production profile',
+);
+for (const relativePath of [
+  'packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs',
+  'packages/snapback-runtime-linux-x64/prepare-runtime.mjs',
+  'scripts/packaged-store-qualification.mjs',
+]) {
+  const source = readFileSync(join(ROOT, relativePath), 'utf8');
+  assert.match(
+    source,
+    /target['"], ['"]production['"], ['"]snapback|target\/production\/snapback/u,
+    `${relativePath} must default to the production-profile binary`,
+  );
+}
 const qualifiedStagingAssembly = readFileSync(
   join(ROOT, 'scripts', 'qualified-staging-assemble'),
   'utf8',

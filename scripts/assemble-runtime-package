@@ -59,9 +59,9 @@ if ! scripts/bootstrap-ibex-runtime; then
   fail 'step 1/4 failed: scripts/bootstrap-ibex-runtime did not prepare a qualified runtime'
 fi
 
-log 'step 2/4: building the clean release binary'
-if ! cargo build --release --bin snapback; then
-  fail 'step 2/4 failed: cargo build --release --bin snapback did not produce the release runtime'
+log 'step 2/4: building the clean production binary'
+if ! cargo build --profile production --bin snapback; then
+  fail 'step 2/4 failed: cargo build --profile production --bin snapback did not produce the production runtime'
 fi
 
 log 'step 3/4: installing the locked admin console dependencies'

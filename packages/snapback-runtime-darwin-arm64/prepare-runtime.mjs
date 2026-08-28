@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // @ref LLP 0041#runtime-distribution — assemble the relocatable native
-// package from a bootstrapped release binary; never compile Hermes on install.
+// package from a bootstrapped production binary; never compile Hermes on install.
 
 import {
   chmodSync,
@@ -37,7 +37,7 @@ const defaultPackageRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(defaultPackageRoot, '..', '..');
 const defaultSourceBinary = resolve(
   process.env.SNAPBACK_RUNTIME_SOURCE_BINARY
-    ?? join(repositoryRoot, 'target', 'release', 'snapback'),
+    ?? join(repositoryRoot, 'target', 'production', 'snapback'),
 );
 const defaultSourceFramework = resolve(
   process.env.SNAPBACK_RUNTIME_HERMES_FRAMEWORK
@@ -160,7 +160,7 @@ export function prepareDarwinRuntimePackage({
   if (!existsSync(sourceBinary)) {
     throw codedError(
       'SNAPBACK_RUNTIME_BINARY_MISSING',
-      `release binary is missing at ${sourceBinary}; run scripts/bootstrap-ibex-runtime and cargo build --release`,
+      `production binary is missing at ${sourceBinary}; run scripts/bootstrap-ibex-runtime and cargo build --profile production --bin snapback`,
     );
   }
   if (!existsSync(sourceHermesRuntime)) {
