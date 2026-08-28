@@ -70,6 +70,40 @@ is [LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md).
   numbers. The tree moves; the *shape* of the waste does not depend on
   a few days of growth.
 
+## Re-measurement (2026-08-28)
+
+The F1/F2 baseline was re-measured after LLP 0314.002 landed, because a
+local `target/release/snapback` of 105,046,880 bytes raised a concern
+that the 159,336,256-byte figure was stale. **It is not.** That binary
+was a plain `cargo build --release`, not the canonical publish command,
+and carried 93,721 symbols against the canonical build's 264,500. It was
+never a comparable artifact, and F7's warning about comparing unlike
+build kinds applies to it.
+
+Canonical `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build
+--release --bin snapback`, Darwin arm64, 2026-08-28:
+
+| | bytes |
+|---|---:|
+| Binary (with LLP 0314.002 compression) | 157,178,768 |
+| Same binary without compression | ~174,383,050 |
+| `__TEXT` / `__text` / `__const` | 115,277,824 / 74,674,852 / 23,351,560 |
+| `__LINKEDIT` | 38,912,000 |
+| symbols | 264,500 |
+
+Two consequences for the plan in
+[LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md):
+
+1. **F2's shape holds.** `__LINKEDIT` is 38.9 MB and the symbol table is
+   264,500 entries on a `--release` build that does not strip. Phase 1
+   (ship profile plus strip) remains the single largest remaining
+   reduction — larger than compression was.
+2. **The binary grew with the code.** Uncompressed, today's canonical
+   build would be ~174.4 MB against 0.1.27's 159.3 MB. LLP 0314.002's
+   ~17.2 MB roughly offsets that growth rather than reducing the
+   artifact below its documented baseline. Any future size claim should
+   be dated and stated against a re-measured baseline, not against F1.
+
 ## Evidence
 
 | Source | What it binds |
