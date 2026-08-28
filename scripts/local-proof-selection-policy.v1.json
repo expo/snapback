@@ -1499,6 +1499,7 @@
       "gates": [
         "action-fetch-fence-fixtures",
         "agent-authority-custody",
+        "all-aboard-cron",
         "all-aboard-egress",
         "all-aboard-startup-timing",
         "allowlist-install-fixtures",

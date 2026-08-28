@@ -112,6 +112,9 @@ export const FROZEN_LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
 export const MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS = Object.freeze([
   'guide/auth/passwords.md',
   'guide/auth/scoped-roles.md',
+  'guide/backend/cron.md',
   'guide/backend/schema-evolution.md',
+  'guide/capabilities.md',
   'guide/clients/react-expo.md',
+  'guide/retrieval-eval.md',
 ]);

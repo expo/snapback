@@ -773,6 +773,7 @@ run workout-apps --requires current-binary-readiness -- node scripts/run-workout
 run todo-v2-register-boot --requires current-binary-readiness -- node demos/todo-v2/tests/acceptance/register-boot.mjs
 run graffiti-widget-read --requires current-binary-readiness -- node demos/graffiti/tests/acceptance/widget-read-mode.mjs
 run all-aboard-egress --requires current-binary-readiness -- node demos/all-aboard/tests/acceptance/egress.mjs
+run all-aboard-cron --requires current-binary-readiness -- node demos/all-aboard/tests/acceptance/cron.mjs
 run all-aboard-startup-timing --requires current-binary-readiness -- node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
 # Guide gap 2026-08-02 (react-asset-vite-path): the complete paved browser
 # asset doorway — the stock @expo/snapback-vite relay forwards the /assets/*
