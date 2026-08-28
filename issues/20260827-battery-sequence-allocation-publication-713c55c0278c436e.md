@@ -10,11 +10,11 @@
 **Battery gate:** `sequence-allocation-publication`
 **Failure signature:** `sha256:713c55c0278c436e328d25c5da5eccda35be387879be2f0bbcb909b2bd1f2217`
 **First observed run:** `local.20260827T104322Z.04da2f52bd6f`
-**Last observed run:** `local.20260828T114709Z.095880f16775`
-**Last processed run:** `local.20260828T114709Z.095880f16775`
+**Last observed run:** `local.20260828T203031Z.1b23bca7239e`
+**Last processed run:** `local.20260828T203031Z.1b23bca7239e`
 **Detected at revision:** `04da2f52bd6f08bfb8a6767fbb4ce25a610701b3`
-**Last observed revision:** `095880f167755431165137247bd51844b8c29e09`
-**Consecutive red runs:** `4`
+**Last observed revision:** `1b23bca7239ee7627153e7422a55cc3080329948`
+**Consecutive red runs:** `5`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
