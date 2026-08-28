@@ -9,7 +9,7 @@ independently fixable.
 
 ## Triage (2026-08-26 leftover sweep)
 
-Still open. One original item looks fixed (audit `roots()`-in-loop). Remaining from this sweep: MCP mutation gate dropped on catalog miss; corrupt manifest is raw `JSON.parse`; `generatedAtMillis` still `Number(...)`; Vite buffers whole body; verify scratch `.snapback-verify-`; drift-runner hardcoded source; `bash -lc` in `scripts/verify-local-proof`; maturity fallback silent `HEAD^..HEAD`; Fly `Number(timestamp) || 0`; Windows `SNAPBACK_CONTROL_STORE_UNSAFE`.
+Still open. One original item looks fixed (audit `roots()`-in-loop). Remaining from this sweep: ~~MCP mutation gate dropped on catalog miss~~; ~~corrupt manifest is raw `JSON.parse`~~; `generatedAtMillis` still `Number(...)`; Vite buffers whole body; verify scratch `.snapback-verify-`; drift-runner hardcoded source; `bash -lc` in `scripts/verify-local-proof`; maturity fallback silent `HEAD^..HEAD`; Fly `Number(timestamp) || 0`; Windows `SNAPBACK_CONTROL_STORE_UNSAFE`. The two struck MCP items were fixed on 2026-08-28; the remaining batch stays open.
 
 ## snapback-cli / control
 - Inconsistent exit-code propagation across `deploy status`/`apply`/`rollback`/
@@ -32,10 +32,13 @@ Still open. One original item looks fixed (audit `roots()`-in-loop). Remaining f
   `sinceMs:0` filter → misdated audit logs (adapters/fly-machines-vm-driver.mjs:272).
 
 ## MCP
-- `snapback_run_function` drops the mutation authority gate when the catalog is
-  missing/stale (mcp-control.mjs:2067).
-- Corrupt `functions.manifest.json` crashes MCP server construction with a raw
-  exception, no `SNAPBACK_MCP_*` diagnostic (mcp-control.mjs:216).
+- ~~`snapback_run_function` drops the mutation authority gate when the catalog
+  is missing/stale (mcp-control.mjs:2067).~~ Fixed 2026-08-28: missing and
+  unmatched catalogs refuse before dispatch with coded MCP diagnostics.
+- ~~Corrupt `functions.manifest.json` crashes MCP server construction with a raw
+  exception, no `SNAPBACK_MCP_*` diagnostic (mcp-control.mjs:216).~~ Fixed
+  2026-08-28: construction retains a `SNAPBACK_MCP_FUNCTION_MANIFEST_INVALID`
+  diagnostic with the manifest path and parse failure.
 
 ## codegen
 - Case-insensitive filename collision check covers contract modules but not

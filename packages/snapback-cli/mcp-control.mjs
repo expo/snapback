@@ -345,7 +345,20 @@ export function buildAppDataCatalog(backendRoot) {
     return { catalog: null, diagnostics };
   }
   const manifestText = readFileSync(manifestPath, 'utf8');
-  const manifest = JSON.parse(manifestText);
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestText);
+  } catch (cause) {
+    diagnostics.push(diagnostic(
+      'SNAPBACK_MCP_FUNCTION_MANIFEST_INVALID',
+      `generated function manifest ${manifestPath} is not valid JSON`,
+      {
+        manifestPath,
+        parseError: cause instanceof Error ? cause.message : String(cause),
+      },
+    ));
+    return { catalog: null, diagnostics };
+  }
   const capabilityPath = join(generated, 'capability.manifest.json');
   const capability = existsSync(capabilityPath) ? readJson(capabilityPath) : null;
   const gaps = new Set(capability?.capabilityGaps ?? []);
@@ -2427,11 +2440,39 @@ export class McpControlServer {
       }));
     }
     if (!checked) {
-      const entry = (this.catalog?.entries ?? []).find(
+      // @ref LLP 0184#acceptance — invocation admission is authoritative and
+      //   fails closed when the generated catalog cannot classify authority.
+      if (this.catalog === null) {
+        const unavailable = this.catalogDiagnostics.find(
+          (entry) => entry?.severity === 'error',
+        ) ?? diagnostic(
+          'SNAPBACK_MCP_FUNCTION_CATALOG_UNAVAILABLE',
+          'the generated function catalog is unavailable; refusing because function authority cannot be determined',
+          { tool },
+        );
+        return this.toolResult(this.envelope('function.run', {
+          diagnostics: [unavailable],
+          next: [{ kind: 'runCommand', command: 'snapback generate' }],
+        }));
+      }
+      const entry = this.catalog.entries.find(
         (candidate) => candidate.functionId === functionRef || candidate.title === functionRef,
       );
+      if (entry === undefined) {
+        return this.toolResult(this.envelope('function.run', {
+          diagnostics: [diagnostic(
+            'SNAPBACK_MCP_FUNCTION_CATALOG_MISS',
+            'the generated function catalog has no matching entry; refusing because function authority cannot be determined',
+            {
+              tool,
+              functionManifestHash: this.catalog.functionManifestHash,
+            },
+          )],
+          next: [{ kind: 'runCommand', command: 'snapback generate' }],
+        }));
+      }
       const { refusal } = this.checkAuthority(authority, {
-        required: entry !== undefined && entry.kind !== 'query',
+        required: entry.kind !== 'query',
         operation: 'function.run',
         tool,
       });
