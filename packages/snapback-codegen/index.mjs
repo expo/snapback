@@ -31,6 +31,10 @@ import {
 import { basename, join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseJavaScript } from 'acorn';
+import {
+  CANONICAL_CLIENT_VALUE_V1_LIMITS,
+  measureCanonicalClientValueV1,
+} from '@expo/snapback-client/canonical-client-value';
 import { computeEffectCeiling } from './effect-ceiling.mjs';
 import {
   API_ENVELOPE_MEMBERS_FILE,
@@ -243,6 +247,50 @@ const SEARCH_FIELD_CLASSIFICATIONS = new Set([
 ]);
 
 const HEADER = generatedByHeader();
+
+const CLIENT_EXPORT_NODE_MEASUREMENT_LIMITS = Object.freeze(Object.fromEntries(
+  Object.keys(CANONICAL_CLIENT_VALUE_V1_LIMITS)
+    .map((key) => [key, Number.MAX_SAFE_INTEGER]),
+));
+
+function measureGeneratedReactClientExport(appDescriptor) {
+  const references = [
+    ...Object.values(appDescriptor.api.queries),
+    ...Object.values(appDescriptor.api.mutations),
+    ...Object.values(appDescriptor.commands)
+      .filter((command) => command?.kind === 'media-command.v1')
+      .map((command) => command.mutation),
+  ];
+  return measureCanonicalClientValueV1(references, {
+    limits: CLIENT_EXPORT_NODE_MEASUREMENT_LIMITS,
+  });
+}
+
+function warnGeneratedReactClientExportBudget(appDescriptor, warn) {
+  const { nodes } = measureGeneratedReactClientExport(appDescriptor);
+  const maxNodes = CANONICAL_CLIENT_VALUE_V1_LIMITS.maxNodes;
+  if (nodes <= maxNodes) return;
+  // @ref LLP 0297#finding-2-generated-artifacts-earned-a-separate-profile-but-the-split-is-incompletely-applied
+  // — the generated function catalog is knowable before React/Expo boot, so
+  // report its exact canonical count while preserving the argument contract.
+  warn(
+    'SNAPBACK_CODEGEN_REACT_EXPORT_NODE_BUDGET_EXCEEDED',
+    'app-descriptor',
+    `generated React/Expo function export measures ${nodes} canonical nodes, above the CanonicalClientValueV1 ceiling of ${maxNodes}; provider boot can refuse with SNAPBACK_REACT_ARGS_INVALID. Do not export unused table queries; collapse pagination variants (including *Before members) into one query with an optional before argument.`,
+    {
+      details: {
+        measuredNodes: nodes,
+        maxNodes,
+        refusalCode: 'SNAPBACK_REACT_ARGS_INVALID',
+        projection: 'app.api.queries + app.api.mutations + command-bound mutations',
+        fixes: [
+          'Do not export unused table queries.',
+          'Collapse pagination variants, including *Before members, into one query with an optional before argument.',
+        ],
+      },
+    },
+  );
+}
 
 // @ref LLP 0194#acceptance — generated app declarations instantiate and
 // re-export this owner; they never define the generic ctx identities again.
@@ -8613,6 +8661,7 @@ async function generateInProcessLocked({
   if (diagnostics.some((d) => d.severity === 'error')) {
     return { ok: false, diagnostics };
   }
+  warnGeneratedReactClientExportBudget(appDescriptor, warn);
   const appDescriptorSource = serializeAppDescriptorV1(appDescriptor);
   const hostedDevelopmentAdmissions = codegenPolicy.hostedDevelopmentTargets.map((entry) => ({
     target: {

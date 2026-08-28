@@ -1,9 +1,9 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:f6e0f0bd8884af5d94226fbc05bbf3c6b7a6a0532f05af233bd13ba286d6ab48 -->
-First read (LLP 0259 Rung A): use edit targets. For a brief, `SNAPBACK_*`
-refusal, or failed `prove`, open one result from `snapback guide <query>`.
+<!-- start-packet:begin expo-chat digest=sha256:f34e36814c80aa27197238ba7518045050dfd5527345f5c3e3c23a551860d1d6 -->
+First read (LLP 0259 Rung A): use edit targets. Brief, `SNAPBACK_*` refusal,
+or failed `prove` → open one `snapback guide <query>` result.
 
 ## The loop
 
@@ -13,20 +13,19 @@ Edit `snapback/schema.mjs` / `snapback/functions.mjs` / `snapback/seed.json`
 `dev:supervised` is optional; it never launches a device or simulator — use
 Expo Go, a dev client, or `expo run:ios|android`.
 
-If **Metro's inner port escaped 4287–4387**, the pins did not redefine its
-range. Use one `--port-range <lo>-<hi>` that contains every owned listener,
-shared by Explicit and Familiar backends.
+**Metro's inner port escaped 4287–4387:** use one `--port-range <lo>-<hi>`
+that contains every owned listener, shared by Explicit and Familiar backends.
 
-If **supervised Expo web wants stdin detached or the owner dies on pipe EOF**:
-pre-repair behavior. stdin EOF now closes only the optional command channel and
-leaves the supervisor and its children live; launchers may use `/dev/null`.
+**Supervised Expo web wants stdin detached or the owner dies on pipe EOF:**
+stdin EOF now closes only the optional command channel and leaves the
+supervisor and its children live; launchers may use `/dev/null`.
 
-Android emulator: set printed `androidEmulatorUrl` (`10.0.2.2`) as
-`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, leave its managed block commented.
-Remove stale `SNAPBACK_DEV_CLIENT_PORT` / `SNAPBACK_DEV_BOOTSTRAP_PORT`; plain
-dev refuses both with `SNAPBACK_CLI_ARGUMENT_INVALID`.
+Android emulator: set `androidEmulatorUrl` (`10.0.2.2`) as
+`EXPO_PUBLIC_SNAPBACK_URL`, restart Metro, keep its managed-block line
+commented. Remove stale client/bootstrap port variables; plain dev refuses
+them with `SNAPBACK_CLI_ARGUMENT_INVALID`.
 
-Before proof edits, read `node_modules/@expo/snapback-acceptance/README.md`.
+Proof: read `node_modules/@expo/snapback-acceptance/README.md`.
 
 <!-- script-glossary:begin -->
 ## Script glossary
@@ -37,8 +36,8 @@ post-`prove` observations; `carry:self-check`: wiring only. Removed `test:live`
 → `npm test`.
 <!-- script-glossary:end -->
 
-The native carrier owns simulator boot/drive/screenshots. Self-started Metro
-must not inherit `CI=1`; it disables watching.
+Carrier owns simulator/screenshots. Do not pass `CI=1` to
+Metro; it disables watching.
 
 ## Edit targets (listed, not charged)
 
@@ -54,10 +53,9 @@ refused alias.
 
 ## Posture
 
-- **Auth: sessions, guest-first, password, Apple/Google.** One
-  `useSnapbackAuth()` owner handles guest/password/provider entry. Web starts
-  sessionless; native auto-adopts; `adoptSupervisedSession` opts web in/native
-  out. After `signUpWithPassword` / `signInWithPassword`, do not call an
+- **Auth: sessions, guest-first, password, Apple/Google.** Web starts sessionless;
+  native auto-adopts; `adoptSupervisedSession` reverses either default. After
+  `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
   until `getMine` (or equivalent) has a row. Keep `HANDLE_TAKEN` / refuse UI
@@ -75,14 +73,17 @@ refused alias.
    `optional-user` plus `SNAPBACK_AUTH_REQUIREMENT_IMPLICIT`.
 2. Inline args objects churn `useSnapbackQuery` — the subscription keys on
    args identity; hoist or memoize.
-3. Structured fields are typed but opaque: interiors are not queryable and a
-   nested principal is a snapshot, not membership. A base64 video or data-URI
-   photo is row data under the 32 KiB structured-value ceiling; use the
-   generated asset/media upload path. See
+3. `app.api.queries`: 4,096-node `CanonicalClientValueV1` ceiling.
+   `snapback generate` warns; Expo boot can refuse with
+   `SNAPBACK_REACT_ARGS_INVALID`. Do not export unused table queries; replace
+   `*Before` variants with an optional `before` argument.
+4. Structured fields are opaque: interiors are not queryable and a
+   nested principal is a snapshot, not membership. Base64/data-URI media is row data under the
+   32 KiB value ceiling; use generated asset/media upload. See
    [Structured stored values](/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values).
-4. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
+5. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
    migrate or reset-install.
-5. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
+6. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate
 

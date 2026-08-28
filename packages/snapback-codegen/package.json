@@ -203,6 +203,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@expo/snapback-client": "workspace:*",
     "@expo/snapback-contract": "workspace:*",
     "acorn": "^8.17.0",
     "ajv": "^8.20.0",

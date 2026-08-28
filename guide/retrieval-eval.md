@@ -9,8 +9,9 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
+reviewed-authorities-digest: sha256:f928289eea2aee480bb689d12d9732f8d2d145407dc146305f256b6ad1b465e9
 ---
 
 # Retrieval eval protocol
@@ -1527,6 +1528,18 @@ spellings and repairs appear only under Required guidance.
      Route terms: "supervised Expo web wants stdin detached or the owner dies on pipe EOF".
      Required guidance: "stdin EOF now closes only the optional command channel",
      "leaves the supervisor and its children live", "may use `/dev/null`".
+
+134. **Generated app exceeds the React identity budget:** "A third milestone
+     of live queries made `app.api.queries` exceed 4096 CanonicalClientValue
+     nodes and Expo booted blank." The run fails if it waits for provider boot
+     to reveal the limit, suggests increasing the shared budget, or requires
+     reading `canonical-client-value.mjs` to find the repair.
+     Expected pages: `start/expo-chat.md`, `clients/react-expo.md`.
+     Route terms: "generated app 4096 nodes", "app.api.queries",
+     "blank Expo boot".
+     Required guidance per page:
+     `start/expo-chat.md`: "4,096-node `CanonicalClientValueV1` ceiling", "Do not export unused table queries", "optional `before` argument".
+     `clients/react-expo.md`: "4,096-node ceiling", "Do not export unused table queries", "optional `before` argument", "SNAPBACK_REACT_ARGS_INVALID".
 
 
 

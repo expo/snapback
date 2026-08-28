@@ -1,6 +1,6 @@
 # guide-gap: generated `app` can exceed CanonicalClientValue 4096 nodes and refuse Expo boot
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -47,3 +47,19 @@ optional `before` args.
 - A cold agent adding a third milestone of live queries either stays under
   the ceiling with a named recipe, or is refused at generate/verify with a
   fix that does not require reading `canonical-client-value.mjs`.
+
+## Resolution
+
+Resolved 2026-08-28. Codegen now uses the canonical client value owner's exact
+traversal to measure the generated React/Expo function export. When the
+projection exceeds 4,096 nodes, generation emits
+`SNAPBACK_CODEGEN_REACT_EXPORT_NODE_BUDGET_EXCEEDED` with the measured count,
+the ceiling, the downstream `SNAPBACK_REACT_ARGS_INVALID` refusal, and both
+cheap authoring repairs. It remains a warning because the descriptor is valid
+for non-React consumers even when the current React store-identity path cannot
+admit the catalog.
+
+The Expo start packet and React/Expo client guide now state the ceiling and
+repair recipe. The capability aliases and a retrieval-eval case cover the
+observed `app.api.queries`, generated-app node-budget, and blank-boot
+vocabulary.
