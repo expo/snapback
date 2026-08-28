@@ -176,7 +176,7 @@ try {
     ...(owner === 'environment' ? { kind: 'read' } : {}),
   }));
   const symbolRegistry = {
-    schemaVersion: 'snapback-symbol-registry.v1',
+    schemaVersion: 'snapback-symbol-registry.v2',
     buildIdentity: { sourceDigest: 'sha256:synthetic-symbols' },
     limits: { lookupBytes: 16_384 },
     modules: [],

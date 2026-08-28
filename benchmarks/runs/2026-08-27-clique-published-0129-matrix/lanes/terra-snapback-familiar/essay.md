@@ -1,0 +1,9 @@
+# Familiar Snapback: a short qualitative comparison
+
+This run made the Familiar profile feel like a promising Convex-shaped authoring veneer over a more operationally explicit backend. The strongest moment was generating a `schema.ts` and `social.ts` module using `query` and `mutation`, then seeing the emitted manifest identify `snapback-familiar-ts-v1`. That is legible to someone accustomed to Convex: tables, validator vocabulary, and handler-local database calls sit close together.
+
+The friction was unlike a typical Convex first pass. Convex's cloud deployment and generated API loop usually makes a small schema replacement feel disposable. Here, the Snapback lifecycle and immutable deployment identity were foregrounded. That is a useful production-shaped constraint, but it made an accidental template-first explicit deployment materially consequential: the subsequent Familiar application had to be a successor rather than a clean local experiment. The tool did not provide a concise, actionable successor-status diagnostic in the client command's output.
+
+Compared with Supabase, Familiar was nicer for colocating server authority and typed operation contracts; I did not need to begin with SQL, RLS policies, a REST shape, and a separate realtime model. Compared with Convex, its Familiar dialect has a more visible boundary: handlers are lowered into a bounded runtime, and the guide explicitly distinguishes what actions cannot do. That clarity is valuable, but the profile is still experimental and has enough deployment/profile mechanics that it does not yet feel as effortless as the best Convex path.
+
+The overall impression is mixed but constructive: the source experience is approachable, while the lifecycle and migration experience needs a more forgiving local development story and clearer progressive diagnostics.

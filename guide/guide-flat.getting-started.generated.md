@@ -14,8 +14,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:6d755bb061ddcaae93be8cdfbb10d1a402fed39cc7dbee3b5ec870fdc5ff8479
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:c35a028d2c4bbacdddd4e09c92b5f49e60f00db705a68e799a47fd40dda53a06
 ---
 
 # Your first backend
@@ -84,6 +84,12 @@ partial: specialized validators — typed asset references (`v.assetRef`,
 [assets](../backend/assets.md)), result-side `v.doc(table)` references
 ([queries](../backend/queries.md)) — are taught with their features.
 
+If you searched for **base64 video**, data-URI media, or a fixture photo stored
+as a string, route the bytes out of the document before authoring the field.
+A `v.string()` or `v.json()` value is still row data and the structured form
+has the independent 32 KiB per-value ceiling described below. This storage
+boundary is the same in Explicit and Familiar authoring.
+
 **Storing media is an asset workflow, not a string-field shortcut.** If a
 field will hold an uploaded photo, video, or file, stop here and follow
 [Assets](../backend/assets.md): declare an asset intent, upload and finalize
@@ -119,6 +125,15 @@ rather than in a hand-written guard. Seven, not eight, because an optional
 field's result contract adds a `null` variant against the eight-variant union
 bound.
 
+Search vocabulary: A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union; v.union requires at least two validators.
+
+If you searched for “A schema field with a single literal compiled as
+unsupported Json; represented the closed digest identity as a one-member
+union” or “v.union requires at least two validators,” use
+`v.literal(value)` directly. `v.union` is only for 2–8 alternatives; wrapping
+one literal in a union adds no domain information and is refused. Explicit and
+Familiar schema source share this normalized validator rule.
+
 Changing a domain is a schema change with a data rule. Widening one (or going
 back to `v.string()`) applies without a scan. Narrowing one — including
 tightening an existing `v.string()` field into a domain — is applied only when
@@ -143,6 +158,18 @@ A nested `v.principal()` is a validated **snapshot value only**. For example,
 at send time, but Snapback never derives current membership, row visibility,
 asset access, or another grant from that opaque array. Put current authority in
 a first-class principal field, membership row, or grant.
+
+`SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED` means an opaque `v.array(...)` or
+`v.object({...})` contains `v.id()`, whose referential-integrity lifecycle
+requires an addressable top-level field. For current references, use a
+first-class top-level `v.id()` field or child row. If a receipt or message
+needs only a historical, non-authoritative snapshot of identifier text, store
+that snapshot as a bounded `v.string()` instead and do not use it for current
+existence, membership, or authorization decisions. This is the same normalized
+schema rule in Explicit and Familiar authoring.
+
+Search vocabulary: SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays;
+nested `v.id()` in a structured value.
 
 The runtime carrier is `canonical-json-text.v1`: the server validates the
 whole value, normalizes integral Reals, writes canonical JSON `TEXT`, and
@@ -305,6 +332,17 @@ Inline v1 is deliberately self-contained: it does not capture imports,
 sibling helpers, or outer constants, so put all application logic and locals
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation.
+
+Search vocabulary: elevated reads can't hide in helper modules; defineJsQuery elevatedReads refused on inline handlers.
+
+If you searched for “elevated reads can't hide in helper modules” or
+“`defineJsQuery elevatedReads` refused on inline handlers,” keep each
+`ctx.db.elevated.{get,getMany,uniqueMany,query}` call directly in the named
+query or mutation handler expression, after its `ctx.permissions` check.
+`elevatedReads:` metadata is module-form only; an inline definition gets its
+review facts from the direct calls instead. This placement rule is identical
+after Explicit and Familiar source normalize. Follow the complete
+[authorize-then-elevate recipe](../auth/protecting-data.md#authorize-first-then-elevate-the-exact-handler-read).
 
 ### What the subset refuses, and the standard rewrites
 
@@ -996,13 +1034,13 @@ id: getting-started.generated-artifacts
 order: 3
 audience: agent-first
 capabilities: [backend.codegen]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0037-schema-source-of-truth.decision.md, llp/0041-packaged-dev-loop.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, packages/snapback-codegen/review-surface.mjs, packages/snapback-codegen/review-manifest.schema.json, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/authorization-review.schema.json, packages/snapback-codegen/write-policy.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/semantic-generation.mjs, schemas/normalized-definition.v1.schema.json]
 examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-codegen/familiar-phase-a.test.mjs, packages/snapback-codegen/familiar-phase-b.test.mjs, tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/contract-output-mode.test.mjs, packages/snapback-cli/templates/react, demos/todo-v2/snapback/codegen.policy.json]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:88e5be1e178a53be282e824c2f4d83697cba481474c140c0fa180880c2fe48ca
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:4da054aa2fbf6c471cdab08fa3e18c81cc7dfe243cf6e479a3a3860d1fe211d2
 ---
 
 # Generated artifact custody and review
@@ -1109,6 +1147,26 @@ Generation writes a temporary complete graph, digests it, atomically publishes
 the hash-addressed cache, verifies it, then atomically materializes
 `snapback/generated/` for import compatibility. A hard generation or write
 failure leaves the previously serveable graph intact.
+
+## Recover from policy, parse, and broad module-evaluation failures
+
+Search vocabulary: CODEGEN_POLICY_INVALID and committedProjections policy field;
+CODEGEN_MODULE_PARSE_FAILED; CODEGEN_MODULE_EVALUATION_FAILED; broad module-evaluation code.
+
+These routes apply to both Explicit and Familiar authoring. They diagnose the
+authored input before either profile is normalized; fix the named source or
+policy and rerun `snapback generate snapback --check --json`.
+
+| Code | Meaning and repair |
+| --- | --- |
+| `CODEGEN_POLICY_INVALID` | `snapback/codegen.policy.json` is unreadable JSON or not a closed `snapback.codegen-policy.v1` record. Start with `schemaVersion` and the required `committedProjections` array shown above, preserve any projections the repository needs, and then add only supported optional fields. |
+| `CODEGEN_MODULE_PARSE_FAILED` | A definition module could not be parsed. Repair the diagnostic's file and source location; the prior generated graph remains in place. |
+| `CODEGEN_MODULE_EVALUATION_FAILED` | This is the broad module-evaluation code: an isolated definition module threw or produced a failure that has no narrower stable code. Read the diagnostic message and `path`, repair the authored declaration or forbidden evaluation-time behavior there, and rerun preflight. Do not treat this wrapper as one specific schema rule. |
+
+If “the Guide search returned no entry for the broad module-evaluation code,”
+this is the route. For the isolation and attribution boundary behind an
+evaluation failure, continue to [Handler runtime — Diagnostic
+attribution](../backend/handler-runtime.md#diagnostic-attribution).
 
 ## Consume through the manifest
 
@@ -1241,6 +1299,37 @@ inputs produce byte-identical review manifests and summaries.
 If a consumer truly cannot regenerate, declare its exact projection path in
 `snapback/codegen.policy.json`; do not commit the whole graph. Re-run codegen and
 the review manifest will record the new custody.
+
+### Preview authorization policy changes before activation
+
+Search vocabulary: owner-visible collection parents interacted with cross-author feed reads; The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post.
+
+If you searched because “owner-visible collection parents interacted with
+cross-author feed reads,” or because “The owner-visible parent required by the
+now-abandoned generated collection also scoped ordinary handler reads, so Bob
+could not resolve Alice's parent post,” review the generated policy projection
+before starting the new graph.
+
+Run generation, then inspect and diff
+`snapback/generated/authorization-review.json`. It is an always
+consumer-committed projection built and validated from the same candidate graph
+as the executable artifacts. Check these table-named facts instead of applying
+an owner-policy patch by source-text proximity:
+
+- `tablePolicies[]` names every table and its effective read policy, including
+  the owner field or membership declaration.
+- `operations[].effectiveTablePolicies[]` shows which table policy each read
+  surface actually composes, so a cross-author read becoming owner-only is
+  visible before activation.
+- `writePolicyChecks[]` names `operation`, `table`, `ownerField`,
+  `ownerInputDisposition`, and `uniqueConflictDisposition`, including declared
+  unique-conflict disclosures.
+
+Use `snapback generate snapback --check --json` first when you want candidate
+validation without publication, then run ordinary generation to materialize
+the review file and inspect its Git diff before `snapback dev` or another
+activation path. These normalized artifacts are shared by Explicit and
+Familiar authoring.
 
 ## Anti-patterns
 

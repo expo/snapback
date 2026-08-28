@@ -157,6 +157,10 @@ async function main() {
   const temporary = mkdtempSync(join(tmpdir(), 'snapback-qualified-staging-store-'));
   const filtered = join(temporary, 'staged');
   const extracted = join(temporary, 'runtime');
+  const publicationQualification = join(
+    temporary,
+    'publication-capability-qualification.receipt.json',
+  );
   mkdirSync(filtered);
   mkdirSync(extracted);
 
@@ -208,6 +212,7 @@ async function main() {
       join(ROOT, 'scripts', 'packaged-store-qualification.mjs'),
       '--staged-dir', filtered,
       '--runtime-binary', runtimeBinary,
+      '--qualification-out', publicationQualification,
       ...(args.keep ? ['--keep'] : []),
     ], {
       cwd: ROOT,
@@ -223,6 +228,12 @@ async function main() {
     const mintedReceipt = join(dirname(runtimeBinary), RECEIPT_FILE);
     if (!existsSync(mintedReceipt) || !lstatSync(mintedReceipt).isFile()) {
       throw new Error(`packaged-store qualification did not mint ${mintedReceipt}`);
+    }
+    if (!existsSync(publicationQualification)
+        || !lstatSync(publicationQualification).isFile()) {
+      throw new Error(
+        `packaged-store qualification did not retain platform capability evidence at ${publicationQualification}`,
+      );
     }
 
     const templateQualification = spawnSync(process.execPath, [
@@ -245,7 +256,7 @@ async function main() {
     }
 
     mkdirSync(dirname(out), { recursive: true });
-    copyFileSync(mintedReceipt, out);
+    copyFileSync(publicationQualification, out);
     console.log(JSON.stringify({
       schemaVersion: 'snapback.qualified-staging-store-qualification.v1',
       ok: true,

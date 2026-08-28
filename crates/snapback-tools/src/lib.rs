@@ -2,6 +2,11 @@
 
 #![allow(clippy::result_large_err)]
 
+#[used]
+static BUILD_INPUT_LEAF_LINK_ANCHOR: fn() = || {
+    let _ = snapback_build_identity::link_anchor();
+};
+
 use snapback_engine::{ephemeral, local, runtime};
 use snapback_kernel::{diagnostic, live_matcher, storage};
 use snapback_types::{bench_fixture, manifest};

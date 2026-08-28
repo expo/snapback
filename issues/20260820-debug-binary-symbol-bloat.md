@@ -155,3 +155,29 @@ The issue remains open for two bounded follow-ups: add a binary-size/
 with explicit LLDB/crash-symbolication acceptance before reconsidering a
 default/opt-in profile pair. No stripping or profile change is part of this
 resolution.
+
+## Pointer — 2026-08-27
+
+The two bounded follow-ups this ticket left open are now scoped in
+**LLP 0327 — Developer build-loop instrumentation**
+(`llp/0327-developer-build-loop-instrumentation.rfc.md`):
+
+- the binary-size / `__LINKEDIT` drift metric becomes part of §3's standing
+  build-loop metric, reported on an existing schedule, never a gate;
+- the "separately named reduced-debug experiment with explicit
+  LLDB/crash-symbolication acceptance" is §4, as an opt-in `devfast` profile
+  that changes no default, with this ticket's acceptance bar carried over
+  verbatim (LLDB locals, file/line symbolication, actionable backtraces, plus
+  `scripts/bootstrap-ibex-runtime` launch and handler-VM qualification).
+
+0327 explicitly does **not** re-propose the change this ticket rejected. It
+records this ticket's finding that the dev default is already `debuginfo=2`
+with `split-debuginfo=unpacked`, so "enable split debuginfo" is a no-op.
+
+New adjacent measurements taken 2026-08-27: `target/debug` is 126 GB with 137
+artifacts over 100 MB and a largest rlib of 1.3 GB; linking one integration
+test binary costs ~5s with deps warm regardless of test size (a 42-line test
+target links in 5.3s and is 442 MB on disk).
+
+This ticket stays **open** until 0327 §4 returns a result — positive or
+negative. A negative result closes it.

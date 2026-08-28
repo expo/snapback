@@ -10,11 +10,21 @@ build = "build.rs"
 name = "snapback_cli"
 path = "src/lib.rs"
 
+[[bin]]
+name = "snapback-local"
+path = "src/bin/snapback-local.rs"
+required-features = ["standalone-identity-provider"]
+
 [features]
-default = ["cli-owner"]
+default = ["cli-owner", "standalone-identity-provider"]
 # Stable feature name retained for affected-test selection after the CLI
 # entrypoints moved here.
 cli-owner = []
+# The CLI package's own binary is a final composition target and must provide
+# the stable identity/Guide symbols. The root `snapback` package disables this
+# feature and supplies the same provider itself, so leaf changes do not become
+# a Rust dependency edge into the CLI library unit.
+standalone-identity-provider = ["dep:snapback-build-identity"]
 
 [dependencies]
 anyhow = "1.0"
@@ -26,6 +36,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10"
 snapback-kernel = { path = "../snapback-kernel" }
+snapback-build-identity = { path = "../snapback-build-identity", optional = true }
 snapback-server = { path = "../snapback-server" }
 snapback-services = { path = "../snapback-services" }
 tokio = { version = "1.48", features = ["full"] }

@@ -1,26 +1,25 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin media-feed digest=sha256:7e21a67d507e3002fbf2dbad1271a881ad4051f325f9a6170afb50757fb2770b -->
+<!-- start-packet:begin media-feed digest=sha256:1b7d57cd1e10b67ef9be2dc79a45afc784ce6bfb287bb55c655a31e7fc40ebfb -->
 Read [Snapback in one screen](/_snapback/guide/start/mental-model.md); with this stub it is the
 whole first read.
 
 <!-- script-glossary:begin -->
 ## Scripts
 
-`prove`: only done-oracle; writes the authoritative `snapback verify` receipt.
-`npm test`: acceptance debug path. `test:static`: no-server coherence.
-`carry:*`: observations after `prove`; `carry:self-check`: wiring only.
+`prove`: only done-oracle; writes the `snapback verify` receipt. `npm test`:
+acceptance debug. `test:static`: no-server. `carry:*`: post-proof observations.
 <!-- script-glossary:end -->
 
 Edit `snapback/{schema,functions}.mjs`, `seed.json`, `App.tsx`, and
 `pagination.mjs` → `generate` → `dev` (backend + env) and `dev:client` (Metro)
-in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: paste
-printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
-restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
-`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
-`SNAPBACK_CLI_ARGUMENT_INVALID`. `publishEntry` owns upload/finalize/attach;
-paginate on immutable `pageKey`. Escalate: `snapback guide <query>`.
+in terminal 2 → `prove`; `dev:supervised` is optional. Android emulator: set
+printed `androidEmulatorUrl` as `EXPO_PUBLIC_SNAPBACK_URL`; restart Metro.
+Plain dev refuses stale `SNAPBACK_DEV_{CLIENT,BOOTSTRAP}_PORT` pins.
+`publishEntry` owns upload/finalize/attach. Base64 video or data-URI media is
+row data under the 32 KiB ceiling, not an upload. Paginate on immutable
+`pageKey`; escalate with `snapback guide <query>`.
 <!-- start-packet:end -->
 
 ## Operate it

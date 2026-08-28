@@ -31,8 +31,35 @@ open the packet's named edit targets, and escalate one page at a time with
 - [media-feed](./media-feed.md) — stub: mental model first.
 - [todo-contract](./todo-contract.md) — stub: mental model first.
 
+If you arrived after a **mistaken unscoped `snapback@0.1.29` lookup**, the
+published CLI package is `@expo/snapback-cli`; `create-snapback-app` is the
+`npm create snapback-app` wrapper. If the **published CLI rejected unknown `expo-router` template**,
+or you **assumed legacy `expo-router` major 7 for Expo 57**, do not repair the tuple by registry archaeology: run the installed
+CLI's `snapback new --help`, choose one of the five template names above, and
+let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and
+React Native pins. Package discovery is profile-neutral; the current template
+registry is Explicit-scoped and has no Familiar-named template.
+
 Scaffolded apps carry their packet transcluded into `AGENTS.md` with a
 digest comment — reading either copy counts once. The
 [capability index](../capabilities.md) is the completeness registry with
 explicit GAP rows: look terms up in it; do not linear-read it before the
 first edit.
+
+## From the chat template to a social product
+
+If you searched for a **short, product-shaped path from that chat to the canonical social schema**:
+there is no maintained end-to-end relational-social recipe today. Take this journey instead — profiles →
+[app identity](../auth/app-identity-binding.md), graph →
+[relational queries](../backend/relational-queries.md), feeds →
+[chunked membership feeds](../recipes/chunked-semijoin-feed.md), roles →
+[scoped roles](../auth/scoped-roles.md), media →
+[assets](../backend/assets.md), offline →
+[retention and replay](../sync/offline-and-retention.md), aggregates and
+schedules → [bounded queries](../backend/queries.md) plus
+[cron](../backend/cron.md).
+
+The `expo-chat` template is Explicit, and Familiar is not covered by this
+template. For Familiar, start at the
+[Familiar handler dialect](../backend/familiar-profile.md) and keep the same
+normalized data and authority boundaries in Familiar source.

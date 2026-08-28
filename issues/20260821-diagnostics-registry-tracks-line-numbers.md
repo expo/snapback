@@ -88,3 +88,27 @@ Options, roughly in increasing cost:
 
 Whichever is chosen, the goal is that a landing cannot leave `main` red on a
 gate the author had no way to see.
+
+## Pointer — 2026-08-27
+
+The decision this ticket defers now has an RFC:
+**LLP 0326 — Volatile coordinates in committed projections**
+(`llp/0326-volatile-coordinates-in-committed-projections.rfc.md`).
+
+It runs the consumer audit this ticket asked for first ("find who actually
+consumes `line`/`column`"). Result: **no consumer computes on them.** They are
+a determinism sort key in the generator, a `file:line` cell rendered into
+`guide/reference/diagnostics.md`, and an opaque pass-through in
+`crates/snapback-server/src/guide_reference.rs`, which paginates `sites` as
+JSON `Value`s and never reads the positional fields — so they are *displayed*
+to an agent running `snapback guide <CODE>` but never computed on.
+
+Re-measured 2026-08-27: 10,204 site records all carrying `file`/`line`/`column`
+in a 2,526,048-byte artifact; **624 registry commits in 30 days out of 4,780
+total (13.1%)**, and **30 of the last 40 registry commits changed no `"code":`
+line at all**.
+
+This ticket stays **open** — LLP 0326 is Draft and its OQ1 (drop the
+coordinates, move them to an uncommitted sidecar, or regenerate in the pre-push
+hook) is unruled. Close it when 0326 is decided, recording which option was
+taken. The ticket's own option 1 is 0326's Option A; its option 2 is Option C.

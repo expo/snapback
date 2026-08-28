@@ -15,6 +15,15 @@ reviewed-authorities-digest: sha256:6b002186d94944cf9c5a3021c79654857ab0e11265ea
 
 # The headless client
 
+If you came looking for a “drive the generated API from Node” page, stay here.
+This is the framework-neutral Node/browser-worker surface for the same
+generated Explicit and Familiar references: construct with `baseUrl`, pass a
+stable `connectionId` to `liveQuery`, and use the generated command client for
+asset-bearing commands. There is no second Node-only generated API.
+
+Search vocabulary: drive the generated API from Node;
+command-client input shape; flat args; asset source.
+
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
@@ -446,6 +455,12 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
+Command inputs are flat: ordinary arguments stay at the top level and the
+descriptor-owned media field receives the supported asset source. Do not wrap
+them in `{ args: ... }`, which is the low-level ordinary mutation wire shape.
+Both authoring profiles generate the same command descriptor and input type;
+the profile difference ends before this client call.
+
 <!-- since: 0.1.21 -->
 
 ## Generated reference kinds and legal verbs
@@ -719,6 +734,24 @@ blanked and permanently detached with
 `SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED`; dispose remains safe and
 idempotent, but recovery requires constructing a new client process/surface
 rather than retrying the terminal instance.
+
+### Keep auth commit participants synchronous and non-reentrant
+
+<!-- diagnostic-primary: SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT -->
+
+`SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT` means an auth-barrier participant called
+back into the same authority owner while its commit callback was running.
+Participant callbacks must finish synchronously: blank, clear, or publish only
+their own already-prepared state there. Move client/auth/provider work outside
+the callback, await the original authority transition, and then start a fresh
+operation against its settled authority. This client rule is identical for
+Explicit and Familiar generated references.
+
+If an ordinary provider or hook surfaces the code without an author-owned
+`compareAndCommit` callback, preserve the diagnostic and authority-transition
+evidence as a product defect. Do not weaken protected rows or replace the
+failed path with public reads; recreating the affected client owner is bounded
+containment, not proof that the underlying reentrancy is repaired.
 
 ## Complete public method inventory
 

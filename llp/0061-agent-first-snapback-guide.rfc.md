@@ -5,6 +5,9 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
+**Revised:** 2026-08-28 (scheduled registry canary fails when
+`guide/published-closure.json` `newestPublished` is not the identity-preset
+closure's npm `latest`; the local fence remains network-free.)
 **Revised:** 2026-08-25 (GAP review routing amendment: expired and
 soon-expiring review dates are warning-only in the push-time Guide check;
 closed or missing issue custody is a hard consistency error; the scheduled
@@ -521,6 +524,13 @@ claims join against `guide/published-closure.json`, and stale or missing fences
 fail locally without consulting the network. The mechanism was prompted by
 `issues/20260804-guide-gap-published-closure-drift.md`, where source-tree guide
 claims had outrun the npm closure.
+
+**Implementation note (2026-08-28).** The local fence still performs no
+network access. `scripts/check-published-closure-registry.mjs` is the
+scheduled complete-battery join that fails when `newestPublished` is not
+the identity-preset closure's registry `latest` — the gap that left the
+record at 0.1.27 while npm carried 0.1.29
+(`issues/closed/20260828-published-closure-record-behind-npm.md`).
 
 ### 4. Distribution and discovery
 

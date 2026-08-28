@@ -68,7 +68,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:e3e8853dd8bfe266c81a384dd20ba0f5927d797d5246912f30017a33889af332"
+      "digest": "sha256:f6e0f0bd8884af5d94226fbc05bbf3c6b7a6a0532f05af233bd13ba286d6ab48"
     },
     "crud-dashboard": {
       "template": "crud-dashboard",
@@ -123,7 +123,7 @@
         "structured-snapback-refusal",
         "failed-prove"
       ],
-      "digest": "sha256:7e21a67d507e3002fbf2dbad1271a881ad4051f325f9a6170afb50757fb2770b"
+      "digest": "sha256:1b7d57cd1e10b67ef9be2dc79a45afc784ce6bfb287bb55c655a31e7fc40ebfb"
     },
     "todo-contract": {
       "template": "todo-contract",

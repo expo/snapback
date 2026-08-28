@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "sol-convex",
+  "backend": "convex",
+  "backend_version": "convex-1.45.0",
+  "model": "gpt-5.6-sol",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "green",
+    "M6": "green",
+    "M7": "not-run",
+    "M8": "green"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 94, "rationale": "Every in-scope M1-M6 and M8 suite and full implemented web choreography segment finished green."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 88, "rationale": "Final reruns had no known functional defect or crash; observed misses were corrected web semantics, with the scale miss isolated to O5."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 90, "rationale": "M6 and all prior milestones passed server-authority checks for sessions, membership, expiry, edit/delete, and view-once access."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": true, "score": 82, "rationale": "Web proofs passed cached reads/search, ordered durable writes, pending-to-read receipts, and dual-context convergence; native proof was environment-null."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 30, "rationale": "Banded first match: all invariants conformed and replay used 11.4% of cap, but Trending's 50% p95 exceeded its linear midpoint rule."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 84, "rationale": "Direct tables and indexes expressed the whole social graph and M8 aggregates, though uniqueness and dedupe were mutation-enforced rather than declarative."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 38, "rationale": "Real auth composed with queries, but password hashing, tokens, expiry, revocation, and session storage were hand-built critical pieces."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 63, "rationale": "Durable live queries were effortless, while typing and connection presence required tables, heartbeats, and timestamp expiry."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 32, "rationale": "The successful cache, durable queue, idempotency, ordering, and restart behavior were authored in application code rather than configured in Convex."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 34, "rationale": "Fixture media worked as data URLs and denial was server-authoritative, but no policy-integrated blob storage lifecycle was exercised."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 58, "rationale": "Bounded server search was straightforward, but offline search required a separate cached browser implementation."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 57, "rationale": "Push suppression and digest seams worked, but connectivity tracking and scheduling semantics required application plumbing."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 55, "rationale": "Anonymous local development became productive, but isolated-instance setup and admin-key deployment required package-source archaeology."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 58, "rationale": "Runtime errors were accurate, but stale Metro output and local deployment failures needed manual DOM, process, and package-source diagnosis."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 42, "rationale": "Local lifecycle and clean storage worked, while data inspection required authored diagnostic queries and the second-instance workflow was hidden."}
+  },
+  "holistic": {
+    "score": 74,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "M6's custom-client suite and two-client segment passed first try because the headless adapter reused the same typed, authorized function surface.",
+      "The fresh scale instance settled every action and exact invariant, but isolated local deployment required package-source archaeology and Trending still missed its midpoint rule.",
+      "M8's dual offline contexts converged exactly once, although I had to author the durable browser queue and repair React Native Web semantics myself."
+    ]
+  }
+}

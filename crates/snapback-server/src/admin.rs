@@ -5020,7 +5020,9 @@ async fn admin_telemetry_stats(
 }
 
 async fn admin_control_catalog() -> Response {
-    let mut response = Response::new(Body::from(crate::control_catalog::BUILD_CATALOG_BYTES));
+    let mut response = Response::new(Body::from(
+        crate::control_catalog::BUILD_CATALOG_BYTES.as_slice(),
+    ));
     response.headers_mut().insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json; charset=utf-8"),

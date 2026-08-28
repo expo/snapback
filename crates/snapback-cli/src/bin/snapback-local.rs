@@ -1,6 +1,7 @@
 const SNAPBACK_WORKER_STACK_BYTES: usize = 8 * 1024 * 1024;
 
 fn main() -> anyhow::Result<()> {
+    let _ = snapback_build_identity::link_anchor();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_stack_size(SNAPBACK_WORKER_STACK_BYTES)

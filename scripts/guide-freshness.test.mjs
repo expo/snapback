@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -22,6 +22,7 @@ import {
   isRecordedBenchmarkEventsTranscript,
   markdownInlineLinks,
   parseFrontmatter,
+  rootJsInstallPrecondition,
 } from './guide-lib.mjs';
 import {
   migrateGuideReviewDigests,
@@ -363,4 +364,41 @@ test('recorded benchmark events/*.jsonl transcripts are frozen evidence, not aut
     ),
     false,
   );
+});
+
+test('rootJsInstallPrecondition names bun install when typescript is missing', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-guide-js-deps-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, 'package.json'), '{}\n');
+  const message = rootJsInstallPrecondition(root);
+  assert.match(message, /required packages unavailable: typescript, ajv/u);
+  assert.match(message, /bun install --frozen-lockfile/u);
+});
+
+test('rootJsInstallPrecondition is silent when typescript resolves', () => {
+  assert.equal(rootJsInstallPrecondition(resolve(import.meta.dirname, '..')), null);
+});
+
+test('generate-guide-manifest checks JS deps before spawning registries', () => {
+  const source = readFileSync(new URL('./generate-guide-manifest.mjs', import.meta.url), 'utf8');
+  const depCheck = source.indexOf('rootJsInstallPrecondition');
+  const diagnostics = source.indexOf('generate-diagnostics-registry.mjs');
+  const symbols = source.indexOf('generate-symbol-registry.mjs');
+  assert.notEqual(depCheck, -1);
+  assert.ok(depCheck < diagnostics, 'JS dep check must run before diagnostics generation');
+  assert.ok(depCheck < symbols, 'JS dep check must run before symbol generation');
+});
+
+test('generate-symbol-registry names bun install before loading typescript', () => {
+  const source = readFileSync(new URL('./generate-symbol-registry.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /^import ts from 'typescript';/mu);
+  assert.doesNotMatch(source, /^import .* from '\.\/symbol-lifecycle\.mjs';/mu);
+  const depCheck = source.indexOf('rootJsInstallPrecondition');
+  const load = source.indexOf("('typescript')");
+  const lifecycle = source.indexOf("import('./symbol-lifecycle.mjs')");
+  assert.notEqual(depCheck, -1);
+  assert.notEqual(load, -1);
+  assert.notEqual(lifecycle, -1);
+  assert.ok(depCheck < load, 'JS dep check must run before requiring typescript');
+  assert.ok(depCheck < lifecycle, 'JS dep check must run before loading symbol-lifecycle');
 });

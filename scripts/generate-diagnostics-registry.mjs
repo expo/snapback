@@ -275,6 +275,48 @@ const productionPaths = [
   ...walk(join(root, 'clients/swift'), (path) => path.endsWith('.swift') && path.includes('/Sources/')),
 ].sort().filter((path, index, paths) => path !== paths[index - 1]);
 
+const inputPaths = [
+  'scripts/generate-diagnostics-registry.mjs',
+  'scripts/diagnostics-registry-source.mjs',
+  'scripts/diagnostics-registry-removals.mjs',
+  'scripts/diagnostics-registry-code-removals.json',
+  ...diagnosticCatalogPaths,
+  'scripts/guide-lib.mjs',
+  ...productionPaths,
+  ...walk(join(root, 'guide'), (path) => (
+    path.endsWith('.md')
+    && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
+    && !path.startsWith('guide/reference/')
+  )),
+].sort();
+
+// @ref LLP 0326.000#stage-0--option-c-independent — the freshness fast path. `sourceDigest` is a
+// hash over the input bytes, so staleness can be decided by hashing alone
+// (~0.25s) instead of running the full scan (~60s). Reading only: this mode
+// never writes, so it cannot leave a worktree half-regenerated.
+if (process.argv.includes('--check-freshness')) {
+  const registryPath = 'guide/reference/diagnostics-registry.json';
+  let committed = null;
+  try {
+    committed = JSON.parse(readFileSync(join(root, registryPath), 'utf8'))
+      ?.buildIdentity?.sourceDigest ?? null;
+  } catch {
+    committed = null;
+  }
+  const actual = sourceDigest(inputPaths);
+  const fresh = committed !== null && committed === actual;
+  process.stdout.write(JSON.stringify({
+    schemaVersion: 'snapback-diagnostics-registry-freshness.v1',
+    path: registryPath,
+    fresh,
+    committedSourceDigest: committed,
+    actualSourceDigest: actual,
+    inputCount: inputPaths.length,
+    regenerateCommand: 'node scripts/generate-guide-manifest.mjs',
+  }) + '\n');
+  process.exit(0);
+}
+
 function lineAndColumn(source, offset) {
   const before = source.slice(0, offset);
   const line = before.split('\n').length;
@@ -727,20 +769,6 @@ for (const name of environmentNames) {
     )),
   };
 }
-const inputPaths = [
-  'scripts/generate-diagnostics-registry.mjs',
-  'scripts/diagnostics-registry-source.mjs',
-  'scripts/diagnostics-registry-removals.mjs',
-  'scripts/diagnostics-registry-code-removals.json',
-  ...diagnosticCatalogPaths,
-  'scripts/guide-lib.mjs',
-  ...productionPaths,
-  ...walk(join(root, 'guide'), (path) => (
-    path.endsWith('.md')
-    && !/^guide\/guide-flat(?:\.[a-z0-9-]+)?\.generated\.md$/.test(path)
-    && !path.startsWith('guide/reference/')
-  )),
-].sort();
 const registry = {
   schemaVersion: 'snapback-diagnostics-registry.v1',
   generatedBy: 'scripts/generate-diagnostics-registry.mjs',

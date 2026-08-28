@@ -14,19 +14,11 @@
 
 use std::path::{Path, PathBuf};
 
-mod build_identity {
-    include!("../snapback-types/build_identity.rs");
-}
-
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
     println!("cargo:rerun-if-changed=../../schemas/http.routes.v1.json");
 
-    // Stamp the server-binary provenance the ungated `/health` reports so an
-    // externally started server is verifiable before any app bundle loads
-    // (ENG-22798). Runs on every target, so it precedes the macOS-only rpath work.
-    build_identity::emit_build_identity();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "linux" {
         // @ref LLP 0041#runtime-distribution — the Linux platform package

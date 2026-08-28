@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-clique-supabase",
+  "backend": "supabase",
+  "backend_version": "supabase-2.112.4",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "aborted",
+    "M3": "aborted",
+    "M4": "aborted",
+    "M5": "aborted",
+    "M6": "aborted",
+    "M7": "not-run",
+    "M8": "aborted"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 38, "rationale": "Only M1 is dual-green (suite+choreo); M2–M6+M8 suites passed but web choreography failed; M7 not-run stays in the full-run denominator as not-passed."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 58, "rationale": "Acceptance suites for M1–M6+M8 passed without crashes; remaining defects are live two-client delivery and RN-web semantic wiring, not corrupted writes."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "O3 requires M6 green; M6 web choreography failed so this dimension is not exercised."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "O4 requires M6 green; native iOS was environment-null and M6 web choreography was not green."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 0, "rationale": "Banded first-match 0: scale replay was attempted after a green starter seed, then Auth signup rate-limited at applied=24/167157 so the envelope/invariants never conformed."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 78, "rationale": "Handles, DM-pair uniqueness, membership, windowed edits, and insights aggregates were declared as Postgres constraints/RPCs rather than blobs."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 76, "rationale": "Email/password Auth wired M1 suite green quickly; hosted signup rate limits and session-restore timing were the remaining ceremony."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 42, "rationale": "postgres_changes and typing broadcast exist, but live DMs/receipts still needed polling and failed M3 choreography; ephemeral typing is a client timer."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 28, "rationale": "Offline reads/writes were a hand-rolled AsyncStorage queue and cache; the platform gave neither queued mutations nor an offline query API."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 32, "rationale": "Authenticated Storage inserts were denied despite permissive policies; avatars/media required a service-role proxy on :48301."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 58, "rationale": "Server word-prefix search was one SQL function; warm-offline search needed a second client-side implementation over a cached list."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 48, "rationale": "Push seam is a presence table plus insert-time log; M8 digest is a Node interval worker, not a first-class scheduler."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 52, "rationale": "JS client and SQL were productive fast; Management API 429s on DDL and Storage RLS mismatch vs docs cost a large slice of M1–M2."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 34, "rationale": "Storage RLS errors named no policy/role; Auth scale died as a generic rate-limit string with no documented retry envelope."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 47, "rationale": "SQL via Management API and a namespaced truncate were adequate; no local reset, hosted Auth rate limits, extra digest and media processes."}
+  },
+  "holistic": {
+    "score": 44,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Declaring handle uniqueness and one-DM-per-pair as real unique indexes made M1/M3 suite checks a single constraint, not application code.",
+      "A signed-in upload of a fixture PNG still hit Storage RLS after WITH CHECK (true) TO public; the same JWT could RPC.",
+      "Starter replay 87/87 in ~20s, then the 167k scale log died on the first handful of hosted Auth signups with Request rate limit reached."
+    ]
+  }
+}

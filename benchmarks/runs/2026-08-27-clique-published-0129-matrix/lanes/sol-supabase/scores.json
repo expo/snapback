@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "sol-supabase",
+  "backend": "supabase",
+  "backend_version": "supabase-js-2.112.4",
+  "model": "gpt-5.6-sol",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "green",
+    "M6": "green",
+    "M7": "not-run",
+    "M8": "green"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 94, "rationale": "Every in-scope suite and required frozen web choreography segment finished green; the prescribed native legs were environment-null."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 86, "rationale": "The retained final runs expose no observed crash or wrong-data flow, though several projection races required correction before green."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 84, "rationale": "Server RLS/RPC checks rejected non-admin changes and repeat view-once access while private Storage remained membership-scoped; no secret holdout probes were available."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": true, "score": 82, "rationale": "Web proofs covered cached search, queued writes, ordered two-client convergence, and read receipts, with native cold-start proof honestly environment-null."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 0, "rationale": "Banded first match: real signup replay stopped at settled prefix 29 on hosted Auth rate limiting, so the invariant manifest did not conform and no probe result was valid."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 92, "rationale": "Postgres directly expressed handles, DM dedupe, memberships, receipts, reactions, aggregates, and trending with declared constraints and compact SQL."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 82, "rationale": "Built-in signup, login, persisted sessions, and user-scoped RPCs wired quickly, but hosted signup limits blocked the scale replay."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 78, "rationale": "Postgres Changes and Broadcast handled durable liveness and typing, but exact projections and optimistic-event reconciliation remained application code."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 34, "rationale": "Supabase supplied no offline cache or mutation queue, so local persistence, single-flight flush, ordering, and deduplication were authored by hand."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 70, "rationale": "Private Storage and RLS supported member/view-once authorization, but signed URLs and upsert SELECT policy introduced substantial lifecycle ceremony."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 60, "rationale": "Postgres prefix and full-text search were easy, while warm-offline search required a separate client-side cached implementation."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 42, "rationale": "A database trigger produced exact push payloads, but connection suppression and scheduled digest delivery were plumbing rather than a complete first-class surface."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 72, "rationale": "The published client and Expo loop became productive quickly, with peer-pin, Management API, and multi-surface policy friction costing iteration time."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 56, "rationale": "Errors were usually accurate but shallow: generic Storage RLS and schema-lock failures required targeted lifecycle diagnostics to locate causes."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 64, "rationale": "Hosted lifecycle and APIs were dependable for normal work, but inspection/reset tooling was custom and Auth quota control was unavailable to the lane."}
+  },
+  "holistic": {
+    "score": 74,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Pair-unique DMs, reaction uniqueness, receipt state, and M8 aggregate ranking mapped cleanly to Postgres constraints and SQL.",
+      "The final M8 two-client proof required hand-merging optimistic queue entries with Realtime rows by durable message ID before all three clients converged exactly once.",
+      "The O5 replay reached only 29 settled actions before hosted Auth rate limiting, preventing the database-scale experience the valid fixture was intended to measure."
+    ]
+  }
+}

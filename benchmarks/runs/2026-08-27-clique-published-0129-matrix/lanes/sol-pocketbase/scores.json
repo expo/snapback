@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "sol-pocketbase",
+  "backend": "pocketbase",
+  "backend_version": "pocketbase-0.39.9/0.27.3",
+  "model": "sol",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8 WEB-ONLY",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "green",
+    "M6": "green",
+    "M7": "not-run",
+    "M8": "green"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 75, "rationale": "Every in-scope web suite and choreography segment went green, but native proofs and several grader-only server-refusal guarantees are absent."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 52, "rationale": "Happy-path web flows are stable, while stateless logout, client-filtered expiry, and broad collection access leave material off-path defects."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 20, "rationale": "Authenticated collection rules allow cross-user private-record reads, and view-once, deletion, expiry, and edit windows are not fully server-denied."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": true, "score": 58, "rationale": "Web proofs showed pending state, ordered flush, read receipts, search, and dual-device convergence, but no cold-start or restart-durable native artifact exists."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 30, "rationale": "Banded result: invariants conformed, but the 500-follow feed probe errored and full search degraded 5.32x from the 10% checkpoint."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 68, "rationale": "Records, relations, JSON membership, and unique keys expressed the social model directly, while receipt and aggregate read models required substantial application structure."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 62, "rationale": "Built-in password auth and persisted SDK tokens wired quickly, but server-side per-session revocation is not a first-class fit."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 32, "rationale": "Core liveness used polling and typing/receipts became durable coordination rows with client expiry rather than purpose-built realtime primitives."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 28, "rationale": "The durable snapshot, ordered queue, pending UI, retry, and convergence behavior were all hand-authored above an SDK with no sync layer."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 58, "rationale": "File upload and serving were smooth, but per-recipient one-view denial, expiry, and tombstone asset revocation remained awkward custom-policy work."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 48, "rationale": "Online LIKE filtering was simple and offline cache search worked, but they were parallel implementations and full-corpus search degraded sharply."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 66, "rationale": "Server hooks and cronAdd hosted push and digest seams locally, though connection detection and exact digest accounting required hand-built plumbing."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 78, "rationale": "One binary and a small SDK produced a fast dev loop, and official help/docs answered hooks, records, cron, and API questions."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 43, "rationale": "Health and request logs were useful, but generic 400s, JSON/date filter quirks, and migration ordering required targeted diagnostics."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 79, "rationale": "The local binary, dashboard APIs, logs, explicit PIDs, data directories, and cron controls were strong; generated migration dependency ordering was not trustworthy."}
+  },
+  "holistic": {
+    "score": 74,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Built-in auth, file fields, and one lane-local binary made the first real Clique backend unusually quick and understandable.",
+      "The corrected fresh replay settled the full action log and matched every invariant exactly on a single SQLite-backed process.",
+      "Hand-building offline sync and then hitting the 500-follow predicate, global-search growth, and same-second migration ordering kept the experience from feeling complete."
+    ]
+  }
+}

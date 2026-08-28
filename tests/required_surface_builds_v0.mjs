@@ -20,10 +20,13 @@ import {
   collectRequiredWebSurfaces,
   ensureRegistryInstall,
   ensureWorkspaceInstall,
+  loadRequiredSurfaceBuildPathPolicy,
   materializeGeneratedBackend,
   requiredSurfaceStructuralErrors,
   runBoundedProcess,
+  selectRequiredSurfaceBuildPaths,
   signalProcessTree,
+  validateRequiredSurfaceBuildPathPolicy,
   verifyInstalledExactContract,
 } from '../scripts/check-required-surface-builds.mjs';
 
@@ -54,11 +57,119 @@ function surface(name, installedVersion = '1.2.3') {
 }
 
 try {
+  const requiredWebSurfaces = collectRequiredWebSurfaces();
   assert.deepEqual(
-    collectRequiredWebSurfaces()
-      .map(({ demoId, surfaceName }) => `${demoId}/${surfaceName}`),
+    requiredWebSurfaces.map(({ demoId, surfaceName }) => `${demoId}/${surfaceName}`),
     ['all-aboard/contract', 'cursors-web/contract', 'pointing-room/contract'],
     'the manifest-derived required web inventory is explicit and non-vacuous',
+  );
+
+  // LLP 0316 Phase 6 / restoration precondition 3: this checked authority is
+  // the eventual GitHub `paths` list. It covers the generator, build harness,
+  // lock/toolchain inputs, and exact required product roots while leaving
+  // unrelated pushes out of a known-red heavyweight lane.
+  const pathPolicy = loadRequiredSurfaceBuildPathPolicy();
+  const pathPatterns = validateRequiredSurfaceBuildPathPolicy(pathPolicy, {
+    surfaces: requiredWebSurfaces,
+  });
+  assert.deepEqual(pathPolicy.requiredSurfacePaths, [
+    'demos/all-aboard/snapback/**',
+    'demos/all-aboard/surfaces/contract/**',
+    'demos/cursors-web/snapback/**',
+    'demos/cursors-web/surfaces/contract/**',
+    'demos/pointing-room/snapback/**',
+    'demos/pointing-room/surfaces/contract/**',
+  ], 'every current required web surface has an exact backend and product-surface selector');
+  assert.equal(pathPatterns.length > 30, true, 'the selector authority is non-vacuous');
+
+  const selection = (paths) => selectRequiredSurfaceBuildPaths(paths, {
+    policy: pathPolicy,
+    surfaces: requiredWebSurfaces,
+  });
+  for (const path of [
+    '.github/workflows/required-surface-builds.yml',
+    '.node-version',
+    'bun.lock',
+    'package.json',
+    'demos/access-desk/demo.snapback.json',
+    'demos/_kit/client.mjs',
+    'demos/_kit/define.mjs',
+    'demos/_kit/target-origin.mjs',
+    'demos/all-aboard/snapback/schema.mjs',
+    'demos/cursors-web/snapback/generated/artifacts.json',
+    'demos/pointing-room/surfaces/contract/pointing.contract',
+    'packages/snapback-react/package.json',
+    'packages/snapback-acceptance/index.mjs',
+    'packages/snapback-cli/index.mjs',
+    'packages/snapback-client/index.mjs',
+    'packages/snapback-client/internal/declared-dev-mint.mjs',
+    'packages/snapback-codegen/index.mjs',
+    'packages/snapback-codegen/review-manifest.schema.json',
+    'packages/snapback-codegen/runtime-artifacts/ctx.mjs',
+    'packages/snapback-contract/index.mjs',
+    'packages/snapback-vite/first-party-auth-relay-routes.generated.json',
+    'packages/snapback-vite/index.mjs',
+    'scripts/check-artifact-path-hygiene.mjs',
+    'scripts/check-checkout-credentials',
+    'scripts/check-required-surface-builds.mjs',
+    'scripts/lib/process-tree.mjs',
+    'scripts/require-bun-package-manager.mjs',
+    'scripts/required-surface-build-paths.v1.json',
+    'targets/cloudflare/client-options.mjs',
+  ]) {
+    assert.equal(selection([path])[0].selected, true, `${path} must select required-surface-builds`);
+  }
+  for (const path of [
+    'README.md',
+    'crates/snapback-server/src/server.rs',
+    'demos/all-aboard/tests/acceptance/headless.mjs',
+    'demos/all-aboard/surfaces/react/App.tsx',
+    'demos/todo/snapback/schema.mjs',
+    'guide/index.md',
+    'issues/20260824-restore-automatic-actions-after-low-noise-interval.md',
+    'llp/0316-development-velocity-program.plan.md',
+    'packages/snapback-acceptance/package.test.mjs',
+    'packages/snapback-acceptance/replay-child.fixture.mjs',
+    'packages/snapback-cli/package.test.mjs',
+    'packages/snapback-client/outbox-authorization-fence.fixture.mjs',
+    'packages/snapback-client/online.test.mjs',
+    'packages/snapback-codegen/review-surface.test.mjs',
+    'packages/snapback-contract/client-store-authority.test.mjs',
+    'packages/snapback-react/index.mjs',
+    'packages/snapback-vite/package.test.mjs',
+    'targets/cloudflare/src/index.mjs',
+    'tests/ci_workflows_v0.mjs',
+  ]) {
+    assert.equal(selection([path])[0].selected, false, `${path} must not repeat the inherited red`);
+  }
+  assert.deepEqual(
+    selection(['packages/snapback-acceptance/replay-child.fixture.mjs'])[0].matchingPatterns,
+    ['packages/snapback-acceptance/*.mjs', '!packages/snapback-acceptance/*.fixture.mjs'],
+    'ordered exclusions must override their enclosing production package pattern',
+  );
+
+  const futureSurfaces = [
+    ...requiredWebSurfaces,
+    { demoId: 'future-demo', surfaceName: 'web', surfaceDir: '', pkgPath: '' },
+  ];
+  assert.throws(
+    () => validateRequiredSurfaceBuildPathPolicy(pathPolicy, { surfaces: futureSurfaces }),
+    /manifest-derived paths drifted/,
+    'a newly required surface cannot silently outrun the checked selector authority',
+  );
+  const futurePolicy = structuredClone(pathPolicy);
+  futurePolicy.requiredSurfacePaths.push(
+    'demos/future-demo/snapback/**',
+    'demos/future-demo/surfaces/web/**',
+  );
+  assert.doesNotThrow(
+    () => validateRequiredSurfaceBuildPathPolicy(futurePolicy, { surfaces: futureSurfaces }),
+    'adding the exact future backend and surface roots closes selector coverage',
+  );
+  assert.equal(
+    selection(['demos/future-demo/demo.snapback.json'])[0].selected,
+    true,
+    'every demo manifest selects the introduction or reclassification of a required surface',
   );
 
   const missingDemoDir = join(scratch, 'missing-package-demos', 'fixture');

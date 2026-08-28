@@ -5,12 +5,20 @@
 **Systems:** Build, Verification, CI, Project, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5, orchestrating codex gpt-5.6-sol)
 **Date:** 2026-08-27
-**Revised:** 2026-08-27 (Phases 1–2 implemented and proven; Phase 3 measured
+**Revised:** 2026-08-27 (Phase 4 implemented and measured, including the
+literal Git-ref transition and the controlling server edit loops;
+Phase 8's frozen-record census and regeneration-candidate ratchet adopted;
+Phase 6's affected-path selector authority and restoration precondition 3
+implemented and proved without restoring automatic execution;
+Phases 1–2 implemented and proven; Phase 3 measured
 and closed with negative results; Phase 5 consolidation landed (79 → 13
-integration link targets, 0 semantic change); Phase 7 Stage A server-test
-source carve and Stage B1 live-delivery production carve implemented and
-measured; Stage B2 action-watchdog and Stage B3 route-assembly carves measured
-negative and discarded; Open Question 2 answered. Accepted by author direction
+integration link targets, 0 semantic change) and its cargo-nextest tail is
+implemented with a pinned runner, typed missing-tool refusal, and deterministic
+JUnit; Phase 7 Stage A server-test source carve and Stage B1 live-delivery
+production carve implemented and measured; Stage B2 action-watchdog, Stage B3
+route-assembly, and Stage B4 auth/operator-control carves measured negative and
+discarded; Phase 7 closed partial with the server lib-test unit still the
+workspace critical path; Open Question 2 answered. Accepted by author direction
 the same day — "write this up as an LLP and then execute on it".)
 **Related:** LLP 0276, LLP 0283, LLP 0314, LLP 0175, LLP 0189, LLP 0232,
 LLP 0031, LLP 0041, LLP 0287, LLP 0289, LLP 0225, LLP 0010
@@ -313,9 +321,10 @@ across four settings — which is why they ran in a throwaway worktree.
 ### Phase 4 — Leaf crates for non-Rust inputs
 
 - `snapback-guide-embed`: owns today's `emit_embedded_guide` build step and
-  exposes the artifact bytes. `snapback-server` depends on it; the
-  `rerun-if-changed=../../guide` line moves with it. A guide edit then
-  recompiles one small crate and relinks.
+  exposes the artifact bytes. The `rerun-if-changed=../../guide` line moves
+  with it; the server decoder receives the bytes through a stable native
+  boundary, so a Guide edit recompiles only the changing leaves and final
+  composition/link units.
 - `snapback-build-identity`: owns the git stamp. Kernel's embedded control
   catalog stops stamping `buildIdentity` at build time and stamps it at
   serve time from this crate (the kernel test above moves with it), so the
@@ -326,6 +335,88 @@ across four settings — which is why they ran in a throwaway worktree.
 
 Acceptance: a guide edit → `cargo build -p snapback` recompiles no crate
 larger than the leaf; a commit → only leaf + relink.
+
+**Implemented and correctively measured 2026-08-27.**
+`snapback-guide-embed` is now the sole embedded-artifact producer and direct
+owner of the recursive `guide/**` input formerly held by the server build
+script. It emits the same length-prefixed inert artifact with the manifest's
+entire `buildIdentity` removed. The server retains the committed, fail-closed
+decoder and reconstructs the served manifest identity at runtime:
+`sourceDigest` remains `sha256:<contentHash>`, while `commit` comes from the
+enclosing binary's identity leaf. Raw artifact bytes therefore never vary for
+a Git-only change.
+
+`snapback-build-identity` is the sole Cargo owner of Git probes and Git
+`rerun-if-*` directives. Kernel re-exports a stable runtime API to preserve
+downstream call sites. Kernel's build script now reads only the generated semantic
+control catalog, removes `buildIdentity`, and writes identity-free bytes. The
+kernel stamps `{sourceCommit, dirty}` when the catalog is first accessed at
+runtime. Versioned native symbols carry the changing identity values and Guide
+bytes into stable kernel/server code, keeping those values out of dependent
+Rust metadata. Final façade/tool composition anchors the providers; package
+build scripts retain only their native loader-path responsibilities and never
+inspect Git. The CLI package's standalone binary enables an optional provider
+feature and anchors the leaves itself; the root façade disables that feature
+and supplies the provider, so the ordinary root build still has no changing
+identity→CLI library edge. This preserves LLP 0031's
+conservative `unknown`/dirty fallback and `/health` startup nonce semantics
+while making Git invalidation terminate at one observable package build
+script. `snapback-guide-embed` is the sole direct `guide/**` watcher and
+publishes its generated artifact path as Cargo metadata. The identity leaf
+watches that producer-owned output, then runs its sole Git probe over the full
+declared runtime-input closure (still including `guide/`), so a Guide edit also
+recomputes the conservative dirty bit without a second Guide-tree watcher.
+
+The literal first leaf dependency placement failed acceptance: after a real
+Guide edit plus `generate-guide-manifest`, the orchestrator measured **12.04 s**
+and all 11 workspace crates rebuilt because Guide→server and
+identity→kernel were ordinary changing Rust metadata edges. After the native
+boundary correction, the first real edit/projection proof measured **4.04 s**
+(timing `20260827T223415928Z`). After the candidate was finalized and rewarmed,
+the required real edit plus generator workflow was repeated and measured
+**1.99 s** (timing `20260827T224303764Z`). After the standalone CLI
+composition edge was closed and the root feature split rewarmed, the final
+real Guide probe measured **2.17 s** (timing `20260827T225703063Z`): Guide
+build script **0.38 s**, Guide leaf **0.13 s**, identity build script **0.20 s**,
+identity leaf **0.06 s**, façade composition **0.13 s**, and final binary link
+**1.10 s**.
+Kernel, types, auth, sync, activation, services, engine, server, and CLI were
+all Fresh. Restoring the exact final probe and regenerating measured **2.11 s**
+with the same unit set (timing `20260827T225820776Z`); the earlier subsequent
+true no-op was **0.27 s**.
+
+A value-changing identity probe performed without mutating `.git` was repeated
+after the final feature split and measured **1.85 s** (timing
+`20260827T225854277Z`): identity build script **0.36 s**, identity leaf
+**0.05 s**, façade composition **0.10 s**, and final binary link **1.06 s**.
+The Guide leaf and every runtime crate were Fresh. The ordinary unoverridden
+build was then rerun to restore the worktree's real identity. The landing
+orchestrator then made a temporary empty commit
+(`e5c25a039a65cbe6588816dfb8e30e16749b1368`) and measured the literal
+branch-ref transition at **2.20 s**: only the identity leaf and final façade
+composition/link rebuilt; Guide, kernel, server, and CLI were Fresh. The
+worktree was restored exactly to its pre-probe HEAD afterward.
+Against the Phase 7B1 accepted control, the same timestamp-only `server.rs`
+edit methodology measured production-binary wall **17.21 → 7.09 s** and
+server-test-binary wall **16.31 → 7.42 s**. These measurements prove both the
+changing-value boundary and the program's controlling edit loops.
+
+The two rows, all shifted ranks, and both downward edges are registered in
+`crates/allowed-dependencies.v1.json`, the workspace-graph checked projection,
+and LLP 0276. No membership exception or dependency waiver was added. The
+runtime-source binding includes both leaf crates, and a focused graph test
+fails unless exactly the identity leaf owns Git inputs, exactly the Guide leaf
+directly declares the embedded-artifact `rerun-if-changed=../../guide`, the
+identity leaf watches the producer artifact rather than the Guide tree, and its
+declared dirty-input closure still contains `guide/`.
+
+Proof record: (1) unit tests assert both embedded artifacts lack identity and
+their runtime projections match the enclosing identity; (2) Guide HTTP/MCP
+tests assert the served manifest and identity headers agree; (3) workspace
+graph/source-binding tests prove ownership and downward edges; and (4) the real
+Guide edit and value-changing identity measurements above prove the accepted
+unit boundaries. The literal Git-ref proof additionally verifies that the
+Guide, kernel, server, and CLI build scripts do not rerun for a commit.
 
 ### Phase 5 — Link targets
 
@@ -344,17 +435,31 @@ gates green.
 `#[path]` modules of `tests/_harness/integration_suite.rs`; `admin_v0` +
 `capability_v0` share a harness that keeps the `capability_v0` name (the
 publication finalizer and the path-migration manifest name it); and eleven
-files keep their own binary because they mutate process-global state —
-`control_catalog_registry_export` and `result_transform_corpus_v1` (named
-by scripts), `action_stream_envelope_v0`, `action_watchdog_v0`,
-`egress_ambient_v0`, `graph_corpus_v1`, `instance_fork_replication_wal_v0`,
-`live_scheduler_v0`, `replication_sustained_v0`, `rqs_bundle_v0` (env
-toggles or a timing lock), and `delta_semantics_stage_b_audit_v1`, whose
-env mutation hides in `tests/support/graph_stage_b.rs` and was missed by
-the file-level audit — the review caught it by grepping `support/` for
-`set_var`. Test names gained a `<file>::` prefix; the one test that
+targets keep their own binary for then-current isolation or naming reasons.
+Test names gained a `<file>::` prefix; the one test that
 re-executes itself by `--exact` name (`auth_invalidation_boot_replay_v1`)
 was updated.
+
+The Phase 5 tail re-audited every Rust file under `crates/snapback/tests/`,
+including `tests/support/`, for `set_var`, `remove_var`, `setenv`, and
+`unsetenv`. Exactly **eight source files** mutate the process environment:
+
+- `crates/snapback/tests/action_stream_envelope_v0.rs`
+- `crates/snapback/tests/action_watchdog_v0.rs`
+- `crates/snapback/tests/egress_ambient_v0.rs`
+- `crates/snapback/tests/graph_corpus_v1.rs`
+- `crates/snapback/tests/instance_fork_replication_wal_v0.rs`
+- `crates/snapback/tests/replication_sustained_v0.rs`
+- `crates/snapback/tests/rqs_bundle_v0.rs`
+- `crates/snapback/tests/support/graph_stage_b.rs` (compiled by the
+  `delta_semantics_stage_b_audit_v1` target)
+
+Thus eight of the eleven retained binaries are environment-affected. The
+other three are `control_catalog_registry_export` and
+`result_transform_corpus_v1`, whose binary names are invoked by scripts, and
+`live_scheduler_v0`, whose tests share the process-global
+`LIVE_SCHEDULER_TEST_SERIAL` timing lock. The earlier "eleven env-mutating
+files" shorthand was inaccurate; the support-inclusive exact count is eight.
 
 | Measure | 79 targets | 13 targets |
 | --- | --- | --- |
@@ -368,22 +473,116 @@ The 174 inherited reds are the fixture-migration debt of
 `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` refusals since the 2026-08-16
 enforcement) plus the admin-read enforcement flip of LLP 0262 stage 3;
 `issues/20260825-the-two-inherited-reds-every-lane-re-derives.md` is the
-standing reference. `check-guide` is red on `main` at "generated API cold
-signatures" since cbf4fc7fa, independent of this work
-(`issues/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`).
+standing reference. At this landing's evidence point, `check-guide` was red at
+"generated API cold signatures" since cbf4fc7fa, independent of this work.
+That failure was fixed concurrently while the nextest landing rebased; its
+resolution is recorded in
+`issues/closed/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`.
+
+**Implemented 2026-08-27 (cargo-nextest tail; no binary merge).**
+`.config/nextest.toml` requires/recommends the fleet version 0.9.143 and defines
+the canonical `local-proof` profile: four tests by default (overridable through
+`SNAPBACK_RUST_TEST_THREADS`), no fail-fast, per-test process isolation, and
+JUnit at the deterministic
+`target/nextest/local-proof/rust-tests.junit.xml` path with failure output and
+ignored-test records retained. `scripts/verify-local-proof` invokes that named
+profile through a checked launcher. If `cargo-nextest` is absent, the launcher
+exits 127 with `SNAPBACK_CARGO_NEXTEST_MISSING`, prints
+`cargo install cargo-nextest --version 0.9.143 --locked`, and never falls back
+to `cargo test`. Canonical CI performs that exact locked install rather than
+adding an action trust boundary, and uploads the JUnit file with the proof
+inventory. Because nextest 0.9.143 does not execute doctests, the canonical
+inventory retains them as a separate `rust-doc-tests` Cargo gate; that explicit
+complement does not satisfy or mask a failed/missing nextest gate.
+
+The controlled runner comparison reused one prebuilt test target and held both
+runners to four processes with `SNAPBACK_EXPECT_WORKERD=1`. `cargo test -p
+snapback --tests --no-fail-fast -- --test-threads 4` took **505.68 s** wall
+(1027.44 s user / 55.90 s system). `cargo nextest run -p snapback --tests
+--no-fail-fast` took **294.08 s** wall (1017.78 s user / 45.36 s system):
+**211.60 s / 41.8% faster** at essentially unchanged total CPU. The normalized
+complete failure-name sets were byte-identical at **174/174**. The emitted
+648 KiB JUnit report records all 718 tests: **540 passed / 174 failed / 4
+skipped / 0 errors**.
+
+Fleet provisioning used the same 0.9.143 pin and directly verified the binary
+on the control Mac, Additional Apartment M1 Max, Office M1 Max, Bones, Durand,
+Minisforum, all three Hetzner hosts, and the Windows NucBox—ten machines in
+total. The Apartment MacBook Air did not answer Tailscale ping or TCP/22, so it
+could not be mutated; `issues/20260827-cargo-nextest-apartment-air-install.md`
+owns installation before that host rejoins Rust proof duty. The typed launcher
+refusal prevents an unprovisioned host from silently using Cargo instead.
+
+Nextest launches each test in a separate process, so the eight environment-
+affected binaries no longer require binary boundaries merely to prevent
+same-process test races. That isolation is the prerequisite for a later
+reviewed consolidation; all thirteen `[[test]]` declarations remain unchanged
+in `crates/snapback/Cargo.toml` in this landing. The eleven targets
+previously retained for global-state or naming reasons can therefore be
+reconsidered in that future landing, with script-named entry points preserved
+as needed. Implementation-lane checks completed so far:
+`cargo nextest show-config version --profile local-proof` (configuration and
+version requirements parsed, exit 0); the controlled missing-runner probe
+(exit 127, typed diagnostic, no fallback); `node --test
+tests/local_proof_inventory_v0.mjs` (7/7 pass); `node --test
+tests/ci_workflows_v0.mjs` (pass, 56 immutable action pins); and `node
+scripts/check-local-proof-gates.mjs` (181 declarations / 180 stable ids / 19
+inapplicability pairs, pass); `node --test
+tests/local_proof_selection_v0.mjs` (21/21 pass); `bash -n` for the launcher
+and proof script (exit 0); `node --check` for the edited fixtures (exit 0);
+`./ref-check --verbose` (324 LLP docs / 7,511 refs / 16,260 files, zero errors
+or unchecked references); and `git diff --check` (exit 0). The orchestrator's
+controlled runner comparison, exact failure-set proof, and JUnit inspection are
+recorded above. The landing inventory proof passed (364 package tests, 32
+script tests, 31 demos, 487 publication leaves, 158 guide pages, and 1,888
+snippets). Before rebase, the guide proof retained only the inherited
+"generated API cold signatures" failure. A concurrent main change fixed that
+red and moved its ticket to
+`issues/closed/20260827-guide-cold-signatures-verifyconfig-profiles-red.md`;
+the post-rebase guide proof then passed all 22 checks (158 pages / 1,893
+snippets).
 
 ### Phase 6 — The required signal
 
 The low-noise posture is an explicit author ruling with its own restoration
 ticket and preconditions; this plan does not re-decide it. What it adds:
 
+**Implemented 2026-08-27 (restoration precondition 3 only; no trigger
+activation).** `scripts/required-surface-build-paths.v1.json` is now the
+durable, ordered affected-path authority for any eventual restoration of
+`required-surface-builds` on push. Its fixed selectors cover the workflow,
+Node/Bun and frozen-install inputs, generator and build runtime closure,
+shared demo adapters, and the production-artifact hygiene check. Its surface
+selectors are not a hand-maintained prose inventory: the gate derives every
+required web surface from `demos/*/demo.snapback.json`, requires the authority
+to equal the corresponding backend and product-surface roots exactly, and
+refuses to install or build when they drift. The wildcard manifest selector
+selects a new or reclassified demo on its introducing change, while the exact
+comparison forces the new roots into the authority before the gate can pass.
+
+`tests/required_surface_builds_v0.mjs` proves representative positive closure,
+unrelated-change negatives, ordered exclusions, all three current required
+surfaces, and the future-surface refusal/recovery case.
+`tests/ci_workflows_v0.mjs` proves that the workflow points at this authority
+and remains exactly manual-only. The focused selector tests, syntax check, and
+list-only inventory proof pass; the canonical gate frozen-installed,
+materialized and drift-checked all three generated graphs, then
+production-built `all-aboard/contract`, `cursors-web/contract`, and
+`pointing-room/contract` successfully in **27.46 s wall** on the measurement
+machine. The initial local attempts could not
+write Bun's sandbox-external default cache; rerunning with an isolated
+`/private/tmp` cache passed without changing the proof. No `push:` trigger is
+present. LLP 0189 precondition 5 still requires explicit author direction
+before anyone may activate this selector.
+
 - The 130-runs-per-hour figure that motivated the ruling is a *fan-out*
   problem (one heavyweight copy per commit, inherited reds repeated per
   push), not a reason for the cheap required check to be silent. The
   restoration ticket's precondition 3 (path selectors so a stale artifact is
   checked without repeating an inherited red per push) is the velocity
-  deliverable here: `required-surface-builds` runs on push in 35 s and must
-  be first to come back.
+  deliverable here: an eventual affected restoration of
+  `required-surface-builds` should run on push in about 35 s and be first to
+  come back.
 - A stale committed generated artifact needs a standing repair owner before
   the trigger returns: the next landing touching the area, or a scheduled
   regeneration commit — never a red left for a day. Phase 8 decides which
@@ -475,6 +674,31 @@ failed the keep rule, its Rust and reader diffs were discarded, the full
 failing-suite comparison was not run for code that could not land, and
 `cargo clean` removed the 36.9 GiB measurement target.
 
+**Measured negative 2026-08-27 (Stage B4 auth/operator-control carve; Phase 7
+closed partial).** The final candidate named by LLP 0316.000 moved the cohesive
+405-line `/_snapback/api/auth/*` operator-control route, handler, and wire
+projection family into `server/auth_operator_control.rs`, removing a net 389
+lines from `server.rs`. It compiled, preserved the exact 602/419 test inventory,
+and passed focused route-registry, source-inventory, password-admin, and
+integration-retirement tests. The fresh server lib-test unit nevertheless
+regressed **46.22 → 56.30 s** and fresh command wall regressed
+**113.32 → 125.91 s**. The warm unit was effectively unchanged
+(**6.48 → 6.49 s**) while the controlling edit-to-test-binary wall regressed
+**16.31 → 16.93 s**. The production loop alone improved
+**17.21 → 16.58 s**, which cannot satisfy the server-test acceptance bar. The
+candidate Rust and source-reader diffs were discarded before full failing-suite
+proof.
+
+The four bounded Stage B families specified by LLP 0316.000 are now exhausted:
+one paid and three did not. The post-B1 workspace timing still places the
+`snapback-server` lib-test unit at **73.59 s**, ahead of the 43.56-second kernel
+unit and therefore still the critical path. Phase 7 closes **partial**, not as
+an achieved critical-path claim. A further attempt would need a different
+design—most likely separate test targets/crates or lower-owner production
+decomposition—with a new ownership/dependency proposal rather than another
+unbounded same-crate source shuffle. That expansion is not silently assumed by
+this stopwatch program.
+
 ### Phase 8 — Frozen-record ratchet
 
 Count the committed generated artifacts and the drift tickets they produced
@@ -482,6 +706,46 @@ in the last 30 days. Any new committed generated artifact must state, in
 its owning LLP, why a diff gate is preferable to regeneration-in-CI. Existing
 ones with a drift-ticket rate above one per week are candidates for
 regeneration-in-CI.
+
+**Decided and measured 2026-08-27.** The custody-based census at this landing
+contains **864** tracked generated artifacts with no overlap: **495** files
+under the 36 roots registered by `scripts/generated-artifact-policy.mjs`,
+**295** files under `schemas/`, **9** files under
+`targets/cloudflare/generated/`, and the Guide gate's **65** explicit record
+paths. This is an authority census, not a filename heuristic: an unregistered
+path merely containing `generated` is not silently treated as governed.
+
+For the inclusive 2026-07-29 through 2026-08-27 window, filenames under
+`issues/` and `issues/closed/` containing `drift`, `stale`, or `inherited`
+number **115**: **41 open** and **74 closed**. The narrower automated
+`main-drift-*` record set contains **32** tickets: **21 open** and **11
+closed**. One client-bundle observation says explicitly that it no longer
+reproduces and is excluded from the content-drift rate. The highest remaining
+determinate per-gate totals are four each for `client-bundle-metrology`,
+`path-migration-stragglers`, and `sequence-allocation-publication`; then three
+each for `deployment-identity`, `guide`, and
+`relation-activity-publication`. No existing surface therefore crosses the
+ratchet in this window.
+
+The adopted rule is:
+
+1. Every new committed generated artifact names its owning LLP and explains
+   why same-change diff verification is preferable to regeneration in CI.
+   Missing rationale blocks addition of the artifact; inherited ambient red
+   does not substitute for that decision.
+2. An existing artifact surface with **five or more determinate normalized
+   drift/stale tickets in a rolling 30-day window** becomes a
+   regeneration-in-CI candidate. Nondeterministic, infrastructure, and
+   explicitly non-reproducing observations do not count toward this content
+   threshold; they retain their own repair routing.
+3. Crossing the threshold files one repository ticket owned by the surface's
+   LLP. That ticket evaluates regeneration cost, reviewability, publication
+   and offline constraints, and either migrates the artifact or records a
+   time-bounded exception. This LLP does not bundle the migrations.
+
+The threshold is the concrete form of “above roughly one ticket per week”:
+four tickets in 30 days remain below it; five cross it. Because today's
+maximum is four, this decision landing creates no migration ticket.
 
 ## Non-goals
 
@@ -500,11 +764,16 @@ regeneration-in-CI.
 | Baseline (fresh control worktree) | f16d432db | 17.5 s | — | 11.0 s (kernel) | 18 s on a *true no-op* | same tree, uncontended `target/`; the primary checkout's 68 s includes its 28 GB shared target and `--all-targets` residue |
 | Phases 1–2 | this landing | 17–18 s (unchanged) | — | unchanged | **0.3–0.5 s** | git tax eliminated; the compile+link floor is untouched, as expected |
 | Phase 3 | closed, nothing kept | 16.8–22.4 s | — | 9.4–11.3 s | — | four settings measured; all within noise (table above) |
+| Phase 4 — leaf invalidation | this landing | **17.21 → 7.09 s** | **16.31 → 7.42 s** | not in Phase 4 scope | **22.11 → 2.20 s** | Real Guide edit: **18.62 → 2.17 s**, rebuilding only Guide/identity leaves + **0.13 s** façade composition + **1.10 s** link; literal empty-commit ref proof rebuilt only the identity leaf + façade/link; no-op **0.26 s**. |
 | Phase 5 | this landing | unchanged (single-binary loop) | — | unchanged | — | full test build: 79 → 13 integration links, executables 21.5 → 4.13 GB, ~340 s CPU removed from every `cargo test --workspace`; 718/718 tests, 0 new failures |
+| Phase 5 — nextest | this landing | unchanged (runner-only change) | — | unchanged | — | `cargo test -p snapback --tests`: **505.68 s**; `cargo nextest run -p snapback --tests`: **294.08 s** (**211.60 s / 41.8% faster**); 174/174 failure names identical; JUnit: 718 tests, 540 pass / 174 fail / 4 skipped / 0 errors |
 | Phase 7A — server test-source carve | this landing | **18.00 s** (unchanged) | **20.35 → 18.09 s**; fresh unit **52.82 → 48.23 s** | — | unchanged (**0.3–0.5 s**) | 602/602 names and 66/66 full failure sets identical; 552,099,632-byte executable |
 | Phase 7B1 — live-delivery production carve | this landing | **18.00 → 17.21 s** | **18.09 → 16.31 s**; fresh unit **48.23 → 46.22 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 106.31 → 113.32 s (noise, not a win); 602/602 names and 66/66 full failure sets identical; 552,094,512-byte executable |
 | Phase 7B2 — action-watchdog carve | closed, nothing kept | **17.21 → 20.46 s** | **16.31 → 19.16 s**; fresh unit **46.22 → 59.47 s** | — | unchanged (**0.3–0.5 s**) | all clock metrics regressed; 541-line Rust move discarded before full failing-suite proof |
 | Phase 7B3 — route-assembly carve | closed, nothing kept | **17.21 → 18.32 s** | **16.31 → 18.75 s**; fresh unit **46.22 → 51.67 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 113.53 s; all controlling clocks regressed; 1,131-line Rust move discarded before full failing-suite proof |
+| Phase 7B4 — auth/operator-control carve | closed, nothing kept; Phase 7 closed partial | **17.21 → 16.58 s** | **16.31 → 16.93 s**; fresh unit **46.22 → 56.30 s** | — | unchanged (**0.3–0.5 s**) | fresh command wall 113.32 → 125.91 s; warm unit 6.48 → 6.49 s; server-test acceptance failed; 405-line move discarded before full failing-suite proof |
+| Phase 8 — frozen-record ratchet | this landing | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | unchanged (decision-only) | **864** governed generated artifacts; 30-day filename census **115** tickets (**41 open / 74 closed**); automated `main-drift-*` subset **32** (**21 / 11**); no determinate surface reached the **≥5 in 30 days** candidate threshold. |
+| Phase 6 — required-signal selector | this landing (precondition 3 only) | unchanged (selector-only) | unchanged (selector-only) | unchanged (selector-only) | unchanged (selector-only) | **40** ordered patterns; exact manifest-derived roots for **3** required web surfaces; positive, negative, and future-inventory proofs pass; canonical affected gate **27.46 s wall**; workflow remains manual-only. |
 
 Rows are appended as phases land; a phase that does not move a number says
 so here rather than being quietly dropped.
@@ -516,8 +785,8 @@ so here rather than being quietly dropped.
    (`scripts/bootstrap-ibex-runtime`, `verify-local-proof`)? Runtime
    consumers already tolerate `unknown`. Decide after Phase 4's measurement.
 2. ~~Does any inventory (LLP 0287) key on integration-test *binary* names
-   rather than test names?~~ **Answered 2026-08-27:** the proof runs
-   `cargo test --workspace` and the selection policy keys on the
+   rather than test names?~~ **Answered 2026-08-27:** the proof runs the
+   workspace through cargo-nextest and the selection policy keys on the
    `crates/snapback/tests/` *directory*; the only binary named anywhere is
    `--test control_catalog_registry_export` (proof comment and
    `scripts/generate-control-catalog.mjs`). Phase 5 must keep that one
@@ -529,11 +798,12 @@ so here rather than being quietly dropped.
 ## Sequencing
 
 Phases 1–2 landed together on 2026-08-27; Phase 3 closed the same day with
-nothing to land; Phase 5's consolidation landed the same day (nextest
-adoption remains open under Phase 5 — it needs `cargo-nextest` on the
-fleet and in CI first). Phase 7 Stage A landed next and reduced the server
-test unit without yet removing it from the critical path. Next: independently
-measure the first production `server.rs` seam under LLP 0316.000, then Phase 5
-nextest, Phase 4 (bounded by the link floor), Phase 8, and the Phase 6
-precondition. Phase 6 itself is a decision, not code, and can be taken at any
-time.
+nothing to land; Phase 5's consolidation and cargo-nextest tail landed the same
+day. Phase 7 Stage A landed next and reduced the server test unit without yet
+removing it from the critical path. Phase 4's Guide-edit, literal Git-ref, and
+controlling server-edit acceptance measurements are proven in this landing.
+Phase 8's frozen-record ratchet is adopted in its own decision landing. The
+Phase 6 selector authority now completes restoration precondition 3. No
+automatic execution was restored: ticket preconditions 1, 2, and 4 remain
+open, and restoring any `push:` trigger remains the author's separate
+precondition 5 decision under LLP 0189.

@@ -77,6 +77,7 @@ function errorDetail(error) {
 function missingDependencyFrom(detail) {
   return detail.match(/Cannot find package ['"]([^'"]+)['"]/u)?.[1]
     ?? detail.match(/Cannot find module ['"]([^'"]+)['"]/u)?.[1]
+    ?? detail.match(/required packages unavailable: ([^;]+)/u)?.[1]?.split(',')[0]?.trim()
     ?? null;
 }
 

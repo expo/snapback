@@ -9,6 +9,7 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:d0b414626c974f56c2dde5a8d18d6ce46190dc3097bc5a8b30af54a133d4b624
 ---
@@ -172,7 +173,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.27 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.29 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -196,11 +197,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.27 \
-  @expo/snapback-client@0.1.27 \
-  @expo/snapback-codegen@0.1.27 \
-  @expo/snapback-expo@0.1.27 \
-  @expo/snapback-react@0.1.27 \
+  @expo/snapback-cli@0.1.29 \
+  @expo/snapback-client@0.1.29 \
+  @expo/snapback-codegen@0.1.29 \
+  @expo/snapback-expo@0.1.29 \
+  @expo/snapback-react@0.1.29 \
   expo-file-system expo-crypto expo-image-picker
 ```
 
@@ -541,6 +542,19 @@ Use the generic arm for independently configured clients; use `--expo` whenever
 `SnapbackExpoProvider` should discover the supervisor without an app-authored
 origin.
 
+### Recover when supervised Metro exits
+
+<!-- diagnostic-primary: SNAPBACK_EXPO_METRO_EXITED -->
+
+`SNAPBACK_EXPO_METRO_EXITED` means the owned Metro child terminated; inspect
+its reported cause, exit code or signal, and Metro stderr before restarting it.
+If stderr names `ENOENT` below `.snapback/generations/.tmp-*`, exclude
+`.snapback/generations` from Metro's crawl with `resolver.blockList`; current
+Expo chat and media-feed template configs already carry that exclusion, so
+preserve it when retrofitting or replacing `metro.config.*`. Then use the
+owner's `reload-metro` control instead of killing processes by pattern. The
+transient directory and recovery are authoring-profile independent.
+
 When Metro's file watching is inert — the project under a watcher-blind root such as `/private/tmp`, or `CI` truthy in the effective Metro environment of a bundler you started yourself — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The supervised `--expo` loop strips `CI` from its owned Metro child (the supervised loop is a watch loop by contract), so a headless controller with `CI=1` no longer disables watching there. On unsupervised `snapback dev` invocations that own their client (`--client-command`), the same code is still printed as an advisory, not a refusal, when the CLI process has a truthy `CI`: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
 Metro receives the credential-free rendezvous origin and, on web, the backend
@@ -693,6 +707,16 @@ Expo with `--web`; unlike pressing `w` in an independently started Metro
 process, it establishes the supervised bootstrap first. Three
 package-level paves make this work; each keeps its existing security or
 custody boundary:
+
+For both Explicit and Familiar apps, React Native Web has a renderer boundary
+that Snapback cannot repair: it drops `accessibilityValue` instead of projecting
+it to `aria-valuetext`, and an `<Image>` can become a CSS-background descendant
+rather than a semantic image element. When those semantics matter, project the
+same app state into an app-owned web accessibility layer — for example,
+`aria-valuetext` for a value and an image role plus equivalent label or alt text
+for imagery. Keeping that projection synchronized is the application's job
+because it expresses product meaning across the RNW renderer; the drop is not a
+Snapback data, transport, or client-runtime bug.
 
 - **The bootstrap exchange serves CORS to loopback browser origins only.**
   A page served from `http://localhost:<port>` (Metro web) can complete the

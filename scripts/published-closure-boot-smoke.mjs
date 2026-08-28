@@ -22,6 +22,7 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 
 import { validateAdminConsoleSnapshot } from '../packages/snapback-cli/admin-snapshot.mjs';
+import { assertCodegenRuntimeCapabilityCoherence } from './publication-store-qualification-gate.mjs';
 
 const DEFAULT_REGISTRY = 'https://registry.npmjs.org';
 const RECEIPT_SCHEMA_VERSION = 'snapback.packaged-store-qualification.v1';
@@ -321,6 +322,7 @@ function receiptTemplate({ version, registry, platform, runtimePackage, startedA
     runtimePackage,
     receiptSha256: null,
     adminSnapshotSha256: null,
+    capabilitiesCompared: 0,
     checks: {
       installed: false,
       receiptPresent: false,
@@ -445,8 +447,15 @@ async function runSmoke(options) {
     writeBackend(backendRoot);
     const codegenPath = join(appRoot, 'node_modules', '@expo', 'snapback-codegen', 'index.mjs');
     let generated;
+    let codegenRequiredCapabilities;
     try {
       const codegen = await import(`${pathToFileURL(codegenPath).href}?published-smoke`);
+      if (typeof codegen.codegenRequiredTargetCapabilityIdsCanonicalJson !== 'function') {
+        throw new Error('installed codegen does not export its publication requirement set');
+      }
+      codegenRequiredCapabilities = JSON.parse(
+        codegen.codegenRequiredTargetCapabilityIdsCanonicalJson(),
+      );
       generated = await codegen.generate(backendRoot);
       if (generated?.ok !== true) {
         throw new Error(JSON.stringify(generated?.diagnostics ?? generated));
@@ -527,10 +536,12 @@ async function runSmoke(options) {
       const client = new SnapbackClient(descriptor.serverUrl, { adminToken, rqsStore: null });
       const inspection = await client.inspect();
       const manifest = inspection.capabilityManifest;
-      if (!manifest?.supportedCapabilities?.includes('single_table_v1')
-          || manifest?.capabilityGaps?.includes('single_table_v1')) {
-        throw new Error('runtime did not advertise single_table_v1 without a matching GAP');
-      }
+      const compared = assertCodegenRuntimeCapabilityCoherence({
+        codegenRequiredCapabilities,
+        runtimeManifest: manifest,
+        platform,
+      });
+      receipt.capabilitiesCompared = compared.required.length;
       receipt.checks.capabilityAdvertised = true;
       const schema = readBoundedJson(
         join(generatedRoot, 'schema.manifest.json'),

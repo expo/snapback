@@ -58,6 +58,7 @@ windows-sys = { version = "0.61.2", features = [
 
 [dev-dependencies]
 jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
+snapback-build-identity = { path = "../snapback-build-identity" }
 
 [build-dependencies]
 serde_json = { version = "1.0", features = ["preserve_order"] }

@@ -29,10 +29,7 @@ struct ReferenceArtifacts {
 static REFERENCE_ARTIFACTS: OnceLock<Result<ReferenceArtifacts, String>> = OnceLock::new();
 
 fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
-    let manifest_file = crate::guide::file("guide-manifest.generated.json")
-        .context("embedded Snapback Guide manifest is missing")?;
-    let manifest: Value = serde_json::from_slice(manifest_file.bytes)
-        .context("embedded Snapback Guide manifest is invalid")?;
+    let manifest = crate::guide::manifest().clone();
     let registry_file = crate::guide::file(REGISTRY_PATH)
         .context("embedded Snapback Guide symbol registry is missing")?;
     let diagnostics_file = crate::guide::file(DIAGNOSTICS_REGISTRY_PATH)
@@ -58,8 +55,12 @@ fn load_reference_artifacts() -> anyhow::Result<ReferenceArtifacts> {
     let registry: Value = serde_json::from_slice(registry_file.bytes)
         .context("embedded Snapback Guide symbol registry is invalid")?;
     anyhow::ensure!(
-        registry.get("schemaVersion").and_then(Value::as_str)
-            == Some("snapback-symbol-registry.v1"),
+        matches!(
+            registry.get("schemaVersion").and_then(Value::as_str),
+            // @ref LLP 0194#amendment-2026-08-28-module-local-projection-identities
+            // v2 adds per-module projectionIdentity; v1 snapshots stay readable.
+            Some("snapback-symbol-registry.v2" | "snapback-symbol-registry.v1")
+        ),
         "embedded Snapback Guide symbol registry schema is unsupported"
     );
     anyhow::ensure!(

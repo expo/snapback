@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "sol-snapback-familiar",
+  "backend": "snapback-familiar",
+  "backend_version": "snapback-familiar-0.1.29",
+  "model": "sol",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "aborted",
+    "M4": "blocked-by-M3",
+    "M5": "blocked-by-M3",
+    "M6": "blocked-by-M3",
+    "M7": "not-run",
+    "M8": "blocked-by-M3"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 30, "rationale": "M1 and M2 were fully green and M3's suite passed, but M3 aborted and all four later in-scope checklists count not-passed."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 30, "rationale": "Core chat grading exposed cross-client stale live data, receipt failures, and a reload workaround despite solid account/feed flows."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "M6 was not green, so trust-boundary holdout probes were not exercised."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "M6 was blocked and native proof was environment-null, so offline behavior was not exercised."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "The M5 scale replay was not attempted because M3 aborted; the banded O5 function therefore does not apply."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "Full-run B1 also observes M8, which was blocked and never attempted."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 68, "rationale": "Built-in password sessions and server auth composed well, but durable custody modes and writer-authority behavior required notable ceremony and guide work."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "Full-run B3 also observes M8, which was blocked and never attempted."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": false, "score": null, "rationale": "Neither observing milestone M6 nor M8 was attempted."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": false, "score": null, "rationale": "On a full run B5 observes M4 and M5; both were dependency-blocked."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": false, "score": null, "rationale": "M5 search was not attempted."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": false, "score": null, "rationale": "Neither observing milestone M6 nor M8 was attempted."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 56, "rationale": "The served Guide and familiar start packet enabled a 1159-second first green, but package naming, policy fields, and asset/custody details caused repeated setup friction."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 45, "rationale": "Named auth and syntax errors were actionable, while stale cross-client subscriptions and the Metro generation race required prolonged bisection."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 57, "rationale": "The supervised lifecycle, readiness receipt, and continuity identities were useful, but runtime inspection was limited and lifecycle/codegen interaction crashed Metro once."}
+  },
+  "holistic": {
+    "score": 44,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "M1 reached full suite and two-client green with built-in password sessions and a direct familiar schema/query/mutation loop.",
+      "The one allowed M1-to-M2 additive successor preserved database, accounts, sessions, stores, and the original application rows while 22 suite atoms and nine choreography checks went green.",
+      "In M3, committed chat mutations remained stale in another client's live hook and authority suspension forced reload workarounds before the frozen Dave contradiction terminated the lane."
+    ]
+  }
+}

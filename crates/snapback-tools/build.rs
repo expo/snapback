@@ -4,20 +4,10 @@
 
 use std::path::{Path, PathBuf};
 
-mod build_identity {
-    include!("../snapback-types/build_identity.rs");
-}
-
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
     println!("cargo:rerun-if-changed=../../vendor/ibex/ios/Frameworks");
-
-    // The telemetry and fork-promotion evidence binaries retain the exact
-    // source-identity contract they had in the facade package.
-    // @ref LLP 0283#f-5--named-exceptions-with-burn-down-tickets —
-    // rank-7 tool composition must preserve evidence provenance while moving.
-    build_identity::emit_build_identity();
 
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os == "linux" {

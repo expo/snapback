@@ -1195,6 +1195,56 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
 export function experimentalTargetCapabilityIdsCanonicalJson() {
   return JSON.stringify([...EXPERIMENTAL_TARGET_CAPABILITY_IDS].sort());
 }
+
+// @ref LLP 0317.000#the-waves — O26 publication qualification compares the
+// exact set the published local-target codegen can successfully require. The
+// Rust-derived target manifest remains support authority; this projection
+// does not infer support from codegen's broader authoring vocabulary.
+// Experimental capabilities are intentionally retained: acknowledgment can
+// waive only the maturity refusal, never absent runtime support (LLP 0058).
+export function codegenRequiredTargetCapabilityIdsCanonicalJson() {
+  const path = join(
+    TOOLCHAIN_ARTIFACT_ROOT,
+    'schemas',
+    'capability.manifest.local-dev-sqlite-ibex.json',
+  );
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new TypeError(
+      `published codegen capability authority is unavailable at ${path}: ${error.message}`,
+    );
+  }
+  const supported = manifest?.supportedCapabilities;
+  const gaps = manifest?.capabilityGaps;
+  if (
+    manifest?.artifactKind !== 'capabilityManifest'
+    || manifest?.targetProfileId !== 'local-dev-sqlite-ibex'
+    || !Array.isArray(supported)
+    || !Array.isArray(gaps)
+    || supported.some((id) => typeof id !== 'string' || id.length === 0)
+    || gaps.some((id) => typeof id !== 'string' || id.length === 0)
+    || new Set(supported).size !== supported.length
+    || new Set(gaps).size !== gaps.length
+    || supported.some((id) => gaps.includes(id))
+  ) {
+    throw new TypeError(
+      `published codegen capability authority at ${path} is not a closed local target manifest`,
+    );
+  }
+  const codegenRequirementVocabulary = new Set([
+    ...TARGET_CAPABILITY_IDS,
+    ...INTENTIONALLY_NON_AUTHORABLE_TARGET_CAPABILITIES.keys(),
+  ]);
+  const unknown = supported.find((id) => !codegenRequirementVocabulary.has(id));
+  if (unknown !== undefined) {
+    throw new TypeError(
+      `published codegen capability authority contains unregistered requirement ${unknown}`,
+    );
+  }
+  return JSON.stringify([...supported].sort());
+}
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
 const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';
@@ -18599,6 +18649,25 @@ function familiarTypeScriptFiles(root) {
 }
 
 function discoverAuthoringSources(backendRoot, authoringProfile, err) {
+  // @ref LLP 0317.000#design-principles — P5: a discovered authoring source
+  // that cannot be read is a refusal, never an absent source that the selected
+  // profile may silently ignore.
+  const refusedSources = new Set();
+  const readScannedSource = (path, subsystem) => {
+    if (refusedSources.has(path)) return null;
+    try {
+      return readDefinitionSource(path, backendRoot);
+    } catch (error) {
+      refusedSources.add(path);
+      err(
+        error.codegenCode ?? 'FUNCTION_SOURCE_MISSING',
+        subsystem,
+        error.message,
+        { path },
+      );
+      return null;
+    }
+  };
   if (authoringProfile === EXPLICIT_AUTHORING_PROFILE) {
     const schemaTs = join(backendRoot, 'schema.ts');
     if (existsSync(schemaTs)) {
@@ -18612,8 +18681,8 @@ function discoverAuthoringSources(backendRoot, authoringProfile, err) {
     for (const entry of readdirSync(backendRoot, { withFileTypes: true })) {
       if (!entry.isFile() || !/\.(?:mjs|js|ts|mts)$/iu.test(entry.name)) continue;
       const path = join(backendRoot, entry.name);
-      let source;
-      try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+      const source = readScannedSource(path, 'codegen');
+      if (source === null) continue;
       const specifier = staticImportSpecifiers(source, path)
         .find((candidate) => FAMILIAR_ENTRYPOINTS.has(candidate));
       if (specifier) {
@@ -18634,8 +18703,8 @@ function discoverAuthoringSources(backendRoot, authoringProfile, err) {
   }
 
   for (const path of familiarTypeScriptFiles(backendRoot)) {
-    let source;
-    try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+    const source = readScannedSource(path, 'function');
+    if (source === null) continue;
     for (const specifier of staticImportSpecifiers(source, path)) {
       if (!/(?:^|\/)_generated\/(?:server|api)(?:\.(?:mjs|js|mts|ts))?$/u.test(specifier)) continue;
       err(
@@ -18678,8 +18747,8 @@ function discoverAuthoringSources(backendRoot, authoringProfile, err) {
     err('SCHEMA_SOURCE_MISSING', 'schema', `${schemaPath} is required by snapback-familiar-ts-v1`, { path: schemaPath });
   }
   for (const path of nestedTypeScriptFiles(backendRoot)) {
-    let source;
-    try { source = readDefinitionSource(path, backendRoot); } catch { continue; }
+    const source = readScannedSource(path, 'function');
+    if (source === null) continue;
     if (familiarModuleClassification(path, source).operations.length > 0) {
       err(
         'SNAPBACK_CODEGEN_FAMILIAR_MODULE_PATH_UNSUPPORTED',

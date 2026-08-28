@@ -9,7 +9,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-28
 reviewed-authorities-digest: sha256:b4839caed304c436ea5f0d25b917a8f57ba4808de38d3d6019585ee400234ce4
 ---
 
@@ -1152,20 +1152,382 @@ blanking all history is not an equivalent answer.
      `start/expo-chat.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
      `auth/passwords.md`: "After `signUpWithPassword` / `signInWithPassword`, do not call an authenticated mutation in the same tick", "Wait until the provider's authenticated dispatcher exists", "Do not mount a profile editor that can save until `getMine` (or equivalent) has a row", "Keep `HANDLE_TAKEN` / refuse UI outside a tree that unmounts on auth change".
 
-105. **Time-windowed protected live reads:** "My authenticated trending query
-     needs the last hour, but `ctx.runtime.now()` fails with
-     `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`. How should the result age?"
+105. **Time-windowed protected live reads and typing leases:** "My
+     authenticated trending query needs the last hour, and my durable typing
+     lease query needs `expiring soon`, but `ctx.runtime.now()` fails with
+     `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`. How should the results age?"
      The run fails if it weakens the determinism guard, substitutes ambient
      `Date.now()` in the handler, omits the generated argument contract, or
      claims live push advances a pinned clock without a database commit.
      Expected pages: `realtime/live-queries.md`,
      `recipes/time-windowed-live-reads.md`,
      `backend/trusted-runtime-values.md`.
-     Route terms: "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY", "trending in the last hour", "time-windowed live reads", "expiring soon".
+     Route terms: "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY", "trending in the last hour", "time-windowed live reads", "expiring soon", "typing lease".
      Required guidance: "pinned clock argument", "explicit refresh boundary",
-     "server-authored row time".
+     "server-authored row time", "server-authored lease deadline".
      Exact diagnostic target: `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` ->
      `/_snapback/guide/recipes/time-windowed-live-reads.md#recipe-time-windowed-live-reads`.
+
+106. **Cross-client live updates appear stale:** "A committed write doesn't
+     wake the other client's live hook; the second client's live query stays
+     stale, so cross-client fanout looks broken in my acceptance test." The run
+     fails if it diagnoses the live-delivery lane before first reaching
+     `realtime/live-queries.md#troubleshoot-apparent-cross-persona-live-update-failures`,
+     or if it omits the shared-auth-custody collision and its stable-partition
+     repair for the Node/headless case. It also fails if it presents that
+     collision as the explanation for *separate* browser contexts (for example
+     Playwright's `browser.newContext()`, which do not share storage) or for a
+     hook stale on the same client that issued the write. Same-origin tabs do
+     share the default partition; it is the *warning* that is Node-gated
+     (LLP 0317 r2 F2/O14).
+     Expected pages: `recipes/multi-persona-clients.md`, `clients/headless.md`,
+     `realtime/live-queries.md`.
+     Route terms: "second client does not receive live updates",
+     "query stays stale on the other client",
+     "cross-client fanout then looks broken",
+     "committed write does not wake the other client's live hook",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE".
+     Required guidance: "one stable explicit storagePartition per persona or worker",
+     "SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE",
+     "cannot explain separate browser contexts or same-client staleness".
+     Exact diagnostic target: `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE` ->
+     `/_snapback/guide/clients/headless.md#construct-one-client-per-backend-and-custody-context`.
+
+Cases 107–133 absorb the exact failed-search language from the published
+0.1.29 benchmark lanes. They turn the observations “the Guide search returned
+no entry for the broad module-evaluation code” and “broad searches frequently
+returned no result even when a relevant page existed” into routes for the
+specific Codegen, schema, Node-client, membership, policy-review, elevated-read,
+handler-write, and result-contract surfaces those lanes missed.
+
+These are **static lexical routes**: they prove the failed vocabulary reaches
+the right page, not that a fresh agent takes the route. `sol-snapback-explicit`
+reported that "broad searches frequently returned no result even when a
+relevant page existed"; only an instrumented cold-agent run — expected page and
+answer-side vocabulary withheld, complete tool transcript retained, one
+Explicit and one Familiar cell — would settle that. No seed case can assert it,
+because the only page such a case could expect is this one.
+
+107. **Broad module-evaluation code:** "The Guide search returned no entry for
+     the broad module-evaluation code." The run fails if it treats the wrapper
+     as one specific schema rule, edits generated output, or omits either
+     authoring profile.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "the Guide search returned no entry for the broad module-evaluation code",
+     "broad module-evaluation code", "CODEGEN_MODULE_EVALUATION_FAILED".
+     Required guidance: "These routes apply to both Explicit and Familiar authoring",
+     "Read the diagnostic message and `path`",
+     "Do not treat this wrapper as one specific schema rule".
+
+108. **Incomplete Codegen policy:** "CODEGEN_POLICY_INVALID and
+     committedProjections policy field." The run fails if it invents a partial
+     record, discards repository-required projections, or hand-edits the
+     generated graph.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "CODEGEN_POLICY_INVALID and committedProjections policy field",
+     "CODEGEN_POLICY_INVALID", "committedProjections policy field".
+     Required guidance: "`schemaVersion` and the required `committedProjections` array",
+     "preserve any projections the repository needs".
+
+109. **Drive the generated API from Node:** "A 'drive the generated API from
+     Node' page in the Guide would have saved at least an hour. The
+     command-client input shape is flat args plus asset source." The run fails
+     if it adds a second Node API, wraps command inputs in `{ args: ... }`, or
+     omits `baseUrl` and the live-query `connectionId`.
+     Expected pages: `clients/headless.md`.
+     Route terms: "drive the generated API from Node",
+     "command-client input shape".
+     Required guidance: "construct with `baseUrl`",
+     "pass a stable `connectionId` to `liveQuery`",
+     "Command inputs are flat",
+     "descriptor-owned media field receives the supported asset source",
+     "There is no second Node-only generated API",
+     "Both authoring profiles generate the same command descriptor and input type".
+
+110. **Membership-scoped table reads:** "membership-scoped reads that hide
+     rows from a removed group member without a client-side `recipientIds`
+     CSV." The run fails if it makes rows public or materializes a recipient
+     list on every row.
+     Expected pages: `auth/protecting-data.md`.
+     Route terms: "membership-scoped reads that hide rows from a removed group member without a client-side `recipientIds` CSV",
+     "membership-scoped reads", "removed group member".
+     Required guidance: "`{ kind: 'membership', declaration, resourceField, roles }`",
+     "Do not widen the row to `public-read`",
+     "Explicit and Familiar source lower these same normalized declarations".
+
+111. **Membership-scoped ephemeral authorization:** "I did not find a
+     generated ephemeral authorization composition that could share the custom
+     membership check." The run fails if it substitutes a public room, a
+     client permission list in Sessions mode, or a durable typing table.
+     Expected pages: `realtime/ephemeral-state.md`.
+     Route terms: "generated ephemeral authorization composition that could share the custom membership check",
+     "custom membership check".
+     Required guidance: "`allow.members` binds the room to the same generated declaration",
+     "Explicit and Familiar source lower the identical policy",
+     "neither needs a client-maintained recipient list".
+
+112. **Membership-scoped asset reads:** "`access.read: 'members'` isn't in the
+     closed union." The run fails if it concludes membership asset sharing is
+     missing, makes the asset public, or teaches that wrong spelling as an
+     alias accepted by code.
+     Expected pages: `backend/assets.md`.
+     Route terms: "access.read: 'members' isn't in the closed union",
+     "access.read: 'members'".
+     Required guidance: "that spelling is not in the closed union",
+     "`access: { read: 'via-references' }`",
+     "`.assetSharing({ kind: 'membership', membership, roles })`",
+     "same normalized security boundary in Explicit and Familiar source".
+
+113. **IDs inside structured receipt arrays:**
+     "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays."
+     The run fails if it hides a lifecycle-bearing ID inside an opaque
+     structured value, weakens current referential state into an unchecked
+     snapshot, or omits the profile-neutral boundary.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED messages receipt arrays",
+     "SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED", "messages receipt arrays".
+     Required guidance: "whose referential-integrity lifecycle requires an addressable top-level field",
+     "use a first-class top-level `v.id()` field or child row",
+     "same normalized schema rule in Explicit and Familiar authoring".
+
+114. **Batch-result correlation in inline handlers:** "A feed handler used
+     dynamic array indexing while correlating bounded getMany results; later a
+     computed array lookup was used to associate uniqueMany media." The run
+     fails if it reads a batch response with `rows[i]`, loses the source ID on
+     a hidden/missing row, or silently switches authoring profiles.
+     Expected pages: `backend/queries.md`.
+     Route terms: "used dynamic array indexing while correlating bounded getMany results",
+     "Computed array lookup used to associate uniqueMany media".
+     Required guidance: "Carry the request identity into every output record",
+     "match the returned row by that identity with an array method",
+     "same inline-handler grammar in Explicit and Familiar authoring".
+
+115. **Anonymous media result validator:** "v.media is restricted to stored
+     top-level fields and cannot be repeated as an anonymous JS result
+     validator." The run fails if it redeclares `v.media()` inside a computed
+     result or loses the stored field's projected media authority.
+     Expected pages: `backend/queries.md`.
+     Route terms: "v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator".
+     Required guidance: "`v.media()` is schema-only",
+     "`results.documents(table)`, `results.document(table)`, or `v.doc(table)`",
+     "Both authoring profiles lower to this same result contract rule".
+
+116. **Single-literal validator:** "A schema field with a single literal
+     compiled as unsupported Json; represented the closed digest identity as a
+     one-member union." The run fails if it widens the field to `v.string()`
+     or constructs a one-entry `v.union`.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "A schema field with a single literal compiled as unsupported Json; represented the closed digest identity as a one-member union",
+     "v.union requires at least two validators".
+     Required guidance: "use `v.literal(value)` directly",
+     "`v.union` is only for 2–8 alternatives",
+     "Explicit and Familiar schema source share this normalized validator rule".
+
+117. **Wrong-table owner policy review:** "The owner-visible parent required
+     by the now-abandoned generated collection also scoped ordinary handler
+     reads, so Bob could not resolve Alice's parent post." The run fails if it
+     applies another policy patch by nearby source text or waits for runtime to
+     discover the effective read boundary.
+     Expected pages: `getting-started/generated-artifacts.md`.
+     Route terms: "owner-visible collection parents interacted with cross-author feed reads",
+     "The owner-visible parent required by the now-abandoned generated collection also scoped ordinary handler reads, so Bob could not resolve Alice's parent post".
+     Required guidance: "`snapback/generated/authorization-review.json`",
+     "`tablePolicies[]` names every table and its effective read policy",
+     "`operations[].effectiveTablePolicies[]`",
+     "`ownerInputDisposition`",
+     "`uniqueConflictDisposition`".
+
+118. **Elevated-read placement:** "Elevated reads can't hide in helper
+     modules; defineJsQuery elevatedReads refused on inline handlers." The run
+     fails if it moves an elevated call into a helper, adds `elevatedReads:` to
+     an inline definition, or omits the permission check.
+     Expected pages: `getting-started/your-first-backend.md`,
+     `auth/protecting-data.md`.
+     Route terms: "elevated reads can't hide in helper modules",
+     "defineJsQuery elevatedReads refused on inline handlers".
+     Required guidance per page:
+     `getting-started/your-first-backend.md`: "keep each `ctx.db.elevated.{get,getMany,uniqueMany,query}` call directly", "`elevatedReads:` metadata is module-form only".
+     `auth/protecting-data.md`: "keep every `ctx.db.elevated...` call directly in the handler expression", "`elevatedReads:` is metadata for module-form handlers".
+
+119. **Patch row-id-only refusal:** "ctx.db.patch requires table-first
+     spelling (SNAPBACK_UNKNOWN_TABLE when given row id only)." The run fails if it treats the generated row ID as
+     the first runtime argument or reports only that the ID is not a table.
+     Expected pages: `backend/mutations.md`.
+     Route terms: "SNAPBACK_UNKNOWN_TABLE when given row id only".
+     Required guidance: "`ctx.db.patch` is table-first",
+     "`ctx.db.patch(table, id, values)`",
+     "both authoring profiles".
+     Exact diagnostic target: `SNAPBACK_UNKNOWN_TABLE` ->
+     `/_snapback/guide/backend/mutations.md#read-and-delete-through-ctxdb`.
+
+120. **Stored optional fields in document results:** "Optional asset fields
+     still must serialize as null in document results; result-contract
+     requiredField appeared on optional document columns." The run fails if it
+     omits an optional stored key, confuses write-argument omission with a
+     document result, or scopes the rule to one profile.
+     Expected pages: `backend/queries.md`.
+     Route terms: "Optional asset fields still must serialize as null in document results".
+     Required guidance: "every stored optional field is a present document key",
+     "Omitting the key violates the result contract",
+     "both Explicit and Familiar authoring".
+Cases 121–126 absorb the live-query, authority, navigation, and application-
+journey phrasing from the published 0.1.29 Clique lanes. Their route terms are
+only sentences the stuck lanes used; answer-side symbols and repairs remain in
+required guidance.
+
+121. **Causal live-query trace:** "The diagnostics were weaker at causal
+     joins: I need a single trace from the hook through authority, commit,
+     invalidation, and subscriber delivery." The run fails if it claims the
+     current subscription/delivery-wave join correlates the originating
+     mutation or invents an end-to-end receipt that does not ship.
+     Expected pages: `backend/query-costs.md`.
+     Route terms: "single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision".
+     Required guidance: "joinPendingDeliveryInspectionV1",
+     "applies to clients generated from both Explicit and Familiar authoring",
+     "does not join the originating mutation to its committed version",
+     "not one backend-spanning causal receipt".
+
+122. **Authority blocker attribution:** "The runtime surfaced the code but not
+     which provider operation stranded which hook." The run fails if it claims
+     a current refusal names the conflicting owner/generation, or substitutes
+     the Node multi-persona recipe for same-principal browser contexts.
+     Expected pages: `recipes/provider-lifecycle.md`.
+     Route terms: "which provider operation stranded which hook".
+     Required guidance: "applies to both Explicit and Familiar clients",
+     "Inspect the ownership tuple and current barrier first",
+     "does not attribute the conflicting owner, operation, or authority generation",
+     "not a same-principal browser multi-context recipe".
+
+123. **Open a direct conversation without a profile gate:** "Alice1
+     direct-route bootstrap still intermittently waited on a same-principal
+     profile live query." The run fails if it keeps the client-side route gate,
+     creates the conversation in multiple requests, or omits settlement and
+     repeated-open idempotence.
+     Expected pages: `backend/mutations.md`.
+     Route terms: "Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query".
+     Required guidance: "`startDirectMessage`",
+     "Settle it with `queue: false` before navigating",
+     "repeated opens reuse the canonical conversation id",
+     "The shipped example is Explicit",
+     "Familiar authors use the same one-mutation server-side shape".
+
+124. **Remove or disappear, then navigate:** "I need a Router-navigation
+     recipe for a settled mutation that survives page replacement." The run
+     fails if it treats component-promise settlement or navigation as the
+     server witness, or claims a first-class helper already ships.
+     Expected pages: `realtime/live-queries.md`.
+     Route terms: "Router-navigation recipe for settled mutations that must survive page replacement".
+     Required guidance: "this client-side composition is profile-neutral",
+     "does not currently ship a `settledNavigation` helper",
+     "Persist the navigation intent synchronously before page replacement",
+     "resume the same idempotent operation at the destination",
+     "gate the next authority-sensitive action on a server witness".
+
+125. **From chat template to social product:** "I need a short,
+     product-shaped path from that chat to the canonical social schema." The
+     run fails if it sends the agent to the flat capability registry without a
+     journey, claims a maintained social recipe exists, or applies the Explicit
+     template directly to Familiar authoring.
+     Expected pages: `start/index.md`.
+     Route terms: "short, product-shaped path from that chat to the canonical social schema".
+     Required guidance: "the `expo-chat` template is Explicit",
+     "no maintained end-to-end relational-social recipe",
+     "profiles →",
+     "graph →",
+     "feeds →",
+     "roles →",
+     "media →",
+     "offline →",
+     "aggregates and schedules →",
+     "Familiar is not covered by this template".
+
+126. **Messaging convergence as one answer:** "I need same-account live
+     messaging, cross-device unread clearing, and dual-client offline
+     convergence." The run fails if it claims one maintained recipe/proof
+     exists, equates mutation settlement with receipt authority, or claims the
+     existing client acknowledgements prove server-observed fetch.
+     Expected pages: `recipes/optimistic-create.md`.
+     Route terms: "same-account live messaging, cross-device unread clearing, and dual-client offline convergence".
+     Required guidance: "there is no single maintained recipe or proof",
+     "optimistic sender echo",
+     "durable exact settlement and offline replay",
+     "client-authored acknowledgements, not a server-observed fetch primitive",
+     "applies to both Explicit and Familiar generated references".
+Cases 127–133 route the remaining Lane C media/setup phrases from the same
+published 0.1.29 benchmark. Route terms deliberately contain only vocabulary
+recorded by the stuck lanes or the audit of their failed searches; successor
+spellings and repairs appear only under Required guidance.
+
+127. **Base64 media reaches the structured ceiling:** "A base64 video hit the
+     structured-value ceiling after earlier writes had settled." The run fails
+     if it stores bytes in a string/JSON field, omits the pre-authoring ceiling,
+     or scopes the rule to only one authoring profile.
+     Expected pages: `getting-started/your-first-backend.md`.
+     Route terms: "base64 video".
+     Required guidance: "route the bytes out of the document before authoring the field",
+     "32 KiB per-value ceiling", "same in Explicit and Familiar authoring".
+
+128. **Public social media relationship choice:** "Owner-visible collection
+     parents interacted with cross-author feed reads." The run fails if it
+     widens an owner parent to public, hides the policy bundle until runtime,
+     or treats the two relationship models as interchangeable.
+     Expected pages: `backend/media-happy-paths.md`.
+     Route terms: "owner-visible collection parents interacted with cross-author feed reads".
+     Required guidance: "choose the relationship before declaring it",
+     "public social parent that must be readable across authors",
+     "typed child-row pattern", "design choice is profile-neutral".
+
+129. **Media readiness for view-once UI:** "Video bytes never became
+     observable, and view-once could appear before bytes were available." The
+     run fails if it hides the whole message while delivery settles, guesses
+     kind from a MIME type, or treats every non-empty reference as a usable URL.
+     Expected pages: `recipes/view-once-media.md`.
+     Route terms: "video bytes never became observable".
+     Required guidance: "A non-empty state is metadata-ready",
+     "only `ready` and `refreshing` are delivery-ready and expose a URL",
+     "keep the surrounding message and caption rendered",
+     "same for Explicit and Familiar authoring".
+
+130. **Legacy one-asset command refusal:** "No multi-asset command
+     (`defineCommand` is one asset), so uploads are a separate intent plus a
+     mutate." The run fails if it preserves the two-phase workaround without
+     checking the shipped successor or claims legacy `defineCommand` changed
+     its contract.
+     Expected pages: `backend/media-happy-paths.md`.
+     Route terms: "no multi-asset command (`defineCommand` is one asset)".
+     Required guidance: "The successor spelling is `defineMediaCommand`",
+     "bounded ordered uploads", "one atomic parent/collection commit",
+     "Both profiles consume the same generated command task".
+
+131. **Package, template, and Expo-tuple guesses:** "The lane made a mistaken
+     unscoped package lookup, guessed an unknown template, and chose a legacy
+     router major." The run fails if it recommends `snapback@0.1.29`, invents
+     an `expo-router` template, or repairs one Expo dependency independently.
+     Expected pages: `start/index.md`.
+     Route terms: "mistaken unscoped `snapback@0.1.29` lookup",
+     "published CLI rejected unknown `expo-router` template",
+     "assumed legacy `expo-router` major 7 for Expo 57".
+     Required guidance: "published CLI package is `@expo/snapback-cli`",
+     "choose one of the five template names above",
+     "let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and React Native pins",
+     "current template registry is Explicit-scoped and has no Familiar-named template".
+
+132. **Metro listener outside the assigned lane:** "Metro's inner port escaped
+     4287–4387." The run fails if it assumes backend/client/bootstrap pins
+     redefine the range or omits the complete constrained-lane command shape.
+     Expected pages: `start/expo-chat.md`.
+     Route terms: "Metro's inner port escaped 4287–4387".
+     Required guidance: "one `--port-range <lo>-<hi>` that contains every owned listener",
+     "shared by Explicit and Familiar backends".
+
+133. **Pipe EOF under supervised dev:** "Supervised Expo web wants stdin
+     detached or the owner dies on pipe EOF." The run fails if it repeats the
+     stale shutdown claim or treats a command-channel EOF as owner shutdown.
+     Expected pages: `start/expo-chat.md`.
+     Route terms: "supervised Expo web wants stdin detached or the owner dies on pipe EOF".
+     Required guidance: "stdin EOF now closes only the optional command channel",
+     "leaves the supervisor and its children live", "may use `/dev/null`".
+
 
 
 ## Static routing check
@@ -1195,6 +1557,15 @@ case-specific static guidance fence; it does not execute the documented
 runtime behavior. Whether an agent takes the route and applies the guidance
 remains the manual/W1-instrument protocol below, with transcripts under
 `guide/eval-runs/`.
+
+Only an instrumented cold-agent run proves route-taking. Give a fresh agent
+the repository steer, one failed-lane intent, and the same tool budget, but
+withhold the expected page and answer-side vocabulary. Retain the complete
+tool transcript and score the first page load, the proposed technique, and
+the rejected anti-patterns. For a profile-neutral route, run one Explicit and
+one Familiar cell. The static checker remains the cheap per-change regression;
+this behavioral run is the claim gate, not something a substring check can
+simulate.
 
 ## Budget
 

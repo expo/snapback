@@ -9,7 +9,7 @@ examples: [packages/snapback-contract/keyed-provider.mjs, packages/snapback-reac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-25
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:cb5e02859abd85c24cbcce91cb00673c057e42b4d444f21c54d3701bb3a6d6b1
 ---
 
@@ -42,6 +42,15 @@ Exact retrieval vocabulary from provider failures:
 - N cells imply N transport connections
 - provider lifecycle budget
 - too many websockets
+
+> **If you searched for “which provider operation stranded which hook”:** this route applies to both Explicit and Familiar clients.
+> Inspect the ownership tuple and current barrier first, then use the state/repair vocabulary in
+> [writes during authentication transitions](./auth-transition-writes.md).
+> The current refusal does not attribute the conflicting owner, operation, or authority generation.
+> The shipped
+> [multi-persona recipe](./multi-persona-clients.md) isolates Node actors; it is
+> not a same-principal browser multi-context recipe, and that browser case plus
+> call-site attribution remains a documented gap.
 
 ## Own one manager above all provider cells
 

@@ -1119,6 +1119,46 @@ function renderHook(provider, hook, { strict = false } = {}) {
   console.log('public-immutable renderer chooses one concrete ready rendition URL: ok');
 }
 
+// LLP 0317 O35 asset-half reproduction: omitting maxWidth must not strand a
+// ready asset in the empty phase. The public API deliberately supplies the
+// 512px renderer default, so this pins the reported shape rather than merely
+// testing the explicit-width path above.
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackAssetImage({ assetId: 'asset-public-default-width' }),
+  );
+  await act(async () => { await flush(); });
+  act(() => {
+    assets.emitWatch({
+      status: 'ready',
+      record: {
+        assetId: 'asset-public-default-width',
+        availability: 'ready',
+        deliveryProfile: 'public-immutable',
+        renditions: [
+          { variant: 'primary', ready: true, width: 1200 },
+          { variant: 'feed', ready: true, width: 512 },
+        ],
+      },
+      mode: 'live',
+    });
+  });
+  assert.equal(output.current.phase, 'rendition');
+  assert.equal(output.current.delivery, 'public');
+  assert.equal(
+    output.current.src,
+    'http://fixture/assets/public/asset-public-default-width/feed',
+  );
+  assert.equal(
+    output.current.strictSrc,
+    'http://fixture/assets/records/asset-public-default-width/bytes/best?maxWidth=512',
+  );
+  act(() => { renderer.unmount(); });
+  console.log('asset renderer omitted maxWidth uses the 512px default: ok');
+}
+
 {
   const { provider, assets } = await harness();
   const previewUrl = 'blob:public-pending-preview';

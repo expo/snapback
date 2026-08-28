@@ -21,8 +21,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  assertPublicationCapabilityQualificationMatrix,
   assertStagedRuntimeAdminConsole,
   assertStagedRuntimeStoreQualification,
+  readPublicationCapabilityQualificationFile,
 } from './publication-store-qualification-gate.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -849,6 +851,12 @@ export async function releasePass(options, deps = {}) {
       'pass-2 ledger does not bind the clean exact version and full runtime matrix',
     );
   }
+  const capabilityQualification = assertPublicationCapabilityQualificationMatrix({
+    ledger,
+    qualifications: RUNTIME_PLATFORMS.map((platform) => (
+      readPublicationCapabilityQualificationFile(options.receipts.get(platform), platform)
+    )),
+  });
   const gateSummary = assertStagedRuntimeStoreQualification({
     stagedDir: options.out,
     ledger,
@@ -879,6 +887,11 @@ export async function releasePass(options, deps = {}) {
     ledgerSha256,
     retainedLedger,
     gateSummary,
+    capabilityQualification: capabilityQualification.map((entry) => ({
+      platform: entry.platform,
+      runtimeBinarySha256: entry.runtimeBinarySha256,
+      requiredCapabilities: entry.codegenRequiredCapabilities.length,
+    })),
     adminConsoleSummary,
     publication: [],
     byteVerification: [],

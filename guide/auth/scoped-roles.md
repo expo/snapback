@@ -9,6 +9,7 @@ examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:780bb9188d0955c89abf025ee2ea4cb21aeb08e760bce76b3e78efd19fffafc7
 ---
@@ -637,10 +638,7 @@ separately authorized mutations with application-visible setup state or stable
 business keys for idempotence. Do not catch the batch refusal and pretend an
 earlier command committed.
 
-<!-- since: 0.1.28 unreleased -->
-> **Unreleased.** This authoring repair route and retained-history live-cutoff
-> witness are newer than the latest published packages (`0.1.27`). Build from
-> source until `0.1.28` is published.
+<!-- since: 0.1.28 -->
 
 ## Keep pre-removal history without live delivery
 

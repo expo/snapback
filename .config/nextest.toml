@@ -1,0 +1,18 @@
+nextest-version = { required = "0.9.143", recommended = "0.9.143" }
+
+# @ref LLP 0316#phase-5--link-targets — nextest gives every test its own
+# process. That isolation is the prerequisite for a later, separately reviewed
+# consolidation of environment-mutating integration targets; this landing does
+# not merge any test binaries.
+[profile.local-proof]
+fail-fast = false
+test-threads = 4
+
+[profile.local-proof.junit]
+# JUnit paths are relative to target/nextest/<profile>, so the canonical proof
+# always writes target/nextest/local-proof/rust-tests.junit.xml.
+path = "rust-tests.junit.xml"
+report-name = "snapback-local-proof-rust-tests"
+store-success-output = false
+store-failure-output = true
+report-skipped = "ignored"

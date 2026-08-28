@@ -1,0 +1,24 @@
+{
+  "schema_version":"clique-scores-v1","lane_id":"terra-pocketbase","backend":"pocketbase","backend_version":"pocketbase-0.39.9/0.27.3","model":"terra","effort":"medium","run_scope":"M1-M8",
+  "milestones":{"M1":"capability-failure","M2":"blocked-by-M1","M3":"blocked-by-M1","M4":"blocked-by-M3","M5":"blocked-by-M3","M6":"blocked-by-M1","M7":"not-run","M8":"blocked-by-M6"},
+  "sequencing_attestation":{"essay_written_before_scores":true,"dimension_scores_before_holistic":true,"holistic_before_any_totals_revealed":true},
+  "dimensions":{
+    "O1":{"layer":"grader-outcome","weight":13,"exercised":true,"score":5,"rationale":"Only a basic M1 smoke path ran; no milestone reached green."},
+    "O2":{"layer":"grader-outcome","weight":7,"exercised":true,"score":0,"rationale":"No valid two-client choreography receipt was produced."},
+    "O3":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O4":{"layer":"grader-outcome","weight":9,"exercised":false,"score":null,"rationale":"M6 offline proof was not reached."},
+    "O5":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"Scale replay was not attempted."},
+    "B1":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"M1-M3 were not all attempted."},
+    "B2":{"layer":"builder-experience","weight":5,"exercised":true,"score":55,"rationale":"PocketBase binary and built-in superuser setup were quick, but full auth revocation was not exercised."},
+    "B3":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"M2-M3 were blocked."},
+    "B4":{"layer":"builder-experience","weight":7,"exercised":false,"score":null,"rationale":"M6 offline work was not attempted."},
+    "B5":{"layer":"builder-experience","weight":4,"exercised":false,"score":null,"rationale":"Full-run M4-M5 were blocked."},
+    "B6":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M5 was blocked."},
+    "B7":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M6/M8 were blocked."},
+    "B8":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"scored by the M7 session"},
+    "B9":{"layer":"builder-experience","weight":6,"exercised":true,"score":40,"rationale":"The official binary was easy to inspect and run locally, but the host mismatch added friction."},
+    "B10":{"layer":"builder-experience","weight":4,"exercised":true,"score":35,"rationale":"One Express route correction and no full harness completion limited iteration confidence."},
+    "B11":{"layer":"builder-experience","weight":5,"exercised":true,"score":45,"rationale":"Local binary deployment is simple, while unexercised production authority features remain uncertain."}
+  },
+  "holistic":{"score":48,"not_computed_from_dimensions":true,"moments":["The official PocketBase binary started locally with one command.","Built-in superuser provisioning was immediate.","The run stopped before PocketBase could prove its difficult messenger behaviors."]}
+}

@@ -5,6 +5,12 @@
 **Systems:** Testing, Developer experience, Build, Tooling, CI
 **Author:** Claude (Opus 5) / Codex (GPT-5) / Charlie Cheever
 **Date:** 2026-08-05
+**Revised:** 2026-08-27 (LLP 0316 Phase 5 adopts cargo-nextest 0.9.143 as
+the canonical Rust runner: the checked `local-proof` profile retains
+non-fail-fast workspace coverage, per-test process isolation, bounded
+concurrency, and deterministic JUnit; missing tooling is a typed refusal with
+no `cargo test` fallback, while a separate `rust-doc-tests` gate preserves the
+doctest coverage nextest 0.9.143 does not execute.)
 **Revised:** 2026-08-21 (gate-execution honesty correction and review closure:
 every selected gate now has a finite wall-clock budget parsed by one canonical
 decimal contract, timeout is structurally distinct from a natural exit 124,
@@ -371,8 +377,11 @@ cannot present escaped-writer contamination as clean. The authoritative v3
 JSONL uses `terminationReason: "exit" | "timeout" |
 "timeout-cleanup-failed"` for executing gates, distinguishing a natural exit
 124 from enforcement. Timeout signatures bind both that structural reason and
-the captured timeout marker. The `rust-tests` command separately uses Cargo
-`--no-fail-fast`, so one failing target cannot hide unrun workspace targets.
+the captured timeout marker. The `rust-tests` command separately uses
+cargo-nextest's `local-proof` profile with `fail-fast = false`, so one failing
+test cannot hide unrun workspace tests. Cargo-nextest 0.9.143 does not execute
+doctests; the separate `rust-doc-tests` gate retains them explicitly and does
+not satisfy, replace, or mask the nextest gate.
 
 The dependency graph itself is test inventory. A newly added real-server test
 that omits the current-binary prerequisite fails the inventory check.
@@ -819,9 +828,10 @@ it is a large mechanical change with test-selection, module-state, `@ref`, and
 failure-isolation consequences. Instrument link time first. Pursue
 consolidation only if D1–D3 leave it among the dominant costs.
 
-`cargo-nextest`, `mold`/`lld`, codegen-unit tuning, and remote build caching are
-valid experiments, not assumed conclusions. Each changes a toolchain or
-execution boundary and needs its own measured acceptance.
+`mold`/`lld`, codegen-unit tuning, and remote build caching remain valid
+experiments, not assumed conclusions. Cargo-nextest moved from this experiment
+list to the documented canonical Rust runner in LLP 0316 Phase 5; its
+controlled wall comparison remains measurement-owned there.
 
 ### D5 — make test economics part of the inventory
 
@@ -1007,8 +1017,9 @@ executable code:
   timeout identity, bounded capture with a surviving double-forked writer,
   same-group TERM resistance, and signal cleanup of a genuine `setsid()`
   descendant, while `tests/local_proof_inventory_v0.mjs` proves unknown edges,
-  duplicate ids, missing producers, the bounded non-fail-fast Rust workspace
-  command, and a new direct real-server gate without
+  duplicate ids, missing producers, the bounded non-fail-fast nextest Rust
+  workspace command, its typed missing-runner refusal without fallback, the
+  explicit workspace doctest complement, and a new direct real-server gate without
   current-binary readiness fail closed;
 - CI uploads the result artifact even when the proof is red;
 - the canonical proof builds/qualifies the ordinary binary before invoking

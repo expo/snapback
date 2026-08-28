@@ -20,6 +20,9 @@ test-support = []
 
 [dependencies]
 anyhow = "1.0"
+# Decoder half of the shared Guide-artifact codec; the encoder lives in
+# snapback-types. @ref LLP 0314.002#32-a-bit-stable-encoder-normatively-required
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.22"
 fs2 = "0.4"
@@ -60,6 +63,7 @@ snapback-activation = { path = "../snapback-activation", features = ["test-suppo
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-engine = { path = "../snapback-engine", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+snapback-build-identity = { path = "../snapback-build-identity" }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
 snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
 snapback-sync = { path = "../snapback-sync", features = ["test-support"] }

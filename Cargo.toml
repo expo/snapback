@@ -27,3 +27,9 @@ inherits = "release"
 incremental = false
 lto = "fat"
 codegen-units = 1
+# The compiler output IS the final shipped bytes, so CV-2 loader
+# qualification (LLP 0123), source receipts, seals, and measurement all bind
+# the same stripped file. Never strip in a packer after a receipt or seal
+# exists — that desyncs digests.
+# @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1d.
+strip = "symbols"

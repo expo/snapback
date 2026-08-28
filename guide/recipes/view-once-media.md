@@ -26,6 +26,19 @@ first-class recipient grant edge. The grant surface is claimed only on the
 local target, so this page is partial: a hosted deployment must capability-gate
 the feature rather than infer support from the local recipe.
 
+If you searched for **metadata-ready**, **openable**, or why **video bytes never became observable**,
+join the message's product state to the closed
+`MediaState` returned by `useSnapbackMedia`. A non-empty state is
+metadata-ready because its `MediaRef` already carries the server-admitted
+coarse kind. For view-once product state, `openable` means an unconsumed
+recipient row plus that non-empty reference; it does not require a delivery
+URL before the activation mutation. After activation, only `ready` and
+`refreshing` are delivery-ready and expose a URL; `issuing` waits,
+`unavailable` may show retry, and `denied` is terminal for that authorized
+delivery attempt. Gate only the open/retry/media controls—keep the surrounding
+message and caption rendered. This consumer contract is the same for Explicit
+and Familiar authoring; the declaration examples below are Explicit.
+
 Read [Grant and revoke per-recipient access](../backend/assets.md#grant-and-revoke-per-recipient-access)
 for the complete operation, authorization, GC, quota, and delivery semantics.
 If a target lacks first-class grants or the application needs filterable grant

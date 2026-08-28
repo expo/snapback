@@ -10,7 +10,7 @@ pub(crate) use snapback_activation::{
     operational_readiness,
 };
 pub use snapback_kernel::{
-    authoring_suggestion, branches, conformance, data_patch, diagnostic, fork_promotion,
+    authoring_suggestion, branches, conformance, data_patch, diagnostic, fork_promotion, identity,
     live_matcher, membership_rules, migration, operation_ledger, remediation, seed_identity,
     vector, watches,
 };
@@ -27,7 +27,7 @@ pub use snapback_sync::{
 };
 pub use snapback_types::{
     api_envelope, app_data_result, args_contract, commit_envelope, contract_types, exec_guard,
-    host_ops_contract, identity, ids, live_wire, network_profile, owner_only_file, result_contract,
+    host_ops_contract, ids, live_wire, network_profile, owner_only_file, result_contract,
     rqs_contract, telemetry_contract, value_expr, visibility_governance, wire_version,
 };
 

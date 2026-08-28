@@ -755,11 +755,11 @@ fn validate_candidate_source(expected_revision: &str) -> anyhow::Result<()> {
         "paired recorder requires a clean source tree; found:\n{dirty}"
     );
     anyhow::ensure!(
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT") == Some(expected_revision),
+        snapback_kernel::identity::git_commit() == expected_revision,
         "release executable was not built from --expected-revision"
     );
     anyhow::ensure!(
-        option_env!("SNAPBACK_BUILD_GIT_DIRTY") == Some("false"),
+        !snapback_kernel::identity::git_dirty(),
         "release executable was not built from a clean source tree"
     );
     Ok(())

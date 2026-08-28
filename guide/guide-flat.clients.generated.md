@@ -766,6 +766,15 @@ reviewed-authorities-digest: sha256:6b002186d94944cf9c5a3021c79654857ab0e11265ea
 
 # The headless client
 
+If you came looking for a “drive the generated API from Node” page, stay here.
+This is the framework-neutral Node/browser-worker surface for the same
+generated Explicit and Familiar references: construct with `baseUrl`, pass a
+stable `connectionId` to `liveQuery`, and use the generated command client for
+asset-bearing commands. There is no second Node-only generated API.
+
+Search vocabulary: drive the generated API from Node;
+command-client input shape; flat args; asset source.
+
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
@@ -1197,6 +1206,12 @@ returns the same phased command task documented in
 `useSnapbackCommand` and `provider.surface(...)` compose this same owner
 rather than a second one.
 
+Command inputs are flat: ordinary arguments stay at the top level and the
+descriptor-owned media field receives the supported asset source. Do not wrap
+them in `{ args: ... }`, which is the low-level ordinary mutation wire shape.
+Both authoring profiles generate the same command descriptor and input type;
+the profile difference ends before this client call.
+
 <!-- since: 0.1.21 -->
 
 ## Generated reference kinds and legal verbs
@@ -1470,6 +1485,24 @@ blanked and permanently detached with
 `SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED`; dispose remains safe and
 idempotent, but recovery requires constructing a new client process/surface
 rather than retrying the terminal instance.
+
+### Keep auth commit participants synchronous and non-reentrant
+
+<!-- diagnostic-primary: SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT -->
+
+`SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT` means an auth-barrier participant called
+back into the same authority owner while its commit callback was running.
+Participant callbacks must finish synchronously: blank, clear, or publish only
+their own already-prepared state there. Move client/auth/provider work outside
+the callback, await the original authority transition, and then start a fresh
+operation against its settled authority. This client rule is identical for
+Explicit and Familiar generated references.
+
+If an ordinary provider or hook surfaces the code without an author-owned
+`compareAndCommit` callback, preserve the diagnostic and authority-transition
+evidence as a product defect. Do not weaken protected rows or replace the
+failed path with public reads; recreating the affected client owner is bounded
+containment, not proof that the underlying reentrancy is repaired.
 
 ## Complete public method inventory
 
@@ -2510,6 +2543,15 @@ internal exception text never becomes UI copy by accident.
 
 ## Publish and observe ephemeral presence
 
+<!-- diagnostic-primary: SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT -->
+
+`SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT` means one hook tried to own presence
+both declaratively and imperatively. Choose exactly one mode: pass a non-skipped
+`value` and let the provider publish it, or pass `value: skip` and use the
+returned `publish`/`delete` actions. Do not call imperative actions from a
+non-skip declarative consumer. Explicit and Familiar collections share this
+React lifecycle.
+
 `useSnapbackPresence` is the React hook for generated **ephemeral**
 collections — including presence, typing indicators, and cursors. Pass a
 generated connection-keyed ephemeral reference. A non-skipped value is
@@ -3501,6 +3543,7 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:d0b414626c974f56c2dde5a8d18d6ce46190dc3097bc5a8b30af54a133d4b624
 ---
@@ -3664,7 +3707,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.27 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.29 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -3688,11 +3731,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.27 \
-  @expo/snapback-client@0.1.27 \
-  @expo/snapback-codegen@0.1.27 \
-  @expo/snapback-expo@0.1.27 \
-  @expo/snapback-react@0.1.27 \
+  @expo/snapback-cli@0.1.29 \
+  @expo/snapback-client@0.1.29 \
+  @expo/snapback-codegen@0.1.29 \
+  @expo/snapback-expo@0.1.29 \
+  @expo/snapback-react@0.1.29 \
   expo-file-system expo-crypto expo-image-picker
 ```
 
@@ -4033,6 +4076,19 @@ Use the generic arm for independently configured clients; use `--expo` whenever
 `SnapbackExpoProvider` should discover the supervisor without an app-authored
 origin.
 
+### Recover when supervised Metro exits
+
+<!-- diagnostic-primary: SNAPBACK_EXPO_METRO_EXITED -->
+
+`SNAPBACK_EXPO_METRO_EXITED` means the owned Metro child terminated; inspect
+its reported cause, exit code or signal, and Metro stderr before restarting it.
+If stderr names `ENOENT` below `.snapback/generations/.tmp-*`, exclude
+`.snapback/generations` from Metro's crawl with `resolver.blockList`; current
+Expo chat and media-feed template configs already carry that exclusion, so
+preserve it when retrofitting or replacing `metro.config.*`. Then use the
+owner's `reload-metro` control instead of killing processes by pattern. The
+transient directory and recovery are authoring-profile independent.
+
 When Metro's file watching is inert — the project under a watcher-blind root such as `/private/tmp`, or `CI` truthy in the effective Metro environment of a bundler you started yourself — the supervised readiness stream carries one advisory `SNAPBACK_EXPO_METRO_WATCH_INERT` event naming the condition and the fix, so a stale bundle is not misread as an application bug. The supervised `--expo` loop strips `CI` from its owned Metro child (the supervised loop is a watch loop by contract), so a headless controller with `CI=1` no longer disables watching there. On unsupervised `snapback dev` invocations that own their client (`--client-command`), the same code is still printed as an advisory, not a refusal, when the CLI process has a truthy `CI`: if you start Metro or Expo yourself, do not inherit `CI=1`; unset `CI` or pass `CI=0`.
 
 Metro receives the credential-free rendezvous origin and, on web, the backend
@@ -4185,6 +4241,16 @@ Expo with `--web`; unlike pressing `w` in an independently started Metro
 process, it establishes the supervised bootstrap first. Three
 package-level paves make this work; each keeps its existing security or
 custody boundary:
+
+For both Explicit and Familiar apps, React Native Web has a renderer boundary
+that Snapback cannot repair: it drops `accessibilityValue` instead of projecting
+it to `aria-valuetext`, and an `<Image>` can become a CSS-background descendant
+rather than a semantic image element. When those semantics matter, project the
+same app state into an app-owned web accessibility layer — for example,
+`aria-valuetext` for a value and an image role plus equivalent label or alt text
+for imagery. Keeping that projection synchronized is the application's job
+because it expresses product meaning across the RNW renderer; the drop is not a
+Snapback data, transport, or client-runtime bug.
 
 - **The bootstrap exchange serves CORS to loopback browser origins only.**
   A page served from `http://localhost:<port>` (Metro web) can complete the

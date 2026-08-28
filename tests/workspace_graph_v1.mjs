@@ -94,10 +94,10 @@ function packageNamed(value, name) {
   return value.packages.find((entry) => entry.name === name);
 }
 
-test('the Phase 2 facade is assigned with no confined externals', () => {
+test('the workspace facade and Phase 4 leaves are assigned with no confined externals', () => {
   assert.deepEqual(validateArtifactAndMetadata(artifact, metadata(), workspaceManifestSource), {
     members: artifact.crates.map((entry) => entry.name).sort(),
-    plannedCrates: 14,
+    plannedCrates: 16,
   });
   assert.deepEqual(validateModuleMembership(
     artifact,
@@ -109,7 +109,7 @@ test('the Phase 2 facade is assigned with no confined externals', () => {
     moduleCount,
     exceptionCount: 0,
     generatedSourceHomeCount: 0,
-    sharedBuildScriptIncludeCount: 1,
+    sharedBuildScriptIncludeCount: 0,
   });
   assert.doesNotThrow(() => validateWorkspacePathModules(workspaceRustFiles));
 });
@@ -121,7 +121,7 @@ test('a missing Phase 2 workspace member fails closed', () => {
   value.workspace_members = value.workspace_members.filter((id) => id !== missing.id);
   assert.throws(
     () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
-    /workspace member set must exactly match the 14-crate Phase 2 matrix/u,
+    /workspace member set must exactly match the 16-crate governed matrix/u,
   );
 });
 
@@ -262,10 +262,7 @@ test('generated Rust source homes are exact, member-local ownership assignments'
 });
 
 test('literal build-script includes declare only their resolved member-root Rust file', () => {
-  assert.deepEqual(
-    [...sharedBuildScriptIncludes],
-    ['crates/snapback-types/build_identity.rs'],
-  );
+  assert.deepEqual([...sharedBuildScriptIncludes], []);
 
   const target = 'crates/snapback-types/synthetic_build_shared.rs';
   const syntheticIncludes = sharedBuildScriptIncludePaths([{
@@ -291,6 +288,68 @@ test('literal build-script includes declare only their resolved member-root Rust
       generatedSourceHomeCount: 0,
       sharedBuildScriptIncludeCount: 1,
     },
+  );
+});
+
+test('Phase 4 build inputs terminate at their leaf owners', () => {
+  const buildScripts = workspaceRustFiles
+    .filter(({ path }) => path.endsWith(`${sep}build.rs`))
+    .map(({ path, source }) => ({
+      path: relative(repositoryRoot, path).split(sep).join('/'),
+      source,
+    }));
+  const gitOwners = buildScripts
+    .filter(({ source }) => /Command::new\("git"\)|SNAPBACK_BUILD_GIT_COMMIT/u.test(source))
+    .map(({ path }) => path)
+    .sort();
+  assert.deepEqual(gitOwners, ['crates/snapback-build-identity/build.rs']);
+
+  const guideArtifactOwners = buildScripts
+    .filter(({ source }) => /rerun-if-changed=\.\.\/\.\.\/guide(?:"|\n)/u.test(source))
+    .map(({ path }) => path)
+    .sort();
+  assert.deepEqual(guideArtifactOwners, ['crates/snapback-guide-embed/build.rs']);
+
+  const identityBuild = buildScripts.find(
+    ({ path }) => path === 'crates/snapback-build-identity/build.rs',
+  )?.source ?? '';
+  assert.match(identityBuild, /DEP_SNAPBACK_GUIDE_EMBED_ARTIFACT_PATH/u);
+  assert.doesNotMatch(identityBuild, /rerun-if-changed=\.\.\/\.\.\/guide/u);
+
+  const runtimeInputs = readFileSync(
+    new URL('../scripts/runtime-build-inputs.txt', import.meta.url),
+    'utf8',
+  );
+  for (const required of [
+    'crates/snapback-build-identity/build.rs',
+    'crates/snapback-build-identity/src',
+    'crates/snapback-guide-embed/build.rs',
+    'crates/snapback-guide-embed/src',
+    'guide',
+  ]) {
+    assert.match(runtimeInputs, new RegExp(`^${required}$`, 'mu'));
+  }
+  assert.doesNotMatch(runtimeInputs, /^crates\/snapback-types\/build(?:\.rs|_identity\.rs)$/mu);
+
+  const cliManifest = readFileSync(
+    new URL('../crates/snapback-cli/Cargo.toml', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    cliManifest,
+    /standalone-identity-provider\s*=\s*\["dep:snapback-build-identity"\]/u,
+  );
+  assert.match(
+    cliManifest,
+    /required-features\s*=\s*\["standalone-identity-provider"\]/u,
+  );
+  const facadeManifest = readFileSync(
+    new URL('../crates/snapback/Cargo.toml', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    facadeManifest,
+    /snapback-cli\s*=\s*\{[^\n]*default-features\s*=\s*false[^\n]*features\s*=\s*\["cli-owner"\][^\n]*\}/u,
   );
 });
 

@@ -29,7 +29,7 @@ it anywhere, including for other people.
 
 ## Status at a glance
 
-*Updated 2026-08-25. Where this section and
+*Updated 2026-08-28. Where this section and
 [`guide/capabilities.md`](./guide/capabilities.md) disagree, the capability
 index wins — it is the authority, this is the summary.*
 
@@ -37,7 +37,7 @@ index wins — it is the authority, this is the summary.*
 | --- | --- |
 | **Local target** | Shipped and used daily. The `snapback dev` loop, the Rust/SQLite server, and the Ibex (Hermes) JS runtime are the canonical product. |
 | **Capability index** | 118 author-facing rows: **73 shipped**, 37 partial, 4 experimental, 4 design-only — each shipped row carries a witness, each gap is owned. |
-| **Published npm closure** | 14 packages at **0.1.27** (2026-08-24). See [`guide/published-closure.json`](./guide/published-closure.json). |
+| **Published npm closure** | 14 packages at **0.1.29** (2026-08-27). See [`guide/published-closure.json`](./guide/published-closure.json). |
 | **Rust workspace** | 13 crates, 427 modules, ~627k lines, under a fail-closed ownership gate — the LLP 0276 rearchitecture landed 2026-08-19. |
 | **Hosted targets** | Honest partial profiles only. **No hosted target advertises the local target's full capability set**, and there is no end-to-end path that deploys an arbitrary app to a hosted origin yet. |
 | **Next publication** | Rapid publication remains active. Four LLP 0283 F-1 defect families remain open and LLP 0284 security gates remain red by design; published closures claim no adversarial-handler containment. |
@@ -370,7 +370,7 @@ the **local target** unless noted.
 **Shipped and load-bearing.** The local target's authoring loop, data model,
 live queries, ephemeral realtime, sessions auth, assets, cron, observability,
 the React/Expo/headless client arms, the admin console, and the
-published CLI. This is what the 14-package 0.1.27 closure carries and what the
+published CLI. This is what the 14-package 0.1.29 closure carries and what the
 guide teaches.
 
 **Partial, honestly fenced.** 37 capability rows are `partial` and 4 are

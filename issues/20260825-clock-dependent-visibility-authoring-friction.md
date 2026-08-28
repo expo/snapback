@@ -50,3 +50,18 @@ N+1 on the protected live read). Typing/ephemeral leases are a core realtime
 primitive, so this reinforces the "Wanted" above: a paved recipe/primitive for
 time-windowed and lease-expiry live reads, generated rather than hand-designed.
 Evidence: lane run-log `~/clique-matrix-0129/lanes/sol-snapback-familiar/`.
+
+## Recipe extension and primitive follow-up (2026-08-27)
+
+The existing recipe now covers both corroborated workloads with CI-verified
+snippets: the M8 “trending in the last hour” window and a protected durable
+typing-lease query for rows that are still live but “expiring soon.” It shows
+the table and argument schemas, server-authored `createdAt` / `expiresAt`, the
+pinned-clock staleness contract, and focus/timer-boundary re-issue behavior.
+The live-query and ephemeral-state pages route both vocabularies to it.
+
+This ticket remains **Open** for the heavier feature evaluation. A declared
+clock-quantization argument type or server-authored time buckets would change
+the authoring/runtime surface and therefore needs its own LLP before
+implementation. This recipe work deliberately adds neither primitive and does
+not weaken `SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY`.

@@ -29,6 +29,12 @@ a membership-scoped conversation or the
 [presence-cursors recipe](../recipes/presence-cursors.md) for a public room.
 Use this page when choosing collection options or handling recovery.
 
+If typing expiry must instead be projected from durable rows inside an
+authenticated live query, use the [time-windowed live-read
+recipe](../recipes/time-windowed-live-reads.md#read-typing-leases-that-are-expiring-soon).
+It preserves the protected-query clock guard by combining a pinned client
+clock argument with a server-authored lease deadline.
+
 <!-- since: 0.1.23 -->
 
 ## Stop publishing when activity goes idle
@@ -264,6 +270,17 @@ currently derived from the subscribe policy. V1 also refuses app-scoped or
 multi-field scopes, a scope validator other than `v.id()` of the declaration's
 resource table, unknown declarations, role names outside the declaration's
 active vocabulary, and different publish/subscribe subsets.
+
+Search vocabulary: generated ephemeral authorization composition that could share the custom membership check; membership presence; `allow.members`.
+
+If you searched for “a generated ephemeral authorization composition that
+could share the custom membership check,” this is it. `allow.members` binds
+the room to the same generated declaration used by
+[membership-scoped table reads](../auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets).
+Explicit and Familiar source lower the identical policy; neither needs a
+client-maintained recipient list. Assets referenced by the resource use the
+separate [membership asset-sharing
+declaration](../backend/assets.md#declare-the-upload-intent-and-the-reference-field).
 
 Sessions mode enforces the emitted projection: identity comes from the session,
 and client permission strings are ignored. Direct/dev mode instead admits room

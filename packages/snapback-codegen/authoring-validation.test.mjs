@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
@@ -18,6 +18,7 @@ import {
 } from './define.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(packageDir, '..', '..');
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const guideManifest = JSON.parse(readFileSync(
   join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
@@ -102,6 +103,47 @@ async function validCase({ schema = validSchema, functions, handlers = {} }) {
   const result = await generate(dir);
   assert.equal(result.ok, true, `expected success, got ${JSON.stringify(result.diagnostics)}`);
   return result;
+}
+
+// LLP 0317 P5: a source discovered by the selected authoring profile must
+// refuse if it cannot be read; it must not disappear from the scan.
+{
+  const explicit = mkdtempSync(join(tmpdir(), 'snapback-codegen-explicit-silent-source-'));
+  dirs.push(explicit);
+  writeFileSync(join(explicit, 'schema.mjs'), validSchema);
+  writeFileSync(join(explicit, 'functions.mjs'), 'export {};\n');
+  writeFileSync(join(explicit, 'ignored.ts'), Uint8Array.from([0xff]));
+  const result = await generate(explicit);
+  assert.equal(result.ok, false, JSON.stringify(result.diagnostics));
+  assert(
+    result.diagnostics.some(({ code, path }) => (
+      code === 'FUNCTION_SOURCE_INVALID_UTF8'
+        && path === realpathSync(join(explicit, 'ignored.ts'))
+    )),
+    JSON.stringify(result.diagnostics),
+  );
+  assert.equal(existsSync(join(explicit, 'generated')), false);
+}
+
+{
+  const familiar = mkdtempSync(join(tmpdir(), 'snapback-codegen-familiar-silent-source-'));
+  dirs.push(familiar);
+  const fixture = join(repoRoot, 'tests', 'fixtures', 'familiar-todo');
+  for (const name of ['codegen.policy.json', 'contracts.ts', 'schema.ts', 'todos.ts']) {
+    cpSync(join(fixture, name), join(familiar, name));
+  }
+  mkdirSync(join(familiar, 'nested'));
+  writeFileSync(join(familiar, 'nested', 'ignored.ts'), Uint8Array.from([0xff]));
+  const result = await generate(familiar);
+  assert.equal(result.ok, false, JSON.stringify(result.diagnostics));
+  assert(
+    result.diagnostics.some(({ code, path }) => (
+      code === 'FUNCTION_SOURCE_INVALID_UTF8'
+        && path === realpathSync(join(familiar, 'nested', 'ignored.ts'))
+    )),
+    JSON.stringify(result.diagnostics),
+  );
+  assert.equal(existsSync(join(familiar, 'generated')), false);
 }
 
 {

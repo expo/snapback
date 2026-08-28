@@ -1,0 +1,30 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "terra-snapback-explicit",
+  "backend": "snapback-explicit",
+  "backend_version": "snapback-0.1.29",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {"M1":"capability-failure","M2":"blocked-by-M1","M3":"blocked-by-M1","M4":"blocked-by-M1","M5":"blocked-by-M1","M6":"blocked-by-M1","M7":"not-run","M8":"blocked-by-M1"},
+  "sequencing_attestation": {"essay_written_before_scores":true,"dimension_scores_before_holistic":true,"holistic_before_any_totals_revealed":true},
+  "dimensions": {
+    "O1":{"layer":"grader-outcome","weight":13,"exercised":true,"score":0,"rationale":"No milestone reached behavioral suite-and-choreography green."},
+    "O2":{"layer":"grader-outcome","weight":7,"exercised":true,"score":0,"rationale":"The full required product checklist was not implemented."},
+    "O3":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O4":{"layer":"grader-outcome","weight":9,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O5":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"The required scale replay was not attempted."},
+    "B1":{"layer":"builder-experience","weight":6,"exercised":true,"score":18,"rationale":"The scaffold accelerated a bounded chat but not the full social domain."},
+    "B2":{"layer":"builder-experience","weight":5,"exercised":true,"score":35,"rationale":"Explicit generated schema and runtime identity were immediately legible."},
+    "B3":{"layer":"builder-experience","weight":6,"exercised":true,"score":15,"rationale":"Cross-cutting social data design was not completed within the run."},
+    "B4":{"layer":"builder-experience","weight":7,"exercised":false,"score":null,"rationale":"M6 and M8 evidence was not exercised."},
+    "B5":{"layer":"builder-experience","weight":4,"exercised":true,"score":20,"rationale":"The M1 template flow ran, but required M2–M5 product work remained."},
+    "B6":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M5 was not exercised."},
+    "B7":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M6 and M8 were not exercised."},
+    "B8":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"scored by the M7 session"},
+    "B9":{"layer":"builder-experience","weight":6,"exercised":true,"score":40,"rationale":"The application-ready receipt gave unusually clear local lifecycle provenance."},
+    "B10":{"layer":"builder-experience","weight":4,"exercised":true,"score":20,"rationale":"One-page guide escalation was safe but slow for this broad build."},
+    "B11":{"layer":"builder-experience","weight":5,"exercised":true,"score":30,"rationale":"Codegen and typecheck were smooth; the product mapping was incomplete."}
+  },
+  "holistic":{"score":28,"not_computed_from_dimensions":true,"moments":["The supervised application-ready receipt pinned the runtime and binding identity.","The Expo chat scaffold supplied real sessions, live queries, upload intent, and presence.","The full Clique social schema could not be reached from the narrow template in this run."]}
+}

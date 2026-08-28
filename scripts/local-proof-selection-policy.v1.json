@@ -378,8 +378,10 @@
           "clients/swift/",
           "crates/snapback-activation/src/",
           "crates/snapback-auth/src/",
+          "crates/snapback-build-identity/src/",
           "crates/snapback-conformance/src/",
           "crates/snapback-engine/src/",
+          "crates/snapback-guide-embed/src/",
           "crates/snapback-harness/src/",
           "crates/snapback-kernel/src/",
           "crates/snapback-server/src/",
@@ -693,8 +695,10 @@
       ],
       "prefixes": [
         "crates/snapback/src/",
+        "crates/snapback-guide-embed/src/",
         "crates/snapback-kernel/src/",
         "crates/snapback-types/src/",
+        "crates/snapback-build-identity/src/",
         "crates/snapback-auth/src/",
         "crates/snapback-activation/src/",
         "crates/snapback-runtime/src/",
@@ -744,6 +748,7 @@
       "id": "selector-authority",
       "disposition": "all",
       "files": [
+        ".config/nextest.toml",
         ".github/workflows/local-proof.yml",
         "scripts/check-local-proof-gates.mjs",
         "scripts/check-path-migration-stragglers.mjs",
@@ -751,6 +756,7 @@
         "scripts/lib/proof-runner.sh",
         "scripts/local-proof-selection-policy.v1.json",
         "scripts/path-migration-manifest.v1.json",
+        "scripts/run-cargo-nextest",
         "scripts/select-local-proof.mjs",
         "scripts/verify-local-proof",
         "tests/local_proof_inventory_v0.mjs",
@@ -1048,6 +1054,17 @@
       ]
     },
     {
+      "id": "scripts-guide-authoring-profiles",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/guide-authoring-profiles-baseline.mjs",
+        "scripts/guide-authoring-profiles.mjs",
+        "scripts/guide-authoring-profiles.test.mjs"
+      ]
+    },
+    {
       "id": "scripts-guide-freshness",
       "groups": [
         "guide"
@@ -1144,6 +1161,16 @@
         "scripts/check-guide",
         "scripts/generate-guide",
         "scripts/guide-"
+      ]
+    },
+    {
+      "id": "scripts-published-closure-registry",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/check-published-closure-registry.mjs",
+        "scripts/check-published-closure-registry.test.mjs"
       ]
     },
     {
@@ -1245,6 +1272,7 @@
       "lane": "fast",
       "gates": [
         "generated-artifacts",
+        "guide-authoring-profile-fixtures",
         "guide-published-closure-fixtures",
         "guide-shell-command-fixtures",
         "guide-freshness-fixtures",
@@ -1366,6 +1394,7 @@
         "cargo-clippy",
         "cargo-audit",
         "rust-tests",
+        "rust-doc-tests",
         "auth-invalidation-report",
         "axis-parity-harness",
         "cargo-test-profile-clean",
@@ -1453,6 +1482,7 @@
     "scheduled-reporting": {
       "lane": "affected",
       "gates": [
+        "published-closure-registry-canary",
         "template-registry-canary"
       ]
     },

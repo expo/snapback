@@ -14,8 +14,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1070c66f2dd1c631160d60ebfd0cde4399572cf90d1bc048ce64215542ef3131
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
 ---
 
 # Queries
@@ -165,6 +165,29 @@ Declare what that array contains:
   nested document. A top-level `results.records(v.doc('todos'))` is
   hash-identical to `results.documents('todos')`.
 
+Search vocabulary: v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator.
+
+If you searched for “v.media is restricted to stored top-level fields and
+cannot be repeated as an anonymous JS result validator,” keep the media field
+attached to its stored source. `v.media()` is schema-only because its projected
+`MediaRef` is derived from that table and field. Return the containing document
+with `results.documents(table)`, `results.document(table)`, or `v.doc(table)`;
+for a computed record, nest that `v.doc(table)` rather than redeclaring the
+media field anonymously. Both authoring profiles lower to this same result
+contract rule.
+
+Search vocabulary: Optional asset fields still must serialize as null in document results; Result-contract requiredField on optional document columns; document results still demand null for requiredField.
+
+If you searched for “Optional asset fields still must serialize as `null` in
+document results,” “Result-contract `requiredField` on optional document
+columns,” or “document results still demand `null` for `requiredField`,” the
+rule is: every stored optional field is a **present document key** whose value
+is `T | null`. Omitting the key violates the result contract; return `null`
+when the stored value is absent. This applies to `results.documents`,
+`results.document`, and every nested `v.doc` in both Explicit and Familiar
+authoring. It is a result/document rule, separate from whether a mutation
+argument may be omitted.
+
 `v.doc` is result-only. Codegen expands it against the current schema before
 hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
@@ -244,6 +267,31 @@ types both the input keys and the resulting `Array<HandlerRow | null>`.
           ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
           keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
 ```
+
+Search vocabulary: used dynamic array indexing while correlating bounded getMany results; Computed array lookup used to associate uniqueMany media.
+
+If you searched for “used dynamic array indexing while correlating bounded
+getMany results” or “Computed array lookup used to associate uniqueMany
+media,” do not recover correlation with `rows[i]`. Carry the request identity
+into every output record and match the returned row by that identity with an
+array method:
+
+```js fragment reason="ID-carrying correlation rewrite for both batch forms"
+const media = await ctx.db.uniqueMany(
+  'messageMedia',
+  'byMessage',
+  messages.map((message) => ({ messageId: message._id })),
+);
+return messages.map((message) => ({
+  messageId: message._id,
+  media: media.find((row) => row?.messageId === message._id) ?? null,
+}));
+```
+
+The same rewrite works for `getMany`: match each returned document's `_id`
+against the ID carried by the source record. It avoids forbidden computed
+member access, preserves the ID even when a lookup is hidden or missing, and
+uses the same inline-handler grammar in Explicit and Familiar authoring.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
@@ -498,13 +546,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
 ---
 
 # Mutations
@@ -629,6 +677,30 @@ allocated through `ctx.sequence.allocate`
 ([sequences](./sequences.md)) and durable follow-up work enqueued through
 `ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
 
+### Compose owner-policy generic writes
+
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED -->
+
+Owner-visible tables install a host-owned write boundary in both authoring
+profiles:
+
+- `SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED`: omit the installed owner field
+  from generic insert values. The host stamps the authenticated owner; even a
+  caller value equal to that principal is refused.
+- `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`: keep declarative value shapes
+  statically classifiable. For an opaque JavaScript writer, declare
+  `opaqueWritePosture: 'conservative-v1'` and a closed
+  `declaredTableCeiling` that exactly matches its generic write set.
+- `SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED`: when the write can reach
+  a global unique constraint, add its value-free, operation-bound
+  `discloseUniqueConflicts` entry naming `table`, `writeForm`, `constraint`,
+  and the current operation in `operations`.
+
+These declarations compose authorization and disclosure; they do not ask the
+client to supply ownership or conflict values.
+
 <!-- since: 0.1.15 -->
 
 ## Derive a replay-stable effect key
@@ -685,6 +757,22 @@ enforces the exact permission-backing write dynamically.
 
 ## Read and delete through `ctx.db`
 
+<!-- diagnostic-primary: SNAPBACK_UNKNOWN_TABLE -->
+
+`SNAPBACK_UNKNOWN_TABLE` names the table value the host could not resolve. For
+generic handler calls, use the table-first forms shown below—such as
+`ctx.db.patch('todos', id, values)` and `ctx.db.delete('todos', id)`—and make
+sure the literal table exists in the current generated schema. Both profiles
+use this same handler database grammar.
+
+Search vocabulary: SNAPBACK_UNKNOWN_TABLE when given row id only.
+
+If you hit `SNAPBACK_UNKNOWN_TABLE` after passing only a row id,
+`ctx.db.patch` is table-first: call
+`ctx.db.patch(table, id, values)`. A generated ID remains table-branded in
+TypeScript, but the runtime host call still requires the table as its first
+argument in both authoring profiles.
+
 The mutation context exposes the same bounded query builder used by JS
 queries. Start with `query(table)`, select a declared index with
 `withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
@@ -704,6 +792,15 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
+> depend on that client-side join. The shipped `startDirectMessage` example is
+> an authenticated server mutation that resolves the two-person natural key,
+> returns the existing canonical conversation id, or creates the conversation
+> and both memberships atomically. Settle it with `queue: false` before navigating.
+> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
+> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
+> equivalent.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit
@@ -735,6 +832,19 @@ handler genuinely needs a bounded list. `delete` remains buffered until the
 mutation commits, so a later refusal or conflict removes nothing.
 
 ## Consume the structured result
+
+<!-- diagnostic-primary: SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID -->
+
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` is a declaration or activation
+error, not the runtime value mismatch
+`SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`. Use the supported `results.*`
+contract for the operation. Search and vector queries must keep the exact
+schema-derived result projection named by their declaration; ordinary
+Explicit `result` and Familiar `returns` validators lower to the same frozen
+contract. In particular, a stored top-level media validator is not an
+anonymous JavaScript result validator: project the generated typed media child
+rows through their declarative query instead of repeating that validator in a
+JS result shape.
 
 Successful direct mutations return one closed envelope:
 `version`, `changed_count`, `result`, the server-derived
@@ -1073,7 +1183,7 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.27
-reviewed: 2026-08-24
+reviewed: 2026-08-27
 reviewed-authorities-digest: sha256:0ef57f1c87b477ec70a4b4fffe46d431ad76fd8f7292966cd38b68dfe215b075
 ---
 
@@ -1087,6 +1197,15 @@ Use the runtime-cost snapshot when a mutation appears stuck, a live projection
 does not advance, a query examines surprising work, or a framework-owned hook
 multiplies equivalent work. It joins existing client and server inspection
 facts; it is not a telemetry or profiling stream.
+
+> **If you searched for a causal join:** a production tool needs a “single trace that connects the hook, current authority generation, mutation admission, server commit, invalidation publication, and subscriber revision.”
+> This route applies to clients generated from both Explicit and Familiar authoring.
+> Use `joinPendingDeliveryInspectionV1` below
+> to join one current subscription to its server registry row and delivery
+> wave. It does not join the originating mutation to its committed version, and
+> it is not one backend-spanning causal receipt. Do not mistake that missing
+> correlation for evidence that nonce churn, polling, skip cycles, revision
+> rows, presence, reloads, or snapshot mutations are the next diagnostic step.
 
 ## Pull one local snapshot
 
@@ -3450,6 +3569,31 @@ Declaring `access: { read: 'via-references' }` on an intent whose fields
 can land in tables without the declaration emits
 `SNAPBACK_ASSET_SHARING_UNDECLARED` at generation, listing the tables.
 
+Search vocabulary: access.read: 'members' isn't in the closed union; membership
+asset sharing; `via-references`.
+
+If you tried `access.read: 'members'`, that spelling is not in the closed
+union. Membership asset sharing composes two shipped declarations:
+`access: { read: 'via-references' }` on the upload intent and
+`.assetSharing({ kind: 'membership', membership, roles })` on every table
+whose reference may confer access. Use the same membership declaration for
+[table visibility](../auth/protecting-data.md#route-one-membership-boundary-across-tables-presence-and-assets)
+and [`allow.members(...)`](../realtime/ephemeral-state.md#authorize-publish-and-subscribe-separately)
+when the resource also has ephemeral state. This is the same normalized
+security boundary in Explicit and Familiar source; do not fall back to a
+public asset URL or a client-maintained allowlist.
+
+### Declare location metadata handling for image and video
+
+<!-- diagnostic-primary: SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED -->
+
+`SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED` means an accepted image or
+video media type can carry location metadata but its intent omitted the
+corresponding policy. Declare `image: { location: 'strip' | 'retain' }` and/or
+`video: { location: 'strip' | 'retain' }` exactly as the diagnostic's
+`policyFields` requires. There is no implicit fallback. The declaration and
+privacy choice are identical in Explicit and Familiar source.
+
 ## Upload and attach
 
 **A dev/test server with no real client session can never complete a
@@ -4619,6 +4763,26 @@ It is a different contract and does not return `MediaRef`.
 
 ## Path 2 — attach a bounded media collection
 
+<!-- diagnostic-primary: SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_INELIGIBLE -->
+
+`SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_INELIGIBLE` means `ownerTable` is not
+an ordinary owner-visible application table. Use a parent with
+`.visibility({ kind: 'owner', field: <required principal/string field> })`.
+Framework-owned, permission-backing, membership, authority-profile, and
+public-read parents are not eligible for `assetCollection`; do not widen the
+parent to work around the refusal. This normalized eligibility rule applies
+to both authoring profiles.
+
+If you searched for **owner-visible collection parents interacted with cross-author feed reads**,
+choose the relationship before declaring it. An
+`assetCollection` deliberately bundles an owner-visible parent with generated
+bounded children and operations; a public social parent that must be readable
+across authors instead uses the explicit
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts).
+That design choice is profile-neutral. The collection declarations below are
+Snapback extension/Explicit vocabulary; the typed child-row model can be
+authored in either profile.
+
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
@@ -4633,6 +4797,15 @@ The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or
 `image1`…`imageN` fields. This post declaration caps the relation at four and
 the generated command binds one-to-four ordered uploads to its append:
+
+If you arrived after **no multi-asset command (`defineCommand` is one asset)**
+or `SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED`, that refusal belongs to the
+legacy `defineCommand` primitive. The successor spelling is
+`defineMediaCommand`: it owns the bounded ordered uploads and the one atomic
+parent/collection commit shown below. Familiar v1 does not rename this
+Snapback extension; opt into the extension vocabulary or author this
+declaration in the Explicit profile. Both profiles consume the same generated
+command task.
 
 ```js source=tests/acceptance/fixtures/media-profile/snapback/functions.mjs
 // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
@@ -6572,14 +6745,15 @@ id: backend.schema-evolution
 order: 29
 audience: agent-first
 capabilities: [backend.schema-evolution]
-authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
-examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, llp/0227-password-credential-auth.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provision.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/local/engine.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-server/src/server.rs, packages/snapback-cli/index.mjs]
+examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs, tests/acceptance/auth-password-policy-successor-v1.mjs]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 since: 0.1.21
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:ab0a227067978068646877c50806e8aae08e050b99f1a5748e779fd197b25119
 ---
 
 # Evolve a sessions schema without discarding data
@@ -6655,6 +6829,38 @@ including comment-only function changes. If preparation, capability, schema,
 or storage validation fails, startup remains closed, the old pin stays active,
 and the existing database is not discarded. Fix the candidate and rerun the
 managed loop.
+
+<!-- since: 0.1.30 unreleased -->
+> **Unreleased.** The coded password-policy successor refusal is newer than the
+> newest published closure recorded in `guide/published-closure.json`, 0.1.29.
+> An already-published runtime still exhibits the silent predecessor behavior
+> described below.
+
+## Restart after changing the password minimum
+
+<!-- diagnostic-primary: SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED -->
+
+Both Explicit and Familiar authoring profiles lower `defineAuth` to the same
+startup-bound password policy. If a running sessions backend receives a
+successor whose `mechanisms.<name>.minimumLength` differs from the active
+value, `ensureApp` returns
+`SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED` instead of claiming the new
+bound is live.
+
+The diagnostic is an effect-committed refusal: the complete successor pair and
+deployment pin have already been provisioned, while the current process keeps
+enforcing the predecessor minimum. Its details name
+`predecessorMinimumLength`, `candidateMinimumLength`, and
+`successorProvisioned: true`. Stop the backend and restart it with the generated
+successor startup artifacts. Keep the same database and auth sidecars; no reset
+or migration is required. Repeating the live provisioning request returns the
+same refusal; only restart changes the process-local auth provider.
+
+The packaged `snapback dev` owner may perform that restart as part of its
+managed successor loop. With lower-level `snapback start`, restart explicitly
+with the exact successor carrier that produced the diagnostic. After restart,
+`SNAPBACK_AUTH_PASSWORD_POLICY` reports the candidate minimum on a short
+password, and predecessor accounts remain available in the unchanged store.
 
 ## Recover from SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH
 

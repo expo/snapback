@@ -169,6 +169,13 @@ jobs:
         if: steps.selection.outputs.requires_native == 'true'
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
+      # LLP 0316 Phase 5: compile the fleet-pinned runner from its locked crate
+      # graph. A direct pinned install avoids adding a floating action trust
+      # boundary, and the proof launcher still refuses if installation fails.
+      - name: Install cargo-nextest
+        if: steps.selection.outputs.requires_native == 'true'
+        run: cargo install cargo-nextest --version 0.9.143 --locked
+
       # An exact-identity cache miss is expected whenever the pin, patch stack,
       # or build logic changes. Materialize and launch-test that runtime before
       # verify-local-proof reaches its read-only ibex-doctor preflight.
@@ -245,5 +252,6 @@ jobs:
             target/proof/local-proof-results.jsonl
             target/proof/local-proof-completion.json
             target/proof/template-registry-canary.json
+            target/nextest/local-proof/rust-tests.junit.xml
             ${{ runner.temp }}/local-proof-selection.json
           if-no-files-found: warn

@@ -10462,17 +10462,17 @@ fn guide_bound_response(body: &'static [u8], content_type: &'static str) -> Resp
     );
     headers.insert(
         HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
-        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+        HeaderValue::from_static(crate::identity::git_commit()),
     );
     response
 }
 
-fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
+fn embedded_guide_response(file: crate::guide::EmbeddedGuideFile) -> Response {
     guide_bound_response(file.bytes, file.content_type)
 }
 
 fn embedded_guide_path(path: &str) -> Response {
-    crate::guide::file(path)
+    crate::guide::served_file(path)
         .map(embedded_guide_response)
         .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response())
 }
@@ -10505,7 +10505,7 @@ async fn served_http_routes() -> Response {
     );
     response.headers_mut().insert(
         HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
-        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+        HeaderValue::from_static(crate::identity::git_commit()),
     );
     response
 }
@@ -31422,6 +31422,33 @@ async fn cancel_stream_attempt(
     Ok(Json(output))
 }
 
+/// Describe the restart repair only after the successor is durably active.
+fn auth_password_policy_restart_diagnostic(
+    predecessor_minimum_length: u16,
+    candidate_minimum_length: u16,
+) -> Diagnostic {
+    Diagnostic::error(
+        "SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED",
+        "auth",
+        format!(
+            "the defineAuth password minimumLength changed from {predecessor_minimum_length} to {candidate_minimum_length}; the successor was provisioned, but a backend restart is required before its password policy is active"
+        ),
+    )
+    .with_details(json!({
+        "constraint": "defineAuth mechanisms.<name>.minimumLength",
+        "predecessorMinimumLength": predecessor_minimum_length,
+        "candidateMinimumLength": candidate_minimum_length,
+        "successorProvisioned": true,
+        "restartRequired": true,
+        "resetRequired": false,
+        "repair": "restart the backend with the generated successor startup artifacts; keep the existing store and do not reset or migrate it",
+        "effectCommitted": true,
+        "effectMayHaveCommitted": false,
+        "retryable": false,
+        "retryStrategy": "after-backend-restart",
+    }))
+}
+
 /// Commit one already-preflighted provisioning pair. Cross-mode changes and
 /// every settled-sessions same-mode request own the admission transition:
 /// predecessor finite work drains before SQLite can activate, and the local
@@ -31433,6 +31460,28 @@ async fn commit_prepared_auth_provision(
     profile: String,
 ) -> Result<AuthProvisionResult<LocalSnapback>, ApiError> {
     let predecessor = runtime.auth_mode_state();
+    // @ref LLP 0227#password-policy-declaration — the live password minimum
+    // comes from the provider assembled at process start, not from the durable
+    // manifest, which may already name an effect-committed successor after a
+    // prior restart-required refusal.
+    let password_policy_restart = if predecessor.active == AuthMode::Sessions
+        && prepared.requested_mode() == predecessor.active
+    {
+        runtime.auth_provider.as_ref().and_then(|provider| {
+            let predecessor_minimum_length =
+                u16::try_from(provider.password_security_profile().minimum_password_length)
+                    .expect("validated password policy minimum fits u16");
+            let candidate_minimum_length = prepared.candidate_password_minimum_length();
+            (predecessor_minimum_length != candidate_minimum_length).then(|| {
+                auth_password_policy_restart_diagnostic(
+                    predecessor_minimum_length,
+                    candidate_minimum_length,
+                )
+            })
+        })
+    } else {
+        None
+    };
     let owns_transition =
         prepared.requested_mode() != predecessor.active || predecessor.active == AuthMode::Sessions;
     let (committed, runtime_state_published) = if owns_transition {
@@ -31511,6 +31560,14 @@ async fn commit_prepared_auth_provision(
             .auth_admission_controller()
             .fail_closed_after_uncertain_commit()?;
         return Err(ApiError::from(error));
+    }
+    if let Some(diagnostic) = password_policy_restart {
+        // The engine has already committed and published the successor. Do
+        // not project ordinary provisioning success while the startup-bound
+        // provider still enforces its predecessor policy. Comparing against
+        // that provider (rather than the now-successor durable manifest) also
+        // makes an identical retry return the same truthful refusal.
+        return Err(ApiError::from(SnapbackError::new(diagnostic)));
     }
     Ok(committed)
 }

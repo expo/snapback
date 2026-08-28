@@ -7,21 +7,23 @@
 
 #![allow(clippy::result_large_err)]
 
+#[cfg(test)]
+extern crate snapback_build_identity as _;
+
 pub use snapback_activation::{bundle, completeness, config, deploy, operational_readiness};
 pub use snapback_auth::dev_identity;
 pub use snapback_engine::{ask, push, runtime};
 pub(crate) use snapback_kernel::proof_checkpoint;
 pub(crate) use snapback_kernel::storage;
 pub use snapback_kernel::{
-    authoring_suggestion, conformance, data_patch, diagnostic, membership_rules, operation_ledger,
-    remediation, secure_file, seed_identity, watches,
+    authoring_suggestion, conformance, data_patch, diagnostic, identity, membership_rules,
+    operation_ledger, remediation, secure_file, seed_identity, watches,
 };
 pub use snapback_services::{errors_query, outbound_policy, telemetry_query, webhooks};
 pub use snapback_sync::{ephemeral, live_coalesce, spike_trace, stream_attempt};
 pub use snapback_types::{
-    api_envelope, args_contract, commit_envelope, contract_types, exec_guard, identity, ids,
-    live_wire, network_profile, rqs_contract, telemetry_contract, visibility_governance,
-    wire_version,
+    api_envelope, args_contract, commit_envelope, contract_types, exec_guard, ids, live_wire,
+    network_profile, rqs_contract, telemetry_contract, visibility_governance, wire_version,
 };
 
 pub mod assets {
@@ -100,7 +102,6 @@ pub mod admin_secret_read;
 pub mod auth;
 pub mod control_catalog;
 pub mod guide;
-mod guide_artifact;
 pub mod guide_reference;
 pub mod host_ops;
 pub mod manifest;

@@ -1,0 +1,19 @@
+[package]
+name = "snapback-guide-embed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+build = "build.rs"
+links = "snapback_guide_embed"
+
+[lib]
+name = "snapback_guide_embed"
+path = "src/lib.rs"
+
+[build-dependencies]
+serde_json = "1.0"
+snapback-types = { path = "../snapback-types" }
+
+[lints]
+workspace = true

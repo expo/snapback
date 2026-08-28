@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-clique-explicit",
+  "backend": "snapback-explicit",
+  "backend_version": "0.1.29",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "aborted",
+    "M6": "aborted",
+    "M7": "not-run",
+    "M8": "aborted"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome", "weight": 13, "exercised": true, "score": 58, "rationale": "M1–M4 fully green (suite+choreography); M5/M6/M8 suites passed but required choreography failed, so three of seven in-scope checklists score not-passed."},
+    "O2": {"layer": "grader-outcome", "weight": 7, "exercised": true, "score": 62, "rationale": "Online live DM, typing, group receipts, and M4 media were consistent; remaining defects cluster on Playwright setOffline (send-button stability, warm-offline search) and RN-web observability of kit Image/preview hosts."},
+    "O3": {"layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "O3 observes only when M6 is green; M6 choreography failed (offline-message-queue-flush-in-order send click)."},
+    "O4": {"layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "O4 observes only when M6 is green; web offline queue was not demonstrated and native M6 is environment-null."},
+    "O5": {"layer": "grader-outcome", "weight": 8, "exercised": true, "score": 0, "rationale": "Banded first-match 0: scale.log generated and sha256-matched, but a fresh 48103 instance bound as local-app with no Clique schema (startup-artifacts forbidden), so the combined invariant manifest cannot conform."},
+    "B1": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 74, "rationale": "Unique handle/DM pairKey/clientKey indexes and ctx.refuse mapped the model directly; receipts and recipient sets still became string columns because the explicit profile has no array fields."},
+    "B2": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 78, "rationale": "Built-in password sessions plus HANDLE_TAKEN refuse-to-UI mapping shipped M1 green without a hand-rolled KDF."},
+    "B3": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 72, "rationale": "Durable live queries plus HostPlan limit:80 made M3 DMs and M4 media live; typing presence passed v2; receipt liveness still needed a document reload after setOffline."},
+    "B4": {"layer": "builder-experience", "weight": 7, "exercised": true, "score": 38, "rationale": "Default queueable send plus flushSync pending made online DMs live, but Playwright-offline sm-convo-send never became stable, so M6/M8 queue behavior was not authored with confidence."},
+    "B5": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 68, "rationale": "defineAssetUpload + public-immutable URLs made avatars and M2/M4 media work; chat backgrounds uploaded with the chat variant but the kit preview host is a div without src, so harness state-change missed them."},
+    "B6": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 36, "rationale": "People and message search is a client-side NFC word-prefix scan over retainable rows; M5 warm-offline choreography never found the starter Coffee after work? row."},
+    "B7": {"layer": "builder-experience", "weight": 3, "exercised": true, "score": 58, "rationale": "Push payloads are rows inserted in sendMessage; defineCron+public action loaded, but digest was not proven on a closed-client schedule."},
+    "B8": {"layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6, "exercised": true, "score": 58, "rationale": "expo-chat scaffold and served guide got M1 moving; stdin EOF, port-range, HostPlan limit, and Playwright-offline reconnect were missing from the start packet."},
+    "B10": {"layer": "builder-experience", "weight": 4, "exercised": true, "score": 74, "rationale": "SNAPBACK_* refusals named unserializable sibling-module handlers, Action auth, N-plus-one batch reads, and asset-intent-unknown with guide anchors."},
+    "B11": {"layer": "builder-experience", "weight": 5, "exercised": true, "score": 72, "rationale": "One lifecycle owner with application-ready.v1 and additive successor identity was trustworthy; a second start without startup-artifacts could not stage Clique schema for O5."}
+  },
+  "holistic": {
+    "score": 61,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "M1→M2 additive successor in the running owner kept the original accounts and printed a new schema/function hash without a reseed.",
+      "Scoped messagesByConversation limit:80 plus flushSync pending turned a 40s empty-thread miss into green live DMs, typing, group receipts, membership cutoff, and quoted replies.",
+      "Headless sendMessage+markDelivered wrote delivered in tens of milliseconds, but Playwright setOffline still required a document reload outside the auth gate, and offline send never became a stable click."
+    ]
+  }
+}

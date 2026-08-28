@@ -34,6 +34,27 @@ if [ "${running_node#v}" != "$pinned_node" ]; then
   fi
 fi
 
+# @ref LLP 0326.000#stage-0--option-c-independent — advisory generated-projection freshness.
+# `sourceDigest` is a hash over the generator's input bytes, so staleness is
+# decidable by hashing alone (~0.6s) rather than by regenerating (~60s). This
+# block READS ONLY: it never regenerates, never writes, and never blocks. A
+# pre-push hook runs after the pushed commit exists, so it could not correct
+# that commit even if it wanted to — it makes drift visible, which is the half
+# of issues/20260821 that was invisible in the worktree where the work
+# happened. Staleness stays fix-forward (LLP 0189 D-2, LLP 0232).
+freshness_report=''
+if freshness_report="$(node "$root/scripts/generate-diagnostics-registry.mjs" --check-freshness 2>/dev/null)"; then
+  case "$freshness_report" in
+    *'"fresh":false'*)
+      printf '[snapback-freshness] ADVISORY: guide/reference/diagnostics-registry.json looks stale.\n' >&2
+      printf '[snapback-freshness]   regenerate: node scripts/generate-guide-manifest.mjs\n' >&2
+      printf '[snapback-freshness]   evaluated against the WORKING TREE, not the pushed tip;\n' >&2
+      printf '[snapback-freshness]   a dirty tree can therefore report drift the push does not carry.\n' >&2
+      printf '[snapback-freshness]   This is advisory and does NOT block the push.\n' >&2
+      ;;
+  esac
+fi || true
+
 # @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
 # the visibility-governance class observes the legacy drift bypass spelling but
 # never treats it as authority; it still compares Git's exact advertised

@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.29 published-closure catch-up):** 2026-08-28 (`newestPublished`
+advances to already-published 0.1.29; `newestQualified` stays 0.1.27 because
+0.1.28/0.1.29 have no holding tag and 0.1.28 shipped receiptless. The
+scheduled registry canary now fails when the git record lags npm `latest`.
+See §0.1.28/0.1.29.)
 **Revised (final public-package receipt guard):** 2026-08-27 (0.1.28 shipped
 both final runtime packages without packaged-store qualification receipts and
 therefore dropped `single_table_v1`; final `public-package` assembly now
@@ -1704,6 +1709,33 @@ families remain open; the LLP 0284 security gates remain red by design; this
 publication claims no adversarial-handler containment, no F-1 closure, and
 no green LLP 0284 gate state. The 0.1.27 package qualification does not
 weaken or supersede any of those facts.
+
+### 0.1.28 / 0.1.29 (2026-08-27) — published without advancing the git record
+
+0.1.28 (`2026-08-27T13:43Z`) and 0.1.29 (`2026-08-27T17:05Z`) both reached
+npm `latest` for the fourteen-package identity-preset closure. Neither
+carries a `fastpath-0-1-2X-*` holding tag. The isolated-worktree fast-path
+ceremony was not a buildable tree at the time
+(`issues/20260827-fastpath-release-isolate-not-buildable.md`); 0.1.28 also
+shipped the final runtime packages without packaged-store qualification
+receipts, as recorded in this document's 2026-08-27 revision. Those
+closures therefore went out through a path that bypasses the holding-tag
+ceremony.
+
+`scripts/snapback-fastpath-release.mjs` still does not write
+`guide/published-closure.json`. The update protocol in
+`guide/conventions.md` is a post-publish git commit (the 0.1.27 shape:
+advance the record, sweep unreleased fences, regenerate the guide
+manifest). That commit did not happen for 0.1.28 or 0.1.29, so the
+checked-in record stayed at 0.1.27 until 2026-08-28.
+
+Catch-up: `newestPublished` / `publishedAt` advance to 0.1.29 /
+2026-08-27. `newestQualified`, `closureId`, `qualifiedSourceRevision`, and
+`ledgerSha256` remain the 0.1.27 ceremony identity — 0.1.28/0.1.29 have no
+qualification-arm receipt of their own. `scripts/check-published-closure-registry.mjs`
+now fails when `newestPublished` is not every identity-preset package's
+registry `latest`, so a publish that skips the post-publish record commit
+cannot drift silently again.
 
 ### 0.1.26 (2026-08-24) — fourteen-package qualified fast-path publication
 

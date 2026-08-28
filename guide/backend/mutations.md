@@ -4,13 +4,13 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback-server/src/server.rs, crates/snapback-engine/src/runtime.rs, crates/snapback-engine/src/runtime/host_glue.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
 ---
 
 # Mutations
@@ -135,6 +135,30 @@ allocated through `ctx.sequence.allocate`
 ([sequences](./sequences.md)) and durable follow-up work enqueued through
 `ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
 
+### Compose owner-policy generic writes
+
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE -->
+<!-- diagnostic-primary: SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED -->
+
+Owner-visible tables install a host-owned write boundary in both authoring
+profiles:
+
+- `SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED`: omit the installed owner field
+  from generic insert values. The host stamps the authenticated owner; even a
+  caller value equal to that principal is refused.
+- `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`: keep declarative value shapes
+  statically classifiable. For an opaque JavaScript writer, declare
+  `opaqueWritePosture: 'conservative-v1'` and a closed
+  `declaredTableCeiling` that exactly matches its generic write set.
+- `SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED`: when the write can reach
+  a global unique constraint, add its value-free, operation-bound
+  `discloseUniqueConflicts` entry naming `table`, `writeForm`, `constraint`,
+  and the current operation in `operations`.
+
+These declarations compose authorization and disclosure; they do not ask the
+client to supply ownership or conflict values.
+
 <!-- since: 0.1.15 -->
 
 ## Derive a replay-stable effect key
@@ -191,6 +215,22 @@ enforces the exact permission-backing write dynamically.
 
 ## Read and delete through `ctx.db`
 
+<!-- diagnostic-primary: SNAPBACK_UNKNOWN_TABLE -->
+
+`SNAPBACK_UNKNOWN_TABLE` names the table value the host could not resolve. For
+generic handler calls, use the table-first forms shown below—such as
+`ctx.db.patch('todos', id, values)` and `ctx.db.delete('todos', id)`—and make
+sure the literal table exists in the current generated schema. Both profiles
+use this same handler database grammar.
+
+Search vocabulary: SNAPBACK_UNKNOWN_TABLE when given row id only.
+
+If you hit `SNAPBACK_UNKNOWN_TABLE` after passing only a row id,
+`ctx.db.patch` is table-first: call
+`ctx.db.patch(table, id, values)`. A generated ID remains table-branded in
+TypeScript, but the runtime host call still requires the table as its first
+argument in both authoring profiles.
+
 The mutation context exposes the same bounded query builder used by JS
 queries. Start with `query(table)`, select a declared index with
 `withIndex(indexName)`, and add one `eq(field, value)` per equality-bound index
@@ -210,6 +250,15 @@ Do not omit the bound merely because the query uses an index: index selection
 limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
+
+> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
+> depend on that client-side join. The shipped `startDirectMessage` example is
+> an authenticated server mutation that resolves the two-person natural key,
+> returns the existing canonical conversation id, or creates the conversation
+> and both memberships atomically. Settle it with `queue: false` before navigating.
+> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
+> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
+> equivalent.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit
@@ -241,6 +290,19 @@ handler genuinely needs a bounded list. `delete` remains buffered until the
 mutation commits, so a later refusal or conflict removes nothing.
 
 ## Consume the structured result
+
+<!-- diagnostic-primary: SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID -->
+
+`SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID` is a declaration or activation
+error, not the runtime value mismatch
+`SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`. Use the supported `results.*`
+contract for the operation. Search and vector queries must keep the exact
+schema-derived result projection named by their declaration; ordinary
+Explicit `result` and Familiar `returns` validators lower to the same frozen
+contract. In particular, a stored top-level media validator is not an
+anonymous JavaScript result validator: project the generated typed media child
+rows through their declarative query instead of repeating that validator in a
+JS result shape.
 
 Successful direct mutations return one closed envelope:
 `version`, `changed_count`, `result`, the server-derived

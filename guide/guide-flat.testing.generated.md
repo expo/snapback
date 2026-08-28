@@ -699,6 +699,16 @@ acceptance lanes).
 
 ## General bulk path: headless replay
 
+<!-- diagnostic-primary: SNAPBACK_REPLAY_DEFINITION_INVALID -->
+
+`SNAPBACK_REPLAY_DEFINITION_INVALID` means the closed `defineReplay(...)`
+record is malformed. Follow the diagnostic's named field: paths must be
+non-empty filesystem paths (or `file:` URLs), `actions` must be a JSONL path or
+async iterable, positive budgets and `clientPool` must stay within the
+diagnostic's admitted integer ranges, and `actors` must select exactly one of
+`mint` or `bearerFor`. Explicit and Familiar generated mutation references use
+the same replay definition.
+
 Each JSONL line is `{seq, actor, fn, args, intent?}`. The function is a
 generated mutation reference; `intent` names the bounded settlement projection
 available to later mapper steps as `ctx.settled(intent)`. Start a local target,

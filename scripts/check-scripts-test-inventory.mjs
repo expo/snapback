@@ -49,6 +49,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     runner: { mechanism: 'verify-local-proof', gateId: 'package-export-types-fixtures' },
   },
   {
+    file: 'scripts/check-published-closure-registry.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'guide-published-closure-fixtures' },
+  },
+  {
     file: 'scripts/cold-clone-report-probe.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'cold-clone-report-probe-fixtures' },
@@ -67,6 +72,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     file: 'scripts/generate-diagnostics-registry.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'diagnostics-registry-fixtures' },
+  },
+  {
+    file: 'scripts/guide-authoring-profiles.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'guide-authoring-profile-fixtures' },
   },
   {
     file: 'scripts/guide-freshness.test.mjs',

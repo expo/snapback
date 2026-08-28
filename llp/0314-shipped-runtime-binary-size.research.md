@@ -70,6 +70,156 @@ is [LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md).
   numbers. The tree moves; the *shape* of the waste does not depend on
   a few days of growth.
 
+## Re-measurement (2026-08-28)
+
+The F1/F2 baseline was re-measured after LLP 0314.002 landed, because a
+local `target/release/snapback` of 105,046,880 bytes raised a concern
+that the 159,336,256-byte figure was stale. **It is not.** That binary
+was a plain `cargo build --release`, not the canonical publish command,
+and carried 93,721 symbols against the canonical build's 264,500. It was
+never a comparable artifact, and F7's warning about comparing unlike
+build kinds applies to it.
+
+Canonical `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build
+--release --bin snapback`, Darwin arm64, 2026-08-28:
+
+| | bytes |
+|---|---:|
+| Binary (with LLP 0314.002 compression) | 157,178,768 |
+| Same binary without compression | ~174,383,050 |
+| `__TEXT` / `__text` / `__const` | 115,277,824 / 74,674,852 / 23,351,560 |
+| `__LINKEDIT` | 38,912,000 |
+| symbols | 264,500 |
+
+Two consequences for the plan in
+[LLP 0314.000](./0314.000-reduce-shipped-runtime-size.plan.md):
+
+1. **F2's shape holds.** `__LINKEDIT` is 38.9 MB and the symbol table is
+   264,500 entries on a `--release` build that does not strip. Phase 1
+   (ship profile plus strip) remains the single largest remaining
+   reduction — larger than compression was.
+2. **The binary grew with the code.** Uncompressed, today's canonical
+   build would be ~174.4 MB against 0.1.27's 159.3 MB. LLP 0314.002's
+   ~17.2 MB roughly offsets that growth rather than reducing the
+   artifact below its documented baseline. Any future size claim should
+   be dated and stated against a re-measured baseline, not against F1.
+
+## Phase 0 ranking (2026-08-28) — F6 becomes a measurement
+
+LLP 0314.000 Phase 0 asks for a crate ranking that can "falsify
+'jsonschema is the next cut' or confirm it." **It falsifies it.**
+
+Measured on `SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build
+--profile production -p snapback --bin snapback`, Darwin arm64,
+unstripped. Attribution is by v0-mangled crate name over 76,844 `__text`
+symbols using consecutive-address sizes, covering 65,686,676 bytes
+across 260 crates. (`cargo bloat` re-runs its own fat-LTO build and was
+not used; this method reads the shipped binary directly. Treat the
+per-crate figures as attribution, not as a linker-authoritative split.)
+
+| Crate | `__text` bytes | share |
+|---|---:|---:|
+| `serde_core` | 8,277,936 | 12.6% |
+| `core` | 6,637,948 | 10.1% |
+| *(C / unmangled — Hermes, SQLite, ICU)* | 6,146,756 | 9.4% |
+| `snapback_kernel` | 5,167,200 | 7.9% |
+| `serde_json` | 5,140,048 | 7.8% |
+| `snapback_types` | 4,728,724 | 7.2% |
+| `tokio` | 3,467,640 | 5.3% |
+| `snapback_server` | 3,094,740 | 4.7% |
+| `snapback_engine` | 2,673,904 | 4.1% |
+| `axum` | 1,771,884 | 2.7% |
+| `snapback_cli` | 1,554,252 | 2.4% |
+| `serde` | 1,518,272 | 2.3% |
+| `serde_path_to_error` | 1,229,844 | 1.9% |
+| `swc_ecma_parser` | 652,860 | 1.0% |
+| `ibex_runtime` | 639,944 | 1.0% |
+| **`jsonschema`** | **574,156** | **0.9%** |
+
+Two findings:
+
+1. **`jsonschema` is not the next cut.** It is 0.9% of `__text`, ranked
+   nineteenth. F6's dependency-list reasoning does not survive
+   measurement, and any plan step premised on cutting it should be
+   re-costed against this table.
+2. **The serde family is the largest attributable cluster.**
+   `serde_core` + `serde_json` + `serde` + `serde_path_to_error` is
+   **16,166,100 bytes, 24.6%** of `__text` — nearly double the next
+   cluster. Snapback's own crates together are ~19.3 MB (~29%). If
+   there is a code-size program after Phase 1, serde monomorphization
+   is where the bytes are, not a dependency cut.
+
+Guide blob recorded as its own line per Phase 0: `embedded-guide.v1.bin`
+is 3,696,607 bytes in this build (20,900,889 decoded), so F4's cost is
+no longer mixed into Rust rodata.
+
+### Phase 1 stack, measured on Darwin
+
+| Build | bytes | delta |
+|---|---:|---:|
+| `--release` (today's ship path) | 157,178,768 | — |
+| `--profile production` (fat LTO, unstripped) | 119,771,264 | −37,407,504 |
+| production + `strip -x` | 102,905,288 | −16,865,976 |
+| **total** | | **−54,273,480 (−34.5%)** |
+
+Section movement: `__text` 74,674,852 → 65,682,080; `__LINKEDIT`
+38,912,000 → 18,284,544 → 1,409,024; symbols 264,500 → 118,109 → 6,254.
+
+Phase 1d's primary policy — Cargo `[profile.production] strip =
+"symbols"` — was then measured directly and is slightly better than the
+`strip -x` row above: **102,641,248 bytes**, `__LINKEDIT` 1,163,264, and
+**630** remaining symbols (against `strip -x`'s 102,905,288 / 1,409,024 /
+6,254). Full stack: **157,178,768 → 102,641,248, −54,537,520 (−34.7%)**.
+
+The stripped binary was confirmed to still load Hermes with `DYLD_*`
+scrubbed: `snapback runtime-qualify` returns `ok: true` on the
+`restricted-no-eval-handler-vm` probe, and the `@rpath/hermesvm.framework`
+load command survives stripping.
+
+That same receipt also demonstrates why Phase 1c is necessary rather
+than bookkeeping: a **production** binary reports
+`"buildProfile":"release"`, because `BinaryIdentity.build_profile` is
+derived from `cfg!(debug_assertions)`. Profile and recipe are today
+indistinguishable in the identity, exactly as 1c states.
+
+### Linux, measured (2026-08-28)
+
+Measured on an idle Hetzner fleet host (`expo-build-450b`, Ubuntu 24.04,
+12 cores), same commit, same canonical public-package command:
+
+| Build | bytes | `.text` | `.rodata` | symbols | dynsyms |
+|---|---:|---:|---:|---:|---:|
+| `--release` | 185,253,424 | 90,780,064 | 27,131,256 | 292,628 | 636 |
+| `--profile production` + strip | 122,595,864 | 82,608,640 | 25,862,821 | **0** | 625 |
+
+**−62,657,560 bytes (−33.8%)**, proportionally consistent with Darwin's
+−34.7%. Linux is heavier in absolute terms, as F1 already recorded.
+
+Two 1d requirements are confirmed on this platform:
+
+- **The dynamic symbols Hermes needs survive.** `strip = "symbols"`
+  removes the full symbol table (292,628 → 0) while leaving the dynamic
+  symbol table nearly intact (636 → 625).
+- **The stripped binary still loads Hermes.** `runtime-qualify` on the
+  stripped Linux binary returns `ok: true` on the
+  `restricted-no-eval-handler-vm` probe, from a clean tree
+  (`gitDirty: false`).
+
+Guide artifact in that build: 3,703,242 bytes.
+
+This is the platform half of Phase 1's exit evidence for 1d only. The
+full Phase 1 exit still requires 1a and 1c, plus package/tarball bytes,
+attestation, seal verification, and cold install on both platforms.
+
+This **beats LLP 0314.000 Phase 1's stated ~110–130 MB success band**
+and lands in what that plan called LTO upside. Two of the plan's
+expectations need correcting: it predicted `__text` would shrink 15–25 MB
+from fat LTO (actual: 9.0 MB), and it attributed the `__LINKEDIT`
+collapse to strip, when fat LTO alone did more than half of it
+(38.9 → 18.3 MB before any strip). `strip -x` is the optional
+measurement row; Phase 1d's Cargo `strip = "symbols"` is the primary
+policy and may differ.
+
 ## Evidence
 
 | Source | What it binds |

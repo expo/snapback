@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-clique-supabase",
+  "backend": "supabase",
+  "backend_version": "supabase-2.112.4 (hosted project qspydiqqromervctusap, Postgres 17.6)",
+  "model": "glm-5.3-flash",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8 (web-only, M7 skipped); M1 green, M2 suite-green + choreography attempted, M3 attempted, M4-M8 not-run",
+  "milestones": {
+    "M1": "green",
+    "M2": "aborted",
+    "M3": "aborted",
+    "M4": "not-run",
+    "M5": "not-run",
+    "M6": "not-run",
+    "M7": "not-run",
+    "M8": "not-run"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": { "layer": "grader-outcome", "weight": 13, "exercised": true, "score": 45, "rationale": "M1 fully green (suite 7/7 + choreography receipts incl. live profile-edit, session persistence, logout); M2 suite 22/22 green but choreography segment failed on feed-visibility timing under cross-session interference; M3 partially attempted; M4-M8 checklists score not-passed. Between the 30 (several failures) and 60 (M1-M4 solid) anchors." },
+    "O2": { "layer": "grader-outcome", "weight": 7, "exercised": true, "score": 55, "rationale": "No independent grading phase ran; the once-verified surfaces (auth, profiles, feed projection, DM/group RPCs, media ACLs) behaved correctly under real two-client choreography when observed, but correctness under grading is unproven beyond M1/M2-partial - scored just under the 60 anchor for the unverified remainder." },
+    "O3": { "layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "Observes M6 green plus M1-M5 attempted; M6 was not reached. Authorization design exists server-side (RLS + security-definer RPCs, storage ACL via can_access_media) but no holdout probes ran." },
+    "O4": { "layer": "grader-outcome", "weight": 9, "exercised": false, "score": null, "rationale": "Observes M6 green; offline reads/writes were authored (durable localStorage outbox, ordered flush, cache mirror) but acceptance behavior was never demonstrated." },
+    "O5": { "layer": "grader-outcome", "weight": 8, "exercised": false, "score": null, "rationale": "The full scale replay was never attempted (only the 50-action conformance sample was replayed during seed work); the banded function applies to an attempted replay, so O5 is null per the applicability ruling." },
+    "B1": { "layer": "builder-experience", "weight": 6, "exercised": true, "score": 78, "rationale": "Declaring chats/membership/messages/receipts/reactions/posts/follows directly in Postgres with constraints where declared (handle unique, DM dedupe key, recipient-set-at-send receipts) was genuinely ergonomic; aggregate read-models (insights/trending) were single queries. Points off for the migration-to-private-namespace churn forced by cross-lane interference." },
+    "B2": { "layer": "builder-experience", "weight": 5, "exercised": true, "score": 80, "rationale": "GoTrue built-in password auth wired in minutes; admin API made persona self-healing trivial; session persistence across reload verified. Off for the JWT-expiry semantics caveat (logout revokes refresh, access token lives until exp) which needed config care." },
+    "B3": { "layer": "builder-experience", "weight": 6, "exercised": true, "score": 85, "rationale": "Durable live data via postgres_changes with RLS-respecting per-subscriber filters, and ephemeral typing via realtime broadcast channels - both purpose-built primitives; no polling was required for correctness (1.5s refresh polls existed only as latency insurance)." },
+    "B4": { "layer": "builder-experience", "weight": 7, "exercised": false, "score": null, "rationale": "Observes M6 plus M8; the offline layer (durable outbox, ordered flush, cache mirror) was authored but its milestone was never reached, so the dimension is null." },
+    "B5": { "layer": "builder-experience", "weight": 4, "exercised": false, "score": null, "rationale": "Observes M4-M5 on full runs; media upload/serve/deny was exercised only partially (post media, avatars) outside those milestones." },
+    "B6": { "layer": "builder-experience", "weight": 3, "exercised": false, "score": null, "rationale": "Observes M5; search RPCs (word-prefix, three scopes) were authored but the milestone never ran." },
+    "B7": { "layer": "builder-experience", "weight": 3, "exercised": false, "score": null, "rationale": "Observes M6 plus M8; push seam (presence-gated trigger) and pg_cron digest were authored and scheduled but never proven at milestone level." },
+    "B8": { "layer": "builder-experience", "weight": 6, "exercised": false, "score": null, "rationale": "Scored by the M7 session; this lane did not run M7." },
+    "B9": { "layer": "builder-experience", "weight": 6, "exercised": true, "score": 68, "rationale": "From zero to first green proof was fast on a quiet machine (Expo scaffold + hosted project ready in minutes; docs findable at point of need). Docked for undocumented Management-API batch-transaction behavior, the RNW accessibilityValue regression with no doc trail, and the concurrency chaos that consumed budget." },
+    "B10": { "layer": "builder-experience", "weight": 4, "exercised": true, "score": 72, "rationale": "Supabase errors named actual causes (policy 42710 with exact policy name, uuid-cast error naming the offending value, storage 'headers must have authorization' pinpointing the ?token= misuse). Docked for react-native-web silently dropping accessibilityValue with zero diagnostics, and Playwright chromium library errors needing system-level workarounds." },
+    "B11": { "layer": "builder-experience", "weight": 5, "exercised": true, "score": 82, "rationale": "Operations were productized: full SQL inspection via Management API, pg_stat_activity live queries, cron.job inspection, storage object enumeration, admin auth API for persona hygiene - every state question answerable without writing app code." }
+  },
+  "holistic": {
+    "score": 72,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Diagnosing a foreign lane's mid-run overwrite of my message_send RPC in one query: pg_get_functiondef showed their version assigning display_name into a row variable, producing 'invalid input syntax for type uuid: Alice Alvarez' - Supabase's errors read like documentation.",
+      "M1 choreography going green end-to-end: two real browser contexts signing in against hosted GoTrue, profile edits propagating live to the other client, session persistence across reload, logout leaving the app signed out - the frozen harness emitting green:true against a real hosted backend.",
+      "pg_cron plus a digest_state primary key made 'exactly one digest per user per period, idempotent under retry and restart' literally free - the scheduled-work requirement needed zero application code."
+    ]
+  }
+}

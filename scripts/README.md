@@ -41,6 +41,20 @@ changes since `REV`; `--complete` runs the scheduled/on-demand inventory; and
 `--gate ID` re-runs one gate plus its prerequisites. `--keep-going` or
 `SNAPBACK_PROOF_KEEP_GOING=1` continues independent gates after a root failure.
 
+Install the documented Rust runner with
+`cargo install cargo-nextest --version 0.9.143 --locked`. The `rust-tests` gate
+uses `.config/nextest.toml`'s `local-proof` profile: failures do not stop later
+tests, `SNAPBACK_RUST_TEST_THREADS` overrides its four-process default, and
+JUnit is written deterministically to
+`target/nextest/local-proof/rust-tests.junit.xml`. Nextest launches each test
+in its own process; that isolation is a prerequisite for a later review of the
+eleven retained integration targets (eight are environment-affected), not a
+merge of those binaries in this landing. A missing runner refuses with
+`SNAPBACK_CARGO_NEXTEST_MISSING` and an exact install command; there is no
+`cargo test` fallback. Nextest 0.9.143 does not execute doctests, so the proof
+retains the old workspace doctest coverage in the separate, visible
+`rust-doc-tests` Cargo gate.
+
 Gate results are v3 JSONL at `target/proof/local-proof-results.jsonl`; complete
 runs retain a normalized `failureSignature` and structural `terminationReason`
 on root `FAIL` records, so the battery projector can distinguish a natural exit

@@ -122,10 +122,8 @@ fn main() -> anyhow::Result<()> {
         artifact_name: "agent-safe-step0-pre-profile-2026-08-03",
         date: "2026-08-03",
         source: Source {
-            revision: option_env!("SNAPBACK_BUILD_GIT_COMMIT")
-                .unwrap_or("unknown")
-                .to_owned(),
-            dirty: matches!(option_env!("SNAPBACK_BUILD_GIT_DIRTY"), Some("true")),
+            revision: snapback_kernel::identity::git_commit().to_owned(),
+            dirty: snapback_kernel::identity::git_dirty(),
             dirty_paths: git_dirty_paths(),
             baseline_source_posture: "pinned pre-profile source revision plus only the three listed step-0 instrumentation paths",
             profile_changes_present: false,

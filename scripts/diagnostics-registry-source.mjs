@@ -12,8 +12,10 @@ import {
 export const DIAGNOSTIC_CODE_PATTERN = /(?<![A-Z0-9_])SNAPBACK_[A-Z0-9_]*[A-Z0-9](?![A-Z0-9_])/gu;
 export const DIAGNOSTICS_RUST_PRODUCTION_ROOTS = Object.freeze([
   'crates/snapback/src/',
+  'crates/snapback-guide-embed/src/',
   'crates/snapback-kernel/src/',
   'crates/snapback-types/src/',
+  'crates/snapback-build-identity/src/',
   'crates/snapback-auth/src/',
   'crates/snapback-activation/src/',
   'crates/snapback-runtime/src/',

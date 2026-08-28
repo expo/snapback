@@ -10,8 +10,7 @@
 # (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
 #
 # Consumers (keep in sync when adding one):
-#   crates/snapback-types/build_identity.rs (shared compile-time fallback probe,
-#                                            included by three build scripts)
+#   crates/snapback-build-identity/build.rs (sole Cargo Git stamp owner)
 #   scripts/verify-local-proof          (stamp_snapback_build_identity)
 #   scripts/bootstrap-ibex-runtime      (reuse_authoritative_runtime_receipt)
 #   demos/_kit/provenance.mjs           (readCheckoutBinaryIdentity)
@@ -32,8 +31,12 @@ Cargo.lock
 crates/snapback/Cargo.toml
 crates/snapback/build.rs
 crates/snapback-auth/Cargo.toml
+crates/snapback-build-identity/Cargo.toml
+crates/snapback-build-identity/build.rs
 crates/snapback-cli/Cargo.toml
 crates/snapback-cli/build.rs
+crates/snapback-guide-embed/Cargo.toml
+crates/snapback-guide-embed/build.rs
 crates/snapback-kernel/Cargo.toml
 crates/snapback-kernel/build.rs
 crates/snapback-runtime/Cargo.toml
@@ -41,8 +44,6 @@ crates/snapback-server/Cargo.toml
 crates/snapback-server/build.rs
 crates/snapback-runtime/build.rs
 crates/snapback-types/Cargo.toml
-crates/snapback-types/build.rs
-crates/snapback-types/build_identity.rs
 crates/snapback-tools/Cargo.toml
 crates/snapback-tools/build.rs
 rust-toolchain.toml
@@ -50,7 +51,9 @@ rust-toolchain.toml
 # Crate sources (includes crates/snapback/src/**/*.html and other include_str! assets)
 crates/snapback/src
 crates/snapback-auth/src
+crates/snapback-build-identity/src
 crates/snapback-cli/src
+crates/snapback-guide-embed/src
 crates/snapback-kernel/src
 crates/snapback-runtime/src
 crates/snapback-server/src
@@ -62,7 +65,7 @@ crates/snapback-tools/src
 # are gitignored inside the submodule and untracked content is ignored).
 vendor/ibex
 
-# Build-embedded corpora and assets (build.rs rerun-if-changed=guide;
+# Build-embedded corpora and assets (snapback-guide-embed owns guide;
 # include_str!/include_bytes! targets outside crates/snapback/src/)
 guide
 brand

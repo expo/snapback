@@ -5084,6 +5084,8 @@ impl<'a> IbexHostContext<'a> {
     ///   refusal precedes generic policy and owner-input diagnostics just as
     ///   it does in HostPlan preflight.
     /// @ref LLP 0264#d5-the-policy-check-is-central-and-exhaustive
+    /// @ref LLP 0317.000#design-principles — a runtime refusal must name the
+    ///   admitted repair when a plausible wrong call shape reaches it.
     fn prepare_generic_write_target(
         &self,
         table_name: &str,
@@ -5092,11 +5094,24 @@ impl<'a> IbexHostContext<'a> {
         enforce_identity_binding_write_seal(self.db().schema(), table_name)?;
         self.ensure_permission_backing_write(table_name)?;
         let table = self.db().schema().table(table_name).ok_or_else(|| {
-            SnapbackError::error(
+            let error = SnapbackError::error(
                 "SNAPBACK_UNKNOWN_TABLE",
                 "schema",
-                format!("unknown table {table_name}"),
-            )
+                match form {
+                    GenericTableWriteFormV1::Patch => format!(
+                        "unknown table {table_name}; ctx.db.patch is table-first; call ctx.db.patch(table, id, values)"
+                    ),
+                    _ => format!("unknown table {table_name}"),
+                },
+            );
+            match form {
+                GenericTableWriteFormV1::Patch => error.with_details(json!({
+                    "table": table_name,
+                    "writeForm": form.as_str(),
+                    "expectedCall": "ctx.db.patch(table, id, values)",
+                })),
+                _ => error,
+            }
         })?;
         generic_owner_write_field(table, form).map(|field| field.map(str::to_owned))
     }
@@ -8782,6 +8797,27 @@ mod table_visibility_runtime_tests {
             true,
         )
         .expect("table-visibility handler context")
+    }
+
+    #[test]
+    fn patch_unknown_table_names_the_table_first_repair() {
+        let db = ready_db();
+        let mut ctx = context(&db, Some("alice"), true);
+        let error = ctx
+            .handle_host_call("db.patch", json!({ "table": "owner-alice" }))
+            .expect_err("a row id in the table position must refuse");
+
+        assert_eq!(error.diagnostic.code, "SNAPBACK_UNKNOWN_TABLE");
+        assert_eq!(
+            error.diagnostic.message,
+            "unknown table owner-alice; ctx.db.patch is table-first; call ctx.db.patch(table, id, values)"
+        );
+        assert_eq!(error.diagnostic.details["table"], "owner-alice");
+        assert_eq!(error.diagnostic.details["writeForm"], "patch");
+        assert_eq!(
+            error.diagnostic.details["expectedCall"],
+            "ctx.db.patch(table, id, values)"
+        );
     }
 
     fn module(source: &str, export: &str) -> IbexModule {

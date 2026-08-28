@@ -310,8 +310,12 @@ fn validate_candidate_source(expected_revision: &str) -> anyhow::Result<String> 
         expected_revision,
         &checkout_revision,
         &dirty,
-        option_env!("SNAPBACK_BUILD_GIT_COMMIT"),
-        option_env!("SNAPBACK_BUILD_GIT_DIRTY"),
+        Some(snapback_kernel::identity::git_commit()),
+        Some(if snapback_kernel::identity::git_dirty() {
+            "true"
+        } else {
+            "false"
+        }),
     )?;
     Ok(checkout_revision)
 }

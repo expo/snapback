@@ -9,8 +9,8 @@ examples: [tests/fixtures/guide-multi-persona-clients/multi-persona-clients.mts,
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:d56068f2769d0ee7471e5c73374a68201d6530108e5c480db2ca34b3fff6e9b2
+reviewed: 2026-08-27
+reviewed-authorities-digest: sha256:60c8b0cc7293dbdbefb8108a8004f87eba7baf84315e8ec869e8c54db6a4b936
 ---
 
 # Recipe: multiple Node personas and storage partitions
@@ -29,6 +29,14 @@ classic “every persona wrote as Henry” failure.
 
 In the diary's vocabulary, durable custody is “process-global in Node” unless
 the multi-persona harness selects distinct partitions.
+
+> **Scope boundary — Node actor isolation.** This recipe is for different
+> personas represented by clients in one Node process. It is not a
+> same-principal browser multi-context or multi-tab recipe, and its acceptance
+> fixture is not conformance evidence for two browser contexts signed in as the
+> same account. For browser provider ownership and transition state, start with
+> [provider lifecycle](./provider-lifecycle.md); owner/operation/generation
+> attribution for the blocking call remains a gap.
 
 > **Multiple clients can mean the same session.** If personas share login, a
 > second client can have the same user because both calls omitted
@@ -114,11 +122,15 @@ This covers both create → sign in → create and create → create → sign in
 
 `SNAPBACK_AUTH_STORAGE_PARTITION_IMPLICIT_REUSE`
 
-The warning does not refuse construction, log credentials, change custody, or
-guess that two callers represent different people. It names the default
-partition, this guide page, and the supported repair: pass one stable explicit
-`storagePartition` per persona or worker. It does not fire for explicit
-partition reuse, anonymous custody, or volatile custody.
+The warning is conditional: implicit reuse is supported when multiple handles
+intentionally represent one persona. It does not guess that two callers are
+different people or assert that reuse has broken live delivery. It identifies
+the shared custody and warns that, if the callers were intended as independent
+personas, cross-client updates can look stale or absent because they are
+actually the same principal. It names the default partition, this guide page,
+and the supported repair: pass one stable explicit `storagePartition` per
+persona or worker. It does not fire for explicit partition reuse, anonymous
+custody, or volatile custody.
 
 ## Anti-patterns
 

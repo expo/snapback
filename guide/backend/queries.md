@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-25
-reviewed-authorities-digest: sha256:1070c66f2dd1c631160d60ebfd0cde4399572cf90d1bc048ce64215542ef3131
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
 ---
 
 # Queries
@@ -160,6 +160,29 @@ Declare what that array contains:
   nested document. A top-level `results.records(v.doc('todos'))` is
   hash-identical to `results.documents('todos')`.
 
+Search vocabulary: v.media is restricted to stored top-level fields and cannot be repeated as an anonymous JS result validator.
+
+If you searched for “v.media is restricted to stored top-level fields and
+cannot be repeated as an anonymous JS result validator,” keep the media field
+attached to its stored source. `v.media()` is schema-only because its projected
+`MediaRef` is derived from that table and field. Return the containing document
+with `results.documents(table)`, `results.document(table)`, or `v.doc(table)`;
+for a computed record, nest that `v.doc(table)` rather than redeclaring the
+media field anonymously. Both authoring profiles lower to this same result
+contract rule.
+
+Search vocabulary: Optional asset fields still must serialize as null in document results; Result-contract requiredField on optional document columns; document results still demand null for requiredField.
+
+If you searched for “Optional asset fields still must serialize as `null` in
+document results,” “Result-contract `requiredField` on optional document
+columns,” or “document results still demand `null` for `requiredField`,” the
+rule is: every stored optional field is a **present document key** whose value
+is `T | null`. Omitting the key violates the result contract; return `null`
+when the stored value is absent. This applies to `results.documents`,
+`results.document`, and every nested `v.doc` in both Explicit and Familiar
+authoring. It is a result/document rule, separate from whether a mutation
+argument may be omitted.
+
 `v.doc` is result-only. Codegen expands it against the current schema before
 hashing and refuses unknown tables; adding or changing a table field therefore
 regenerates the contract and generated types. It is not accepted in function
@@ -239,6 +262,31 @@ types both the input keys and the resulting `Array<HandlerRow | null>`.
           ids: await ctx.db.getMany('items', ['b', 'a', 'b']),
           keys: await ctx.db.uniqueMany('items', 'bySlug', [{ slug: 'two' }]),
 ```
+
+Search vocabulary: used dynamic array indexing while correlating bounded getMany results; Computed array lookup used to associate uniqueMany media.
+
+If you searched for “used dynamic array indexing while correlating bounded
+getMany results” or “Computed array lookup used to associate uniqueMany
+media,” do not recover correlation with `rows[i]`. Carry the request identity
+into every output record and match the returned row by that identity with an
+array method:
+
+```js fragment reason="ID-carrying correlation rewrite for both batch forms"
+const media = await ctx.db.uniqueMany(
+  'messageMedia',
+  'byMessage',
+  messages.map((message) => ({ messageId: message._id })),
+);
+return messages.map((message) => ({
+  messageId: message._id,
+  media: media.find((row) => row?.messageId === message._id) ?? null,
+}));
+```
+
+The same rewrite works for `getMany`: match each returned document's `_id`
+against the ID carried by the source record. It avoids forbidden computed
+member access, preserves the ID even when a lookup is hidden or missing, and
+uses the same inline-handler grammar in Explicit and Familiar authoring.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and

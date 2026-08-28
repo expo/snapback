@@ -89,7 +89,23 @@ test('the canonical proof has named gates and its producer edges are closed', ()
   const source = readFileSync(resolve(root, 'scripts/verify-local-proof'), 'utf8');
   const rustTests = parseGateCalls(source).find(({ gateId }) => gateId === 'rust-tests');
   assert.equal(rustTests?.timeoutSeconds, 3600, 'the workspace Rust gate needs an explicit cap');
-  assert.match(rustTests?.command ?? '', /cargo test --workspace --no-fail-fast --/u);
+  assert.match(
+    rustTests?.command ?? '',
+    /NEXTEST_TEST_THREADS="\$\{SNAPBACK_RUST_TEST_THREADS:-4\}" scripts\/run-cargo-nextest --profile local-proof --workspace --no-fail-fast/u,
+    'the Rust inventory must use the bounded local-proof nextest profile without target fail-fast',
+  );
+  assert.doesNotMatch(
+    rustTests?.command ?? '',
+    /cargo test/u,
+    'the canonical Rust gate must never silently fall back to cargo test',
+  );
+  const rustDocTests = parseGateCalls(source).find(({ gateId }) => gateId === 'rust-doc-tests');
+  assert.equal(rustDocTests?.timeoutSeconds, 3600, 'workspace doctests need an explicit cap');
+  assert.match(
+    rustDocTests?.command ?? '',
+    /cargo test --workspace --doc --no-fail-fast -- --test-threads/u,
+    'the explicit doctest complement must preserve cargo-test coverage nextest does not run',
+  );
   const decision = source.indexOf('cargo-target-headroom.mjs --cleanup-decision');
   const clean = source.indexOf('run cargo-test-profile-clean -- cargo clean --profile test');
   assert(decision >= 0 && clean > decision, 'CI must decide measured headroom before cleaning test artifacts');
@@ -138,6 +154,24 @@ test('the canonical proof has named gates and its producer edges are closed', ()
     /const explicitCurrentBinary = process\.env\.SNAPBACK_BINARY;[\s\S]*if \(!explicitCurrentBinary\) \{[\s\S]*spawnSync\('cargo', \['build', '--quiet', '--bin', 'snapback'\]/u,
     'versioned-seed must not rebuild and overwrite the qualified root binary when an explicit carrier is supplied',
   );
+});
+
+test('the cargo-nextest launcher refuses a missing runner without fallback', () => {
+  const launcher = resolve(root, 'scripts/run-cargo-nextest');
+  const result = spawnSync(launcher, [], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      SNAPBACK_CARGO_NEXTEST_BIN: 'cargo-nextest-deliberately-missing',
+    },
+  });
+  assert.equal(result.status, 127, result.stderr);
+  assert.match(result.stderr, /^SNAPBACK_CARGO_NEXTEST_MISSING:/mu);
+  assert.match(
+    result.stderr,
+    /cargo install cargo-nextest --version 0\.9\.143 --locked/u,
+  );
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /cargo test/u);
 });
 
 test('host inapplicability declarations are literal, known gate/predicate pairs', () => {

@@ -10,11 +10,9 @@
 pub(crate) use snapback_auth::auth;
 pub(crate) use snapback_kernel::services_assets as asset_proof;
 pub(crate) use snapback_kernel::{
-    diagnostic, operation_detail, operation_ledger, secure_file, seed_identity, storage,
+    diagnostic, identity, operation_detail, operation_ledger, secure_file, seed_identity, storage,
 };
-pub(crate) use snapback_types::{
-    contract_types, identity, ids, local, rqs_contract, telemetry_contract,
-};
+pub(crate) use snapback_types::{contract_types, ids, local, rqs_contract, telemetry_contract};
 
 pub mod assets;
 pub mod assets_cut;

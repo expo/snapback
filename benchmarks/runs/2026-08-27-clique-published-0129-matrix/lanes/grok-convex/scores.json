@@ -1,0 +1,51 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "grok-clique-convex",
+  "backend": "convex",
+  "backend_version": "convex-1.45.0",
+  "model": "grok-4.6",
+  "effort": "xhigh",
+  "run_scope": "M1-M6+M8",
+  "milestones": {
+    "M1": "green",
+    "M2": "green",
+    "M3": "green",
+    "M4": "green",
+    "M5": "green",
+    "M6": "green",
+    "M7": "not-run",
+    "M8": "green"
+  },
+  "sequencing_attestation": {
+    "essay_written_before_scores": true,
+    "dimension_scores_before_holistic": true,
+    "holistic_before_any_totals_revealed": true
+  },
+  "dimensions": {
+    "O1": {"layer": "grader-outcome",     "weight": 13, "exercised": true,  "score": 86, "rationale": "M1–M6 and M8 all web-green (suite + required choreography); native iOS/Hermes legs recorded environment-null, so the 90-anchor's platform-proof artifacts are not fully present."},
+    "O2": {"layer": "grader-outcome",     "weight": 7,  "exercised": true,  "score": 84, "rationale": "Acceptance assertions passed on the real mutation path; remaining defects were RN-web a11y/selector mapping, not wrong server data or crashed write paths."},
+    "O3": {"layer": "grader-outcome",     "weight": 8,  "exercised": true,  "score": 72, "rationale": "M6 green with M1–M5 attempted; every query/mutation uses requireUser plus membership/view-once checks, but this lane never saw the wave's secret holdout probes."},
+    "O4": {"layer": "grader-outcome",     "weight": 9,  "exercised": true,  "score": 74, "rationale": "M6 web: two queued offline messages flushed in order with receipts; M8 dual-offline convergence green; native durable-queue restart is environment-null so the 90-anchor native proof is absent."},
+    "O5": {"layer": "grader-outcome",     "weight": 8,  "exercised": true,  "score": 30, "rationale": "Banded, not interpolated: named fixtures conformed and cap was not exhausted, but the Insights and Trending mid-curve predicates failed (50% p95 a few hundred microseconds above a flat 10%–100% line)."},
+    "B1": {"layer": "builder-experience", "weight": 6,  "exercised": true,  "score": 88, "rationale": "Chats, memberships, receipts, posts, follow graph, unique handle/email, and M8 counters/trending expressed as indexed tables without blob workarounds."},
+    "B2": {"layer": "builder-experience", "weight": 5,  "exercised": true,  "score": 44, "rationale": "No built-in password auth on anonymous local; bcrypt-12 hashing and session tokens were hand-rolled inside mutations, then composed cleanly with requireUser."},
+    "B3": {"layer": "builder-experience", "weight": 6,  "exercised": true,  "score": 80, "rationale": "Live queries carried likes, typing, and Alice-2 DMs without polling; typing/presence still needed a table plus scheduler expiry rather than an ephemeral primitive."},
+    "B4": {"layer": "builder-experience", "weight": 7,  "exercised": true,  "score": 42, "rationale": "Offline queue, local kv cache, and reconnect flush were authored by hand; Convex gave live reads, not queued writes or documented offline guarantees."},
+    "B5": {"layer": "builder-experience", "weight": 4,  "exercised": true,  "score": 76, "rationale": "generateUploadUrl plus /media with token query was straightforward; view-once denial is server-side, while Playwright vs RN-web file inputs was client ceremony."},
+    "B6": {"layer": "builder-experience", "weight": 3,  "exercised": true,  "score": 68, "rationale": "Online search is a messageTokens index; warm-offline search required a second local cache of already-synced messages rather than one coherent API."},
+    "B7": {"layer": "builder-experience", "weight": 3,  "exercised": true,  "score": 64, "rationale": "Push is a pushEvents table gated on presence and replayMode; M8 digest used crons.interval rather than a first-class notification product."},
+    "B8": {"layer": "builder-experience", "weight": 6,  "exercised": false, "score": null, "rationale": "scored by the M7 session"},
+    "B9": {"layer": "builder-experience", "weight": 6,  "exercised": true,  "score": 60, "rationale": "Anonymous local came up, but --local-cloud-port lived in package source and the dashboard default 6790 had to be patched into 48200–48219."},
+    "B10":{"layer": "builder-experience", "weight": 4,  "exercised": true,  "score": 68, "rationale": "ConvexError strings named validation/auth failures; RN-web a11y misses and strict-mode duplicate testIDs produced Playwright errors, not backend diagnostics."},
+    "B11":{"layer": "builder-experience", "weight": 5,  "exercised": true,  "score": 55, "rationale": "Local sqlite is inspectable on disk, but a fresh scale instance required a custom wipeBatch mutation rather than a documented reset/clone CLI."}
+  },
+  "holistic": {
+    "score": 79,
+    "not_computed_from_dimensions": true,
+    "moments": [
+      "Carol's chat color and Bob's like counts moved because of live queries, not because I wrote a websocket.",
+      "Anonymous local convex with --local-cloud-port 48201 felt Snapback-close once it was up — and the dashboard still tried to steal 6790.",
+      "A thousand bcrypt-12 registers and a TypeScript if (followers > 64) skip-fanout were the whole celebrity write-path story."
+    ]
+  }
+}

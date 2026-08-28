@@ -628,6 +628,15 @@ internal exception text never becomes UI copy by accident.
 
 ## Publish and observe ephemeral presence
 
+<!-- diagnostic-primary: SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT -->
+
+`SNAPBACK_REACT_PRESENCE_ACTION_CONFLICT` means one hook tried to own presence
+both declaratively and imperatively. Choose exactly one mode: pass a non-skipped
+`value` and let the provider publish it, or pass `value: skip` and use the
+returned `publish`/`delete` actions. Do not call imperative actions from a
+non-skip declarative consumer. Explicit and Familiar collections share this
+React lifecycle.
+
 `useSnapbackPresence` is the React hook for generated **ephemeral**
 collections — including presence, typing indicators, and cursors. Pass a
 generated connection-keyed ephemeral reference. A non-skipped value is

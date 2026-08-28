@@ -1,0 +1,30 @@
+{
+  "schema_version": "clique-scores-v1",
+  "lane_id": "terra-snapback-familiar",
+  "backend": "snapback-familiar",
+  "backend_version": "snapback-familiar-0.1.29",
+  "model": "gpt-5.6-terra",
+  "effort": "medium",
+  "run_scope": "M1-M6+M8",
+  "milestones": {"M1":"capability-failure","M2":"blocked-by-M1","M3":"blocked-by-M1","M4":"blocked-by-M1","M5":"blocked-by-M1","M6":"blocked-by-M1","M7":"not-run","M8":"blocked-by-M1"},
+  "sequencing_attestation": {"essay_written_before_scores":true,"dimension_scores_before_holistic":true,"holistic_before_any_totals_revealed":true},
+  "dimensions": {
+    "O1":{"layer":"grader-outcome","weight":13,"exercised":true,"score":0,"rationale":"M1 did not complete its assertion suite or choreography."},
+    "O2":{"layer":"grader-outcome","weight":7,"exercised":true,"score":0,"rationale":"The only attempted milestone is capability-failure."},
+    "O3":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O4":{"layer":"grader-outcome","weight":9,"exercised":false,"score":null,"rationale":"M6 was not green."},
+    "O5":{"layer":"grader-outcome","weight":8,"exercised":false,"score":null,"rationale":"Scale replay was not attempted."},
+    "B1":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"M1–M3 and M8 were not exercised."},
+    "B2":{"layer":"builder-experience","weight":5,"exercised":true,"score":35,"rationale":"Familiar source generation worked, but M1 could not reach readiness."},
+    "B3":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"M2–M3 and M8 were not exercised."},
+    "B4":{"layer":"builder-experience","weight":7,"exercised":false,"score":null,"rationale":"M6 and M8 were not exercised."},
+    "B5":{"layer":"builder-experience","weight":4,"exercised":false,"score":null,"rationale":"Only M1 was attempted."},
+    "B6":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M5 was not exercised."},
+    "B7":{"layer":"builder-experience","weight":3,"exercised":false,"score":null,"rationale":"M6 and M8 were not exercised."},
+    "B8":{"layer":"builder-experience","weight":6,"exercised":false,"score":null,"rationale":"scored by the M7 session"},
+    "B9":{"layer":"builder-experience","weight":6,"exercised":true,"score":30,"rationale":"The lifecycle successor stall lacked an actionable terminal diagnostic."},
+    "B10":{"layer":"builder-experience","weight":4,"exercised":true,"score":40,"rationale":"Served Familiar documentation was precise and useful."},
+    "B11":{"layer":"builder-experience","weight":5,"exercised":true,"score":25,"rationale":"Required milestones could not be delivered under the non-destructive constraint."}
+  },
+  "holistic":{"score":32,"not_computed_from_dimensions":true,"moments":["Generated schema manifest confirmed snapback-familiar-ts-v1.","The template's prior explicit deployment prevented the Familiar successor from reaching application readiness.","The served guide clearly documented the Familiar source layout."]}
+}
