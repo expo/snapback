@@ -1600,9 +1600,12 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     assert_eq!(membership_observation.delivered_snapshot_frames, 9);
     assert_eq!(membership_observation.discarded_snapshot_frames, 3);
     assert_eq!(membership_observation.reprojected_snapshot_frames, 3);
-    assert_eq!(membership_observation.generated_invalidation_frames, 21);
-    assert_eq!(membership_observation.delivered_invalidation_frames, 15);
-    assert_eq!(membership_observation.discarded_invalidation_frames, 6);
+    // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
+    // each generated invalidation is the obligation-backed content frame;
+    // there is no second physical-outbox notification to count.
+    assert_eq!(membership_observation.generated_invalidation_frames, 12);
+    assert_eq!(membership_observation.delivered_invalidation_frames, 9);
+    assert_eq!(membership_observation.discarded_invalidation_frames, 3);
     assert_eq!(membership_observation.reprojected_invalidation_frames, 3);
     assert_eq!(membership_observation.discarded_response_drains, 3);
     assert_eq!(
@@ -1816,6 +1819,12 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         .auth_database_mut()
         .authorization_version()
         .expect("authorization version before restart");
+    let predecessor_issuer_id = connection.issuer_id().clone();
+    // @ref LLP 0303#a-durable-record-is-checked-at-acquisition-a-live-handle-outlives-it —
+    // an ordinary restart must release every predecessor issuer handle before
+    // a new database-open lifetime reserves its boot issuer.
+    drop(queries);
+    drop(connection);
     drop(snapback);
     let mut restarted = LocalSnapback::open(&database_path).expect("restart acceptance database");
     let diagnostics = restarted.load_functions(acceptance_functions());
@@ -1841,7 +1850,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         json!({}),
         100,
     );
-    let restart_installed_new_issuer = restarted_connection.issuer_id() != connection.issuer_id();
+    let restart_installed_new_issuer = restarted_connection.issuer_id() != &predecessor_issuer_id;
     assert!(restart_installed_new_issuer);
     let restart_accepted_distinct_caller_supplied_query_instance =
         !pre_restart_query_instances.contains(&restarted_query.query_instance_id);

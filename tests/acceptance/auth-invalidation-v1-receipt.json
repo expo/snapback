@@ -14,11 +14,11 @@
   },
   "runtimeMeasurements": {
     "membershipChurn": {
-      "generatedInvalidationFrames": 21,
+      "generatedInvalidationFrames": 12,
       "generatedSnapshotFrames": 12,
-      "deliveredInvalidationFrames": 15,
+      "deliveredInvalidationFrames": 9,
       "deliveredSnapshotFrames": 9,
-      "discardedInvalidationFrames": 6,
+      "discardedInvalidationFrames": 3,
       "discardedSnapshotFrames": 3,
       "reprojectedInvalidationFrames": 3,
       "reprojectedSnapshotFrames": 3,
