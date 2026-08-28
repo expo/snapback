@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:5dd70f4fe4020418332bf5047bb9cfcbff0130109e1c
 # @expo/snapback-client/internal/declared-dev-mint
 
 Build-bound public API projection for `@expo/snapback-client/internal/declared-dev-mint`. Module projection identity:
-`sha256:7676e95d18aba2e4b4cfb0d961bbeeb69218845e55be383b2e83fe0315bba54c`.
+`sha256:72e3d3ad0c5815ffe03ed6dec788f9e9fcfed2fd043328f83b316f53c45f7985`.
 Runtime parity condition:
 `import` → `packages/snapback-client/internal/declared-dev-mint.mjs`.
 
