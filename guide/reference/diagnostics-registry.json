@@ -2,23 +2,23 @@
   "schemaVersion": "snapback-diagnostics-registry.v2",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:d067b0b29d53ce05c8fb4aa9e751e68e4662f80e85838d116863e9ec8dfd4d2d"
+    "sourceDigest": "sha256:e0a061a408f3cab0908eac4cc22d80b24dd56b96e9f4a06af34f1b9261344f83"
   },
   "limits": {
     "lookupBytes": 16384
   },
   "counts": {
-    "codes": 3592,
-    "sourceFiles": 635,
-    "emittingSites": 9646,
-    "receivedSites": 378,
+    "codes": 3596,
+    "sourceFiles": 637,
+    "emittingSites": 9686,
+    "receivedSites": 380,
     "reservedSites": 11,
-    "siteRecords": 5406,
+    "siteRecords": 5447,
     "httpClassified": 1703,
     "guideAnchored": 476,
-    "environmentVariables": 189,
-    "environmentSites": 359,
-    "environmentSiteRecords": 273
+    "environmentVariables": 190,
+    "environmentSites": 364,
+    "environmentSiteRecords": 278
   },
   "diagnostics": {
     "SNAPBACK_ACCEPTED_SOCKET_LIMIT": {
@@ -1494,6 +1494,20 @@
       ],
       "httpStatus": 500,
       "httpStatusClass": "5xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_ADMIN_INSPECT_FAILED": {
+      "code": "SNAPBACK_ADMIN_INSPECT_FAILED",
+      "subsystem": "runtime-darwin-arm64",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
       "guideAnchor": null,
       "guideAnchors": []
     },
@@ -10172,6 +10186,14 @@
         {
           "file": "packages/snapback-contract/auth-coordinator.mjs",
           "count": 3
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -11763,6 +11785,10 @@
         {
           "file": "packages/snapback-contract/index.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": 400,
@@ -13805,6 +13831,10 @@
         },
         {
           "file": "packages/snapback-contract/query-authorization.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "count": 1
         }
       ],
@@ -18749,6 +18779,10 @@
         {
           "file": "packages/snapback-contract/client-store.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -18816,6 +18850,10 @@
         {
           "file": "packages/snapback-react/implementation.mjs",
           "count": 7
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -19510,6 +19548,10 @@
       "sites": [
         {
           "file": "packages/snapback-contract/client-store.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "count": 1
         }
       ],
@@ -22908,6 +22950,10 @@
         {
           "file": "packages/snapback-contract/index.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -22968,6 +23014,10 @@
         {
           "file": "packages/snapback-contract/mutation-output.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -22982,6 +23032,10 @@
         {
           "file": "packages/snapback-contract/index.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -22996,6 +23050,10 @@
         {
           "file": "packages/snapback-contract/index.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -23118,6 +23176,10 @@
       "sites": [
         {
           "file": "packages/snapback-contract/index.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "count": 1
         }
       ],
@@ -23368,6 +23430,10 @@
         {
           "file": "packages/snapback-contract/render-first.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -23381,6 +23447,10 @@
       "sites": [
         {
           "file": "packages/snapback-contract/render-first.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "count": 1
         }
       ],
@@ -23943,6 +24013,10 @@
         {
           "file": "packages/snapback-contract/index.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": 400,
@@ -24009,6 +24083,10 @@
         },
         {
           "file": "packages/snapback-contract/index.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "count": 1
         }
       ],
@@ -31625,6 +31703,10 @@
         {
           "file": "packages/snapback-admin-client/index.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -31638,6 +31720,10 @@
       "sites": [
         {
           "file": "packages/snapback-admin-client/index.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
           "count": 1
         }
       ],
@@ -31671,6 +31757,38 @@
         {
           "file": "packages/snapback-admin-client/index.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_GUIDE_MANIFEST_UNSUPPORTED": {
+      "code": "SNAPBACK_GUIDE_MANIFEST_UNSUPPORTED",
+      "subsystem": "guide",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_GUIDE_PAGE_UNKNOWN": {
+      "code": "SNAPBACK_GUIDE_PAGE_UNKNOWN",
+      "subsystem": "guide",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -31684,6 +31802,10 @@
       "sites": [
         {
           "file": "packages/snapback-admin-client/index.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
           "count": 1
         }
       ],
@@ -31716,6 +31838,14 @@
       "sites": [
         {
           "file": "packages/snapback-admin-client/index.mjs",
+          "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
           "count": 2
         }
       ],
@@ -32222,6 +32352,10 @@
         {
           "file": "packages/snapback-contract/result-contract-validator.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
         }
       ],
       "httpStatus": 400,
@@ -34303,6 +34437,14 @@
         {
           "file": "packages/snapback-client/index.mjs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -34653,6 +34795,14 @@
         {
           "file": "packages/snapback-client/index.mjs",
           "count": 3
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -40522,6 +40672,11 @@
         {
           "file": "crates/snapback-kernel/src/storage.rs",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "kind": "received",
+          "count": 1
         }
       ],
       "httpStatus": 409,
@@ -40607,6 +40762,11 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
+          "kind": "received",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
           "kind": "received",
           "count": 1
         },
@@ -40773,7 +40933,7 @@
     },
     "SNAPBACK_NETWORK_PROFILE_INVALID": {
       "code": "SNAPBACK_NETWORK_PROFILE_INVALID",
-      "subsystem": "server",
+      "subsystem": "runtime-darwin-arm64",
       "sites": [
         {
           "file": "crates/snapback-cli/src/cli.rs",
@@ -40786,6 +40946,14 @@
         {
           "file": "crates/snapback-types/src/network_profile.rs",
           "kind": "declaration",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
           "count": 1
         },
         {
@@ -40804,6 +40972,20 @@
       ],
       "httpStatus": 400,
       "httpStatusClass": "4xx",
+      "guideAnchor": null,
+      "guideAnchors": []
+    },
+    "SNAPBACK_NETWORK_PROFILE_UNAVAILABLE": {
+      "code": "SNAPBACK_NETWORK_PROFILE_UNAVAILABLE",
+      "subsystem": "runtime-darwin-arm64",
+      "sites": [
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
+        }
+      ],
+      "httpStatus": null,
+      "httpStatusClass": null,
       "guideAnchor": null,
       "guideAnchors": []
     },
@@ -47783,6 +47965,14 @@
         {
           "file": "packages/snapback-client/index.mjs",
           "count": 3
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -49589,6 +49779,14 @@
         {
           "file": "packages/snapback-admin-client/index.mjs",
           "count": 2
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "count": 1
         }
       ],
       "httpStatus": null,
@@ -49606,6 +49804,14 @@
         },
         {
           "file": "packages/snapback-client/index.mjs",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/__exact/native/mac-appkit-hermes/startup.js",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
           "count": 1
         }
       ],
@@ -59510,6 +59716,11 @@
           "count": 1
         },
         {
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "kind": "mention",
+          "count": 1
+        },
+        {
           "file": "targets/cloudflare/config-set.mjs",
           "kind": "mention",
           "count": 1
@@ -59784,6 +59995,21 @@
           "file": "crates/snapback-build-identity/src/lib.rs",
           "kind": "read",
           "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-darwin-arm64/prepare-runtime.mjs",
+          "kind": "mention",
+          "count": 1
+        },
+        {
+          "file": "packages/snapback-runtime-linux-x64/prepare-runtime.mjs",
+          "kind": "mention",
+          "count": 1
+        },
+        {
+          "file": "scripts/runtime-package-authority.mjs",
+          "kind": "mention",
+          "count": 1
         }
       ]
     },
@@ -59801,6 +60027,17 @@
     "SNAPBACK_BUILD_GIT_DIRTY": {
       "name": "SNAPBACK_BUILD_GIT_DIRTY",
       "guideAnchor": "/_snapback/guide/reference/diagnostics.md#environment-snapback-build-git-dirty",
+      "sites": [
+        {
+          "file": "crates/snapback-build-identity/src/lib.rs",
+          "kind": "read",
+          "count": 1
+        }
+      ]
+    },
+    "SNAPBACK_BUILD_RECIPE": {
+      "name": "SNAPBACK_BUILD_RECIPE",
+      "guideAnchor": "/_snapback/guide/reference/diagnostics.md#environment-snapback-build-recipe",
       "sites": [
         {
           "file": "crates/snapback-build-identity/src/lib.rs",

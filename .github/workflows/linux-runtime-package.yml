@@ -70,10 +70,16 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
+      # @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1a's
+      # Linux lane split. The production build is the pack/seal path; the
+      # ordinary release build below exists solely so the source-checkout
+      # custody assertion in package.test.mjs still has its binary and sibling
+      # receipt (1b keeps that lane on `release`).
       - name: Build and launch-test the relocatable Linux runtime
         run: |
           scripts/bootstrap-ibex-runtime
           bun run --cwd admin-ui build
+          SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
 
       # @ref LLP 0010#native-runtime-bootstrap — the linked source CLI selects

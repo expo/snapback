@@ -53,6 +53,15 @@ const buildIdentity = {
     buildProfile: 'release',
     startupNonce: 'build-identity-process',
   },
+  buildRecipe: {
+    profile: 'production',
+    cargoProfileClass: 'release',
+    optLevel: '3',
+    lto: 'fat',
+    codegenUnits: 1,
+    incremental: false,
+    strip: 'symbols',
+  },
   buildDistribution: 'public-package',
 };
 const catalogBuildIdentityProof = {
@@ -281,6 +290,15 @@ try {
       buildProfile: 'release',
       startupNonce: 'build-identity-process',
     },
+    buildRecipe: {
+      profile: 'release',
+      cargoProfileClass: 'release',
+      optLevel: '3',
+      lto: null,
+      codegenUnits: null,
+      incremental: null,
+      strip: null,
+    },
     buildDistribution: 'contributor-source',
   };
   const fixtureBinarySourceFor = (
@@ -378,6 +396,18 @@ process.exit(ok ? 0 : 1);
 
   const publicPackageIdentity = structuredClone(fixtureIdentity);
   publicPackageIdentity.buildDistribution = 'public-package';
+  // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c: a
+  // public-package artifact is manufactured on the ship profile, so it carries
+  // the attested recipe the contributor fixture above does not.
+  publicPackageIdentity.buildRecipe = {
+    profile: 'production',
+    cargoProfileClass: 'release',
+    optLevel: '3',
+    lto: 'fat',
+    codegenUnits: 1,
+    incremental: false,
+    strip: 'symbols',
+  };
   writeFileSync(sourceBinary, fixtureBinarySourceFor(publicPackageIdentity));
   chmodSync(sourceBinary, 0o755);
   const nativePrepared = prepareDarwinRuntimePackage({
@@ -568,6 +598,16 @@ if (existsSync(binary)) {
   });
   assert.equal(identity.status, 0, identity.stderr);
   assertPublicPackageBuildIdentity(JSON.parse(identity.stdout));
-  assert.equal(resolveRuntimeBinary().binary, binary);
+  // Passing a non-CLI package root models the topology of a packed/installed
+  // CLI, which has no owning source checkout and must select the sealed
+  // platform package. The bare source-topology call this replaced asserted
+  // installed custody through a resolver that first looks for the checkout's
+  // own `target/release` binary — a lane LLP 0314.000 Phase 1a no longer
+  // builds on the pack/seal path.
+  // @ref LLP 0123#package-seal-landing-2026-08-06 — installed resolution
+  // reopens the immutable package-owned seal before returning the binary.
+  const installedRuntime = resolveRuntimeBinary({ cliPackageRoot: packageRoot });
+  assert.equal(installedRuntime.binary, binary);
+  assert.equal(installedRuntime.source, PACKAGE_NAME);
 }
 console.log('package.test.mjs: stamped assembly accepted; unstamped executable rejected; Darwin arm64 seal + custody repair pass');

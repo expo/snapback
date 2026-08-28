@@ -366,6 +366,15 @@ console.log(JSON.stringify({
       buildProfile: 'release',
       startupNonce: '0198f865-9f71-7d7a-9bab-7ae3637b7d58',
     },
+    buildRecipe: {
+      profile: 'production',
+      cargoProfileClass: 'release',
+      optLevel: '3',
+      lto: 'fat',
+      codegenUnits: 1,
+      incremental: false,
+      strip: 'symbols',
+    },
     buildDistribution: 'public-package',
   };
   writeFileSync(identityPath, `${JSON.stringify(buildIdentity)}\n`);
@@ -584,6 +593,15 @@ process.exit(ok ? 0 : 1);
       buildProfile: 'release',
       startupNonce: 'build-identity-process',
     },
+    buildRecipe: {
+      profile: 'production',
+      cargoProfileClass: 'release',
+      optLevel: '3',
+      lto: 'fat',
+      codegenUnits: 1,
+      incremental: false,
+      strip: 'symbols',
+    },
     buildDistribution: 'public-package',
   };
   const catalogBuildIdentityProof = {
@@ -699,6 +717,15 @@ try {
       gitDirty: false,
       buildProfile: 'release',
       startupNonce: 'build-identity-process',
+    },
+    buildRecipe: {
+      profile: 'production',
+      cargoProfileClass: 'release',
+      optLevel: '3',
+      lto: 'fat',
+      codegenUnits: 1,
+      incremental: false,
+      strip: 'symbols',
     },
     buildDistribution: 'public-package',
   };

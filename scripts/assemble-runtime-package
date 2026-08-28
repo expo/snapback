@@ -42,12 +42,18 @@ if [ -n "$dirty" ]; then
   fail 'the checkout is dirty; commit or otherwise preserve those changes and rerun from clean HEAD because a dirty binary/admin snapshot cannot receive a runtime package seal'
 fi
 
+# @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1b: source
+# repair stays on the ordinary release profile. Now that the packer defaults
+# name the production ship path, this command passes its own release binary
+# explicitly instead of inheriting a binary it did not build.
 case "$(uname -s):$(uname -m)" in
   Darwin:arm64)
     runtime_package='packages/snapback-runtime-darwin-arm64'
+    export SNAPBACK_RUNTIME_SOURCE_BINARY="${ROOT}/target/release/snapback"
     ;;
   Linux:x86_64|Linux:amd64)
     runtime_package='packages/snapback-runtime-linux-x64'
+    export SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY="${ROOT}/target/release/snapback"
     ;;
   *)
     fail "no runtime package assembler exists for $(uname -s)-$(uname -m)"

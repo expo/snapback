@@ -7,11 +7,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
+  REQUIRED_PRODUCTION_BUILD_RECIPE,
   RUNTIME_CATALOG_BUILD_IDENTITY_MISMATCH_CODE,
   RUNTIME_CATALOG_INSPECTION_FAILED_CODE,
   assertPublicPackageBuildIdentity,
@@ -24,6 +26,8 @@ import {
   installPackagedStoreQualificationReceipt,
 } from './runtime-package-authority.mjs';
 
+const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+
 const valid = {
   schemaVersion: 'snapback.binary-identity.v1',
   buildDistribution: PUBLIC_PACKAGE_BUILD_DISTRIBUTION,
@@ -31,8 +35,20 @@ const valid = {
     crateVersion: '0.1.0',
     gitCommit: 'a'.repeat(40),
     gitDirty: false,
+    // A production binary genuinely reports `release` here, because
+    // BinaryIdentity.build_profile is derived from cfg!(debug_assertions).
+    // That is the gap buildRecipe below exists to close.
     buildProfile: 'release',
     startupNonce: 'fixture',
+  },
+  buildRecipe: {
+    profile: 'production',
+    cargoProfileClass: 'release',
+    optLevel: '3',
+    lto: 'fat',
+    codegenUnits: 1,
+    incremental: false,
+    strip: 'symbols',
   },
 };
 
@@ -181,6 +197,81 @@ test('source-test staging rejects an unstamped contributor binary', () => {
     (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
   );
 });
+
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c: the
+// required recipe is a claim about the build, so it may not drift silently
+// away from what the root manifest declares. If someone weakens
+// [profile.production], this fails until the requirement is updated in review.
+test('the required ship recipe matches the root manifest declaration', () => {
+  const manifest = readFileSync(join(ROOT, 'Cargo.toml'), 'utf8');
+  const header = manifest.indexOf('[profile.production]');
+  assert(header >= 0, 'root Cargo.toml must declare [profile.production]');
+  const next = manifest.indexOf('\n[', header + 1);
+  const declared = (next < 0 ? manifest.slice(header) : manifest.slice(header, next))
+    .split('\n')
+    .map((line) => line.trim());
+  for (const line of [
+    'lto = "fat"',
+    'codegen-units = 1',
+    'incremental = false',
+    'strip = "symbols"',
+  ]) {
+    assert(
+      declared.includes(line),
+      `root Cargo.toml [profile.production] must declare ${line}`,
+    );
+  }
+  assert.deepEqual(REQUIRED_PRODUCTION_BUILD_RECIPE, {
+    profile: 'production',
+    optLevel: '3',
+    lto: 'fat',
+    codegenUnits: 1,
+    incremental: false,
+    strip: 'symbols',
+  });
+});
+
+// One negative per way a build could claim the ship profile without being it.
+test('refuses an ordinary release binary at public-package assembly', () => {
+  const ordinaryRelease = structuredClone(valid);
+  ordinaryRelease.buildRecipe = {
+    profile: 'release',
+    cargoProfileClass: 'release',
+    optLevel: '3',
+    lto: null,
+    codegenUnits: null,
+    incremental: null,
+    strip: null,
+  };
+  // It is a clean release public-package binary by every pre-1c test, which is
+  // exactly why the ceremony could previously claim production for it.
+  assert.equal(assertRuntimePackageBuildIdentity(ordinaryRelease), ordinaryRelease);
+  assert.throws(
+    () => assertPublicPackageBuildIdentity(ordinaryRelease),
+    (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED'
+      && /profile="release"/u.test(error.message),
+  );
+});
+
+for (const [name, recipe] of [
+  ['an absent recipe', undefined],
+  ['a null recipe', null],
+  ['an unstripped recipe', { ...valid.buildRecipe, strip: 'none' }],
+  ['a thin-LTO recipe', { ...valid.buildRecipe, lto: 'thin' }],
+  ['a split-codegen recipe', { ...valid.buildRecipe, codegenUnits: 16 }],
+  ['an incremental recipe', { ...valid.buildRecipe, incremental: true }],
+  ['a size-optimized recipe', { ...valid.buildRecipe, optLevel: 'z' }],
+]) {
+  test(`refuses ${name} at public-package assembly`, () => {
+    const attempted = structuredClone(valid);
+    if (recipe === undefined) delete attempted.buildRecipe;
+    else attempted.buildRecipe = recipe;
+    assert.throws(
+      () => assertPublicPackageBuildIdentity(attempted),
+      (error) => error.code === 'SNAPBACK_PACKAGE_CAPABILITY_ATTESTATION_REQUIRED',
+    );
+  });
+}
 
 for (const [name, mutate] of [
   ['source-build substitution', (value) => { value.buildDistribution = 'contributor-source'; }],

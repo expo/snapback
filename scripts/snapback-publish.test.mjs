@@ -44,6 +44,15 @@ test('publication refuses mismatched and legacy Linux catalog proofs', () => {
 
     const buildIdentity = {
       schemaVersion: 'snapback.binary-identity.v1',
+      buildRecipe: {
+        profile: 'production',
+        cargoProfileClass: 'release',
+        optLevel: '3',
+        lto: 'fat',
+        codegenUnits: 1,
+        incremental: false,
+        strip: 'symbols',
+      },
       buildDistribution: 'public-package',
       binary: {
         crateVersion: '0.1.0',

@@ -85,6 +85,15 @@ test('Darwin package seals bind the dyld versioned file across npm symlink remov
       buildProfile: 'release',
       startupNonce: 'build-identity-process',
     },
+    buildRecipe: {
+      profile: 'production',
+      cargoProfileClass: 'release',
+      optLevel: '3',
+      lto: 'fat',
+      codegenUnits: 1,
+      incremental: false,
+      strip: 'symbols',
+    },
     buildDistribution: 'public-package',
   };
   try {

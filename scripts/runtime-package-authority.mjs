@@ -19,6 +19,22 @@ const PUBLICATION_CAPABILITY_QUALIFICATION_FIELD =
 const PUBLICATION_CAPABILITY_QUALIFICATION_SCHEMA_VERSION =
   'snapback.publication-capability-qualification.v1';
 
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c: the
+// recipe a public package is allowed to carry. This is a requirement, not an
+// echo of whatever the binary reported: the stamp's authority is the build,
+// and this constant is what the ceremony insists that build produced. Its
+// agreement with the root manifest's `[profile.production]` is asserted by
+// runtime-package-authority.test.mjs, so weakening the profile has to pass
+// through review rather than sliding through as a quieter package.
+export const REQUIRED_PRODUCTION_BUILD_RECIPE = Object.freeze({
+  profile: 'production',
+  optLevel: '3',
+  lto: 'fat',
+  codegenUnits: 1,
+  incremental: false,
+  strip: 'symbols',
+});
+
 const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES = new Set([
   'native-inspection',
   'snapback.runtime-artifact-attestation.v4',
@@ -249,7 +265,12 @@ export function assertRuntimePackageSourceIdentity(identity) {
       || identity.binary.gitCommit.length === 0
       || typeof identity.binary.gitDirty !== 'boolean'
       || typeof identity.binary.buildProfile !== 'string'
-      || identity.binary.buildProfile.length === 0) {
+      || identity.binary.buildProfile.length === 0
+      || identity.buildRecipe === null
+      || typeof identity.buildRecipe !== 'object'
+      || Array.isArray(identity.buildRecipe)
+      || typeof identity.buildRecipe.profile !== 'string'
+      || identity.buildRecipe.profile.length === 0) {
     throw packageIdentityError(
       'native runtime does not carry a usable source identity; '
       + 'runtime package staging requires a known source revision',
@@ -278,5 +299,26 @@ export function assertPublicPackageBuildIdentity(identity) {
       + 'without PackageCapabilityAttestationV1 the package must retain relation/activity GAPs',
     );
   }
+  assertShipRecipe(identity.buildRecipe);
   return identity;
+}
+
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c: read the
+// ship recipe out of the bytes being packed. `buildProfile` cannot carry this
+// verdict — it is derived from `cfg!(debug_assertions)` and reports `release`
+// for a production binary — so without this an env-overridden ordinary release
+// would pass while the ceremony claimed production.
+export function assertShipRecipe(recipe) {
+  const mismatched = Object.entries(REQUIRED_PRODUCTION_BUILD_RECIPE)
+    .filter(([key, expected]) => recipe?.[key] !== expected)
+    .map(([key, expected]) => `${key}=${JSON.stringify(recipe?.[key])} (expected ${JSON.stringify(expected)})`);
+  if (mismatched.length > 0) {
+    throw packageIdentityError(
+      'native runtime does not carry the attested ship build recipe; '
+      + 'a public package is manufactured only by '
+      + 'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production '
+      + `--bin snapback: ${mismatched.join(', ')}`,
+    );
+  }
+  return recipe;
 }

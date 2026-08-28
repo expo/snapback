@@ -589,6 +589,12 @@ const linuxRuntimePackage = readFileSync(join(workflowDir, 'linux-runtime-packag
 assertExactHermesCache(linuxRuntimePackage, 'linux-runtime-package');
 // @ref LLP 0010#native-runtime-bootstrap — the fresh release build is a
 // source-custody binary until package assembly copies and separately seals it.
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1a's Linux
+// lane split: production is the pack/seal path, and the ordinary release build
+// survives only to keep the source-checkout custody assertion fed.
+const linuxProductionBuildIndex = linuxRuntimePackage.indexOf(
+  'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback',
+);
 const linuxReleaseBuildIndex = linuxRuntimePackage.indexOf(
   'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback',
 );
@@ -606,6 +612,10 @@ const linuxPackagePreparationIndex = linuxRuntimePackage.indexOf(
 );
 const linuxPackageTestIndex = linuxRuntimePackage.indexOf(
   'node packages/snapback-runtime-linux-x64/package.test.mjs',
+);
+assert(
+  linuxProductionBuildIndex >= 0,
+  'Linux runtime workflow must manufacture the packed binary on the production ship profile',
 );
 assert(
   linuxReleaseBuildIndex >= 0
@@ -677,6 +687,9 @@ for (const required of [
   'snapback-darwin-arm64-staged-receipt.json',
   'snapback-linux-x64-staged-receipt.json',
   'snapback-qualified-release',
+  // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1a pins
+  // the staging manufacture command, which was previously unpinned here.
+  'cargo build --profile production --bin snapback',
 ]) {
   assert(
     qualifiedStagingSources.includes(required),
@@ -692,6 +705,21 @@ assert.equal(
   qualifiedPackageStaging.match(/scripts\/qualified-staging-assemble/g)?.length,
   2,
   'qualified staging must assemble once for receipt minting and once for receipt-qualified proof',
+);
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — both native
+// runtimes are manufactured on the ship profile, and neither may fall back to
+// an ordinary release build whose recipe stamp the packers now refuse.
+assert.equal(
+  qualifiedPackageStaging.match(
+    /cargo build --profile production --bin snapback/g,
+  )?.length,
+  2,
+  'qualified package staging must build both native runtimes on the production profile',
+);
+assert.doesNotMatch(
+  qualifiedPackageStaging,
+  /cargo build --release/u,
+  'qualified package staging must not manufacture a staged runtime on the ordinary release profile',
 );
 for (const job of [
   'linux_store_qualification',

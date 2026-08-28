@@ -47,7 +47,10 @@ import {
 
 const defaultPackageRoot = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(defaultPackageRoot, '..', '..');
-const defaultSourceBinary = join(repositoryRoot, 'target', 'release', 'snapback');
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1a: the
+// pack/seal path is the production profile; the ordinary release build and its
+// sibling receipt remain source-checkout custody (1b).
+const defaultSourceBinary = join(repositoryRoot, 'target', 'production', 'snapback');
 const defaultSourceHermes = join(
   repositoryRoot,
   'vendor',
@@ -216,7 +219,9 @@ export function prepareLinuxRuntimePackage(options = {}) {
   if (!existsSync(sourceBinary)) {
     throw codedError(
       'SNAPBACK_RUNTIME_BINARY_MISSING',
-      `Linux release binary is missing at ${sourceBinary}; build snapback --release on linux-x64`,
+      `Linux ship binary is missing at ${sourceBinary}; run `
+        + 'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production '
+        + '--bin snapback on linux-x64',
     );
   }
   if (!existsSync(sourceHermes)) {

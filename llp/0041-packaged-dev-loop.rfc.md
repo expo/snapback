@@ -6,6 +6,10 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (ship-profile manufacture):** 2026-08-28 (native runtime manufacture
+moved from `cargo build --release` to `cargo build --profile production`, and
+final public-package assembly now requires the binary's own build-recipe stamp.
+See §Ship-profile manufacture.)
 **Revised (0.1.29 published-closure catch-up):** 2026-08-28 (`newestPublished`
 advances to already-published 0.1.29; `newestQualified` stays 0.1.27 because
 0.1.28/0.1.29 have no holding tag and 0.1.28 shipped receiptless. The
@@ -2253,3 +2257,46 @@ checking out the repository. The independently downloaded immutable tarballs
 and both staged receipts were retained with that same helper for this release;
 the workflow now checks out before invoking it, with a structural regression
 assertion. No gate or publication-authority bypass was used.
+
+## Ship-profile manufacture and its attestation (2026-08-28)
+
+@ref LLP 0314.000 Phase 1a/1c. The npm runtime was manufactured with
+`cargo build --release` while the workspace's `[profile.production]` — fat
+LTO, one codegen unit, `strip = "symbols"` — sat unused. Every producer now
+builds the ship profile and both packers copy `target/production/snapback`:
+the packer defaults and their `SNAPBACK_RUNTIME_SOURCE_BINARY` /
+`SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY` overrides,
+`.github/workflows/linux-runtime-package.yml`,
+`.eas/workflows/qualified-package-staging.yml` (both native runtime jobs),
+`scripts/build-linux-runtime-release`, and the direct-entry default in
+`scripts/packaged-store-qualification.mjs`.
+
+Source-checkout custody did **not** move. `packages/snapback-cli/index.mjs`
+still selects `target/release/snapback` and still requires its sibling
+readiness receipt, `scripts/assemble-runtime-package` still repairs a
+contributor package from an ordinary release build — passing that binary
+explicitly now that the packer defaults name the ship path — and
+`linux-runtime-package.yml` keeps a second `--release` build plus its receipt
+solely to feed that custody assertion. Two profiles now coexist in that lane
+on purpose: production is what gets packed and sealed, release is what the
+linked source CLI selects.
+
+Manufacture switching alone would have made the ceremony a claim nothing
+checks. `BinaryIdentity.buildProfile` is derived from
+`cfg!(debug_assertions)`, so a production binary reports `release` and
+`assertRuntimePackageBuildIdentity` — which requires exactly `release` —
+cannot tell the two apart. The binary therefore carries a separate
+`buildRecipe` block whose authority is the build: the
+`snapback-build-identity` build script, running inside the very Cargo
+invocation being attested, stamps the resolved profile (recovered from
+`OUT_DIR`, because Cargo's `PROFILE` collapses every custom profile onto
+`debug`/`release`) plus the recipe the root manifest declares, and refuses to
+stamp at all when a `CARGO_PROFILE_*` override, `CARGO_INCREMENTAL`, rustflags
+reaching `-C lto`/`-C strip`/`-C codegen-units`/`-C opt-level`/`-C
+incremental`, `cargo --config`, an ambient `.cargo/config.toml`, a trailing
+`cargo rustc -- -C …`, or a rustc wrapper could have falsified it.
+`assertPublicPackageBuildIdentity` reads that block from the bytes being
+packed and requires the declared ship recipe; the Linux artifact attestation
+transports it cross-host and the package seal persists a copy. Nothing in the
+ceremony may originate it — a workflow-written line would be exactly as
+spoofable as `SNAPBACK_BUILD_DISTRIBUTION`.

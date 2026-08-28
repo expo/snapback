@@ -1470,6 +1470,7 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-10
 reviewed-authorities-digest: sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab
 ---
@@ -1777,6 +1778,36 @@ to obtain the executable's independently embedded commit, dirty state, crate
 version, and build profile; older binaries that predate the command may still
 be classified runnable via `--help`, but their actual stamp remains honestly
 unknown.
+
+`binary.buildProfile` answers only `debug` or `release`, because it is derived
+from `cfg!(debug_assertions)`. The shipped npm runtime is built on a third
+Cargo profile — `production`, which adds fat LTO and strips the symbol table —
+and it reports `release` there like any other optimized build. The separate
+`buildRecipe` block is the fact that tells them apart:
+
+```json fragment reason="the buildRecipe block of snapback.binary-identity.v1"
+{
+  "profile": "production",
+  "cargoProfileClass": "release",
+  "optLevel": "3",
+  "lto": "fat",
+  "codegenUnits": 1,
+  "incremental": false,
+  "strip": "symbols"
+}
+```
+
+Its authority is the build, not the ceremony around it: the build script that
+runs inside that very `cargo` invocation stamps the resolved profile plus the
+recipe the root manifest declares, and refuses to stamp at all when an ambient
+channel — a `CARGO_PROFILE_*` override, `RUSTFLAGS` reaching `-C lto`/`-C
+strip`, `cargo --config`, an inherited `.cargo/config.toml`, a rustc wrapper —
+could have made that declaration a fiction. Off the ship profile every declared
+field is `null`: a build that was not attested states no recipe rather than a
+default nothing verified. Public-package assembly reads this block from the
+binary it is about to pack and refuses anything that is not the declared ship
+recipe, so an ordinary release build cannot be packaged as if it were the
+shipped one.
 
 Dirtiness here is scoped to the runtime binary's input set — the shared
 pathspec list in `scripts/runtime-build-inputs.txt` (Rust sources and

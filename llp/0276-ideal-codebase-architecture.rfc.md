@@ -387,7 +387,11 @@ Workspace-wide rules:
   `release` with `lto = "fat"`, `codegen-units = 1` — built as
   `cargo build --profile production -p snapback`; the ordinary `release`
   profile stays incremental-friendly so the in-window edit loop does not
-  regress. Edition 2024 is current fact, not an in-window change; no
+  regress. **This is current fact as of 2026-08-28, not an intention:**
+  LLP 0314.000 Phase 1a moved every native-runtime producer onto that command
+  and both packers onto `target/production/snapback`, and Phase 1c makes the
+  binary carry a build-authored recipe stamp that public-package assembly
+  requires — so a build that claims the ship profile has to have been one. Edition 2024 is current fact, not an in-window change; no
   dependency version moves ride the window.
 - **Tests:** unit tests inline per crate (`#[cfg(test)]`, keeping
   crate-private access); the giant sibling `tests.rs` files split along the

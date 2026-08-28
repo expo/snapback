@@ -2,8 +2,48 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c's decision
+// lives beside this script so every forbidden-channel class has a unit test
+// that does not cost a fat-LTO build.
+#[path = "build_recipe_policy.rs"]
+mod build_recipe_policy;
+
+use build_recipe_policy::{PRODUCTION_PROFILE, SHIP_OPT_LEVEL, StampInputs};
+
+/// Environment names whose value the ship-recipe policy reads. Cargo reruns a
+/// build script only for the variables it is told about, so an override added
+/// after a cached stamp would otherwise never be seen.
+const RECIPE_SENSITIVE_ENVIRONMENT: [&str; 11] = [
+    "CARGO_INCREMENTAL",
+    "RUSTFLAGS",
+    "CARGO_ENCODED_RUSTFLAGS",
+    "CARGO_BUILD_RUSTFLAGS",
+    "RUSTC",
+    "RUSTC_WRAPPER",
+    "RUSTC_WORKSPACE_WRAPPER",
+    "CARGO_BUILD_RUSTC",
+    "CARGO_BUILD_RUSTC_WRAPPER",
+    "CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER",
+    "CARGO_HOME",
+];
+
+const RECIPE_SENSITIVE_PROFILE_KNOBS: [&str; 11] = [
+    "LTO",
+    "CODEGEN_UNITS",
+    "INCREMENTAL",
+    "STRIP",
+    "OPT_LEVEL",
+    "DEBUG",
+    "DEBUG_ASSERTIONS",
+    "OVERFLOW_CHECKS",
+    "PANIC",
+    "RPATH",
+    "SPLIT_DEBUGINFO",
+];
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_recipe_policy.rs");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_COMMIT");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_GIT_DIRTY");
     println!("cargo:rerun-if-env-changed=SNAPBACK_BUILD_DISTRIBUTION");
@@ -72,7 +112,147 @@ fn main() {
         "SNAPBACK_BUILD_DISTRIBUTION must be contributor-source or public-package"
     );
     println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
+
+    emit_build_recipe(&repo_root);
 }
+
+/// Stamp the resolved profile plus, on the ship profile only, the
+/// `[profile.production]` recipe the root manifest declares.
+///
+/// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c: without
+/// this the identity cannot tell a real production build from an
+/// env-overridden ordinary release, because `build_profile` is derived from
+/// `cfg!(debug_assertions)` and reports `release` for both. The refusal is
+/// raised here rather than at assembly because this is the one point inside
+/// the very Cargo invocation being attested.
+fn emit_build_recipe(repo_root: &Path) {
+    let root_manifest_path = repo_root.join("Cargo.toml");
+    println!("cargo:rerun-if-changed=../../Cargo.toml");
+    for name in RECIPE_SENSITIVE_ENVIRONMENT {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
+    for profile in ["PRODUCTION", "RELEASE"] {
+        for knob in RECIPE_SENSITIVE_PROFILE_KNOBS {
+            println!("cargo:rerun-if-env-changed=CARGO_PROFILE_{profile}_{knob}");
+        }
+    }
+
+    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR is set by cargo");
+    let discovered_config_files = discover_cargo_config_files(repo_root);
+    for (path, _) in &discovered_config_files {
+        println!("cargo:rerun-if-changed={path}");
+    }
+    let root_manifest = fs::read_to_string(&root_manifest_path).unwrap_or_else(|error| {
+        panic!(
+            "{}: root manifest is unreadable at {}: {error}",
+            build_recipe_policy::UNATTESTABLE_CODE,
+            root_manifest_path.display()
+        )
+    });
+
+    let cargo_profile_class = std::env::var("PROFILE").expect("PROFILE is set by cargo");
+    let opt_level = std::env::var("OPT_LEVEL").expect("OPT_LEVEL is set by cargo");
+    let inputs = StampInputs {
+        out_dir: &out_dir,
+        cargo_profile_class: &cargo_profile_class,
+        opt_level: &opt_level,
+        root_manifest: &root_manifest,
+        environment: std::env::vars().collect(),
+        cargo_argv: invoking_cargo_command_line(&out_dir),
+        discovered_config_files,
+        expected_opt_level: SHIP_OPT_LEVEL,
+    };
+    let recipe = match build_recipe_policy::evaluate(&inputs) {
+        Ok(recipe) => recipe,
+        Err(message) => panic!(
+            "{message}\n\nThe published runtime's recipe stamp is only worth what \
+             the build can prove. Re-run the plain ship command from a clean \
+             environment: SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build \
+             --profile production --bin snapback"
+        ),
+    };
+    println!("cargo:rustc-env=SNAPBACK_BUILD_RECIPE={}", recipe.to_json());
+}
+
+/// Cargo discovers `.cargo/config.toml` from its invocation directory upward
+/// and from `CARGO_HOME`, and none of that reaches a build script's resolved
+/// profile. Collect the same files so the policy can refuse the ones that
+/// would re-shape the ship recipe.
+fn discover_cargo_config_files(repo_root: &Path) -> Vec<(String, String)> {
+    let mut roots: Vec<PathBuf> = Vec::new();
+    let mut directory = fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
+    loop {
+        roots.push(directory.join(".cargo"));
+        match directory.parent() {
+            Some(parent) if parent != directory => directory = parent.to_path_buf(),
+            _ => break,
+        }
+    }
+    if let Some(cargo_home) = std::env::var_os("CARGO_HOME") {
+        roots.push(PathBuf::from(cargo_home));
+    }
+
+    let mut discovered: Vec<(String, String)> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    for root in roots {
+        for name in ["config.toml", "config"] {
+            let candidate = root.join(name);
+            let display = candidate.display().to_string();
+            if seen.contains(&display) {
+                continue;
+            }
+            seen.push(display.clone());
+            if let Ok(contents) = fs::read_to_string(&candidate) {
+                discovered.push((display, contents));
+            }
+        }
+    }
+    discovered
+}
+
+/// The invoking `cargo` process is this build script's parent, and its command
+/// line is the only place `--config` and trailing `cargo rustc -- -C …` flags
+/// are visible. Off the ship profile this is never consulted; on it, an
+/// unreadable command line fails closed in the policy.
+#[cfg(unix)]
+fn invoking_cargo_command_line(out_dir: &str) -> Vec<String> {
+    if build_recipe_policy::profile_directory_name(out_dir).as_deref() != Some(PRODUCTION_PROFILE) {
+        return Vec::new();
+    }
+    let parent = std::os::unix::process::parent_id();
+    if let Ok(raw) = fs::read(format!("/proc/{parent}/cmdline")) {
+        let argv: Vec<String> = raw
+            .split(|byte| *byte == 0)
+            .filter(|part| !part.is_empty())
+            .map(|part| String::from_utf8_lossy(part).into_owned())
+            .collect();
+        if !argv.is_empty() {
+            return argv;
+        }
+    }
+    let Ok(output) = Command::new("ps")
+        .args(["-ww", "-o", "args=", "-p", &parent.to_string()])
+        .output()
+    else {
+        return Vec::new();
+    };
+    if !output.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+// The ship profile is manufactured on darwin-arm64 and linux-x64 only; on any
+// other host the command line cannot be read and the policy fails closed.
+#[cfg(not(unix))]
+fn invoking_cargo_command_line(_out_dir: &str) -> Vec<String> {
+    Vec::new()
+}
+
 
 /// Track only Git facts that can change this worktree's reported revision.
 ///

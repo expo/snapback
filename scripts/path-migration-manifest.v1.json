@@ -346,11 +346,11 @@
       {
         "id": "dated-acceptance-fixtures",
         "pattern": "^tests/acceptance/fixtures/.+\\.2026-[^/]*\\.v1\\.json$",
-      "files": [
-        "tests/acceptance/fixtures/agent-safe-storage/performance-baseline-build-recipe.v1.json",
-        "tests/acceptance/fixtures/browser-lane/spike/rust-evaluator-wasm.2026-08-05/measurement.v1.json",
-        "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-09.v3.json"
-      ]
+        "files": [
+          "tests/acceptance/fixtures/agent-safe-storage/performance-baseline-build-recipe.v1.json",
+          "tests/acceptance/fixtures/browser-lane/spike/rust-evaluator-wasm.2026-08-05/measurement.v1.json",
+          "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-09.v3.json"
+        ]
       },
       {
         "id": "acceptance-evidence-markdown",
@@ -529,12 +529,12 @@
     {
       "id": "s01-r005",
       "category": "executable-entry-points",
-      "consumer": "scripts/assemble-runtime-package:63",
+      "consumer": "scripts/assemble-runtime-package:69",
       "consumerFiles": [
         "scripts/assemble-runtime-package"
       ],
       "currentPathExpression": "cargo build --release --bin snapback",
-      "targetExpression": "unchanged; pin -p snapback",
+      "targetExpression": "unchanged; pin -p snapback. LLP 0314.000 1b keeps source repair on the ordinary release profile and now passes the binary explicitly, because the packer defaults moved to target/production/snapback",
       "verification": "linux-runtime-package flow, packaged-store qualification",
       "changeKind": "verify-unchanged",
       "applyByEpoch": "pre-flip",
@@ -655,12 +655,12 @@
     {
       "id": "s01-r013",
       "category": "executable-entry-points",
-      "consumer": "scripts/packaged-store-qualification.mjs:39",
+      "consumer": "scripts/packaged-store-qualification.mjs:58",
       "consumerFiles": [
         "scripts/packaged-store-qualification.mjs"
       ],
-      "currentPathExpression": "default binary target/release/snapback",
-      "targetExpression": "unchanged",
+      "currentPathExpression": "default binary target/production/snapback",
+      "targetExpression": "unchanged; retargeted from target/release/snapback by LLP 0314.000 Phase 1a so direct entry qualifies the binary the ship path manufactures",
       "verification": "packaged-store-qualification.test.mjs",
       "changeKind": "verify-unchanged",
       "applyByEpoch": "pre-flip",
@@ -823,12 +823,12 @@
     {
       "id": "s01-r024",
       "category": "executable-entry-points",
-      "consumer": ".github/workflows/linux-runtime-package.yml:78",
+      "consumer": ".github/workflows/linux-runtime-package.yml:82-83",
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
-      "currentPathExpression": "SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback",
-      "targetExpression": "unchanged; pin -p snapback",
+      "currentPathExpression": "SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --profile production --bin snapback (pack/seal), plus a second --release build for source custody",
+      "targetExpression": "unchanged; retargeted to the production ship profile by LLP 0314.000 Phase 1a, which also splits the lane so the ordinary release build and its sibling receipt remain for the source-checkout custody assertion; pin -p snapback",
       "verification": "the workflow itself",
       "changeKind": "verify-unchanged",
       "applyByEpoch": "pre-flip",
@@ -837,12 +837,12 @@
     {
       "id": "s01-r025",
       "category": "executable-entry-points",
-      "consumer": ".github/workflows/linux-runtime-package.yml:85-93",
+      "consumer": ".github/workflows/linux-runtime-package.yml:91-99",
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
       "currentPathExpression": "target/lib/libhermesvm.so, $GITHUB_WORKSPACE/target/release/snapback",
-      "targetExpression": "unchanged",
+      "targetExpression": "unchanged; LLP 0314.000 Phase 1a keeps this receipt bound to target/release/snapback because its consumer is source-checkout custody",
       "verification": "same",
       "changeKind": "verify-unchanged",
       "applyByEpoch": "pre-flip",
@@ -2759,12 +2759,12 @@
     {
       "id": "s07-r004",
       "category": "ci-workflows",
-      "consumer": ".github/workflows/linux-runtime-package.yml:78,85-93",
+      "consumer": ".github/workflows/linux-runtime-package.yml:82-83,91-99",
       "consumerFiles": [
         ".github/workflows/linux-runtime-package.yml"
       ],
-      "currentPathExpression": "cargo build --release --bin snapback; target/…",
-      "targetExpression": "unchanged (see §1)",
+      "currentPathExpression": "cargo build --profile production --bin snapback (pack/seal) and cargo build --release --bin snapback (source custody); target/…",
+      "targetExpression": "unchanged (see §1); retargeted by LLP 0314.000 Phase 1a",
       "verification": "workflow run",
       "changeKind": "verify-unchanged",
       "applyByEpoch": "pre-flip",
@@ -3680,7 +3680,7 @@
         "scripts/local-source-package-closure.test.mjs",
         "scripts/package-readme-funnel.test.mjs",
         "scripts/packaged-store-qualification.mjs",
-            "scripts/published-closure-rehearsal.test.mjs",
+        "scripts/published-closure-rehearsal.test.mjs",
         "scripts/qualified-staging-store-qualification.mjs",
         "scripts/refresh-publication-carrier.mjs",
         "scripts/runtime-link-smoke.mjs",

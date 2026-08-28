@@ -2973,6 +2973,10 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                     "schemaVersion": "snapback.binary-identity.v1",
                     "binary": crate::identity::binary_identity(),
                     "buildDistribution": crate::identity::build_distribution(),
+                    // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it
+                    // — 1c: public-package assembly reads the ship recipe from
+                    // the bytes it is about to pack, not from the ceremony.
+                    "buildRecipe": crate::identity::build_recipe(),
                 }))?
             );
             Ok(())

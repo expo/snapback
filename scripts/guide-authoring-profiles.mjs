@@ -67,7 +67,6 @@ export const LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
   ['guide/operating/agent-controls.md', 'neutral', '169ce64fb1a81363f8add549721191dceda9851103a6a1c35f554db3135ea61f'],
   ['guide/operating/backup-and-copy.md', 'neutral', 'adb895ed57fac91c714cd7ffd46fb110c3efe92ca16230b307972ea638d127d7'],
   ['guide/operating/data-patch.md', 'neutral', 'b69838b20b6feaefc4cc52e174a046c6158e4eef98655a9108953e9c5ea25cdf'],
-  ['guide/operating/diagnostics.md', 'neutral', '8840f2c891430469c51dd8a3bccf1abf60a629b88de79ec75e1302838cae5346'],
   ['guide/operating/error-tracking.md', 'neutral', '7268c2e745caae95a7abcf7e33a54004922750823c90c88ac6a560c288fc9173'],
   ['guide/operating/host-ops.md', 'neutral', '37a3fd6d076c493442658c8268a324789279a88ff9ea6d029dfad93025cdcbaf'],
   ['guide/operating/instance-forks.md', 'neutral', '81420596bc9b52889c784256d8f3a42301f6048cbc6605d90e48ac87b342295c'],

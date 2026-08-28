@@ -40,8 +40,8 @@ function usage() {
 Options:
   --staged-dir <dir>       Directory containing the staged *.tgz closure
                            (default: dist-publish)
-  --runtime-binary <path>  Clean public-package release snapback binary
-                           (default: SNAPBACK_RUNTIME_BINARY or target/release/snapback)
+  --runtime-binary <path>  Clean public-package production snapback binary
+                           (default: SNAPBACK_RUNTIME_BINARY or target/production/snapback)
   --qualification-out <path>
                            Write the store receipt plus platform capability evidence
   --keep                   Keep the temporary cold-install application
@@ -52,7 +52,10 @@ Options:
 function parseArguments(argv) {
   const parsed = {
     stagedDir: join(root, 'dist-publish'),
-    runtimeBinary: process.env.SNAPBACK_RUNTIME_BINARY ?? join(root, 'target', 'release', 'snapback'),
+    // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1a:
+    // direct entry qualifies the binary the ship path actually manufactures.
+    runtimeBinary: process.env.SNAPBACK_RUNTIME_BINARY
+      ?? join(root, 'target', 'production', 'snapback'),
     qualificationOut: null,
     keep: false,
     help: false,

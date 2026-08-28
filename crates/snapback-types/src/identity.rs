@@ -47,3 +47,38 @@ pub struct BinaryIdentity {
     /// the same process.
     pub startup_nonce: String,
 }
+
+/// The compiler-authored ship-recipe stamp carried beside the binary identity.
+///
+/// `build_profile` above is derived from `cfg!(debug_assertions)`, so a
+/// `--profile production` binary reports `release` there and nothing
+/// downstream can tell a real ship build from an env-overridden ordinary
+/// release. This block is the distinguishing fact, and its authority is the
+/// build: `snapback-build-identity`'s build script stamps it from the resolved
+/// profile plus the `[profile.production]` recipe declared in the root
+/// manifest, and refuses to stamp at all when an ambient channel could have
+/// falsified that declaration. Receipts, seals, attestations, and publication
+/// validators copy it; none may originate it.
+///
+/// @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildRecipe {
+    /// Resolved Cargo profile directory name: `debug`, `release`, or
+    /// `production`. Cargo's build-script `PROFILE` collapses every custom
+    /// profile onto `debug`/`release`, so this is derived from `OUT_DIR`.
+    pub profile: String,
+    /// Cargo's coarse build-script `PROFILE` class, retained so the two facts
+    /// are separable by a reader who knows only one of them.
+    pub cargo_profile_class: String,
+    /// The optimization level Cargo actually resolved, not one read from a
+    /// manifest.
+    pub opt_level: String,
+    /// The declared `[profile.production]` recipe. Every field is `None` off
+    /// the ship profile: an unattested build states no recipe rather than
+    /// stating a default that nothing verified.
+    pub lto: Option<String>,
+    pub codegen_units: Option<u32>,
+    pub incremental: Option<bool>,
+    pub strip: Option<String>,
+}

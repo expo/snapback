@@ -28,6 +28,11 @@ const ATTESTATION_KEYS = [
 const BUILD_IDENTITY_KEYS = [
   'binary',
   'buildDistribution',
+  // @ref LLP 0314.000#phase-1--ship-the-ship-profile-and-strip-it — 1c's
+  // cross-host transport: the ship-recipe stamp travels inside the identity a
+  // foreign builder observed, so the assembling host verifies the recipe of
+  // the bytes it is packing rather than a line some workflow wrote.
+  'buildRecipe',
   'schemaVersion',
 ];
 const BINARY_IDENTITY_KEYS = [
