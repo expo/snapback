@@ -1,6 +1,7 @@
 # visibility-governance pre-push gate misreports a missing predecessor object as a G1 provenance failure
 
 - **Date:** 2026-08-26
+- **Status:** Resolved
 - **Area:** `scripts/check-visibility-governance.mjs` (pre-push admission), `packages/snapback-codegen/visibility-governance.mjs` (`validateG1ClosureIntroduction`)
 - **Related:** LLP 0234 (visibility governance), `.githooks/pre-push`
 
@@ -44,3 +45,14 @@ cost a landing cycle.
   failed for a reason other than "path absent in an existing tree".
 - Fail-first test: pre-push stream whose before-oid is syntactically valid
   but absent from the object store.
+
+## Resolution
+
+Resolved on 2026-08-28. Revision artifact reads now distinguish an absent path
+in a readable tree from an unreadable revision, and snapshot comparison refuses
+an unavailable advertised predecessor with
+`SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PREDECESSOR_UNAVAILABLE` plus fetch/rebase
+guidance before any G1-introduction classification. The regression uses a
+depth-one clone to prove the missing-predecessor refusal, preserves the all-zero
+new-ref behavior, fetches the predecessor, and proves the same pre-push stream
+is then allowed.
