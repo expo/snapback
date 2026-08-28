@@ -31,6 +31,7 @@ const packagesRoot = join(repoRoot, 'packages');
 const runtimeBinary = process.env.SNAPBACK_RUNTIME_BINARY
   ?? join(repoRoot, 'target', 'debug', 'snapback');
 const runtimeReadiness = `${runtimeBinary}.runtime-readiness.json`;
+const runtimeCheckout = dirname(dirname(dirname(runtimeBinary)));
 
 const selectedArm = process.env.SNAPBACK_R1_ARM ?? 'all';
 const selectedProfile = process.env.SNAPBACK_R1_PROFILE ?? 'explicit';
@@ -228,7 +229,7 @@ function materializeQualifiedRuntime() {
   for (const artifact of receipt.artifacts) {
     const target = join(externalRuntimeRoot, artifact.path);
     mkdirSync(dirname(target), { recursive: true });
-    symlinkSync(join(repoRoot, artifact.path), target);
+    symlinkSync(join(runtimeCheckout, artifact.path), target);
   }
 }
 
@@ -461,6 +462,34 @@ export const listRecords = query({
   handler: async (ctx) => ctx.db.query('records').withIndex('by_value').collect(),
 });
 
+export const orderedAsc = query({
+  args: {},
+  returns: v.array(v.doc('records')),
+  auth: 'authenticated',
+  reads: ['records'],
+  delivery: 'read',
+  handler: async (ctx) => ctx.db
+    .query('records')
+    .withIndex('by_value')
+    .order('value', 'asc')
+    .take(3)
+    .collect(),
+});
+
+export const orderedDesc = query({
+  args: {},
+  returns: v.array(v.doc('records')),
+  auth: 'authenticated',
+  reads: ['records'],
+  delivery: 'read',
+  handler: async (ctx) => ctx.db
+    .query('records')
+    .withIndex('by_value')
+    .order('value', 'desc')
+    .take(3)
+    .collect(),
+});
+
 export const createRecord = mutation({
   args: { value: v.string() },
   returns: v.doc('records'),
@@ -501,7 +530,15 @@ function journeyReferences(generated) {
     const list = selectedProfile === 'familiar'
       ? generated.api?.records?.listRecords
       : generated.api?.['records.listRecords'];
-    assert.ok(create && list, JSON.stringify({
+    const orderedAsc = selectedProfile === 'familiar'
+      ? generated.api?.records?.orderedAsc
+      : null;
+    const orderedDesc = selectedProfile === 'familiar'
+      ? generated.api?.records?.orderedDesc
+      : null;
+    assert.ok(create && list && (
+      selectedProfile !== 'familiar' || (orderedAsc && orderedDesc)
+    ), JSON.stringify({
       moduleKeys: Object.keys(generated),
       apiKeys: Object.keys(generated.api ?? {}),
       defaultKeys: Object.keys(generated.default ?? {}),
@@ -509,6 +546,8 @@ function journeyReferences(generated) {
     return {
       create,
       list,
+      orderedAsc,
+      orderedDesc,
       args: (value) => ({ value }),
       matches: (row, value) => row.value === value,
     };
@@ -516,9 +555,69 @@ function journeyReferences(generated) {
   return {
     create: generated.default.createTodo,
     list: generated.default.listTodos,
+    orderedAsc: null,
+    orderedDesc: null,
     args: (value) => ({ title: value }),
     matches: (row, value) => row.title === value,
   };
+}
+
+function assertFamiliarOrderGeneration(lane) {
+  if (selectedProfile !== 'familiar') return;
+  const manifest = JSON.parse(readFileSync(
+    join(lane.backendRoot, 'generated', 'functions.manifest.json'),
+    'utf8',
+  ));
+  const definitions = new Map(
+    manifest.functions.map((definition) => [definition.name, definition]),
+  );
+  for (const name of ['records.orderedAsc', 'records.orderedDesc']) {
+    assert.equal(
+      definitions.get(name)?.resultContract?.kind,
+      'documents',
+      `${name} must generate the declared document result contract`,
+    );
+  }
+}
+
+function assertDecodedRecordDocument(row, expectedValue) {
+  assert.deepEqual(
+    Object.keys(row).sort(),
+    ['_createdAt', '_id', '_updatedAt', '_version', 'value'],
+    `${expectedValue} must decode every declared and system document field without extras`,
+  );
+  assert.equal(row.value, expectedValue);
+  assert.equal(typeof row._id, 'string');
+  assert.ok(row._id.length > 0);
+  for (const field of ['_version', '_createdAt', '_updatedAt']) {
+    assert.equal(Number.isSafeInteger(row[field]), true, `${expectedValue}.${field}`);
+  }
+}
+
+async function proveFamiliarOrder(client, references, expectedAscending, phase) {
+  if (references.orderedAsc === null || references.orderedDesc === null) return null;
+  const ascending = (await client.query(references.orderedAsc, { args: {} })).rows;
+  const descending = (await client.query(references.orderedDesc, { args: {} })).rows;
+  assert.deepEqual(
+    ascending.map(({ value }) => value),
+    expectedAscending,
+    `${phase} packed Familiar ascending server order`,
+  );
+  assert.deepEqual(
+    descending.map(({ value }) => value),
+    [...expectedAscending].reverse(),
+    `${phase} packed Familiar descending server order`,
+  );
+  for (const row of ascending) assertDecodedRecordDocument(row, row.value);
+  for (const row of descending) assertDecodedRecordDocument(row, row.value);
+  return Object.freeze({
+    ascending: true,
+    descending: true,
+    decodedFields: ['_createdAt', '_id', '_updatedAt', '_version', 'value'],
+    resultContract: 'documents',
+    servedWithoutUnknownField: true,
+    serverBound: 3,
+  });
 }
 
 function writeAdditiveSchema(lane) {
@@ -573,6 +672,7 @@ async function proveM1ToM2({
   const applicationReadyFile = `${lane.readyFile}.application-ready`;
   const m1Receipt = readApplicationReadyReceipt(applicationReadyFile);
   const m1Generated = await importGeneratedApp(lane, 'm1');
+  assertFamiliarOrderGeneration(lane);
   const m1Binding = binding(m1Generated.app);
   assert.equal(m1Receipt.formatVersion, 'snapback.application-ready.v1');
   assert.deepEqual([...m1Receipt.clientOrigins].sort(), [...expectedClientOrigins].sort());
@@ -612,8 +712,15 @@ async function proveM1ToM2({
   let liveHandle = null;
   const email = `${lane.name}@packed-lifecycle.test`;
   const password = 'PackedLifecyclePassword!2026';
-  const value = `${lane.name} M1 row`;
+  const orderedValues = [
+    `${lane.name} alpha row`,
+    `${lane.name} middle row`,
+    `${lane.name} zulu row`,
+  ];
+  const value = orderedValues[1];
   const m1References = journeyReferences(m1Generated);
+  let m1Ordering = null;
+  let m2Ordering = null;
   assert.equal(
     appClientA.auth.currentPrincipal().status,
     'anonymous',
@@ -674,6 +781,20 @@ async function proveM1ToM2({
       || liveHandle.rows.some((row) => m1References.matches(row, value)),
     { label: `${lane.name} two-client live M1 delivery` },
   );
+  if (m1References.orderedAsc !== null) {
+    for (const orderedValue of [orderedValues[2], orderedValues[0]]) {
+      await appClientA.client.mutate(m1References.create, {
+        args: m1References.args(orderedValue),
+        queue: false,
+      });
+    }
+    m1Ordering = await proveFamiliarOrder(
+      appClientA.client,
+      m1References,
+      orderedValues,
+      'M1 activation',
+    );
+  }
   assert.ok(
     (await appClientA.client.query(m1References.list)).rows.some(
       (row) => m1References.matches(row, value),
@@ -706,6 +827,7 @@ async function proveM1ToM2({
   assert.deepEqual(m1Receipt.application.deployment, advance.fromDeployment);
   assert.notEqual(m2Receipt.binding.descriptorIdentity, m1Receipt.binding.descriptorIdentity);
   const m2Generated = await importGeneratedApp(lane, 'm2');
+  assertFamiliarOrderGeneration(lane);
   await refreshBinding(m2Generated.app);
   const m2Binding = binding(m2Generated.app);
   assert.equal(m2Binding.descriptorIdentity, m2Generated.app.identity.descriptor);
@@ -742,6 +864,12 @@ async function proveM1ToM2({
       ),
       `${lane.name} preserves the original product row through M2`,
     );
+    m2Ordering = await proveFamiliarOrder(
+      appClientA.client,
+      m2References,
+      orderedValues,
+      'M2 hot reload',
+    );
   } finally {
     await appClientA.dispose();
     await appClientB.dispose();
@@ -776,6 +904,12 @@ async function proveM1ToM2({
       toDeployment: advance.toDeployment,
       readyReceipt: m2Receipt,
     },
+    ...(m1Ordering === null ? {} : {
+      familiarOrder: {
+        m1: m1Ordering,
+        m2: m2Ordering,
+      },
+    }),
     extension,
   };
 }
