@@ -53,11 +53,13 @@ if [[ -n "$darwin_receipt_set" ]]; then
   test -f "$SNAPBACK_LINUX_STORE_RECEIPT"
   cp "$SNAPBACK_DARWIN_STORE_RECEIPT" \
     "$artifact_root/darwin/bin/packaged-store-qualification.receipt.json"
+  export SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE="$SNAPBACK_DARWIN_STORE_RECEIPT"
   linux_receipt_directory="$(cd "$(dirname "$SNAPBACK_LINUX_STORE_RECEIPT")" && pwd -P)"
   export SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT="$linux_receipt_directory/$(basename "$SNAPBACK_LINUX_STORE_RECEIPT")"
   unset SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS
 else
   rm -f "$artifact_root/darwin/bin/packaged-store-qualification.receipt.json"
+  unset SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE
   unset SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT
   export SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS=1
 fi

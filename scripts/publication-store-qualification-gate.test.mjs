@@ -6,8 +6,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  assertPublicationCapabilityQualificationMatrix,
   assertStagedRuntimeAdminConsole,
   assertStagedRuntimeStoreQualification,
+  createPublicationCapabilityQualification,
+  publicationCodegenRequiredCapabilities,
 } from './publication-store-qualification-gate.mjs';
 import { writeAdminConsoleSnapshotManifest } from '../packages/snapback-cli/admin-snapshot.mjs';
 
@@ -254,4 +257,154 @@ test('a partial runtime matrix is refused', () => {
       'SNAPBACK_PUBLICATION_STORE_RECEIPT_PLATFORM_INCOMPLETE',
     );
   });
+});
+
+function capabilityLedger() {
+  return {
+    revision: REVISION,
+    version: VERSION,
+    runtimePlatforms: ['darwin-arm64', 'linux-x64'],
+    packages: [
+      ...RUNTIME_NAMES.map((name, index) => ({
+        sourceName: name,
+        name,
+        version: VERSION,
+        runtimeBinarySha256: String(index + 1).repeat(64),
+      })),
+      {
+        sourceName: '@expo/snapback-codegen',
+        name: '@expo/snapback-codegen',
+        version: VERSION,
+      },
+    ],
+  };
+}
+
+function capabilityQualification(platform, overrides = {}) {
+  const ledger = capabilityLedger();
+  const runtime = ledger.packages.find((row) => row.name.endsWith(platform));
+  const required = publicationCodegenRequiredCapabilities();
+  return createPublicationCapabilityQualification({
+    platform,
+    sourceRevision: REVISION,
+    runtimePackage: runtime.name,
+    runtimeBinarySha256: runtime.runtimeBinarySha256,
+    codegenPackage: '@expo/snapback-codegen',
+    codegenVersion: VERSION,
+    codegenRequiredCapabilities: required,
+    runtimeManifest: {
+      targetProfileId: 'local-dev-sqlite-ibex',
+      supportedCapabilities: required,
+      capabilityGaps: ['cloudflare', 'postgres'],
+      ...overrides,
+    },
+  });
+}
+
+test('every codegen-required capability is admitted on both platform runtimes', () => {
+  const ledger = capabilityLedger();
+  const qualifications = ledger.runtimePlatforms.map((platform) => (
+    capabilityQualification(platform)
+  ));
+  const summary = assertPublicationCapabilityQualificationMatrix({ ledger, qualifications });
+  assert.deepEqual(summary.map(({ platform }) => platform), ledger.runtimePlatforms);
+  assert(summary.every(({ codegenRequiredCapabilities }) => (
+    codegenRequiredCapabilities.includes('assets.media-collection.v1')
+  )));
+  assert(summary.every(({ experimentalPolicy }) => experimentalPolicy === 'included-no-exemption'));
+});
+
+test('an experimental codegen requirement missing from Linux names capability, platform, and side', () => {
+  const ledger = capabilityLedger();
+  const linux = capabilityQualification('linux-x64');
+  linux.runtimeSupportedCapabilities = linux.runtimeSupportedCapabilities
+    .filter((id) => id !== 'assets.media-collection.v1');
+  linux.runtimeCapabilityGaps = [
+    ...linux.runtimeCapabilityGaps,
+    'assets.media-collection.v1',
+  ].sort();
+  assert.throws(
+    () => assertPublicationCapabilityQualificationMatrix({
+      ledger,
+      qualifications: [capabilityQualification('darwin-arm64'), linux],
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_PUBLICATION_CAPABILITY_REQUIRED_MISSING'
+      && error.message.includes("capability 'assets.media-collection.v1'")
+      && error.message.includes('platform linux-x64')
+      && error.message.includes('missing side: runtime')
+    ),
+  );
+});
+
+test('missing runtime capability evidence fails closed instead of passing', () => {
+  const ledger = capabilityLedger();
+  const linux = capabilityQualification('linux-x64');
+  delete linux.runtimeSupportedCapabilities;
+  assert.throws(
+    () => assertPublicationCapabilityQualificationMatrix({
+      ledger,
+      qualifications: [capabilityQualification('darwin-arm64'), linux],
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_PUBLICATION_CAPABILITY_SET_UNCOMPARABLE'
+      && error.message.includes('platform linux-x64')
+      && error.message.includes('missing side: comparison evidence')
+    ),
+  );
+});
+
+test('a contradictory runtime advertisement fails closed and names the capability', () => {
+  const ledger = capabilityLedger();
+  const linux = capabilityQualification('linux-x64');
+  linux.runtimeCapabilityGaps = [
+    ...linux.runtimeCapabilityGaps,
+    'assets.media-collection.v1',
+  ].sort();
+  assert.throws(
+    () => assertPublicationCapabilityQualificationMatrix({
+      ledger,
+      qualifications: [capabilityQualification('darwin-arm64'), linux],
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_PUBLICATION_CAPABILITY_REQUIRED_MISSING'
+      && error.message.includes("capability 'assets.media-collection.v1'")
+      && error.message.includes('platform linux-x64')
+      && error.message.includes('both supported and a gap')
+      && error.message.includes('missing side: runtime')
+    ),
+  );
+});
+
+test('retained codegen evidence may not omit an authoritative requirement', () => {
+  const ledger = capabilityLedger();
+  const linux = capabilityQualification('linux-x64');
+  linux.codegenRequiredCapabilities = linux.codegenRequiredCapabilities
+    .filter((id) => id !== 'assets.media-collection.v1');
+  assert.throws(
+    () => assertPublicationCapabilityQualificationMatrix({
+      ledger,
+      qualifications: [capabilityQualification('darwin-arm64'), linux],
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_PUBLICATION_CAPABILITY_REQUIRED_MISSING'
+      && error.message.includes("capability 'assets.media-collection.v1'")
+      && error.message.includes('missing side: codegen qualification evidence')
+    ),
+  );
+});
+
+test('an absent platform qualification fails closed', () => {
+  const ledger = capabilityLedger();
+  assert.throws(
+    () => assertPublicationCapabilityQualificationMatrix({
+      ledger,
+      qualifications: [capabilityQualification('darwin-arm64')],
+    }),
+    (error) => (
+      error.code === 'SNAPBACK_PUBLICATION_CAPABILITY_SET_UNCOMPARABLE'
+      && error.message.includes('platform linux-x64')
+      && error.message.includes('missing side: comparison evidence')
+    ),
+  );
 });

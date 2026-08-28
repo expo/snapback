@@ -14,6 +14,10 @@ export const RUNTIME_CATALOG_INSPECTION_FAILED_CODE =
   'SNAPBACK_RUNTIME_CATALOG_INSPECTION_FAILED';
 export const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SCHEMA_VERSION =
   'snapback.runtime-catalog-build-identity-proof.v1';
+const PUBLICATION_CAPABILITY_QUALIFICATION_FIELD =
+  'publicationCapabilityQualification';
+const PUBLICATION_CAPABILITY_QUALIFICATION_SCHEMA_VERSION =
+  'snapback.publication-capability-qualification.v1';
 
 const RUNTIME_CATALOG_BUILD_IDENTITY_PROOF_SOURCES = new Set([
   'native-inspection',
@@ -65,6 +69,26 @@ export function installPackagedStoreQualificationReceipt({
       'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
       `qualification receipt at ${source} is not valid JSON: ${error.message}`,
     );
+  }
+  if (Object.hasOwn(receipt ?? {}, PUBLICATION_CAPABILITY_QUALIFICATION_FIELD)) {
+    const qualification = receipt[PUBLICATION_CAPABILITY_QUALIFICATION_FIELD];
+    if (
+      qualification === null
+      || typeof qualification !== 'object'
+      || Array.isArray(qualification)
+      || qualification.schemaVersion !== PUBLICATION_CAPABILITY_QUALIFICATION_SCHEMA_VERSION
+    ) {
+      throw receiptError(
+        'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+        `qualification receipt at ${source} has an invalid ${PUBLICATION_CAPABILITY_QUALIFICATION_FIELD}`,
+      );
+    }
+    const {
+      [PUBLICATION_CAPABILITY_QUALIFICATION_FIELD]: _qualification,
+      ...runtimeReceipt
+    } = receipt;
+    receipt = runtimeReceipt;
+    bytes = Buffer.from(`${JSON.stringify(runtimeReceipt, null, 2)}\n`);
   }
   if (receipt?.schemaVersion !== PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION) {
     throw receiptError(

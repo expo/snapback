@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "snapback-guide-frontmatter",
   "title": "Snapback Guide page frontmatter",
-  "description": "Compatible core shared with the Exact guide (title, id, order, audience, capabilities, authorities, examples, status, reviewed) plus Snapback extensions (targets, maturity, reviewed-authorities-digest). Frontmatter uses the flat YAML subset: scalar values and inline arrays only. @ref LLP 0061#design — schema artifact required by the conventions.",
+  "description": "Compatible core shared with the Exact guide (title, id, order, audience, capabilities, authorities, examples, status, reviewed) plus Snapback extensions (targets, maturity, authoring-profiles, reviewed-authorities-digest). Frontmatter uses the flat YAML subset: scalar values and inline arrays only. @ref LLP 0061#design — schema artifact required by the conventions.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -53,6 +53,11 @@
     "maturity": {
       "enum": ["shipped", "partial", "design-only"],
       "description": "shipped: teach normally. partial: page must name what works and what does not. design-only: marked design-reference sections only, never a technique."
+    },
+    "authoring-profiles": {
+      "type": "array",
+      "enum": [[], ["explicit"], ["familiar"], ["explicit", "familiar"]],
+      "description": "Authoring profiles the page teaches. [] means profile-neutral; dual-profile pages use [explicit, familiar] in that order. Required for every new or materially edited authored page; unchanged legacy pages are temporarily content-bound by scripts/guide-authoring-profiles.mjs."
     },
     "since": {
       "type": "string",

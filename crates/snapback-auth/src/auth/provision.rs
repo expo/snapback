@@ -110,6 +110,15 @@ impl<Host: AuthProvisionHost> PreparedAuthProvision<Host> {
         self.requested_mode
     }
 
+    /// Return the candidate's already-validated password minimum so the
+    /// process owner can compare it with startup-bound provider state before
+    /// moving this one-use carrier into the commit path.
+    pub fn candidate_password_minimum_length(&self) -> u16 {
+        self.artifacts
+            .schema
+            .effective_auth_password_minimum_length()
+    }
+
     /// Validate and package input for this exact host type.
     ///
     /// The host method is required rather than defaulted: calling this with

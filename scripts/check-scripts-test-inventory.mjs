@@ -69,6 +69,11 @@ export const SCRIPTS_TEST_INVENTORY = Object.freeze([
     runner: { mechanism: 'verify-local-proof', gateId: 'diagnostics-registry-fixtures' },
   },
   {
+    file: 'scripts/guide-authoring-profiles.test.mjs',
+    disposition: 'run',
+    runner: { mechanism: 'verify-local-proof', gateId: 'guide-authoring-profile-fixtures' },
+  },
+  {
     file: 'scripts/guide-freshness.test.mjs',
     disposition: 'run',
     runner: { mechanism: 'verify-local-proof', gateId: 'guide-freshness-fixtures' },

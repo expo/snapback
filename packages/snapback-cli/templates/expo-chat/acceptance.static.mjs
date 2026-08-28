@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const artifacts = JSON.parse(readFileSync(
   new URL('./snapback/generated/artifacts.json', import.meta.url),
@@ -20,6 +23,7 @@ const inboxScreen = readFileSync(new URL('./src/screens/inbox-screen.tsx', impor
 const personaContext = readFileSync(new URL('./src/test-persona-context.tsx', import.meta.url), 'utf8');
 const runtimeAcceptance = readFileSync(new URL('./acceptance.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+const tsconfig = JSON.parse(readFileSync(new URL('./tsconfig.json', import.meta.url), 'utf8'));
 const expoManifest = JSON.parse(readFileSync(new URL('./app.json', import.meta.url), 'utf8'));
 const agentInstructions = readFileSync(new URL('./AGENTS.md', import.meta.url), 'utf8');
 const carrierSource = readFileSync(new URL('./carrier.mjs', import.meta.url), 'utf8');
@@ -100,6 +104,20 @@ assert.match(inboxScreen, /membershipsForUser/);
 assert.match(inboxScreen, /item\.kind === 'group'/);
 assert.match(personaContext, /production identity must come from adopted authority/);
 assert.deepEqual(expoManifest.expo.platforms, ['ios', 'android', 'web']);
+assert.deepEqual(
+  tsconfig.include,
+  ['App.tsx', 'snapback/generated/**/*.d.ts'],
+  'typecheck roots must not retain starter screens after App.tsx is replaced',
+);
+assert.equal(packageManifest.type, 'module');
+assert.equal(existsSync(new URL('./babel.config.js', import.meta.url)), false);
+const configureBabel = require('./babel.config.cjs');
+let babelCacheSetting;
+assert.deepEqual(
+  configureBabel({ cache(value) { babelCacheSetting = value; } }),
+  { presets: ['babel-preset-expo'] },
+);
+assert.equal(babelCacheSetting, true);
 assert.equal(packageManifest.scripts.web, 'expo start --web');
 assert.equal(packageManifest.scripts.dev, 'snapback dev snapback --write-env');
 assert.equal(packageManifest.scripts['dev:client'], 'expo start');

@@ -13,6 +13,7 @@ import {
   statSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { resolveAuthoringProfileScopes } from './guide-authoring-profiles.mjs';
 
 export const GUIDE_DIR = 'guide';
 export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
@@ -401,6 +402,21 @@ export function validateFrontmatter(fm, path, errors) {
     if (fm.targets.length === 0) errors.push(`${path}: 'targets' must not be empty`);
   } else if (fm.targets !== undefined) {
     errors.push(`${path}: 'targets' must be an array`);
+  }
+  if (Array.isArray(fm['authoring-profiles'])) {
+    const profiles = fm['authoring-profiles'];
+    const allowed = new Set(['explicit', 'familiar']);
+    for (const profile of profiles) {
+      if (!allowed.has(profile)) errors.push(`${path}: unknown authoring profile '${profile}'`);
+    }
+    if (new Set(profiles).size !== profiles.length) {
+      errors.push(`${path}: 'authoring-profiles' must not contain duplicates`);
+    }
+    if (profiles.join(',') === 'familiar,explicit') {
+      errors.push(`${path}: 'authoring-profiles' must use canonical order [explicit, familiar]`);
+    }
+  } else if (fm['authoring-profiles'] !== undefined) {
+    errors.push(`${path}: 'authoring-profiles' must be an array`);
   }
   for (const field of ['capabilities', 'authorities', 'examples']) {
     if (fm[field] !== undefined && !Array.isArray(fm[field])) errors.push(`${path}: '${field}' must be an array`);
@@ -1161,6 +1177,28 @@ export function checkFreshness(root, pageInfo, warnings, infos) {
   }
 }
 
+export function guideContentHash({ flat, pages, registryBytes, diagnosticsBytes }) {
+  const authoringProfileScopes = Object.entries(pages)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([id, page]) => [id, page.authoringProfiles]);
+  return createHash('sha256')
+    .update(flat)
+    // Legacy scopes are projected from a content-bound inventory rather than
+    // page frontmatter. Bind the effective table so rendered profile metadata
+    // cannot change under an unchanged advertised Guide identity.
+    .update('\0guide-authoring-profiles\0')
+    .update(JSON.stringify(authoringProfileScopes))
+    .update('\0guide-resource\0')
+    .update(SYMBOL_REGISTRY_PATH)
+    .update('\0')
+    .update(registryBytes)
+    .update('\0guide-resource\0')
+    .update(DIAGNOSTICS_REGISTRY_PATH)
+    .update('\0')
+    .update(diagnosticsBytes)
+    .digest('hex');
+}
+
 export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
   const publishedClosureRecord = loadPublishedClosure(root, []);
   const pages = {};
@@ -1174,6 +1212,7 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
       status: fm.status,
       targets: fm.targets,
       maturity: fm.maturity,
+      authoringProfiles: info.authoringProfiles,
       since: fm.since,
       unreleased: fm.unreleased === 'true' ? true : undefined,
       capabilities: fm.capabilities,
@@ -1268,17 +1307,12 @@ export function buildManifest(root, pageInfo, snippetRecords, index, surfaces) {
       }]),
     ),
   };
-  manifest.contentHash = createHash('sha256')
-    .update(wholeFlat)
-    .update('\0guide-resource\0')
-    .update(SYMBOL_REGISTRY_PATH)
-    .update('\0')
-    .update(registryBytes)
-    .update('\0guide-resource\0')
-    .update(DIAGNOSTICS_REGISTRY_PATH)
-    .update('\0')
-    .update(diagnosticsBytes)
-    .digest('hex');
+  manifest.contentHash = guideContentHash({
+    flat: wholeFlat,
+    pages: manifest.pages,
+    registryBytes,
+    diagnosticsBytes,
+  });
   manifest.buildIdentity.sourceDigest = `sha256:${manifest.contentHash}`;
   return manifest;
 }
@@ -1360,6 +1394,7 @@ export function loadCorpus(root) {
     pageInfo.set(path, { frontmatter, raw });
     pageBodies.set(path, body);
   }
+  resolveAuthoringProfileScopes(pageInfo, errors);
   return { errors, warnings, infos, pagePaths, pageInfo, pageBodies };
 }
 

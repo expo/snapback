@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -234,6 +235,42 @@ test('store receipt installation returns a discriminated result', () => {
     assert.equal(
       installed.destination,
       join(binDirectory, 'packaged-store-qualification.receipt.json'),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('platform capability evidence is retained outside the installed runtime receipt', () => {
+  const root = mkdtempSync(join(tmpdir(), 'runtime-package-capability-receipt-test-'));
+  try {
+    const sourceRoot = join(root, 'source');
+    const binDirectory = join(root, 'package', 'bin');
+    const sourceBinary = join(sourceRoot, 'snapback');
+    const receiptPath = join(root, 'receipt.json');
+    mkdirSync(sourceRoot, { recursive: true });
+    mkdirSync(binDirectory, { recursive: true });
+    writeFileSync(sourceBinary, 'fixture binary');
+    writeFileSync(receiptPath, `${JSON.stringify({
+      schemaVersion: 'snapback.packaged-store-qualification.v1',
+      capabilityId: 'single_table_v1',
+      publicationCapabilityQualification: {
+        schemaVersion: 'snapback.publication-capability-qualification.v1',
+      },
+    })}\n`);
+
+    const installed = installPackagedStoreQualificationReceipt({
+      sourceBinary,
+      binDirectory,
+      receiptEnvironmentName: 'SNAPBACK_FIXTURE_RECEIPT',
+      environment: { SNAPBACK_FIXTURE_RECEIPT: receiptPath },
+    });
+    const runtimeReceipt = JSON.parse(readFileSync(installed.destination, 'utf8'));
+    assert.equal(runtimeReceipt.capabilityId, 'single_table_v1');
+    assert.equal(
+      Object.hasOwn(runtimeReceipt, 'publicationCapabilityQualification'),
+      false,
+      'the deny-unknown Rust receipt receives only its native schema',
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

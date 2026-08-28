@@ -25,7 +25,7 @@ import {
 } from 'node:fs';
 import { release as osRelease, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   BROWSER_PROOF_INVOKED_HOST_COLLECTION_APIS,
@@ -60,6 +60,10 @@ import {
 } from './snapback-package-cold-install-lib.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
 import { stopOwnedProcessTree } from './lib/process-tree.mjs';
+import {
+  PUBLICATION_CAPABILITY_QUALIFICATION_FIELD,
+  createPublicationCapabilityQualification,
+} from './publication-store-qualification-gate.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BROWSER_PACKAGE_VERSION = '1.62.0';
@@ -1346,6 +1350,21 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       'bin',
       process.platform === 'win32' ? 'snapback.exe' : 'snapback',
     );
+    const inspectionResponse = await fetch(new URL('/inspect', descriptor.serverUrl), {
+      headers: { 'x-snapback-admin-token': adminToken },
+    });
+    let runtimeInspection;
+    try {
+      runtimeInspection = await inspectionResponse.json();
+    } catch (error) {
+      fail(`one-command starter runtime inspection was not JSON: ${error.message}`);
+    }
+    if (!inspectionResponse.ok || runtimeInspection?.capabilityManifest === undefined) {
+      fail(
+        `one-command starter runtime inspection omitted capabilityManifest: ${inspectionResponse.status}`,
+      );
+    }
+    const runtimeCapabilityManifest = runtimeInspection.capabilityManifest;
     const forbiddenMarkers = [
       { kind: 'admin-token', value: adminToken },
       { kind: 'admin-token-file', value: descriptor.adminTokenFile },
@@ -2173,6 +2192,8 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
     return {
       relativeBasePath: '/__snapback',
       browserJourney,
+      runtimeBinarySha256: sha256(runtimePath),
+      runtimeCapabilityManifest,
     };
   } finally {
     const cleanup = await stopOwnedProcessTree(child);
@@ -2936,6 +2957,37 @@ await build({
     reactScaffoldRoot,
     sourceIdentity,
   );
+  const installedCodegen = await import(`${pathToFileURL(join(
+    appRoot,
+    'node_modules',
+    ...generation.codegen.split('/'),
+    'index.mjs',
+  )).href}?publication-capability-qualification`);
+  if (typeof installedCodegen.codegenRequiredTargetCapabilityIdsCanonicalJson !== 'function') {
+    fail(
+      `publication capability comparison for platform ${hostPlatform} failed: installed codegen does not export its required capability set (missing side: codegen)`,
+    );
+  }
+  let codegenRequiredCapabilities;
+  try {
+    codegenRequiredCapabilities = JSON.parse(
+      installedCodegen.codegenRequiredTargetCapabilityIdsCanonicalJson(),
+    );
+  } catch (error) {
+    fail(
+      `publication capability comparison for platform ${hostPlatform} failed: installed codegen requirement set is invalid: ${error.message} (missing side: codegen)`,
+    );
+  }
+  const publicationCapabilityQualification = createPublicationCapabilityQualification({
+    platform: hostPlatform,
+    sourceRevision: sourceIdentity.revision,
+    runtimePackage: hostRuntime,
+    runtimeBinarySha256: managedStarter.runtimeBinarySha256,
+    codegenPackage: generation.codegen,
+    codegenVersion: ledger.version,
+    codegenRequiredCapabilities,
+    runtimeManifest: managedStarter.runtimeCapabilityManifest,
+  });
   assertStarterAcceptanceReceipt(
     run('npm', ['test'], { cwd: reactScaffoldRoot, timeout: 120_000 }),
     'React starter default test',
@@ -3231,6 +3283,7 @@ await build({
       sha256: entry.sha256,
       registrySha256: entry.registrySha256 ?? null,
     })),
+    [PUBLICATION_CAPABILITY_QUALIFICATION_FIELD]: publicationCapabilityQualification,
     comparatorReceipt,
     comparatorReceiptSha256: sha256Hex(canonicalJcs(comparatorReceipt)),
     deployBuild: {

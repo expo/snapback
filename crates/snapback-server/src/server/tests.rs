@@ -5564,6 +5564,9 @@ const CONFLICT_DIAGNOSTICS: &[&str] = &[
     // Catalog-v4 activation is one-way: redeclaring a different identifier
     // mode conflicts with the durable app identity contract.
     "SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_IMMUTABLE",
+    // The successor pair is durable, but the startup-bound provider cannot
+    // claim its new password minimum until the backend restarts.
+    "SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED",
     // @ref LLP 0146#oq6-author-ruling--2026-08-10 — stale remediation
     // bindings are conflicts, independent of the refusal that carried them.
     "SNAPBACK_REMEDIATION_ARTIFACT_STALE",

@@ -9,6 +9,7 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
+authoring-profiles: []
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:636aab1ee1ab3ffe0712f132f100f289ddd4c3ccae1af57e168e6a1af68d6b82
 ---
@@ -42,6 +43,7 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
 | `maturity` | yes | `shipped` \| `partial` \| `design-only`, consistent with the capability index. |
+| `authoring-profiles` | yes for new or materially edited authored pages | `[explicit]`, `[familiar]`, `[explicit, familiar]`, or `[]` for profile-neutral material. Unchanged legacy pages use the content-bound migration inventory below. |
 | `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
 | `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
@@ -54,6 +56,52 @@ doesn't. `design-only` material may appear only inside an explicitly marked
 **Design reference** section, never as a technique. Auth pages teach only
 behavior witnessed by an acceptance test or the server's own
 capability/inspect reporting.
+
+## Authoring-profile scope
+
+Snapback has two first-class source profiles, Explicit and Familiar. Every new
+or materially edited authored Guide page declares which profiles its teaching
+actually covers:
+
+- `authoring-profiles: [explicit]` means the page's usable authoring route is
+  Explicit. A passing mention of Familiar or a stop sign routing Familiar
+  authors elsewhere does not make the page dual-profile.
+- `authoring-profiles: [familiar]` means the usable route is Familiar-only.
+- `authoring-profiles: [explicit, familiar]` means an author can complete the
+  page's promise in either profile. Parallel snippets are not required when the
+  spelling is genuinely shared, but the page must state the shared route; a
+  common normalized runtime alone is not coverage.
+- `authoring-profiles: []` means profile-neutral: the page neither depends on
+  nor teaches a source-profile spelling. Client, protocol, deployment, and
+  operating material can be neutral when it starts after source normalization.
+
+The generated manifest projects this field as `authoringProfiles`, and the
+published HTML metadata renders it as **Explicit only**, **Familiar only**,
+**Explicit + Familiar**, or **Profile-neutral**. Scope must be visible to a
+reader; it is not an internal lint annotation.
+
+### Content-bound legacy migration
+
+The 2026-08-28 survey of the 100 authored pages found 5 Familiar-covered, 52
+Explicit-only, and 43 profile-neutral pages. In particular,
+`start/mental-model.md` is Explicit-only: it teaches the Explicit `.mjs`
+layout and routes Familiar authors to another page.
+
+This change converts `conventions.md` as the single exemplar. The other 99
+authored pages are frozen in
+`scripts/guide-authoring-profiles.mjs` by path, surveyed scope, and SHA-256 of
+the complete page bytes. The checker uses that surveyed scope for manifest and
+site projection only while the bytes still match. Generated
+`guide/reference/` API pages remain generator-owned and outside this authored
+page inventory; their projection scope is deterministic.
+
+The list shrinks through the ordinary edit path. A material edit to an
+inventoried page fails until the editor adds `authoring-profiles` to that page
+and removes its inventory row. A declaration that still has an inventory row,
+a missing inventoried page, and a new unscoped page also fail. Updating a hash
+to extend an exemption or adding a new legacy row is not a migration and is
+forbidden. The remaining corpus conversion is tracked in
+`issues/20260828-migrate-guide-authoring-profile-frontmatter.md`.
 
 ### Banner
 

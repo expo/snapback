@@ -59,6 +59,9 @@ export function storedStructuredContractHash(
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
+/** Canonical sorted capabilities the published local-target codegen can require. */
+export function codegenRequiredTargetCapabilityIdsCanonicalJson(): string;
+
 /** Test-only canonical projection of schema-authorable registry ids and reviewed exceptions. */
 export function targetCapabilityAuthoringVocabularyCanonicalJson(): string;
 

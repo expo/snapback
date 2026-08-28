@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { targetCapabilityAuthoringVocabularyCanonicalJson } from './index.mjs';
+import {
+  codegenRequiredTargetCapabilityIdsCanonicalJson,
+  experimentalTargetCapabilityIdsCanonicalJson,
+  targetCapabilityAuthoringVocabularyCanonicalJson,
+} from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 // @ref LLP 0134#9-acceptance — capability_v0.rs binds this committed
@@ -80,4 +84,33 @@ assert.deepEqual(
   'every Rust target capability id must be schema-authorable or explicitly reasoned as non-authorable',
 );
 
-console.log('target-capability-authoring-parity.test.mjs: 47 registry ids = 40 authorable + 7 intentionally non-authorable');
+const localTarget = JSON.parse(readFileSync(
+  join(packageDir, '..', '..', 'schemas', 'capability.manifest.local-dev-sqlite-ibex.json'),
+  'utf8',
+));
+const publicationRequired = JSON.parse(
+  codegenRequiredTargetCapabilityIdsCanonicalJson(),
+);
+assert.deepEqual(
+  publicationRequired,
+  [...localTarget.supportedCapabilities].sort(),
+  'publication requirements are the exact Rust-derived local target set codegen can admit',
+);
+assert.equal(
+  publicationRequired.includes('assets.media-collection.v1'),
+  true,
+  'experimental media collections remain publication requirements',
+);
+assert.equal(
+  JSON.parse(experimentalTargetCapabilityIdsCanonicalJson())
+    .includes('assets.media-collection.v1'),
+  true,
+  'the media-collection publication requirement exercises the experimental policy',
+);
+assert.equal(
+  publicationRequired.includes('agent_safe_storage_v1'),
+  false,
+  'a target gap is refused before codegen output rather than becoming a publication requirement',
+);
+
+console.log(`target-capability-authoring-parity.test.mjs: 47 registry ids = 40 authorable + 7 intentionally non-authorable; ${publicationRequired.length} publication requirements`);

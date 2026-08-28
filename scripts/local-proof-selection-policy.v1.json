@@ -1054,6 +1054,17 @@
       ]
     },
     {
+      "id": "scripts-guide-authoring-profiles",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/guide-authoring-profiles-baseline.mjs",
+        "scripts/guide-authoring-profiles.mjs",
+        "scripts/guide-authoring-profiles.test.mjs"
+      ]
+    },
+    {
       "id": "scripts-guide-freshness",
       "groups": [
         "guide"
@@ -1251,6 +1262,7 @@
       "lane": "fast",
       "gates": [
         "generated-artifacts",
+        "guide-authoring-profile-fixtures",
         "guide-published-closure-fixtures",
         "guide-shell-command-fixtures",
         "guide-freshness-fixtures",

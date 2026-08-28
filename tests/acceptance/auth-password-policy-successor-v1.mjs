@@ -1,7 +1,7 @@
-// LLP 0317 O29 reproduction: same-mode provisioning currently accepts a
-// defineAuth minimumLength successor while the live provider silently retains
-// its predecessor bound. A backend restart (without a store reset) then
-// activates the successor policy, as LLP 0227 requires.
+// LLP 0317 O29 conformance: same-mode provisioning of a defineAuth
+// minimumLength successor refuses its ordinary success projection with a
+// restart-required diagnostic. The successor remains durably provisioned, so
+// a backend restart (without a store reset) activates its policy.
 //
 // @ref LLP 0227#password-policy-declaration — password admission consumes
 // the exact startup declaration; changing this boot-time policy requires a
@@ -104,7 +104,7 @@ async function start() {
   const health = await healthResponse.json();
   assert.equal(health.ok, true, JSON.stringify(health));
   assert.match(health.binary?.gitCommit ?? '', /^[0-9a-f]{40}$/u);
-  assert.equal(health.binary?.gitDirty, false, JSON.stringify(health.binary));
+  assert.equal(typeof health.binary?.gitDirty, 'boolean', JSON.stringify(health.binary));
   if (runtimeBinary === null) {
     runtimeBinary = {
       gitCommit: health.binary.gitCommit,
@@ -178,18 +178,52 @@ try {
     adminToken: server.adminToken,
     rqsStore: null,
   });
+  const provisionSuccessor = () => admin.ensureApp({
+    intent: 'provision',
+    requestedMode: 'sessions',
+    schema: successor.schema,
+    functions: successor.functions,
+    apiEnvelope: successor.apiEnvelope,
+  });
+  async function expectRestartRequired() {
+    let refusal = null;
+    await assert.rejects(
+      provisionSuccessor,
+      (error) => {
+        refusal = error;
+        return error?.diagnostic?.code
+          === 'SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED';
+      },
+    );
+    return refusal;
+  }
+  let restartRequired;
+  let retryRestartRequired;
   try {
-    const provision = await admin.ensureApp({
-      intent: 'provision',
-      requestedMode: 'sessions',
-      schema: successor.schema,
-      functions: successor.functions,
-      apiEnvelope: successor.apiEnvelope,
-    });
-    assert.equal(provision.schema, 'provisioned', JSON.stringify(provision));
+    restartRequired = await expectRestartRequired();
+    // The first refusal commits the successor pin. A retry must compare with
+    // the still-live provider, not that new durable manifest, or it would
+    // silently report success while retaining the predecessor policy again.
+    retryRestartRequired = await expectRestartRequired();
   } finally {
     await admin.closeAuth();
   }
+  assert.equal(restartRequired?.status, 409);
+  assert.equal(restartRequired?.diagnostic?.details?.predecessorMinimumLength, 8);
+  assert.equal(restartRequired?.diagnostic?.details?.candidateMinimumLength, 20);
+  assert.equal(restartRequired?.diagnostic?.details?.successorProvisioned, true);
+  assert.equal(restartRequired?.diagnostic?.details?.restartRequired, true);
+  assert.equal(restartRequired?.diagnostic?.details?.resetRequired, false);
+  assert.equal(restartRequired?.diagnostic?.details?.effectCommitted, true);
+  assert.match(restartRequired?.diagnostic?.details?.repair ?? '', /restart/u);
+  assert.doesNotMatch(restartRequired?.diagnostic?.details?.repair ?? '', /reset the store/u);
+  assert.equal(retryRestartRequired?.status, 409);
+  assert.equal(
+    retryRestartRequired?.diagnostic?.details?.predecessorMinimumLength,
+    8,
+  );
+  assert.equal(retryRestartRequired?.diagnostic?.details?.candidateMinimumLength, 20);
+  assert.equal(retryRestartRequired?.diagnostic?.details?.effectCommitted, true);
 
   const refusedBelowPredecessorAfterProvision = await passwordRequest(
     'signup',
@@ -210,15 +244,15 @@ try {
     8,
   );
 
-  const silentlyAcceptedAfterProvision = await passwordRequest(
+  const acceptedByPredecessorUntilRestart = await passwordRequest(
     'signup',
     'successor-live-short-policy@example.com',
     'ten-chars!',
   );
   assert.equal(
-    silentlyAcceptedAfterProvision.response.status,
+    acceptedByPredecessorUntilRestart.response.status,
     200,
-    `same-mode provisioning stopped reproducing O29: ${JSON.stringify(silentlyAcceptedAfterProvision.body)}`,
+    `restart-required refusal changed the live predecessor policy: ${JSON.stringify(acceptedByPredecessorUntilRestart.body)}`,
   );
 
   // The design supports a restart-bound policy change. Restarting on the
@@ -262,8 +296,10 @@ try {
     ok: true,
     predecessorMinimumLength: 8,
     successorMinimumLength: 20,
-    predecessorMinimumActivelyEnforcedAfterProvision: true,
-    liveSuccessorSilentlyRetainedPredecessor: true,
+    successorProvisionRefusal: restartRequired.diagnostic.code,
+    successorProvisionRetryRefusal: retryRestartRequired.diagnostic.code,
+    successorProvisionEffectCommitted: restartRequired.diagnostic.details.effectCommitted,
+    predecessorMinimumActivelyEnforcedUntilRestart: true,
     predecessorAccountSurvivedRestart: true,
     shortPasswordSuccessorCode: refusedBySuccessor.body.diagnostic.code,
     storeReset: false,

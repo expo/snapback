@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:40ab4e8ea00bd68b896da53dd39a2e22b6891f5f4dd3
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:85982b417d4ff2bc7aa1db54e39a2b7726bfd64dbfb725d7d3e2ec3f1aeadd24`.
+`sha256:a2ef22da999c8ce3220ce436784084879ed347131dfa77cfb98f1584d3292033`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -8763,6 +8763,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_CONFLICT'
   | 'SNAPBACK_AUTH_PASSWORD_MINIMUM_LENGTH_INVALID'
   | 'SNAPBACK_AUTH_PASSWORD_POLICY'
+  | 'SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED'
   | 'SNAPBACK_AUTH_PASSWORD_REQUIRES_V4'
   | 'SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE'
   | 'SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED'

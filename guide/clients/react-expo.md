@@ -9,6 +9,7 @@ examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receip
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 reviewed: 2026-08-25
 reviewed-authorities-digest: sha256:d0b414626c974f56c2dde5a8d18d6ce46190dc3097bc5a8b30af54a133d4b624
 ---
@@ -706,6 +707,16 @@ Expo with `--web`; unlike pressing `w` in an independently started Metro
 process, it establishes the supervised bootstrap first. Three
 package-level paves make this work; each keeps its existing security or
 custody boundary:
+
+For both Explicit and Familiar apps, React Native Web has a renderer boundary
+that Snapback cannot repair: it drops `accessibilityValue` instead of projecting
+it to `aria-valuetext`, and an `<Image>` can become a CSS-background descendant
+rather than a semantic image element. When those semantics matter, project the
+same app state into an app-owned web accessibility layer — for example,
+`aria-valuetext` for a value and an image role plus equivalent label or alt text
+for imagery. Keeping that projection synchronized is the application's job
+because it expresses product meaning across the RNW renderer; the drop is not a
+Snapback data, transport, or client-runtime bug.
 
 - **The bootstrap exchange serves CORS to loopback browser origins only.**
   A page served from `http://localhost:<port>` (Metro web) can complete the

@@ -6745,14 +6745,15 @@ id: backend.schema-evolution
 order: 29
 audience: agent-first
 capabilities: [backend.schema-evolution]
-authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-cli/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
-examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, llp/0227-password-credential-auth.rfc.md, crates/snapback-types/src/auth/mode.rs, crates/snapback-auth/src/auth/provision.rs, crates/snapback-cli/src/cli.rs, crates/snapback-engine/src/local/engine.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-server/src/server.rs, packages/snapback-cli/index.mjs]
+examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback-cli/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs, tests/acceptance/auth-password-policy-successor-v1.mjs]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit, familiar]
 since: 0.1.21
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:b476c2fd5a9a0f161241edaf426111b715fe4ff7e28400191b91deeb893ee2ed
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:ab0a227067978068646877c50806e8aae08e050b99f1a5748e779fd197b25119
 ---
 
 # Evolve a sessions schema without discarding data
@@ -6828,6 +6829,41 @@ including comment-only function changes. If preparation, capability, schema,
 or storage validation fails, startup remains closed, the old pin stays active,
 and the existing database is not discarded. Fix the candidate and rerun the
 managed loop.
+
+<!-- since: 0.1.30 unreleased -->
+> **Unreleased.** The coded password-policy successor refusal is newer than the
+> newest published closure recorded in `guide/published-closure.json`, 0.1.27.
+> That record is itself behind the registry, which carries 0.1.29 — tracked in
+> `issues/20260828-published-closure-record-behind-npm.md`. Either way this
+> refusal is unreleased: an already-published runtime still exhibits the silent
+> predecessor behavior described below, and the 0.1.29 packages the Clique
+> matrix ran did.
+
+## Restart after changing the password minimum
+
+<!-- diagnostic-primary: SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED -->
+
+Both Explicit and Familiar authoring profiles lower `defineAuth` to the same
+startup-bound password policy. If a running sessions backend receives a
+successor whose `mechanisms.<name>.minimumLength` differs from the active
+value, `ensureApp` returns
+`SNAPBACK_AUTH_PASSWORD_POLICY_RESTART_REQUIRED` instead of claiming the new
+bound is live.
+
+The diagnostic is an effect-committed refusal: the complete successor pair and
+deployment pin have already been provisioned, while the current process keeps
+enforcing the predecessor minimum. Its details name
+`predecessorMinimumLength`, `candidateMinimumLength`, and
+`successorProvisioned: true`. Stop the backend and restart it with the generated
+successor startup artifacts. Keep the same database and auth sidecars; no reset
+or migration is required. Repeating the live provisioning request returns the
+same refusal; only restart changes the process-local auth provider.
+
+The packaged `snapback dev` owner may perform that restart as part of its
+managed successor loop. With lower-level `snapback start`, restart explicitly
+with the exact successor carrier that produced the diagnostic. After restart,
+`SNAPBACK_AUTH_PASSWORD_POLICY` reports the candidate minimum on a short
+password, and predecessor accounts remain available in the unchanged store.
 
 ## Recover from SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH
 

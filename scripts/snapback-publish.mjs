@@ -41,8 +41,12 @@ import {
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
 import { enforceTelemetryCurrentGate } from './telemetry-release-gate.mjs';
 import {
+  CAPABILITY_QUALIFICATION_ENV_BY_PLATFORM,
+  PUBLICATION_CAPABILITY_QUALIFICATION_FIELD,
+  assertPublicationCapabilityQualificationMatrix,
   assertStagedRuntimeAdminConsole,
   assertStagedRuntimeStoreQualification,
+  readPublicationCapabilityQualificationsFromEnvironment,
 } from './publication-store-qualification-gate.mjs';
 import { verifyRuntimePackageSeal } from '../packages/snapback-cli/runtime-readiness.mjs';
 import {
@@ -593,12 +597,18 @@ if (options.publish) {
     };
   });
   try {
+    assertPublicationCapabilityQualificationMatrix({
+      ledger: qualifiedLedger,
+      qualifications: records.map(
+        ({ receipt }) => receipt?.[PUBLICATION_CAPABILITY_QUALIFICATION_FIELD],
+      ),
+    });
     qualifiedPlatformReceipts = validateQualifiedPlatformReceipts({
       ledger: qualifiedLedger,
       records,
     });
   } catch (error) {
-    fail(`qualified platform receipts refused: ${error.message}`);
+    fail(`qualified platform receipts refused: ${error.message}`, 1, error.code);
   }
   rows = qualifiedLedger.packages.map((row) => ({
     ...row,
@@ -649,6 +659,29 @@ const ledger = options.publish ? {
   packages: rows,
   ...(qualifiedShape ? { stagedLedgerSha256: null } : {}),
 };
+if (!options.publish) {
+  const capabilityQualificationInputPresent = Object.values(
+    CAPABILITY_QUALIFICATION_ENV_BY_PLATFORM,
+  ).some((name) => Object.hasOwn(process.env, name));
+  // The receiptless pass manufactures the bytes later executed on both
+  // platforms; it is not publication-qualified until pass two supplies both
+  // receipts. Any partial evidence still enters the fail-closed comparison.
+  const receiptlessManufacturingPass =
+    process.env.SNAPBACK_ALLOW_MISSING_STORE_RECEIPTS === '1';
+  if (
+    (qualifiedShape && !receiptlessManufacturingPass)
+    || capabilityQualificationInputPresent
+  ) {
+    try {
+      assertPublicationCapabilityQualificationMatrix({
+        ledger,
+        qualifications: readPublicationCapabilityQualificationsFromEnvironment(),
+      });
+    } catch (error) {
+      fail(error.message, 1, error.code);
+    }
+  }
+}
 const ledgerPath = join(options.out, 'publish-ledger.json');
 if (options.publish && resolve(ledgerPath) === resolve(options.qualifiedLedger)) {
   fail('candidate ledger output must not overwrite the immutable qualified ledger');

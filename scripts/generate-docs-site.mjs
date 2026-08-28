@@ -25,6 +25,7 @@ import {
   SYMBOL_REGISTRY_PATH,
   buildFlatGuide,
   checkPublishedClosure,
+  guideContentHash,
   listGuidePages,
   markdownAnchorPlan,
   parseFrontmatter,
@@ -556,6 +557,15 @@ function renderNavigation(manifest, routesById, currentId) {
   return groups.join('\n');
 }
 
+function authoringProfileLabel(profiles) {
+  if (!Array.isArray(profiles)) return 'Authoring scope unavailable';
+  if (profiles.length === 0) return 'Profile-neutral';
+  if (profiles.length === 1 && profiles[0] === 'explicit') return 'Explicit only';
+  if (profiles.length === 1 && profiles[0] === 'familiar') return 'Familiar only';
+  if (profiles.join(',') === 'explicit,familiar') return 'Explicit + Familiar';
+  fail(`invalid manifest authoringProfiles ${JSON.stringify(profiles)}`);
+}
+
 function renderPage({
   sourcePath,
   page,
@@ -591,6 +601,7 @@ function renderPage({
     );
   }
   const targetLabel = Array.isArray(page.targets) ? page.targets.join(', ') : 'unspecified';
+  const profileLabel = authoringProfileLabel(page.authoringProfiles);
   const navigation = renderNavigation(manifest, routesById, page.id);
   const canonicalRoute = pageRoute(sourcePath, canonicalBasePath);
   const canonicalLink = basePath === canonicalBasePath
@@ -621,7 +632,7 @@ ${canonicalLink}  <link rel="icon" href="${atBase(basePath, '/assets/favicon.svg
       ${navigation}
     </nav>
     <main id="content" data-guide-id="${escapeAttribute(page.id)}" data-source-path="${escapeAttribute(sourcePath)}">
-      <div class="page-meta"><span>${escapeHtml(page.maturity ?? 'unknown')}</span><span>${escapeHtml(targetLabel)}</span><span>${escapeHtml(sourcePath)}</span></div>
+      <div class="page-meta"><span>${escapeHtml(page.maturity ?? 'unknown')}</span><span>${escapeHtml(targetLabel)}</span><span data-authoring-profiles="${escapeAttribute((page.authoringProfiles ?? []).join(','))}">${escapeHtml(profileLabel)}</span><span>${escapeHtml(sourcePath)}</span></div>
       ${pageLabels.join('\n')}
       ${rendered.html}
     </main>
@@ -865,19 +876,17 @@ function loadInputs(root) {
   if (diagnosticsResource.sha256 !== sha256(diagnosticsBytes)) {
     fail(`${MANIFEST_PATH}: diagnostics registry sha256 is stale`);
   }
-  const expectedGuideDigest = createHash('sha256')
-    .update(flatBytes)
-    .update('\0guide-resource\0')
-    .update(SYMBOL_REGISTRY_PATH)
-    .update('\0')
-    .update(registryBytes)
-    .update('\0guide-resource\0')
-    .update(DIAGNOSTICS_REGISTRY_PATH)
-    .update('\0')
-    .update(diagnosticsBytes)
-    .digest('hex');
+  const expectedGuideDigest = guideContentHash({
+    flat: flatBytes,
+    pages: manifest.pages,
+    registryBytes,
+    diagnosticsBytes,
+  });
   if (manifest.contentHash !== expectedGuideDigest) {
-    fail(`${MANIFEST_PATH}: contentHash does not bind the current flat Guide + symbol registry`);
+    fail(
+      `${MANIFEST_PATH}: contentHash does not bind the current flat Guide, `
+        + 'authoring-profile scopes, and registries',
+    );
   }
 
   const binding = {

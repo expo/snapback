@@ -7,6 +7,7 @@
 // bootstrap run is visibly qualification-only and must prove retained render.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
@@ -22,6 +23,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { coldInstallStagedPackageClosure } from './snapback-package-cold-install-lib.mjs';
+import {
+  PUBLICATION_CAPABILITY_QUALIFICATION_FIELD,
+  createPublicationCapabilityQualification,
+} from './publication-store-qualification-gate.mjs';
 
 const RECEIPT_ENV = 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT';
 const MODE_ENV = 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE';
@@ -37,6 +42,8 @@ Options:
                            (default: dist-publish)
   --runtime-binary <path>  Clean public-package release snapback binary
                            (default: SNAPBACK_RUNTIME_BINARY or target/release/snapback)
+  --qualification-out <path>
+                           Write the store receipt plus platform capability evidence
   --keep                   Keep the temporary cold-install application
   -h, --help               Print this help
 `;
@@ -46,6 +53,7 @@ function parseArguments(argv) {
   const parsed = {
     stagedDir: join(root, 'dist-publish'),
     runtimeBinary: process.env.SNAPBACK_RUNTIME_BINARY ?? join(root, 'target', 'release', 'snapback'),
+    qualificationOut: null,
     keep: false,
     help: false,
   };
@@ -64,12 +72,18 @@ function parseArguments(argv) {
       parsed.keep = true;
       continue;
     }
-    if (argument === '--staged-dir' || argument === '--runtime-binary') {
+    if (argument === '--staged-dir'
+        || argument === '--runtime-binary'
+        || argument === '--qualification-out') {
       if (seen.has(argument)) throw new TypeError(`duplicate ${argument}`);
       seen.add(argument);
       const value = argv[++index];
       if (!value || value.startsWith('-')) throw new TypeError(`${argument} requires a path`);
-      parsed[argument === '--staged-dir' ? 'stagedDir' : 'runtimeBinary'] = value;
+      parsed[argument === '--staged-dir'
+        ? 'stagedDir'
+        : argument === '--runtime-binary'
+          ? 'runtimeBinary'
+          : 'qualificationOut'] = value;
       continue;
     }
     throw new TypeError(`unrecognized argument: ${argument}`);
@@ -202,6 +216,7 @@ async function main() {
   let activeRuntime = null;
   let activeLive = null;
   let activeStore = null;
+  let receiptBackedCapabilityManifest = null;
   const suite = { id: SUITE_ID, pass: 0, fail: 0, skipped: 0 };
   const failures = [];
   const check = async (name, operation) => {
@@ -381,7 +396,8 @@ export const addItem = defineMutation({
       adminToken: activeRuntime.adminToken,
       rqsStore: null,
     });
-    assertAdvertised((await receiptClient.inspect()).capabilityManifest, {
+    receiptBackedCapabilityManifest = (await receiptClient.inspect()).capabilityManifest;
+    assertAdvertised(receiptBackedCapabilityManifest, {
       qualificationMode: false,
     });
     await receiptClient.ensureApp({ schema, functions, seed });
@@ -410,12 +426,60 @@ export const addItem = defineMutation({
     await activeRuntime.stop();
     activeRuntime = null;
 
+    if (args.qualificationOut !== null) {
+      if (typeof codegen.codegenRequiredTargetCapabilityIdsCanonicalJson !== 'function') {
+        throw new Error(
+          `publication capability comparison for platform ${process.platform}-${process.arch} failed: installed codegen does not export its required capability set (missing side: codegen)`,
+        );
+      }
+      let codegenRequiredCapabilities;
+      try {
+        codegenRequiredCapabilities = JSON.parse(
+          codegen.codegenRequiredTargetCapabilityIdsCanonicalJson(),
+        );
+      } catch (error) {
+        throw new Error(
+          `publication capability comparison for platform ${process.platform}-${process.arch} failed: installed codegen requirement set is invalid: ${error.message} (missing side: codegen)`,
+        );
+      }
+      const platform = `${process.platform}-${process.arch}`;
+      const runtimePackage = installed.packageClosure.find(
+        ({ name }) => name === `@expo/snapback-runtime-${platform}`,
+      );
+      const codegenPackage = installed.packageClosure.find(
+        ({ name }) => name === '@expo/snapback-codegen',
+      );
+      if (runtimePackage === undefined || codegenPackage === undefined) {
+        throw new Error(
+          `publication capability comparison for platform ${platform} failed: installed package identities are incomplete (missing side: comparison evidence)`,
+        );
+      }
+      const storeReceipt = readJson(receipt);
+      const qualification = createPublicationCapabilityQualification({
+        platform,
+        sourceRevision: storeReceipt.binaryIdentity.gitCommit,
+        runtimePackage: runtimePackage.name,
+        runtimeBinarySha256: createHash('sha256').update(readFileSync(runtimeBinary)).digest('hex'),
+        codegenPackage: codegenPackage.name,
+        codegenVersion: codegenPackage.version,
+        codegenRequiredCapabilities,
+        runtimeManifest: receiptBackedCapabilityManifest,
+      });
+      writeFileSync(resolve(args.qualificationOut), `${JSON.stringify({
+        ...storeReceipt,
+        [PUBLICATION_CAPABILITY_QUALIFICATION_FIELD]: qualification,
+      }, null, 2)}\n`);
+    }
+
     console.log(JSON.stringify({
       schemaVersion: 'snapback.packaged-store-qualification-run.v1',
       ok: true,
       suite,
       packages: installed.packageClosure.length,
       receipt,
+      qualificationReceipt: args.qualificationOut === null
+        ? null
+        : resolve(args.qualificationOut),
       temporary: args.keep ? temporary : null,
     }));
   } finally {
