@@ -1332,6 +1332,67 @@ test('G1 closure admits only the exact initial public-policy corpus once', () =>
   }
 });
 
+test('pre-push refuses an unavailable predecessor distinctly and allows it after fetch', () => {
+  const sourceRoot = mkdtempSync(join(tmpdir(), 'snapback-visibility-predecessor-source-'));
+  const cloneParent = mkdtempSync(join(tmpdir(), 'snapback-visibility-predecessor-clone-'));
+  const cloneRoot = join(cloneParent, 'repository');
+  try {
+    git(sourceRoot, 'init', '-q');
+    git(sourceRoot, 'branch', '-M', 'main');
+    writeFileSync(
+      join(sourceRoot, GOVERNANCE_FILES.g1Closure),
+      readFileSync(join(packageRoot, '..', '..', GOVERNANCE_FILES.g1Closure)),
+    );
+    const predecessorOid = commitAll(sourceRoot, 'governed predecessor');
+    writeFileSync(join(sourceRoot, 'README.md'), 'issues-only successor\n');
+    const afterOid = commitAll(sourceRoot, 'issues-only successor');
+
+    execFileSync('git', [
+      'clone',
+      '--depth',
+      '1',
+      pathToFileURL(sourceRoot).href,
+      cloneRoot,
+    ], { stdio: 'ignore' });
+    assert.throws(
+      () => execFileSync('git', ['cat-file', '-e', `${predecessorOid}^{commit}`], {
+        cwd: cloneRoot,
+        stdio: 'ignore',
+      }),
+    );
+
+    const input = `HEAD ${afterOid} refs/heads/main ${predecessorOid}\n`;
+    assert.throws(
+      () => runPrePushAdmission({ input, root: cloneRoot, env: {} }),
+      ({ code, message }) => (
+        code === 'SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PREDECESSOR_UNAVAILABLE'
+        && /git fetch/u.test(message)
+        && /rebase/u.test(message)
+      ),
+    );
+    assert.throws(
+      () => runPrePushAdmission({
+        input: `HEAD ${afterOid} refs/heads/main ${'0'.repeat(40)}\n`,
+        root: cloneRoot,
+        env: {},
+      }),
+      ({ code, message }) => (
+        code === 'SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION'
+        && /protected single-ref creation service/u.test(message)
+      ),
+    );
+
+    git(cloneRoot, 'fetch', '--unshallow', 'origin');
+    assert.deepEqual(
+      runPrePushAdmission({ input, root: cloneRoot, env: {} }),
+      { checked: 1, exempt: 0 },
+    );
+  } finally {
+    rmSync(sourceRoot, { recursive: true, force: true });
+    rmSync(cloneParent, { recursive: true, force: true });
+  }
+});
+
 function protectedConfigEnv(root, config) {
   const path = join(root, 'protected-visibility-governance-config.json');
   writeJson(root, 'protected-visibility-governance-config.json', config);

@@ -2090,15 +2090,30 @@ function overrideIsNarrowerOrEqual(before, after) {
 }
 
 function artifactAtRevision(root, revision, path) {
+  const { execFileSync } = requireNodeChildProcess();
   try {
-    const { execFileSync } = requireNodeChildProcess();
     return execFileSync('git', ['show', `${revision}:${path}`], {
       cwd: root,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch {
-    return null;
+    let entry;
+    try {
+      entry = execFileSync('git', ['ls-tree', '--full-tree', revision, '--', path], {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch {
+      refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+        `governance revision ${revision} is not readable while resolving ${path}`,
+        { revision, path });
+    }
+    if (entry.trim() === '') return null;
+    refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+      `governance artifact ${path} at revision ${revision} is not readable`,
+      { revision, path });
   }
 }
 
@@ -2111,6 +2126,21 @@ export function installGovernanceNodeChildProcess(value) {
 function requireNodeChildProcess() {
   if (!nodeChildProcess) throw new Error('visibility governance Git adapter is not installed');
   return nodeChildProcess;
+}
+
+function revisionIsReadableCommit(root, revision) {
+  try {
+    const { execFileSync } = requireNodeChildProcess();
+    for (const object of [`${revision}^{commit}`, `${revision}^{tree}`]) {
+      execFileSync('git', ['cat-file', '-e', object], {
+        cwd: root,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function parseRevisionJson(root, revision, path) {
@@ -3489,6 +3519,14 @@ function governanceBackendPathsAtRevision(root, revision) {
 }
 
 export function compareGovernanceSnapshots({ root, beforeOid, afterOid, backendPaths = [] }) {
+  // @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+  // — an unavailable predecessor proves neither artifact absence nor remote
+  // priorness, so it cannot enter the one-time G1 introduction path.
+  if (!revisionIsReadableCommit(root, beforeOid)) {
+    refuse('SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PREDECESSOR_UNAVAILABLE',
+      `advertised predecessor ${beforeOid} is not readable locally; run git fetch and rebase onto the advertised remote tip before retrying the push`,
+      { beforeOid });
+  }
   const paths = [...new Set([
     ...backendPaths,
     ...governanceBackendPathsAtRevision(root, beforeOid),
