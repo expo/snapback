@@ -1540,6 +1540,17 @@ spellings and repairs appear only under Required guidance.
      Required guidance: "one bounded, idempotent mutation",
      "request-time expiry check",
      "does **not** currently ship generic production email or SMS delivery adapters".
+135. **Generated app exceeds the React identity budget:** "A third milestone
+     of live queries made `app.api.queries` exceed 4096 CanonicalClientValue
+     nodes and Expo booted blank." The run fails if it waits for provider boot
+     to reveal the limit, suggests increasing the shared budget, or requires
+     reading `canonical-client-value.mjs` to find the repair.
+     Expected pages: `start/expo-chat.md`, `clients/react-expo.md`.
+     Route terms: "generated app 4096 nodes", "app.api.queries",
+     "blank Expo boot".
+     Required guidance per page:
+     `start/expo-chat.md`: "4,096-node `CanonicalClientValueV1` ceiling", "Do not export unused table queries", "optional `before` argument".
+     `clients/react-expo.md`: "4,096-node ceiling", "Do not export unused table queries", "optional `before` argument", "SNAPBACK_REACT_ARGS_INVALID".
 
 
 

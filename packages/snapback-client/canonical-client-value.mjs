@@ -96,11 +96,8 @@ function captureObject(value, path) {
   return keys.map((key) => [key, descriptors[key]]);
 }
 
-/**
- * Validate and serialize an admitted value to RFC 8785/JCS bytes. The return
- * value is a string because every admitted byte sequence is UTF-8 JSON.
- */
-export function canonicalizeClientValueV1(value, options = {}) {
+/** Traverse and serialize once so canonicalization and measurement cannot drift. */
+function canonicalClientValueV1Measurement(value, options = {}) {
   const limits = {
     ...CANONICAL_CLIENT_VALUE_V1_LIMITS,
     ...(options.limits ?? {}),
@@ -205,7 +202,24 @@ export function canonicalizeClientValueV1(value, options = {}) {
       limit: limits.maxKeyUtf8Bytes,
     });
   }
-  return canonical;
+  return Object.freeze({ canonical, nodes, bytes });
+}
+
+/**
+ * Validate and serialize an admitted value to RFC 8785/JCS bytes. The return
+ * value is a string because every admitted byte sequence is UTF-8 JSON.
+ */
+export function canonicalizeClientValueV1(value, options = {}) {
+  return canonicalClientValueV1Measurement(value, options).canonical;
+}
+
+/**
+ * Validate and serialize an admitted value while exposing the exact work-unit
+ * counts produced by the canonical traversal. Consumers that need a budget
+ * projection must use this owner rather than recreating its node grammar.
+ */
+export function measureCanonicalClientValueV1(value, options = {}) {
+  return canonicalClientValueV1Measurement(value, options);
 }
 
 export function canonicalReactStoreKeyV1(providerInstanceId, reference, args) {

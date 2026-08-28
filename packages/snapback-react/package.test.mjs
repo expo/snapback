@@ -8,6 +8,7 @@ import {
   canonicalizeClientValueV1,
   inspectionPseudonymV1,
 } from '@expo/snapback-client';
+import { measureCanonicalClientValueV1 } from '@expo/snapback-client/canonical-client-value';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
@@ -501,6 +502,13 @@ const exactly4096Nodes = [
   Array.from({ length: 14 }, () => null),
 ];
 assert.doesNotThrow(() => canonicalizeClientValueV1(exactly4096Nodes));
+const exactly4096Measurement = measureCanonicalClientValueV1(exactly4096Nodes);
+assert.equal(exactly4096Measurement.nodes, 4_096);
+assert.equal(
+  exactly4096Measurement.bytes,
+  new TextEncoder().encode(exactly4096Measurement.canonical).byteLength,
+);
+assert.equal(exactly4096Measurement.canonical, canonicalizeClientValueV1(exactly4096Nodes));
 exactly4096Nodes.at(-1).push(null);
 assert.throws(
   () => canonicalizeClientValueV1(exactly4096Nodes),

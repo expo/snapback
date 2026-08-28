@@ -14,6 +14,16 @@ export function canonicalizeClientValueV1(
     readonly limits?: Partial<CanonicalClientValueV1Limits>;
   },
 ): string;
+export function measureCanonicalClientValueV1(
+  value: unknown,
+  options?: {
+    readonly limits?: Partial<CanonicalClientValueV1Limits>;
+  },
+): Readonly<{
+  readonly canonical: string;
+  readonly nodes: number;
+  readonly bytes: number;
+}>;
 export function canonicalReactStoreKeyV1(
   providerInstanceId: string,
   reference: Readonly<Record<string, unknown>>,

@@ -82,6 +82,7 @@
       "name": "@expo/snapback-codegen",
       "version": "0.1.0",
       "dependencies": {
+        "@expo/snapback-client": "workspace:*",
         "@expo/snapback-contract": "workspace:*",
         "acorn": "^8.17.0",
         "ajv": "^8.20.0",

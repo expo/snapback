@@ -297,6 +297,52 @@ try {
   assert(appTypes.includes('/** Surface member call payloads follow strict omission semantics:'));
 
   {
+    const oversizedRoot = mkdtempSync(join(tmpdir(), 'snapback-app-descriptor-node-budget-'));
+    try {
+      const oversizedBackend = join(oversizedRoot, 'snapback');
+      mkdirSync(oversizedBackend, { recursive: true });
+      writeFileSync(join(oversizedBackend, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  items: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+});
+`);
+      const queryExports = Array.from({ length: 96 }, (_, index) => `
+export const listItems${index} = defineLiveQuery({
+  table: 'items',
+  args: {},
+  auth: 'public',
+});`).join('\n');
+      writeFileSync(join(oversizedBackend, 'functions.mjs'), `
+import { defineLiveQuery } from '${defineUrl}';
+${queryExports}
+`);
+      const oversized = await generate(oversizedBackend);
+      assert.equal(oversized.ok, true, JSON.stringify(oversized.diagnostics));
+      const warning = oversized.diagnostics.find(
+        ({ code }) => code === 'SNAPBACK_CODEGEN_REACT_EXPORT_NODE_BUDGET_EXCEEDED',
+      );
+      assert.ok(warning, 'generation warns before an oversized React/Expo export reaches boot');
+      assert.equal(warning.severity, 'warning');
+      assert(warning.details.measuredNodes > warning.details.maxNodes);
+      assert.equal(warning.details.maxNodes, 4_096);
+      assert.equal(warning.details.refusalCode, 'SNAPBACK_REACT_ARGS_INVALID');
+      assert.match(warning.message, new RegExp(`measures ${warning.details.measuredNodes}`));
+      assert.match(warning.message, /ceiling of 4096/u);
+      assert.match(warning.message, /SNAPBACK_REACT_ARGS_INVALID/u);
+      assert.match(warning.message, /Do not export unused table queries/u);
+      assert.match(warning.message, /\*Before members/u);
+      assert.match(warning.message, /optional before argument/u);
+      assert.equal(
+        oversized.summary.counts.warnings,
+        oversized.diagnostics.filter(({ severity }) => severity === 'warning').length,
+      );
+    } finally {
+      rmSync(oversizedRoot, { recursive: true, force: true });
+    }
+  }
+
+  {
     const surfacelessRoot = mkdtempSync(join(tmpdir(), 'snapback-app-descriptor-surfaceless-'));
     try {
       const surfacelessBackend = join(surfacelessRoot, 'fixture', 'snapback');
