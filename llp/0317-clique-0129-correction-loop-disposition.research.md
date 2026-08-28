@@ -24,7 +24,7 @@ LLP 0201, LLP 0208, LLP 0219, LLP 0253, LLP 0295, LLP 0310, LLP 0310.000,
 LLP 0316, `diaries/0114-clique-published-0129-matrix.diary.md`,
 `benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md`,
 `issues/20260825-clock-dependent-visibility-authoring-friction.md`,
-`issues/20260827-defineauth-successor-silent-refusal.md`,
+`issues/closed/20260827-defineauth-successor-silent-refusal.md`,
 `issues/20260827-live-query-cross-client-fanout-staleness.md`,
 `issues/20260827-media-collection-capability-skew-published-runtime.md`,
 `issues/20260827-snapback-expo-metro-generations-watcher-crash.md`
