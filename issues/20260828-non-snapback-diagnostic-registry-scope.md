@@ -30,7 +30,7 @@ current registry extractor cannot see:
 - `SCHEMA_STRUCTURED_ID_INTERIOR_UNSUPPORTED`
 
 `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` already routed at
-`guide/operating/diagnostics.md#diagnostic-quality-at-data-and-contract-seams`.
+`guide/operating/diagnostics.md#anti-patterns` (a bullet under that heading).
 The other four previously had no occurrence under source `guide/` pages. L8
 added profile-neutral Codegen routes in
 `guide/getting-started/generated-artifacts.md`, an exact structured-ID route in

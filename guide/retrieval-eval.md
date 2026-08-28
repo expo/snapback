@@ -1258,7 +1258,7 @@ missed.
      alias accepted by code.
      Expected pages: `backend/assets.md`.
      Route terms: "access.read: 'members' isn't in the closed union",
-     "access.read: 'members'", "closed union".
+     "access.read: 'members'".
      Required guidance: "that spelling is not in the closed union",
      "`access: { read: 'via-references' }`",
      "`.assetSharing({ kind: 'membership', membership, roles })`",
