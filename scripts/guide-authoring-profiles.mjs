@@ -79,7 +79,6 @@ export const LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
   ['guide/operating/secrets-and-config.md', 'explicit', 'dc2b364534ca7dce6ef7fa5891a88646ea7162590ffeb751a7cb701c4fa5277a'],
   ['guide/protocol/client-protocol.md', 'neutral', 'b64705e1d4dcb141a226959bca829e9f624010a7cab2ebe87fefddef5378b1bf'],
   ['guide/realtime/ephemeral-state.md', 'explicit', '512db06bc6132e1b93a952a7b6e2f739463fd6732ced0d3d09d25d92c6f0a0c1'],
-  ['guide/realtime/live-queries.md', 'explicit', 'c699d2f6d8f4204ebba7976b4a7081c8e75eafc025a21bed480ed88078c8dccd'],
   ['guide/realtime/snapshot-bundles.md', 'explicit', 'a8389442c6be4b93ed4e03920d224593381e41fd15f9afef663c0a6f0e089eed'],
   ['guide/recipes/activity-presence.md', 'neutral', '8db63728842f5fdbb5979cb540bbb38a9fee8cce818c680ced2c65a7a8e3baf0'],
   ['guide/recipes/auth-transition-writes.md', 'neutral', '6124fea75b3f24ccd73b5906144a857969cfab52c826e4cd9cc556588885fae1'],
