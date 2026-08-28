@@ -462,7 +462,14 @@ run drift-prone-gate-fixtures --requires generated-artifacts -- node --test test
 # @ref LLP 0061#3-verification-snippets-that-ran — published-closure fixtures
 # keep released, unreleased, stale-fence, banner, and record failures executable.
 run guide-authoring-profile-fixtures -- node --test scripts/guide-authoring-profiles.test.mjs
-run guide-published-closure-fixtures -- node --test scripts/guide-published-closure.test.mjs
+run guide-published-closure-fixtures -- node --test \
+    scripts/guide-published-closure.test.mjs \
+    scripts/check-published-closure-registry.test.mjs
+# @ref LLP 0061#3-verification-snippets-that-ran — the local fence is
+# network-free; this canary is classified under scheduled-reporting so only
+# the complete battery hits npm, and it fails closed when the git record
+# lags or leads registry latest.
+run published-closure-registry-canary -- node scripts/check-published-closure-registry.mjs
 run guide-shell-command-fixtures -- node --test scripts/check-guide-shell-commands.test.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.

@@ -994,7 +994,10 @@ Pages with `targets: [local]` start the body with:
 [`published-closure.json`](./published-closure.json) is the checked-in,
 machine-readable record of the newest `@expo/snapback-*` closure available
 from npm. The guide checker reads that local record; this check performs no
-network access.
+network access. A separate scheduled registry canary
+(`scripts/check-published-closure-registry.mjs`) fails when `newestPublished`
+is not the identity-preset closure's registry `latest`, so a publish that
+skips the record update cannot drift silently.
 
 A page whose whole surface has one version may declare `since: X.Y.Z`. If the
 whole page is deliberately ahead of the record's `newestPublished`, it also
@@ -1018,7 +1021,8 @@ This is an availability fence, separate from capability maturity. A
 closure without an unreleased fence is a check **failure**. The npm promotion
 lane updates `published-closure.json` in the same change that publishes a new
 closure, regenerates the guide manifest, and sweeps all unreleased fences. The
-stale-fence errors make a forgotten promotion-time sweep loud.
+stale-fence errors make a forgotten promotion-time sweep loud. The registry
+canary then fails closed if that git record still lags npm.
 
 ## Headings
 

@@ -30,7 +30,7 @@ test('current legacy inventory is an exact subset of the frozen survey', () => {
   validateLegacyAuthoringProfileRows(LEGACY_AUTHORING_PROFILE_ROWS, errors);
 
   assert.equal(FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length, 99);
-  assert.equal(LEGACY_AUTHORING_PROFILE_ROWS.length, 97);
+  assert.equal(LEGACY_AUTHORING_PROFILE_ROWS.length, 95);
   assert.deepEqual(errors, []);
 });
 
@@ -39,14 +39,16 @@ test('rejects added rows even when they only fill the old count headroom', () =>
     ...LEGACY_AUTHORING_PROFILE_ROWS,
     ['guide/new-exemption-a.md', 'neutral', 'a'.repeat(64)],
     ['guide/new-exemption-b.md', 'explicit', 'b'.repeat(64)],
+    ['guide/new-exemption-c.md', 'familiar', 'c'.repeat(64)],
+    ['guide/new-exemption-d.md', 'explicit+familiar', 'd'.repeat(64)],
   ];
   const errors = [];
   validateLegacyAuthoringProfileRows(candidateRows, errors);
 
   assert.equal(candidateRows.length, FROZEN_LEGACY_AUTHORING_PROFILE_ROWS.length);
-  assert.equal(errors.length, 2);
+  assert.equal(errors.length, 4);
   assert.match(errors[0], /new-exemption-a\.md: .*row was added .*Repair: declare 'authoring-profiles'.*remove the added row/u);
-  assert.match(errors[1], /new-exemption-b\.md: .*row was added .*Repair: declare 'authoring-profiles'.*remove the added row/u);
+  assert.match(errors[1], /new-exemption-b.md: .*row was added .*Repair: declare 'authoring-profiles'.*remove the added row/u);
 });
 
 test('rejects editing a legacy page and rehashing its inventory row', () => {

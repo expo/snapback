@@ -1,7 +1,8 @@
 # `guide/published-closure.json` records 0.1.27 while 0.1.29 is published on npm
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-28
+**Closed:** 2026-08-28
 **Systems:** Guide, Packaging, Publication
 **Related:** LLP 0061 (guide conventions), LLP 0041 (publication posture), LLP 0317
 
@@ -50,3 +51,29 @@ with a blast radius, not a papercut fix.
    stale and must be removed or re-pinned per the convention.
 3. Consider a check that fails when the recorded closure is behind the newest
    published package on npm, so this cannot drift silently again.
+
+## Resolution (2026-08-28)
+
+1. **Why the record lagged.** `scripts/snapback-fastpath-release.mjs` never
+   writes `guide/published-closure.json`; the update protocol is a post-publish
+   git commit (the 0.1.27 shape). 0.1.28 (`2026-08-27T13:43Z`) and 0.1.29
+   (`2026-08-27T17:05Z`) both reached npm `latest` with **no**
+   `fastpath-0-1-2X-*` holding tag. The isolated-worktree ceremony was not a
+   buildable tree
+   (`issues/20260827-fastpath-release-isolate-not-buildable.md`), and LLP 0041
+   already records that 0.1.28 shipped the final runtime packages without
+   packaged-store qualification receipts. Those closures went out through a
+   path that bypasses the holding-tag ceremony, and nobody landed the
+   follow-up record commit.
+
+2. **Catch-up.** `newestPublished` / `publishedAt` advance to 0.1.29 /
+   2026-08-27. `newestQualified`, `closureId`, `qualifiedSourceRevision`, and
+   `ledgerSha256` stay the 0.1.27 ceremony identity. Stale 0.1.28 unreleased
+   fences on `guide/auth/passwords.md` and `guide/auth/scoped-roles.md` are
+   released (`authPasswordSet` is in the published 0.1.28/0.1.29 client). The
+   0.1.30 password-policy successor refusal banner now names 0.1.29.
+
+3. **Prevention.** `scripts/check-published-closure-registry.mjs` fails closed
+   when `newestPublished` is not every identity-preset package's registry
+   `latest`. Mocked fixtures run in `guide-published-closure-fixtures`; the
+   live canary is complete-battery only (`published-closure-registry-canary`).

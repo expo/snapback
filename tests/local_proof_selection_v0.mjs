@@ -151,6 +151,15 @@ test('package owners select their direct package and harness fixtures', () => {
     'the live registry canary belongs only to complete scheduled/on-demand proof',
   );
   includesAll(planSelection({ cadence: 'complete' }), ['template-registry-canary']);
+
+  const publishedClosureRegistry = select(['scripts/check-published-closure-registry.mjs']);
+  includesAll(publishedClosureRegistry, ['guide-published-closure-fixtures']);
+  assert.equal(
+    publishedClosureRegistry.selectedGates.includes('published-closure-registry-canary'),
+    false,
+    'the live published-closure registry canary belongs only to complete scheduled/on-demand proof',
+  );
+  includesAll(planSelection({ cadence: 'complete' }), ['published-closure-registry-canary']);
 });
 
 test('scripts test subjects select their bound fixture gates', () => {

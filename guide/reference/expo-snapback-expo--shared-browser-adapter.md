@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:bc2e52a11e445f2fe879d7fa2dba1c9bba7478622d20
 # @expo/snapback-expo/shared-browser-adapter
 
 Build-bound public API projection for `@expo/snapback-expo/shared-browser-adapter`. Canonical registry identity:
-`sha256:a2ef22da999c8ce3220ce436784084879ed347131dfa77cfb98f1584d3292033`.
+`sha256:f8258692b8bc003b0fdd075205a086a0e95ce270e9559e9b370a0fea1d9cc50e`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/shared-browser-adapter.mjs`.
 

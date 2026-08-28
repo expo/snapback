@@ -6832,12 +6832,9 @@ managed loop.
 
 <!-- since: 0.1.30 unreleased -->
 > **Unreleased.** The coded password-policy successor refusal is newer than the
-> newest published closure recorded in `guide/published-closure.json`, 0.1.27.
-> That record is itself behind the registry, which carries 0.1.29 — tracked in
-> `issues/20260828-published-closure-record-behind-npm.md`. Either way this
-> refusal is unreleased: an already-published runtime still exhibits the silent
-> predecessor behavior described below, and the 0.1.29 packages the Clique
-> matrix ran did.
+> newest published closure recorded in `guide/published-closure.json`, 0.1.29.
+> An already-published runtime still exhibits the silent predecessor behavior
+> described below.
 
 ## Restart after changing the password minimum
 

@@ -110,6 +110,8 @@ export const FROZEN_LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
 // exemption from being restored later even though its frozen tuple remains as
 // migration history above.
 export const MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS = Object.freeze([
+  'guide/auth/passwords.md',
+  'guide/auth/scoped-roles.md',
   'guide/backend/schema-evolution.md',
   'guide/clients/react-expo.md',
 ]);

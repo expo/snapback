@@ -1164,6 +1164,16 @@
       ]
     },
     {
+      "id": "scripts-published-closure-registry",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/check-published-closure-registry.mjs",
+        "scripts/check-published-closure-registry.test.mjs"
+      ]
+    },
+    {
       "id": "cold-clone-report-probe",
       "groups": [
         "demos"
@@ -1472,6 +1482,7 @@
     "scheduled-reporting": {
       "lane": "affected",
       "gates": [
+        "published-closure-registry-canary",
         "template-registry-canary"
       ]
     },
