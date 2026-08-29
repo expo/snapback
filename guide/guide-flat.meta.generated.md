@@ -2621,7 +2621,7 @@ required guidance.
      profile live query." The run fails if it keeps the client-side route gate,
      creates the conversation in multiple requests, or omits settlement and
      repeated-open idempotence.
-     Expected pages: `backend/mutations.md`.
+     Expected pages: `recipes/messaging-convergence.md`.
      Route terms: "Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query".
      Required guidance: "`startDirectMessage`",
      "Settle it with `queue: false` before navigating",
@@ -2633,7 +2633,7 @@ required guidance.
      recipe for a settled mutation that survives page replacement." The run
      fails if it treats component-promise settlement or navigation as the
      server witness, or claims a first-class helper already ships.
-     Expected pages: `realtime/live-queries.md`.
+     Expected pages: `recipes/messaging-convergence.md`.
      Route terms: "Router-navigation recipe for settled mutations that must survive page replacement".
      Required guidance: "this client-side composition is profile-neutral",
      "does not currently ship a `settledNavigation` helper",
@@ -2664,13 +2664,13 @@ required guidance.
      convergence." The run fails if it claims one maintained recipe/proof
      exists, equates mutation settlement with receipt authority, or claims the
      existing client acknowledgements prove server-observed fetch.
-     Expected pages: `recipes/optimistic-create.md`.
+     Expected pages: `recipes/messaging-convergence.md`.
      Route terms: "same-account live messaging, cross-device unread clearing, and dual-client offline convergence".
-     Required guidance: "there is no single maintained recipe or proof",
+     Required guidance: "one maintained answer",
      "optimistic sender echo",
      "durable exact settlement and offline replay",
      "client-authored acknowledgements, not a server-observed fetch primitive",
-     "applies to both Explicit and Familiar generated references".
+     "no single matched, maintained acceptance run".
 Cases 127–133 route the remaining Lane C media/setup phrases from the same
 published 0.1.29 benchmark. Route terms deliberately contain only vocabulary
 recorded by the stuck lanes or the audit of their failed searches; successor
@@ -2726,9 +2726,9 @@ spellings and repairs appear only under Required guidance.
      "published CLI rejected unknown `expo-router` template",
      "assumed legacy `expo-router` major 7 for Expo 57".
      Required guidance: "published CLI package is `@expo/snapback-cli`",
-     "choose one of the five template names above",
+     "choose one of the six template names above",
      "let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and React Native pins",
-     "current template registry is Explicit-scoped and has no Familiar-named template".
+     "choose `familiar-react` when the application should begin in the Familiar profile".
 
 132. **Metro listener outside the assigned lane:** "Metro's inner port escaped
      4287–4387." The run fails if it assumes backend/client/bootstrap pins
@@ -2794,6 +2794,32 @@ spellings and repairs appear only under Required guidance.
      "stopped updating large thread".
      Required guidance: "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
      "1,024 rows", "server-side ordering", ".take(n)".
+
+138. **Retained conversation keeps its outbox and composer:** "The retained
+     conversation went blank offline, the provider unmounted, and the composer
+     disappeared even though queued intent still existed." The run fails if it
+     promises retention without checking classification, calls retained rows
+     live, disables the composer from connectivity alone, or treats outbox
+     state as writer or authority readiness.
+     Expected pages: `recipes/messaging-convergence.md`.
+     Route terms: "retained conversation", "composer disappeared", "queued intent still existed".
+     Required guidance: "inspect the generated handle's `retention.retainable` classification",
+     "Keep the composer mounted while retained rows are visible",
+     "Do not disable it merely because `connection.status !== 'live'`",
+     "does not itself grant writer or authority readiness",
+     "not resolution of any repro-gated offline blanking or provider-unmount defect".
+
+139. **Exact disposable seed reset route:** "A changed seed identity blocked
+     the Expo chat loop; I need the exact fresh reset and need to know what it
+     preserves." The run fails if it recommends a raw database wipe, omits the
+     canonical-target ownership fence, or implies source and unrelated local
+     files are removed.
+     Expected pages: `start/expo-chat.md`.
+     Route terms: "changed seed identity", "exact fresh reset", "what it preserves".
+     Required guidance: "`snapback reset --dev-fresh --db",
+     "refuses custom, shared, or symlink-ambiguous paths",
+     "preserves source, generated artifacts, and unregistered `.snapback` files",
+     "Never raw-wipe the database".
 
 
 

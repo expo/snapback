@@ -14,7 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
+authoring-profiles: [explicit, familiar]
+reviewed: 2026-08-29
 reviewed-authorities-digest: sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa
 ---
 
@@ -29,6 +30,10 @@ open the packet's named edit targets, and escalate one page at a time with
   (about 3 KiB); the fallback when no template is selected.
 - [react](./react.md) — full packet: Vite web starter,
   `useSnapbackQueries`.
+<!-- llp0259:stop-fence -->
+- [familiar-react](./familiar-react.md) — full packet: Familiar TypeScript
+  backend plus `useQuery` / `useMutation` in Vite.
+<!-- /llp0259:stop-fence -->
 - [expo-chat](./expo-chat.md) — full packet: Expo sessions-mode chat,
   `useSnapbackQuery` + `useSurface`.
 - [crud-dashboard](./crud-dashboard.md) — stub: mental model first, then
@@ -40,10 +45,10 @@ If you arrived after a **mistaken unscoped `snapback@0.1.29` lookup**, the
 published CLI package is `@expo/snapback-cli`; `create-snapback-app` is the
 `npm create snapback-app` wrapper. If the **published CLI rejected unknown `expo-router` template**,
 or you **assumed legacy `expo-router` major 7 for Expo 57**, do not repair the tuple by registry archaeology: run the installed
-CLI's `snapback new --help`, choose one of the five template names above, and
+CLI's `snapback new --help`, choose one of the six template names above, and
 let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and
-React Native pins. Package discovery is profile-neutral; the current template
-registry is Explicit-scoped and has no Familiar-named template.
+React Native pins. Package discovery is profile-neutral; choose
+`familiar-react` when the application should begin in the Familiar profile.
 
 Scaffolded apps carry their packet transcluded into `AGENTS.md` with a
 digest comment — reading either copy counts once. The
@@ -139,6 +144,129 @@ profile) is an experimental, non-default surface. If
 you are writing either without an explicit brief, return to the generated
 references and the `useSnapback*` hooks.
 <!-- /llp0259:stop-fence -->
+
+---
+
+<!-- snapback-guide-source: guide/start/familiar-react.md -->
+---
+title: Start packet — familiar-react
+id: start.familiar-react
+order: 3
+audience: agent-first
+capabilities: []
+authorities: [llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0259-agent-first-read-budget.rfc.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-cli/templates/familiar-react/snapback/schema.ts, packages/snapback-cli/templates/familiar-react/snapback/todos.ts, packages/snapback-cli/templates/familiar-react/src/App.tsx]
+examples: [packages/snapback-cli/templates/familiar-react]
+status: current
+targets: [all]
+maturity: shipped
+authoring-profiles: [familiar]
+reviewed: 2026-08-29
+reviewed-authorities-digest: sha256:7c7cec8fdb76717e5a2d8a8409a8efa726e9b81282f1552baff0cf6bdbff0c44
+---
+
+# Start packet: the `familiar-react` template
+
+<!-- start-packet:begin familiar-react -->
+This packet is the first read (LLP 0259
+Rung A). Open the edit targets below and work; open one further Guide page
+only via `snapback guide <query>` or on a trigger — the brief is outside
+this packet, a structured `SNAPBACK_*` refusal, or a failed `prove`.
+
+## The loop
+
+Edit `snapback/schema.ts` / `snapback/todos.ts` / `snapback/seed.json`
+→ `bun run generate` → `bun run dev` (backend; writes `.env.local`) plus
+`bun run dev:client` in a second terminal (Vite) → `bun run prove`.
+
+Expo templates retain optional `dev:supervised`. Android emulator: paste
+printed `androidEmulatorUrl` (`10.0.2.2`) as `EXPO_PUBLIC_SNAPBACK_URL`, then
+restart Metro. Remove leftover `SNAPBACK_DEV_CLIENT_PORT` /
+`SNAPBACK_DEV_BOOTSTRAP_PORT`; plain dev refuses them with
+`SNAPBACK_CLI_ARGUMENT_INVALID`.
+
+`bun run prove` (`npm run prove` is equivalent) is the acceptance command:
+it runs the registered live profile through `snapback verify` and writes
+the receipt to `.snapback/verify-receipt.json`. Done = green receipt.
+Before extending or ejecting that runner, read
+`node_modules/@expo/snapback-acceptance/README.md`; it is the supported
+compatibility and ownership contract.
+
+<!-- script-glossary:begin -->
+## Script glossary
+
+`bun run prove`: ordinary completion and the only done-oracle—the authoritative
+aggregate `snapback verify` receipt (acceptance evidence, not formal proof).
+`npm test`: raw acceptance implementation that `prove` wraps (debugging).
+`bun run test:static`: no-server source/generated coherence.
+`bun run carry:headless`, `bun run carry:web-browser`: observation artifacts after accepting the `prove` receipt,
+never proof authority. `bun run carry:self-check` checks carrier wiring only.
+Migration: `test:live` was removed; use `npm test` for the same raw acceptance command.
+<!-- script-glossary:end -->
+
+## Edit targets (work files — listed, not charged to the first read)
+
+- `snapback/schema.ts` — generated-server `defineSchema` / `defineTable` /
+  `defineAuth` / `v.*`; authoring profile `snapback-familiar-ts-v1`.
+- `snapback/todos.ts` — Familiar `query` / `mutation` handlers; its exports
+  generate `api.todos.list` and `api.todos.create` references.
+- `snapback/contracts.ts` — reusable validators outside a function module.
+- `snapback/seed.json` — the versioned seed fixture.
+- `src/App.tsx` — the consumer: `useQuery`, `useMutation`, `useAuth`, and
+  `useCurrentPrincipal` from `@expo/snapback-react/familiar`. The password
+  form is the ordinary anonymous-ready entry, sign-in, principal, and sign-out
+  example.
+- `src/main.tsx` — boot: generated `app` + supervised Vite app binding →
+  `createSnapbackAppClient` → `<SnapbackProvider appClient={...}>`. Leave it
+  alone unless boot itself is the task.
+- `acceptance.mjs` + `snapback.verify.config.mjs` — the registered proof.
+
+`snapback/generated/` is codegen-owned: regenerate, commit
+`generated/artifacts.json`, never hand-edit outputs.
+
+## Posture
+
+- **Auth: sessions mode, password entry, durable browser custody.** The
+  generated application descriptor opts into the first-party auth path;
+  IndexedDB plus Web Locks is required, with no memory fallback. Recovery
+  codes surface once after signup. The todo example remains public so the
+  provider reaches anonymous `ready` before entry.
+- Declare each function's `auth` explicitly and scope private data
+  server-side (`eq('ownerId', authUserId())`) — never trust a client-supplied
+  owner argument.
+- **Uploads: none wired here.** Flip to sessions first, then
+  `snapback guide assets` for the one named page.
+
+## Safety traps (reconciled at landing)
+
+1. Query args bind by identity: an inline args object resubscribes every render
+   — hoist it to module scope or use `useMemo` (`src/App.tsx` shows the pattern).
+2. A changed seed identity never silently resets data: expect
+   `SNAPBACK_SEED_MIGRATION_REQUIRED`, then choose migration or an explicit
+   reset-install.
+3. Structured stored fields (`v.array(...)`, `v.object({...})`) are typed
+   but opaque (experimental): interiors are not queryable or indexable, and
+   a nested `v.principal()` is a snapshot, not membership. Model queryable
+   state as rows and columns.
+4. Every `SNAPBACK_*` refusal names its rule and fix: read it, then run
+   `snapback guide <CODE>` for the exact entry.
+
+## Escalate
+
+`snapback guide <query>` returns exact symbols, diagnostic codes, and page
+anchors — budgeted lookups do not count as extra pages. The
+[capability index](../capabilities.md) is the completeness registry: look
+up, do not linear-read. Deeper pages, only when triggered:
+[your first backend](../getting-started/your-first-backend.md),
+[the React client](../clients/react.md),
+[queries](../backend/queries.md), [mutations](../backend/mutations.md).
+
+<!-- llp0259:stop-fence -->
+**Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
+profile) is this template's explicit path. Adding Explicit
+`schema.mjs` / `functions.mjs`, using the canonical multi-state hooks by
+accident, or mixing profiles means you left this template's golden path.
+<!-- /llp0259:stop-fence -->
+<!-- start-packet:end -->
 
 ---
 
@@ -272,14 +400,14 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0114-first-class-react-and-query-groups.spec.md, llp/0259-agent-first-read-budget.rfc.md, llp/0297-client-canonicalization-budgets.research.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0259-agent-first-read-budget.rfc.md, llp/0297-client-canonicalization-budgets.research.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
 authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:4de6650a9f7ede77da2b4358d03106d9ddc0680eb613c7a0d190116f8df1c2cd
+reviewed-authorities-digest: sha256:e69e107f77dade868bc324f906e1ae27c099ad2c9308570185961e2a742cc22b
 ---
 
 # Start packet: the `expo-chat` template
@@ -324,10 +452,8 @@ Metro; it disables watching.
 
 ## Edit targets (listed, not charged)
 
-- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}` — auth, tables,
-  queries/mutations/commands, ephemeral `typing`, and seeded personas.
-- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx` — provider,
-  auth entry, inbox, thread, replies, reactions, typing, and upload.
+- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}`.
+- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx`.
 - Proof: `acceptance.mjs`, `snapback.verify.config.mjs`.
 
 `snapback/generated/` is codegen-owned: regenerate and commit
@@ -337,7 +463,7 @@ refused alias.
 ## Posture
 
 - **Auth: sessions, guest-first, password, Apple/Google.** Web starts sessionless;
-  native auto-adopts; `adoptSupervisedSession` reverses either default. After
+  native auto-adopts; `adoptSupervisedSession` flips either default. After
   `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
@@ -360,12 +486,15 @@ refused alias.
    `snapback generate` warns; Expo boot can refuse with
    `SNAPBACK_REACT_ARGS_INVALID`. Do not export unused table queries; replace
    `*Before` variants with an optional `before` argument.
-4. Structured fields are opaque: interiors are not queryable and a
-   nested principal is a snapshot, not membership. Base64/data-URI media is row data under the
-   32 KiB value ceiling; use generated asset/media upload. See
+4. Structured interiors are not queryable; a nested principal is a snapshot,
+   not membership. Base64/data-URI media is row data: 32 KiB value ceiling;
+   use asset/media upload. See
    [Structured stored values](../getting-started/your-first-backend.md#structured-stored-values).
-5. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
-   migrate or reset-install.
+5. Changed seed identity — exact fresh reset and what it preserves:
+   `snapback reset --dev-fresh --db
+   "$PWD/.snapback/dev.sqlite3"`. It refuses custom, shared, or
+   symlink-ambiguous paths and preserves source, generated artifacts, and
+   unregistered `.snapback` files. Never raw-wipe the database.
 6. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate

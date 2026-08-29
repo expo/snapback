@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:a5d34374baadf26900d5364d22adb757112b54598264b50ce87ff1f0f6231716"
+    "sourceDigest": "sha256:046bcfdddf53eeb1dbd0f8897bb6eaf98a1d4afe427a5b47047463756b68acb8"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -482,6 +482,11 @@
         "id": "recipes.scheduled-expiry",
         "order": 17,
         "title": "Recipe: scheduled expiry and status flips"
+      },
+      {
+        "id": "recipes.messaging-convergence",
+        "order": 18,
+        "title": "Recipe: messaging routes, retained threads, and convergence"
       }
     ],
     "reference": [
@@ -786,6 +791,11 @@
         "id": "start.mental-model",
         "order": 2,
         "title": "Snapback in one screen"
+      },
+      {
+        "id": "start.familiar-react",
+        "order": 3,
+        "title": "Start packet — familiar-react"
       },
       {
         "id": "start.react",
@@ -2333,6 +2343,7 @@
         "llp/0244-media-ref-projection.spec.md",
         "llp/0044-asset-storage-pipeline.rfc.md",
         "llp/0210-asset-upload-dx-closure.rfc.md",
+        "llp/0264-table-write-policy.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-codegen/app-descriptor.mjs",
@@ -2356,8 +2367,8 @@
         "packages/snapback-react/media-collection-types.fixture.ts"
       ],
       "reviewed": "2026-08-16",
-      "reviewedAuthoritiesDigest": "sha256:17c83fe601e56488b64e3952744f80e95cc17c899099ba8f0729ea401da5efac",
-      "sha256": "45cc91d8612865784c392d76129de2511f93513ba06bdfa225309922a3b8f500",
+      "reviewedAuthoritiesDigest": "sha256:f0f9617cae3ce7c8bedc30a9695e7885bc011b9562d3fae30c232af4c8c302c7",
+      "sha256": "ce2e99311a3533c6d9b4acca0d0c5c09c2e20b1202aa227f3df1364936371de5",
       "snippets": [
         {
           "lang": "js",
@@ -2494,8 +2505,8 @@
         "demos/signal-desk"
       ],
       "reviewed": "2026-08-28",
-      "reviewedAuthoritiesDigest": "sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342",
-      "sha256": "0ad260a5f4e39a14c0f02e70d55e921c1c60862acdfc7ef1bc5516897ebeeb06",
+      "reviewedAuthoritiesDigest": "sha256:180e2869cb0ebd182e750d2e1393bfaca5d6ed13dd2a0ff506b0d8b1f0ed64af",
+      "sha256": "cae6be2649c787d8ab9bb8000279c313fb6bce5abb4bf371ffa69babea80def3",
       "snippets": [
         {
           "lang": "js",
@@ -2602,7 +2613,7 @@
       ],
       "reviewed": "2026-08-28",
       "reviewedAuthoritiesDigest": "sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0",
-      "sha256": "08ed2ee46c9ef44bbb4b3b21583d8104657c89dad3e989605758911f6fd5574f",
+      "sha256": "fd9f82d647fc932df993304c127dff645bb342d1120350a81ac067fecf7163d0",
       "snippets": [
         {
           "lang": "js",
@@ -3720,9 +3731,9 @@
         "packages/snapback-react/dev-diagnostics.test.mjs",
         "packages/snapback-react/dev-diagnostics-acceptance.test.mjs"
       ],
-      "reviewed": "2026-08-21",
-      "reviewedAuthoritiesDigest": "sha256:4956122aa0f8dce10514700c2cf5f7295427c63747befe08f216789dc0cea856",
-      "sha256": "5c53e3a6299bcf77d0edb001ab3cbfb036a6233ca3b4352b229f42b708954f4a",
+      "reviewed": "2026-08-28",
+      "reviewedAuthoritiesDigest": "sha256:0bf525eefc1725690714e40e0774d30a0419725bf3f18807c70314edc840dc59",
+      "sha256": "df6627321869ac82f21bff67e602ca378ed74e0c180cc54e6dd0e325d0f8e61b",
       "snippets": [
         {
           "lang": "ts",
@@ -4244,12 +4255,14 @@
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0109-versioned-seed-evolution.spec.md",
         "llp/0115-convex-parity-course-corrections.plan.md",
         "llp/0174-authoring-incidents-at-security-fences.research.md",
         "llp/0211-typed-opaque-structured-stored-values.spec.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/index.mjs",
+        "packages/snapback-codegen/seed-artifact.mjs",
         "packages/snapback-client/index.mjs",
         "crates/snapback-types/src/contract_types.rs",
         "crates/snapback-kernel/src/storage.rs"
@@ -4259,12 +4272,13 @@
         "demos/todo-v2/snapback",
         "demos/signal-desk/snapback",
         "packages/snapback-codegen/inline-result-contracts.test.mjs",
+        "packages/snapback-codegen/seed-asset-fixtures.test.mjs",
         "packages/snapback-codegen/stored-enum-authoring.test.mjs",
         "packages/snapback-codegen/structured-stored-values.test.mjs"
       ],
       "reviewed": "2026-08-28",
-      "reviewedAuthoritiesDigest": "sha256:c35a028d2c4bbacdddd4e09c92b5f49e60f00db705a68e799a47fd40dda53a06",
-      "sha256": "2fa23a37a9a931df7bd8452965f14cc28613e4bb043d945a7001d321dbf7cf71",
+      "reviewedAuthoritiesDigest": "sha256:4d9ebe710bbe171fb5102850ecf098461109630bc8965bb66acfff7dddda398e",
+      "sha256": "6e55a993c667f805672c57199d771cf2ee64461655c3652ea8341cf2b13d720c",
       "snippets": [
         {
           "lang": "js",
@@ -4995,9 +5009,12 @@
         "crates/snapback-sync/src/connected_clients.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-contract/keyed-provider.mjs",
+        "packages/snapback-contract/limits.mjs",
         "packages/snapback-client/app-client.mjs",
         "packages/snapback-client/index.d.mts",
-        "packages/snapback-client/index.mjs"
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-react/implementation.mjs",
+        "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
@@ -5008,8 +5025,8 @@
         "demos/party-wall"
       ],
       "reviewed": "2026-08-28",
-      "reviewedAuthoritiesDigest": "sha256:63fc6585854a340747d6ce85561a0f1606d2a32b4afcb7ce8a2053b68d2de1c8",
-      "sha256": "d8f615720210725344543c19f11de7401bfdebf0301645bc91dbd5c831e6c3f0",
+      "reviewedAuthoritiesDigest": "sha256:129507c45852cf2ba040f596adb3cc368b9c7d0b3afc76bea74d5f952b84414f",
+      "sha256": "66576ae42324f9e6ba7a0e363a6eaaf98e9ee98e22a731a1c3292e7e9032b265",
       "snippets": [
         {
           "lang": "js",
@@ -5738,6 +5755,61 @@
         }
       ]
     },
+    "recipes.messaging-convergence": {
+      "path": "guide/recipes/messaging-convergence.md",
+      "title": "Recipe: messaging routes, retained threads, and convergence",
+      "order": 18,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "authoringProfiles": [
+        "explicit"
+      ],
+      "capabilities": [
+        "backend.functions",
+        "clients.mutation-outcomes",
+        "clients.react",
+        "sync.offline",
+        "clients.outbox-drain"
+      ],
+      "authorities": [
+        "llp/0043-offline-replay-retention.rfc.md",
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
+        "llp/0218-outbox-settlement-contract.rfc.md",
+        "llp/0317-clique-0129-correction-loop-disposition.research.md",
+        "demos/messaging-snapback/snapback/functions.mjs",
+        "demos/messaging-snapback/src/app/(tabs)/people.tsx",
+        "demos/messaging-snapback/tests/acceptance/headless.mjs",
+        "demos/messaging-snapback/tests/acceptance/roster-projection.mjs",
+        "packages/snapback-cli/templates/expo-chat/src/screens/chat-screen.tsx"
+      ],
+      "examples": [
+        "demos/messaging-snapback",
+        "packages/snapback-cli/templates/expo-chat"
+      ],
+      "reviewed": "2026-08-28",
+      "reviewedAuthoritiesDigest": "sha256:cdbb68320c23b1b3b6bf5007938436828c114c91ec8da88c4f7fba56169632d0",
+      "sha256": "0115e64fb6108ad30e2204c5e994f78a99edd51f186a04ac6ce5cb5febd979e4",
+      "snippets": [
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/app/(tabs)/people.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/expo-chat/src/screens/chat-screen.tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "packages/snapback-cli/templates/expo-chat/src/screens/chat-screen.tsx"
+        }
+      ]
+    },
     "recipes.multi-persona-clients": {
       "path": "guide/recipes/multi-persona-clients.md",
       "title": "Recipe: multiple Node personas and storage partitions",
@@ -5814,9 +5886,9 @@
         "demos/_kit/tests/provider-live-conformance.mjs",
         "demos/zero-bakeoff/apps/contention-calendar"
       ],
-      "reviewed": "2026-08-27",
-      "reviewedAuthoritiesDigest": "sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec",
-      "sha256": "5dbb79fd497905bdf8b24c4799de970b82270eb87c1674af518a9d3e871ea37d",
+      "reviewed": "2026-08-28",
+      "reviewedAuthoritiesDigest": "sha256:2b489984557ce3efb1b74b6fbc5fb8fedfb133b456e1a3222eeaf9372d432a21",
+      "sha256": "e64201303ca22ce3ffd469a7fd4d239911ee377a4911d7a0e4d867d04c9ad622",
       "snippets": [
         {
           "lang": "js",
@@ -6473,19 +6545,28 @@
       "authorities": [
         "llp/0220-recipient-bound-asset-grants.plan.md",
         "llp/0210-asset-upload-dx-closure.rfc.md",
+        "llp/0239-asset-collections-and-media-field.rfc.md",
         "llp/0044-asset-storage-pipeline.rfc.md",
         "crates/snapback-kernel/src/storage/asset_grants.rs",
+        "packages/snapback-react/media-render-contract.fixture.mjs",
         "demos/messaging-snapback/snapback/schema.mjs",
         "demos/messaging-snapback/snapback/functions.mjs",
         "demos/messaging-snapback/tests/acceptance/headless.mjs"
       ],
       "examples": [
-        "demos/messaging-snapback"
+        "demos/messaging-snapback",
+        "packages/snapback-react/assets.test.mjs",
+        "packages/snapback-react/media-render-contract.fixture.mjs"
       ],
       "reviewed": "2026-08-10",
-      "reviewedAuthoritiesDigest": "sha256:b2f44450f65c94d36f116a994a9586c316339fadc42dc0e20ca51f8c17976f9c",
-      "sha256": "781144b0d12ab70f63d3f4abf0692cde2b6929329c2fe74203df13fe1f6da07c",
+      "reviewedAuthoritiesDigest": "sha256:6c2222b689f6a9071145c9b8a973ebd117904607b80c6a6890333ef81a1642fe",
+      "sha256": "23226b7ca50fe9f89397d5cad39bfff3ef40c548239c1d7ba9fe52bbe4616196",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/media-render-contract.fixture.mjs"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -6539,7 +6620,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0c9d1876629da8743cb49177be1c959e13b477c5bd5a7257039517ea32c50c5a",
-      "sha256": "1e2ebd1956a20b84da92adb831040d796f63f70f044b7eda5959179c9fb03386",
+      "sha256": "7a8667a9568a5c146f42c3a2b0fd4dc421f0e742f1e9b35cb63a752f07789c6a",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -8302,7 +8383,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:f5faecff85e34dedc85319c38fab122e362ddd36fcf053cde3e05e0da09f4b29",
-      "sha256": "434958fa9e8a5fe4f7047c58e13bc99a78ecfa79cabad5deb1468829d34216ae",
+      "sha256": "43c7d152d1729db9f00d9bd022a38acf9a25f34c6da5758a1a9b1003f31e2706",
       "snippets": [
         {
           "lang": "ts",
@@ -8742,7 +8823,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:1dedb3848445e031fca5c7a17e79f642b923f150bd4cb5facf13515672b033b1",
-      "sha256": "0ea2b12bb21e72ec1f965aa23e82b409d8e6b673ebba4d8ec775774ce8357b77",
+      "sha256": "1f38c1933bbda74000172598ff7fb3dce57e0923c0c63ca777c8ec0f4ff4780c",
       "snippets": [
         {
           "lang": "ts",
@@ -9062,7 +9143,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:3f00b15c7191c6f5143eee58929b6084357b6797bf4367849dc7a1cb5608274b",
-      "sha256": "8a109f793aed523b0a9e38c9f95aae0ff4dcd8f4daeda6a3bf66af74fadbef8f",
+      "sha256": "cc1f6791e41d5b5ef854ab759303a14080c1c5daf3f2b23bcd02f99ad54787eb",
       "snippets": [
         {
           "lang": "ts",
@@ -9130,7 +9211,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:482f5b5d43c333758a4ff098673056048adc1d9959773711048e619c311e50e3",
-      "sha256": "80c774aa3e8c8731ef3c588899dd02277015927b405fe7dc2f92022bb666e192",
+      "sha256": "a3cab8958cecc0674d87ed6bc832bf373f0ac6dc60053b89d073c1c1cc8dc536",
       "snippets": [
         {
           "lang": "ts",
@@ -9750,7 +9831,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:86d1bb6b0b5915482ddfe4f1955f797be227456032357021686c44b8f30dea0c",
-      "sha256": "32ad541752cdfaa23cd60f0efdc53f6fde6451d915f2127322ec90a959f9695a",
+      "sha256": "2d0e5855f6a3937d64be2f436f5a9f3e0ac061aa531fb911f08bb17f6f03bcef",
       "snippets": [
         {
           "lang": "ts",
@@ -9898,7 +9979,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:5e9e4a98d9b9697f832c94653e02356664849f9ddf405ba86bfe6c1309cffb17",
-      "sha256": "80d62f86b4d1b1ee4c8cdf7b08fdf78b391deb312f866fd6133e10563946be76",
+      "sha256": "b2f411e510329287840f63199f9486061d38c9a7f29f483f59d76a3402d78210",
       "snippets": [
         {
           "lang": "ts",
@@ -9941,9 +10022,13 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d62d757e3bb0b058d0ba8e66e3d9f4c83192a266d9b2cefcb800373facb24646",
-      "sha256": "fae2a6e27211acc0626e65ea79445a4ba425cae3f12186c0b61e9036910927e4",
+      "reviewedAuthoritiesDigest": "sha256:8424614419052cfbc52c0103c71df82b019e7f5aadd029c30c9ff2a871a22675",
+      "sha256": "e836374769c815cd5bb5f42364f10f1b8525cde302faad16474e9de502338899",
       "snippets": [
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -11329,8 +11414,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:c5a4307f653e117a23f3930e127ebd303055403559d9f53d97752bb5c075ae6c",
-      "sha256": "06135aa8b55cad049fd44803dba5a881d64dc24c87e98612f3cbcd381055f4f7",
+      "reviewedAuthoritiesDigest": "sha256:8ce67123dea4f4efdedf1a04d550e50f2d13fd3f721d59955157c14fafe41afb",
+      "sha256": "f5c8c816957312e5e9391c9bc29f055298878cfd0b3276190d456d36e2573a68",
       "snippets": [
         {
           "lang": "ts",
@@ -11878,8 +11963,24 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:f280dd6e9a37482b116bc355f1cf68dc1e6bfa850550b8e26d9c8ed855a53606",
-      "sha256": "93e4da5f938d5f807a1c25cfc05e20926c21677b5fbf2633946700e877d22683",
+      "sha256": "b7fd51ce49b0c76da852193c1eef697b393b8d2dff82097b1ef4482b2ec498ff",
       "snippets": [
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -12713,9 +12814,25 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:c01f6491e6a21c9d78df4455e0d34ab5febdd49438c3d5a58919932b339153bd",
-      "sha256": "fc71b8301ece20442d9fb299c2f0e1f7551e76713a0c362d4f4689c3cae9b8e2",
+      "reviewedAuthoritiesDigest": "sha256:2ed1bf1ea49f7352d18a130cb082978707ccc195d03c7dba229cf277a478f86b",
+      "sha256": "c86af43367531b32954f6ce6bbea796a3d87d1e0647059851ac1cd0d35e25319",
       "snippets": [
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -13012,7 +13129,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0fa215487afc8b322dea9d2d022d0b2f8aba72166959b3d2caf25056b0422c11",
-      "sha256": "ea4dad5d277c8926dfb188440ff10691e153874ce0367a6b59a4c93f4f01e84e",
+      "sha256": "7e02689dbdeb7035dd9182b39f31345ef7d6f34df0a54a2fb6aee14275a1da95",
       "snippets": [
         {
           "lang": "ts",
@@ -13155,9 +13272,25 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:5de8b5131006ce2aa9490129acf222367199f7763a054863d860d45dd58a34a5",
-      "sha256": "7052a61921fe4aa2d5741dc50e290f3e15560b5862f973b62adabfcce9279039",
+      "reviewedAuthoritiesDigest": "sha256:c41c5910791adb8052042c59811bba33171efc454f43ee0aa1d207f1335ab09a",
+      "sha256": "e8c4561ae142baf803c874378cf00180c081c59361331a70a6746171d88cc94d",
       "snippets": [
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
+        {
+          "lang": "ts",
+          "class": "fragment"
+        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -13785,7 +13918,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a4570be9b11619b2bbfea22",
-      "sha256": "8c530ee43a710252ee6c34cd6e682b77dda7b420a9afc47b003d9eaa78e56ad5",
+      "sha256": "f959ec9df74b8cc8c515e9ba43925feb9ee5854045846ec26c17b19004fe58b7",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -13807,7 +13940,7 @@
       "examples": [],
       "reviewed": "2026-08-28",
       "reviewedAuthoritiesDigest": "sha256:f928289eea2aee480bb689d12d9732f8d2d145407dc146305f256b6ad1b465e9",
-      "sha256": "d0291129d603fd322ea2142f30e675b0fe53c1f9b874cc3192e8dc27861614af",
+      "sha256": "d5dd7667f5da7711e4c594fce8179ff5c8fe5d0e978d2b159c78b85a8a7addba",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -13852,6 +13985,7 @@
       ],
       "capabilities": [],
       "authorities": [
+        "llp/0109-versioned-seed-evolution.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0259-agent-first-read-budget.rfc.md",
         "llp/0297-client-canonicalization-budgets.research.md",
@@ -13861,6 +13995,7 @@
         "llp/0302-declared-dev-client-binding.spec.md",
         "packages/snapback-client/canonical-client-value.mjs",
         "packages/snapback-codegen/index.mjs",
+        "packages/snapback-cli/index.mjs",
         "packages/snapback-cli/templates/expo-chat/snapback/schema.mjs",
         "packages/snapback-cli/templates/expo-chat/App.tsx",
         "packages/snapback-cli/templates/expo-chat/acceptance.mjs"
@@ -13869,8 +14004,40 @@
         "packages/snapback-cli/templates/expo-chat"
       ],
       "reviewed": "2026-08-28",
-      "reviewedAuthoritiesDigest": "sha256:4de6650a9f7ede77da2b4358d03106d9ddc0680eb613c7a0d190116f8df1c2cd",
-      "sha256": "82b4318539926671091e7342ec6d5dd22992204de9fca0cb9f0a7a9897488970",
+      "reviewedAuthoritiesDigest": "sha256:e69e107f77dade868bc324f906e1ae27c099ad2c9308570185961e2a742cc22b",
+      "sha256": "b8f277bf3c1def7d919c3769606a12410fe4b6dd0f76d0ffdffdf5c56de9d23a",
+      "snippets": []
+    },
+    "start.familiar-react": {
+      "path": "guide/start/familiar-react.md",
+      "title": "Start packet — familiar-react",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "authoringProfiles": [
+        "familiar"
+      ],
+      "capabilities": [],
+      "authorities": [
+        "llp/0252-convex-familiar-authoring-profile.rfc.md",
+        "llp/0253-familiar-profile-v1-api.spec.md",
+        "llp/0259-agent-first-read-budget.rfc.md",
+        "llp/0300-snapback-is-a-url.rfc.md",
+        "llp/0301-url-first-dev-lifecycle.spec.md",
+        "llp/0302-declared-dev-client-binding.spec.md",
+        "packages/snapback-cli/templates/familiar-react/snapback/schema.ts",
+        "packages/snapback-cli/templates/familiar-react/snapback/todos.ts",
+        "packages/snapback-cli/templates/familiar-react/src/App.tsx"
+      ],
+      "examples": [
+        "packages/snapback-cli/templates/familiar-react"
+      ],
+      "reviewed": "2026-08-29",
+      "reviewedAuthoritiesDigest": "sha256:7c7cec8fdb76717e5a2d8a8409a8efa726e9b81282f1552baff0cf6bdbff0c44",
+      "sha256": "a78bf9b6faab26ccbcb3d8fba52855f3faad88694afc169cd325570e658d4699",
       "snippets": []
     },
     "start.index": {
@@ -13883,16 +14050,17 @@
       ],
       "maturity": "shipped",
       "authoringProfiles": [
-        "explicit"
+        "explicit",
+        "familiar"
       ],
       "capabilities": [],
       "authorities": [
         "llp/0259-agent-first-read-budget.rfc.md"
       ],
       "examples": [],
-      "reviewed": "2026-08-15",
+      "reviewed": "2026-08-29",
       "reviewedAuthoritiesDigest": "sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa",
-      "sha256": "22b56d0c8b82eedc04ef51bf94d7945d74e94d7c0e386af0f01695c1788c4982",
+      "sha256": "5e532fd0c245134929b6a8b08ec5e03ffd4824c0076b6d3b0c5af801088e4e9f",
       "snippets": []
     },
     "start.media-feed": {
@@ -14369,8 +14537,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 5236398,
-      "sha256": "046264f93d64dc11dd9dd7e0c06402354bcd444e3e70ae7ed8cc0d16b1e3d377",
+      "bytes": 5258215,
+      "sha256": "1a560367f8da00779b5728d075e2b7594a50cee96ee9245a5d0670ee560ed257",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -14379,16 +14547,16 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v2",
-      "sourceDigest": "sha256:20e973eca48cfaae1b8c70e3d5db6dcea2c6d1a6818a14266f60255fbb8455de",
+      "sourceDigest": "sha256:d8da10321d67b4c4f49b877b91ae7ba97a8cb7d624c620c591484a62930ce524",
       "modules": 56,
-      "symbols": 1469
+      "symbols": 1482
     },
     "reference.diagnostics-registry": {
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 1754346,
-      "sha256": "1c79e0ad25077a4e490e54c41b63e64f67ce0fb08b9b7a63e22d2f6fa69cfe50",
+      "bytes": 1755226,
+      "sha256": "858de0eb16adac98113085672475658f37640e3e561a7c14d1ead338cb812893",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -14397,9 +14565,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v2",
-      "sourceDigest": "sha256:f8819b7ea57fb12912757d9577b074cdaad867f2f413269dac5bcb873149b1b2",
+      "sourceDigest": "sha256:1a392a956be6010feb20ab7cc8a66ea7ceba6b84689409af077abe0066ed8ec0",
       "codes": 3596,
-      "emittingSites": 9689,
+      "emittingSites": 9691,
       "receivedSites": 380,
       "reservedSites": 11,
       "environmentVariables": 190,
@@ -14547,16 +14715,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 4206063,
-      "sha256": "07a9f3177046e23a8ba5c1d143ee46194127398c0c37fb4ac1311f61fff2e162"
+      "bytes": 4238968,
+      "sha256": "c37f5beff0874b4bb2d798748dc87df0db3ffd6a1f5d5fd89be19199ef3074df"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 223912,
-        "sha256": "97047adc86c89f9237865dfa6b3c8b71867394d86f514be9d3175e895893f1e6"
+        "bytes": 225568,
+        "sha256": "5115d7be6e523a93bf585a65ebcf0cc174b600574bd114ade0e8e403e6c273cf"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -14569,15 +14737,15 @@
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 405168,
-        "sha256": "2c3def143b39f1604ab0f93de563c4d49f3286cfa1848e3f694f16766d4dff7a"
+        "bytes": 408011,
+        "sha256": "6840d21a5262467e4355fa324951f464e293a8766b451d690fe4559946c7eced"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.clients.generated.md",
         "uri": "snapback-guide://flat/clients",
-        "bytes": 276553,
-        "sha256": "427350095b5e6ad16f2c0ef29d36bca28f0345cd7b073b84fb686f6d3e922f4d"
+        "bytes": 276933,
+        "sha256": "578b6644485a951ca549e80609ba744133d0cde634b8baee82173286d5a35d37"
       },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
@@ -14590,8 +14758,8 @@
         "path": "guide/guide-flat.getting-started.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.getting-started.generated.md",
         "uri": "snapback-guide://flat/getting-started",
-        "bytes": 71805,
-        "sha256": "7caaea59f04a9da848518726c2305bb7889a4d9165ce9c48547f561d7667d83f"
+        "bytes": 72614,
+        "sha256": "d00709a7372b9eb3044dd4cc854466bde7df02bd45b08c048942d730c163b2f8"
       },
       "operating": {
         "path": "guide/guide-flat.operating.generated.md",
@@ -14611,29 +14779,29 @@
         "path": "guide/guide-flat.realtime.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.realtime.generated.md",
         "uri": "snapback-guide://flat/realtime",
-        "bytes": 61424,
-        "sha256": "f4bddc691c1b9eb8061b9fbf6e83565c78e3f7c300340218abd217f6f76e2659"
+        "bytes": 61945,
+        "sha256": "3fa269caf81524277c9d660397155263c966052c79c03835fb2a6d45a21f2097"
       },
       "recipes": {
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 292062,
-        "sha256": "f356ee6586a2298682b64c39bb9cddcc1dde1fa0fce827e76717cf7cf50344a9"
+        "bytes": 304828,
+        "sha256": "73145f152693c8cd9fe661ac5f469aa836a6c9c6d50c3ea46dee5a55c0ea2f4c"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2284862,
-        "sha256": "be1c78273c6407bb2cfd1bcf1e2024f4fe3a837664ae2c22b301edf91f41cd98"
+        "bytes": 2292359,
+        "sha256": "07cf022a52d0e6a98078b3222d5f388c652b764a7e7d3417ce7f76e238249a66"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.start.generated.md",
         "uri": "snapback-guide://flat/start",
-        "bytes": 23268,
-        "sha256": "3308921c8e1454f5be09f72f5c535c758249072bab1dafe89ea7c2a90c90b0a2"
+        "bytes": 29701,
+        "sha256": "2f4fb381a4d8fb42bea7bbe4073682d50424a21e808d595db93caf6cbf0801f2"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -14651,5 +14819,5 @@
       }
     }
   },
-  "contentHash": "a5d34374baadf26900d5364d22adb757112b54598264b50ce87ff1f0f6231716"
+  "contentHash": "046bcfdddf53eeb1dbd0f8897bb6eaf98a1d4afe427a5b47047463756b68acb8"
 }

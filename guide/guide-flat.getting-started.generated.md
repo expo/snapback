@@ -9,13 +9,14 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.structured-stored-fields, backend.stored-enums, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0211-typed-opaque-structured-stored-values.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, crates/snapback-types/src/contract_types.rs, crates/snapback-kernel/src/storage.rs]
-examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs, packages/snapback-codegen/stored-enum-authoring.test.mjs, packages/snapback-codegen/structured-stored-values.test.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0109-versioned-seed-evolution.spec.md, llp/0115-convex-parity-course-corrections.plan.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0211-typed-opaque-structured-stored-values.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, crates/snapback-types/src/contract_types.rs, crates/snapback-kernel/src/storage.rs]
+examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs, packages/snapback-codegen/seed-asset-fixtures.test.mjs, packages/snapback-codegen/stored-enum-authoring.test.mjs, packages/snapback-codegen/structured-stored-values.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:c35a028d2c4bbacdddd4e09c92b5f49e60f00db705a68e799a47fd40dda53a06
+reviewed-authorities-digest: sha256:4d9ebe710bbe171fb5102850ecf098461109630bc8965bb66acfff7dddda398e
 ---
 
 # Your first backend
@@ -89,6 +90,16 @@ as a string, route the bytes out of the document before authoring the field.
 A `v.string()` or `v.json()` value is still row data and the structured form
 has the independent 32 KiB per-value ceiling described below. This storage
 boundary is the same in Explicit and Familiar authoring.
+
+Seed validation applies the same rule before replay. When generation finds an
+unambiguous media data URI or long canonical base64 payload in `seed.json`,
+`SNAPBACK_SEED_DECLARATION_INVALID` details name the exact table, row index,
+field path, encoding, and typed-asset repair before any seed effect can settle.
+Put the bytes in a committed file declared by `seed-assets.json`, declare the
+destination as `v.assetRef(...)` or finalized-only `v.media(...)`, and use the
+generated `{ "$assetFixture": "<fixture-id>" }` placeholder in the row. Do not
+split or compress the string to evade the refusal; the repair is typed asset
+custody.
 
 **Storing media is an asset workflow, not a string-field shortcut.** If a
 field will hold an uploaded photo, video, or file, stop here and follow

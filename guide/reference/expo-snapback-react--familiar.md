@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:0fa215487afc8b322dea9d2d022d0b2f8aba72166959
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Module projection identity:
-`sha256:2301e090ab50fc25aae696b8921566bbc11bcd2e67659f4b5b887d56e8843275`.
+`sha256:c198c425b904b5b2db0792b04a88f5ea966d6ec24e875de50a41455a59b47082`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -156,7 +156,7 @@ export type QueryReference<Name extends string = string, Args = Record<string, u
 
 Stable identity: `npm:@expo/snapback-react/familiar#skip`
 Kind: `runtime-constant`
-Source: `packages/snapback-react/index.d.mts:300`
+Source: `packages/snapback-react/index.d.mts:305`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 skip: SkipSentinel
@@ -167,7 +167,7 @@ skip: SkipSentinel
 
 Stable identity: `npm:@expo/snapback-react/familiar#SkipOr`
 Kind: `type-type-alias`
-Source: `packages/snapback-react/index.d.mts:299`
+Source: `packages/snapback-react/index.d.mts:304`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SkipOr<Value> = Value | SkipSentinel;
@@ -178,7 +178,7 @@ export type SkipOr<Value> = Value | SkipSentinel;
 
 Stable identity: `npm:@expo/snapback-react/familiar#SkipSentinel`
 Kind: `type-type-alias`
-Source: `packages/snapback-react/index.d.mts:296`
+Source: `packages/snapback-react/index.d.mts:301`
 
 Nominal symbol type retained through generic object inference such as React useMemo.
 
@@ -218,7 +218,7 @@ export type SnapbackAppRefusal =
 
 Stable identity: `npm:@expo/snapback-react/familiar#SnapbackProvider`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:580`
+Source: `packages/snapback-react/index.d.mts:585`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function SnapbackProvider(props: SnapbackProviderProps): any;
@@ -242,7 +242,7 @@ export function useAction<Ref extends FamiliarActionReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useAuth`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:589`
+Source: `packages/snapback-react/index.d.mts:594`
 
 Stable projection of the framework-neutral application's auth facade.
 
@@ -255,7 +255,7 @@ export function useSnapbackAuth(): SnapbackAuthFacade;
 
 Stable identity: `npm:@expo/snapback-react/familiar#useCurrentPrincipal`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:586`
+Source: `packages/snapback-react/index.d.mts:591`
 
 Exact LLP 0238 current-principal projection from the ordinary app owner.
 Official providers withhold hook consumers until ready. Custom SSR trees
@@ -298,7 +298,7 @@ export function useQuery<Ref extends FamiliarLiveQueryReference>(
 
 Stable identity: `npm:@expo/snapback-react/familiar#useQueryState`
 Kind: `runtime-function`
-Source: `packages/snapback-react/index.d.mts:591`
+Source: `packages/snapback-react/index.d.mts:596`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackQuery<Ref extends QueryReference>(

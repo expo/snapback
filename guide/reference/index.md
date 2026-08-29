@@ -17,8 +17,8 @@ reviewed-authorities-digest: sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a45
 
 # Generated API reference
 
-One build-bound projection of 1469 public symbols (607 runtime values and 862 explicit type-only symbols).
-Registry source identity: `sha256:20e973eca48cfaae1b8c70e3d5db6dcea2c6d1a6818a14266f60255fbb8455de`.
+One build-bound projection of 1482 public symbols (620 runtime values and 862 explicit type-only symbols).
+Registry source identity: `sha256:d8da10321d67b4c4f49b877b91ae7ba97a8cb7d624c620c591484a62930ce524`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -28,7 +28,7 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 
 | Module | Symbols | Runtime | Types |
 | --- | ---: | ---: | ---: |
-| [`@expo/snapback-client`](./expo-snapback-client.md) | 341 | 106 | 235 |
+| [`@expo/snapback-client`](./expo-snapback-client.md) | 342 | 107 | 235 |
 | [`@expo/snapback-client/agent-authority`](./expo-snapback-client--agent-authority.md) | 17 | 3 | 14 |
 | [`@expo/snapback-client/app-client-internal`](./expo-snapback-client--app-client-internal.md) | 11 | 11 | 0 |
 | [`@expo/snapback-client/app-data`](./expo-snapback-client--app-data.md) | 9 | 6 | 3 |
@@ -71,11 +71,11 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/search`](./expo-snapback-client--search.md) | 11 | 2 | 9 |
 | [`@expo/snapback-client/shared-development-auth`](./expo-snapback-client--shared-development-auth.md) | 14 | 10 | 4 |
 | [`@expo/snapback-client/vector-search`](./expo-snapback-client--vector-search.md) | 5 | 1 | 4 |
-| [`@expo/snapback-react`](./expo-snapback-react.md) | 151 | 54 | 97 |
-| [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 68 | 27 | 41 |
+| [`@expo/snapback-react`](./expo-snapback-react.md) | 155 | 58 | 97 |
+| [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 72 | 31 | 41 |
 | [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 19 | 9 | 10 |
 | [`@expo/snapback-react/thumbhash`](./expo-snapback-react--thumbhash.md) | 5 | 5 | 0 |
-| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 203 | 80 | 123 |
+| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 207 | 84 | 123 |
 | [`@expo/snapback-expo/app-binding`](./expo-snapback-expo--app-binding.md) | 14 | 5 | 9 |
 | [`@expo/snapback-expo/app.plugin`](./expo-snapback-expo--app.plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |

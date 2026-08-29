@@ -9,14 +9,14 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/limits.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/_kit/tests/live-query-invalidation-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
 authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:63fc6585854a340747d6ce85561a0f1606d2a32b4afcb7ce8a2053b68d2de1c8
+reviewed-authorities-digest: sha256:129507c45852cf2ba040f596adb3cc368b9c7d0b3afc76bea74d5f952b84414f
 ---
 
 # Live queries
@@ -187,6 +187,14 @@ ordering and filters on the server, then declare the intended window with
 `.take(n)` (or narrow the predicate). The terse search “stopped updating large
 thread” routes to this same failure.
 
+Generated live-query type hovers also show the client composition budget:
+React warns with `SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` above 16
+independent live subscriptions while they are still supported, then refuses at
+the hard ceiling of 64. The public `REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET`
+and `REACT_SERVER_SUBSCRIPTION_CEILING` constants carry those exact literal
+types. The warning reports the owner and current count before the refusal and
+routes repeated point reads toward a set aggregate or chunked semijoin.
+
 ## Matching inserts in point and parent queries
 
 **HostPlan matching inserts are guaranteed.** A subscribed point filter such
@@ -234,13 +242,13 @@ Keep these three create-and-navigate cuts separate:
    authoritative initial snapshot is empty, that is a defect—do not wait for a
    future live frame to repair it.
 
-> **If you searched for a “Router-navigation recipe for settled mutations that must survive page replacement”:** this client-side composition is profile-neutral.
-> Snapback does not currently ship a `settledNavigation` helper.
-> Persist the navigation intent synchronously before page replacement,
-> resume the same idempotent operation at the destination, and gate the next authority-sensitive action on a server witness.
-> For remove/disappear flows,
-> that witness can be roster absence or the authoritative disappearance
-> setting; an abandoned component promise and navigation alone prove neither.
+> **If you searched for a “Router-navigation recipe for settled mutations that
+> must survive page replacement”:** Snapback does not currently ship a
+> `settledNavigation` helper. Follow the maintained
+> [persist/resume/witness repair](../recipes/messaging-convergence.md#navigate-after-remove-or-disappear).
+> The composition is profile-neutral; an abandoned component promise,
+> settlement, and navigation alone do not prove subscriber convergence or lost
+> authority.
 
 For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
 query args and canonical/provisional identity at each render, the mutation

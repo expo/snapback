@@ -283,16 +283,21 @@ const media = await ctx.db.uniqueMany(
   'byMessage',
   messages.map((message) => ({ messageId: message._id })),
 );
-return messages.map((message) => ({
-  messageId: message._id,
-  media: media.find((row) => row?.messageId === message._id) ?? null,
-}));
+const correlated = [];
+for (const message of messages) {
+  const row = media.find((candidate) => candidate?.messageId === message._id) ?? null;
+  correlated.push({ messageId: message._id, media: row });
+}
+return correlated;
 ```
 
 The same rewrite works for `getMany`: match each returned document's `_id`
 against the ID carried by the source record. It avoids forbidden computed
 member access, preserves the ID even when a lookup is hidden or missing, and
 uses the same inline-handler grammar in Explicit and Familiar authoring.
+`SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN` also carries this compilable
+`for...of` rewrite as a structured recovery payload; tooling may present it as
+a code action, but it requires the author to select the authoritative ID.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
@@ -399,6 +404,14 @@ An explicit `.take(1_024)` is allowed and means “this bounded prefix is
 intentional”; it does not claim the whole predicate has only 1,024 matches.
 Do not collect a large prefix and then sort or filter it in JavaScript to infer
 the global top rows—the omitted rows may contain the actual winners.
+
+Generated query references repeat this budget in their type hover, and
+`SNAPBACK_PUBLIC_BUDGETS_V1.query` exposes the exact typed values. A literal
+over 1,024 refuses at generation with `limit`, `observed`, and a
+`fixed-bound-then-slice` recovery. A dynamic `.take(limit)` remains supported:
+the runtime checks its eventual value against the same ceiling. After choosing
+a semantically complete fixed server window, slice only when the caller wants
+a smaller subset of that already-correct window.
 
 ### The complete builder chain
 
@@ -556,8 +569,9 @@ examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-des
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
+reviewed-authorities-digest: sha256:180e2869cb0ebd182e750d2e1393bfaca5d6ed13dd2a0ff506b0d8b1f0ed64af
 ---
 
 # Mutations
@@ -798,14 +812,13 @@ limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
 
-> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
-> depend on that client-side join. The shipped `startDirectMessage` example is
-> an authenticated server mutation that resolves the two-person natural key,
-> returns the existing canonical conversation id, or creates the conversation
-> and both memberships atomically. Settle it with `queue: false` before navigating.
-> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
-> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
-> equivalent.
+> **If you searched because “Alice1 direct-route bootstrap still intermittently
+> waited on a same-principal profile live query”:** use the maintained
+> [open-by-natural-key route recipe](../recipes/messaging-convergence.md#open-a-direct-conversation-by-natural-key).
+> It resolves or creates the DM in one authenticated server mutation, settles
+> with `queue: false`, navigates with the canonical id, and proves repeated-open
+> idempotence. The worked source is Explicit; the server-owned route shape is
+> shared by Familiar authoring.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit
@@ -873,7 +886,12 @@ writes or retaining a successful settlement. A mismatch returns
 `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`; no write, durable version, or
 successful settlement survives, and the diagnostic never echoes the rejected
 value. The general result ceiling is 4 MiB, while retained mutation output
-also keeps its existing 65,536-byte ceiling.
+also keeps its existing 65,536-byte ceiling. Generated mutation-reference
+hovers name both limits, and the public typed
+`SNAPBACK_PUBLIC_BUDGETS_V1.retainedMutationOutput` fact names the exact cap
+and `SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`. That diagnostic reports
+`maxBytes` and `bytes`; reduce the declared mutation result rather than
+dropping replay retention or retrying the same oversized output.
 
 The violation details name the failing bound so you do not have to guess which
 one it was: `constraint` carries one closed name (`maxResultBytes`, `maxBytes`,
@@ -4758,14 +4776,15 @@ id: backend.media-happy-paths
 order: 10
 audience: agent-first
 capabilities: [assets.media-field.v1, assets.media-collection.v1, assets.media-command.v1]
-authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback-kernel/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0264-table-write-policy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback-kernel/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
 examples: [tests/acceptance/fixtures/media-profile/snapback/schema.mjs, tests/acceptance/fixtures/media-profile/snapback/functions.mjs, packages/snapback-codegen/media-field-authoring.test.mjs, packages/snapback-codegen/media-collection-authoring.test.mjs, packages/snapback-codegen/media-command-authoring.test.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/assets.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-react/asset-upload-types.fixture.ts, packages/snapback-react/media-collection-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 since: 0.1.21
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:17c83fe601e56488b64e3952744f80e95cc17c899099ba8f0729ea401da5efac
+reviewed-authorities-digest: sha256:f0f9617cae3ce7c8bedc30a9695e7885bc011b9562d3fae30c232af4c8c302c7
 ---
 
 # Media happy paths
@@ -4861,6 +4880,24 @@ across authors instead uses the explicit
 That design choice is profile-neutral. The collection declarations below are
 Snapback extension/Explicit vocabulary; the typed child-row model can be
 authored in either profile.
+
+Every admitted collection records a generated review sidecar at
+`generated/asset-collection-authoring-preflight.json → collections[]`. Read it
+before activating the schema. This is the complete choice the declaration
+makes, not a runtime surprise:
+
+| Consequence | Generated `assetCollection` | Application-owned typed child row |
+| --- | --- | --- |
+| Parent reads | Parent must be owner-visible; cross-author feed reads through that policy are unavailable. | Parent may remain `public-read` or use another admitted policy. |
+| Parent ownership | Owner field is the effective principal, immutable, and host-stamped. `ctx.db.insert` must omit it; a HostPlan insert may omit it or use the sealed auth-user marker. | Follows the app-owned parent and child policies you declare. |
+| Static insert shape | The preflight lists required, optional, and forbidden caller fields for the parent. | The authored mutation/result contracts own the child insert shape. |
+| Unique conflicts | Duplicate asset ids refuse. Every parent unique index is listed; a non-owner-partitioned constraint requires operation-bound conflict disclosure because success versus conflict can reveal existence. | The app declares duplicate behavior and owns any required conflict disclosure. |
+| Child custody and writes | Framework-owned rows; raw writes refuse; generated list/append/replace/remove/reorder enforce the bound. | Application-owned rows; you author bounded reads and authorized writes. |
+
+Do not widen an owner parent to silence the preflight. If posts must be readable
+across authors, follow the
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts)
+side by side with this table and choose that model before activation.
 
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must
