@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:f34e36814c80aa27197238ba7518045050dfd5527345f5c3e3c23a551860d1d6 -->
+<!-- start-packet:begin expo-chat digest=sha256:c4b0d297af97fb6a342db8c3c4fce1f01a4ebab07246ec127a0217c0a3105527 -->
 First read (LLP 0259 Rung A): use edit targets. Brief, `SNAPBACK_*` refusal,
 or failed `prove` → open one `snapback guide <query>` result.
 
@@ -41,10 +41,8 @@ Metro; it disables watching.
 
 ## Edit targets (listed, not charged)
 
-- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}` — auth, tables,
-  queries/mutations/commands, ephemeral `typing`, and seeded personas.
-- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx` — provider,
-  auth entry, inbox, thread, replies, reactions, typing, and upload.
+- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}`.
+- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx`.
 - Proof: `acceptance.mjs`, `snapback.verify.config.mjs`.
 
 `snapback/generated/` is codegen-owned: regenerate and commit
@@ -54,7 +52,7 @@ refused alias.
 ## Posture
 
 - **Auth: sessions, guest-first, password, Apple/Google.** Web starts sessionless;
-  native auto-adopts; `adoptSupervisedSession` reverses either default. After
+  native auto-adopts; `adoptSupervisedSession` flips either default. After
   `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
@@ -77,12 +75,15 @@ refused alias.
    `snapback generate` warns; Expo boot can refuse with
    `SNAPBACK_REACT_ARGS_INVALID`. Do not export unused table queries; replace
    `*Before` variants with an optional `before` argument.
-4. Structured fields are opaque: interiors are not queryable and a
-   nested principal is a snapshot, not membership. Base64/data-URI media is row data under the
-   32 KiB value ceiling; use generated asset/media upload. See
+4. Structured interiors are not queryable; a nested principal is a snapshot,
+   not membership. Base64/data-URI media is row data: 32 KiB value ceiling;
+   use asset/media upload. See
    [Structured stored values](/_snapback/guide/getting-started/your-first-backend.md#structured-stored-values).
-5. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
-   migrate or reset-install.
+5. Changed seed identity — exact fresh reset and what it preserves:
+   `snapback reset --dev-fresh --db
+   "$PWD/.snapback/dev.sqlite3"`. It refuses custom, shared, or
+   symlink-ambiguous paths and preserves source, generated artifacts, and
+   unregistered `.snapback` files. Never raw-wipe the database.
 6. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate

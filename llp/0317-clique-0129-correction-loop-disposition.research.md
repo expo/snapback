@@ -7,6 +7,10 @@ Diagnostics, React/Expo, Local server lifecycle, Auth, Client integration,
 Live queries, Assets, Code generation, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-27
+**Revised:** 2026-08-28 (r2.8: Wave 3 record reconciliation. O26's
+cross-platform publication capability gate and O36's specialized
+`defineMediaCommand` task already ship; the broader physical-device media GAP
+remains open. See §Revision history.)
 **Revised:** 2026-08-29 (r2.7: L19 prevention landed for O14 shape (d)'s
 past-ceiling mechanism and O35's live-query half: typed refusal delivery,
 fail-closed blanking, and no futile retry/resnapshot loop. See §Revision
@@ -274,11 +278,11 @@ recurrence across independent models is the strongest signal available.
 | ID | Observed correction cause | Why Snapback should prevent it | Candidate intervention |
 |---|---|---|---|
 | O25 | Both sol lanes first represented fixture media as base64 strings and only then hit the 32 KiB structured-value ceiling, after other M2 writes had settled. Sol Familiar reached the right answer only "after the single M1→M2 schema successor was already active," so it shipped with typed media as a candid gap. | The wrong shape is the easiest web-fixture shape; discovering the limit mid-successor is expensive and can be unrecoverable within a successor budget. | Put "bytes are assets, never structured strings" in the template/start packet; refuse data-URI-looking stored strings early with the typed-asset repair; expose the ceiling before replay. |
-| O26 | The documented generated media collection compiled but published Linux 0.1.29 lacked `assets.media-collection.v1`. | Codegen and the co-published runtime were incoherent. | Resolve the open capability-skew ticket; publication qualification must compare every codegen-required capability against every platform runtime. If experimental, codegen must refuse before output and the guide must route to the fallback. |
+| O26 | The documented generated media collection compiled but published Linux 0.1.29 lacked `assets.media-collection.v1`. | Codegen and the co-published runtime were incoherent. | **Landed 2026-08-28 (`f3c09fcb0`):** publication qualification compares the authoritative codegen requirement set with every platform runtime and fails closed on missing or malformed capability evidence. The capability-skew ticket is closed; physical-device Expo and end-to-end published-package media proof remain open under `issues/20260815-finish-media-happy-path.md`. |
 | O27 | Trying the generated collection forced owner-visible parent semantics, host-stamped-owner omission, static insert shapes, unique-conflict disclosure, and then blocked cross-author post reads; after O26 the lane reversed much of the design. | The happy path exposed a large, non-obvious policy bundle before runtime capability admission. | Add a generated preflight explaining all parent-table consequences before schema activation; provide side-by-side "collection" and "typed child row" designs for public social media. |
 | O28 | Media kind and typed delivery arrived through separate projections, so a bubble could be considered ready before the harness/app knew it was video; view-once could appear before bytes were available. `grok-snapback-familiar` M4: video bytes "never became observable" and splitting text-then-media still left photo live-render red. *2 lanes.* | Split metadata/delivery readiness is legitimate but needs a standard render contract. | Asset UI recipe should define metadata-ready, delivery-ready, openable, and terminal states and show how to gate controls without hiding the whole message. |
 | O35 | **New in r2.** Asset and live-query surfaces were reported to fail by returning empty rather than by refusing. `grok-snapback-explicit` M1: "`useSnapbackAssetImage` stays empty without `maxWidth`"; M3: an unscoped `allMessages` live query "went silent" on a 179-row thread. **Asset half re-diagnosed 2026-08-28: not reproducible.** The hook's `maxWidth = 512` default is blamed to `0fbdc5ff06` on 2026-08-10 and is byte-stable since, predating published 0.1.29. A current-main ready-asset harness passed 10 consecutive runs with `maxWidth` omitted, selected the 512px rendition, and produced the strict `?maxWidth=512` URL. **Live-query prevention landed 2026-08-28 under L19:** deterministic past-ceiling reevaluation now carries `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`, its 1,024 bound, and `.take(n)` repair through the fail-closed frame into the headless and React error surfaces, without consuming a retry episode or starting a futile plain re-snapshot. | Silent emptiness is the worst failure mode for an agent. The asset report does not describe the shipped hook, and the confirmed live-query mechanism now refuses loudly while preserving blanking. | Keep the omitted-width regression and make no asset API change. Retain the typed-refusal engine/client/React tests and shape-(d) pre-fix rejection/post-fix acceptance witness; L4's bounded-sweep findings remain in its closed verdict record. **Live-query half landed 2026-08-29** (`9f7eb7f5d`, L19): the refusal now reaches the subscriber typed; proven 10/10 checkout-bound on both platforms — ticket `issues/closed/20260828-live-query-implicit-limit-refusal-blanks-subscription.md`. |
-| O36 | **New in r2.** `defineCommand` carries one asset, so every media send is a separate upload intent plus a mutate (`grok-snapback-explicit` M2/M4). `grok-snapback-familiar` M4: `useSnapbackAssetUpload` "blocked send long enough that Bob never saw the caption." *2 lanes.* | Multi-attachment messages and posts are ordinary; the one-asset command turns them into two-phase application state that must then be made idempotent and non-blocking. | Either admit multiple assets per command or publish the two-phase upload-then-mutate pattern as the supported recipe with its ordering, idempotency, and non-blocking-send requirements spelled out. |
+| O36 | **New in r2.** `defineCommand` carries one asset, so every media send is a separate upload intent plus a mutate (`grok-snapback-explicit` M2/M4). `grok-snapback-familiar` M4: `useSnapbackAssetUpload` "blocked send long enough that Bob never saw the caption." *2 lanes.* | Multi-attachment messages and posts are ordinary; the one-asset command turns them into two-phase application state that must then be made idempotent and non-blocking. | **Already ships:** the LLP 0239 successor `defineMediaCommand` preserves legacy `defineCommand`'s zero-or-one-asset contract while one specialized task owns bounded ordered uploads and then one atomic parent/collection mutation commit. Route that two-stage recipe; do not commission another primitive. |
 
 ### Auth/schema successors and silent degradation
 
@@ -480,15 +484,16 @@ reports under `issues/sweep-20260828/`.
 
 | Verdict | Count | Rows |
 |---|---|---|
-| Already ships | 9 | O11, O16, O18, O23, O30, O34, O36, O39, O42 |
+| Already ships | 10 | O11, O16, O18, O23, O26, O30, O34, O36, O39, O42 |
 | Already ships (repair present) | 2 | O10 (failure `inconclusive`), O12 (cause established 2026-08-28) |
 | Partially ships | 19 | O1, O2, O3, O4, O9, O13, O15, O17, O19, O20, O22, O24, O25, O27, O28, O37, O40, O41, O44 |
-| Genuinely open | 7 | O8, O26, O31, O32, O38, O43, O45 |
+| Genuinely open | 6 | O8, O31, O32, O38, O43, O45 |
 | Needs reproduction | 7 | O5, O6, O7, O14, O21, O33, O46 |
 | Confirmed defect | 1 | O29 |
 | Not reproducible | 1 | O35 |
 
-**Only seven rows are genuinely new capability work.** Eleven already ship and
+**Only six rows are genuinely new capability work.** Twelve already ship or
+carry an already-shipped repair, and
 nineteen are partial — a named delta rather than a build. (Counts are over the
 46 rows that existed when the sweep ran. §Scale tail later added O47, O49 and
 O50; two further drafted rows were withdrawn in review, one of them because it
@@ -671,6 +676,15 @@ This research can move from Review to Active after:
    (see §Proposed proof and routing).
 
 ## Revision history
+
+**r2.8 — 2026-08-28 (Wave 3 record reconciliation).** O26's fail-closed
+publication capability-coherence gate landed at `f3c09fcb0`; its narrower
+published-runtime skew ticket closes while the physical-device and end-to-end
+published media proof GAP remains open. O36 now points to the already-shipped
+LLP 0239 `defineMediaCommand` specialization: bounded ordered uploads followed
+by one atomic parent/collection mutation commit, without changing legacy
+`defineCommand` or inventing another primitive. The already-ships table moves
+O26 accordingly.
 
 **r4 — 2026-08-28 (scale-tail question round; no review round — this revision
 answers two questions the r3 scale-tail classification deliberately routed out,

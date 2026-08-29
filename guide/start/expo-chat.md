@@ -4,14 +4,14 @@ id: start.expo-chat
 order: 4
 audience: agent-first
 capabilities: []
-authorities: [llp/0114-first-class-react-and-query-groups.spec.md, llp/0259-agent-first-read-budget.rfc.md, llp/0297-client-canonicalization-budgets.research.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0259-agent-first-read-budget.rfc.md, llp/0297-client-canonicalization-budgets.research.md, llp/0299-supervised-listener-port-plan.spec.md, llp/0300-snapback-is-a-url.rfc.md, llp/0301-url-first-dev-lifecycle.spec.md, llp/0302-declared-dev-client-binding.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates/expo-chat/snapback/schema.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-cli/templates/expo-chat/acceptance.mjs]
 examples: [packages/snapback-cli/templates/expo-chat]
 status: current
 targets: [all]
 maturity: shipped
 authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:4de6650a9f7ede77da2b4358d03106d9ddc0680eb613c7a0d190116f8df1c2cd
+reviewed-authorities-digest: sha256:e69e107f77dade868bc324f906e1ae27c099ad2c9308570185961e2a742cc22b
 ---
 
 # Start packet: the `expo-chat` template
@@ -56,10 +56,8 @@ Metro; it disables watching.
 
 ## Edit targets (listed, not charged)
 
-- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}` — auth, tables,
-  queries/mutations/commands, ephemeral `typing`, and seeded personas.
-- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx` — provider,
-  auth entry, inbox, thread, replies, reactions, typing, and upload.
+- Backend: `snapback/{schema.mjs,functions.mjs,seed.json}`.
+- Client: `App.tsx`, `src/screens/{inbox-screen,chat-screen}.tsx`.
 - Proof: `acceptance.mjs`, `snapback.verify.config.mjs`.
 
 `snapback/generated/` is codegen-owned: regenerate and commit
@@ -69,7 +67,7 @@ refused alias.
 ## Posture
 
 - **Auth: sessions, guest-first, password, Apple/Google.** Web starts sessionless;
-  native auto-adopts; `adoptSupervisedSession` reverses either default. After
+  native auto-adopts; `adoptSupervisedSession` flips either default. After
   `signUpWithPassword` / `signInWithPassword`, do not call an
   authenticated mutation in the same tick. Wait until the provider's
   authenticated dispatcher exists. Do not mount a profile editor that can save
@@ -92,12 +90,15 @@ refused alias.
    `snapback generate` warns; Expo boot can refuse with
    `SNAPBACK_REACT_ARGS_INVALID`. Do not export unused table queries; replace
    `*Before` variants with an optional `before` argument.
-4. Structured fields are opaque: interiors are not queryable and a
-   nested principal is a snapshot, not membership. Base64/data-URI media is row data under the
-   32 KiB value ceiling; use generated asset/media upload. See
+4. Structured interiors are not queryable; a nested principal is a snapshot,
+   not membership. Base64/data-URI media is row data: 32 KiB value ceiling;
+   use asset/media upload. See
    [Structured stored values](../getting-started/your-first-backend.md#structured-stored-values).
-5. Changed seed identity refuses with `SNAPBACK_SEED_MIGRATION_REQUIRED`;
-   migrate or reset-install.
+5. Changed seed identity — exact fresh reset and what it preserves:
+   `snapback reset --dev-fresh --db
+   "$PWD/.snapback/dev.sqlite3"`. It refuses custom, shared, or
+   symlink-ambiguous paths and preserves source, generated artifacts, and
+   unregistered `.snapback` files. Never raw-wipe the database.
 6. A `SNAPBACK_*` refusal names its rule/fix; `snapback guide <CODE>` routes it.
 
 ## Escalate

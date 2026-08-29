@@ -9,8 +9,9 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-21
-reviewed-authorities-digest: sha256:4956122aa0f8dce10514700c2cf5f7295427c63747befe08f216789dc0cea856
+authoring-profiles: []
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:0bf525eefc1725690714e40e0774d30a0419725bf3f18807c70314edc840dc59
 ---
 
 # The React client
@@ -777,6 +778,11 @@ This is an Online projection. It does not claim local handler execution or
 Parity merely because it can retain data while a connection is stale.
 
 ## Render offline facts honestly
+
+For the product-shaped retained-conversation/outbox/composer composition, use
+the [messaging convergence recipe](../recipes/messaging-convergence.md#keep-a-retained-thread-outbox-and-composer-honest).
+It keeps eligibility, freshness, connectivity, queued intent, and composer
+readiness as separate facts instead of turning an offline label into authority.
 
 The hooks project the headless client's own offline facts — they surface,
 never invent. For a mounted declarative public-exact query, codegen and the

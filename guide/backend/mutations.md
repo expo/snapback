@@ -9,8 +9,9 @@ examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-des
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:d7a342eef934bea0db757ae7b0e6a5d1e266cce999c28c4d73a43acc6677b342
+reviewed-authorities-digest: sha256:180e2869cb0ebd182e750d2e1393bfaca5d6ed13dd2a0ff506b0d8b1f0ed64af
 ---
 
 # Mutations
@@ -251,14 +252,13 @@ limits *which* rows qualify, while `take` limits how many qualifying rows the
 handler can materialize. Chain compound-index equalities in declared index
 field order.
 
-> **If you searched because “Alice1 direct-route bootstrap still intermittently waited on a same-principal profile live query”:** do not make route readiness
-> depend on that client-side join. The shipped `startDirectMessage` example is
-> an authenticated server mutation that resolves the two-person natural key,
-> returns the existing canonical conversation id, or creates the conversation
-> and both memberships atomically. Settle it with `queue: false` before navigating.
-> Repeated opens reuse the canonical conversation id. The shipped example is Explicit.
-> Familiar authors use the same one-mutation server-side shape, but the repository does not yet carry a maintained Familiar worked
-> equivalent.
+> **If you searched because “Alice1 direct-route bootstrap still intermittently
+> waited on a same-principal profile live query”:** use the maintained
+> [open-by-natural-key route recipe](../recipes/messaging-convergence.md#open-a-direct-conversation-by-natural-key).
+> It resolves or creates the DM in one authenticated server mutation, settles
+> with `queue: false`, navigates with the canonical id, and proves repeated-open
+> idempotence. The worked source is Explicit; the server-owned route shape is
+> shared by Familiar authoring.
 
 These reads are caller-scoped by table visibility. A named mutation that has
 already established authority with `ctx.permissions` may use the explicit

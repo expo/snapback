@@ -11,7 +11,7 @@ targets: [local]
 maturity: shipped
 authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:63fc6585854a340747d6ce85561a0f1606d2a32b4afcb7ce8a2053b68d2de1c8
+reviewed-authorities-digest: sha256:129507c45852cf2ba040f596adb3cc368b9c7d0b3afc76bea74d5f952b84414f
 ---
 
 # Live queries
@@ -229,13 +229,13 @@ Keep these three create-and-navigate cuts separate:
    authoritative initial snapshot is empty, that is a defect—do not wait for a
    future live frame to repair it.
 
-> **If you searched for a “Router-navigation recipe for settled mutations that must survive page replacement”:** this client-side composition is profile-neutral.
-> Snapback does not currently ship a `settledNavigation` helper.
-> Persist the navigation intent synchronously before page replacement,
-> resume the same idempotent operation at the destination, and gate the next authority-sensitive action on a server witness.
-> For remove/disappear flows,
-> that witness can be roster absence or the authoritative disappearance
-> setting; an abandoned component promise and navigation alone prove neither.
+> **If you searched for a “Router-navigation recipe for settled mutations that
+> must survive page replacement”:** Snapback does not currently ship a
+> `settledNavigation` helper. Follow the maintained
+> [persist/resume/witness repair](../recipes/messaging-convergence.md#navigate-after-remove-or-disappear).
+> The composition is profile-neutral; an abandoned component promise,
+> settlement, and navigation alone do not prove subscriber convergence or lost
+> authority.
 
 For `blank after insert`, `Loading thread`, or `live_delta empty`, capture the
 query args and canonical/provisional identity at each render, the mutation

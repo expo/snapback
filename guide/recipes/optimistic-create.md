@@ -9,8 +9,9 @@ examples: [packages/snapback-react/optimistic-create-types.fixture.ts, packages/
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-27
-reviewed-authorities-digest: sha256:a12838a91ec8d10412f534c734aafbb28bb727c1177f2a49cbf91363932cd3ec
+authoring-profiles: [explicit]
+reviewed: 2026-08-28
+reviewed-authorities-digest: sha256:2b489984557ce3efb1b74b6fbc5fb8fedfb133b456e1a3222eeaf9372d432a21
 ---
 
 # Recipe: optimistic create with a server-minted ID
@@ -27,15 +28,12 @@ canonical query store. The lower-level
 compositions. Both paths use the durable outbox, the same locally executable
 generated mutation IR, and the same LLP 0133 logical-mint settlement.
 
-> **If you searched for “same-account live messaging, cross-device unread clearing, and dual-client offline convergence”:** there is no single maintained recipe or proof that combines all four boundaries.
-> Start here for
-> optimistic sender echo and canonical-id reconciliation; use
-> [offline retention and mutation replay](../sync/offline-and-retention.md#replay-and-settle-without-guessing)
-> for durable exact settlement and offline replay, and
-> [multiple surfaces](./optimistic-toggle.md#the-same-record-on-multiple-surfaces)
-> for authoritative convergence outside the touched surface. Current messaging receipt examples are client-authored acknowledgements, not a server-observed fetch primitive.
-> The client reconciliation route applies to both Explicit and Familiar generated references; each profile still authors its receipt
-> mutation in that profile's source.
+> **If you searched for “same-account live messaging, cross-device unread
+> clearing, and dual-client offline convergence”:** use the maintained
+> [messaging convergence recipe](./messaging-convergence.md#converge-sender-recipient-and-second-client-views).
+> It composes optimistic sender echo, durable exact settlement/offline replay,
+> client-authored receipt acknowledgements, and per-context authoritative
+> observation without claiming one matched end-to-end proof covers them all.
 
 The React package tests prove typed provisional presentation, filtering,
 ordering, relationship projection, both response/query orderings, overlapping
