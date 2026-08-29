@@ -9,7 +9,8 @@ Developer experience, Agent experience, Guide, Packaging
 **Related:** LLP 0000, LLP 0080, LLP 0110, LLP 0120, LLP 0129, LLP 0138,
 LLP 0145, LLP 0155, LLP 0189, LLP 0201, LLP 0225, LLP 0252, LLP 0259,
 LLP 0310, LLP 0314, LLP 0317, LLP 0318, LLP 0319, LLP 0320, LLP 0322,
-LLP 0323, LLP 0329.000, LLP 0329.004,
+LLP 0323, LLP 0329.000, LLP 0329.004, LLP 0329.012, LLP 0329.013,
+LLP 0329.014,
 `benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md`,
 `guide/sync/offline-and-retention.md`, `guide/eval-runs/2026-08-21/`,
 Diary 0114
@@ -232,6 +233,20 @@ problem with diagnostics is cardinality, not quality.
 1. Can an analyzable read language be made expressive enough to be the *only*
    language? This is prior to every design in LLP 0329.000 and is the subject of
    [LLP 0329.004](./0329.004-composition-expressiveness-constraint.research.md).
+   [LLP 0329.012](./0329.012-bound-carrying-algebra-as-the-only-language.research.md)
+   argues yes, if the restriction is computational class rather than operator
+   poverty, and proposes a bound-carrying algebra; it is research, not a
+   ratification.
+   [LLP 0329.013](./0329.013-one-read-language-proposals.research.md),
+   written blind to it in the same hour, independently answers yes on the
+   same diagnosis, decomposes which capability actually forces restriction
+   (only local prediction), maps the complete Clique census to a general
+   closed algebra, and records the two documents' four disagreements.
+   [LLP 0329.014](./0329.014-bounded-data-programs-panel-synthesis.research.md)
+   records a three-family, three-round discussion that converged on bounded
+   data programs — real control flow between typed bounded reads, a static
+   certificate as the gate, the execution trace as the closure — and relates
+   all three to the measured 0329.005–0329.011 series.
 2. Is row-rule authorization affordable when pushed into query plans? All three
    sketches depend on it; none has evidence.
 3. Does the authoritative request and transaction path need an embedded JS engine
