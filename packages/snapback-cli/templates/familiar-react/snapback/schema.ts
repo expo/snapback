@@ -20,7 +20,6 @@ const authProgram = defineAuth({
     },
     lastAuthenticator: 'enforce',
   },
-  guestPolicy: { enabled: false },
   secretReferences: {},
 });
 

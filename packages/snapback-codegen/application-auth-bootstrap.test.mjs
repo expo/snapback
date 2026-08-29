@@ -228,6 +228,43 @@ test('entry mechanisms are closed, canonical, and admit enabled guest policy', a
   )), JSON.stringify(refused.diagnostics));
 });
 
+test('a non-guest auth program may omit guestPolicy and normalizes it disabled', () => {
+  const normalized = defineAuth({
+    version: 1,
+    mechanisms: {
+      password: {
+        kind: 'password',
+        identifier: 'email',
+        provider: 'builtIn',
+        recovery: 'recoveryCodes',
+      },
+    },
+    assuranceRequirements: {},
+    recoveryPolicy: {
+      recoveryCodes: {
+        enabled: true,
+        requiredWhen: 'no-independent-recovery',
+        rotateAfterUse: true,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'enforce',
+    },
+    secretReferences: {},
+  });
+  assert.deepEqual(normalized.guestPolicy, { enabled: false, claiming: [] });
+  assert.throws(
+    () => defineAuth({
+      version: 1,
+      mechanisms: { guest: { kind: 'guest' } },
+      assuranceRequirements: {},
+      recoveryPolicy: normalized.recoveryPolicy,
+      secretReferences: {},
+    }),
+    (error) => error?.code === 'SNAPBACK_AUTH_PROGRAM_INVALID'
+      && /guest mechanisms require an enabled guestPolicy/u.test(error.message),
+  );
+});
+
 test('generated guest entry refuses a target catalog without guest capability evidence', async () => {
   const root = fixture();
   writeExplicit(root, {

@@ -226,7 +226,7 @@ export interface GeneratedApi {
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
    * Familiar `useMutation` is settled-only (`queue:false`); offline lifecycle: `useSnapbackMutation` + `useSnapbackOutbox().mutationStatus` (planned `useSnapbackMutationDispatch` + `useSnapbackMutationStatus`).
-   * Build identity: `snapback.v1:sessions:inputs:sha256:849543888291fd9c83b1281737dc738bde165a600d28081841025028b6622533`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:b3940933fefec56ad2479831d62fe2f3a209f616d163ff69a2744ed2eeed697b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "todos.create": FunctionReference<"todos.create", 'Mutation', { title: string }, Id<"todos">, "snapback-familiar-ts-v1">;
   /**
@@ -235,7 +235,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:849543888291fd9c83b1281737dc738bde165a600d28081841025028b6622533`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:b3940933fefec56ad2479831d62fe2f3a209f616d163ff69a2744ed2eeed697b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "todos.list": FunctionReference<"todos.list", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"todos">; "_version": number; "_createdAt": number; "_updatedAt": number; "title": string; "completed": boolean }>, "snapback-familiar-ts-v1">;
   ephemeral: GeneratedEphemeral;

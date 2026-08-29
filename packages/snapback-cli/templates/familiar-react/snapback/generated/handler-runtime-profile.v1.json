@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "familiar-react",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:be5dcd8c1b2072c786cd9c54d4c067ab89d4333d5b7c3737682205085482fbb7",
+  "authoredSourceHash": "sha256:57d205d40cd9b365721db525d56534fd43de419ba65521acfa156414ef1d8c2e",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -564,7 +564,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:849543888291fd9c83b1281737dc738bde165a600d28081841025028b6622533",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b3940933fefec56ad2479831d62fe2f3a209f616d163ff69a2744ed2eeed697b",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",

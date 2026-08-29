@@ -900,7 +900,8 @@ export interface AuthProgramV1 {
   };
   readonly assuranceRequirements: Readonly<Record<string, { readonly allOf: readonly string[] }>>;
   readonly recoveryPolicy: AuthRecoveryPolicyV1;
-  readonly guestPolicy: {
+  /** Omit when no guest mechanism is declared; normalizes to disabled. */
+  readonly guestPolicy?: {
     readonly enabled: boolean;
     readonly claiming?: readonly string[];
     readonly reaping?: {
