@@ -3,7 +3,7 @@
 Committed in the execution branch before reading any Wave 5 cell outcome.
 
 - Instrument: `social-messenger@0.3.6-m8`, source revision
-  `ccce55a03a31b66fd2831e8a91c044c26d9b0662`.
+  `db3fe84d2e2f05fa7592119016d1a68991a0945b`.
 - Product pins: published Snapback `0.1.29` and `0.1.30`, exact across every
   `@expo/snapback-*` package and the hosted runtime selected by that closure.
 - Cells: `gpt-5.6-sol` at `xhigh` and `grok-4.6` at `xhigh`, each against the
@@ -31,21 +31,24 @@ and Grok Explicit processes were interrupted, their partial lanes were
 preserved as entry-gate evidence, and none of their observations or work is a
 cell outcome.
 
-Commit `ccce55a03a31b66fd2831e8a91c044c26d9b0662` re-versioned the exact
-semantics as `0.3.6-m8`, updated the complete frozen-root identity, and passed
-read-only materialization, manifest verification, the 167,157-action scale
-hash/validator, the N7 preflight, lane-setup 11/11, and the full choreography
-self-test. Replacement cells use fresh directories and sessions. Product
-pins, model/profile roster, effort, N, milestone scope, counterbalancing, and
-claim boundary are unchanged. This amendment was committed before inspecting
-any replacement-cell outcome.
+The first 0.3.6 repair updated the outer frozen-root registration. Replacement
+processes that read its pre-rebase source SHA were interrupted before admission
+and retained as provenance-refusal evidence. Exact review then found that the
+emitter, setup identity, receipt schemas, meter, record validator, and
+production driver still declared 0.3.4, so that partial repair is also
+inadmissible and no result was read from either attempted replacement.
 
-The repair was then rebased onto the concurrently advanced `origin/main`,
-changing only its commit identity to the final SHA recorded above. The first
-replacement processes had already read the pre-rebase SHA, so they too were
-interrupted before admission and retained as provenance-refusal evidence.
-Admitted cells start only after the final repair SHA is reachable on
-`origin/main` and use fresh directories and model sessions.
+Commit `db3fe84d2e2f05fa7592119016d1a68991a0945b` aligns the complete executable
+evidence stack at `0.3.6-m8`. It passed read-only materialization and manifest
+verification at SHA-256
+`0ea43742ff13ddecac3c7b6c821da4c6a3b9605b3ee8969a741714ff9701ae89`, the
+167,157-action scale hash/validator, the N7 preflight, lane-setup 11/11, 140
+production-path tests, and the full choreography self-test from the exact
+materialization. The known M7 calibration flake failed once and passed on the
+immediate identical rerun; M7 remains environment-null here. Product pins,
+model/profile roster, effort, N, milestone scope, counterbalancing, and claim
+boundary are unchanged. Admitted cells start only after this final repair SHA
+is reachable on `origin/main`, in fresh directories and model sessions.
 
 ## Counterbalancing
 
