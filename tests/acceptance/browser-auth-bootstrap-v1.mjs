@@ -37,14 +37,18 @@ import { dirname, join, resolve } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { build } from 'esbuild';
-
-import { launchChromeCdp } from '../../demos/_kit/chrome-process.mjs';
 import {
   ownProcessTree,
   startServer,
   stopChild,
 } from '../../demos/_kit/server-process.mjs';
+import {
+  bundleBrowserPage,
+  connectRawCdp,
+  launchRawCdpChrome,
+  resolveChromeExecutable,
+  startBrowserBundleProxy,
+} from './browser-raw-cdp-v1.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '..', '..');
@@ -122,39 +126,13 @@ const publicError = (error) => ({
 });
 
 function resolveChrome() {
-  if (options.browser !== null) {
-    if (!existsSync(options.browser)) {
-      fail('SNAPBACK_BROWSER_AUTH_BROWSER_NOT_FOUND', `browser executable missing: ${options.browser}`);
-    }
-    return resolve(options.browser);
-  }
-  const candidates = process.platform === 'darwin'
-    ? [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        '/Applications/Chromium.app/Contents/MacOS/Chromium',
-        '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-        '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
-      ]
-    : [
-        '/usr/bin/google-chrome',
-        '/usr/bin/google-chrome-stable',
-        '/usr/bin/chromium',
-        '/usr/bin/chromium-browser',
-      ];
-  const found = candidates.find((candidate) => existsSync(candidate));
-  if (!found) {
-    fail(
-      'SNAPBACK_BROWSER_AUTH_BROWSER_NOT_FOUND',
+  return resolveChromeExecutable({
+    explicitPath: options.browser,
+    fail,
+    missingCode: 'SNAPBACK_BROWSER_AUTH_BROWSER_NOT_FOUND',
+    missingMessage:
       'no system Chrome-family browser found; pass --browser or set SNAPBACK_BROWSER_EXECUTABLE',
-    );
-  }
-  return found;
-}
-
-function macAppBundleFor(executable) {
-  const marker = '.app/Contents/MacOS/';
-  const index = executable.indexOf(marker);
-  return index === -1 ? null : executable.slice(0, index + '.app'.length);
+  });
 }
 
 // Engine-specific lifecycle/transport is kept behind this adapter boundary;
@@ -163,31 +141,12 @@ const BROWSER_ENGINE_ADAPTERS = Object.freeze({
   chromium: Object.freeze({
     id: 'chromium',
     async launch({ executable, profilePath, headed }) {
-      const appBundle = process.platform === 'darwin' ? macAppBundleFor(executable) : null;
-      if (process.platform === 'darwin' && appBundle === null) {
-        fail(
-          'SNAPBACK_BROWSER_AUTH_BROWSER_APP_BUNDLE_REQUIRED',
-          `macOS Chrome executable is not inside an app bundle: ${executable}`,
-        );
-      }
-      return launchChromeCdp({
-        // macOS 26 aborts app-bundle executables directly spawned while they
-        // register with CoreServices. `open -W` performs registration and
-        // remains the owned leader until Browser.close.
-        chromeBin: process.platform === 'darwin' ? '/usr/bin/open' : executable,
-        launchPrefixArgs: process.platform === 'darwin'
-          ? ['-n', '-W', appBundle, '--args']
-          : [],
-        userDataDir: profilePath,
-        headless: !headed,
-        stopSignal: 'SIGTERM',
-        startupTimeoutMs: 20_000,
-        pollMs: 50,
-        extraArgs: [
-          '--remote-allow-origins=*',
-          '--disable-background-networking',
-          '--disable-component-update',
-        ],
+      return launchRawCdpChrome({
+        executable,
+        profilePath,
+        headed,
+        fail,
+        appBundleRequiredCode: 'SNAPBACK_BROWSER_AUTH_BROWSER_APP_BUNDLE_REQUIRED',
       });
     },
   }),
@@ -258,18 +217,10 @@ async function ensureFixtureArtifacts() {
 }
 
 async function bundlePage() {
-  const result = await build({
-    entryPoints: [PAGE_MODULE_PATH],
-    absWorkingDir: ROOT,
-    bundle: true,
-    conditions: ['browser', 'import', 'default'],
-    define: { 'process.env.NODE_ENV': '"development"' },
-    format: 'esm',
-    platform: 'browser',
-    target: 'es2022',
-    write: false,
+  return bundleBrowserPage({
+    entryPoint: PAGE_MODULE_PATH,
+    root: ROOT,
   });
-  return result.outputFiles[0].contents;
 }
 
 const readRequestBytes = async (request, maximum = 1024 * 1024) => {
@@ -310,255 +261,36 @@ const redactDebugRequestBody = (body) => {
   }
 };
 
-function createGate(pathname, expected) {
-  let resolveEntered;
-  let resolveRelease;
-  const enteredPromise = new Promise((resolve) => { resolveEntered = resolve; });
-  const releasePromise = new Promise((resolve) => { resolveRelease = resolve; });
-  return {
-    pathname,
-    expected,
-    entered: 0,
-    released: false,
-    enteredPromise,
-    releasePromise,
-    enter() {
-      this.entered += 1;
-      if (this.entered >= this.expected) resolveEntered();
-    },
-    release() {
-      if (this.released) return;
-      this.released = true;
-      resolveRelease();
-    },
-  };
-}
-
 async function startHarnessServer(bundle, upstreamOrigin) {
-  const html = Buffer.from(
-    '<!doctype html><html><head><meta charset="utf-8"><title>browser-auth-bootstrap-v1</title></head>'
-      + '<body><main id="app">browser-auth-bootstrap-v1</main>'
-      + '<script type="module" src="/bundle.mjs"></script></body></html>',
-  );
-  const requestFacts = [];
-  const gates = new Map();
-  const server = createServer(async (request, response) => {
-    try {
-      const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-      if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-        response.writeHead(200, {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store',
-        });
-        response.end(html);
-        return;
-      }
-      if (request.method === 'GET' && url.pathname === '/bundle.mjs') {
-        response.writeHead(200, {
-          'content-type': 'text/javascript; charset=utf-8',
-          'cache-control': 'no-store',
-        });
-        response.end(bundle);
-        return;
-      }
-      const gate = gates.get(url.pathname) ?? null;
-      if (gate !== null) {
-        gate.enter();
-        await gate.releasePromise;
-      }
-      const body = ['GET', 'HEAD'].includes(request.method ?? 'GET')
-        ? undefined
-        : await readRequestBytes(request);
-      const headers = new Headers();
-      for (const [name, rawValue] of Object.entries(request.headers)) {
-        if (
-          rawValue === undefined
-          || ['connection', 'content-length', 'host', 'transfer-encoding'].includes(name)
-        ) continue;
-        headers.set(name, Array.isArray(rawValue) ? rawValue.join(', ') : rawValue);
-      }
-      const upstream = await fetch(`${upstreamOrigin}${url.pathname}${url.search}`, {
-        method: request.method,
-        headers,
-        body,
-        redirect: 'manual',
-      });
-      requestFacts.push(Object.freeze({
-        method: request.method,
-        pathname: url.pathname,
-        status: upstream.status,
-      }));
-      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1' && url.pathname.startsWith('/auth/')) {
+  return startBrowserBundleProxy({
+    bundle,
+    upstreamOrigin,
+    title: 'browser-auth-bootstrap-v1',
+    bodyText: 'browser-auth-bootstrap-v1',
+    fail,
+    bindFailureCode: 'SNAPBACK_BROWSER_AUTH_HARNESS_BIND_FAILED',
+    bodyLimitCode: 'SNAPBACK_BROWSER_AUTH_PROXY_BODY_LIMIT',
+    bodyLimitMessage: 'request body exceeded 1 MiB',
+    proxyFailureCode: 'SNAPBACK_BROWSER_AUTH_PROXY_FAILED',
+    maximumBodyBytes: 1024 * 1024,
+    onProxyResponse({ body, request, upstream, upstreamBody, url }) {
+      if (
+        process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1'
+        && url.pathname.startsWith('/auth/')
+      ) {
         const scrubbed = Object.fromEntries(Object.entries(request.headers).map(([n, v]) =>
           [n, /authorization|cookie|token/i.test(n) ? '<redacted-present>' : v]));
         const bodyText = redactDebugRequestBody(body);
-        console.error('AUTH-DEBUG', url.pathname, JSON.stringify({ headers: scrubbed, body: bodyText, status: upstream.status }).slice(0, 900));
-      }
-      const responseHeaders = {};
-      for (const [name, value] of upstream.headers) {
-        if (!['connection', 'content-length', 'transfer-encoding'].includes(name)) {
-          responseHeaders[name] = value;
-        }
-      }
-      const upstreamBody = Buffer.from(await upstream.arrayBuffer());
-      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1' && url.pathname.startsWith('/auth/')) {
+        console.error('AUTH-DEBUG', url.pathname, JSON.stringify({
+          headers: scrubbed,
+          body: bodyText,
+          status: upstream.status,
+        }).slice(0, 900));
         const match = upstreamBody.toString('utf8').match(/"userId":"([^"]+)"/);
         console.error('AUTH-DEBUG-RESPONSE', url.pathname, upstream.status, 'serverUserId=' + (match?.[1] ?? 'none'));
       }
-      response.writeHead(upstream.status, responseHeaders);
-      response.end(upstreamBody);
-    } catch (error) {
-      response.writeHead(502, { 'content-type': 'application/json; charset=utf-8' });
-      response.end(JSON.stringify({
-        diagnostic: {
-          code: error?.code ?? 'SNAPBACK_BROWSER_AUTH_PROXY_FAILED',
-          message: 'the local browser proof proxy could not complete the upstream request',
-        },
-      }));
-    }
+    },
   });
-  await new Promise((resolveListen, rejectListen) => {
-    server.once('error', rejectListen);
-    server.listen(0, '127.0.0.1', resolveListen);
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') {
-    fail('SNAPBACK_BROWSER_AUTH_HARNESS_BIND_FAILED', 'harness did not bind TCP');
-  }
-  return {
-    origin: `http://127.0.0.1:${address.port}`,
-    requestFacts,
-    armGate(pathname, expected = 2) {
-      if (gates.has(pathname)) throw new Error(`route gate already active for ${pathname}`);
-      const gate = createGate(pathname, expected);
-      gates.set(pathname, gate);
-      return gate;
-    },
-    async waitForGate(gate, timeoutMs = 15_000) {
-      await Promise.race([
-        gate.enteredPromise,
-        new Promise((_, reject) => setTimeout(
-          () => reject(new Error(`timed out waiting for ${gate.pathname} race gate`)),
-          timeoutMs,
-        )),
-      ]);
-    },
-    releaseGate(gate) {
-      gate.release();
-      gates.delete(gate.pathname);
-    },
-    releaseAllGates() {
-      for (const gate of gates.values()) gate.release();
-      gates.clear();
-    },
-    counts() {
-      const output = {};
-      for (const fact of requestFacts) {
-        const key = `${fact.method} ${fact.pathname}`;
-        output[key] ??= { total: 0, statuses: {} };
-        output[key].total += 1;
-        output[key].statuses[fact.status] = (output[key].statuses[fact.status] ?? 0) + 1;
-      }
-      return output;
-    },
-    close: () => new Promise((resolveClose, rejectClose) => server.close(
-      (error) => error ? rejectClose(error) : resolveClose(),
-    )),
-  };
-}
-
-async function connectCdp(webSocketUrl) {
-  const socket = new WebSocket(webSocketUrl);
-  const pending = new Map();
-  let nextId = 1;
-  const settle = (id) => {
-    const entry = pending.get(id);
-    if (entry) clearTimeout(entry.timer);
-    pending.delete(id);
-    return entry;
-  };
-  const rejectAll = (reason) => {
-    for (const id of [...pending.keys()]) settle(id)?.reject(new Error(reason));
-  };
-  socket.addEventListener('message', async (event) => {
-    const message = JSON.parse(typeof event.data === 'string' ? event.data : await event.data.text());
-    if (!message.id || !pending.has(message.id)) return;
-    const entry = settle(message.id);
-    if (message.error) entry.reject(new Error(message.error.message));
-    else entry.resolve(message.result ?? {});
-  });
-  socket.addEventListener('close', () => rejectAll('CDP socket closed'));
-  socket.addEventListener('error', () => rejectAll('CDP socket errored'));
-  await new Promise((resolveOpen, rejectOpen) => {
-    socket.addEventListener('open', resolveOpen, { once: true });
-    socket.addEventListener('error', () => rejectOpen(new Error('CDP connect failed')), { once: true });
-  });
-  const send = (method, params = {}, sessionId = null, timeoutMs = 60_000) => {
-    const id = nextId++;
-    socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params }));
-    return new Promise((resolveResult, rejectResult) => {
-      const timer = setTimeout(() => {
-        settle(id);
-        rejectResult(new Error(`CDP command timed out: ${method}`));
-      }, timeoutMs);
-      pending.set(id, { resolve: resolveResult, reject: rejectResult, timer });
-    });
-  };
-  const waitForPageApi = async (evaluate) => {
-    const deadline = Date.now() + 60_000;
-    while (Date.now() < deadline) {
-      try {
-        if (await evaluate(`typeof globalThis.${PAGE_GLOBAL} === 'object'`)) return;
-      } catch {
-        // Navigation may replace the execution context between polls.
-      }
-      await sleep(50);
-    }
-    fail('SNAPBACK_BROWSER_AUTH_PAGE_NOT_READY', 'browser page did not expose its proof API');
-  };
-  return {
-    close() { socket.close(); },
-    async newPage(url) {
-      const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-      const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-      await send('Page.enable', {}, sessionId);
-      await send('Runtime.enable', {}, sessionId);
-      const evaluate = async (expression, timeoutMs = 60_000) => {
-        const result = await send('Runtime.evaluate', {
-          expression,
-          awaitPromise: true,
-          returnByValue: true,
-        }, sessionId, timeoutMs);
-        if (result.exceptionDetails) {
-          const description = result.exceptionDetails.exception?.description
-            ?? result.exceptionDetails.text
-            ?? 'browser evaluation failed';
-          throw new Error(description.replace(/sbs_[A-Za-z0-9._~-]+/gu, '[REDACTED]'));
-        }
-        return result.result?.value;
-      };
-      await send('Page.navigate', { url }, sessionId);
-      await waitForPageApi(evaluate);
-      return {
-        targetId,
-        eval: evaluate,
-        call(method, argument = undefined, timeoutMs = 60_000) {
-          const input = argument === undefined
-            ? ''
-            : `JSON.parse(${JSON.stringify(JSON.stringify(argument))})`;
-          return evaluate(
-            `globalThis.${PAGE_GLOBAL}[${JSON.stringify(method)}](${input})`,
-            timeoutMs,
-          );
-        },
-        async reload() {
-          await send('Page.reload', { ignoreCache: true }, sessionId);
-          await waitForPageApi(evaluate);
-        },
-        close: () => send('Target.closeTarget', { targetId }),
-      };
-    },
-  };
 }
 
 async function reserveLoopbackPort() {
@@ -1609,6 +1341,7 @@ const fixtureFiles = [
 const sourceFiles = [
   'tests/acceptance/browser-auth-bootstrap-v1.mjs',
   'tests/acceptance/browser-auth-bootstrap-v1-page.mjs',
+  'tests/acceptance/browser-raw-cdp-v1.mjs',
   'packages/snapback-client/app-client.mjs',
   'packages/snapback-contract/auth-custody-indexeddb.mjs',
   'demos/_kit/chrome-process.mjs',
@@ -1790,7 +1523,18 @@ try {
           profilePath,
           headed: options.headed,
         });
-        cdp = await connectCdp(chrome.ws);
+        cdp = await connectRawCdp(chrome.ws, {
+          pageGlobal: PAGE_GLOBAL,
+          fail,
+          socketClosedCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          socketErrorCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          commandFailureCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          commandTimeoutCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          contextCreateFailureCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          contextDisposeFailureCode: 'SNAPBACK_BROWSER_AUTH_BOOTSTRAP_RUNNER_ERROR',
+          pageNotReadyCode: 'SNAPBACK_BROWSER_AUTH_PAGE_NOT_READY',
+          pageNotReadyMessage: 'browser page did not expose its proof API',
+        });
         browser = cdp;
       } else {
         webdriver = await BROWSER_ENGINE_ADAPTERS[engineId].launch();
