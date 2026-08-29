@@ -13,12 +13,12 @@
 **Battery gate:** `swift-client`
 **Failure signature:** `sha256:7edbc50e4e71fbf16a40dc7d45e9c2319469812f59fed484dd2b35c525baa134`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260829T051119Z.45ebcadce605`
-**Last processed run:** `local.20260829T051119Z.45ebcadce605`
+**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `45ebcadce6052132fd6c69a0487b3c1258bda1f3`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
