@@ -99,9 +99,24 @@ export async function launchRawCdpChrome({
       '--remote-allow-origins=*',
       '--disable-background-networking',
       '--disable-component-update',
+      // Ubuntu 24.04+ restricts unprivileged user namespaces, so Chromium's
+      // zygote sandbox cannot start on a stock fleet host ("No usable
+      // sandbox!"). The arm never disables it silently: the caller must set
+      // SNAPBACK_BROWSER_NO_SANDBOX=1, and every report records the mode.
+      ...(chromeSandboxDisabled() ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
       ...extraArgs,
     ],
   });
+}
+
+export function chromeSandboxDisabled() {
+  return process.env.SNAPBACK_BROWSER_NO_SANDBOX === '1';
+}
+
+export function chromeSandboxMode() {
+  return chromeSandboxDisabled()
+    ? 'disabled (SNAPBACK_BROWSER_NO_SANDBOX=1)'
+    : 'chromium-sandbox';
 }
 
 export async function bundleBrowserPage({

@@ -33,6 +33,8 @@ import {
   launchRawCdpChrome,
   resolveChromeExecutable,
   startBrowserBundleProxy,
+  chromeSandboxDisabled,
+  chromeSandboxMode,
 } from './browser-raw-cdp-v1.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -955,6 +957,7 @@ const report = {
     protocolVersion: null,
     automation: 'raw CDP over Node WebSocket',
     launchMode: 'headless=new',
+    sandbox: chromeSandboxMode(),
   },
   platform: {
     os: process.platform,
@@ -984,6 +987,9 @@ const report = {
     schemaFunctionsModule: 'demos/_kit/tests/live-query-invalidation-fixture.mjs',
   },
   scopeLimitations: [
+    ...(chromeSandboxDisabled()
+      ? ['Chromium sandbox disabled via SNAPBACK_BROWSER_NO_SANDBOX=1 because the host restricts unprivileged user namespaces; custody, protocol and witness evidence are unaffected']
+      : []),
     'Chrome only; Safari and Firefox are separate evidence arms.',
     'Source-checkout @expo/snapback-client bundle, not the published 0.1.29 package bytes.',
     `Local origin/main resolved at run time to ${mainIdentity.originMainSha ?? 'null'}; no network fetch was performed.`,
