@@ -402,4 +402,3 @@ dedupe semantics, automated closure boundary, Linear handoff, and historical
 migration is a repository-wide workflow decision. Individual stale tickets are
 maintenance; the contract that prevents another 1,956 records from becoming
 one undifferentiated directory is design.
-

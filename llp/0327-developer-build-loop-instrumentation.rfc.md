@@ -230,4 +230,3 @@ noticed.
 LLP 0175 already decided the right posture — measure, then experiment,
 with per-change acceptance. The measurement half was never built. This is
 that half.
-
