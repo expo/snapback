@@ -390,10 +390,14 @@ function findOriginalAuthoritativeFrame(witness, baseline, frameRowsMatch) {
 async function originalSubscriptionDelivery({
   baseline,
   deadlineMs,
-  frameRowsMatch = rowsMatch,
   handle,
   label,
   rowsMatch,
+  // Destructuring defaults evaluate left to right, so `rowsMatch` must be
+  // bound before it can default `frameRowsMatch`; the previous order threw a
+  // temporal-dead-zone ReferenceError for every caller that omitted
+  // `frameRowsMatch` (shapes a, b, c) and silently left them un-runnable.
+  frameRowsMatch = rowsMatch,
   settledAt,
   witness,
 }) {
@@ -1928,7 +1932,11 @@ const execution = {
   platform: { os: process.platform, arch: process.arch, clientArm: 'headless-browser-shaped + React renderer' },
   scopeLimitations: [
     'headless browser-shaped clients and React renderer, not a real browser/Metro context',
-    'macOS arm64, not the reported Linux x86_64 platform',
+    // The matrix lanes ran on Linux x86_64; a run anywhere else must say so
+    // rather than let a hardcoded sentence misdescribe a Linux run.
+    ...(process.platform === 'linux' && process.arch === 'x64'
+      ? []
+      : [`${process.platform} ${process.arch}, not the reported Linux x86_64 platform`]),
     'source checkout client packages, not the published 0.1.29 client bundle',
   ],
   serverBinaries: [],
