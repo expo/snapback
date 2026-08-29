@@ -7,7 +7,7 @@ using the DEFAULT EXPLICIT authoring profile. The authoritative read-only
 instrument is `{{INSTRUMENT_DIR}}`; read its social-messenger brief, contract,
 fixtures, assertions, UI kit, and choreography. Its identity is
 `social-messenger@0.3.6-m8` at source revision
-`9742ab4b5130643fa362c717575a1a1d0a3fa4aa`. Use only published packages and the
+`d01627269c3489f511a6c5f1fc35c143a1655978`. Use only published packages and the
 served Guide for Snapback facts. Do not set `authoringProfile`; keep explicit
 `snapback/schema.mjs` and `snapback/functions.mjs` with generated exact refs.
 
