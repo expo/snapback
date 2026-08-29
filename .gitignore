@@ -92,3 +92,7 @@ tests/fixtures/*/target/
 
 # Untracked sibling checkout, not a submodule.
 /vendor/valet/
+/snapback2/target/
+/snapback2/dist/
+/snapback2/.hermes/
+/snapback2/packages/*/dist/

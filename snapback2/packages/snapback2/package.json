@@ -1,0 +1,22 @@
+{
+  "name": "snapback2",
+  "version": "0.0.1",
+  "description": "Snapback 2 CLI (the platform binary ships in snapback2-<os>-<arch>).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "snapback2": "bin/snapback2.mjs"
+  },
+  "files": [
+    "bin"
+  ],
+  "optionalDependencies": {
+    "snapback2-darwin-arm64": "0.0.1",
+    "snapback2-linux-x64": "0.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/expo/snapback.git",
+    "directory": "snapback2/packages/snapback2"
+  }
+}

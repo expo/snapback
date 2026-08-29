@@ -1,0 +1,13 @@
+{
+  "name": "snapback2-compiler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "bun src/test.ts",
+    "cli": "bun src/cli.ts"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

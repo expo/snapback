@@ -1,0 +1,13 @@
+{
+  "name": "snapback2-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "test": "bash scripts/test.sh",
+    "measure": "node scripts/measure.mjs",
+    "publish:npm": "node scripts/publish.mjs"
+  }
+}

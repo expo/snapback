@@ -3,6 +3,7 @@ resolver = "3"
 members = ["crates/*", "tools/snapback-delta-semantics"]
 default-members = ["crates/snapback"]
 exclude = [
+  "snapback2",
   "tools/agent-safe-baseline-worker",
   "vendor/ibex",
   "vendor/celld-ltx",

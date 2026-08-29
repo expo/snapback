@@ -1,0 +1,19 @@
+[package]
+name = "snapback2-effects"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "The effect seam. The only crate that may link a JS engine (Ibex 2), and only with the `hermes` feature."
+
+[dependencies]
+thiserror = "2"
+# Ibex 2 (LLP 0057/0058 in expo/ibex): a Rust standard library with JS bindings
+# over vanilla, pinned Hermes. `default-features = false` = no Oxc loader, no
+# engine: this crate builds from crates.io alone. The engine is `hermes`.
+ibex2 = { git = "https://github.com/expo/ibex", rev = "174c94fb7eb06785d3b48ce9f92527b6f9636bd3", default-features = false }
+
+[features]
+default = []
+hermes = ["ibex2/hermes"]
+loader = ["ibex2/loader"]

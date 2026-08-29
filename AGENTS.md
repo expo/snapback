@@ -8,6 +8,13 @@ escalate one page at a time via `snapback guide <query>`. The capability
 index is a lookup registry, not a first read (LLP 0259). The rest of this
 file is for engineering Snapback itself.
 
+**Working on Snapback 2?** It lives in [`snapback2/`](./snapback2/README.md)
+behind a fence: read [`snapback2/AGENTS.md`](./snapback2/AGENTS.md),
+[`rules/RULES.md`](./rules/RULES.md), [`rules/NOT-DOING.md`](./rules/NOT-DOING.md),
+and [LLP 1000](./llp/1000-snapback2.explainer.md). Nothing below this line about
+gates, inventories, bootstraps, or proofs applies there; its LLPs are numbered
+1000 and up.
+
 This project uses **Linked Literate Programming (LLP)**. The upstream LLP
 workflow is maintained at <https://github.com/ccheever/llp>; this repository
 keeps its own LLP corpus under [`llp/`](./llp/).

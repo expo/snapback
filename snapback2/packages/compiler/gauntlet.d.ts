@@ -1,0 +1,83 @@
+declare const follows: any;
+declare const feedEvents: any;
+declare const posts: any;
+declare const feedEntries: any;
+declare const accounts: any;
+declare const users: any;
+declare const profiles: any;
+declare const followers: any;
+declare const following: any;
+declare const followerCounts: any;
+declare const followingCounts: any;
+declare const memberships: any;
+declare const messages: Table & {
+  derive(name: string, value: (row: any) => any): any;
+  index(name: string, value: any): any;
+};
+declare const receipts: any;
+declare const receiptFacts: any;
+declare const receiptState: any;
+declare const conversations: any;
+declare const dmKeys: any;
+declare const viewGrants: any;
+declare const views: any;
+declare const messageText: any;
+declare const messageCounts: any;
+declare const pollVotes: any;
+declare const polls: any;
+declare const pollOptions: any;
+declare const tally: any;
+declare const votes: any;
+declare const tallies: any;
+declare const sent: any;
+declare const received: any;
+declare const media: any;
+declare const given: any;
+declare const receivedReactions: any;
+declare const reactionFacts: any;
+declare const reactions: any;
+declare const messageFacts: any;
+declare const conversationFirstSeen: any;
+declare const daily: any;
+declare const mediaSent: any;
+declare const perConvAuthor: any;
+declare const convos: any;
+declare const api: any;
+declare const client: any;
+declare const url: any;
+declare const token: any;
+declare const body: any;
+declare const messageId: any;
+declare const conversationId: any;
+declare const log: any;
+declare const MIN: number;
+declare const MINUTE: number;
+declare const HOUR: number;
+declare const DAY: number;
+declare const byTimeDesc: any;
+declare const schema: any;
+declare const maintain: {
+  count(source: any, options: { where?: (value: any) => any; [name: string]: any }): any;
+  sum(source: any, options: { where?: (value: any) => any; [name: string]: any }): any;
+};
+declare const ephemeral: {
+  channel(options: { room?: (value: any) => any; authorize?: (context: Context) => any; [name: string]: any }): any;
+};
+
+declare function top(limit: number, values: any[], comparator: any, tie: (value: any) => any): any;
+declare function orderedPair(...values: any[]): any;
+declare function normalizeWordPrefix(value: any): any;
+declare function intersectById(value: any): any;
+declare function mergeByTime(...values: any[]): any;
+declare function createHeadlessClient(value: any): any;
+declare function textIndex(...values: any[]): any;
+declare function rule(table: any, rules: { read?: (value: any) => any; update?: (value: any) => any; [name: string]: any }): any;
+declare function schedule(...values: any[]): any;
+declare function channel<A extends Record<string, Arg<any>>>(
+  args: A,
+  options: { publish?: (value: ArgsOf<A>) => any; subscribe?: (value: ArgsOf<A>) => any; [name: string]: any },
+): any;
+declare function memberOf(...values: any[]): any;
+declare function viewer(): any;
+declare const never: any;
+declare function tokens(value: string): any;
