@@ -18,8 +18,12 @@ declare that same current pin. The first `0.3.5-m8` launch was interrupted and
 is inadmissible: its manifest's choreography-root digest omitted concurrently
 integrated W9 files, so the immutable snapshot refused verification on both
 hosts. The first attempted 0.3.6 replacement was likewise interrupted before
-admission when rebasing changed the source revision its prompts named. All four
-partial lanes remain retained as entry-gate evidence and contribute no result.
+admission when rebasing changed the source revision its prompts named. Two more
+processes were stopped when their generated lane packets exposed the reduced-run
+default/full-run starter-segment gap; that gap is repaired in
+`issues/closed/20260829-full-journey-lane-setup-starter-segment-gap.md`. All six
+partial model lanes remain retained as entry-gate evidence and contribute no
+result.
 
 - **N7 / Dave contradiction — repaired.** Starter M3 now contains Erin rather
   than Dave. Dave is therefore absent and addable when the M3 membership
@@ -66,6 +70,9 @@ loop-count magnitude claim is authorized without LLP 0317.000's N≥8 bar.
   `ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623`;
   `scale-log.sha256` and all 167,294 starter/sample/scale actions validated
   from that snapshot before any replacement cell started.
+- Lane setup passes 12/12 tests, including a complete M1-M6/M8 packet that
+  links only the committed M1-M3 starter segments, carries later milestones
+  forward from M3, and renders every full-journey assertion row.
 
 ## Residual
 
