@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:8424614419052cfbc52c0103c71df82b019e7f5aadd0
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Module projection identity:
-`sha256:773ddfe9552699739c5d2e9582d9cee9ed6ca10dcddbce5ea2fe41d230b97d1a`.
+`sha256:4dd5d10d1edf5e21f11059299b4e1bcbbfc6137895318fc17dac7e247f968047`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -10824,6 +10824,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_PUSH_SESSION_STALE'
   | 'SNAPBACK_PUSH_TOKEN_INVALID'
   | 'SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION'
+  | 'SNAPBACK_QUERY_COLLECT_UNBOUNDED'
   | 'SNAPBACK_QUERY_COST_BOUND_EXCEEDED'
   | 'SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED'
   | 'SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED'

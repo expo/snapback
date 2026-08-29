@@ -19,7 +19,7 @@ reviewed-authorities-digest: sha256:0c9d1876629da8743cb49177be1c959e13b477c5bd5a
 
 This build-bound registry is generated from production Rust, JavaScript, shell, Swift, and Kotlin sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,596 stable codes** from 637 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation, grouped per source file with a count.
+**3,597 stable codes** from 637 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation, grouped per source file with a count.
 
 | Code | Vocabulary | Subsystem | HTTP | Guide | First registered site | Sites |
 | --- | --- | --- | ---: | --- | --- | ---: |
@@ -2822,6 +2822,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-push-session-stale"></a>`SNAPBACK_PUSH_SESSION_STALE` | emitted | server | 401 | — | `crates/snapback-kernel/src/push.rs` | 1 |
 | <a id="diagnostic-snapback-push-token-invalid"></a>`SNAPBACK_PUSH_TOKEN_INVALID` | emitted | client | 400 | — | `crates/snapback-kernel/src/push.rs` | 5 |
 | <a id="diagnostic-snapback-push-token-scope-collision"></a>`SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION` | emitted | server | 409 | — | `crates/snapback-kernel/src/push.rs` | 1 |
+| <a id="diagnostic-snapback-query-collect-unbounded"></a>`SNAPBACK_QUERY_COLLECT_UNBOUNDED` | emitted | queries | — | [guide](../backend/queries.md#bound-every-collection-intentionally) | `packages/snapback-codegen/index.mjs` | 1 |
 | <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | emitted | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs` | 4 |
 | <a id="diagnostic-snapback-query-cost-client-unsupported"></a>`SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | emitted | queries | 400 | — | `crates/snapback-types/src/manifest/graph.rs` | 2 |
 | <a id="diagnostic-snapback-query-cost-evidence-required"></a>`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | emitted | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs` | 36 |
@@ -2832,7 +2833,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-query-filter-unsupported-field-type"></a>`SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE` | emitted | queries | 400 | — | `crates/snapback-engine/src/local/engine.rs` | 4 |
 | <a id="diagnostic-snapback-query-filter-value-invalid"></a>`SNAPBACK_QUERY_FILTER_VALUE_INVALID` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 9 |
 | <a id="diagnostic-snapback-query-hydration-failed"></a>`SNAPBACK_QUERY_HYDRATION_FAILED` | emitted | queries | — | — | `packages/snapback-client/registration-ledger.mjs` | 1 |
-| <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | emitted, received | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `crates/snapback-engine/src/runtime/host_glue.rs` | 5 |
+| <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | emitted, received | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `crates/snapback-engine/src/runtime/host_glue.rs` | 7 |
 | <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 6 |
 | <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | emitted | queries | 500 | — | `crates/snapback-kernel/src/storage.rs` | 4 |
 | <a id="diagnostic-snapback-query-limit-invalid"></a>`SNAPBACK_QUERY_LIMIT_INVALID` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 9 |

@@ -256,7 +256,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "applyReplyProgress": FunctionReference<"applyReplyProgress", 'Mutation', { attemptId: string; sequence: number; delta: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -265,7 +266,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "cancelReply": FunctionReference<"cancelReply", 'Mutation', { attemptId: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -274,7 +276,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "completeReply": FunctionReference<"completeReply", 'Mutation', { attemptId: string; sequence: number; tail: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -283,7 +286,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "conversationBySlug": FunctionReference<"conversationBySlug", 'LiveQuery', { slug: string }, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -292,7 +297,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `relational_query_v1`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "conversationsWithModel": FunctionReference<"conversationsWithModel", 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "slug": string; "title": string; "model": string; "modelName": null | string; "modelProvider": null | string }>, "snapback-explicit-v1">;
   /**
@@ -301,7 +308,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createConversation": FunctionReference<"createConversation", 'Mutation', { slug: string; title: string; model: string }, null | { "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }, "snapback-explicit-v1">;
   /**
@@ -310,7 +318,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "deleteConversation": FunctionReference<"deleteConversation", 'Mutation', { id: Id<'conversations'> }, unknown, "snapback-explicit-v1">;
   /**
@@ -319,7 +328,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "firstConversationPage": FunctionReference<"firstConversationPage", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -328,7 +339,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "getConversation": FunctionReference<"getConversation", 'LiveQuery', { id: Id<'conversations'> }, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -337,7 +350,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listConversationCards": FunctionReference<"listConversationCards", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"conversationCards">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "title": string; "modelName": null | string }>, "snapback-explicit-v1">;
   /**
@@ -346,7 +361,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listConversations": FunctionReference<"listConversations", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -355,7 +372,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listMessages": FunctionReference<"listMessages", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": string; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "conversationId": Id<"conversations">; "role": string; "content": string; "status": string; "attemptId": string; "idempotencyKey": string; "sequence": number; "lastProgressAt": number; "pageKey": string }>, "snapback-explicit-v1">;
   /**
@@ -364,7 +383,9 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: implicit results and `.take(n)` are bounded at 1024 rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.
+   * React warns at 16 independent subscriptions (`SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED`); the hard ceiling is 64.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "nextConversationPage": FunctionReference<"nextConversationPage", 'LiveQuery', { after: string }, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }>, "snapback-explicit-v1">;
   /**
@@ -373,7 +394,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "registerModel": FunctionReference<"registerModel", 'Mutation', { slug: string; displayName: string; provider?: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -382,7 +404,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "settleReply": FunctionReference<"settleReply", 'Mutation', { attemptId: string; status: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -391,7 +414,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "startReply": FunctionReference<"startReply", 'Mutation', { conversationId: Id<'conversations'>; content: string; idempotencyKey: string }, unknown, "snapback-explicit-v1">;
   /**
@@ -400,7 +424,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `bounded_response_stream_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
    * Freshness: one-shot online response Retention: none.
    * Dispatch/task states: promise-only (no handle state table).
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "streamReply": FunctionReference<"streamReply", 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown, "snapback-explicit-v1">;
   /**
@@ -409,7 +433,8 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `02c1e064e8377a5f542ede663db0adf025d05edbb93ac8b92b2ac306ca747d6a`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Budget: logical results are at most 4194304 bytes; retained mutation output is at most 65536 bytes (`SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`).
+   * Build identity: `d78a80e3c489ffe427f52da20ad73c2a323960316d5ce92391b2f1da66fbd395`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "updateConversation": FunctionReference<"updateConversation", 'Mutation', { id: Id<'conversations'>; title: string; model: string }, null | { "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "ownerId": Principal; "slug": string; "title": string; "model": string; "pageKey": string; "createdAt": number; "updatedAt": number }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

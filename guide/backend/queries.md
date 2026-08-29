@@ -11,7 +11,7 @@ targets: [local]
 maturity: partial
 authoring-profiles: [explicit]
 reviewed: 2026-08-28
-reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
+reviewed-authorities-digest: sha256:34f211c81e61b57b9b4d72299935bb0cae810facfd74832e047e18867332e0e0
 ---
 
 # Queries
@@ -371,6 +371,10 @@ table is not one static literal also stay quiet.
 
 ## Bound every collection intentionally
 
+<!-- diagnostic-primary: SNAPBACK_QUERY_COLLECT_UNBOUNDED -->
+
+If you ask “why does codegen warn about collect?”, `SNAPBACK_QUERY_COLLECT_UNBOUNDED` is the unbounded query warning emitted when codegen can prove a direct `ctx.db.query(...)` chain reaches `.collect()` without `.take(...)`; it points to the implicit row budget published in `SNAPBACK_PUBLIC_BUDGETS_V1.query`, explains that reaching it refuses a live subscription with `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` and blank rows (or refuses the one-shot mutation/action invocation), and directs the author to repair the chain with server-side `.order(...).take(n)`.
+
 `ctx.db.query(...).collect()` is not an unbounded table scan. Without an
 explicit `.take(n)`, it may return at most 1,024 rows. If it reaches that
 ceiling, Snapback refuses the invocation with
@@ -407,6 +411,8 @@ over 1,024 refuses at generation with `limit`, `observed`, and a
 the runtime checks its eventual value against the same ceiling. After choosing
 a semantically complete fixed server window, slice only when the caller wants
 a smaller subset of that already-correct window.
+
+Search vocabulary: list take(1200) exceeded Familiar relational ceiling 1024.
 
 ### The complete builder chain
 

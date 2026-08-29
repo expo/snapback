@@ -24,7 +24,7 @@ reviewed-authorities-digest: sha256:0c9d1876629da8743cb49177be1c959e13b477c5bd5a
 
 This build-bound registry is generated from production Rust, JavaScript, shell, Swift, and Kotlin sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,596 stable codes** from 637 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation, grouped per source file with a count.
+**3,597 stable codes** from 637 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site, received-vocabulary site, and explicit reservation, grouped per source file with a count.
 
 | Code | Vocabulary | Subsystem | HTTP | Guide | First registered site | Sites |
 | --- | --- | --- | ---: | --- | --- | ---: |
@@ -2827,6 +2827,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-push-session-stale"></a>`SNAPBACK_PUSH_SESSION_STALE` | emitted | server | 401 | — | `crates/snapback-kernel/src/push.rs` | 1 |
 | <a id="diagnostic-snapback-push-token-invalid"></a>`SNAPBACK_PUSH_TOKEN_INVALID` | emitted | client | 400 | — | `crates/snapback-kernel/src/push.rs` | 5 |
 | <a id="diagnostic-snapback-push-token-scope-collision"></a>`SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION` | emitted | server | 409 | — | `crates/snapback-kernel/src/push.rs` | 1 |
+| <a id="diagnostic-snapback-query-collect-unbounded"></a>`SNAPBACK_QUERY_COLLECT_UNBOUNDED` | emitted | queries | — | [guide](../backend/queries.md#bound-every-collection-intentionally) | `packages/snapback-codegen/index.mjs` | 1 |
 | <a id="diagnostic-snapback-query-cost-bound-exceeded"></a>`SNAPBACK_QUERY_COST_BOUND_EXCEEDED` | emitted | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs` | 4 |
 | <a id="diagnostic-snapback-query-cost-client-unsupported"></a>`SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | emitted | queries | 400 | — | `crates/snapback-types/src/manifest/graph.rs` | 2 |
 | <a id="diagnostic-snapback-query-cost-evidence-required"></a>`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | emitted | queries | — | — | `crates/snapback-engine/src/graph_evaluator.rs` | 36 |
@@ -2837,7 +2838,7 @@ This build-bound registry is generated from production Rust, JavaScript, shell, 
 | <a id="diagnostic-snapback-query-filter-unsupported-field-type"></a>`SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE` | emitted | queries | 400 | — | `crates/snapback-engine/src/local/engine.rs` | 4 |
 | <a id="diagnostic-snapback-query-filter-value-invalid"></a>`SNAPBACK_QUERY_FILTER_VALUE_INVALID` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 9 |
 | <a id="diagnostic-snapback-query-hydration-failed"></a>`SNAPBACK_QUERY_HYDRATION_FAILED` | emitted | queries | — | — | `packages/snapback-client/registration-ledger.mjs` | 1 |
-| <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | emitted, received | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `crates/snapback-engine/src/runtime/host_glue.rs` | 5 |
+| <a id="diagnostic-snapback-query-implicit-limit-reached"></a>`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` | emitted, received | queries | 400 | [guide](../backend/queries.md#bound-every-collection-intentionally) | `crates/snapback-engine/src/runtime/host_glue.rs` | 7 |
 | <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 6 |
 | <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | emitted | queries | 500 | — | `crates/snapback-kernel/src/storage.rs` | 4 |
 | <a id="diagnostic-snapback-query-limit-invalid"></a>`SNAPBACK_QUERY_LIMIT_INVALID` | emitted, received | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `crates/snapback-kernel/src/storage.rs` | 9 |
@@ -3845,7 +3846,7 @@ reviewed-authorities-digest: sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a45
 # Generated API reference
 
 One build-bound projection of 1482 public symbols (620 runtime values and 862 explicit type-only symbols).
-Registry source identity: `sha256:3e187cbf65e4811bdda679a83b9f3deb7dfa1f6f12b610e40d2709db21d2b016`.
+Registry source identity: `sha256:227aee9812c6e879fb7e559aedd5f576eca871bf92e74ff0d23c3756c9f5124d`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -3990,7 +3991,7 @@ reviewed-authorities-digest: sha256:8424614419052cfbc52c0103c71df82b019e7f5aadd0
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Module projection identity:
-`sha256:773ddfe9552699739c5d2e9582d9cee9ed6ca10dcddbce5ea2fe41d230b97d1a`.
+`sha256:4dd5d10d1edf5e21f11059299b4e1bcbbfc6137895318fc17dac7e247f968047`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -14796,6 +14797,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_PUSH_SESSION_STALE'
   | 'SNAPBACK_PUSH_TOKEN_INVALID'
   | 'SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION'
+  | 'SNAPBACK_QUERY_COLLECT_UNBOUNDED'
   | 'SNAPBACK_QUERY_COST_BOUND_EXCEEDED'
   | 'SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED'
   | 'SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED'
@@ -42598,7 +42600,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:8ce67123dea4f4efdedf1a04d550e50f2d13fd3f721d59955157c14fafe41afb
+reviewed-authorities-digest: sha256:3a9eaddc0e00f4ff5ac2fd7b9a1bf8f0e5d4dfd95ab4d3d8bdfe61379b554477
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42606,7 +42608,7 @@ reviewed-authorities-digest: sha256:8ce67123dea4f4efdedf1a04d550e50f2d13fd3f721d
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Module projection identity:
-`sha256:f05a4e127bcb9f8c6745b2ed1d316f118177f296966dc662346d83e96e9bc852`.
+`sha256:a4a610f7f3fdd5c9ef002f8cdbcb4493807c1a2e4f2b525d4c0a389af7ec0a85`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
@@ -42666,7 +42668,7 @@ Symbols: 45 total; 0 runtime values; 45 type-only.
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#ActionContext`
 Kind: `type-type-alias`
-Source: `packages/snapback-codegen/ctx.d.mts:380`
+Source: `packages/snapback-codegen/ctx.d.mts:385`
 
 Action handler context. `push` exists in types only when codegen admits it.
 
@@ -42689,7 +42691,7 @@ export type ActionContext<
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#ActionContextBase`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:353`
+Source: `packages/snapback-codegen/ctx.d.mts:358`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface ActionContextBase<
@@ -42759,7 +42761,7 @@ export type AdmittedTable<
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AnonymousAuthContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:192`
+Source: `packages/snapback-codegen/ctx.d.mts:197`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AnonymousAuthContext {
@@ -42791,7 +42793,7 @@ export type AnyHandlerSchema = HandlerSchema<any, any, any, any, any, any>;
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AssetsContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:272`
+Source: `packages/snapback-codegen/ctx.d.mts:277`
 
 Transactional asset attachment; concrete generated APIs narrow its values.
 
@@ -42820,7 +42822,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AuthAssuranceRecord`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:221`
+Source: `packages/snapback-codegen/ctx.d.mts:226`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AuthAssuranceRecord {
@@ -42845,7 +42847,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AuthClaimIdentity`
 Kind: `type-type-alias`
-Source: `packages/snapback-codegen/ctx.d.mts:198`
+Source: `packages/snapback-codegen/ctx.d.mts:203`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthClaimIdentity =
@@ -42877,7 +42879,7 @@ export type AuthClaimIdentity =
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AuthClaimsProjection`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:229`
+Source: `packages/snapback-codegen/ctx.d.mts:234`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AuthClaimsProjection {
@@ -42896,7 +42898,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AuthContext`
 Kind: `type-type-alias`
-Source: `packages/snapback-codegen/ctx.d.mts:251`
+Source: `packages/snapback-codegen/ctx.d.mts:256`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthContext<Principal extends string = string> =
@@ -42909,7 +42911,7 @@ export type AuthContext<Principal extends string = string> =
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#AuthenticatedAuthContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:234`
+Source: `packages/snapback-codegen/ctx.d.mts:239`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AuthenticatedAuthContext<Principal extends string = string> {
@@ -42958,7 +42960,7 @@ export type DeletableTable<Schema extends AnyHandlerSchema> = AdmittedTable<Sche
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#Handler`
 Kind: `type-type-alias`
-Source: `packages/snapback-codegen/ctx.d.mts:393`
+Source: `packages/snapback-codegen/ctx.d.mts:398`
 
 Generic handler function shape instantiated by each generated API.
 
@@ -43162,7 +43164,7 @@ export type InsertsOf<Schema extends AnyHandlerSchema> = Schema['inserts'];
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#JobsContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:284`
+Source: `packages/snapback-codegen/ctx.d.mts:289`
 
 Transactional durable-job enqueue available to mutation handlers.
 
@@ -43185,7 +43187,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#MutationContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:317`
+Source: `packages/snapback-codegen/ctx.d.mts:322`
 
 Shared mutation-handler context with the write-capability additions.
 
@@ -43223,7 +43225,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#MutationDatabase`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:175`
+Source: `packages/snapback-codegen/ctx.d.mts:180`
 
 Read-write database authority available only to mutation handlers.
 
@@ -43257,7 +43259,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#MutationIdentityContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:267`
+Source: `packages/snapback-codegen/ctx.d.mts:272`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MutationIdentityContext {
@@ -43274,7 +43276,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#MutationSettlement`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:262`
+Source: `packages/snapback-codegen/ctx.d.mts:267`
 
 Mutation replay identity projected from the admitted request.
 
@@ -43360,6 +43362,11 @@ export interface QueryBuilder<
     direction?: 'asc' | 'desc' | 'Asc' | 'Desc',
   ): QueryBuilder<Schema, Table>;
   take(limit: number): QueryBuilder<Schema, Table>;
+  /**
+   * Without take(), reaching the implicit row budget in
+   * SNAPBACK_PUBLIC_BUDGETS_V1.query refuses with
+   * SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED instead of truncating.
+   */
   collect(): Promise<Array<HandlerRow<Schema, Table>>>;
   first(): Promise<HandlerRow<Schema, Table> | null>;
 }
@@ -43384,7 +43391,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#QueryContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:298`
+Source: `packages/snapback-codegen/ctx.d.mts:303`
 
 Shared query-handler context with read-only database authority.
 
@@ -43424,7 +43431,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#QueryDatabase`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:153`
+Source: `packages/snapback-codegen/ctx.d.mts:158`
 
 Read-only database authority available to query handlers. Ordinary methods
 enforce table visibility; `elevated` is the explicit trusted-handler bypass.
@@ -43476,7 +43483,7 @@ export type ReadableTable<Schema extends AnyHandlerSchema> = AdmittedTable<Schem
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#ReadDatabaseAuthority`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:129`
+Source: `packages/snapback-codegen/ctx.d.mts:134`
 
 Read-only database operations under one handler authority mode.
 
@@ -43514,7 +43521,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#RealtimeContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:375`
+Source: `packages/snapback-codegen/ctx.d.mts:380`
 
 Advisory, fixed-budget connected-client facts available to actions.
 
@@ -43544,7 +43551,7 @@ export type RowsOf<Schema extends AnyHandlerSchema> = Schema['rows'];
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#RuntimeContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:256`
+Source: `packages/snapback-codegen/ctx.d.mts:261`
 
 Deterministic handler invocation time and id allocation.
 
@@ -43565,7 +43572,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#SecretHandle`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:336`
+Source: `packages/snapback-codegen/ctx.d.mts:341`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SecretHandle {
@@ -43588,7 +43595,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#SecretsContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:343`
+Source: `packages/snapback-codegen/ctx.d.mts:348`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SecretsContext<Handle = SecretHandle> {
@@ -43607,7 +43614,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#SequenceContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:293`
+Source: `packages/snapback-codegen/ctx.d.mts:298`
 
 Scoped transactional counter allocation available to declared mutations.
 
@@ -43626,7 +43633,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-codegen/ctx#StreamAttemptContext`
 Kind: `type-interface`
-Source: `packages/snapback-codegen/ctx.d.mts:348`
+Source: `packages/snapback-codegen/ctx.d.mts:353`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface StreamAttemptContext {

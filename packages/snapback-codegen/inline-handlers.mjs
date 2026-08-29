@@ -327,6 +327,120 @@ function queryChainProblem(node, contextName) {
   return null;
 }
 
+// A warning needs a stronger proof than a text search: the terminal must be a
+// direct collect() call whose complete receiver chain reaches the selected
+// handler context's ctx.db.query(...) root. Builder aliases and computed
+// members stay silent because this scanner does not claim data-flow coverage.
+function firstIdentifierParameterBinding(target, checker) {
+  const parameter = target?.parameters?.[0];
+  return parameter && ts.isIdentifier(parameter.name)
+    ? checker.getSymbolAtLocation(parameter.name) ?? null
+    : null;
+}
+
+function resolvesToBinding(node, binding, checker) {
+  const candidate = unwrapParentheses(node);
+  return binding !== null
+    && ts.isIdentifier(candidate)
+    && checker.getSymbolAtLocation(candidate) === binding;
+}
+
+function directUnboundedCollect(node, contextBinding, checker) {
+  if (
+    contextBinding === null
+    || !ts.isCallExpression(node)
+    || node.arguments.length !== 0
+    || !ts.isPropertyAccessExpression(node.expression)
+    || node.expression.questionDotToken
+    || node.expression.name.text !== 'collect'
+  ) return false;
+  let current = unwrapParentheses(node.expression.expression);
+  let hasTake = false;
+  while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
+    if (current.expression.questionDotToken) return false;
+    const link = current.expression.name.text;
+    if (link === 'query') {
+      const receiver = unwrapParentheses(current.expression.expression);
+      const rootedAtCtxDb = ts.isPropertyAccessExpression(receiver)
+        && !receiver.questionDotToken
+        && receiver.name.text === 'db'
+        && resolvesToBinding(receiver.expression, contextBinding, checker);
+      const rootedAtElevatedCtxDb = ts.isPropertyAccessExpression(receiver)
+        && !receiver.questionDotToken
+        && receiver.name.text === 'elevated'
+        && ts.isPropertyAccessExpression(receiver.expression)
+        && !receiver.expression.questionDotToken
+        && receiver.expression.name.text === 'db'
+        && resolvesToBinding(
+          receiver.expression.expression,
+          contextBinding,
+          checker,
+        );
+      return (rootedAtCtxDb || rootedAtElevatedCtxDb) && !hasTake;
+    }
+    if (
+      !QUERY_BUILDER_VERBS.has(link)
+      || link === 'collect'
+      || link === 'first'
+    ) return false;
+    if (link === 'take') hasTake = true;
+    current = unwrapParentheses(current.expression.expression);
+  }
+  return false;
+}
+
+function unboundedCollectSitesIn(target, checker, sourceFile, path) {
+  const contextBinding = firstIdentifierParameterBinding(target, checker);
+  if (contextBinding === null) return [];
+  const sites = [];
+  const inspect = (node) => {
+    // Nested functions may shadow the handler context. Stay conservative;
+    // callbacks and closures are a deliberate static-analysis blind spot.
+    if (node !== target && ts.isFunctionLike(node)) return;
+    if (directUnboundedCollect(node, contextBinding, checker)) {
+      sites.push(sourceSpanForNode(path, node, sourceFile));
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(target);
+  return sites;
+}
+
+// Helper-body sites are relevant to one handler only when the handler passes
+// its own context binding to that helper's first parameter. A call such as
+// helper(args) cannot prove that the helper's db-shaped value is the runtime
+// context, even if the helper names its first parameter `ctx`.
+function helpersCalledWithContext(target, helperRefs, checker) {
+  const contextBinding = firstIdentifierParameterBinding(target, checker);
+  if (contextBinding === null || helperRefs.size === 0) return new Set();
+  const helperNamesByBinding = new Map();
+  for (const [name, { declaration }] of helperRefs) {
+    const binding = declaration.name
+      ? checker.getSymbolAtLocation(declaration.name)
+      : null;
+    if (binding) helperNamesByBinding.set(binding, name);
+  }
+  const called = new Set();
+  const inspect = (node) => {
+    if (node !== target && ts.isFunctionLike(node)) return;
+    if (
+      ts.isCallExpression(node)
+      && !node.questionDotToken
+      && ts.isIdentifier(node.expression)
+      && node.arguments.length > 0
+      && resolvesToBinding(node.arguments[0], contextBinding, checker)
+    ) {
+      const helperName = helperNamesByBinding.get(
+        checker.getSymbolAtLocation(node.expression),
+      );
+      if (helperName) called.add(helperName);
+    }
+    ts.forEachChild(node, inspect);
+  };
+  inspect(target);
+  return called;
+}
+
 function ctxDbMemberProblem(node, checker, boundary) {
   if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) {
     return null;
@@ -699,22 +813,7 @@ function selfContainedProblems(expression, checker, sourceFile) {
   };
 }
 
-// @ref LLP 0173#3-operation-facts — module handlers remain opaque, but the
-// direct static `ctx.db.elevated` syntax inside the selected export is still a
-// useful per-handler review fact. This scan does not claim data-flow coverage.
-export function captureElevatedDbUseSites(source, {
-  path = 'handler.mjs',
-  exportName,
-} = {}) {
-  const scriptKind = /\.(?:ts|mts|tsx|cts)$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
-  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true, scriptKind);
-  if (sourceFile.parseDiagnostics.length > 0) return [];
-  const compilerOptions = { allowJs: true, checkJs: true, noLib: true, target: ts.ScriptTarget.ES2022 };
-  const compilerHost = ts.createCompilerHost(compilerOptions);
-  compilerHost.fileExists = (fileName) => fileName === path;
-  compilerHost.readFile = (fileName) => (fileName === path ? source : undefined);
-  compilerHost.getSourceFile = (fileName) => (fileName === path ? sourceFile : undefined);
-  const checker = ts.createProgram([path], compilerOptions, compilerHost).getTypeChecker();
+function moduleHandlerTargets(sourceFile, exportName) {
   const localTargets = new Map();
   const aliases = new Map();
   for (const statement of sourceFile.statements) {
@@ -759,7 +858,44 @@ export function captureElevatedDbUseSites(source, {
     ts.forEachChild(node, findRegistryHandler);
   };
   findRegistryHandler(sourceFile);
-  return [...new Set(targets)].flatMap((target) => (
+  return [...new Set(targets)];
+}
+
+export function captureUnboundedCollectSites(source, {
+  path = 'handler.mjs',
+  exportName,
+} = {}) {
+  const scriptKind = /\.(?:ts|mts|tsx|cts)$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true, scriptKind);
+  if (sourceFile.parseDiagnostics.length > 0) return [];
+  const compilerOptions = { allowJs: true, checkJs: true, noLib: true, target: ts.ScriptTarget.ES2022 };
+  const compilerHost = ts.createCompilerHost(compilerOptions);
+  compilerHost.fileExists = (fileName) => fileName === path;
+  compilerHost.readFile = (fileName) => (fileName === path ? source : undefined);
+  compilerHost.getSourceFile = (fileName) => (fileName === path ? sourceFile : undefined);
+  const checker = ts.createProgram([path], compilerOptions, compilerHost).getTypeChecker();
+  return moduleHandlerTargets(sourceFile, exportName).flatMap(
+    (target) => unboundedCollectSitesIn(target, checker, sourceFile, path),
+  );
+}
+
+// @ref LLP 0173#3-operation-facts — module handlers remain opaque, but the
+// direct static `ctx.db.elevated` syntax inside the selected export is still a
+// useful per-handler review fact. This scan does not claim data-flow coverage.
+export function captureElevatedDbUseSites(source, {
+  path = 'handler.mjs',
+  exportName,
+} = {}) {
+  const scriptKind = /\.(?:ts|mts|tsx|cts)$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true, scriptKind);
+  if (sourceFile.parseDiagnostics.length > 0) return [];
+  const compilerOptions = { allowJs: true, checkJs: true, noLib: true, target: ts.ScriptTarget.ES2022 };
+  const compilerHost = ts.createCompilerHost(compilerOptions);
+  compilerHost.fileExists = (fileName) => fileName === path;
+  compilerHost.readFile = (fileName) => (fileName === path ? source : undefined);
+  compilerHost.getSourceFile = (fileName) => (fileName === path ? sourceFile : undefined);
+  const checker = ts.createProgram([path], compilerOptions, compilerHost).getTypeChecker();
+  return moduleHandlerTargets(sourceFile, exportName).flatMap((target) => (
     elevatedDbUsesIn(target, checker, target, sourceFile, path, 'module-export')
   ));
 }
@@ -1320,6 +1456,12 @@ export function extractInlineHandlers(source, {
       refs: [],
       referenceSpans: new Map(),
       selfReferenceSpan: null,
+      unboundedCollectSites: unboundedCollectSitesIn(
+        declaration,
+        checker,
+        sourceFile,
+        path,
+      ),
     };
     helperAnalyses.set(name, analysis);
     helperStack.push(name);
@@ -1442,6 +1584,7 @@ export function extractInlineHandlers(source, {
         contentHash,
         sourceSpan,
         elevatedDbUses,
+        unboundedCollectSites,
       } = helperAnalyses.get(helperName);
       return {
         name,
@@ -1451,6 +1594,7 @@ export function extractInlineHandlers(source, {
         contentHash,
         sourceSpan,
         elevatedDbUses,
+        unboundedCollectSites,
       };
     });
   };
@@ -1772,6 +1916,13 @@ export function extractInlineHandlers(source, {
         analyzeHelper(helperName, helperDeclaration);
       }
       const helpers = reachableHelpers(helperRefs);
+      const contextHelpers = helpersCalledWithContext(expression, helperRefs, checker);
+      const unboundedCollectSites = [
+        ...unboundedCollectSitesIn(expression, checker, sourceFile, path),
+        ...helpers
+          .filter((helper) => contextHelpers.has(helper.name))
+          .flatMap((helper) => helper.unboundedCollectSites ?? []),
+      ];
 
       const expressionSource = source.slice(
         expression.getStart(sourceFile),
@@ -1812,6 +1963,7 @@ export function extractInlineHandlers(source, {
           || left.source.column - right.source.column
           || compareText(left.capture, right.capture)
         )),
+        unboundedCollectSites,
         ...(call.expression.text === 'defineJsLiveQuery'
           ? { plainJoinCandidate: plainJoinCandidate(expression) }
           : {}),

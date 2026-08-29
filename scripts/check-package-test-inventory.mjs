@@ -429,6 +429,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'plan-derived-facts.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
+      'query-collect-warning.test.mjs',
       'refusal-tracking-authoring.test.mjs',
       'rbac-authoring.test.mjs',
       'jobs-authoring.test.mjs',
@@ -612,7 +613,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 364,
+  expectedTotal = 365,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1169,6 +1170,9 @@ export function checkPackageTestInventories(options = {}) {
 // 363 -> 364 (2026-08-26, papercuts review): @expo/snapback-codegen gains the
 // executable time-windowed live-read recipe proof, including the exact naive
 // clock-dependent refusal and the authorable pinned-argument success shape.
+// 364 -> 365 (2026-08-28, LLP 0317.000 Lane L15): @expo/snapback-codegen gains
+// the conservative collect-without-take warning proof for inline and module
+// handlers, including bounded and statically opaque negative cases.
 // LLP 0300 nine-row acceptance traceability (0301 §8 set-level table):
 // 1 cold bring-up -> templates/*/acceptance.mjs + declared-dev-episode.test.mjs;
 // 2 two principals -> declared-dev-episode.test.mjs; 3 forwards/tunnel/rebinding

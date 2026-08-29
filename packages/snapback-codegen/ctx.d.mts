@@ -121,6 +121,11 @@ export interface QueryBuilder<
     direction?: 'asc' | 'desc' | 'Asc' | 'Desc',
   ): QueryBuilder<Schema, Table>;
   take(limit: number): QueryBuilder<Schema, Table>;
+  /**
+   * Without take(), reaching the implicit row budget in
+   * SNAPBACK_PUBLIC_BUDGETS_V1.query refuses with
+   * SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED instead of truncating.
+   */
   collect(): Promise<Array<HandlerRow<Schema, Table>>>;
   first(): Promise<HandlerRow<Schema, Table> | null>;
 }

@@ -1604,6 +1604,28 @@ spellings and repairs appear only under Required guidance.
      "preserves source, generated artifacts, and unregistered `.snapback` files",
      "Never raw-wipe the database".
 
+140. **Generate-time unbounded collection warning:** "Why does codegen warn
+     about collect? I saw an unbounded query warning." The run fails if it
+     treats the warning as a generation refusal, recommends client-side
+     sorting after collection, or omits the live-subscription refusal that the
+     warning prevents.
+     Expected pages: `backend/queries.md`.
+     Route terms: "SNAPBACK_QUERY_COLLECT_UNBOUNDED",
+     "why does codegen warn about collect", "unbounded query warning".
+     Required guidance: "SNAPBACK_QUERY_COLLECT_UNBOUNDED", "1,024 rows",
+     "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED", "blank rows",
+     ".order(...).take(n)".
+     Exact diagnostic target: `SNAPBACK_QUERY_COLLECT_UNBOUNDED` ->
+     `/_snapback/guide/backend/queries.md#bound-every-collection-intentionally`.
+
+141. **Recorded explicit-take ceiling vocabulary:** "list take(1200) exceeded
+     Familiar relational ceiling 1024." The run fails if it recommends a
+     1,200-row take, treats the limit as a client-side slicing concern, or
+     omits the portable 1,024-row maximum.
+     Expected pages: `backend/queries.md`.
+     Route terms: "list take(1200) exceeded Familiar relational ceiling 1024".
+     Required guidance: "1,024 rows", "An explicit `.take(1_024)` is allowed".
+
 
 
 ## Static routing check

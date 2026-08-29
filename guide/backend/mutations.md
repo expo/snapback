@@ -318,6 +318,8 @@ created id, changed count, and server-owned row fields together:
     assertEqual(created.changed_count, 1, 'changed_count');
 ```
 
+<!-- diagnostic-primary: SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE -->
+
 Use `results.value(validator)` for a direct scalar/object payload or
 `results.document(table)` for one complete stored document. The generated
 mutation reference carries that exact logical result type. Snapback validates

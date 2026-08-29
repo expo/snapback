@@ -70,6 +70,7 @@ import {
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
 import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@expo/snapback-contract/capabilities';
+import { SNAPBACK_PUBLIC_BUDGETS_V1 } from '@expo/snapback-contract/limits';
 import {
   OPERATION_NAME_PATTERN,
   isOperationName,
@@ -129,6 +130,7 @@ import {
 import { withCodegenGenerationLock } from './generation-lock.mjs';
 import {
   captureElevatedDbUseSites,
+  captureUnboundedCollectSites,
   extractInlineHandlers,
   renameExtractedInlineHandler,
   renderInlineCustomAuthorizationModule,
@@ -5017,15 +5019,20 @@ async function generateInProcessLocked({
   // evaluator and an indirect or forged marker fails closed.
   const resolveJsHandler = (def, name) => {
     if (typeof def.js?.generatedSource === 'string') {
+      const exportName = def.js.exportName ?? name;
       return {
         source: def.js.generatedSource,
-        exportName: def.js.exportName ?? name,
+        exportName,
         handlerForm: 'module',
         sourceSpan: null,
         typescriptIdentity: null,
         elevatedDbUses: captureElevatedDbUseSites(def.js.generatedSource, {
           path: '<generated-authority-profile>',
-          exportName: def.js.exportName ?? name,
+          exportName,
+        }),
+        unboundedCollectSites: captureUnboundedCollectSites(def.js.generatedSource, {
+          path: '<generated-authority-profile>',
+          exportName,
         }),
       };
     }
@@ -5123,6 +5130,7 @@ async function generateInProcessLocked({
         inlineHelpers: (extracted.helpers ?? []).map(
           ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
         ),
+        unboundedCollectSites: extracted.unboundedCollectSites ?? [],
         elevatedDbUses: extracted.elevatedDbUses ?? [],
         customAuthorizationEvaluator: extractedEvaluator
           ? {
@@ -5138,6 +5146,12 @@ async function generateInProcessLocked({
     const exportName = def.js?.exportName ?? name;
     const capturedElevatedDbUses = loaded
       ? captureElevatedDbUseSites(loaded.authoredSource, {
+          path: loaded.identity,
+          exportName,
+        })
+      : [];
+    const unboundedCollectSites = loaded
+      ? captureUnboundedCollectSites(loaded.authoredSource, {
           path: loaded.identity,
           exportName,
         })
@@ -5178,6 +5192,7 @@ async function generateInProcessLocked({
       typescriptIdentity: loaded?.typescriptIdentity ?? null,
       elevatedDbUses: capturedElevatedDbUses,
       elevatedDbCapabilities,
+      unboundedCollectSites,
     };
   };
 
@@ -5196,6 +5211,40 @@ async function generateInProcessLocked({
       ...wrapped,
       membershipReads: [...new Set(admission.map(({ table }) => table))],
     };
+  };
+
+  const warnOnUnboundedCollects = (resolvedHandler, name, functionKind) => {
+    const liveConsequence = functionKind === 'Query' || functionKind === 'LiveQuery';
+    const consequence = liveConsequence
+      ? 'A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling'
+      : 'This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling';
+    const implicitResultRows = SNAPBACK_PUBLIC_BUDGETS_V1.query.implicitResultRows;
+    const takeRows = SNAPBACK_PUBLIC_BUDGETS_V1.query.takeRows;
+    for (const sourceSpan of resolvedHandler?.unboundedCollectSites ?? []) {
+      warn(
+        'SNAPBACK_QUERY_COLLECT_UNBOUNDED',
+        'codegen',
+        `${name}: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the ${implicitResultRows.toLocaleString('en-US')}-row implicit ceiling. ${consequence}; repair it with server-side .order(...).take(n).`,
+        {
+          function: name,
+          sourceSpan,
+          details: {
+            function: name,
+            implicitResultRowCeiling: implicitResultRows,
+            explicitTakeMaximum: takeRows,
+            // diagnostics-registry: reference-only
+            ...(liveConsequence
+              ? {
+                  liveSubscriptionRefusal: 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED',
+                  liveSubscriptionRows: 'blank',
+                }
+              : { oneShotRefusal: 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED' }),
+            repair: 'server-side .order(...).take(n)',
+            guide: 'guide/backend/queries.md#bound-every-collection-intentionally',
+          },
+        },
+      );
+    }
   };
 
   const compileCustomAuthorization = (def, name, resolvedHandler) => {
@@ -6265,6 +6314,7 @@ async function generateInProcessLocked({
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
       const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      warnOnUnboundedCollects(resolvedHandler, name, def.__kind);
       const customAuthorization = compileCustomAuthorization(def, name, resolvedHandler);
       const readTables = [...new Set([
         ...(def.js.reads ?? []),
@@ -6716,6 +6766,7 @@ async function generateInProcessLocked({
       };
     } else if (def.__kind === 'Mutation' && def.js) {
       const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      warnOnUnboundedCollects(resolvedHandler, name, def.__kind);
       const customAuthorization = compileCustomAuthorization(def, name, resolvedHandler);
       const reads = [...new Set([
         ...(def.js.reads ?? []),
@@ -7082,6 +7133,7 @@ async function generateInProcessLocked({
         }
       }
       const resolvedHandler = resolveJsHandler(def, name);
+      warnOnUnboundedCollects(resolvedHandler, name, def.__kind);
       validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
       functions.push({
         name,
