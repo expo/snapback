@@ -1,0 +1,1288 @@
+{
+  "corpusVersion": 1,
+  "name": "named-inbox-maintained",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "accounts": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "name": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "parentId": "Id"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "cardCounts": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "columnId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "cards": {
+        "columns": {
+          "columnId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "columns": [
+              "columnId",
+              "order",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "columns": {
+        "columns": {
+          "boardId": "Id",
+          "id": "Id",
+          "order": "Int",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byParentOrder": {
+            "columns": [
+              "boardId",
+              "order",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "conversations": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "dmKeys": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "hi": {
+            "Ref": {
+              "table": "users"
+            }
+          },
+          "id": "Id",
+          "lo": {
+            "Ref": {
+              "table": "users"
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byPair": {
+            "columns": [
+              "lo",
+              "hi"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byPair"
+            }
+          }
+        ]
+      },
+      "entitlements": {
+        "columns": {
+          "id": "Id",
+          "userId": {
+            "Ref": {
+              "table": "users"
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byUser": {
+            "columns": [
+              "userId"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": "Deny",
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      },
+      "expenses": {
+        "columns": {
+          "amount": "Int",
+          "groupId": "Id",
+          "id": "Id",
+          "payerId": {
+            "Ref": {
+              "table": "users"
+            }
+          }
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "memberships": {
+        "columns": {
+          "activity": "Time",
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "lastReadAt": "Time",
+          "userId": {
+            "Ref": {
+              "table": "users"
+            }
+          }
+        },
+        "indexes": {
+          "byConvUser": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byConversation": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byUserActivity": {
+            "columns": [
+              "userId",
+              "activity"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape",
+              "input_visibility": "Readable"
+            }
+          },
+          "insert": "Allow",
+          "update": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "userId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": [
+          {
+            "Unique": {
+              "index": "byConvUser"
+            }
+          }
+        ]
+      },
+      "messages": {
+        "columns": {
+          "at": "Time",
+          "authorId": {
+            "Ref": {
+              "table": "users"
+            }
+          },
+          "body": {
+            "Text": {
+              "max": 256
+            }
+          },
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byConvTime": {
+            "columns": [
+              "conversationId",
+              "at",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byToken": {
+            "columns": [
+              "body",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "memberships",
+              "index": "byConvUser",
+              "key": [
+                {
+                  "Field": "conversationId"
+                },
+                "Viewer"
+              ],
+              "provenance": "Shape",
+              "input_visibility": "Readable"
+            }
+          },
+          "insert": {
+            "And": [
+              {
+                "Eq": [
+                  {
+                    "Field": "authorId"
+                  },
+                  "Viewer"
+                ]
+              },
+              {
+                "Exists": {
+                  "table": "memberships",
+                  "index": "byConvUser",
+                  "key": [
+                    {
+                      "Field": "conversationId"
+                    },
+                    "Viewer"
+                  ],
+                  "provenance": "Shape",
+                  "input_visibility": "Readable"
+                }
+              }
+            ]
+          },
+          "update": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          },
+          "delete": {
+            "Eq": [
+              {
+                "Field": "authorId"
+              },
+              "Viewer"
+            ]
+          }
+        },
+        "constraints": []
+      },
+      "owed": {
+        "columns": {
+          "groupId": "Id",
+          "id": "Id",
+          "userId": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "groupId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "secretDocs": {
+        "columns": {
+          "id": "Id",
+          "title": {
+            "Text": {
+              "max": 64
+            }
+          }
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Exists": {
+              "table": "entitlements",
+              "index": "byUser",
+              "key": [
+                "Viewer"
+              ],
+              "provenance": "Viewer",
+              "input_visibility": "Hidden"
+            }
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      },
+      "shares": {
+        "columns": {
+          "amount": "Int",
+          "expenseId": {
+            "Ref": {
+              "table": "expenses"
+            }
+          },
+          "groupId": "Id",
+          "id": "Id",
+          "userId": {
+            "Ref": {
+              "table": "users"
+            }
+          }
+        },
+        "indexes": {
+          "byExpense": {
+            "columns": [
+              "expenseId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byGroupUser": {
+            "columns": [
+              "groupId",
+              "userId",
+              "id"
+            ],
+            "unique": false
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "unreads": {
+        "columns": {
+          "conversationId": {
+            "Ref": {
+              "table": "conversations"
+            }
+          },
+          "id": "Id",
+          "userId": {
+            "Ref": {
+              "table": "users"
+            }
+          },
+          "value": "Int"
+        },
+        "indexes": {
+          "byConvUser": {
+            "columns": [
+              "conversationId",
+              "userId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "users": {
+        "columns": {
+          "handle": {
+            "Text": {
+              "max": 32
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byHandle": {
+            "columns": [
+              "handle"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "waitCounts": {
+        "columns": {
+          "id": "Id",
+          "resourceId": "Id",
+          "value": "Int"
+        },
+        "indexes": {
+          "byGroup": {
+            "columns": [
+              "resourceId"
+            ],
+            "unique": true
+          },
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "spike fixture"
+            }
+          }
+        },
+        "constraints": []
+      },
+      "waitlist": {
+        "columns": {
+          "id": "Id",
+          "ownerId": {
+            "Ref": {
+              "table": "users"
+            }
+          },
+          "resourceId": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          },
+          "byResource": {
+            "columns": [
+              "resourceId",
+              "id"
+            ],
+            "unique": false
+          }
+        },
+        "rules": {
+          "read": {
+            "Eq": [
+              {
+                "Field": "ownerId"
+              },
+              "Viewer"
+            ]
+          },
+          "insert": "Allow",
+          "update": "Allow",
+          "delete": "Allow"
+        },
+        "constraints": []
+      }
+    },
+    "maintains": [
+      {
+        "kind": "Count",
+        "source": "cards",
+        "by": [
+          "columnId"
+        ],
+        "target": "cardCounts",
+        "readable": null
+      },
+      {
+        "kind": {
+          "Sum": {
+            "of": "amount"
+          }
+        },
+        "source": "shares",
+        "by": [
+          "groupId",
+          "userId"
+        ],
+        "target": "owed",
+        "readable": null
+      },
+      {
+        "kind": "Count",
+        "source": "waitlist",
+        "by": [
+          "resourceId"
+        ],
+        "target": "waitCounts",
+        "readable": {
+          "Public": {
+            "reason": "resource owners disclose queue depth"
+          }
+        }
+      }
+    ]
+  },
+  "program": {
+    "name": "inboxMaintained",
+    "kind": "Query",
+    "args": {},
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Let": {
+          "name": "result",
+          "value": {
+            "Array": []
+          }
+        }
+      },
+      {
+        "For": {
+          "binding": "membership",
+          "domain": {
+            "Page": {
+              "site": "inbox.memberships",
+              "table": "memberships",
+              "index": "byUserActivity",
+              "prefix": [
+                {
+                  "Input": "Viewer"
+                }
+              ],
+              "order": "Desc",
+              "take": {
+                "Literal": 50
+              },
+              "after": null,
+              "before": null,
+              "range": null,
+              "provenance": "Viewer"
+            }
+          },
+          "body": [
+            {
+              "Push": {
+                "target": "result",
+                "value": {
+                  "Object": {
+                    "latest": {
+                      "Scan": {
+                        "site": "inbox.latest",
+                        "table": "messages",
+                        "index": "byConvTime",
+                        "prefix": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Variable": "membership"
+                              },
+                              "name": "conversationId"
+                            }
+                          }
+                        ],
+                        "order": "Desc",
+                        "take": {
+                          "Literal": 1
+                        },
+                        "after": null,
+                        "before": null,
+                        "range": null,
+                        "provenance": "Shape"
+                      }
+                    },
+                    "unread": {
+                      "Get": {
+                        "site": "inbox.unreadMaintained",
+                        "table": "unreads",
+                        "index": "byConvUser",
+                        "key": [
+                          {
+                            "Field": {
+                              "base": {
+                                "Variable": "membership"
+                              },
+                              "name": "conversationId"
+                            }
+                          },
+                          {
+                            "Input": "Viewer"
+                          }
+                        ],
+                        "provenance": "Shape"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "Return": {
+          "Variable": "result"
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {},
+    "now": null,
+    "new_ids": [],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [
+      {
+        "table": "memberships",
+        "id": "m1",
+        "row": {
+          "Row": {
+            "activity": {
+              "Int": 100
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "m1"
+            },
+            "lastReadAt": {
+              "Int": 0
+            },
+            "userId": {
+              "Id": "u1"
+            }
+          }
+        }
+      },
+      {
+        "table": "messages",
+        "id": "message-00004",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 5
+            },
+            "authorId": {
+              "Id": "u1"
+            },
+            "body": {
+              "String": "message 4"
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "message-00004"
+            }
+          }
+        }
+      },
+      {
+        "table": "messages",
+        "id": "message-00003",
+        "row": {
+          "Row": {
+            "at": {
+              "Int": 4
+            },
+            "authorId": {
+              "Id": "u1"
+            },
+            "body": {
+              "String": "message 3"
+            },
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "message-00003"
+            }
+          }
+        }
+      },
+      {
+        "table": "unreads",
+        "id": "c1:u1",
+        "row": {
+          "Row": {
+            "conversationId": {
+              "Id": "c1"
+            },
+            "id": {
+              "Id": "c1:u1"
+            },
+            "userId": {
+              "Id": "u1"
+            },
+            "value": {
+              "Int": 5
+            }
+          }
+        }
+      }
+    ],
+    "ranges": [
+      {
+        "site": "inbox.memberships",
+        "table": "memberships",
+        "index": "byUserActivity",
+        "prefix": [
+          {
+            "Id": "u1"
+          }
+        ],
+        "row_ids": [
+          "m1"
+        ],
+        "stop": "Exhausted",
+        "absence": false,
+        "halo": null,
+        "n2_key": null
+      },
+      {
+        "site": "inbox.latest",
+        "table": "messages",
+        "index": "byConvTime",
+        "prefix": [
+          {
+            "Id": "c1"
+          }
+        ],
+        "row_ids": [
+          "message-00004"
+        ],
+        "stop": "Limit",
+        "absence": false,
+        "halo": {
+          "table": "messages",
+          "id": "message-00003",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 4
+              },
+              "authorId": {
+                "Id": "u1"
+              },
+              "body": {
+                "String": "message 3"
+              },
+              "conversationId": {
+                "Id": "c1"
+              },
+              "id": {
+                "Id": "message-00003"
+              }
+            }
+          }
+        },
+        "n2_key": [
+          {
+            "Id": "c1"
+          },
+          {
+            "Int": 3
+          },
+          {
+            "Id": "message-00002"
+          }
+        ]
+      }
+    ],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Row": {
+            "latest": {
+              "Array": [
+                {
+                  "Row": {
+                    "at": {
+                      "Int": 5
+                    },
+                    "authorId": {
+                      "Id": "u1"
+                    },
+                    "body": {
+                      "String": "message 4"
+                    },
+                    "conversationId": {
+                      "Id": "c1"
+                    },
+                    "id": {
+                      "Id": "message-00004"
+                    }
+                  }
+                }
+              ]
+            },
+            "unread": {
+              "Row": {
+                "conversationId": {
+                  "Id": "c1"
+                },
+                "id": {
+                  "Id": "c1:u1"
+                },
+                "userId": {
+                  "Id": "u1"
+                },
+                "value": {
+                  "Int": 5
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "fresh",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Row\":{\"latest\":{\"Array\":[{\"Row\":{\"at\":{\"Int\":5},\"authorId\":{\"Id\":\"u1\"},\"body\":{\"String\":\"message 4\"},\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"message-00004\"}}}]},\"unread\":{\"Row\":{\"conversationId\":{\"Id\":\"c1\"},\"id\":{\"Id\":\"c1:u1\"},\"userId\":{\"Id\":\"u1\"},\"value\":{\"Int\":5}}}}}]}",
+    "digest": "3b446c6d197891cf6d3bbe6c627e40cea795c0c339010626a2f48988c3a8dd77",
+    "rangeStops": {
+      "inbox.latest": [
+        "limit"
+      ],
+      "inbox.memberships": [
+        "exhausted"
+      ]
+    },
+    "evictedRows": null
+  }
+}

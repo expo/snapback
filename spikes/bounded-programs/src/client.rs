@@ -25,6 +25,7 @@ impl ClientStore {
         for row in &receipt.rows {
             engine.seed(&row.table, row.row.clone())?;
         }
+        engine.install_verdicts(&receipt.verdicts);
         Ok(Self {
             schema,
             engine,

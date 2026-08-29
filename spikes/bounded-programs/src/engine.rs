@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Context {
     pub viewer: String,
     pub principal_kind: String,
@@ -172,6 +172,7 @@ pub enum RuntimeError {
 pub struct Engine {
     connection: Connection,
     schema: Schema,
+    verdicts: Vec<Verdict>,
 }
 
 impl Engine {
@@ -196,7 +197,15 @@ impl Engine {
                 table_name, index_name, c0, c1, c2, c3, c4, c5, c6, c7, row_id
              );",
         )?;
-        Ok(Self { connection, schema })
+        Ok(Self {
+            connection,
+            schema,
+            verdicts: Vec::new(),
+        })
+    }
+
+    pub(crate) fn install_verdicts(&mut self, verdicts: &[Verdict]) {
+        self.verdicts = verdicts.to_vec();
     }
 
     pub fn schema(&self) -> &Schema {
@@ -231,7 +240,13 @@ impl Engine {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
         let transaction = self.connection.transaction()?;
-        let mut runner = Runner::new(&transaction, &self.schema, certificate, context);
+        let mut runner = Runner::new(
+            &transaction,
+            &self.schema,
+            certificate,
+            context,
+            &self.verdicts,
+        );
         let flow = runner.statements(&program.body)?;
         let result = match flow {
             Flow::Return(value) => value,
@@ -266,6 +281,7 @@ struct Runner<'a> {
     trace: AuthoritativeTrace,
     receipt: ClosureReceipt,
     rule_memo: BTreeMap<String, bool>,
+    verdicts: &'a [Verdict],
 }
 
 impl<'a> Runner<'a> {
@@ -274,6 +290,7 @@ impl<'a> Runner<'a> {
         schema: &'a Schema,
         certificate: &'a Certificate,
         context: Context,
+        verdicts: &'a [Verdict],
     ) -> Self {
         let env = context.args.clone();
         Self {
@@ -286,6 +303,7 @@ impl<'a> Runner<'a> {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
+            verdicts,
         }
     }
 
@@ -1302,10 +1320,21 @@ impl<'a> Runner<'a> {
                 if let Some(result) = self.rule_memo.get(&memo_key) {
                     return Ok(*result);
                 }
+                let hidden = *input_visibility == RuleInputVisibility::Hidden;
+                if hidden {
+                    if let Some(verdict) = self.verdicts.iter().find(|verdict| {
+                        verdict.rule_hash == rule_hash
+                            && verdict.pinned_inputs_digest == pinned_inputs_digest
+                            && verdict.principal == self.context.viewer
+                            && verdict.auth_epoch == self.context.auth_epoch
+                    }) {
+                        self.rule_memo.insert(memo_key, verdict.result);
+                        return Ok(verdict.result);
+                    }
+                }
                 let found = self.lookup_raw(table, index, &key)?;
                 let result = found.is_some();
                 self.trace.rule_probes += 1;
-                let hidden = *input_visibility == RuleInputVisibility::Hidden;
                 self.trace.rule_inputs.push(RuleInputTrace {
                     rule_hash: rule_hash.to_owned(),
                     table: table.clone(),
