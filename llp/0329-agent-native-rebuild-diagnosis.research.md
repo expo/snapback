@@ -10,7 +10,7 @@ Developer experience, Agent experience, Guide, Packaging
 LLP 0145, LLP 0155, LLP 0189, LLP 0201, LLP 0225, LLP 0252, LLP 0259,
 LLP 0310, LLP 0314, LLP 0317, LLP 0318, LLP 0319, LLP 0320, LLP 0322,
 LLP 0323, LLP 0329.000, LLP 0329.004, LLP 0329.012, LLP 0329.013,
-LLP 0329.014,
+LLP 0329.014, LLP 0329.016,
 `benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md`,
 `guide/sync/offline-and-retention.md`, `guide/eval-runs/2026-08-21/`,
 Diary 0114
