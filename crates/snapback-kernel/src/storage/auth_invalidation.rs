@@ -357,6 +357,18 @@ impl PersistedRetryEpisodeRegistry {
         self.clock_high_water_ms
     }
 
+    fn cancel_deterministic_refusal(&mut self, key: &RetryEpisodeKey, episode_id: &str) -> bool {
+        if self
+            .episodes
+            .get(key)
+            .is_none_or(|episode| episode.episode_id != episode_id)
+        {
+            return false;
+        }
+        self.episodes.remove(key);
+        true
+    }
+
     fn from_persisted(
         episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
         clock_high_water_ms: u64,
@@ -1102,6 +1114,16 @@ impl LocalDatabase {
         self.with_invalidation_retry_episode(key, |registry| Ok(registry.resolve(key, proof)))
     }
 
+    pub fn cancel_deterministic_refusal_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        episode_id: &str,
+    ) -> SnapbackResult<bool> {
+        self.with_invalidation_retry_episode(key, |registry| {
+            Ok(registry.cancel_deterministic_refusal(key, episode_id))
+        })
+    }
+
     pub fn reserve_manual_invalidation_retry(
         &mut self,
         key: &RetryEpisodeKey,
@@ -1141,6 +1163,11 @@ impl LocalDatabase {
         &mut self,
     ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
         self.read_invalidation_retry_registry(|registry| Ok(registry.episodes().clone()))
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn invalidation_retry_clock_high_water_for_test(&mut self) -> SnapbackResult<u64> {
+        self.read_invalidation_retry_registry(|registry| Ok(registry.clock_high_water_ms()))
     }
 
     /// Test-only bulk fixture installer: durable episodes, counter rows, the
@@ -2380,6 +2407,14 @@ impl super::ServingDatabase {
     ) -> SnapbackResult<bool> {
         self.db.resolve_invalidation_retry_episode(key, proof)
     }
+    pub fn cancel_deterministic_refusal_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        episode_id: &str,
+    ) -> SnapbackResult<bool> {
+        self.db
+            .cancel_deterministic_refusal_retry_episode(key, episode_id)
+    }
     pub fn reserve_manual_invalidation_retry(
         &mut self,
         key: &RetryEpisodeKey,
@@ -2425,6 +2460,10 @@ impl super::ServingDatabase {
         &mut self,
     ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
         self.db.invalidation_retry_episodes_for_test()
+    }
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn invalidation_retry_clock_high_water_for_test(&mut self) -> SnapbackResult<u64> {
+        self.db.invalidation_retry_clock_high_water_for_test()
     }
     #[cfg(any(test, feature = "test-support"))]
     pub fn seed_invalidation_retry_episodes_for_test(

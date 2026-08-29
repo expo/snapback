@@ -637,6 +637,26 @@ impl RetryEpisodeRegistry {
         true
     }
 
+    /// Remove exactly the episode whose re-query produced a deterministic
+    /// contract refusal. This is cancellation, not successful resolution:
+    /// no proof or ACK ticket is minted, and a replacement episode cannot be
+    /// removed by a delayed caller carrying the predecessor id.
+    pub fn cancel_deterministic_refusal(
+        &mut self,
+        key: &RetryEpisodeKey,
+        episode_id: &str,
+    ) -> bool {
+        if self
+            .episodes
+            .get(key)
+            .is_none_or(|episode| episode.episode_id != episode_id)
+        {
+            return false;
+        }
+        self.episodes.remove(key);
+        true
+    }
+
     pub fn manual_retry(
         &mut self,
         key: &RetryEpisodeKey,

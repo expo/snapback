@@ -130,6 +130,15 @@ pub enum LiveEnvelope {
         resolution: Option<Box<ResolutionTicket>>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         snapshot: Option<AuthorizationInvalidationSnapshot>,
+        /// A deterministic query-contract refusal that made a successor
+        /// snapshot impossible for the committed data. The obligation stays
+        /// fail-closed; this additive field tells the client why.
+        ///
+        /// @ref LLP 0093#d1--the-protocol-document-and-wire-v1 — an optional
+        ///   field on an existing server-to-client envelope is wire-v1
+        ///   compatible.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        refusal: Option<Diagnostic>,
     },
     /// The subscription (or the whole connection, when `subscription_id` is
     /// absent — outbox overflow) must re-snapshot. Known reasons today:
@@ -153,6 +162,14 @@ pub enum LiveEnvelope {
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         epoch: Option<u64>,
         clear_retained: bool,
+        /// Deterministic refusal that makes the ordinary immediate
+        /// re-snapshot futile. Clients surface it instead of looping.
+        ///
+        /// @ref LLP 0093#d1--the-protocol-document-and-wire-v1 — an optional
+        ///   field on an existing server-to-client envelope is wire-v1
+        ///   compatible.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        refusal: Option<Diagnostic>,
     },
 }
 
@@ -167,6 +184,22 @@ impl LiveEnvelope {
             obligation: Box::new(obligation),
             resolution: resolution.map(Box::new),
             snapshot,
+            refusal: None,
+        }
+    }
+
+    pub fn authorization_invalidation_with_refusal(
+        obligation: ResyncObligation,
+        resolution: Option<ResolutionTicket>,
+        snapshot: Option<AuthorizationInvalidationSnapshot>,
+        refusal: Diagnostic,
+    ) -> Self {
+        Self::AuthorizationInvalidation {
+            network_profile: None,
+            obligation: Box::new(obligation),
+            resolution: resolution.map(Box::new),
+            snapshot,
+            refusal: Some(refusal),
         }
     }
 
@@ -967,6 +1000,7 @@ mod tests {
             scope: Some("user:alice".into()),
             epoch: Some(3),
             clear_retained: true,
+            refusal: None,
         };
         assert_eq!(
             serde_json::to_value(&scoped_resync).unwrap(),
@@ -1061,6 +1095,7 @@ mod tests {
             scope: None,
             epoch: None,
             clear_retained: true,
+            refusal: None,
         };
         assert_eq!(
             serde_json::to_value(&overflow).unwrap(),

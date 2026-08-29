@@ -128,12 +128,26 @@ const resolution = (pending, ackToken) => ({
   ownerContinuityId: pending.ownerContinuityId,
 });
 
-const envelope = ({ pending, resolved = null, rows = null, version = null }) => ({
+const implicitLimitRefusal = (subscriptionId = 'sub_atomic_authorization') => ({
+  code: 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED',
+  severity: 'error',
+  subsystem: 'runtime',
+  message: 'live query reevaluation reached the implicit collection limit',
+  details: {
+    subscriptionId,
+    function: 'atomicTodos',
+    limit: 1024,
+    repair: 'Declare .take(n) with server-side ordering or narrow the predicate.',
+  },
+});
+
+const envelope = ({ pending, resolved = null, rows = null, version = null, refusal = null }) => ({
   Durable: {
     payload: JSON.stringify({
       kind: 'authorization_invalidation',
       obligation: pending,
       ...(resolved === null ? {} : { resolution: resolved }),
+      ...(refusal === null ? {} : { refusal }),
       ...(rows === null ? {} : {
         snapshot: {
           subscriptionId: 'sub_atomic_authorization',
@@ -213,11 +227,14 @@ function createLockManagerDouble() {
 
 test('typed single-value liveQuery resolves atomically and recovers from a quarantine blank', async () => {
   const originalFetch = globalThis.fetch;
+  const originalWarn = console.warn;
   const outbox = [];
   const acknowledgements = [];
   const boundaries = [];
   const updates = [];
   const authorizationErrors = [];
+  const warnings = [];
+  let subscribeAttempts = 0;
   let scopeId = null;
   let handle = null;
 
@@ -240,6 +257,7 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
       });
     }
     if (path === '/live/atomicTodos/subscribe') {
+      subscribeAttempts += 1;
       const body = JSON.parse(init.body);
       scopeId = {
         kind: 'subscription',
@@ -259,7 +277,11 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
     if (path === '/live/authorization-invalidation/acknowledge') {
       const { ackToken } = JSON.parse(init.body);
       assert.equal(boundaries.at(-1)?.kind, 'authorization_snapshot');
-      assert.ok(handle?.rows?.id === 'refreshed' || handle?.rows?.id === 'recovered');
+      assert.ok(
+        handle?.rows?.id === 'refreshed'
+        || handle?.rows?.id === 'recovered'
+        || handle?.rows?.id === 'recovered-after-refusal',
+      );
       acknowledgements.push(ackToken);
       return response({ outcome: 'discharged' });
     }
@@ -271,6 +293,7 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
     }
     throw new Error(`unexpected atomic authorization request: ${path}`);
   };
+  console.warn = (...args) => warnings.push(args);
 
   try {
     const client = new SnapbackClient('http://atomic-authorization.test', {
@@ -283,10 +306,18 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
       connectionId: 'atomic-authorization-label',
       persistResume: false,
       onAuthorizationBoundary(rows, detail) {
-        boundaries.push({ kind: detail.kind, rows: structuredClone(rows) });
+        boundaries.push({
+          kind: detail.kind,
+          rows: structuredClone(rows),
+          refusal: detail.refusal ?? null,
+        });
       },
       onUpdate(rows, detail) {
-        updates.push({ kind: detail.kind, rows: structuredClone(rows) });
+        updates.push({
+          kind: detail.kind,
+          rows: structuredClone(rows),
+          refusal: detail.refusal ?? null,
+        });
       },
       onAuthorizationError(error) {
         authorizationErrors.push(error);
@@ -368,6 +399,7 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
     assert.equal(handle.authoritativeRows, null);
     assert.equal(handle.authorizationDisposition, 'quarantine');
     assert.deepEqual(updates.map((entry) => entry.rows), [null]);
+    assert.equal(handle.refusal, null, 'a refusal-less invalidation remains unchanged');
 
     boundaries.length = 0;
     updates.length = 0;
@@ -389,9 +421,180 @@ test('typed single-value liveQuery resolves atomically and recovers from a quara
     assert.deepEqual(handle.authoritativeRows, { id: 'recovered' });
     assert.deepEqual(updates.map((entry) => entry.rows), [{ id: 'recovered' }]);
     assert.equal(handle.authorizationDisposition, 'retain');
+
+    boundaries.length = 0;
+    updates.length = 0;
+    const refusalPending = obligation(scopeId, 5, 14);
+    const refusalFrame = envelope({
+      pending: refusalPending,
+      refusal: implicitLimitRefusal(),
+    });
+    outbox.push([refusalFrame], [refusalFrame]);
+    await handle.poll();
+    await handle.poll();
+    await waitFor(
+      () => assert.equal(handle.refusal?.code, 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'),
+      'typed refusal did not reach the handle',
+    );
+    assert.equal(handle.rows, null);
+    assert.equal(handle.authorizationDisposition, 'quarantine');
+    assert.equal(handle.refusal.schemaVersion, 'snapback.client-diagnostic.v1');
+    assert.equal(handle.refusal.details.limit, 1024);
+    assert.equal(Object.isFrozen(handle.refusal), true);
+    assert.equal(Object.isFrozen(handle.refusal.details), true);
+    assert.equal(boundaries.at(0)?.refusal, handle.refusal);
+    assert.equal(updates.at(0)?.refusal, handle.refusal);
+    assert.equal(subscribeAttempts, 1, 'deterministic refusal must not re-snapshot');
+    assert.equal(warnings.length, 1, 'level-triggered refusal warns once per subscription');
+    assert.match(warnings[0][0], /SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED/u);
+    assert.match(warnings[0][0], /1024/u);
+    assert.match(warnings[0][0], /\.take\(n\)/u);
+
+    boundaries.length = 0;
+    updates.length = 0;
+    outbox.push([envelope({
+      pending: refusalPending,
+      resolved: resolution(refusalPending, 'ack_atomic_authorization_refusal_recovered'),
+      version: 14,
+      rows: [{ id: 'recovered-after-refusal' }],
+    })]);
+    await handle.poll();
+    await waitFor(
+      () => assert.equal(handle.refusal, null),
+      'authoritative snapshot did not clear the refusal',
+    );
+    assert.deepEqual(handle.rows, { id: 'recovered-after-refusal' });
   } finally {
     try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
     globalThis.fetch = originalFetch;
+    console.warn = originalWarn;
+  }
+});
+
+test('plain deterministic resync refusal blanks onUpdate without changing transport state', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWebSocket = globalThis.WebSocket;
+  const originalWarn = console.warn;
+  const connectionErrors = [];
+  const updates = [];
+  const warnings = [];
+  let subscribeAttempts = 0;
+  let handle = null;
+
+  console.warn = (...args) => warnings.push(args);
+  globalThis.WebSocket = AuthorizationInvalidationWebSocket;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return response(handshake);
+    if (path === '/connection/open') {
+      return response({
+        connectionId: 'plain-refusal',
+        connectionToken: 'sct_plain_refusal',
+        ephemeralExpiryProtocol: 1,
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 2,
+          authorization,
+          versionStream: 'stream-atomic-authorization',
+        },
+      });
+    }
+    if (path === '/live/atomicTodos/subscribe') {
+      subscribeAttempts += 1;
+      return response({
+        subscription_id: `sub_plain_refusal_${subscribeAttempts}`,
+        snapshot: { version: 9 + subscribeAttempts, rows: [{ id: `snapshot-${subscribeAttempts}` }] },
+        permission_epochs: {},
+      });
+    }
+    if (path === '/live/atomicTodos/unsubscribe') {
+      return response({ subscription_id: handle?.subscriptionId, disposed: true });
+    }
+    throw new Error(`unexpected plain refusal request: ${path}`);
+  };
+
+  try {
+    const client = new SnapbackClient('http://plain-refusal.test', {
+      bearerToken: 'session-atomic-authorization',
+      authInvalidationProtocol: 1,
+      clientStoreId: 'store_plain_refusal',
+      rqsStore: null,
+    });
+    handle = await client.liveQuery(atomicSingleValueReference, {
+      connectionId: 'plain-refusal',
+      persistResume: false,
+      transport: 'stream',
+      fallbackToPoll: false,
+      onUpdate(rows, detail) {
+        updates.push({ rows, detail });
+      },
+      onConnectionChange(connection, detail) {
+        if (detail?.error) connectionErrors.push({ connection, detail });
+      },
+    });
+
+    const attachedSubscriptionId = handle.subscriptionId;
+    await waitFor(
+      () => assert.equal(client.liveStreamManager('plain-refusal').inspection().open, true),
+      'plain refusal stream did not open',
+    );
+    assert.equal(handle.connection, 'live');
+    await client.liveStreamManager('plain-refusal').debugInjectFrame({
+      kind: 'resync_required',
+      reason: 'live_refresh_failed',
+      subscription_id: attachedSubscriptionId,
+      clear_retained: true,
+      refusal: implicitLimitRefusal(attachedSubscriptionId),
+    });
+    await waitFor(
+      () => assert.equal(updates.at(-1)?.detail?.kind, 'live_refused'),
+      'plain refusal did not reach onUpdate',
+    );
+    await waitFor(
+      () => assert.equal(
+        connectionErrors.at(-1)?.detail?.error?.code,
+        'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED',
+      ),
+      'plain refusal did not use the existing connection error surface',
+    );
+    assert.equal(handle.subscriptionId, attachedSubscriptionId);
+    assert.equal(subscribeAttempts, 1, 'deterministic refusal started a futile re-snapshot');
+    assert.equal(handle.rows, null);
+    assert.equal(handle.refusal?.code, 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED');
+    assert.equal(updates.at(-1)?.rows, null);
+    assert.equal(updates.at(-1)?.detail?.kind, 'live_refused');
+    assert.equal(updates.at(-1)?.detail?.version, 10);
+    assert.equal(updates.at(-1)?.detail?.refusal, handle.refusal);
+    assert.equal(connectionErrors.at(-1)?.connection, 'live');
+    assert.equal(connectionErrors.at(-1)?.detail?.previous, 'live');
+    assert.equal(connectionErrors.at(-1)?.detail?.error?.diagnostic, handle.refusal);
+    assert.equal(handle.connection, 'live');
+    assert.equal(warnings.length, 1);
+
+    await client.liveStreamManager('plain-refusal').debugInjectFrame({
+      kind: 'live_replace',
+      subscription_id: attachedSubscriptionId,
+      version: 11,
+      rows: [{ id: 'recovered-after-refusal' }],
+    });
+    await waitFor(
+      () => assert.equal(handle.refusal, null),
+      'authoritative live_replace did not clear the refusal',
+    );
+    assert.deepEqual(handle.rows, { id: 'recovered-after-refusal' });
+    assert.deepEqual(updates.at(-1)?.rows, { id: 'recovered-after-refusal' });
+    assert.equal(updates.at(-1)?.detail?.kind, 'live_replace');
+    assert.equal(updates.at(-1)?.detail?.version, 11);
+    assert.equal(updates.at(-1)?.detail?.refusal, undefined);
+    assert.equal(handle.connection, 'live');
+    assert.equal(subscribeAttempts, 1);
+  } finally {
+    try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+    globalThis.fetch = originalFetch;
+    globalThis.WebSocket = originalWebSocket;
+    console.warn = originalWarn;
   }
 });
 

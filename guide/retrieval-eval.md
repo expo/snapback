@@ -1567,6 +1567,17 @@ spellings and repairs appear only under Required guidance.
      "hasFreshClient({ principalId }) is connectedness",
      "no primitive yet".
 
+137. **Live query blanks at the implicit collection ceiling:** "My live query
+     went silent, became blank after many rows, or stopped updating on a large
+     thread." The run fails if it diagnoses transport or matcher fanout first,
+     omits the 1,024-row implicit ceiling, or moves ordering/filtering to the
+     client after collecting a large prefix.
+     Expected pages: `realtime/live-queries.md`, `backend/queries.md`.
+     Route terms: "live query went silent", "blank after many rows",
+     "stopped updating large thread".
+     Required guidance: "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+     "1,024 rows", "server-side ordering", ".take(n)".
+
 
 
 ## Static routing check

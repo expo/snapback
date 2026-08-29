@@ -38,7 +38,6 @@ export const LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
   ['guide/backend/media-happy-paths.md', 'explicit', '45cc91d8612865784c392d76129de2511f93513ba06bdfa225309922a3b8f500'],
   ['guide/backend/migrations.md', 'explicit', 'b84eb4cfa9cd74bf871c4aa00e99a645d098cdec3fb3fd2f321601e0e6a25456'],
   ['guide/backend/mutations.md', 'explicit', '0ad260a5f4e39a14c0f02e70d55e921c1c60862acdfc7ef1bc5516897ebeeb06'],
-  ['guide/backend/queries.md', 'explicit', '7cf000175f4befe0da965c85436ed18c71a2512d4c2cff62dbdad066ba97b71f'],
   ['guide/backend/query-costs.md', 'neutral', '9d61cc4b6e80b6c2c0add0a5061d978836b57f40896d66c6b8f2c829da1a7fb9'],
   ['guide/backend/relational-queries.md', 'explicit', '6662078ce8301ef809ddb29d9f3e9979e0cc67228f65a07b3fd61b9cfc934448'],
   ['guide/backend/sequences.md', 'explicit', 'c27541fc684ecdb1c843c45f93bb9ff876c2c8de7df5bf2eb6fe43063fc9377e'],

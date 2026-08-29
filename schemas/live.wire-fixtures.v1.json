@@ -2200,6 +2200,139 @@
       "direction": "server_to_client",
       "expect": {
         "actions": [
+          "quarantine_rows",
+          "surface_query_refusal"
+        ],
+        "forbiddenActions": [
+          "acknowledge_obligation",
+          "resubscribe_subscription"
+        ],
+        "transitions": [
+          {
+            "rows": "retained_unreadable",
+            "subscription": "sub_fixture_1",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "kind": "authorization_invalidation",
+        "obligation": {
+          "maxDisposition": "quarantine",
+          "ownerContinuityId": "owner_fixture_1",
+          "protocolVersion": 1,
+          "retryEpisodeId": null,
+          "revision": 1,
+          "scopeId": {
+            "connectionGeneration": 1,
+            "issuerId": {
+              "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+              "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+              "bootSequence": 1
+            },
+            "kind": "subscription",
+            "namespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "scopeSequence": 1,
+            "subscriptionId": "sub_fixture_1"
+          },
+          "witness": {
+            "authorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "data": {
+              "minCommitVersion": 43,
+              "versionStream": "fixture-stream"
+            }
+          }
+        },
+        "refusal": {
+          "code": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+          "details": {
+            "function": "listTodos",
+            "limit": 1024,
+            "repair": "Declare .take(n) with server-side ordering or narrow the predicate.",
+            "subscriptionId": "sub_fixture_1"
+          },
+          "message": "live query reevaluation reached the implicit collection limit",
+          "severity": "error",
+          "subsystem": "runtime"
+        }
+      },
+      "given": {
+        "authorizationExpectation": {
+          "authorization": {
+            "epoch": 1,
+            "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+          },
+          "connectionGeneration": 1,
+          "issuerId": {
+            "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+            "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+            "bootSequence": 1
+          },
+          "versionStream": "fixture-stream"
+        },
+        "subscriptions": [
+          {
+            "acceptedAuthorization": {
+              "epoch": 1,
+              "incarnation": "0198c7aa-1234-7000-8000-000000000001"
+            },
+            "authorizationNamespace": {
+              "clientStoreId": "store-fixture",
+              "queryInstanceId": 1,
+              "queryKey": "listTodos:{}"
+            },
+            "authorizationScope": {
+              "connectionGeneration": 1,
+              "issuerId": {
+                "authorizationIncarnation": "0198c7aa-1234-7000-8000-000000000001",
+                "bootNonce": "AAAAAAAAAAAAAAAAAAAAAA",
+                "bootSequence": 1
+              },
+              "kind": "subscription",
+              "namespace": {
+                "clientStoreId": "store-fixture",
+                "queryInstanceId": 1,
+                "queryKey": "listTodos:{}"
+              },
+              "scopeSequence": 1,
+              "subscriptionId": "sub_fixture_1"
+            },
+            "id": "sub_fixture_1",
+            "rows": [
+              {
+                "_id": "todo_1",
+                "title": "must become unreadable"
+              }
+            ],
+            "state": "live",
+            "version": 42
+          }
+        ]
+      },
+      "lane": "core",
+      "name": "auth.live.deterministic_query_refusal_quarantines_and_surfaces",
+      "notes": "A deterministic query-contract refusal does not weaken quarantine and is not acknowledged. The additive envelope diagnostic is surfaced so the application can repair the query.",
+      "profiles": [
+        "auth/live"
+      ],
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
           "surface_protocol_diagnostic",
           "ignore_frame"
         ],
@@ -2379,6 +2512,58 @@
       "lane": "core",
       "name": "durable.resync_required.subscription_scoped",
       "notes": "Reason strings are an open set: recovery is identical for every reason, and an unknown reason must not change the transition.",
+      "schemaValid": true,
+      "tuples": [
+        "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "surface_query_refusal"
+        ],
+        "forbiddenActions": [
+          "resubscribe_subscription"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "resync_pending"
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "clear_retained": true,
+        "kind": "resync_required",
+        "reason": "live_refresh_failed",
+        "refusal": {
+          "code": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+          "details": {
+            "function": "listTodos",
+            "limit": 1024,
+            "repair": "Declare .take(n) with server-side ordering or narrow the predicate.",
+            "subscriptionId": "sub_fixture_1"
+          },
+          "message": "live query reevaluation reached the implicit collection limit",
+          "severity": "error",
+          "subsystem": "runtime"
+        },
+        "subscription_id": "sub_fixture_1"
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 42
+        }
+      },
+      "lane": "core",
+      "name": "durable.resync_required.deterministic_query_refusal_surfaces_without_loop",
+      "notes": "The refusal proves an immediate re-snapshot would repeat the same failure, so the client surfaces the diagnostic through its existing subscription error surface without opening a resubscribe loop.",
       "schemaValid": true,
       "tuples": [
         "poll/local",

@@ -943,6 +943,8 @@ export interface LiveQueryHandle<Rows> {
   readonly authoritativeAnswerClass: 'unknown' | 'labeled-retained' | 'authoritative';
   readonly connection: 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
   readonly paused: boolean;
+  /** Deterministic live re-query refusal; cleared by the next authoritative snapshot. */
+  readonly refusal: SnapbackDiagnostic | null;
   /** Denial fact; null while the presented authority is not refused. */
   readonly authorizationDenial: LiveQueryAuthorizationDenial | null;
   /** Channel B freshness (LLP 0090 D1): rows from persistence/preload are

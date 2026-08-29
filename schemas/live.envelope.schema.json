@@ -88,6 +88,40 @@
       ],
       "type": "object"
     },
+    "Diagnostic": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "details": true,
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        "subsystem": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "subsystem",
+        "message",
+        "details"
+      ],
+      "type": "object"
+    },
+    "DiagnosticSeverity": {
+      "enum": [
+        "info",
+        "warning",
+        "error",
+        "fatal"
+      ],
+      "type": "string"
+    },
     "GraphRowKeyV1": {
       "additionalProperties": false,
       "description": "Physical storage identity used by demand windows and completeness proofs.\n\n@ref LLP 0209#4-completeness-vocabulary — the id is always the row's\nphysical `_id`; application/source identities remain ordinary row fields.",
@@ -192,7 +226,7 @@
     },
     "LiveGraphDeltaWireOpV1": {
       "additionalProperties": false,
-      "description": "One node-scoped retained-row update. Rung 1 emits only `update`; the shared\nop enum's add/remove variants are rejected by the graph client-view oracle.\n`row` is the full old-versus-new field diff, including system fields, and\n`position` is the proven unchanged root-window position.",
+      "description": "One node-scoped retained-row update. Rung 1 emits only `update`; the shared\nop enum's add/remove variants are rejected by the graph client-view oracle.\n`row` is the old-versus-new diff restricted to fields referenced by the\nemitting node's closed projection, and `position` is the proven unchanged\nroot-window position.",
       "properties": {
         "key": {
           "$ref": "#/$defs/GraphRowKeyV1",
@@ -720,6 +754,17 @@
         "obligation": {
           "$ref": "#/$defs/ResyncObligation"
         },
+        "refusal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A deterministic query-contract refusal that made a successor\nsnapshot impossible for the committed data. The obligation stays\nfail-closed; this additive field tells the client why.\n\n@ref LLP 0093#d1--the-protocol-document-and-wire-v1 — an optional\n  field on an existing server-to-client envelope is wire-v1\n  compatible."
+        },
         "resolution": {
           "anyOf": [
             {
@@ -776,6 +821,17 @@
         },
         "reason": {
           "type": "string"
+        },
+        "refusal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnostic"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Deterministic refusal that makes the ordinary immediate\nre-snapshot futile. Clients surface it instead of looping.\n\n@ref LLP 0093#d1--the-protocol-document-and-wire-v1 — an optional\n  field on an existing server-to-client envelope is wire-v1\n  compatible."
         },
         "scope": {
           "type": [

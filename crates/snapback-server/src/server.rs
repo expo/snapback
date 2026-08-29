@@ -34391,6 +34391,7 @@ async fn drain_outbox_inner(
                     scope: None,
                     epoch: None,
                     clear_retained: true,
+                    refusal: None,
                 })
                 .unwrap_or_default(),
             ),

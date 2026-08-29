@@ -5,6 +5,9 @@
 
 #![allow(clippy::result_large_err)]
 
+#[cfg(test)]
+extern crate snapback_build_identity as _;
+
 pub(crate) use snapback_activation::{
     agent_safe_publication, bundle, completeness, config, deploy, generation_activation,
     operational_readiness,

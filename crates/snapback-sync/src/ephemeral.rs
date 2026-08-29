@@ -1851,6 +1851,7 @@ fn overflow_sentinel(effect_fence: Option<ConnectionEffectFence>) -> DurableMess
         scope: None,
         epoch: None,
         clear_retained: true,
+        refusal: None,
     })
     .unwrap_or_default();
     match effect_fence {

@@ -189,6 +189,7 @@ function authoritativeCarrier(frame) {
 
 function summarizeFrame(frame) {
   const carrier = authoritativeCarrier(frame);
+  const refusal = frame?.refusal;
   return {
     kind: frame?.kind ?? null,
     subscriptionId: carrier?.subscriptionId ?? frame?.subscription_id ?? null,
@@ -217,6 +218,17 @@ function summarizeFrame(frame) {
           hasSnapshot: frame.snapshot != null,
         }
       : null,
+    refusal: refusal == null
+      ? null
+      : {
+          code: refusal.code ?? null,
+          subsystem: refusal.subsystem ?? null,
+          message: refusal.message ?? null,
+          subscriptionId: refusal.details?.subscriptionId ?? null,
+          function: refusal.details?.function ?? null,
+          limit: refusal.details?.limit ?? null,
+          repair: refusal.details?.repair ?? null,
+        },
   };
 }
 
@@ -290,6 +302,7 @@ function createWitness(client, connectionId) {
           at: Date.now(),
           kind: meta.kind ?? null,
           version: meta.version ?? null,
+          refusal: meta.refusal ?? null,
           rows: summarizeRows(rows),
         });
         poke();
@@ -313,6 +326,7 @@ function createWitness(client, connectionId) {
           kind: detail.kind ?? null,
           version: detail.version ?? null,
           disposition: detail.authorization?.kind ?? null,
+          refusal: detail.refusal ?? null,
           rows: summarizeRows(rows),
         });
         poke();
@@ -490,6 +504,146 @@ async function originalSubscriptionDelivery({
     managerStates,
     connectionChanges,
     updates: witness.updates.slice(baseline.updateIndex),
+    frames: witness.frames
+      .slice(baseline.frameIndex)
+      .map(({ at: _at, frame }) => summarizeFrame(frame)),
+  };
+}
+
+function findOriginalRefusalFrame(witness, baseline) {
+  return witness.frames.slice(baseline.frameIndex).find(({ frame }) => (
+    frame?.kind === 'authorization_invalidation'
+    && (
+      frame.obligation?.scopeId?.subscriptionId
+      ?? frame.obligation?.scope_id?.subscription_id
+      ?? null
+    ) === baseline.subscriptionId
+    && frame.refusal?.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'
+  )) ?? null;
+}
+
+async function originalSubscriptionRefusal({ baseline, deadlineMs, handle, settledAt, witness }) {
+  const deadlineAt = settledAt + deadlineMs;
+  let refusalObservedAt = null;
+  const qualifiesWithinDeadline = () => {
+    const taggedFrame = findOriginalRefusalFrame(witness, baseline);
+    const refusalUpdate = witness.updates.slice(baseline.updateIndex).find((update) => (
+      update.kind === 'authorization_quarantine'
+      && update.refusal?.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'
+      && update.rows.count === 0
+    ));
+    if (
+      taggedFrame === null
+      || refusalUpdate === undefined
+      || handle.refusal?.code !== 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'
+      || handle.rows.length !== 0
+    ) return false;
+    refusalObservedAt ??= Date.now();
+    return taggedFrame.at <= deadlineAt
+      && refusalUpdate.at <= deadlineAt
+      && refusalObservedAt <= deadlineAt;
+  };
+  let timeoutError = null;
+  try {
+    await witness.waitFor(
+      qualifiesWithinDeadline,
+      'shape (d) typed implicit-limit refusal on the original subscription',
+      deadlineMs,
+    );
+  } catch (error) {
+    timeoutError = error.message;
+  }
+
+  const taggedFrame = findOriginalRefusalFrame(witness, baseline);
+  const events = witness.subscriptionEvents.slice(baseline.eventIndex);
+  const managerStates = witness.managerStates.slice(baseline.managerStateIndex);
+  const connectionChanges = witness.connectionChanges.slice(baseline.connectionIndex);
+  const updates = witness.updates.slice(baseline.updateIndex);
+  const refusalUpdate = updates.find((update) => (
+    update.kind === 'authorization_quarantine'
+    && update.refusal?.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'
+    && update.rows.count === 0
+  ));
+  const rawRefusal = taggedFrame?.frame?.refusal ?? null;
+  const subscriptionIdUnchanged = handle.subscriptionId === baseline.subscriptionId;
+  const versionUnchanged = handle.version === baseline.version;
+  const resubscribed = events.some((event) => event.event === 'resubscribed');
+  const managerStayedOpen = managerStates.every(({ state }) => state === 'open')
+    && witness.manager.isOpen();
+  const handleStayedLive = connectionChanges.every(({ connection }) => connection === 'live')
+    && handle.connection === 'live';
+  const frameWithinDeadline = taggedFrame !== null && taggedFrame.at <= deadlineAt;
+  const updateWithinDeadline = refusalUpdate !== undefined && refusalUpdate.at <= deadlineAt;
+  const observedWithinDeadline = refusalObservedAt !== null && refusalObservedAt <= deadlineAt;
+  const boundPresent = rawRefusal?.details?.limit === 1_024;
+  const repairPresent = typeof rawRefusal?.details?.repair === 'string'
+    && rawRefusal.details.repair.includes('.take(n)');
+  const rowsBlank = handle.rows.length === 0 && refusalUpdate?.rows.count === 0;
+  const handleCarriesRefusal = handle.refusal?.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED';
+  const strict = timeoutError === null
+    && frameWithinDeadline
+    && updateWithinDeadline
+    && observedWithinDeadline
+    && subscriptionIdUnchanged
+    && versionUnchanged
+    && !resubscribed
+    && managerStayedOpen
+    && handleStayedLive
+    && rawRefusal?.code === 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED'
+    && boundPresent
+    && repairPresent
+    && rowsBlank
+    && handleCarriesRefusal;
+  const failures = [];
+  if (taggedFrame === null) failures.push('no-typed-refusal-frame-on-original-subscription');
+  if (!frameWithinDeadline || !updateWithinDeadline || !observedWithinDeadline) {
+    failures.push('deadline-expired');
+  }
+  if (!subscriptionIdUnchanged) failures.push('subscription-id-changed');
+  if (!versionUnchanged) failures.push('subscription-version-changed');
+  if (resubscribed) failures.push('resubscribed-event');
+  if (!managerStayedOpen || !handleStayedLive) failures.push('connection-detached');
+  if (!boundPresent) failures.push('refusal-bound-missing');
+  if (!repairPresent) failures.push('refusal-repair-missing');
+  if (!rowsBlank) failures.push('rows-not-blank');
+  if (!handleCarriesRefusal) failures.push('handle-refusal-missing');
+
+  return {
+    delivered: strict,
+    failures: [...new Set(failures)],
+    timeoutError,
+    deadlineMs,
+    deadlineAt,
+    originalSubscriptionId: baseline.subscriptionId,
+    finalSubscriptionId: handle.subscriptionId,
+    originalVersion: baseline.version,
+    finalVersion: handle.version,
+    invariants: {
+      subscriptionIdUnchanged,
+      versionUnchanged,
+      resubscribed,
+      managerStayedOpen,
+      handleStayedLive,
+      frameWithinDeadline,
+      updateWithinDeadline,
+      observedWithinDeadline,
+      boundPresent,
+      repairPresent,
+      rowsBlank,
+      handleCarriesRefusal,
+    },
+    refusalFrame: taggedFrame === null ? null : summarizeFrame(taggedFrame.frame),
+    afterSettlementMs: taggedFrame === null ? null : Math.max(0, taggedFrame.at - settledAt),
+    refusalObservedAfterSettlementMs: refusalObservedAt === null
+      ? null
+      : Math.max(0, refusalObservedAt - settledAt),
+    subscriptionEvents: events.map(({ at: _at, ...event }) => event),
+    authorizationBoundaries: witness.authorizationBoundaries
+      .slice(baseline.authorizationBoundaryIndex),
+    authorizationErrors: witness.authorizationErrors.slice(baseline.authorizationErrorIndex),
+    managerStates,
+    connectionChanges,
+    updates,
     frames: witness.frames
       .slice(baseline.frameIndex)
       .map(({ at: _at, frame }) => summarizeFrame(frame)),
@@ -1359,15 +1513,10 @@ async function shapeD(iteration, run, deadlineMs) {
       PAST_IMPLICIT_CEILING_ROWS,
     );
     const settled1025 = Date.now();
-    const delivery1025 = await originalSubscriptionDelivery({
+    const delivery1025 = await originalSubscriptionRefusal({
       baseline: baseline1025,
       deadlineMs,
-      frameRowsMatch: (rows) => rows.some((row) => (
-        row.sequence === PAST_IMPLICIT_CEILING_ROWS
-      )),
       handle: handle1025,
-      label: `shape (d) ${PAST_IMPLICIT_CEILING_ROWS}-row original-subscription delivery`,
-      rowsMatch: (rows) => isExactMessageRange(rows, PAST_IMPLICIT_CEILING_ROWS),
       settledAt: settled1025,
       witness: witness1025,
     });
@@ -1422,7 +1571,7 @@ async function shapeD(iteration, run, deadlineMs) {
       }
       throw diagnosticError(
         'O14_D_PAST_CEILING_INCONCLUSIVE',
-        'shape (d) is inconclusive past the implicit ceiling: the original subscription did not deliver, but the bound-refusal/quarantine mechanism was not proved end to end',
+        'shape (d) is inconclusive past the implicit ceiling: the original subscription did not receive a complete typed bound refusal, but the legacy silence mechanism was not proved end to end',
         details,
       );
     }

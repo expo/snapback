@@ -49,6 +49,7 @@ use crate::auth::invalidation::{
     CompositeWitness, DataWitness, InvalidationDisposition, IssuerId, QueryNamespace,
     ResolutionKind, ResolutionTicket, ResyncObligation, ScopeId,
 };
+use crate::diagnostic::Diagnostic;
 use crate::ephemeral::{DurableMessage, RealtimeEnvelope};
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveAuthErrorCode, LiveAuthErrorReason,
@@ -125,6 +126,7 @@ fn resync_subscription_envelope() -> LiveEnvelope {
         scope: None,
         epoch: None,
         clear_retained: false,
+        refusal: None,
     }
 }
 
@@ -136,6 +138,33 @@ fn resync_connection_wide_envelope() -> LiveEnvelope {
         scope: None,
         epoch: None,
         clear_retained: true,
+        refusal: None,
+    }
+}
+
+fn implicit_limit_refusal(subscription_id: &str, function: &str) -> Diagnostic {
+    Diagnostic::error(
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+        "runtime",
+        "live query reevaluation reached the implicit collection limit",
+    )
+    .with_details(json!({
+        "subscriptionId": subscription_id,
+        "function": function,
+        "limit": 1024,
+        "repair": "Declare .take(n) with server-side ordering or narrow the predicate."
+    }))
+}
+
+fn resync_subscription_refusal_envelope() -> LiveEnvelope {
+    LiveEnvelope::ResyncRequired {
+        network_profile: None,
+        reason: "live_refresh_failed".to_owned(),
+        subscription_id: Some("sub_fixture_1".to_owned()),
+        scope: None,
+        epoch: None,
+        clear_retained: true,
+        refusal: Some(implicit_limit_refusal("sub_fixture_1", "listTodos")),
     }
 }
 
@@ -282,6 +311,34 @@ fn invalidation_envelope_custom(
     LiveEnvelope::authorization_invalidation(obligation, resolution, snapshot)
 }
 
+fn invalidation_refusal_envelope() -> LiveEnvelope {
+    let envelope = invalidation_envelope(
+        "sub_fixture_1",
+        43,
+        1,
+        InvalidationDisposition::Quarantine,
+        None,
+        None,
+    );
+    let LiveEnvelope::AuthorizationInvalidation {
+        network_profile,
+        obligation,
+        resolution,
+        snapshot,
+        ..
+    } = envelope
+    else {
+        unreachable!("fixture helper constructs an authorization invalidation")
+    };
+    LiveEnvelope::AuthorizationInvalidation {
+        network_profile,
+        obligation,
+        resolution,
+        snapshot,
+        refusal: Some(implicit_limit_refusal("sub_fixture_1", "listTodos")),
+    }
+}
+
 /// The seeded fixture corpus. Every fixture carries:
 ///
 /// - `family`: the committed schema file the frame is an instance of
@@ -304,6 +361,7 @@ pub fn wire_fixture_corpus() -> Value {
     let delta = wire(&delta_envelope());
 
     let resync_subscription = wire(&resync_subscription_envelope());
+    let resync_subscription_refusal = wire(&resync_subscription_refusal_envelope());
 
     let resync_connection_wide = wire(&resync_connection_wide_envelope());
 
@@ -331,6 +389,7 @@ pub fn wire_fixture_corpus() -> Value {
         None,
         None,
     ));
+    let authorization_invalidation_refusal = wire(&invalidation_refusal_envelope());
     let foreign_authorization_invalidation = wire(&invalidation_envelope(
         "sub_fixture_foreign",
         43,
@@ -1068,6 +1127,37 @@ pub fn wire_fixture_corpus() -> Value {
             "notes": "An obligation without a satisfying snapshot makes held rows unreadable and is not acknowledged. Level-triggered delivery continues until a resolution can be applied."
         },
         {
+            "name": "auth.live.deterministic_query_refusal_quarantines_and_surfaces",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local"],
+            "profiles": ["auth/live"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": authorization_invalidation_refusal,
+            "given": {
+                "authorizationExpectation": authorization_expectation_epoch_1,
+                "subscriptions": [{
+                    "id": "sub_fixture_1",
+                    "state": "live",
+                    "version": 42,
+                    "authorizationScope": held_authorization_scope,
+                    "authorizationNamespace": held_authorization_namespace,
+                    "acceptedAuthorization": {
+                        "incarnation": "0198c7aa-1234-7000-8000-000000000001",
+                        "epoch": 1
+                    },
+                    "rows": [{ "_id": "todo_1", "title": "must become unreadable" }]
+                }]
+            },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "resync_pending", "rows": "retained_unreadable" }],
+                "actions": ["quarantine_rows", "surface_query_refusal"],
+                "forbiddenActions": ["acknowledge_obligation", "resubscribe_subscription"]
+            },
+            "notes": "A deterministic query-contract refusal does not weaken quarantine and is not acknowledged. The additive envelope diagnostic is surfaced so the application can repair the query."
+        },
+        {
             "name": "auth.live.foreign_obligation_never_acknowledged",
             "family": "live.envelope.schema.json",
             "lane": "core",
@@ -1111,6 +1201,22 @@ pub fn wire_fixture_corpus() -> Value {
                 "actions": ["resubscribe_subscription"]
             },
             "notes": "Reason strings are an open set: recovery is identical for every reason, and an unknown reason must not change the transition."
+        },
+        {
+            "name": "durable.resync_required.deterministic_query_refusal_surfaces_without_loop",
+            "family": "live.envelope.schema.json",
+            "lane": "core",
+            "tuples": ["poll/local", "live/local", "live/hosted"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": resync_subscription_refusal,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 42 } },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "resync_pending" }],
+                "actions": ["surface_query_refusal"],
+                "forbiddenActions": ["resubscribe_subscription"]
+            },
+            "notes": "The refusal proves an immediate re-snapshot would repeat the same failure, so the client surfaces the diagnostic through its existing subscription error surface without opening a resubscribe loop."
         },
         {
             "name": "durable.resync_required.connection_wide_clear_retained",

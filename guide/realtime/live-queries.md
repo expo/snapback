@@ -170,6 +170,18 @@ stale state, and follow the
 [open live-query matcher caveat](#matching-inserts-in-point-and-parent-queries)
 when its blank-after-insert symptoms match.
 
+### Live query went silent, blank after many rows, or stopped updating large thread
+
+If a live query went silent, became blank after many rows, or stopped updating
+on a large thread as it crossed 1,024 rows, check `handle.refusal` (or the
+React query's `status: 'error'` diagnostic) for
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`. An unbounded
+`ctx.db.query(...).collect()` hit the implicit collection ceiling during live
+reevaluation; this is not a detached socket or matcher miss. Put the desired
+ordering and filters on the server, then declare the intended window with
+`.take(n)` (or narrow the predicate). The terse search “stopped updating large
+thread” routes to this same failure.
+
 ## Matching inserts in point and parent queries
 
 **HostPlan matching inserts are guaranteed.** A subscribed point filter such
@@ -295,8 +307,10 @@ Two of those never reach your callback as-is: the client consumes
 `authorization_*` events below.
 
 **What your `onUpdate(rows, meta)` receives** is different. A plain
-(non-auth-scoped) subscription sees `meta.kind: 'live_replace'` or
-`'live_delta'` (plus `'current_as_of'` when it resumed from a token). An
+(non-auth-scoped) subscription sees `meta.kind: 'live_replace'`,
+`'live_delta'`, or `'live_refused'` (plus `'current_as_of'` when it resumed
+from a token). `live_refused` delivers blank rows with `meta.refusal`, keeps
+the subscription attached, and recovers on the next authoritative frame. An
 auth-scoped subscription — anything gated by a membership predicate or
 another protected-query input — delivers through the witnessed lane instead
 and never sees a bare `live_replace`. Its `meta.kind` values are this closed
@@ -314,6 +328,17 @@ set; handle all five:
 - `authorization_denied` — a server-answered denial on a fresh subscribe or
   authority transition; the same fact freezes on
   `handle.authorizationDenial` for rendering.
+
+When `authorization_quarantine` was caused by a deterministic query-contract
+refusal, `meta.refusal` and `handle.refusal` carry the frozen
+`snapback.client-diagnostic.v1` diagnostic; rows still blank, and React exposes
+the same diagnostic through its existing `status: 'error'` snapshot. A plain
+subscription receives the diagnostic on `handle.refusal`, through
+`onUpdate([], { kind: 'live_refused', version, refusal })`, and through an
+unchanged-connection observation carrying `{ error }`. For that tagged
+`resync_required`, the client stays attached and does not start an immediate
+re-snapshot that would repeat the same refusal. The next authoritative frame
+clears the handle diagnostic.
 
 Incremental publication also requires the query's exact, schema-derived
 `Documents` result contract. A `live_delta` publishes committed storage rows
@@ -412,6 +437,9 @@ property omit the capability instead of returning a process-local lie.
 
 ## Anti-patterns
 
+- **Do not leave a growing live collection implicitly bounded.** A thread that
+  eventually crosses 1,024 matches will be refused on reevaluation. Apply
+  server-side ordering and `.take(n)`, or narrow the predicate.
 - **Do not poll a query you can subscribe to.** `liveQuery` exists;
   hand-rolled `setInterval` re-query loops re-derive a worse version of the
   poll transport and never get durable push.

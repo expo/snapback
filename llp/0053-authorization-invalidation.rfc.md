@@ -5,6 +5,10 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
+**Revised:** 2026-08-28 (Deterministic query-contract refusals during live
+re-query retain the existing fail-closed disposition, carry their typed cause
+on the envelope, and do not leave open or consume a futile retry episode; see
+§Changelog.)
 **Revised:** 2026-08-15 (`ctx.db.elevated` read host ops remain
 `DatabaseCaptured`; authority selection changes visibility composition, not
 snapshot/input closure). 2026-08-03 (`single_table_v1@1` boundary: its exact
@@ -2190,6 +2194,18 @@ LLP 0086 governing constraint 2.
 
 ## Changelog
 
+- **2026-08-28 (deterministic live re-query refusal; still Accepted).** A
+  deterministic query-contract refusal during live re-query keeps this RFC's
+  existing `quarantine` disposition for an auth-scoped result (and the
+  corresponding fail-closed `resync_required` projection for a plain result),
+  but the existing envelope now carries the typed refusal. The server reserves
+  the initial attempt before invocation, then cancels that reservation when
+  the refusal is classified, so it neither leaves open nor consumes a bounded
+  retry episode that cannot succeed for the same function, arguments, and
+  committed data. The disposition enumeration,
+  obligation, resolution ticket, client fence, and blanking behavior are
+  unchanged. Implemented by
+  `issues/20260828-live-query-implicit-limit-refusal-blanks-subscription.md`.
 - **2026-08-15 (explicit handler-read authority; still Accepted).** Classified
   LLP 0231 D7's elevated point, batch, and bounded query host operations as
   `DatabaseCaptured`. They bypass only Class-R row visibility and retain the

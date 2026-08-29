@@ -9,6 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [explicit]
 reviewed: 2026-08-28
 reviewed-authorities-digest: sha256:0af0b8392f37713d417d949dd430071bd811114f7ebd6b69a830e08afe9782f0
 ---
@@ -370,6 +371,10 @@ explicit `.take(n)`, it may return at most 1,024 rows. If it reaches that
 ceiling, Snapback refuses the invocation with
 `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`: the runtime cannot prove whether the
 1,024 rows are the complete result or a truncated prefix.
+
+Live subscriptions hit the same ceiling when a commit reevaluates their
+query; the client now keeps the fail-closed blanking behavior but reports the
+typed refusal and `.take(n)` repair instead of retrying the identical read.
 
 Put the filters and ordering that define the desired window on the server, then
 declare its size:

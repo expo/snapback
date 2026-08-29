@@ -3075,6 +3075,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             scope: None,
             epoch: None,
             clear_retained: true,
+            refusal: None,
         },
         LiveEnvelope::ResyncRequired {
             network_profile: None,
@@ -3083,6 +3084,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             scope: Some("user:alice".to_owned()),
             epoch: Some(2),
             clear_retained: true,
+            refusal: None,
         },
     ] {
         assert_validates(
@@ -3099,6 +3101,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             scope: Some("user:alice".to_owned()),
             epoch: Some(snapback::manifest::PORTABLE_STORAGE_VERSION_MAX + 1),
             clear_retained: true,
+            refusal: None,
         })
         .unwrap(),
     );
@@ -4396,6 +4399,7 @@ fn outbox_drain_schema_accepts_the_served_batches_and_rejects_wrappers() {
             scope: None,
             epoch: None,
             clear_retained: true,
+            refusal: None,
         })
         .expect("serialize resync envelope"),
     ))]);

@@ -1278,15 +1278,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const terminalError = detail?.kind === 'authorization_error' && detail?.terminal === true
       ? detail.error ?? detail.authorization
       : null;
+    const refusal = detail?.refusal ?? null;
+    const surfacedError = terminalError ?? refusal;
     // @ref LLP 0059#typed-terminal-auth-error — terminal authority loss is a
     // classified error owned by the coordinator, never a successful empty
     // answer. Nonterminal quarantine/delete keeps the existing blank fence.
     publish(store, freezeBootDelivery(store, {
-      status: terminalError === null ? 'ready' : 'error',
-      data: terminalError === null
+      status: surfacedError === null ? 'ready' : 'error',
+      data: surfacedError === null
         ? projectQueryRows(store.resultContract, blank)
         : undefined,
-      error: terminalError === null ? null : authOwnedDiagnostic(terminalError),
+      error: surfacedError === null
+        ? null
+        : terminalError === null ? serializeError(refusal) : authOwnedDiagnostic(terminalError),
       ...(terminalError === null ? {} : { transitionOwner: AUTH_TRANSITION_OWNER }),
       connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
       freshness: 'unknown',
@@ -1646,6 +1650,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           detail?.kind === 'authorization_quarantine'
           || detail?.kind === 'authorization_delete'
           || detail?.kind === 'authorization_error'
+          || detail?.kind === 'live_refused'
         ) {
           publishAuthorizationBoundary(store, detail, generation);
           return;
@@ -1653,6 +1658,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         const authorityBearingFrame = (
           detail?.kind === 'authorization_snapshot'
           || detail?.kind === 'authorization_denied'
+          || detail?.kind === 'live_replace'
+          || detail?.kind === 'live_delta'
           || detail?.kind === 'snapshot'
           || detail?.kind === 'persisted'
         );

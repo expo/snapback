@@ -68,10 +68,10 @@ use crate::manifest::{
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
-    PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane, SettlementMintObservation,
-    SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
-    ctx_ledger_version, legacy_auth_fingerprint,
+    PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QUERY_MAX_LIMIT,
+    QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
+    SettlementMintObservation, SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ValueExpr, auth_fingerprint, ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::manifest::{
     CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _,
@@ -4489,6 +4489,10 @@ struct LiveSubscription {
     read_dependencies: Vec<CapturedReadDependency>,
     graph_serving: Option<GraphServingRegistration>,
     authorization: Option<LiveSubscriptionAuthorization>,
+    /// Most recent deterministic re-query refusal for the exact committed
+    /// floor. Level-triggered auth projection re-fires this fact without
+    /// spending the retry budget; a later commit gets a new evaluation.
+    deterministic_refusal: Option<DeterministicQueryContractRefusal>,
     effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     observation: LiveSubscriptionObservation,
     /// RQS token-refresh state, present iff the subscription is `rqsEligible`
@@ -5323,6 +5327,47 @@ impl FiniteCompletenessCarrier {
 struct AuthorizationResolutionFailure {
     error: SnapbackError,
     retry_episode_id: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct DeterministicQueryContractRefusal {
+    diagnostic: Diagnostic,
+    witness: CompositeWitness,
+}
+
+const IMPLICIT_QUERY_LIMIT_REPAIR: &str =
+    "Declare .take(n) with server-side ordering or narrow the predicate.";
+
+/// Closed classifier for query-contract failures whose outcome is fixed for
+/// the same function, arguments, and committed data. Widen only with proof
+/// that the code is both reachable from live reevaluation and deterministic.
+///
+/// @ref LLP 0053#dispositions-with-producers-and-meanings — a deterministic
+///   contract refusal still quarantines an auth-scoped result; typing the
+///   cause does not create a new disposition.
+fn is_deterministic_query_contract_refusal(error: &SnapbackError) -> bool {
+    matches!(
+        error.diagnostic.code.as_str(),
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+    )
+}
+
+fn project_deterministic_query_contract_refusal(
+    subscription: &LiveSubscription,
+    error: &SnapbackError,
+) -> Option<Diagnostic> {
+    if !is_deterministic_query_contract_refusal(error) {
+        return None;
+    }
+    let source = &error.diagnostic;
+    Some(
+        Diagnostic::error(&source.code, &source.subsystem, &source.message).with_details(json!({
+            "subscriptionId": subscription.id,
+            "function": subscription.function,
+            "limit": QUERY_MAX_LIMIT,
+            "repair": IMPLICIT_QUERY_LIMIT_REPAIR,
+        })),
+    )
 }
 
 /// Outcome of the DK-3 op-log delta fast path for one subscription.
@@ -11464,6 +11509,7 @@ impl LocalSnapback {
                     scope: Some(String::new()),
                     epoch: Some(0),
                     clear_retained: true,
+                    refusal: None,
                 }) else {
                     continue;
                 };
@@ -11571,6 +11617,7 @@ impl LocalSnapback {
             scope: Some(String::new()),
             epoch: Some(0),
             clear_retained,
+            refusal: None,
         }) else {
             return Err(SnapbackError::error(
                 "SNAPBACK_LIVE_FORCE_RESYNC_ENCODE_FAILED",
@@ -15687,6 +15734,7 @@ impl LocalSnapback {
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
             stored.graph_serving = query.graph_serving;
+            stored.deterministic_refusal = None;
         }
         self.enqueue_subscription_durable(subscription, payload);
         self.live_delivery.total_deliveries += 1;
@@ -24090,6 +24138,7 @@ impl LocalSnapback {
                 read_dependencies: query.read_dependencies,
                 graph_serving: query.graph_serving,
                 authorization: subscription_authorization,
+                deterministic_refusal: None,
                 effect_fence,
                 observation,
                 rqs: rqs_state,
@@ -30847,6 +30896,7 @@ impl LocalSnapback {
                     scope: Some(String::new()),
                     epoch: Some(0),
                     clear_retained: true,
+                    refusal: None,
                 })
                 .map_err(|error| {
                     SnapbackError::error(
@@ -32433,6 +32483,7 @@ impl LocalSnapback {
             scope: Some(scope),
             epoch: Some(epoch),
             clear_retained: true,
+            refusal: None,
         })
         .map_err(|error| {
             SnapbackError::error(
@@ -32640,6 +32691,7 @@ impl LocalSnapback {
                 scope: Some(String::new()),
                 epoch: Some(0),
                 clear_retained: true,
+                refusal: None,
             })
         {
             self.enqueue_subscription_durable(&subscription, payload);
@@ -32846,6 +32898,26 @@ impl LocalSnapback {
         // episodes are durable, bounded obligations; an untrusted application
         // error can quarantine but cannot manufacture terminal deletion proof.
         let key = Self::authorization_retry_key(subscription).expect("auth-scoped subscription");
+        if let Some(refusal) = subscription
+            .deterministic_refusal
+            .as_ref()
+            .filter(|refusal| refusal.witness == witness_floor)
+        {
+            let retry_episode_id = subscription
+                .authorization
+                .as_ref()
+                .and_then(|authorization| {
+                    self.auth_invalidation
+                        .as_ref()
+                        .and_then(|state| state.obligations.pending(&authorization.scope_id))
+                        .filter(|pending| pending.witness == witness_floor)
+                        .and_then(|pending| pending.retry_episode_id.clone())
+                });
+            return Err(AuthorizationResolutionFailure {
+                error: SnapbackError::new(refusal.diagnostic.clone()),
+                retry_episode_id,
+            });
+        }
         let now = now_millis();
         let initial = self.run_authorization_retry_transaction(
             admission,
@@ -32933,6 +33005,50 @@ impl LocalSnapback {
             {
                 Ok(query) => return Ok(query),
                 Err(error) => {
+                    if is_deterministic_query_contract_refusal(&error) {
+                        let episode_id = episode.episode_id.clone();
+                        let cancellation = self.run_authorization_retry_transaction(
+                            admission,
+                            "authorization deterministic refusal retry cancellation transaction",
+                            Some(episode_id.clone()),
+                            |database| {
+                                database
+                                    .cancel_deterministic_refusal_retry_episode(&key, &episode_id)
+                            },
+                        );
+                        let cancellation_clean = match cancellation {
+                            Ok(true) => true,
+                            Ok(false) => {
+                                self.record_attached_diagnostics(vec![
+                                    SnapbackError::error(
+                                        "SNAPBACK_AUTH_INVALIDATION_CORRUPT",
+                                        "auth",
+                                        "deterministic refusal retry cancellation found no reserved episode",
+                                    )
+                                    .with_details(json!({
+                                        "subscriptionId": subscription.id,
+                                        "retryEpisodeId": episode_id,
+                                    }))
+                                    .diagnostic,
+                                ]);
+                                false
+                            }
+                            Err(failure) => {
+                                let mut diagnostic = failure.error.diagnostic;
+                                diagnostic.details = json!({
+                                    "subscriptionId": subscription.id,
+                                    "retryEpisodeId": episode_id,
+                                    "error": diagnostic.details,
+                                });
+                                self.record_attached_diagnostics(vec![diagnostic]);
+                                false
+                            }
+                        };
+                        return Err(AuthorizationResolutionFailure {
+                            error,
+                            retry_episode_id: (!cancellation_clean).then_some(episode_id),
+                        });
+                    }
                     // Only the host-owned, non-serializable denial brand may
                     // produce a terminal delete. Application diagnostics with
                     // the same public code remain ordinary retryable errors.
@@ -33077,6 +33193,7 @@ impl LocalSnapback {
         if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
             stored.read_dependencies = query.read_dependencies;
             stored.graph_serving = query.graph_serving;
+            stored.deterministic_refusal = None;
         }
         // @ref LLP 0094#0c8-sessions-live-update-envelope-and-delivery-multiplicity —
         // the pending obligation is the sole frame source. Enqueuing its exact
@@ -33259,11 +33376,25 @@ impl LocalSnapback {
             .unwrap_or_default();
         let mut parked = false;
         for (subscription, projection) in projections {
-            if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
-                projection.obligation,
-                projection.resolution,
-                None,
-            )) {
+            let refusal = subscription
+                .deterministic_refusal
+                .as_ref()
+                .filter(|refusal| refusal.witness == projection.obligation.witness)
+                .map(|refusal| refusal.diagnostic.clone());
+            let envelope = match refusal {
+                Some(refusal) => LiveEnvelope::authorization_invalidation_with_refusal(
+                    projection.obligation,
+                    projection.resolution,
+                    None,
+                    refusal,
+                ),
+                None => LiveEnvelope::authorization_invalidation(
+                    projection.obligation,
+                    projection.resolution,
+                    None,
+                ),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope) {
                 parked |= self
                     .enqueue_subscription_durable(&subscription, payload)
                     .parked_behind_overflow;
@@ -33365,6 +33496,30 @@ impl LocalSnapback {
                     continue;
                 }
             }
+            if let Some(refusal) = subscription
+                .deterministic_refusal
+                .as_ref()
+                .filter(|refusal| refusal.witness == pending.witness)
+            {
+                let _publication =
+                    admission.effect_guard("authorization refusal drain publication")?;
+                if let Some(projection) = self
+                    .auth_invalidation
+                    .as_ref()
+                    .and_then(|state| state.obligations.projection(scope))
+                    && let Ok(frame) =
+                        serde_json::to_vec(&LiveEnvelope::authorization_invalidation_with_refusal(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                            refusal.diagnostic.clone(),
+                        ))
+                    && !append_frame(crate::ephemeral::DurableMessage::new(frame))?
+                {
+                    break 'subscriptions;
+                }
+                continue;
+            }
             match self.invoke_authorization_resolution(
                 &subscription,
                 pending.witness.clone(),
@@ -33414,6 +33569,7 @@ impl LocalSnapback {
                     if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                         stored.read_dependencies = query.read_dependencies;
                         stored.graph_serving = query.graph_serving;
+                        stored.deterministic_refusal = None;
                     }
                     if let Some(projection) = projection
                         && let Ok(frame) =
@@ -33431,6 +33587,8 @@ impl LocalSnapback {
                     }
                 }
                 Err(failure) => {
+                    let refusal =
+                        project_deterministic_query_contract_refusal(&subscription, &failure.error);
                     if failure.error.is_trusted_permission_denial() {
                         self.fail_subscription_fanout_with_retry(
                             &subscription,
@@ -33460,6 +33618,7 @@ impl LocalSnapback {
                     }
                     let _publication =
                         admission.effect_guard("authorization retry drain publication")?;
+                    let refusal_witness = pending.witness.clone();
                     let projection = self.auth_invalidation.as_mut().and_then(|state| {
                         let current = state.obligations.pending(scope)?;
                         if current.retry_episode_id == failure.retry_episode_id {
@@ -33479,13 +33638,29 @@ impl LocalSnapback {
                             .ok()?;
                         state.obligations.projection(scope)
                     });
-                    if let Some(projection) = projection
-                        && let Ok(frame) =
-                            serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
-                                projection.obligation,
-                                projection.resolution,
-                                None,
-                            ))
+                    if let Some(refusal) = refusal.as_ref()
+                        && let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                    {
+                        stored.deterministic_refusal = Some(DeterministicQueryContractRefusal {
+                            diagnostic: refusal.clone(),
+                            witness: refusal_witness,
+                        });
+                    }
+                    let envelope = projection.map(|projection| match refusal {
+                        Some(refusal) => LiveEnvelope::authorization_invalidation_with_refusal(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                            refusal,
+                        ),
+                        None => LiveEnvelope::authorization_invalidation(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                        ),
+                    });
+                    if let Some(envelope) = envelope
+                        && let Ok(frame) = serde_json::to_vec(&envelope)
                         && !append_frame(crate::ephemeral::DurableMessage::new(frame))?
                     {
                         break 'subscriptions;
@@ -33916,6 +34091,7 @@ impl LocalSnapback {
                     scope: Some(String::new()),
                     epoch: Some(0),
                     clear_retained: true,
+                    refusal: None,
                 })
                 .map_err(|error| {
                     SnapbackError::error(
@@ -35527,6 +35703,11 @@ impl LocalSnapback {
         self.live_delivery.total_failed += 1;
         self.live_delivery.last_failed += 1;
         let terminal_denial = error.is_trusted_permission_denial();
+        let refusal = project_deterministic_query_contract_refusal(subscription, &error);
+        // @ref LLP 0053#dispositions-with-producers-and-meanings — typing a
+        // deterministic re-query cause does not weaken quarantine or invent a
+        // sixth disposition. Its retry id is absent only after cancellation
+        // proves the reserved episode's custody is clean.
         let mut diagnostic = error.diagnostic;
         diagnostic.details = json!({
             "subscriptionId": subscription.id,
@@ -35567,6 +35748,14 @@ impl LocalSnapback {
                     Some((witness, obligation, entered))
                 });
                 if let Some((witness, obligation, entered)) = raised {
+                    if let Some(refusal) = refusal.as_ref()
+                        && let Some(stored) = self.subscriptions.get_mut(&subscription.id)
+                    {
+                        stored.deterministic_refusal = Some(DeterministicQueryContractRefusal {
+                            diagnostic: refusal.clone(),
+                            witness: witness.clone(),
+                        });
+                    }
                     self.record_quarantine_entry(&obligation, entered);
                     let projected = self.auth_invalidation.as_mut().and_then(|state| {
                         if terminal_denial {
@@ -35597,13 +35786,20 @@ impl LocalSnapback {
                     {
                         self.record_attached_diagnostics(vec![error.diagnostic]);
                     }
-                    if let Ok(payload) =
-                        serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                    let envelope = match refusal.clone() {
+                        Some(refusal) => LiveEnvelope::authorization_invalidation_with_refusal(
                             projection.obligation,
                             projection.resolution,
                             None,
-                        ))
-                    {
+                            refusal,
+                        ),
+                        None => LiveEnvelope::authorization_invalidation(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                        ),
+                    };
+                    if let Ok(payload) = serde_json::to_vec(&envelope) {
                         let enqueue = self.enqueue_subscription_durable(subscription, payload);
                         if enqueue.overflowed_now {
                             let _ = self.raise_connection_overflow(
@@ -35622,6 +35818,7 @@ impl LocalSnapback {
                     scope: Some(String::new()),
                     epoch: Some(0),
                     clear_retained: true,
+                    refusal: refusal.clone(),
                 })
             {
                 let enqueue = self.enqueue_subscription_durable(subscription, payload);
@@ -35748,6 +35945,7 @@ impl LocalSnapback {
                 scope: Some(scope.clone()),
                 epoch: Some(epoch),
                 clear_retained: true,
+                refusal: None,
             }) {
                 Ok(payload) => payload,
                 Err(error) => {

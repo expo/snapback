@@ -151,6 +151,7 @@ class JsFixtureClient {
       if (frame.subscription_id) {
         const subscription = this.subscriptions.get(frame.subscription_id);
         if (subscription) subscription.state = 'resync_pending';
+        if (frame.refusal) return [...actions, 'surface_query_refusal'];
         return [...actions, 'resubscribe_subscription'];
       }
       this.connection = 'recovering';
@@ -206,7 +207,11 @@ class JsFixtureClient {
       subscription.rows = [];
       subscription.state = 'resync_pending';
     }
-    if (!resolution) return newlyPending ? ['quarantine_rows'] : [];
+    if (!resolution) {
+      const result = newlyPending ? ['quarantine_rows'] : [];
+      if (frame.refusal) result.push('surface_query_refusal');
+      return result;
+    }
 
     const exactResolution = same(resolution.scopeId, obligation.scopeId)
       && resolution.revision === obligation.revision

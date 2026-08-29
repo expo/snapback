@@ -256,15 +256,18 @@ function createFakeClient({
           byFunction.get(ref.id)?.delete(handle);
         },
         settled: () => settled,
-        emit(nextRows, connection = 'live') {
+        emitUpdate(nextRows, detail = null) {
           current.rows = nextRows;
-          current.connection = connection;
           current.version += 1;
           lastDeliveryAtMs = Date.now();
-          options.onUpdate?.(nextRows, {
+          options.onUpdate?.(nextRows, detail ?? {
             kind: 'live_replace',
             version: current.version,
           });
+        },
+        emit(nextRows, connection = 'live', detail = null) {
+          current.connection = connection;
+          this.emitUpdate(nextRows, detail);
           options.onConnectionChange?.(connection);
         },
       };
@@ -373,8 +376,11 @@ function createFakeClient({
         entries,
       };
     },
-    emit(ref, rows, connection = 'live') {
-      for (const handle of byFunction.get(ref.id) ?? []) handle.emit(rows, connection);
+    emit(ref, rows, connection = 'live', detail = null) {
+      for (const handle of byFunction.get(ref.id) ?? []) handle.emit(rows, connection, detail);
+    },
+    emitUpdate(ref, rows, detail = null) {
+      for (const handle of byFunction.get(ref.id) ?? []) handle.emitUpdate(rows, detail);
     },
     emitDurable(frame) {
       for (const consumer of durableConsumers) consumer(frame);
@@ -924,6 +930,67 @@ assert.equal(fake.inspection().handles, 2, 'single and group share the feed upst
 assert.equal(provider.inspection().consumers, 3, 'one hook plus two non-skipped group children');
 assert.equal(provider.inspection().serverSubscriptions, 2);
 assert.equal(latestConnection.activeSubscriptions, 2);
+
+const queryLimitRefusal = Object.freeze({
+  schemaVersion: 'snapback.client-diagnostic.v1',
+  code: 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED',
+  severity: 'error',
+  message: 'live query reevaluation reached the implicit collection limit',
+  details: Object.freeze({
+    subscriptionId: 'subscription-1',
+    function: 'feed',
+    limit: 1024,
+    repair: 'Declare .take(n) with server-side ordering or narrow the predicate.',
+  }),
+});
+await act(async () => {
+  fake.emitUpdate(feed, [], {
+    kind: 'live_refused',
+    refusal: queryLimitRefusal,
+  });
+  await flush();
+});
+assert.equal(latestSingle.status, 'error');
+assert.equal(latestSingle.data, undefined);
+assert.equal(latestSingle.error, queryLimitRefusal);
+assert.equal(latestSingle.error.details.limit, 1024);
+assert.equal(latestSingle.connection, 'live');
+
+await act(async () => {
+  fake.emitUpdate(feed, [{ id: 'feed:plain-recovered', revision: 1 }], {
+    kind: 'live_replace',
+    version: 2,
+  });
+  await flush();
+});
+assert.equal(latestSingle.status, 'ready');
+assert.equal(latestSingle.error, null);
+assert.deepEqual(latestSingle.data, [{ id: 'feed:plain-recovered', revision: 1 }]);
+assert.equal(latestSingle.connection, 'live');
+
+await act(async () => {
+  fake.emitUpdate(feed, [], {
+    kind: 'authorization_quarantine',
+    refusal: queryLimitRefusal,
+  });
+  await flush();
+});
+assert.equal(latestSingle.status, 'error');
+assert.equal(latestSingle.data, undefined);
+assert.equal(latestSingle.error, queryLimitRefusal);
+assert.equal(latestSingle.connection, 'live');
+
+await act(async () => {
+  fake.emitUpdate(feed, [{ id: 'feed:auth-recovered', revision: 2 }], {
+    kind: 'authorization_snapshot',
+    version: 3,
+  });
+  await flush();
+});
+assert.equal(latestSingle.status, 'ready');
+assert.equal(latestSingle.error, null);
+assert.deepEqual(latestSingle.data, [{ id: 'feed:auth-recovered', revision: 2 }]);
+assert.equal(latestSingle.connection, 'live');
 
 await act(async () => {
   fake.emit(feed, [{ id: 'feed:a', revision: 1 }], 'stale');

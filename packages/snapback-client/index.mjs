@@ -18341,6 +18341,7 @@ export class SnapbackClient {
     let disposalTask = null;
     let ownerInspectionToken = null;
     let manualPollDiagnosticEmitted = false;
+    const warnedRefusalSubscriptions = new Set();
     let unregisterOutboxBarrierProvider = () => {};
     // Cardinality alone cannot distinguish a lifecycle blank from a malformed
     // server snapshot. Keep provenance on the exact client-created carriers so
@@ -18376,6 +18377,9 @@ export class SnapbackClient {
       deliveryLagMs: null,
       suppressedEqualSnapshots: 0,
       terminalDiagnosticCode: null,
+      // Deterministic live re-query refusal, projected into the public client
+      // diagnostic vocabulary. A later authoritative answer clears it.
+      refusal: null,
       __coveredMutationCostObservationSequences: new Set(),
       get inspectionSubscriptionId() {
         return currentSubscriptionId
@@ -18391,6 +18395,7 @@ export class SnapbackClient {
       },
       get inspectionSubscriptionState() {
         if (disposed) return 'RELEASED';
+        if (this.refusal !== null) return 'RESYNC_PENDING';
         if (authorizationFaulted) return 'RESYNC_PENDING';
         if (needsResubscribe) return connection === 'stale' ? 'DROPPED' : 'RESYNC_PENDING';
         if (currentSubscriptionId === null) return 'PENDING';
@@ -19235,10 +19240,34 @@ export class SnapbackClient {
       version: value?.version,
     });
 
-    const commitAuthorizationBoundary = (event) => {
+    const surfaceLiveRefusal = (wireRefusal) => {
+      const refusal = clientDiagnosticFromLiveRefusal(wireRefusal);
+      if (refusal === null) return null;
+      handle.refusal = refusal;
+      const subscriptionId = refusal.details.subscriptionId
+        ?? currentSubscriptionId
+        ?? 'unknown';
+      if (!warnedRefusalSubscriptions.has(subscriptionId)) {
+        warnedRefusalSubscriptions.add(subscriptionId);
+        const limit = refusal.details.limit ?? 'unknown';
+        const repair = refusal.details.repair ?? 'Declare .take(n) or narrow the predicate.';
+        try {
+          console.warn(
+            `${refusal.code}: live subscription ${subscriptionId} reached bound ${limit}; ${repair}`,
+            refusal.details,
+          );
+        } catch {
+          // The frozen handle diagnostic remains observable without a console.
+        }
+      }
+      return refusal;
+    };
+
+    const commitAuthorizationBoundary = (event, wireRefusal = null) => {
       const previousRows = authoritativeRows;
       const previousVersion = handle.version;
       const previousDisposition = handle.authorizationDisposition;
+      const previousRefusal = handle.refusal;
       try {
         if (event.kind === 'snapshot') {
           authoritativeRows = event.rows;
@@ -19250,12 +19279,14 @@ export class SnapbackClient {
           // Freshness describes the server answer, not its retention owner.
           handle.answerClass = 'authoritative';
           setHandleFreshness('current');
+          handle.refusal = null;
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
           authoritativeRows = createClientOwnedLifecycleBlankCarrier();
           presentedRows = authoritativeRows;
           handle.authorizationDisposition = event.kind;
           handle.answerClass = 'unknown';
           handle.freshness = null;
+          if (wireRefusal !== null) surfaceLiveRefusal(wireRefusal);
         } else if (event.kind === 'retain') {
           handle.authorizationDisposition = 'retain';
         } else {
@@ -19266,6 +19297,7 @@ export class SnapbackClient {
           version: handle.version,
           kind: `authorization_${event.kind}`,
           authorization: event,
+          ...(handle.refusal === null ? {} : { refusal: handle.refusal }),
         };
         const boundaryResult = onAuthorizationBoundary?.(authoritativeRows, detail);
         if (boundaryResult && typeof boundaryResult.then === 'function') {
@@ -19278,6 +19310,7 @@ export class SnapbackClient {
         presentedRows = authoritativeRows;
         handle.version = previousVersion;
         handle.authorizationDisposition = previousDisposition;
+        handle.refusal = previousRefusal;
         throw error;
       }
     };
@@ -19752,7 +19785,7 @@ export class SnapbackClient {
           // that precede resolution application.
           received = await commitAuthorizationTask(taskState, () => (
             authorizationFence.receiveObligation(projection.obligation, {
-              commit: commitAuthorizationBoundary,
+              commit: (event) => commitAuthorizationBoundary(event, projection.refusal ?? null),
               deferCommit: projection.resolution?.kind === 'snapshot',
             })
           ));
@@ -19796,7 +19829,7 @@ export class SnapbackClient {
                 ? null
                 : authorizationSnapshot(snapshotValue),
               commit: (event) => {
-                commitAuthorizationBoundary(event);
+                commitAuthorizationBoundary(event, projection.refusal ?? null);
                 appliedBoundary = cloneAuthorizationBoundary(event);
               },
             });
@@ -20283,6 +20316,10 @@ export class SnapbackClient {
         targetsInstallingSubscription
         && update.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED
       ) {
+        if (update.refusal) {
+          attempt.envelopes.push(update);
+          return true;
+        }
         supersedeInstallingSubscription(attempt, update);
         return true;
       }
@@ -20325,6 +20362,7 @@ export class SnapbackClient {
         void receiveAuthorizationProjection({
             obligation: update.obligation,
             resolution: update.resolution ?? null,
+            refusal: update.refusal ?? null,
           }, update.snapshot ?? null, updateCapture)
           .catch((error) => reportAuthorizationErrorFor(
             error,
@@ -20370,6 +20408,7 @@ export class SnapbackClient {
           authoritativeRows = update.rows;
           presentedRows = authoritativeRows;
           handle.version = update.version;
+          handle.refusal = null;
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
           // replacement rows it was minted from. A replacement is always
           // authoritative — retained/pending state ends here.
@@ -20403,6 +20442,7 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
+        handle.refusal = null;
         if (update.resume && !legacySingleTableAdoption) {
           handle.rqsResume = update.resume;
           repairRqsRetentionFromDurable();
@@ -20463,6 +20503,7 @@ export class SnapbackClient {
           authoritativeRows = nextRows;
           presentedRows = authoritativeRows;
           handle.version = update.version;
+          handle.refusal = null;
           // T7/T8 (LLP 0091 §0B.3): verify the post-apply digest against the
           // refreshed token's meta before adopting it. For a rung-2 replay
           // answer this is exactly T8's independent post-replay verification
@@ -20514,6 +20555,38 @@ export class SnapbackClient {
         if (update.subscription_id && update.subscription_id !== handle.subscriptionId) return;
         if (terminalQueryDeleted()) {
           reportTerminalReuse(LIVE_DURABLE_KINDS.RESYNC_REQUIRED);
+          return;
+        }
+        const refusal = surfaceLiveRefusal(update.refusal ?? null);
+        if (refusal !== null) {
+          // This typed result is fixed for the same function, args, and
+          // committed data. Keep the original subscription attached so a
+          // later commit can recover it, but do not enter the ordinary fresh
+          // snapshot loop that would execute the identical query again.
+          advanceSubscriptionPublicationGeneration();
+          needsResubscribe = false;
+          clearResubscribeRetry();
+          authoritativeRows = createClientOwnedLifecycleBlankCarrier();
+          presentedRows = authoritativeRows;
+          handle.answerClass = 'unknown';
+          handle.freshness = null;
+          markAuthorityCapture(authoritativeRows, handleAuthorityCapture);
+          if (update.clear_retained === true || update.clearRetained === true) {
+            handle.rqsResume = null;
+            void removePersistedEntry();
+          }
+          syncLiveRegistrationAnswer();
+          const error = liveRefusalError(refusal);
+          deliverAuthorityObservation(() => {
+            onUpdate?.(authoritativeRows, {
+              kind: 'live_refused',
+              version: handle.version,
+              refusal,
+            });
+            if (onConnectionChange) {
+              deliverIsolated(onConnectionChange, connection, { previous: connection, error });
+            }
+          }, updateCapture);
           return;
         }
         // A connection-wide sentinel cannot name the installing subscription,
@@ -20669,6 +20742,7 @@ export class SnapbackClient {
             if (
               envelope.kind === LIVE_DURABLE_KINDS.RESYNC_REQUIRED
               && envelope.subscription_id === sub.subscription_id
+              && !envelope.refusal
             ) {
               supersedeInstallingSubscription(durableAttempt, envelope);
               break;
@@ -20769,6 +20843,7 @@ export class SnapbackClient {
             // Any successful fresh subscribe supersedes an earlier denial
             // fact (0137 A1-Expo f4): the presented authority is authorized.
             handle.authorizationDenial = null;
+            handle.refusal = null;
             handle.terminalDiagnosticCode = null;
             handleAuthorityCapture = responseCapture;
             if (!sub.authorizationScope) {
@@ -22922,6 +22997,27 @@ function clientDiagnosticFromError(error) {
     message: error instanceof Error ? error.message : String(error),
     details: Object.freeze({}),
   });
+}
+
+function clientDiagnosticFromLiveRefusal(value) {
+  if (!value || typeof value.code !== 'string') return null;
+  return Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: value.code,
+    severity: 'error',
+    message: typeof value.message === 'string' ? value.message : value.code,
+    details: Object.freeze({
+      ...(value.details && typeof value.details === 'object' ? value.details : {}),
+      ...(typeof value.subsystem === 'string' ? { subsystem: value.subsystem } : {}),
+    }),
+  });
+}
+
+function liveRefusalError(diagnostic) {
+  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return error;
 }
 
 function ephemeralOfflineDroppedOutcome(client, error, operation, collection) {

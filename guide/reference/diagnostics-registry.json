@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v2",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:e0a061a408f3cab0908eac4cc22d80b24dd56b96e9f4a06af34f1b9261344f83"
+    "sourceDigest": "sha256:156eef9bfc9f24c97b2fff7ec21577a42a9c1083d1233255d918da3c7147e530"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,10 +10,10 @@
   "counts": {
     "codes": 3596,
     "sourceFiles": 637,
-    "emittingSites": 9686,
+    "emittingSites": 9688,
     "receivedSites": 380,
     "reservedSites": 11,
-    "siteRecords": 5447,
+    "siteRecords": 5448,
     "httpClassified": 1703,
     "guideAnchored": 476,
     "environmentVariables": 190,
@@ -1502,7 +1502,7 @@
       "subsystem": "runtime-darwin-arm64",
       "sites": [
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -10192,7 +10192,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -11818,7 +11818,7 @@
       "sites": [
         {
           "file": "crates/snapback-engine/src/local/engine.rs",
-          "count": 3
+          "count": 4
         },
         {
           "file": "crates/snapback-kernel/src/storage/auth_invalidation.rs",
@@ -31705,7 +31705,7 @@
           "count": 2
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31723,7 +31723,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31759,7 +31759,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31773,7 +31773,7 @@
       "subsystem": "guide",
       "sites": [
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31787,7 +31787,7 @@
       "subsystem": "guide",
       "sites": [
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31805,7 +31805,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -31845,7 +31845,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 2
         }
       ],
@@ -34443,7 +34443,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -34801,7 +34801,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -40953,7 +40953,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         },
         {
@@ -40980,7 +40980,7 @@
       "subsystem": "runtime-darwin-arm64",
       "sites": [
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -46270,6 +46270,10 @@
           "count": 1
         },
         {
+          "file": "crates/snapback-types/src/wire_fixtures.rs",
+          "count": 1
+        },
+        {
           "file": "packages/snapback-harness/ctx-bootstrap.js",
           "count": 1
         },
@@ -46284,6 +46288,7 @@
       "guideAnchor": "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
       "guideAnchors": [
         "/_snapback/guide/backend/queries.md#bound-every-collection-intentionally",
+        "/_snapback/guide/realtime/live-queries.md#live-query-went-silent-blank-after-many-rows-or-stopped-updating-large-thread",
         "/_snapback/guide/recipes/time-windowed-live-reads.md#read-trending-in-the-last-hour",
         "/_snapback/guide/recipes/time-windowed-live-reads.md#read-typing-leases-that-are-expiring-soon"
       ]
@@ -47971,7 +47976,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -49785,7 +49790,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -49811,7 +49816,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "count": 1
         }
       ],
@@ -59716,7 +59721,7 @@
           "count": 1
         },
         {
-          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-Bd2_WQvE.js",
+          "file": "packages/snapback-runtime-darwin-arm64/admin/assets/main-hs_rTn6D.js",
           "kind": "mention",
           "count": 1
         },

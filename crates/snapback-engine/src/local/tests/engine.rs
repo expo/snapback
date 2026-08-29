@@ -30454,6 +30454,90 @@ fn live_limit_snapback() -> LocalSnapback {
     snapback
 }
 
+fn implicit_limit_snapback() -> LocalSnapback {
+    let mut snapback = live_limit_snapback();
+    let implicit = FunctionDefinition::new(
+        "implicitLimitItems",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async implicitLimitItems(ctx) {
+    return await ctx.db.query('items').collect();
+  }
+};
+"#
+            .to_owned(),
+            export: "implicitLimitItems".to_owned(),
+        }),
+    );
+    let insert_values = |argument: &str| {
+        BTreeMap::from([("value".to_owned(), ValueExpr::Arg(argument.to_owned()))])
+    };
+    let insert_two = FunctionDefinition::new(
+        "insertTwoItems",
+        FunctionKind::Mutation,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![
+                MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values("first"),
+                    bind_id_as: None,
+                },
+                MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values("second"),
+                    bind_id_as: None,
+                },
+            ],
+            return_value: Some(ReturnValue::ChangedCount),
+        })),
+    );
+    let mut functions = snapback.served_function_manifest().clone();
+    functions.bundle_hash = Some("implicit-limit-functions".to_owned());
+    functions.functions.extend([implicit, insert_two]);
+    let installed_schema = snapback.db.schema().clone();
+    snapback
+        .db
+        .reconcile_auth_scope_bases_with_schema(&functions, &installed_schema)
+        .expect("install implicit-limit function scope bases");
+    let diagnostics = snapback.load_functions(functions);
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error),
+        "unexpected implicit-limit function diagnostics: {diagnostics:?}"
+    );
+    snapback
+}
+
+fn fill_implicit_limit_prefix(snapback: &mut LocalSnapback) {
+    for index in 0..1_023 {
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": format!("item-{index:04}") }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("fill implicit-limit prefix");
+    }
+}
+
+fn cross_implicit_limit(snapback: &mut LocalSnapback) {
+    snapback
+        .invoke_mutation(
+            "insertTwoItems",
+            HandlerInput {
+                args: json!({ "first": "item-1023", "second": "item-1024" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("commit two rows across implicit limit");
+}
+
 fn live_limit_input(connection_id: &str, args: serde_json::Value) -> LiveSubscribeInput {
     LiveSubscribeInput {
         connection_id: connection_id.to_owned(),
@@ -35295,11 +35379,190 @@ fn authorization_expectation_advances_without_live_subscribers() {
 }
 
 #[test]
+fn auth_implicit_limit_refusal_quarantines_without_retry_episode() {
+    const USER: &str = "018f0d90-7b71-7a22-8c33-445566778899";
+    const SESSION: &str = "018f0d90-7b72-7a22-8c33-445566778899";
+    const AUTHORITY: &str = "018f0d90-7b73-7a22-8c33-445566778899";
+    let mut snapback = implicit_limit_snapback();
+    fill_implicit_limit_prefix(&mut snapback);
+    let connection = install_test_invalidation(&mut snapback);
+    let live_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::LiveInitialQuery,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    let admission = live_authority.admission_lease().clone();
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "implicitLimitItems",
+            LiveSubscribeInput {
+                connection_id: "implicit-limit-auth".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "store_implicit_limit".to_owned(),
+                    query_key: "implicitLimitItems:{}".to_owned(),
+                    query_instance_id: 31,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            live_authority,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+        .expect("implicit-limit auth snapshot holds 1,023 rows");
+    assert_eq!(
+        subscribed.snapshot.expect("initial snapshot").rows.len(),
+        1_023
+    );
+    let retry_clock_before = snapback
+        .auth_database_mut()
+        .invalidation_retry_clock_high_water_for_test()
+        .expect("read retry clock before refusal");
+
+    let mutation_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::HttpMutation,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    snapback
+        .invoke_mutation_with_authority(
+            "insertTwoItems",
+            HandlerInput {
+                args: json!({ "first": "item-1023", "second": "item-1024" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+        .expect("commit two rows across implicit limit");
+    let retry_clock_after = snapback
+        .auth_database_mut()
+        .invalidation_retry_clock_high_water_for_test()
+        .expect("read retry clock after refusal");
+    assert!(
+        retry_clock_after > retry_clock_before,
+        "reserve-before-invoke must advance the durable retry clock even though cancellation deletes the episode"
+    );
+
+    let scope = subscribed.authorization_scope.expect("auth scope");
+    let pending = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("invalidation state")
+        .obligations
+        .pending(&scope)
+        .expect("quarantine obligation");
+    assert_eq!(pending.max_disposition, InvalidationDisposition::Quarantine);
+    assert_eq!(pending.retry_episode_id, None);
+    let retry_episodes = snapback
+        .auth_database_mut()
+        .invalidation_retry_episodes_for_test()
+        .expect("read retry registry");
+    assert!(
+        retry_episodes.is_empty(),
+        "deterministic refusal cancellation must leave no retry episode pending"
+    );
+    assert_eq!(
+        retry_episodes
+            .values()
+            .next()
+            .map(|episode| episode.attempts_reserved),
+        None,
+        "the kernel records a cancelled initial reservation by deleting its one-attempt episode"
+    );
+
+    let frames = snapback
+        .authorization_invalidation_frames("implicit-limit-auth", &admission)
+        .expect("project refusal-tagged invalidation");
+    assert_eq!(frames.len(), 1);
+    let frame: Value = serde_json::from_slice(&frames[0].payload).expect("invalidation JSON");
+    assert_eq!(frame["kind"], "authorization_invalidation");
+    assert_eq!(frame["obligation"]["maxDisposition"], "quarantine");
+    assert!(frame["obligation"]["retryEpisodeId"].is_null());
+    assert_eq!(
+        frame["refusal"]["code"],
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+    );
+    assert_eq!(
+        frame["refusal"]["details"]["subscriptionId"],
+        subscribed.subscription_id
+    );
+    assert_eq!(
+        frame["refusal"]["details"]["function"],
+        "implicitLimitItems"
+    );
+    assert_eq!(frame["refusal"]["details"]["limit"], 1_024);
+    assert!(
+        frame["refusal"]["details"]["repair"]
+            .as_str()
+            .is_some_and(|repair| repair.contains(".take(n)"))
+    );
+}
+
+#[test]
+fn plain_implicit_limit_refusal_requires_resync_without_retry_loop() {
+    let mut snapback = implicit_limit_snapback();
+    fill_implicit_limit_prefix(&mut snapback);
+    let subscribed = snapback
+        .subscribe_live(
+            "implicitLimitItems",
+            live_limit_input("implicit-limit-plain", json!({})),
+        )
+        .expect("implicit-limit plain snapshot holds 1,023 rows");
+    assert_eq!(
+        subscribed.snapshot.expect("initial snapshot").rows.len(),
+        1_023
+    );
+
+    cross_implicit_limit(&mut snapback);
+
+    let frames = drain_live_stream_through_test_sink(&mut snapback, "implicit-limit-plain");
+    let frame = frames
+        .iter()
+        .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
+        .find(|frame| frame["kind"] == "resync_required")
+        .expect("plain refusal resync frame");
+    assert_eq!(frame["subscription_id"], subscribed.subscription_id);
+    assert_eq!(frame["clear_retained"], true);
+    assert_eq!(
+        frame["refusal"]["code"],
+        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+    );
+    assert_eq!(frame["refusal"]["details"]["limit"], 1_024);
+    assert!(
+        frame["refusal"]["details"]["repair"]
+            .as_str()
+            .is_some_and(|repair| repair.contains("narrow the predicate"))
+    );
+}
+
+#[test]
 fn auth_requery_error_uses_one_durable_three_attempt_episode() {
+    const USER: &str = "018f0d90-7b74-7a22-8c33-445566778899";
+    const SESSION: &str = "018f0d90-7b75-7a22-8c33-445566778899";
+    const AUTHORITY: &str = "018f0d90-7b76-7a22-8c33-445566778899";
     let mut snapback = live_limit_snapback();
     let connection = install_test_invalidation(&mut snapback);
+    let live_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::LiveInitialQuery,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    let admission = live_authority.admission_lease().clone();
     let subscribed = snapback
-        .subscribe_live_with_invalidation(
+        .subscribe_live_prepared_with_invalidation(
             "listItemsByValue",
             LiveSubscribeInput {
                 connection_id: "session-retry".to_owned(),
@@ -35315,6 +35578,7 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
                 supersedes: None,
                 resume_from_token: None,
             },
+            live_authority,
             LiveInvalidationAdmission {
                 session_mode: true,
                 connection: Some(connection),
@@ -35328,15 +35592,24 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
         .expect("stored subscription")
         .input
         .args = json!({});
-    invoke_test_session_mutation(
-        &mut snapback,
-        "insertItem",
-        HandlerInput {
-            args: json!({ "value": "target" }),
-            ..HandlerInput::default()
-        },
-    )
-    .expect("commit survives fanout failure");
+    let mutation_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::HttpMutation,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    snapback
+        .invoke_mutation_with_authority(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "target" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+        .expect("commit survives fanout failure");
     let scope = subscribed.authorization_scope.expect("auth scope");
     let pending = snapback
         .auth_invalidation
@@ -35366,11 +35639,16 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
         crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL
     );
     let revision = pending.revision;
-    let admission = test_session_admission();
     let frames = snapback
         .authorization_invalidation_frames("session-retry", &admission)
         .expect("drain retry invalidation");
     assert_eq!(frames.len(), 1);
+    let frame: Value =
+        serde_json::from_slice(&frames[0].payload).expect("retry invalidation frame JSON");
+    assert!(
+        frame.get("refusal").is_none(),
+        "an untyped/transient re-query error must not enter the deterministic classifier"
+    );
     let still_pending = snapback
         .auth_invalidation
         .as_ref()
