@@ -1,15 +1,33 @@
 # coterie: CHAT_ENVELOPE_EXCEEDED discloses another profile's conversation saturation
 
-**Status:** Open
-**Impact:** 3
-**Urgency:** 2
+**Status:** Open — **primary claim withdrawn same day; reframed, see Correction**
+**Impact:** 2
+**Urgency:** 1
 **Ease:** 4
 **Confidence:** 4
 **Systems:** Demos, Authorization, Benchmarks
 **Date:** 2026-08-28
 **Related:** LLP 0120 §Noninterference, LLP 0329.011, LLP 0329.008
 
-## Summary
+## Correction (2026-08-28, same day)
+
+**The disclosure claim is withdrawn.** `coterie` declares `conversationMembers` as
+`public-read`, so a caller can already enumerate any profile's memberships directly.
+The refusal therefore reveals nothing not already readable, and there is no
+disclosure. I made a security claim about a count without first checking the counted
+table's visibility.
+
+**What survives, and why the ticket stays open:** the *mechanism* is real — a declared
+refusal whose threshold is computed from a third party's row count — and it would be a
+disclosure under any schema where the counted table is protected. It is worth fixing
+as latent fragility (a later change to `conversationMembers` visibility would silently
+create the leak), and it is the worked example behind LLP 0329.011 §S3's
+authorized-domain rule for counts.
+
+The larger finding this surfaced is recorded as LLP 0329.011 §S4: coterie declares
+every private-messaging table `public-read`, so its privacy is entirely handler-side.
+
+## Summary (original claim, retained unrevised)
 
 `demos/coterie` refuses `openDm` and `addMember` with the declared code
 `CHAT_ENVELOPE_EXCEEDED` when the **other** party is at their conversation-envelope
