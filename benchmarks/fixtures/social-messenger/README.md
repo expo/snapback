@@ -1,6 +1,6 @@
 # Social-messenger fixture pack
 
-Version: `0.2.0-m8`
+Version: `0.2.1-m8`
 
 Provenance: LLP 0201 D7 P1 — the canonical `social-messenger` benchmark's
 fixture-pack prerequisite.
@@ -28,8 +28,11 @@ mutation paths; the logs are not database imports.
   starter-plus-scale state, per-chat counts, per-user follow/conversation
   counts, named spot content, the O5 fixtures, and the 10%/50% checkpoint
   sub-manifests.
-- `scale-log.sha256` pins the derived scale log. The scale log itself is not
-  committed; its line and action counts are pinned in the combined manifest.
+- `scale.log` is the committed full replay fixture and `scale-log.sha256` pins
+  its bytes. Its line and action counts are also pinned in the combined
+  manifest. A frozen read-only instrument therefore delivers the workload it
+  asks a lane to replay; a lane does not need to discover a generator command
+  or write back into the instrument tree.
 - `config/digest.production.json` schedules one digest period per day, anchored
   at 08:00 UTC. `config/digest.shortened.json` schedules one period every 2
   minutes for grading. Both configs require at most one digest per user per
@@ -72,16 +75,22 @@ the committed starter manifest before writing the combined manifest. Additive
 fixture milestones therefore retain the starter manifest's original bytes and
 provenance.
 
-Generate the intentionally uncommitted scale artifact with:
+Regenerate the committed scale artifact with:
 
 ```sh
 node generate.mjs scale > scale.log
 shasum -a 256 -c scale-log.sha256
 ```
 
-Delete the derived `scale.log` after use. It is deliberately omitted from the
-repository because it is about 167,000 human-readable lines and is fully
-reconstructible from the committed generator.
+Commit `scale.log` with the adjacent digest and manifest updates. The file is
+large but intentional: LLP 0317 Wave 5 treats delivery of the exact replay
+workload as a hard instrument gate after the 0.1.29 matrix lost cells when the
+read-only snapshot carried only its digest.
+
+Changing the starter fixture is rarer and guarded. After deliberately editing
+the generator and regenerating `starter-m*.log`, run
+`node generate.mjs manifests --update-starter`; ordinary `manifests` continues
+to refuse accidental starter drift.
 
 Validate the committed action logs with:
 
@@ -120,5 +129,5 @@ Committed: schema and documentation, personas, configs, generator and
 validator, starter logs, the 50-action sample, both manifests,
 `scale-log.sha256`, all media, the media generator, and `VERSION`.
 
-Derived and not committed: `scale.log` and any replay-adapter/backend state
-created from it.
+Derived and not committed: replay-adapter/backend state created from the
+committed action logs.

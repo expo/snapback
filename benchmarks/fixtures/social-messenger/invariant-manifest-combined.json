@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "0.2.0-m8",
+  "schemaVersion": "0.2.1-m8",
   "generatedBy": {
     "generator": "generate.mjs",
-    "generatorVersion": "0.2.0-m8",
-    "generatorSourceSha256": "45722174bd7e9d7a9915d8fdc041ab0cda01c7f608dfbad238d6bf91a867d99f",
+    "generatorVersion": "0.2.1-m8",
+    "generatorSourceSha256": "544e0bff5d92ec9ea3eaeb253165f9cbbf59e7ac009c17ee111ee198f2dfc3d4",
     "prng": "mulberry32",
     "seed": 20260808,
     "timestampEpoch": "2026-01-01T00:00:00Z",
@@ -30,7 +30,7 @@
     "starter-m3.log": {
       "name": "starter-m3.log",
       "committed": true,
-      "sha256": "4b03a5935eda1cee32e4031ade2bef41cb1d304922edc07ecf9e6f3893e51008",
+      "sha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
       "byteCount": 1497,
       "lineCount": 19,
       "actionCount": 19
@@ -45,8 +45,7 @@
     },
     "scale.log": {
       "name": "scale.log",
-      "committed": false,
-      "derivedCommand": "node generate.mjs scale > scale.log",
+      "committed": true,
       "sha256": "b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9",
       "lineCount": 167159,
       "actionCount": 167157,
@@ -1093,8 +1092,8 @@
       "alice": 2,
       "bob": 2,
       "carol": 1,
-      "dave": 1,
-      "erin": 0,
+      "dave": 0,
+      "erin": 1,
       "frank": 0,
       "grace": 0,
       "henry": 0,
@@ -3552,7 +3551,7 @@
           "alice",
           "bob",
           "carol",
-          "dave"
+          "erin"
         ],
         "messageCount": 9
       },
@@ -4692,8 +4691,8 @@
           "alice": 2,
           "bob": 2,
           "carol": 1,
-          "dave": 1,
-          "erin": 0,
+          "dave": 0,
+          "erin": 1,
           "frank": 0,
           "grace": 0,
           "henry": 0,
@@ -7102,7 +7101,7 @@
               "alice",
               "bob",
               "carol",
-              "dave"
+              "erin"
             ],
             "messageCount": 9
           },
@@ -8242,8 +8241,8 @@
           "alice": 2,
           "bob": 2,
           "carol": 1,
-          "dave": 1,
-          "erin": 0,
+          "dave": 0,
+          "erin": 1,
           "frank": 0,
           "grace": 0,
           "henry": 0,
@@ -10652,7 +10651,7 @@
               "alice",
               "bob",
               "carol",
-              "dave"
+              "erin"
             ],
             "messageCount": 9
           },

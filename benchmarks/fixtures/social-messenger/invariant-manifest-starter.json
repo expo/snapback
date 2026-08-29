@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "0.1.0-p1",
+  "schemaVersion": "0.2.1-m8",
   "generatedBy": {
     "generator": "generate.mjs",
-    "generatorVersion": "0.1.0-p1",
-    "generatorSourceSha256": "abb3ef90b1605f87d28dc390d47aa0ba552c14067bb16fef0d4ba9f1c64326d4",
+    "generatorVersion": "0.2.1-m8",
+    "generatorSourceSha256": "544e0bff5d92ec9ea3eaeb253165f9cbbf59e7ac009c17ee111ee198f2dfc3d4",
     "prng": "mulberry32",
     "seed": 20260808,
     "timestampEpoch": "2026-01-01T00:00:00Z",
@@ -30,7 +30,7 @@
     "starter-m3.log": {
       "name": "starter-m3.log",
       "committed": true,
-      "sha256": "4b03a5935eda1cee32e4031ade2bef41cb1d304922edc07ecf9e6f3893e51008",
+      "sha256": "b3d3d922cd6e7a8cec252ff24d2d9beb3fcf490f882fd375703f4ae93eb32690",
       "byteCount": 1497,
       "lineCount": 19,
       "actionCount": 19
@@ -72,8 +72,8 @@
       "alice": 2,
       "bob": 2,
       "carol": 1,
-      "dave": 1,
-      "erin": 0,
+      "dave": 0,
+      "erin": 1,
       "frank": 0,
       "grace": 0,
       "henry": 0
@@ -206,7 +206,7 @@
           "alice",
           "bob",
           "carol",
-          "dave"
+          "erin"
         ],
         "messageCount": 9
       }

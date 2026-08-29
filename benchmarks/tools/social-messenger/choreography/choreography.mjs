@@ -36,6 +36,8 @@ const DEFAULT_RECEIPTS_PATH = fileURLToPath(
   new URL("./receipts.jsonl", import.meta.url),
 );
 
+export const DEFAULT_ADDED_MEMBER_HANDLE = "dave";
+
 const DEFAULT_ADAPTER = {
   schemaVersion: "social-messenger.choreography-adapter.v1",
   routes: {
@@ -58,7 +60,7 @@ const DEFAULT_ADAPTER = {
     searchExpected: "Coffee after work?",
     pollOptionId: "m7-option-a",
     pollAlternateOptionId: "m7-option-b",
-    addedMemberHandle: "dave",
+    addedMemberHandle: DEFAULT_ADDED_MEMBER_HANDLE,
   },
   disappearing: {
     optionValue: "24h",

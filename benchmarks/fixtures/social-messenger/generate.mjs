@@ -7,7 +7,7 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const GENERATOR_VERSION = "0.2.0-m8";
+const GENERATOR_VERSION = "0.2.1-m8";
 const SEED = 20260808;
 const EPOCH_MS = Date.parse("2026-01-01T00:00:00Z");
 const SCALE_ACTION_COUNT = 167157;
@@ -202,7 +202,7 @@ function starterSegments() {
   m3.push(action(clock, "alice", "dm-create", "d-alice-bob", "bob"));
   m3.push(action(clock, "alice", "group-create", "g-starter", "bob", quote("Weekend Plans"), quote("Coffee, a walk, and dinner.")));
   m3.push(action(clock, "alice", "member-add", "g-starter", "carol", "mm-g-starter-carol"));
-  m3.push(action(clock, "alice", "member-add", "g-starter", "dave", "mm-g-starter-dave"));
+  m3.push(action(clock, "alice", "member-add", "g-starter", "erin", "mm-g-starter-erin"));
 
   const dmMessages = [
     ["alice", "sm0001", "Coffee after work?", null],
@@ -221,11 +221,11 @@ function starterSegments() {
   const groupMessages = [
     ["alice", "sm0007", "Saturday plan: coffee, lake, then noodles.", null],
     ["carol", "sm0008", "Coffee is a definite yes.", "sm0007"],
-    ["dave", "sm0009", "I can meet everyone at ten.", null],
+    ["erin", "sm0009", "I can meet everyone at ten.", null],
     ["bob", "sm0010", "The west trail is dry now.", null],
     ["alice", "sm0011", "West trail it is.", "sm0010"],
     ["carol", "sm0012", "I will bring snacks.", null],
-    ["dave", "sm0013", "Should I book dinner?", null],
+    ["erin", "sm0013", "Should I book dinner?", null],
     ["bob", "sm0014", "Please do, for four.", "sm0013"],
     ["alice", "sm0015", "Locked in. See you Saturday.", null]
   ];
@@ -972,7 +972,7 @@ function assertFullNamedFixtures(summary) {
   if (failures.length > 0) throw new Error(`named fixture drift: ${failures.join(", ")}`);
 }
 
-function generateManifests() {
+function generateManifests({ updateStarter = false } = {}) {
   const starter = starterSegments();
   const starterContents = {
     "starter-m1.log": render(starter.m1),
@@ -1040,8 +1040,7 @@ function generateManifests() {
       "sample-50.log": artifact("sample-50.log", sampleContent, true),
       "scale.log": {
         name: "scale.log",
-        committed: false,
-        derivedCommand: "node generate.mjs scale > scale.log",
+        committed: true,
         sha256: scaleDigest,
         lineCount: scaleLineCount,
         actionCount: scaleActionCount,
@@ -1058,6 +1057,9 @@ function generateManifests() {
   };
 
   const starterManifestPath = join(ROOT, "invariant-manifest-starter.json");
+  if (updateStarter) {
+    writeFileSync(starterManifestPath, `${JSON.stringify(starterManifest, null, 2)}\n`);
+  }
   const committedStarterManifest = JSON.parse(readFileSync(starterManifestPath, "utf8"));
   for (const field of ["stateBase", "artifacts", "expectedState", "namedSpotEntities"]) {
     if (JSON.stringify(committedStarterManifest[field]) !== JSON.stringify(starterManifest[field])) {
@@ -1087,7 +1089,7 @@ async function streamScale() {
 
 function usage() {
   process.stderr.write(
-    `usage: node ${basename(fileURLToPath(import.meta.url))} <starter|scale|sample|manifests>\n`
+    `usage: node ${basename(fileURLToPath(import.meta.url))} <starter|scale|sample|manifests> [--update-starter]\n`
   );
 }
 
@@ -1095,7 +1097,11 @@ const command = process.argv[2];
 try {
   if (command === "starter") writeStarter();
   else if (command === "sample") writeSample();
-  else if (command === "manifests") generateManifests();
+  else if (command === "manifests") {
+    const updateStarter = process.argv[3] === "--update-starter";
+    if (process.argv.length > (updateStarter ? 4 : 3)) throw new Error("unknown manifests argument");
+    generateManifests({ updateStarter });
+  }
   else if (command === "scale") await streamScale();
   else {
     usage();

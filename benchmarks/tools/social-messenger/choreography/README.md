@@ -262,4 +262,14 @@ the segment close green while the retained vote switch is still unsettled.
 quoted-excerpt jump path after the Clique kit's matching `0.3.1-m8` migration.
 `0.3.1-m8` preferred the preview selector with a reply-bubble-scoped legacy
 `sm-convo-quote` fallback for `0.3.0`-era clients.
+
+## 0.3.5-m8 migration
+
+`0.3.5-m8` closes LLP 0317 N7 before a lane starts. The starter group now
+contains Erin rather than Dave, leaving the choreography's declared
+`addedMemberHandle: "dave"` genuinely addable. The choreography self-test reads
+the frozen M3 starter segment and refuses if a future fixture revision puts the
+declared add-member target back into the starter group. This changes fixture
+state and instrument identity; retained 0.3.4 receipts remain historical and
+must not be compared as if they used the repaired precondition.
 `0.3.0-m8` added the M8 choreography surfaces.

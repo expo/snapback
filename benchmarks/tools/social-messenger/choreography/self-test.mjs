@@ -14,12 +14,33 @@ import {
   aggregateChoreography,
   classifyNonGreenCause,
   classifyOutcome,
+  DEFAULT_ADDED_MEMBER_HANDLE,
   UNIMPLEMENTED_ASSERTIONS,
 } from "./choreography.mjs";
 import { parseObservationJsonLines } from "../metering/observations.mjs";
 
 const REQUIRE = createRequire(import.meta.url);
 const PLAYWRIGHT_VERSION = REQUIRE("playwright/package.json").version;
+
+// @ref LLP 0317#benchmark-harness-and-ordinary-test-mistakes — N7 must fail before a lane
+// starts if the frozen starter already contains the member M3 intends to add.
+const STARTER_M3_PATH = new URL(
+  "../../../fixtures/social-messenger/starter-m3.log",
+  import.meta.url,
+);
+const starterM3 = await readFile(STARTER_M3_PATH, "utf8");
+const starterAddedMembers = new Set(
+  starterM3
+    .split("\n")
+    .filter((line) => line.includes(" member-add "))
+    .map((line) => line.match(/ member-add \S+ (\S+) /u)?.[1])
+    .filter(Boolean),
+);
+assert.equal(
+  starterAddedMembers.has(DEFAULT_ADDED_MEMBER_HANDLE),
+  false,
+  `starter M3 already contains choreography add-member target ${DEFAULT_ADDED_MEMBER_HANDLE}`,
+);
 
 // @ref LLP 0201#d2--quantitative-instrument — calibrate the fail-closed
 // suite-plus-choreography green contract with two isolated browser contexts.
