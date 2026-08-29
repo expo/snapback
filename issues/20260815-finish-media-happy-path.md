@@ -236,3 +236,37 @@ Keep this ticket open only for LLP 0239 rollout 6:
 
 This is high leverage for a future full Clique M4/media run, but it does not
 gate another reduced M1–M3 matrix.
+
+## Publication qualification record — 2026-08-29
+
+The first post-Wave-3 fast-path candidate, version `0.1.30` from exact source
+revision `eb9989261ddb31afce40f31e6cc401cafb5074f1`, was built as clean
+`public-package` production artifacts for both `darwin-arm64` and `linux-x64`.
+Receiptless pass-1 staging completed, but Darwin store qualification refused
+before any npm mutation:
+
+```text
+SNAPBACK_PUBLICATION_CAPABILITY_REQUIRED_MISSING
+assets.media-collection.v1: codegen requires it but the platform runtime
+advertisement does not support it
+```
+
+This is the intended fail-closed result of the O26 gate landed in
+`f3c09fcb0`, not a reason to weaken that gate. The public-package runtime
+correctly withholds the atomic `bounded_children_v1` / `write_activity_v1`
+relation/activity pair under LLP 0110; `assets.media-collection.v1` depends on
+`bounded_children_v1`, and `assets.media-command.v1` depends on the collection
+capability. Contributor-source proof cannot cross that distribution boundary.
+
+The remaining publication prerequisite is therefore the release-key-verified
+`PackageCapabilityAttestationV1` specified by LLP 0110, or a later explicit
+author amendment to that authority. LLP 0110's 2026-08-06 ruling defers that
+attestation to its 2026-09-30 review and amends the packaged-receipt bootstrap
+for `single_table_v1` only. Do not use the single-table receipt, qualification
+mode, or a reduced codegen requirement set to make this media closure pass.
+
+The staged `0.1.30` tarballs are candidate evidence only and were not
+published. LLP 0317 Wave 5 matched cells requiring a published `0.1.30` pin
+remain blocked at their publication entry gate; same-instrument published
+`0.1.29` baseline cells may proceed and must be reported separately rather
+than compared with an unpublished candidate.
