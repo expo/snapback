@@ -1,0 +1,214 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "actions": [],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "title"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+          "implementationHash": "sha256:8ecfa7f1b5efd9a59be862dc832efb05073c6316a6e3c125825ed10f11cb97a1",
+          "result": {
+            "kind": "value",
+            "value": {
+              "kind": "id",
+              "table": "todos"
+            }
+          },
+          "resultHash": "sha256:4198ab5a4d6e37df5f7fee5e067c55d9faa99e0cbf53341f0e4384c5ed63a8f2",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "todos.create",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:1b3d081ac00cab0d06ef6ab72228d580a0268ae1dde45933dc280e25025f4d96",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "todos"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "completed",
+                  "required": true,
+                  "value": {
+                    "kind": "boolean"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "todos"
+          },
+          "resultHash": "sha256:6cb72d727377ef0be17862a3349c42b1824f0dbea54154e4ca0bc1a41e4d47fa",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "todos.list",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "completed": {
+                "name": "boolean",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "authoredSourceHash": "sha256:be5dcd8c1b2072c786cd9c54d4c067ab89d4333d5b7c3737682205085482fbb7",
+    "implementationHash": "snapback.v1:sessions:function:sha256:3bde292e13bcb11d60a5a6cb32b40bee7d6f24195ab352dbc932612ecde036fd",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:849543888291fd9c83b1281737dc738bde165a600d28081841025028b6622533",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:41be898d53fc2c2fc72e2c2d85f187e208c2d565c82dbbe73896243568d91d85"
+  }
+}

@@ -97,7 +97,6 @@ export const LEGACY_AUTHORING_PROFILE_ROWS = Object.freeze([
   ['guide/recipes/typing-indicators.md', 'explicit', '9b949661fffe294b908e40152b00b6a514b023534ceb2e4eb44d392994a845a3'],
   ['guide/recipes/view-once-media.md', 'explicit', '781144b0d12ab70f63d3f4abf0692cde2b6929329c2fe74203df13fe1f6da07c'],
   ['guide/start/crud-dashboard.md', 'explicit', '94c7d8b478a73be3d928e30d7c096f41bb226ed6329b395500e3c773d9af098f'],
-  ['guide/start/index.md', 'explicit', '22b56d0c8b82eedc04ef51bf94d7945d74e94d7c0e386af0f01695c1788c4982'],
   ['guide/start/media-feed.md', 'explicit', 'bed368c0e91dc2eaadc8cf9f89683be7b1360a9532b23120b10b8207802b2183'],
   ['guide/start/mental-model.md', 'explicit', '46a3e0227bef13f4a281189fb663a324de10f45b29db88e0daa62310244517c3'],
   ['guide/start/react.md', 'explicit', '4a9ef07486f446e5eb92c29fe69690fc63c6bf3d99fafb817cfcd2127d927eba'],

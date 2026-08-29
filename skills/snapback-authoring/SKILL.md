@@ -37,9 +37,8 @@ This skill maps a packet and one budgeted lookup at a time.
   control tools with standing local-admin authority. Generate client
   config instead of guessing: `snapback agent setup --print
   claude|codex|cursor`.
-- **Exact API symbols:** `snapback guide <ExactSymbolName>` against the
-  generated build-bound reference; do not search package source for a
-  declaration-exact signature.
+- **Exact API symbols:** `snapback guide <ExactSymbolName>`; do not search
+  package source for a declaration-exact signature.
 - **Undocumented behavior:** read the owning package source, then file a
   `guide-gap` ticket — the reading diet never suppresses the honesty loop.
 
@@ -47,7 +46,8 @@ This skill maps a packet and one budgeted lookup at a time.
 
 1. **Install and scaffold.** `npm install -g @expo/snapback-cli` (or
    `bun add -g @expo/snapback-cli`), `snapback doctor --json`, then
-   `snapback new my-app --template react` (CRUD/admin: `crud-dashboard`;
+   `snapback new my-app --template react` (Familiar: `familiar-react`;
+   CRUD/admin: `crud-dashboard`;
    media/feed: `media-feed`; messaging: `expo-chat`), `cd my-app`,
    `bun install`.
 2. **Schema.** Author `snapback/schema.mjs` with

@@ -1,0 +1,8 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/familiar-react/todos.list.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {},
+  "title": "familiar-react:todos.list arguments",
+  "type": "object"
+}

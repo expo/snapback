@@ -92,9 +92,10 @@ const NEGATIVE_VOCABULARY = [
   { pattern: /guide-flat/u, label: 'bulk flat projection steering' },
 ];
 
-function checkVocabulary(path, text) {
+function checkVocabulary(path, text, { allowFamiliar = false } = {}) {
   const fenced = stripStopFences(text);
   for (const { pattern, label } of NEGATIVE_VOCABULARY) {
+    if (allowFamiliar && label.startsWith('Familiar ')) continue;
     if (pattern.test(fenced)) {
       errors.push(`${path}: ${label} appears outside an llp0259:stop-fence`);
     }
@@ -144,7 +145,7 @@ if (profiles.schemaVersion !== 'snapback.first-read-profile.v1') {
   errors.push(`${PROFILES_PATH}: unexpected schemaVersion ${profiles.schemaVersion}`);
 }
 const templates = Object.keys(profiles.profiles ?? {}).sort();
-const shipped = ['crud-dashboard', 'expo-chat', 'media-feed', 'react', 'todo-contract'];
+const shipped = ['crud-dashboard', 'expo-chat', 'familiar-react', 'media-feed', 'react', 'todo-contract'];
 if (JSON.stringify(templates) !== JSON.stringify(shipped)) {
   errors.push(`${PROFILES_PATH}: profiles must cover exactly the shipped templates (${shipped.join(', ')})`);
 }
@@ -238,8 +239,9 @@ for (const template of templates) {
     errors.push(`${agentsPath}: deduped steering aggregate ${aggregate} > maxBytes ${profile.maxBytes}`);
   }
 
-  checkVocabulary(agentsPath, agents);
-  checkVocabulary(pagePath, read(pagePath));
+  const allowFamiliar = profile.authoringProfile === 'familiar';
+  checkVocabulary(agentsPath, agents, { allowFamiliar });
+  checkVocabulary(pagePath, read(pagePath), { allowFamiliar });
 }
 
 if (write && profilesDirty) {

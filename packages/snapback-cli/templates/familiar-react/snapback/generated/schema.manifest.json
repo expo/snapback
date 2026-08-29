@@ -1,0 +1,92 @@
+{
+  "appId": "familiar-react",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions",
+    "passwordIdentifierMode": "email-v1"
+  },
+  "authProgram": {
+    "assuranceRequirements": {},
+    "custody": "durable-required",
+    "guestPolicy": {
+      "claiming": [],
+      "enabled": false
+    },
+    "mechanisms": {
+      "password": {
+        "identifier": "email",
+        "kind": "password",
+        "provider": "builtIn",
+        "recovery": "recoveryCodes"
+      }
+    },
+    "recoveryPolicy": {
+      "lastAuthenticator": "enforce",
+      "recoveryCodes": {
+        "enabled": true,
+        "plaintextCustody": "one-time-response",
+        "requiredWhen": "no-independent-recovery",
+        "rotateAfterUse": true
+      }
+    },
+    "secretReferences": {},
+    "version": 1
+  },
+  "authProgramReadiness": {
+    "assuranceRequirementsCompiled": true,
+    "catalogRequired": 3,
+    "claimsProjectionCompiled": true,
+    "declarationValid": true,
+    "deliveryChannels": {},
+    "noDeliveryCheck": {
+      "enforced": false,
+      "satisfied": true
+    },
+    "programVersion": 1,
+    "requiredAssuranceProducers": {},
+    "verifiedProvisioningCompiled": false,
+    "verifiedProvisioningDeclared": false
+  },
+  "authoredSourceHash": "sha256:be5dcd8c1b2072c786cd9c54d4c067ab89d4333d5b7c3737682205085482fbb7",
+  "authoringProfile": "snapback-familiar-ts-v1",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:849543888291fd9c83b1281737dc738bde165a600d28081841025028b6622533",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:41be898d53fc2c2fc72e2c2d85f187e208c2d565c82dbbe73896243568d91d85",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "completed",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "title"
+          ],
+          "name": "by_title"
+        }
+      ],
+      "name": "todos",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

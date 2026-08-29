@@ -191,6 +191,10 @@ try {
       dev: 'snapback dev snapback --write-env',
       'dev:client': 'vite',
     },
+    'familiar-react': {
+      dev: 'snapback dev snapback --write-env',
+      'dev:client': 'vite',
+    },
     'expo-chat': {
       dev: 'snapback dev snapback --write-env',
       'dev:client': 'expo start',
@@ -923,6 +927,44 @@ console.log(JSON.stringify({
   assert.match(reactAcceptanceSource, /createSnapbackAppClient/u);
   assert.match(reactAcceptanceSource, /adminClient\.query\(api\.listTodos/u);
   assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
+
+  // @ref LLP 0252#phase-3--paired-external-templates-and-migration — the
+  // Familiar starter begins coherently in one backend/client profile instead
+  // of requiring a generated Explicit scaffold to be converted in place.
+  const familiarStarterProject = join(root, 'familiar-react');
+  const familiarScaffold = scaffoldApp(familiarStarterProject, { template: 'familiar-react' });
+  assert.equal(familiarScaffold.ok, true);
+  assertScaffoldedAuthoringSkill(familiarStarterProject, familiarScaffold);
+  const familiarManifest = JSON.parse(readFileSync(join(familiarStarterProject, 'package.json'), 'utf8'));
+  assert.equal(familiarManifest.dependencies['@expo/snapback-acceptance'], SCAFFOLD_PIN);
+  assert.equal(familiarManifest.devDependencies['@types/node'], '^25.0.0');
+  assert.equal(familiarManifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(familiarManifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.match(familiarManifest.scripts.prove, /^snapback verify snapback /u);
+  const familiarInstructions = readFileSync(join(familiarStarterProject, 'AGENTS.md'), 'utf8');
+  assertStartPacketTransclusion(familiarInstructions, 'familiar-react');
+  assertScaffoldScriptSurface(familiarStarterProject, 'familiar-react', familiarManifest);
+  const generatedFamiliar = await generateApp(join(familiarStarterProject, 'snapback'));
+  assert.equal(generatedFamiliar.ok, true, JSON.stringify(generatedFamiliar.diagnostics));
+  assert.equal(generatedFamiliar.appDescriptor.authoringProfile, 'snapback-familiar-ts-v1');
+  assert.equal(generatedFamiliar.summary.counts.degradedResults, 0);
+  assert.deepEqual(
+    generatedFamiliar.functionManifest.functions.map(({ name }) => name).sort(),
+    ['todos.create', 'todos.list'],
+  );
+  const familiarAppSource = readFileSync(join(familiarStarterProject, 'src', 'App.tsx'), 'utf8');
+  assert.match(familiarAppSource, /from '@expo\/snapback-react\/familiar'/u);
+  assert.match(familiarAppSource, /useQuery\(api\.todos\.list/u);
+  assert.match(familiarAppSource, /useMutation\(api\.todos\.create/u);
+  const familiarStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
+    cwd: familiarStarterProject,
+    encoding: 'utf8',
+  });
+  assert.equal(familiarStatic.status, 0, familiarStatic.stderr);
+  assertCarrierSelfCheck(familiarStarterProject, ['headless', 'web-browser']);
+  const familiarAcceptanceSource = readFileSync(join(familiarStarterProject, 'acceptance.mjs'), 'utf8');
+  assert.match(familiarAcceptanceSource, /adminClient\.query\(api\.todos\.list/u);
+  assert.match(familiarAcceptanceSource, /invokeSnapbackMutation\(provider, api\.todos\.create/u);
 
   const crudProject = join(root, 'crud-dashboard');
   const crudScaffold = scaffoldApp(crudProject, { template: 'crud-dashboard' });

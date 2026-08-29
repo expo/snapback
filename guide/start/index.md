@@ -9,7 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
+authoring-profiles: [explicit, familiar]
+reviewed: 2026-08-29
 reviewed-authorities-digest: sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa
 ---
 
@@ -24,6 +25,10 @@ open the packet's named edit targets, and escalate one page at a time with
   (about 3 KiB); the fallback when no template is selected.
 - [react](./react.md) — full packet: Vite web starter,
   `useSnapbackQueries`.
+<!-- llp0259:stop-fence -->
+- [familiar-react](./familiar-react.md) — full packet: Familiar TypeScript
+  backend plus `useQuery` / `useMutation` in Vite.
+<!-- /llp0259:stop-fence -->
 - [expo-chat](./expo-chat.md) — full packet: Expo sessions-mode chat,
   `useSnapbackQuery` + `useSurface`.
 - [crud-dashboard](./crud-dashboard.md) — stub: mental model first, then
@@ -35,10 +40,10 @@ If you arrived after a **mistaken unscoped `snapback@0.1.29` lookup**, the
 published CLI package is `@expo/snapback-cli`; `create-snapback-app` is the
 `npm create snapback-app` wrapper. If the **published CLI rejected unknown `expo-router` template**,
 or you **assumed legacy `expo-router` major 7 for Expo 57**, do not repair the tuple by registry archaeology: run the installed
-CLI's `snapback new --help`, choose one of the five template names above, and
+CLI's `snapback new --help`, choose one of the six template names above, and
 let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and
-React Native pins. Package discovery is profile-neutral; the current template
-registry is Explicit-scoped and has no Familiar-named template.
+React Native pins. Package discovery is profile-neutral; choose
+`familiar-react` when the application should begin in the Familiar profile.
 
 Scaffolded apps carry their packet transcluded into `AGENTS.md` with a
 digest comment — reading either copy counts once. The

@@ -1509,9 +1509,9 @@ spellings and repairs appear only under Required guidance.
      "published CLI rejected unknown `expo-router` template",
      "assumed legacy `expo-router` major 7 for Expo 57".
      Required guidance: "published CLI package is `@expo/snapback-cli`",
-     "choose one of the five template names above",
+     "choose one of the six template names above",
      "let the scaffold write the aligned `@expo/snapback-*`, Expo, Metro, React, and React Native pins",
-     "current template registry is Explicit-scoped and has no Familiar-named template".
+     "choose `familiar-react` when the application should begin in the Familiar profile".
 
 132. **Metro listener outside the assigned lane:** "Metro's inner port escaped
      4287–4387." The run fails if it assumes backend/client/bootstrap pins

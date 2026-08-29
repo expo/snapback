@@ -1,0 +1,12 @@
+{
+  "seedVersion": "2026-07-28.1",
+  "tables": {
+    "todos": [
+      {
+        "_id": "todo_welcome",
+        "title": "Build with Snapback",
+        "completed": false
+      }
+    ]
+  }
+}

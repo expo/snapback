@@ -123,4 +123,5 @@ export const MIGRATED_LEGACY_AUTHORING_PROFILE_PATHS = Object.freeze([
   'guide/realtime/live-queries.md',
   'guide/retrieval-eval.md',
   'guide/start/expo-chat.md',
+  'guide/start/index.md',
 ]);

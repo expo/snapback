@@ -3,6 +3,41 @@
   "generatedBy": "authored; digests maintained by scripts/check-first-read.mjs --write",
   "accounting": "maxBytes counts steering bytes actually delivered: the always-loaded skill body plus the template AGENTS.md carrier (its transcluded packet or stub counts once) plus, on the stub route, the shared mental-model page. editTargets are work files: listed, never charged. Checked by scripts/check-first-read.mjs (LLP 0259 Rung A).",
   "profiles": {
+    "familiar-react": {
+      "template": "familiar-react",
+      "authoringProfile": "familiar",
+      "depth": "packet",
+      "steering": [
+        "skills/snapback-authoring/SKILL.md",
+        "packages/snapback-cli/templates/familiar-react/AGENTS.md",
+        "guide/start/familiar-react.md"
+      ],
+      "editTargets": [
+        "snapback/schema.ts",
+        "snapback/todos.ts",
+        "snapback/contracts.ts",
+        "snapback/seed.json",
+        "src/App.tsx",
+        "src/main.tsx",
+        "acceptance.mjs",
+        "snapback.verify.config.mjs"
+      ],
+      "maxBytes": 16384,
+      "requiredSafetyFacts": [
+        "familiar-profile-explicitly-selected",
+        "args-identity-resubscribe",
+        "seed-identity-migration",
+        "structured-fields-opaque",
+        "refusals-name-the-fix",
+        "sessions-before-uploads"
+      ],
+      "escalationTriggers": [
+        "brief-outside-packet",
+        "structured-snapback-refusal",
+        "failed-prove"
+      ],
+      "digest": "sha256:5a73631effa3749b742ef6c5633443bd77b2f7d4d97a813b31ad25d6d15f8adf"
+    },
     "react": {
       "template": "react",
       "depth": "packet",

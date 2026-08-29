@@ -1104,9 +1104,23 @@ for (const [template, expectedPathIds, expectedBaselinePathIds] of [
     ['create-todo', 'list-todos'],
   ],
   [
+    'familiar-react',
+    [
+      'anonymous-ready',
+      'password-signup-recovery',
+      'reload-restores-principal',
+      'authenticated-entry-refusal',
+      'sign-out',
+      'list-todos',
+      'create-todo',
+    ],
+    ['create-todo', 'list-todos'],
+  ],
+  [
     'expo-chat',
     [
       'zero-config-supervised-connect',
+      'shared-provider-sign-in',
       'web-anonymous-ready',
       'password-signup-recovery',
       'reload-clears-volatile-principal',
