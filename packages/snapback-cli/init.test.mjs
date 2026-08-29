@@ -1094,6 +1094,43 @@ test('supported Expo/Vite majors and complex tsconfig project boundaries fail cl
     });
   });
 
+  for (const [dependency, declared, supportedRange] of [
+    ['react', '18.3.1', '>=19.0.0 <20.0.0'],
+    ['react-native', '0.85.9', '>=0.86.0 <0.87.0'],
+    ['expo-router', '~56.0.9', '>=57.0.0 <58.0.0'],
+    ['@expo/metro-runtime', '~56.0.8', '>=57.0.0 <58.0.0'],
+    ['react-dom', '18.3.1', '>=19.0.0 <20.0.0'],
+    ['react-native-web', '^0.20.0', '>=0.21.0 <0.22.0'],
+  ]) {
+    await t.test(`mixed Expo tuple refuses ${dependency} ${declared}`, () => {
+      const { root } = createExpoFixture();
+      const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+      manifest.dependencies[dependency] = declared;
+      writeJson(join(root, 'package.json'), manifest);
+      assert.throws(() => initApp(root), (error) => {
+        assert.equal(error.code, 'SNAPBACK_INIT_VERSION_UNSUPPORTED');
+        assert.equal(error.diagnostic.details.dependency, dependency);
+        assert.equal(error.diagnostic.details.supportedRange, supportedRange);
+        assert.equal(error.diagnostic.details.tuple, 'expo-sdk-57-v1');
+        assert.equal(existsSync(join(root, 'snapback')), false);
+        return true;
+      });
+    });
+  }
+
+  await t.test('the complete Expo 57 tuple is admitted together', () => {
+    const { root } = createExpoFixture();
+    const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+    Object.assign(manifest.dependencies, {
+      'expo-router': '~57.0.9',
+      '@expo/metro-runtime': '~57.0.8',
+      'react-dom': '19.2.3',
+      'react-native-web': '^0.21.2',
+    });
+    writeJson(join(root, 'package.json'), manifest);
+    assert.equal(initApp(root).state, 'initialized');
+  });
+
   for (const [name, field, value] of [
     ['files', 'files', ['index.ts']],
     ['references', 'references', [{ path: './tsconfig.app.json' }]],

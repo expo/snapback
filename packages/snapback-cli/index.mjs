@@ -2061,6 +2061,18 @@ const INIT_APP_PROFILES = Object.freeze({
   }),
 });
 
+// @ref LLP 0317.000#obligation-map — O1 requires init to validate the Expo
+// runtime tuple as one closure; accepting the SDK major while Router, Metro,
+// React, or React Native comes from another tuple only postpones the refusal.
+const INIT_EXPO_RUNTIME_TUPLE = Object.freeze([
+  Object.freeze({ dependency: 'react', supportedRange: '>=19.0.0 <20.0.0', major: 19, required: true }),
+  Object.freeze({ dependency: 'react-native', supportedRange: '>=0.86.0 <0.87.0', major: 0, minor: 86, required: true }),
+  Object.freeze({ dependency: 'expo-router', supportedRange: '>=57.0.0 <58.0.0', major: 57, required: false }),
+  Object.freeze({ dependency: '@expo/metro-runtime', supportedRange: '>=57.0.0 <58.0.0', major: 57, required: false }),
+  Object.freeze({ dependency: 'react-dom', supportedRange: '>=19.0.0 <20.0.0', major: 19, required: false }),
+  Object.freeze({ dependency: 'react-native-web', supportedRange: '>=0.21.0 <0.22.0', major: 0, minor: 21, required: false }),
+]);
+
 const INIT_REACT_PROVIDER_FILE = 'src/snapback-init-provider.tsx';
 const INIT_REACT_VIRTUAL_MODULE_FILE = 'src/snapback-dev.d.ts';
 const INIT_SEAM_MARKER = '@snapback-init seam v1';
@@ -2539,11 +2551,12 @@ function renderInitJson(source, value) {
 
 function initSupportedVersion(root, manifest, detected) {
   const profile = initProfile(detected);
-  const version = initDependencies(manifest)[profile.supportedDependency];
-  const admittedRange = typeof version === 'string'
-    ? version.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.\d+)?/u)
+  const dependencies = initDependencies(manifest);
+  const version = dependencies[profile.supportedDependency];
+  const versionTuple = typeof version === 'string'
+    ? version.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?/u)
     : null;
-  const major = admittedRange === null ? Number.NaN : Number(admittedRange[1]);
+  const major = versionTuple === null ? Number.NaN : Number(versionTuple[1]);
   if (!Number.isInteger(major) || major !== profile.supportedMajor) {
     throw initRefusal(
       'SNAPBACK_INIT_VERSION_UNSUPPORTED',
@@ -2553,6 +2566,32 @@ function initSupportedVersion(root, manifest, detected) {
         dependency: profile.supportedDependency,
         declared: version ?? null,
         supportedRange: profile.supportedRange,
+      },
+    );
+  }
+  if (profile.id !== 'create-expo-app') return;
+  for (const member of INIT_EXPO_RUNTIME_TUPLE) {
+    const declared = dependencies[member.dependency];
+    if (declared === undefined && !member.required) continue;
+    const match = typeof declared === 'string'
+      ? declared.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?/u)
+      : null;
+    const declaredMajor = match === null ? Number.NaN : Number(match[1]);
+    const declaredMinor = match?.[2] === undefined ? Number.NaN : Number(match[2]);
+    const admitted = Number.isInteger(declaredMajor)
+      && declaredMajor === member.major
+      && (member.minor === undefined || declaredMinor === member.minor);
+    if (admitted) continue;
+    throw initRefusal(
+      'SNAPBACK_INIT_VERSION_UNSUPPORTED',
+      `snapback init requires the Expo 57 runtime tuple to agree, but ${member.dependency} declares ${JSON.stringify(declared)} instead of ${member.supportedRange}`,
+      root,
+      {
+        dependency: member.dependency,
+        declared: declared ?? null,
+        supportedRange: member.supportedRange,
+        tuple: 'expo-sdk-57-v1',
+        expo: version,
       },
     );
   }
