@@ -1,0 +1,129 @@
+// The 17 S1 corpus programs, re-authored in the Contract-block surface.
+// Compare with frontend-ts/fixtures/s1/programs.ts, which is the same set in
+// ordinary TypeScript. Both lower to the corpus IR.
+
+mutation addExpense
+  arg amount scalar
+  arg groupId scalar
+  arg recipients list max=50
+  let expenseId = newId
+  insert expenses { amount: amount, groupId: groupId, id: expenseId, payerId: viewer }
+  for recipient in argList recipients max=50
+    let shareId = newId
+    insert shares { amount: deterministicShare(amount, recipients, recipient), expenseId: expenseId, groupId: groupId, id: shareId, userId: recipient }
+  return expenseId
+
+query ancestors
+  arg accountId scalar
+  let result = []
+  for account in recurse accounts.byId [accountId] via=parentId depth=8 fanout=1 site=ancestors.step
+    push result = account
+  return result
+
+query boardSummary
+  arg boardId scalar
+  let result = []
+  for column in page columns.byParentOrder [boardId] order=asc take=20 site=board.columns
+    push result = { child: get cardCounts.byGroup [column.id] site=boardSummary.count, column: column }
+  return result
+
+query boardView
+  arg boardId scalar
+  let result = []
+  for column in page columns.byParentOrder [boardId] order=asc take=20 site=board.columns
+    push result = { child: scan cards.byParentOrder [column.id] order=asc take=50 site=boardView.cards, column: column }
+  return result
+
+mutation deleteMessage
+  arg id scalar
+  delete messages [id]
+
+query helperWrappedScan
+  arg columnId scalar
+  return scan cards.byParentOrder [columnId] order=asc take=37 site=helper.cards
+
+query hiddenRuleDocument
+  arg id scalar
+  return get secretDocs.byId [id] site=secret.document
+
+query inboxCountCapped
+  let result = []
+  for membership in page memberships.byUserActivity [viewer] order=desc take=50 site=inbox.memberships
+    push result = { latest: scan messages.byConvTime [membership.conversationId] order=desc take=1 site=inbox.latest, unread: countCapped(scan messages.byConvTime [membership.conversationId] order=asc take=100 after=membership.lastReadAt site=inbox.unreadMessages) }
+  return result
+
+query inboxMaintained
+  let result = []
+  for membership in page memberships.byUserActivity [viewer] order=desc take=50 site=inbox.memberships
+    push result = { latest: scan messages.byConvTime [membership.conversationId] order=desc take=1 site=inbox.latest, unread: get unreads.byConvUser [membership.conversationId, viewer] site=inbox.unreadMaintained }
+  return result
+
+query ledger
+  arg groupId scalar
+  return scan owed.byGroup [groupId] order=asc take=50 site=ledger.owed
+
+query maintainedWaitlistDepth
+  arg resourceId scalar
+  return get waitCounts.byGroup [resourceId] site=waitlist.maintainedDepth
+
+mutation markRead
+  arg at scalar
+  arg membershipId scalar
+  update memberships [membershipId] { lastReadAt: at }
+  return true
+
+query mentionScan
+  arg handle scalar
+  return scan users.byHandle [handle] order=asc take=20 site=mentionScan.users provenance=Computed
+
+mutation send
+  arg at scalar
+  arg body scalar
+  arg conversationId scalar
+  require exists memberships.byConvUser [conversationId, viewer] site=send.membership provenance=Shape else NOT_MEMBER
+  const messageId = newId
+  insert messages { at: at, authorId: viewer, body: body, conversationId: conversationId, id: messageId }
+  return messageId
+
+mutation sendMaintainedUnread
+  arg at scalar
+  arg body scalar
+  arg conversationId scalar
+  require exists memberships.byConvUser [conversationId, viewer] site=send.membership provenance=Shape else NOT_MEMBER
+  const messageId = newId
+  insert messages { at: at, authorId: viewer, body: body, conversationId: conversationId, id: messageId }
+  for member in page memberships.byConversation [conversationId] order=asc take=256 site=send.members provenance=Shape
+    let unread = get unreads.byConvUser [conversationId, member.userId] site=send.unread provenance=Shape
+    if unread == null
+      insert unreads { conversationId: conversationId, id: concat(conversationId, member.userId), userId: member.userId, value: 1 }
+    else
+      update unreads [unread.id] { value: unread.value + 1 }
+  return messageId
+
+mutation startDm
+  arg hi scalar
+  arg lo scalar
+  let existing = get dmKeys.byPair [lo, hi] site=startDm.unique
+  if existing == null
+    let conversationId = newId
+    let dmId = newId
+    let loMembershipId = newId
+    let hiMembershipId = newId
+    insert conversations { id: conversationId, title: "DM" }
+    insert dmKeys { conversationId: conversationId, hi: hi, id: dmId, lo: lo }
+    insert memberships { activity: 0, conversationId: conversationId, id: loMembershipId, lastReadAt: 0, userId: lo }
+    insert memberships { activity: 0, conversationId: conversationId, id: hiMembershipId, lastReadAt: 0, userId: hi }
+    return conversationId
+  else
+    return existing.conversationId
+
+query thread
+  arg conversationId scalar
+  let result = []
+  for message in page messages.byConvTime [conversationId] order=desc take=3 site=thread.messages
+    let author = get users.byId [message.authorId] site=thread.author
+    let mentions = []
+    for handle in tokens mentionTokens(message.body) max=85 because="messages.body max 256 / min whitespace mention 3"
+      push mentions = scan users.byHandle [handle] order=asc take=1 site=thread.mentionUser provenance=Computed
+    push result = { author: author, mentions: mentions, message: message }
+  return result
