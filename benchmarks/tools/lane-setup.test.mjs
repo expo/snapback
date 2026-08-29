@@ -203,9 +203,29 @@ test('lane setup represents the full continuous journey without inventing starte
   assert.match(orientation, /M4, M5, M6, M8 have no separate starter logs/u);
   assert.match(orientation, /continue from the M3 state/u);
   assert.doesNotMatch(orientation, /starter-m4\.log/u);
+  for (const milestone of ['m1', 'm2', 'm3']) {
+    assert.match(orientation, new RegExp(`starter-${milestone}\\.log`, 'u'));
+  }
   for (const milestone of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8']) {
     assert.match(orientation, new RegExp(`\\| ${milestone} \\|`, 'u'));
   }
+
+  const missingCanonical = provisionRun('snapback-lane-setup-missing-starter-');
+  rmSync(join(missingCanonical.instrumentRoot, 'fixtures/social-messenger/starter-m2.log'));
+  assert.throws(
+    () => generateLaneSetup(setupOptions(missingCanonical, {
+      milestones: ['M1', 'M2', 'M3'],
+    })),
+    /instrument artifact fixtureRoot digest mismatch|instrument child is missing.*starter-m2\.log/u,
+  );
+
+  const orphanContinuation = provisionRun('snapback-lane-setup-orphan-continuation-');
+  assert.throws(
+    () => generateLaneSetup(setupOptions(orphanContinuation, {
+      milestones: ['M4'],
+    })),
+    /continuation milestone M4 requires preceding milestones.*M3/u,
+  );
 });
 
 test('lane kind is explicit and renders matching web, native-simulator, and competitor instructions', () => {

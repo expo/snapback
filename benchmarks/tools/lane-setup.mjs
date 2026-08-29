@@ -29,6 +29,8 @@ export const FIRST_EDIT_MARKER_FILE = 'first-product-edit.json';
 export const INSTRUMENT_LINK = 'instrument';
 export const INSTRUMENT_MANIFEST_FILE = 'instrument.manifest.json';
 export const OFF_ALLOWLIST_SKILL_CODE = 'BENCHMARK_PREFLIGHT_OFF_ALLOWLIST_SKILL';
+const CANONICAL_STARTER_MILESTONES = Object.freeze(['M1', 'M2', 'M3']);
+const CONTINUOUS_AFTER_STARTER = Object.freeze(['M4', 'M5', 'M6', 'M8']);
 
 export const LANE_KINDS = Object.freeze({
   'snapback-web-clique': Object.freeze({
@@ -367,12 +369,32 @@ export function renderOrientation({
   laneDefinition(laneKind);
   const summaries = assertionSummary(assertionManifest, milestones);
   const fixture = (name) => childArtifact(artifacts.fixtureRoot, name);
+  const requestedMilestones = new Set(milestones);
+  for (const milestone of milestones) {
+    const continuationIndex = CONTINUOUS_AFTER_STARTER.indexOf(milestone);
+    if (continuationIndex === -1) continue;
+    const requiredPredecessors = [
+      'M3',
+      ...CONTINUOUS_AFTER_STARTER.slice(0, continuationIndex),
+    ];
+    const missing = requiredPredecessors.filter((required) => !requestedMilestones.has(required));
+    if (missing.length > 0) {
+      throw new Error(`continuation milestone ${milestone} requires preceding milestones in the same lane: ${missing.join(', ')}`);
+    }
+  }
   const starterInputs = milestones.flatMap((milestone) => {
     const name = `starter-${milestone.toLowerCase()}.log`;
+    if (CANONICAL_STARTER_MILESTONES.includes(milestone)) {
+      return [{ milestone, name, artifact: fixture(name) }];
+    }
     const artifact = optionalChildArtifact(artifacts.fixtureRoot, name);
-    return artifact === null ? [] : [{ milestone, name, artifact }];
+    if (artifact !== null) return [{ milestone, name, artifact }];
+    if (CONTINUOUS_AFTER_STARTER.includes(milestone)) return [];
+    return [{ milestone, name, artifact: fixture(name) }];
   });
-  const continuationMilestones = milestones.filter((milestone) => (
+  const continuationMilestones = CONTINUOUS_AFTER_STARTER.filter((milestone) => (
+    requestedMilestones.has(milestone)
+    &&
     !starterInputs.some((input) => input.milestone === milestone)
   ));
   // @ref LLP 0201#d1--the-app-and-why-this-app — the full journey is one
