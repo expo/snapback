@@ -1,6 +1,6 @@
 # O14 shapes (a)–(c) need a real-browser arm before a terminal negative verdict
 
-**Status:** Open
+**Status:** Closed — see Resolution
 **Opened:** 2026-08-29
 **Owner:** LLP 0317.000 lane L1 (diagnosis); implementation by whoever extends the LLP 0258 browser runner
 **Systems:** Live queries, Authorization invalidation, Client SDK, Acceptance testing
@@ -60,3 +60,12 @@ exact-current, clean binary; ten consecutive passes per shape for a negative.
 
 Shape (d) — the past-1,024 quarantine mechanism is confirmed and owned by
 `issues/20260828-live-query-implicit-limit-refusal-blanks-subscription.md`.
+
+## Resolution (2026-08-29)
+
+Built as `tests/acceptance/browser-live-invalidation-v1.mjs` (+ page and the
+shared `browser-raw-cdp-v1.mjs` helper extracted from the LLP 0258 runner),
+landed `fe869de4a` and `3bb37aef9`. Run on `expo-build-450b` in real Chrome
+contexts at `3bb37aef9`: shapes (a), (b), (c) each 10/10 → **not reproducible**.
+Record: `issues/closed/20260829-l1-browser-arm-verdict.md`. LLP 0317 O14 r2.8
+carries the verdicts. **Status: Closed.**

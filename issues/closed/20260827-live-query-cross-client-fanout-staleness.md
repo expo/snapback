@@ -1,6 +1,6 @@
 # Live-query cross-client fanout staleness: committed writes may not wake other clients' subscribed hooks (clique-matrix lead)
 
-**Status:** Open
+**Status:** Closed — see Resolution (2026-08-29)
 **Opened:** 2026-08-27
 **Systems:** Realtime, Subscriptions, Auth custody
 **Source:** Clique benchmark matrix (published Snapback 0.1.29), sol-snapback-explicit + sol-snapback-familiar lanes
@@ -172,3 +172,21 @@ lanes could not self-diagnose whether they were hitting hypothesis 1 or 2.
 
 Realtime/subscriptions. Graduate to Linear (Exact project, Snapback label) if the clean
 repro confirms a core fanout defect.
+
+## Resolution (2026-08-29) — closed by lane L1's complete verdict set
+
+Lane L1 finished on both arms. Headless Linux x86_64 rerun at `8b332808f`
+(`issues/closed/20260829-l1-live-query-invalidation-linux-verdict.md`): shapes
+(a)–(c) and the exact-179 case delivered on the original subscription 10/10
+each. Real-browser arm at `3bb37aef9`
+(`issues/closed/20260829-l1-browser-arm-verdict.md`): shapes (a)–(c) 30/30 in
+real Chrome contexts with distinct principals and partitions. **Verdict:
+hypothesis 1 (a core fanout defect) is not reproducible on current `main` on
+the reported platform and client arm.** The one confirmed live-query
+mechanism from the matrix — the past-1,024 implicit-ceiling refusal delivered
+as an anonymous quarantine — is a different defect, fixed in `9f7eb7f5d` and
+proven on both platforms
+(`issues/closed/20260828-live-query-implicit-limit-refusal-blanks-subscription.md`).
+The shared-partition custody artifact remains real and routed in the guide.
+The builders' request for a causal diagnostic is commissioned as LLP 0219.000.
+**Status: Closed.**
