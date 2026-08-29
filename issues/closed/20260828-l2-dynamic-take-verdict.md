@@ -1,6 +1,6 @@
 # L2 dynamic `take(limit)` verdict
 
-**Status:** Inconclusive — downgraded in review from "not reproducible"
+**Status:** Not reproducible — settled by the Linux x86_64 rerun of 2026-08-29 (see the last section); the 2026-08-28 verdict below was `inconclusive`
 **Opened:** 2026-08-28
 **Systems:** Code generation, JavaScript handler runtime, Query builder, Guide verification
 **Source:** LLP 0317.000 lane L2; LLP 0317 row O10; `sol-snapback-explicit` run-log event `1787864590`
@@ -135,3 +135,35 @@ artifact was edited. The existing Guide check preconditions name
 `./scripts/check-generated-artifacts` plus the Contract demo install/acceptance
 commands; per lane policy, the supervisor should materialize those once over
 the integrated tree rather than this lane editing generated outputs.
+
+## Linux rerun (2026-08-29) — verdict: not reproducible
+
+The condition this record named as the settling one — the same matrix on
+Linux x86_64 with a binary from the tested checkout — was run on
+`expo-build-450b` (Linux 6.8.0-100-generic x86_64, node v24.13.1) against a
+binary built there from the clean `6edfe7a45` checkout (readiness receipt
+`gitCommit 6edfe7a458340155d0c021b6b6c2317e75ef8091`, `gitDirty: false`,
+issued 2026-08-28T23:58:52Z; binary sha256 `4cc1b2ae2d69a2a56224569de6518dfdaf1667d2c59ed090f642786a054aad33`).
+
+```sh
+export SNAPBACK_RUNTIME_BINARY=$HOME/lanes/o14-linux/target/debug/snapback
+node packages/snapback-codegen/guide-time-windowed-live-reads.test.mjs --runtime-matrix
+```
+
+Verbatim output (exit 0):
+
+```text
+dynamic take runtime matrix: 14 runtime cells x 10 consecutive runs pass; 2 literal-over-inline cells refuse generation; 4 dynamic zero-limit and 4 empty-range controls return intentional empty projections
+guide-time-windowed-live-reads.test.mjs: guard, indexed windows, refusal, paging, boundaries, renewal, scale, and owner isolation pass; real-runtime take matrix pass
+```
+
+That meets LLP 0317.000 P1's negative-evidence standard for this obligation:
+current `main`, the reported platform, ten consecutive passes on every
+runtime-reachable cell, a binary from the exact checkout. Scope, per P6: the
+handler runtime's query builder through a headless `SnapbackClient` against a
+real server, explicit-profile fixture; the client and codegen are the source
+checkout, not the published 0.1.29 bundle — which is what "current main"
+means for a Wave 1 verdict. The O10 empty-projection obligation therefore
+closes **not reproducible** (terminal under LLP 0317.000 §Measurement). The
+row's ceiling half is untouched and still belongs to lane L15; the standing
+instruction not to remove or generation-refuse dynamic `take` stands.

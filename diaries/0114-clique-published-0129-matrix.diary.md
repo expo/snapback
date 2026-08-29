@@ -77,7 +77,11 @@ during the run:
   `sol-snapback-explicit` M5 supplies the discriminator: "nested or custom
   live-query dependencies remained stale while direct row queries converged."
   Those are **open and unexplained**, tracked as LLP 0317 O14 and scheduled as
-  lane L1 of LLP 0317.000. Do not read this run as evidence that Snapback's
+  lane L1 of LLP 0317.000. **L1's Linux x86_64 rerun (2026-08-29) delivered shapes (a)–(c) and the exact-179
+  case 10/10 each on the headless arm against an exact-current binary; the one confirmed
+  live-query mechanism is the past-1,024 bound refusal delivered as an anonymous
+  quarantine (LLP 0317.000 L19). The browser-context shapes stay open until the
+  real-browser arm runs — `issues/20260829-o14-real-browser-arm-harness.md`.** Do not read this run as evidence that Snapback's
   live invalidation is sound; read it as evidence that one confound was found
   and removed, leaving a narrower question.
 - **Metro ↔ codegen watch race** (`SNAPBACK_EXPO_METRO_EXITED`): Metro's

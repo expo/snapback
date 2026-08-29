@@ -76,6 +76,20 @@ against a nested/child-row dependency, plus an over-bound query. Per LLP 0317.00
 "not reproducible" verdict requires ≥10 consecutive passing runs on the reported platform and
 shape; anything less is `inconclusive`.
 
+**L1 results so far (2026-08-28/29).** The harness (`demos/_kit/tests/live-query-invalidation-e2e.mjs`)
+ran ×10 per shape on `expo-build-450b` (Linux x86_64) against a clean, exact-current binary
+after `8b332808f` fixed a bug that had prevented shapes (a)–(c) from running at all. Shapes
+(a), (b), (c) and the exact-179 case each delivered on the still-attached original
+subscription 10/10 (30–144 ms after settlement, distinct principals and partitions). What
+did reproduce, 10/10 on both platforms, is a different mechanism from fanout: past the
+1,024-row implicit ceiling the reevaluation is refused with
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` and the server delivers that as an anonymous
+quarantine that blanks the subscription — owned by
+`issues/20260828-live-query-implicit-limit-refusal-blanks-subscription.md`. Because (b) and
+(c) were reported from real browser contexts, they stay `inconclusive` until the browser arm
+runs (`issues/20260829-o14-real-browser-arm-harness.md`). Record:
+`issues/closed/20260829-l1-live-query-invalidation-linux-verdict.md`.
+
 **Blast radius of the earlier verdict.** It was also asserted as settled in
 `diaries/0114-clique-published-0129-matrix.diary.md` and
 `benchmarks/runs/2026-08-27-clique-published-0129-matrix/record.md` §6, where it justified
