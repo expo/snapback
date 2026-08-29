@@ -10,11 +10,11 @@
 **Battery gate:** `app-cli-settlement-goldens`
 **Failure signature:** `sha256:74e619e403b53b4c7157d007f42b2d978caa74b0cefd63b4438982ac5075d90e`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Consecutive red runs:** `8`
+**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Consecutive red runs:** `9`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

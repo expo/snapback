@@ -10,12 +10,12 @@
 **Battery gate:** `diagnostics-registry-fixtures`
 **Failure signature:** `sha256:fa300213ab52d27b5a3f69c33f947a44f111e5216ad02585d1e358fbcf0759c0`
 **First observed run:** `local.20260829T051119Z.45ebcadce605`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
 **Detected at revision:** `45ebcadce6052132fd6c69a0487b3c1258bda1f3`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Consecutive red runs:** `2`
-**Escalation:** `pending (2/4)`
+**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Consecutive red runs:** `3`
+**Escalation:** `pending (3/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

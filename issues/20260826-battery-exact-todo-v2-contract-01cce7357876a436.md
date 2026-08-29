@@ -13,12 +13,12 @@
 **Battery gate:** `exact-todo-v2-contract`
 **Failure signature:** `sha256:01cce7357876a436f3dbbf61ea56a4245a04059c94e15f81969068448586a79c`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

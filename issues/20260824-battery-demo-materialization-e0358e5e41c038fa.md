@@ -10,12 +10,12 @@
 **Battery gate:** `demo-materialization`
 **Failure signature:** `sha256:e0358e5e41c038fa89fcf0a54715f7731ff01a0c952f8ecaffcb18cd9b2bc6bb`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ node tests/demo_setup_v0.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

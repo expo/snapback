@@ -10,11 +10,11 @@
 **Battery gate:** `fleet-observatory-move1-receipt`
 **Failure signature:** `sha256:f2bb1be0e1acd58d64cbb6d62869c479f921e0798dfb8af2f423bbd03738ff2f`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260829T140951Z.cace7b53cf00`
-**Last processed run:** `local.20260829T140951Z.cace7b53cf00`
+**Last observed run:** `local.20260829T223616Z.81cc759a07a7`
+**Last processed run:** `local.20260829T223616Z.81cc759a07a7`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `cace7b53cf008e7692e4cb633c14b4c2400fdd5c`
-**Consecutive red runs:** `14`
+**Last observed revision:** `81cc759a07a706300e471f106fe41dc761c39474`
+**Consecutive red runs:** `15`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
