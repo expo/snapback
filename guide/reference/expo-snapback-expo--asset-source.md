@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:ccc76965ac938bccbf07ad198e87bda727558de254a7
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Module projection identity:
-`sha256:b71ebc5725f606789c9fb726cc03a0a832b204cadaa45ca8fb8be829dfb66f67`.
+`sha256:1e018a4b0028d3fd5f44c577dfa85d9011a2115e96eff98fd82adcb39c288ed9`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 

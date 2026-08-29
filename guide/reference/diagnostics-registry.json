@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v2",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:156eef9bfc9f24c97b2fff7ec21577a42a9c1083d1233255d918da3c7147e530"
+    "sourceDigest": "sha256:f8819b7ea57fb12912757d9577b074cdaad867f2f413269dac5bcb873149b1b2"
   },
   "limits": {
     "lookupBytes": 16384
@@ -10,10 +10,10 @@
   "counts": {
     "codes": 3596,
     "sourceFiles": 637,
-    "emittingSites": 9688,
+    "emittingSites": 9689,
     "receivedSites": 380,
     "reservedSites": 11,
-    "siteRecords": 5448,
+    "siteRecords": 5449,
     "httpClassified": 1703,
     "guideAnchored": 476,
     "environmentVariables": 190,
@@ -46264,6 +46264,10 @@
       "code": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
       "subsystem": "queries",
       "sites": [
+        {
+          "file": "crates/snapback-engine/src/runtime/host_glue.rs",
+          "count": 1
+        },
         {
           "file": "crates/snapback-types/src/error_tracking.rs",
           "kind": "received",

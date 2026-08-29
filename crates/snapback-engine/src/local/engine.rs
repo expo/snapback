@@ -5338,18 +5338,20 @@ struct DeterministicQueryContractRefusal {
 const IMPLICIT_QUERY_LIMIT_REPAIR: &str =
     "Declare .take(n) with server-side ordering or narrow the predicate.";
 
-/// Closed classifier for query-contract failures whose outcome is fixed for
-/// the same function, arguments, and committed data. Widen only with proof
-/// that the code is both reachable from live reevaluation and deterministic.
+/// Closed classifier for host-proven query-contract failures whose outcome is
+/// fixed for the same function, arguments, and committed data. Widen only with
+/// host provenance plus proof that the code is both reachable from live
+/// reevaluation and deterministic.
 ///
 /// @ref LLP 0053#dispositions-with-producers-and-meanings — a deterministic
 ///   contract refusal still quarantines an auth-scoped result; typing the
 ///   cause does not create a new disposition.
 fn is_deterministic_query_contract_refusal(error: &SnapbackError) -> bool {
-    matches!(
-        error.diagnostic.code.as_str(),
-        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
-    )
+    error.is_trusted_query_contract_refusal()
+        && matches!(
+            error.diagnostic.code.as_str(),
+            "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+        )
 }
 
 fn project_deterministic_query_contract_refusal(

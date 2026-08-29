@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:8a91390b91d41f8c6f24ebe742ae6bf10136b949ba6b
 # @expo/snapback-client/rqs-store-sqlite
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-sqlite`. Module projection identity:
-`sha256:b86913660b1a282d3fb3e919c0af5fc2bfaa1630af30bf774a998eb2134a7778`.
+`sha256:41c6988f65d8ff71c59d0fb4a921db3c9a955c30b840639cf653ee1ee0971155`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-sqlite.mjs`.
 

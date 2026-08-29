@@ -2198,7 +2198,12 @@ LLP 0086 governing constraint 2.
   deterministic query-contract refusal during live re-query keeps this RFC's
   existing `quarantine` disposition for an auth-scoped result (and the
   corresponding fail-closed `resync_required` projection for a plain result),
-  but the existing envelope now carries the typed refusal. The server reserves
+  but the existing envelope now carries the typed refusal. Classification is
+  provenance-backed: the host derives implicitness from the absence of the
+  invocation plan's `limit`, supplies the 1,024-row default itself, and brands
+  only that host-defaulted plan when it returns 1,024 rows. An explicit
+  `limit: 1024` remains unbranded, and a handler-thrown matching code remains an
+  untyped re-query error. The server reserves
   the initial attempt before invocation, then cancels that reservation when
   the refusal is classified, so it neither leaves open nor consumes a bounded
   retry episode that cannot succeed for the same function, arguments, and

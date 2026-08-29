@@ -4257,6 +4257,15 @@ globalThis.__snapbackHandlers = {
         error.diagnostic.code,
         "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
     );
+    assert_eq!(
+        error.diagnostic.message,
+        "query collect reached the implicit 1024-row cap; add order(...).take(n) for an intentional bounded prefix",
+        "moving completeness detection into the host must preserve the documented one-shot message"
+    );
+    assert!(
+        error.is_trusted_query_contract_refusal(),
+        "the one-shot refusal is host-established even though only live re-query consumes its provenance"
+    );
 
     let output = snapback
         .invoke_query("explicitTail", input(json!({}), "u"))

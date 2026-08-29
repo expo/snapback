@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:5a84867a153fa2d76d65070e9d7d1aa65ddfb940c31c
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Module projection identity:
-`sha256:f05ecb31c61cda496578984a59db645c195a43b9ae8aab369e53a247d770ea0b`.
+`sha256:3f1f2be235b05559b9cfc6112802efadfd1e01d4c9814d91a2f76182097a5e57`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 

@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:647a5e7edca4d41d87d5a352c0b710497a6886fb04b7
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Module projection identity:
-`sha256:5890048a492921975662408fa199c1db6e2d61a657e4c01c59e49269d65b35d8`.
+`sha256:70c7f00f983da4c14e61007566b9aa9ec40cd360d917504a8ffeebea027fcddc`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 

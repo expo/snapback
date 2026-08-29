@@ -1,6 +1,6 @@
 # Deterministic re-query refusal is classified by its public code string, not by host provenance
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-29
 **Owner:** unassigned (live-query / handler runtime)
 **Systems:** Live queries, Authorization invalidation, Handler runtime
@@ -52,3 +52,25 @@ re-query error (ordinary bounded retries, no typed refusal on the wire).
   ceiling case still classifies.
 - LLP 0053's 2026-08-28 amendment updated to say the classification is
   provenance-backed.
+
+## Resolution
+
+Resolved on 2026-08-29 by moving the implicit-ceiling determination into the
+shared Rust host operation. The bootstrap omits `limit` when the author omits
+`take(n)` and carries the numeric field for `take(n)` and `first()`. On field
+absence, the host inserts `QUERY_MAX_LIMIT` into the persisted `QueryPlan` before
+storage or buffered-write merging and records that it supplied the default. Only
+when that host-defaulted plan actually returns 1,024 rows does the host raise the
+existing `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` code and message with a trusted
+`SnapbackError` provenance bit. An explicit raw `limit: 1024` therefore returns
+its intentional prefix unbranded. The bit is skipped by serde and restored only
+from the host failure witness, so JavaScript cannot serialize, replay, or forge
+it. The JavaScript `collect()` comparison remains as defense in depth but can
+produce only the public code.
+
+The engine classifier now requires both the closed code and that trusted bit.
+A conditional handler forgery therefore follows the ordinary durable
+three-attempt episode and emits no `refusal`, while genuine auth-scoped and
+plain 1,025-row live cases retain their no-episode typed refusal. The existing
+wire envelope is unchanged. One-shot invocation retains the documented code,
+message, and HTTP client-error mapping.

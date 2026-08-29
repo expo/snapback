@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1560850ccaddcc580e233d487ef6ff688e8e065ef23c
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Module projection identity:
-`sha256:349b679887d6447c18cbfa7767ee1ba92259ac287b783b55b08c57204a5aa3e9`.
+`sha256:da7e854e22249db02298404ba475d6226624d655210578b215fbac7ef6968e37`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 

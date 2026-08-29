@@ -395,6 +395,62 @@ test('bounded batch reads bypass empty host calls and use one transition per non
   }]);
 });
 
+test('query host plans omit implicit limits and carry explicit collection bounds', async () => {
+  const context = vm.createContext({});
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        await ctx.db.query('items').collect();
+        await ctx.db.query('items').take(2).collect();
+        await ctx.db.query('items').first();
+        return [];
+      }
+    };
+  `, context);
+  const plans = [];
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    '{}',
+    'query',
+    null,
+    null,
+    '18',
+    (rawOp, argsJson) => {
+      if (rawOp.endsWith('|media.handoff')) {
+        return null;
+      }
+      assert.match(rawOp, /\|db\.query$/u);
+      plans.push(JSON.parse(argsJson).plan);
+      return { rows: [], version: 0 };
+    },
+  ));
+  assert.equal(decoded.ok, true);
+  assert.deepEqual(plans, [
+    {
+      table: 'items',
+      filters: [],
+      order: [],
+      indexed_by: null,
+    },
+    {
+      table: 'items',
+      filters: [],
+      order: [],
+      indexed_by: null,
+      limit: 2,
+    },
+    {
+      table: 'items',
+      filters: [],
+      order: [],
+      limit: 1,
+      indexed_by: null,
+    },
+  ]);
+});
+
 test('elevated handler reads use an explicit host-op family and stay unavailable to actions', async () => {
   const context = vm.createContext({});
   vm.runInContext('globalThis.__hostCall = function() { throw new Error("ambient transport must not run"); };', context);

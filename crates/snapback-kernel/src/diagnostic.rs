@@ -19,6 +19,8 @@ pub struct SnapbackError {
     #[serde(default, skip)]
     trusted_permission_denial: bool,
     #[serde(default, skip)]
+    trusted_query_contract_refusal: bool,
+    #[serde(default, skip)]
     private_failure: Option<crate::error_tracking::PrivateFailureContextV1>,
     #[serde(default, skip)]
     captured_read_dependencies: Vec<crate::storage::CapturedReadDependency>,
@@ -29,6 +31,7 @@ impl SnapbackError {
         Self {
             diagnostic,
             trusted_permission_denial: false,
+            trusted_query_contract_refusal: false,
             private_failure: None,
             captured_read_dependencies: Vec::new(),
         }
@@ -52,6 +55,7 @@ impl SnapbackError {
         Self {
             diagnostic: Diagnostic::error("SNAPBACK_AUTH_PERMISSION_DENIED", "auth", message),
             trusted_permission_denial: true,
+            trusted_query_contract_refusal: false,
             private_failure: None,
             captured_read_dependencies: Vec::new(),
         }
@@ -64,6 +68,15 @@ impl SnapbackError {
 
     pub fn is_trusted_permission_denial(&self) -> bool {
         self.trusted_permission_denial
+    }
+
+    pub fn into_trusted_query_contract_refusal(mut self) -> Self {
+        self.trusted_query_contract_refusal = true;
+        self
+    }
+
+    pub fn is_trusted_query_contract_refusal(&self) -> bool {
+        self.trusted_query_contract_refusal
     }
 
     pub fn with_private_failure_context(
@@ -133,11 +146,17 @@ impl SnapbackError {
 
 impl From<ContractError> for SnapbackError {
     fn from(value: ContractError) -> Self {
-        let (diagnostic, trusted_permission_denial, private_failure, captured_read_dependencies) =
-            value.into_parts();
+        let (
+            diagnostic,
+            trusted_permission_denial,
+            trusted_query_contract_refusal,
+            private_failure,
+            captured_read_dependencies,
+        ) = value.into_parts();
         Self {
             diagnostic,
             trusted_permission_denial,
+            trusted_query_contract_refusal,
             private_failure,
             captured_read_dependencies,
         }
@@ -149,6 +168,7 @@ impl From<SnapbackError> for ContractError {
         Self::from_parts(
             value.diagnostic,
             value.trusted_permission_denial,
+            value.trusted_query_contract_refusal,
             value.private_failure,
             value.captured_read_dependencies,
         )

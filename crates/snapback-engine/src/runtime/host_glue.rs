@@ -18,8 +18,9 @@ use crate::manifest::{
     BATCH_READ_MAX_INPUT_BYTES, BATCH_READ_MAX_ITEMS, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
     BATCH_READ_MAX_RESPONSE_BYTES, CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind,
     FunctionResultContract, HandlerInput, IbexModule, MutationOutput, QUERY_INTERNAL_OVERFETCH_MAX,
-    QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, ResultValueContract, SequenceDeclaration,
-    SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr, effective_query_limit,
+    QUERY_MAX_BUFFERED_WRITES, QUERY_MAX_LIMIT, QueryOutput, QueryPlan, ResultValueContract,
+    SequenceDeclaration, SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
+    effective_query_limit,
 };
 use crate::storage::{
     BufferedDocumentResultContract, BufferedDocumentResultProjection, BufferedMembershipCommand,
@@ -3488,10 +3489,16 @@ impl<'a> IbexHostContext<'a> {
                     elevated,
                     if elevated { "elevated.query" } else { "query" },
                 )?;
-                let mut plan = serde_json::from_value::<QueryPlan>(
-                    args.get("plan").cloned().unwrap_or(Value::Null),
-                )
-                .map_err(|error| {
+                let mut raw_plan = args.get("plan").cloned().unwrap_or(Value::Null);
+                let host_supplied_default_limit = raw_plan.as_object_mut().is_some_and(|plan| {
+                    if plan.contains_key("limit") {
+                        false
+                    } else {
+                        plan.insert("limit".to_owned(), json!(QUERY_MAX_LIMIT));
+                        true
+                    }
+                });
+                let mut plan = serde_json::from_value::<QueryPlan>(raw_plan).map_err(|error| {
                     SnapbackError::error(
                         "SNAPBACK_HANDLER_HOST_CALL_INVALID",
                         "runtime",
@@ -3589,6 +3596,21 @@ impl<'a> IbexHostContext<'a> {
                 }
                 if elevated {
                     self.observe_elevated_read("query", &plan.table);
+                }
+                // @ref LLP 0004#ctxdb-contract — the Rust host derives
+                // implicitness from the plan's absent limit, fills the
+                // persisted QueryPlan limit before execution, and alone
+                // combines that fact with the actual result count. The
+                // non-serialized brand survives the handler round-trip via
+                // host_failure_witness; the JS belt-and-braces check cannot
+                // manufacture it.
+                if host_supplied_default_limit && output.rows.len() == QUERY_MAX_LIMIT {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+                        "query",
+                        "query collect reached the implicit 1024-row cap; add order(...).take(n) for an intentional bounded prefix",
+                    )
+                    .into_trusted_query_contract_refusal());
                 }
                 serde_json::to_value(output).map_err(|error| {
                     SnapbackError::error(
@@ -5824,21 +5846,25 @@ fn run_handler_workerd(
 }
 
 /// Restore a host-produced diagnostic only when the handler's final envelope
-/// claims the same code. The claim alone remains untrusted and folded to
-/// `SNAPBACK_HANDLER_FAILED`; the out-of-band witness supplies the authority
-/// and the value-safe structured details.
+/// claims the same code. Most claims are folded to `SNAPBACK_HANDLER_FAILED`;
+/// the allowlisted implicit-limit claim keeps its public code but gains trusted
+/// provenance only from a matching branded witness. In both cases the claim
+/// alone remains untrusted.
 fn restore_host_failure_witness(
     invocation: &mut IbexHostContext<'_>,
     claimed_code: Option<&str>,
     result: SnapbackResult<Value>,
 ) -> SnapbackResult<Value> {
     match result {
-        Err(mut error) if error.diagnostic.code == "SNAPBACK_HANDLER_FAILED" => {
-            match invocation
-                .host_failure_witness
-                .take()
-                .filter(|recorded| Some(recorded.diagnostic.code.as_str()) == claimed_code)
-            {
+        Err(mut error)
+            if error.diagnostic.code == "SNAPBACK_HANDLER_FAILED"
+                || error.diagnostic.code == "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED" =>
+        {
+            let folded = error.diagnostic.code == "SNAPBACK_HANDLER_FAILED";
+            match invocation.host_failure_witness.take().filter(|recorded| {
+                Some(recorded.diagnostic.code.as_str()) == claimed_code
+                    && (folded || recorded.is_trusted_query_contract_refusal())
+            }) {
                 Some(recorded) => {
                     let context = error.take_private_failure_context();
                     Err(match context {
@@ -7478,11 +7504,12 @@ mod runtime_boundary_hardening_tests {
     use crate::config::SecretRedactor;
     use crate::manifest::{
         FieldManifest, FieldType, HandlerInput, IbexModule, IdentityBindingTableManifestV1,
-        SchemaManifest, TableManifest,
+        QUERY_MAX_LIMIT, SchemaManifest, SeedData, TableManifest,
     };
     use crate::storage::{DbRead, LocalDatabase};
-    use serde_json::json;
+    use serde_json::{Map, json};
     use sha2::{Digest as _, Sha256};
+    use std::collections::BTreeMap;
 
     fn query_context<'a>(db: &'a LocalDatabase, input: HandlerInput) -> IbexHostContext<'a> {
         let authority = ResolvedAppAuthority::Anonymous;
@@ -7496,6 +7523,135 @@ mod runtime_boundary_hardening_tests {
             true,
         )
         .unwrap()
+    }
+
+    fn query_limit_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("query-limit memory database");
+        db.schema_seed()
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    authority_profile: None,
+                    asset_sharing: None,
+                    visibility: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("query-limit schema");
+        let rows = (0..QUERY_MAX_LIMIT)
+            .map(|index| {
+                Map::from_iter([
+                    ("_id".to_owned(), json!(format!("item-{index:04}"))),
+                    ("value".to_owned(), json!(index)),
+                ])
+            })
+            .collect();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([("items".to_owned(), rows)]),
+            })
+            .expect("seed exactly-at-limit rows");
+        db
+    }
+
+    #[test]
+    fn handler_raw_explicit_limit_1024_returns_unbranded_prefix() {
+        let db = query_limit_db();
+        let mut invocation = query_context(&db, HandlerInput::default());
+        invocation.input.args = json!({ "epoch": invocation.epoch().to_string() });
+        let module = IbexModule {
+            source: r#"
+                globalThis.__snapbackHandlers = {
+                  async rawExplicitLimit(_ctx, args) {
+                    const output = globalThis.__hostCall(
+                      args.epoch + '|db.query',
+                      JSON.stringify({
+                        plan: {
+                          table: 'items',
+                          filters: [],
+                          order: [],
+                          limit: 1024,
+                          indexed_by: null
+                        }
+                      })
+                    );
+                    return { count: output.rows.length };
+                  }
+                };
+            "#
+            .to_owned(),
+            export: "rawExplicitLimit".to_owned(),
+        };
+
+        let output = run_ibex_handler_with_context(&module, &mut invocation, None)
+            .expect("an explicit raw 1,024-row prefix is intentional");
+        assert_eq!(output, json!({ "count": QUERY_MAX_LIMIT }));
+        assert!(
+            invocation.host_failure_witness.is_none(),
+            "a present numeric limit must not produce a branded host failure"
+        );
+    }
+
+    #[test]
+    fn handler_raw_absent_limit_is_host_defaulted_and_branded() {
+        let db = query_limit_db();
+        let mut invocation = query_context(&db, HandlerInput::default());
+        invocation.input.args = json!({ "epoch": invocation.epoch().to_string() });
+        let module = IbexModule {
+            source: r#"
+                globalThis.__snapbackHandlers = {
+                  async rawImplicitLimit(_ctx, args) {
+                    try {
+                      return globalThis.__hostCall(
+                        args.epoch + '|db.query',
+                        JSON.stringify({
+                          plan: {
+                            table: 'items',
+                            filters: [],
+                            order: [],
+                            indexed_by: null
+                          }
+                        })
+                      );
+                    } catch (error) {
+                      error.__snapbackCode = 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED';
+                      throw error;
+                    }
+                  }
+                };
+            "#
+            .to_owned(),
+            export: "rawImplicitLimit".to_owned(),
+        };
+
+        let error = run_ibex_handler_with_context(&module, &mut invocation, None)
+            .expect_err("an absent raw limit must be host-defaulted and refused at 1,024 rows");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+        );
+        assert_eq!(
+            error.diagnostic.message,
+            "query collect reached the implicit 1024-row cap; add order(...).take(n) for an intentional bounded prefix"
+        );
+        assert!(
+            error.is_trusted_query_contract_refusal(),
+            "only the host-defaulted raw plan receives deterministic-refusal provenance"
+        );
     }
 
     #[test]

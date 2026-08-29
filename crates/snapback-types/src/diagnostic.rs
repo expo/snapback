@@ -151,6 +151,11 @@ pub struct SnapbackError {
     /// string/object with the same diagnostic code cannot forge proof.
     #[serde(default, skip)]
     trusted_permission_denial: bool,
+    /// Host-owned brand for a deterministic query-contract refusal. Like the
+    /// permission-denial brand, it never crosses serialization boundaries, so
+    /// a handler-controlled diagnostic code cannot forge retry classification.
+    #[serde(default, skip)]
+    trusted_query_contract_refusal: bool,
     /// Runtime-only E0 carrier. Message/stack text is raw-tier data and must
     /// not leak merely because the public Diagnostic is serialized.
     ///
@@ -173,12 +178,14 @@ impl SnapbackError {
     pub fn from_parts(
         diagnostic: Diagnostic,
         trusted_permission_denial: bool,
+        trusted_query_contract_refusal: bool,
         private_failure: Option<crate::error_tracking::PrivateFailureContextV1>,
         captured_read_dependencies: Vec<crate::storage::CapturedReadDependency>,
     ) -> Self {
         Self {
             diagnostic,
             trusted_permission_denial,
+            trusted_query_contract_refusal,
             private_failure,
             captured_read_dependencies,
         }
@@ -189,12 +196,14 @@ impl SnapbackError {
     ) -> (
         Diagnostic,
         bool,
+        bool,
         Option<crate::error_tracking::PrivateFailureContextV1>,
         Vec<crate::storage::CapturedReadDependency>,
     ) {
         (
             self.diagnostic,
             self.trusted_permission_denial,
+            self.trusted_query_contract_refusal,
             self.private_failure,
             self.captured_read_dependencies,
         )
@@ -204,6 +213,7 @@ impl SnapbackError {
         Self {
             diagnostic,
             trusted_permission_denial: false,
+            trusted_query_contract_refusal: false,
             private_failure: None,
             captured_read_dependencies: Vec::new(),
         }
@@ -229,6 +239,7 @@ impl SnapbackError {
         Self {
             diagnostic: Diagnostic::error("SNAPBACK_AUTH_PERMISSION_DENIED", "auth", message),
             trusted_permission_denial: true,
+            trusted_query_contract_refusal: false,
             private_failure: None,
             captured_read_dependencies: Vec::new(),
         }
@@ -245,6 +256,18 @@ impl SnapbackError {
 
     pub fn is_trusted_permission_denial(&self) -> bool {
         self.trusted_permission_denial
+    }
+
+    /// Mark a host-established query-contract refusal without changing its
+    /// public diagnostic identity. The bit is deliberately absent from
+    /// serialization and therefore cannot be supplied by handler output.
+    pub fn into_trusted_query_contract_refusal(mut self) -> Self {
+        self.trusted_query_contract_refusal = true;
+        self
+    }
+
+    pub fn is_trusted_query_contract_refusal(&self) -> bool {
+        self.trusted_query_contract_refusal
     }
 
     pub fn with_private_failure_context(
@@ -391,6 +414,31 @@ mod tests {
         )
         .expect("deserialize classified denial");
         assert!(!decoded.is_trusted_permission_denial());
+    }
+
+    #[test]
+    fn deterministic_query_refusal_brand_cannot_cross_or_be_forged_by_json() {
+        let branded = SnapbackError::error(
+            "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+            "query",
+            "host established the implicit collection ceiling",
+        )
+        .into_trusted_query_contract_refusal();
+        assert!(branded.is_trusted_query_contract_refusal());
+        assert!(branded.clone().is_trusted_query_contract_refusal());
+
+        let encoded = serde_json::to_string(&branded).expect("serialize query refusal");
+        assert!(!encoded.contains("trusted_query_contract_refusal"));
+        let decoded: SnapbackError =
+            serde_json::from_str(&encoded).expect("deserialize query refusal");
+        assert!(!decoded.is_trusted_query_contract_refusal());
+
+        let forged = SnapbackError::error(
+            "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED",
+            "query",
+            "handler supplied the public code",
+        );
+        assert!(!forged.is_trusted_query_contract_refusal());
     }
 
     #[test]

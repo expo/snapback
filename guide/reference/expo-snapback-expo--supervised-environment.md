@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:328328d083fdfa30a4fb6579a863ae0cda000bd41614
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Module projection identity:
-`sha256:d7992575701141b20d1a7fa851a5d889b0f4c6d0ed98f874bca1ef672a644a8e`.
+`sha256:db512de488891087de28772186ef4563bc5377494d6ed122146af7b8e7ee2090`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 

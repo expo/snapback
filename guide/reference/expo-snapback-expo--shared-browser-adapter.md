@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:714cbe2b417e15358cdcba5433eab425f459c36cf66a
 # @expo/snapback-expo/shared-browser-adapter
 
 Build-bound public API projection for `@expo/snapback-expo/shared-browser-adapter`. Module projection identity:
-`sha256:0a08ad2d995e3ff0a2baeab2f6a05ba6989147c8f0eb20c8ffb3b471e3a3bbb3`.
+`sha256:2741ef4a80a4f040c42e01d36ff848040e48a895b9cea970182fc21c0438b2f0`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/shared-browser-adapter.mjs`.
 

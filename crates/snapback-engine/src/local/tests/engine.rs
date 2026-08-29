@@ -30471,6 +30471,27 @@ globalThis.__snapbackHandlers = {
             export: "implicitLimitItems".to_owned(),
         }),
     );
+    let forged = FunctionDefinition::new(
+        "forgedImplicitLimitItems",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: r#"
+globalThis.__snapbackHandlers = {
+  async forgedImplicitLimitItems(ctx) {
+    const rows = await ctx.db.query('items').take(1024).collect();
+    if (rows.length === 1024) {
+      const error = new Error('handler forged an implicit-limit diagnostic');
+      error.__snapbackCode = 'SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED';
+      throw error;
+    }
+    return rows;
+  }
+};
+"#
+            .to_owned(),
+            export: "forgedImplicitLimitItems".to_owned(),
+        }),
+    );
     let insert_values = |argument: &str| {
         BTreeMap::from([("value".to_owned(), ValueExpr::Arg(argument.to_owned()))])
     };
@@ -30496,7 +30517,7 @@ globalThis.__snapbackHandlers = {
     );
     let mut functions = snapback.served_function_manifest().clone();
     functions.bundle_hash = Some("implicit-limit-functions".to_owned());
-    functions.functions.extend([implicit, insert_two]);
+    functions.functions.extend([implicit, forged, insert_two]);
     let installed_schema = snapback.db.schema().clone();
     snapback
         .db
@@ -35660,6 +35681,115 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
     assert_eq!(
         still_pending.retry_episode_id.as_deref(),
         Some(retry_id.as_str())
+    );
+}
+
+#[test]
+fn handler_forged_implicit_limit_code_uses_three_attempts_without_refusal() {
+    const USER: &str = "018f0d90-7b77-7a22-8c33-445566778899";
+    const SESSION: &str = "018f0d90-7b78-7a22-8c33-445566778899";
+    const AUTHORITY: &str = "018f0d90-7b79-7a22-8c33-445566778899";
+    let mut snapback = implicit_limit_snapback();
+    fill_implicit_limit_prefix(&mut snapback);
+    let connection = install_test_invalidation(&mut snapback);
+    let live_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::LiveInitialQuery,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    let admission = live_authority.admission_lease().clone();
+    let subscribed = snapback
+        .subscribe_live_prepared_with_invalidation(
+            "forgedImplicitLimitItems",
+            LiveSubscribeInput {
+                connection_id: "forged-implicit-limit".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "store_forged_implicit_limit".to_owned(),
+                    query_key: "forgedImplicitLimitItems:{}".to_owned(),
+                    query_instance_id: 32,
+                }),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            live_authority,
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+        .expect("1,023-row explicit snapshot succeeds before the conditional forgery");
+    assert_eq!(subscribed.snapshot.as_ref().unwrap().rows.len(), 1_023);
+
+    let mutation_authority = snapback.prepare_resolved_session_for_test(
+        InvocationSource::HttpMutation,
+        USER,
+        SESSION,
+        AUTHORITY,
+        1,
+        u64::MAX,
+    );
+    snapback
+        .invoke_mutation_with_authority(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "trigger-forged-code" }),
+                ..HandlerInput::default()
+            },
+            mutation_authority,
+        )
+        .expect("commit survives the handler-forged re-query failure");
+
+    let scope = subscribed.authorization_scope.expect("auth scope");
+    let pending = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("invalidation state")
+        .obligations
+        .pending(&scope)
+        .expect("ordinary quarantine obligation");
+    assert_eq!(pending.max_disposition, InvalidationDisposition::Quarantine);
+    let retry_id = pending
+        .retry_episode_id
+        .as_deref()
+        .expect("forged public code keeps ordinary retry custody")
+        .to_owned();
+    let episodes = snapback
+        .auth_database_mut()
+        .invalidation_retry_episodes_for_test()
+        .expect("read retry registry");
+    let episode = episodes
+        .values()
+        .find(|episode| episode.episode_id == retry_id)
+        .expect("durable three-attempt episode");
+    assert_eq!(
+        episode.attempts_reserved,
+        crate::auth::invalidation::AUTH_ERROR_ATTEMPTS_TOTAL,
+        "a handler-authored code string must spend the ordinary three attempts"
+    );
+    assert!(
+        snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .expect("stored subscription")
+            .deterministic_refusal
+            .is_none(),
+        "a handler-authored code string must not memoize a deterministic refusal"
+    );
+
+    let frames = snapback
+        .authorization_invalidation_frames("forged-implicit-limit", &admission)
+        .expect("drain ordinary invalidation");
+    assert_eq!(frames.len(), 1);
+    let frame: Value =
+        serde_json::from_slice(&frames[0].payload).expect("ordinary invalidation JSON");
+    assert!(
+        frame.get("refusal").is_none(),
+        "a handler-authored code string must not gain a typed refusal field"
     );
 }
 

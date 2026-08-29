@@ -651,7 +651,12 @@
     }
     function makeBuilder(table, hostOp) {
       hostOp = hostOp || "db.query";
-      var plan = { table: table, filters: [], order: [], limit: QUERY_MAX_LIMIT, indexed_by: null };
+      var plan = {
+        table: table,
+        filters: [],
+        order: [],
+        indexed_by: null
+      };
       // @ref LLP 0004#ctxdb-contract — reaching the portable cap without an
       // explicit take cannot silently claim the predicate was complete.
       var explicitLimit = false;
