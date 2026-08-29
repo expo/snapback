@@ -63,7 +63,7 @@ loop-count magnitude claim is authorized without LLP 0317.000's N≥8 bar.
 - `materialize-instrument.mjs` produced a read-only 0.3.6 snapshot containing
   the full 13,014,016-byte scale log. The registered verifier accepted
   manifest SHA-256
-  `0ea43742ff13ddecac3c7b6c821da4c6a3b9605b3ee8969a741714ff9701ae89`;
+  `ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623`;
   `scale-log.sha256` and all 167,294 starter/sample/scale actions validated
   from that snapshot before any replacement cell started.
 

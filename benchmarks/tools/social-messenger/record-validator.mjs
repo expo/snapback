@@ -42,6 +42,10 @@ const ATTEMPTED_STATUSES = new Set([
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const CURRENT_CHOREOGRAPHY_VERSION = "0.3.6-m8";
 const PREVIOUS_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
+const RETAINED_INSTRUMENT_PINS = new Set([
+  PREVIOUS_INSTRUMENT_PIN,
+  "social-messenger@0.3.4-m8",
+]);
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("./choreography/receipts.schema.json", import.meta.url),
   "utf8",
@@ -1215,7 +1219,7 @@ export function validateSocialMessengerRecordSemantics(record, { artifactRoot = 
   const currentInstrument = extension.instrumentVersion === CURRENT_INSTRUMENT_PIN
     || (physicalCurrentIdentity && extension.instrumentVersion !== PREVIOUS_INSTRUMENT_PIN);
   const currentProtocolMarker = extension.observabilityProtocol === OBSERVATION_VERSION
-    && extension.instrumentVersion !== PREVIOUS_INSTRUMENT_PIN;
+    && !RETAINED_INSTRUMENT_PINS.has(extension.instrumentVersion);
   const currentOrientationMarker = (
     extension.orientation?.instrument?.pin === CURRENT_INSTRUMENT_PIN
     || extension.orientation?.instrument?.versions?.choreography === CURRENT_CHOREOGRAPHY_VERSION

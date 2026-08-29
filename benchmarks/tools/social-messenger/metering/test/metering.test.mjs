@@ -5382,6 +5382,13 @@ test("D0.6 observability is produced from real sidecars and tampering fails clos
     choreography: "fixture",
   };
   assert.deepEqual(composedErrors(oldRecord), []);
+  assert.deepEqual(validateSocialMessengerRecordSemantics({
+    socialMessenger: {
+      instrumentVersion: "social-messenger@0.3.4-m8",
+      observabilityProtocol: OBSERVATION_VERSION,
+      milestones: {},
+    },
+  }), [], "retained 0.3.4 observation records remain governed by their historical pin");
   await rm(root, { recursive: true, force: true });
 });
 

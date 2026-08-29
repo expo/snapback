@@ -41,7 +41,7 @@ inadmissible and no result was read from either attempted replacement.
 Commit `db3fe84d2e2f05fa7592119016d1a68991a0945b` aligns the complete executable
 evidence stack at `0.3.6-m8`. It passed read-only materialization and manifest
 verification at SHA-256
-`0ea43742ff13ddecac3c7b6c821da4c6a3b9605b3ee8969a741714ff9701ae89`, the
+`ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623`, the
 167,157-action scale hash/validator, the N7 preflight, lane-setup 11/11, 140
 production-path tests, and the full choreography self-test from the exact
 materialization. The known M7 calibration flake failed once and passed on the
