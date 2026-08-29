@@ -4,13 +4,12 @@ use super::*;
 use crate::certificate::Certificate;
 use crate::ir::*;
 use crate::schema::*;
-use crate::value::{canonical_json, digest, object, Value, ValueError, I53_MAX, I53_MIN};
-use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Transaction};
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
-
 
 #[derive(Clone)]
 pub(super) struct EvaluatedRange {
@@ -20,7 +19,7 @@ pub(super) struct EvaluatedRange {
     pub(super) lte: Option<Value>,
 }
 
-pub(super) fn fetch_table_connection(
+pub(crate) fn fetch_table_connection(
     connection: &Connection,
     table: &str,
 ) -> Result<Vec<Value>, RuntimeError> {
@@ -33,7 +32,7 @@ pub(super) fn fetch_table_connection(
     .collect()
 }
 
-pub(super) fn reindex_row(
+pub(crate) fn reindex_row(
     connection: &Connection,
     schema: &Schema,
     table_name: &str,
@@ -214,7 +213,7 @@ pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> 
             return Err(RuntimeError::Schema(format!(
                 "{} is not an indexable scalar",
                 other.kind()
-            )))
+            )));
         }
     };
     Ok(encoded)
@@ -230,7 +229,7 @@ pub(super) fn hex(bytes: &[u8]) -> String {
     encoded
 }
 
-pub(super) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
+pub(crate) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
     index
         .columns
         .iter()
@@ -249,7 +248,11 @@ pub(super) fn row_ids(rows: &[Value]) -> Result<Vec<String>, RuntimeError> {
         .collect()
 }
 
-pub(super) fn validate_row(table: Option<&Table>, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+pub(crate) fn validate_row(
+    table: Option<&Table>,
+    table_name: &str,
+    row: &Value,
+) -> Result<(), RuntimeError> {
     let table = table.ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let object = row.as_object()?;
     if !object.contains_key("id") {

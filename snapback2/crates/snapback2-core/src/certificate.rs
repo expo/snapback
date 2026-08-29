@@ -84,6 +84,7 @@ pub enum WriteKind {
     Update,
     Upsert,
     Delete,
+    Emit,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -208,6 +209,7 @@ impl<'a> Checker<'a> {
                     ("insert", &table.rules.insert),
                     ("update", &table.rules.update),
                 ],
+                WriteKind::Emit => Vec::new(),
             };
             for (effect, rule) in effects {
                 rule_hashes.insert(format!("{}.{effect}", write.table), rule.hash());
@@ -342,6 +344,57 @@ impl<'a> Checker<'a> {
     }
 
     fn validate_inputs(&self, program: &Program) -> Result<(), CheckError> {
+        fn validate_statements(statements: &[Stmt], kind: ProgramKind) -> Result<(), CheckError> {
+            for statement in statements {
+                match statement {
+                    Stmt::Insert { table, .. }
+                    | Stmt::Update { table, .. }
+                    | Stmt::Upsert { table, .. }
+                    | Stmt::Delete { table, .. }
+                        if table.starts_with('_') =>
+                    {
+                        return Err(CheckError {
+                            code: "E_SCHEMA_RESERVED".to_owned(),
+                            message: format!("program names reserved table {table}"),
+                            rewrite: "use an application table name that does not begin with '_'"
+                                .to_owned(),
+                        });
+                    }
+                    Stmt::Insert { .. }
+                    | Stmt::Update { .. }
+                    | Stmt::Upsert { .. }
+                    | Stmt::Delete { .. }
+                        if kind == ProgramKind::Query =>
+                    {
+                        return Err(CheckError {
+                            code: "E_WRITE_IN_QUERY".to_owned(),
+                            message: "a query cannot write durable data".to_owned(),
+                            rewrite: "move the write into a mutation".to_owned(),
+                        });
+                    }
+                    Stmt::Emit { .. } if kind == ProgramKind::Query => {
+                        return Err(CheckError {
+                            code: "E_EMIT_IN_QUERY".to_owned(),
+                            message: "a query cannot emit an effect".to_owned(),
+                            rewrite: "move emit into a mutation".to_owned(),
+                        });
+                    }
+                    Stmt::If {
+                        then_body,
+                        else_body,
+                        ..
+                    } => {
+                        validate_statements(then_body, kind)?;
+                        validate_statements(else_body, kind)?;
+                    }
+                    Stmt::For { body, .. } => validate_statements(body, kind)?,
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+
+        validate_statements(&program.body, program.kind)?;
         fn visit(expr: &Expr, inputs: &mut Vec<Input>) {
             match expr {
                 Expr::Input(input) => inputs.push(*input),
@@ -492,53 +545,58 @@ impl<'a> Analyzer<'a> {
     ) -> Result<Summary, CheckError> {
         let mut summary = Summary::default();
         for statement in statements {
-            let next = match statement {
-                Stmt::Const { value, .. }
-                | Stmt::Let { value, .. }
-                | Stmt::Assign { value, .. }
-                | Stmt::Push { value, .. }
-                | Stmt::Return(value) => self.expr(value, calls, factors)?,
-                Stmt::Require { condition, .. } => self.expr(condition, calls, factors)?,
-                Stmt::If {
-                    condition,
-                    then_body,
-                    else_body,
-                } => self.expr(condition, calls, factors)?.add(
-                    self.statements(then_body, calls, factors)?
-                        .branch(self.statements(else_body, calls, factors)?),
-                ),
-                Stmt::For { domain, body, .. } => {
-                    let (domain_summary, bound, factor) = self.domain(domain, calls, factors)?;
-                    let mut nested = factors.to_vec();
-                    nested.push(factor);
-                    domain_summary.add(self.statements(
-                        body,
-                        calls.saturating_mul(bound),
-                        &nested,
-                    )?)
-                }
-                Stmt::Insert { table, row } => self.expr(row, calls, factors)?.add(self.write(
-                    table,
-                    WriteKind::Insert,
-                    calls,
-                    factors,
-                )),
-                Stmt::Update { table, key, patch } => self
-                    .expr(key, calls, factors)?
-                    .add(self.expr(patch, calls, factors)?)
-                    .add(self.write(table, WriteKind::Update, calls, factors)),
-                Stmt::Upsert { table, key, row } => self
-                    .expr(key, calls, factors)?
-                    .add(self.expr(row, calls, factors)?)
-                    .add(self.write(table, WriteKind::Upsert, calls, factors)),
-                Stmt::Delete { table, key } => self.expr(key, calls, factors)?.add(self.write(
-                    table,
-                    WriteKind::Delete,
-                    calls,
-                    factors,
-                )),
-                Stmt::Break | Stmt::Continue => Summary::default(),
-            };
+            let next =
+                match statement {
+                    Stmt::Const { value, .. }
+                    | Stmt::Let { value, .. }
+                    | Stmt::Assign { value, .. }
+                    | Stmt::Push { value, .. }
+                    | Stmt::Return(value) => self.expr(value, calls, factors)?,
+                    Stmt::Require { condition, .. } => self.expr(condition, calls, factors)?,
+                    Stmt::If {
+                        condition,
+                        then_body,
+                        else_body,
+                    } => self.expr(condition, calls, factors)?.add(
+                        self.statements(then_body, calls, factors)?
+                            .branch(self.statements(else_body, calls, factors)?),
+                    ),
+                    Stmt::For { domain, body, .. } => {
+                        let (domain_summary, bound, factor) =
+                            self.domain(domain, calls, factors)?;
+                        let mut nested = factors.to_vec();
+                        nested.push(factor);
+                        domain_summary.add(self.statements(
+                            body,
+                            calls.saturating_mul(bound),
+                            &nested,
+                        )?)
+                    }
+                    Stmt::Insert { table, row } => self.expr(row, calls, factors)?.add(self.write(
+                        table,
+                        WriteKind::Insert,
+                        calls,
+                        factors,
+                    )),
+                    Stmt::Update { table, key, patch } => self
+                        .expr(key, calls, factors)?
+                        .add(self.expr(patch, calls, factors)?)
+                        .add(self.write(table, WriteKind::Update, calls, factors)),
+                    Stmt::Upsert { table, key, row } => self
+                        .expr(key, calls, factors)?
+                        .add(self.expr(row, calls, factors)?)
+                        .add(self.write(table, WriteKind::Upsert, calls, factors)),
+                    Stmt::Delete { table, key } => self.expr(key, calls, factors)?.add(self.write(
+                        table,
+                        WriteKind::Delete,
+                        calls,
+                        factors,
+                    )),
+                    Stmt::Emit { payload, .. } => self
+                        .expr(payload, calls, factors)?
+                        .add(self.write("_outbox", WriteKind::Emit, calls, factors)),
+                    Stmt::Break | Stmt::Continue => Summary::default(),
+                };
             summary = summary.add(next);
             summary.steps = summary.steps.saturating_add(calls);
         }
@@ -643,24 +701,23 @@ impl<'a> Analyzer<'a> {
                 if matches!(
                     builtin,
                     Builtin::Count | Builtin::Sum | Builtin::CountCapped
-                ) {
-                    if let Some(Expr::Scan(scan)) = args.first() {
-                        if !self.uniform_visibility(scan) {
-                            return Err(CheckError {
-                                code: "E_STRUCTURAL_COUNT".to_owned(),
-                                message: format!(
-                                    "{} counts rows whose read rule is not uniform over the scan prefix",
-                                    scan.site
-                                ),
-                                rewrite: format!(
-                                    "declare maintain.count({}, {{ by: [...], as: ..., readable: ... }})",
-                                    scan.table
-                                ),
-                            });
-                        }
-                        if matches!(builtin, Builtin::CountCapped) {
-                            self.completeness = Completeness::Capped;
-                        }
+                ) && let Some(Expr::Scan(scan)) = args.first()
+                {
+                    if !self.uniform_visibility(scan) {
+                        return Err(CheckError {
+                            code: "E_STRUCTURAL_COUNT".to_owned(),
+                            message: format!(
+                                "{} counts rows whose read rule is not uniform over the scan prefix",
+                                scan.site
+                            ),
+                            rewrite: format!(
+                                "declare maintain.count({}, {{ by: [...], as: ..., readable: ... }})",
+                                scan.table
+                            ),
+                        });
+                    }
+                    if matches!(builtin, Builtin::CountCapped) {
+                        self.completeness = Completeness::Capped;
                     }
                 }
                 for value in args {
@@ -750,6 +807,13 @@ impl<'a> Analyzer<'a> {
     }
 
     fn require_index(&self, table: &str, index: &str) -> Result<(), CheckError> {
+        if table.starts_with('_') {
+            return Err(CheckError {
+                code: "E_SCHEMA_RESERVED".to_owned(),
+                message: format!("program reads reserved table {table}"),
+                rewrite: "use the dedicated runtime verb for engine-owned data".to_owned(),
+            });
+        }
         let exists = self
             .schema
             .table(table)
@@ -804,6 +868,7 @@ impl<'a> Analyzer<'a> {
                 WriteKind::Upsert => {
                     u64::from(has(&table.rules.insert)).max(2 * u64::from(has(&table.rules.update)))
                 }
+                WriteKind::Emit => 0,
             }
         });
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
@@ -924,6 +989,7 @@ fn walk_statement_exprs(statements: &[Stmt], visit: &mut impl FnMut(&Expr)) {
                 visit(row);
             }
             Stmt::Delete { key, .. } => visit(key),
+            Stmt::Emit { payload, .. } => visit(payload),
             Stmt::Break | Stmt::Continue => {}
         }
     }

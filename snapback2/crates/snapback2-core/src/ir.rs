@@ -74,6 +74,11 @@ pub enum Stmt {
         table: String,
         key: Expr,
     },
+    // @ref LLP 1001#8-emit-and-the-outbox — effects enter the durable outbox from mutations.
+    Emit {
+        effect: String,
+        payload: Expr,
+    },
     Return(Expr),
     Break,
     Continue,
