@@ -12,10 +12,14 @@
 ## Disposition
 
 Wave 5 uses instrument `social-messenger@0.3.6-m8`. Its fresh materialized
-snapshot passes the registered verifier. The first `0.3.5-m8`
-launch was interrupted and is inadmissible: its manifest's choreography-root
-digest omitted concurrently integrated W9 files, so the immutable snapshot
-refused verification on both hosts.
+snapshot passes the registered verifier, and its manifest, emitter, setup
+identity, receipt schemas, meter, record validator, and production driver all
+declare that same current pin. The first `0.3.5-m8` launch was interrupted and
+is inadmissible: its manifest's choreography-root digest omitted concurrently
+integrated W9 files, so the immutable snapshot refused verification on both
+hosts. The first attempted 0.3.6 replacement was likewise interrupted before
+admission when rebasing changed the source revision its prompts named. All four
+partial lanes remain retained as entry-gate evidence and contribute no result.
 
 - **N7 / Dave contradiction — repaired.** Starter M3 now contains Erin rather
   than Dave. Dave is therefore absent and addable when the M3 membership
@@ -49,15 +53,17 @@ loop-count magnitude claim is authorized without LLP 0317.000's N≥8 bar.
 - `shasum -a 256 -c scale-log.sha256` passes.
 - `node validate.mjs starter-m1.log starter-m2.log starter-m3.log
   sample-50.log scale.log` validates 167,294 actions.
-- The choreography 0.3.6 self-test passes, including the N7 preflight. One M7
-  calibration attempt failed and an immediate identical rerun passed; the
+- The choreography 0.3.6 self-test passes from both the source tree and the
+  exact read-only materialization, including the N7 preflight. The materialized
+  run repeated the known M7 calibration failure and an immediate identical
+  rerun passed; the
   pre-existing nondeterminism is retained separately in
   `issues/20260829-social-messenger-m7-calibration-nondeterminism.md`. M7 is
   environment-null in this scoped rerun.
 - `materialize-instrument.mjs` produced a read-only 0.3.6 snapshot containing
   the full 13,014,016-byte scale log. The registered verifier accepted
   manifest SHA-256
-  `1889938039f06d257938e9f888b43254f599d528ab9d6bb46665d842ed5121df`;
+  `0ea43742ff13ddecac3c7b6c821da4c6a3b9605b3ee8969a741714ff9701ae89`;
   `scale-log.sha256` and all 167,294 starter/sample/scale actions validated
   from that snapshot before any replacement cell started.
 

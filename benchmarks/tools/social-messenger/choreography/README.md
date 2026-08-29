@@ -240,7 +240,7 @@ typed observation sidecars.
 
 ## 0.3.4-m8 migration
 
-`0.3.4-m8` is the material typing-observation correction. Current assertion
+`0.3.4-m8` is the material typing-observation correction. Its assertion
 receipts and assertion metadata stamp `typingObservationBoundaryVersion:v2`;
 M3 summaries and run records repeat it. The schema accepts retained
 `0.3.3-m8` lines under implicit boundary v1 but rejects a v2 stamp on that
@@ -280,6 +280,8 @@ found that `0.3.5-m8`'s manifest digest predated the concurrently integrated W9
 choreography files. The snapshot verifier refused that root on both benchmark
 hosts. The two partial cells were interrupted before admission, their lanes
 were retained as invalid entry-gate evidence, and no result from them is
-counted. This pin changes snapshot identity only; it keeps the `0.3.5-m8` N7
-and scale-fixture semantics.
+counted. This pin keeps the `0.3.5-m8` N7 and scale-fixture semantics, while
+moving the manifest, emitter, setup identity, receipts, meter, validator, and
+production driver together onto the repaired executable identity. Retained
+0.3.4 receipts remain historical and validate only under their own pin.
 `0.3.0-m8` added the M8 choreography surfaces.

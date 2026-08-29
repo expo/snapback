@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": { "const": "social-messenger.setup-identity.v1" },
-    "instrumentPin": { "const": "social-messenger@0.3.4-m8" },
+    "instrumentPin": { "const": "social-messenger@0.3.6-m8" },
     "backend": {
       "type": "object",
       "required": ["kind", "version"],

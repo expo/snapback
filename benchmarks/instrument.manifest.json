@@ -15,7 +15,7 @@
     "contract": {
       "kind": "file",
       "path": "tools/social-messenger/CONTRACT.md",
-      "sha256": "656f72183481fd687cd2616b40516e2629286dfa01d94a8127c6483d5d86d211"
+      "sha256": "9c928479a447d1b418eefca761098daac9afa014c7d60ed189fc935ae49453ca"
     },
     "assertions": {
       "kind": "file",
@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "3d163c0e76eb857b0d5d54461f0c0b0baa2285365f1a7a360b1c1545826b0832"
+      "sha256": "51fd9e98ec2c5d692db96382d8076a9b8506b5a44f00ffb838e8b37d3ffd143e"
     },
     "toolsLibRoot": {
       "kind": "directory",
@@ -80,22 +80,22 @@
     "runRecordExtensionSchema": {
       "kind": "file",
       "path": "schema/social-messenger/run-record-extension.schema.json",
-      "sha256": "a83b80b115018f946397b98898865a28805bcde198d5f7912a3e2c5551f98b44"
+      "sha256": "90e8a92164fa072a96f8b60df569f49bd1c8f44495b17e4c07f5b1b8e7ed380b"
     },
     "recordValidator": {
       "kind": "file",
       "path": "tools/social-messenger/record-validator.mjs",
-      "sha256": "7fd60c5ecf0578563ae0bc96e0d98e05e358b47ad78fe55c254fe96b0a20f566"
+      "sha256": "fb4448efbd81e177d6aea3f16e1b8c8969a5bc4f17b10a4f3679469650270731"
     },
     "meteringRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/metering",
-      "sha256": "fe4e480f1862297fe1b4008b473ebd739384587956d445946af630d758b56848"
+      "sha256": "c72fc1bae16f6ac081520f9817f7beed76823ac77acb9588ba7a9218720e8406"
     },
     "observabilityRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/observability",
-      "sha256": "3585fe4cd784582f4e7e55b9d9cb5ec98b824f9955bafc5a363208c6bd50a19a"
+      "sha256": "f0e463fc87acd6f236d8b3e52a17531ddfc52c0ad9161b807ab20e0e207bbeda"
     }
   }
 }

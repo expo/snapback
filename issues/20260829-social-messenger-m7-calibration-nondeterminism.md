@@ -11,8 +11,10 @@
 ## Problem
 
 While qualifying `social-messenger@0.3.6-m8`, the unchanged full choreography
-self-test failed its M7 calibration once and passed on an immediate identical
-rerun. The failing diagnostic was:
+self-test has failed its M7 calibration in at least two qualification passes
+and passed on each immediate identical rerun. The second occurrence ran from
+the exact read-only materialized snapshot, not the source checkout. The failing
+diagnostic was:
 
 ```text
 M7 idempotent-vote calibration failed (1)

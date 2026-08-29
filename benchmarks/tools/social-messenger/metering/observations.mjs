@@ -14,7 +14,7 @@ import {
 // retained events are the authority for every claimed observability aggregate;
 // unavailable native streams become explicit scorecard-affecting non-claims.
 export const OBSERVATION_VERSION = "social-messenger-observation.v1";
-export const CURRENT_INSTRUMENT_PIN = "social-messenger@0.3.4-m8";
+export const CURRENT_INSTRUMENT_PIN = "social-messenger@0.3.6-m8";
 export const CURRENT_TYPING_OBSERVATION_BOUNDARY_VERSION = "v2";
 export const COSTLY_EPISODE_THRESHOLD_ACTIONS = 2;
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/benchmarks/social-messenger/choreography-receipt-0.3.4-m8.json",
+  "$id": "https://snapback.dev/schemas/benchmarks/social-messenger/choreography-receipt-0.3.6-m8.json",
   "title": "Social-messenger choreography JSONL receipt",
   "oneOf": [
     { "$ref": "#/$defs/assertionReceipt" },
@@ -80,7 +80,7 @@
         "details"
       ],
       "properties": {
-        "version": { "enum": ["0.3.3-m8", "0.3.4-m8"] },
+        "version": { "enum": ["0.3.3-m8", "0.3.4-m8", "0.3.6-m8"] },
         "runId": { "type": "string", "format": "uuid" },
         "recordedAt": { "type": "string", "format": "date-time" },
         "type": { "const": "assertion" },
@@ -208,6 +208,27 @@
           "if": {
             "properties": {
               "version": { "const": "0.3.4-m8" },
+              "assertion": { "const": "typing-indicator-within-2s-expires-within-5s" }
+            },
+            "required": ["version", "assertion"]
+          },
+          "then": {
+            "required": ["typingObservationBoundaryVersion"],
+            "properties": {
+              "typingObservationBoundaryVersion": { "const": "v2" },
+              "details": {
+                "required": ["typingObservationBoundaryVersion"],
+                "properties": {
+                  "typingObservationBoundaryVersion": { "const": "v2" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "version": { "const": "0.3.6-m8" },
               "assertion": { "const": "typing-indicator-within-2s-expires-within-5s" }
             },
             "required": ["version", "assertion"]
@@ -388,7 +409,7 @@
       "properties": {
         "schemaVersion": { "const": "social-messenger.setup-identity.v1" },
         "instrumentPin": {
-          "enum": ["social-messenger@0.3.3-m8", "social-messenger@0.3.4-m8"]
+          "enum": ["social-messenger@0.3.3-m8", "social-messenger@0.3.4-m8", "social-messenger@0.3.6-m8"]
         },
         "backend": {
           "type": "object",
@@ -502,7 +523,7 @@
         "green"
       ],
       "properties": {
-        "version": { "enum": ["0.3.3-m8", "0.3.4-m8"] },
+        "version": { "enum": ["0.3.3-m8", "0.3.4-m8", "0.3.6-m8"] },
         "runId": { "type": "string", "format": "uuid" },
         "recordedAt": { "type": "string", "format": "date-time" },
         "type": { "const": "segment-summary" },
@@ -557,6 +578,21 @@
         {
           "if": {
             "properties": {
+              "version": { "const": "0.3.6-m8" },
+              "segment": { "const": "m3" }
+            },
+            "required": ["version", "segment"]
+          },
+          "then": {
+            "required": ["typingObservationBoundaryVersion"],
+            "properties": {
+              "typingObservationBoundaryVersion": { "const": "v2" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
               "version": { "const": "0.3.3-m8" },
               "segment": { "const": "m3" }
             },
@@ -578,6 +614,21 @@
               "setup": {
                 "properties": {
                   "instrumentPin": { "const": "social-messenger@0.3.4-m8" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "version": { "const": "0.3.6-m8" } },
+            "required": ["version"]
+          },
+          "then": {
+            "properties": {
+              "setup": {
+                "properties": {
+                  "instrumentPin": { "const": "social-messenger@0.3.6-m8" }
                 }
               }
             }

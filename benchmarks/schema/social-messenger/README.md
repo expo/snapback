@@ -45,7 +45,7 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   API-interruption windows. The sibling optional `suiteStatusLinkage` block
   retains the startup-validated input and suite receipts. They remain optional
   in the version-2 JSON shape for old-record compatibility, while the semantic
-  validator requires `instrumentVersion: "social-messenger@0.3.4-m8"`,
+  validator requires `instrumentVersion: "social-messenger@0.3.6-m8"`,
   `typingObservationBoundaryVersion: "v2"`, the
   exact matching orientation pin/protocol, all six as
   claimed-or-explicitly-non-claimed, and suite linkage for the current
@@ -55,12 +55,13 @@ for `runRecordSchema` and `runRecordExtensionSchema` in the frozen
   aborted attempts may honestly end before a choreography segment summary is
   produced. `instrumentVersion` is unconditional for every plan record: a
   current protocol marker, current orientation pin, or current choreography
-  version implies `social-messenger@0.3.4-m8` in both the schema and semantic
+  version implies `social-messenger@0.3.6-m8` in both the schema and semantic
   validator. Coordinated deletion/downgrade cannot select a legacy validator,
   and substituting explicit `0.3.2-m8` or `0.3.3-m8` on an otherwise-current
   record is invalid. Historical `0.3.2-m8` records remain valid only with that
-  explicit legacy marker set; retained `0.3.3-m8` records remain boundary-v1
-  records under their own pin and cannot aggregate with current v2 records.
+  explicit legacy marker set; retained `0.3.3-m8` records remain boundary-v1,
+  and retained `0.3.4-m8` records remain bound to their own identity. Neither
+  can aggregate with current records.
   The extension stays at version
   `2`, so retained records are never rewritten.
 - `run-record.schema.json` — the complete composed record schema. It restricts

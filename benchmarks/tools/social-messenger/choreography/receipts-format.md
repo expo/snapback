@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.3.4-m8` writes newline-delimited JSON to `receipts.jsonl`. Raw
+Version `0.3.6-m8` writes newline-delimited JSON to `receipts.jsonl`. Raw
 receipt objects stay on disk and are not echoed to an agent's stdout. A failed
 assertion emits one bounded `STRUCTURED CHOREOGRAPHY MISS` with its outcome
 class, stable identity, compact attempt errors, and the retained JSONL paths.
@@ -61,7 +61,7 @@ outer run harness:
 
 ```json
 {
-  "version": "0.3.4-m8",
+  "version": "0.3.6-m8",
   "type": "segment-summary",
   "segment": "m3",
   "typingObservationBoundaryVersion": "v2",
@@ -108,7 +108,7 @@ outer run harness:
   },
   "setup": {
     "schemaVersion": "social-messenger.setup-identity.v1",
-    "instrumentPin": "social-messenger@0.3.4-m8"
+    "instrumentPin": "social-messenger@0.3.6-m8"
   }
 }
 ```
@@ -119,14 +119,14 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.3.4-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   In `0.3.6-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
    `ios-simulator-m8` statuses are recorded in their matching summaries under
    `supplementalExternal` with `requiredForGreen:false`; they are distinct
    native/O4 artifacts governed by `simulator.md`.
 3. `choreography.pass` (and the summary's top-level `pass`) is
    `browserPass && externalPass === true`.
 4. `green` is true only when `suite.pass === true && choreography.pass === true`.
-   Version `0.3.4-m8` refuses missing or partial suite-status linkage before
+   Version `0.3.6-m8` refuses missing or partial suite-status linkage before
    creating receipts or starting a browser, so emitted `suite.pass` is always
    boolean.
 5. `nonGreenCause` is the closed recording convention for a non-green
@@ -138,7 +138,7 @@ The normative aggregation is:
    - `choreography-failed` — an implemented assertion failed.
    - `suite-failed` — suite evidence is `pass:false`.
    - `instrument` — non-green for an instrument defect other than missing
-     suite linkage, which `0.3.4-m8` refuses before startup.
+     suite linkage, which `0.3.6-m8` refuses before startup.
 
    Lanes MUST copy `nonGreenCause` from this summary into the run record.
    Do not invent labels such as "functionally green". `green` stays a
@@ -199,9 +199,14 @@ boundary bump. Its M3 typing receipt and assertion metadata must both say
 `v2`; its M3 summary and run record repeat that value. A retained `0.3.3-m8`
 typing receipt with no boundary field is valid only as implicit v1 under that
 old version, and an explicit v2 stamp on the old version is rejected. Current
-receipt streams may not mix `0.3.3-m8` lines into a `0.3.4-m8` run, so v1 and
+receipt streams may not mix older-version lines into a `0.3.6-m8` run, so v1 and
 v2 observations never silently aggregate. The same bump splits required live
 DM delivery from conditional DM-avatar identity, uses a delivery-progress
 witness for removed-member cutoff, and makes every retained M7 vote attempt a
 distinct user/option intent. LLP 0201's continuous M1–M6/M8 session shape is
 unchanged.
+
+`0.3.6-m8` retains those observation semantics and the `0.3.5-m8` N7 fixture
+repair, while moving the manifest, emitter, setup identity, receipts, meter,
+and validator together onto one frozen executable identity. Retained 0.3.4
+receipts remain accepted only under their historical pin.

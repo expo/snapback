@@ -44,7 +44,7 @@ test("run and diary aggregates share one projection and source identity", () => 
     tokens: { input: 10, output: 20 },
     correctionLoops: [{ attribution: "agent" }],
     socialMessenger: {
-      instrumentVersion: "social-messenger@0.3.4-m8",
+      instrumentVersion: "social-messenger@0.3.6-m8",
       milestones: {
         M1: { status: "green", authoring: { wallSeconds: 60, tokens: { input: 10, output: 20 }, firstGreenAt: "2026-08-25T00:01:00Z" } },
       },

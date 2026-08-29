@@ -31,6 +31,8 @@ import {
   preflightSelectedSkills,
   resolveInstrumentArtifacts,
 } from './lane-setup.mjs';
+import { CURRENT_CHOREOGRAPHY_VERSION } from './social-messenger/metering/manifest.mjs';
+import { CURRENT_INSTRUMENT_PIN } from './social-messenger/metering/observations.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const SKILL_SOURCE = join(ROOT, 'skills/snapback-authoring/SKILL.md');
@@ -80,6 +82,8 @@ test('lane setup verifies the frozen manifest and never falls back to live sourc
     ui: '0.3.2-m8',
     choreography: '0.3.6-m8',
   });
+  assert.equal(artifacts.manifest.instrumentPin, CURRENT_INSTRUMENT_PIN);
+  assert.equal(artifacts.manifest.versions.choreography, CURRENT_CHOREOGRAPHY_VERSION);
   assert.equal(artifacts.assertions.logicalPath, 'schema/social-messenger/assertions.json');
   assert.equal(
     artifacts.runRecordExtensionSchema.logicalPath,

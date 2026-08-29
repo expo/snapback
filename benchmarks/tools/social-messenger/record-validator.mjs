@@ -40,7 +40,7 @@ const ATTEMPTED_STATUSES = new Set([
   "aborted",
 ]);
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
-const CURRENT_CHOREOGRAPHY_VERSION = "0.3.4-m8";
+const CURRENT_CHOREOGRAPHY_VERSION = "0.3.6-m8";
 const PREVIOUS_INSTRUMENT_PIN = "social-messenger@0.3.3-m8";
 const RECEIPT_SCHEMA = JSON.parse(readFileSync(
   new URL("./choreography/receipts.schema.json", import.meta.url),
@@ -1109,7 +1109,7 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
         || (requiredAttestations === 1 && attestations.length !== 1)
       ) {
         errors.push(
-          `${path}: expected ${requiredAttestations === 1 ? "exactly one" : "at most one"} hash-verified 0.3.4-m8 segment-summary, received ${attestations.length}`,
+          `${path}: expected ${requiredAttestations === 1 ? "exactly one" : "at most one"} hash-verified ${CURRENT_CHOREOGRAPHY_VERSION} segment-summary, received ${attestations.length}`,
         );
       } else if (attestations.length === 1) {
         const attestation = attestations[0];
@@ -1136,7 +1136,7 @@ function validateSuiteStatusLinkage(errors, extension, artifactRoot, currentInst
               > Date.parse(milestoneRecord.authoring?.terminalAt)
           )
         ) {
-          errors.push(`${path}: green milestone lacks a matching first-green 0.3.4-m8 segment-summary`);
+          errors.push(`${path}: green milestone lacks a matching first-green ${CURRENT_CHOREOGRAPHY_VERSION} segment-summary`);
         }
       }
     }
