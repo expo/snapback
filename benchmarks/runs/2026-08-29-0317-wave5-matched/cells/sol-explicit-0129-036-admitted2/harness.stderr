@@ -1,0 +1,16 @@
+Reading additional input from stdin...
+2026-08-29T07:59:04.793726Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/run-log.md:
+- Owner-scoped fanout tables were changed to public-read declarations so authenticated server-derived owner filters can compose; reduced defense-in-depth is recorded for final reporting.
+2026-08-29T09:01:49.053294Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/src/CliqueApp.tsx:
+function ConversationSettings({ routeValue, inboxes }: any) {
+  const normalized = routeValue.toLowerCase();
+  const inbox = inboxes.find((row: any) => row.kind === 'group' && (row.identity.replace(/^group:/, '').toLowerCase() === normalized || row.title.toLowerCase() === normalized));
+  if (!inbox) return <View style={styles.center}><Text>Loading settings…</Text></View>;
+  if (!inbox) return <View style={styles.center}><Text>Loading settings…</Text></View>;
+  return <ConversationSettingsReady inbox={inbox} />;
+2026-08-29T09:48:19.934157Z ERROR codex_core::tools::router: error=apply_patch verification failed: invalid patch: multiple operations target /home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/scripts/acceptance.mjs
+2026-08-29T10:26:24.169861Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/snapback/functions.mjs:
+        sentAt: now, pageKey,
+      });
+2026-08-29T11:04:20.425918Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/run-log.md:
+end=1788001288

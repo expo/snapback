@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/profilePosts.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "handle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "handle"
+  ],
+  "title": "clique:profilePosts arguments",
+  "type": "object"
+}

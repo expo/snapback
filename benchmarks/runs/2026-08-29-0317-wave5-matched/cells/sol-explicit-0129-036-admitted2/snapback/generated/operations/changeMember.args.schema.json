@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/changeMember.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "type": "string"
+    },
+    "conversationExternalId": {
+      "type": "string"
+    },
+    "mutationId": {
+      "type": "string"
+    },
+    "targetHandle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationExternalId",
+    "targetHandle",
+    "action",
+    "mutationId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:changeMember arguments",
+  "type": "object"
+}

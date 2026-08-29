@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Clique",
+    "slug": "clique",
+    "scheme": "clique",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "@expo/snapback-expo",
+      "expo-router",
+      "expo-status-bar",
+      "expo-image"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.example.snapbackchat",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.example.snapbackchat"
+    }
+  }
+}

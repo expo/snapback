@@ -1,0 +1,5260 @@
+{
+  "artifactKind": "contractDataManifest",
+  "authoredSourceHash": "sha256:669973ec788190f61b693478d3861e506ddfa2d7626b93fac74ee009527d2cb1",
+  "bundleHash": "snapback.v1:sessions:function:sha256:49c5de87a910b3012921011c5b26bd38fceaa77aa5f989309c4d9cb1dac1be32",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {
+    "typing": {
+      "coalesce": true,
+      "defaultTtlMs": 4500,
+      "deliveryMode": "latest",
+      "ephemeral": true,
+      "keyMode": "Connection",
+      "maxDeltaRateHz": 13,
+      "maxTtlMs": 5000,
+      "name": "typing",
+      "publishBudget": {
+        "burst": 8,
+        "maxValueBytes": 160,
+        "sustainedHz": 4
+      },
+      "routingFields": [
+        "conversationKey"
+      ],
+      "scopeFields": [
+        "conversationKey"
+      ],
+      "withdrawalVisibilityDeadlineMs": 2250
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436",
+  "manifestVersion": 2,
+  "mutations": {
+    "changeMember": {
+      "argOrder": [
+        "conversationExternalId",
+        "targetHandle",
+        "action",
+        "mutationId"
+      ],
+      "args": {
+        "action": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "targetHandle": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:4f25ec21df7ceba5a2762c1f2b61cb1443c1b6c82bfb3611bb3ccac399205b3c",
+      "implementationHash": "sha256:a1f03838643718d78b68abb1934b8d4afb2d023b2397e4a1cfd0733a1ae7abcf",
+      "invalidates": [
+        "memberships",
+        "inboxes",
+        "messageViews",
+        "mutationIntents"
+      ],
+      "name": "changeMember",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "memberships",
+        "inboxes",
+        "messageViews",
+        "mutationIntents"
+      ]
+    },
+    "consumeViewOnce": {
+      "argOrder": [
+        "messageExternalId"
+      ],
+      "args": {
+        "messageExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:c563f2267c972cc3b603b9607bb2473996d73894313ff9189d48674c2d7ccb1e",
+      "implementationHash": "sha256:56469ee3f8e2dca3327a1ea5e7bd31fe3c0e76cc6386f9552e94b6f8fca6a2cf",
+      "invalidates": [
+        "messageViews"
+      ],
+      "name": "consumeViewOnce",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "messageViews"
+      ]
+    },
+    "createGroup": {
+      "argOrder": [
+        "externalId",
+        "name",
+        "description",
+        "memberHandles"
+      ],
+      "args": {
+        "description": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "externalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "memberHandles": {
+          "items": {
+            "name": "string",
+            "shape": "primitive"
+          },
+          "shape": "array"
+        },
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:0c71e0f4bf33289724c5e8d5b617f931a18ea11f7f2ae67441bcf0bb21f342ee",
+      "implementationHash": "sha256:503e4473f9d1b48c46bb110d45eaf81fc8ebf598694a81a70885fc2ac4b0dd2c",
+      "invalidates": [
+        "conversations",
+        "memberships",
+        "inboxes"
+      ],
+      "name": "createGroup",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "serverRunnable": true,
+      "writes": [
+        "conversations",
+        "memberships",
+        "inboxes"
+      ]
+    },
+    "createPost": {
+      "argOrder": [
+        "externalId",
+        "type",
+        "text",
+        "mediaUri1",
+        "mediaUri2",
+        "parentExternalId"
+      ],
+      "args": {
+        "externalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mediaUri1": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mediaUri2": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "parentExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "text": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "type": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:4b2ae850afcaf15c31dc8180a36bd14c942df4a99da35ff461ad9af26c9998f1",
+      "implementationHash": "sha256:c4a9136f38bf805ca847544396f18c98a46fd7c08c311c2beeeeb087b8615f4f",
+      "invalidates": [
+        "posts",
+        "feedEntries",
+        "insights",
+        "activityDays"
+      ],
+      "name": "createPost",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "serverRunnable": true,
+      "writes": [
+        "posts",
+        "feedEntries",
+        "insights",
+        "activityDays"
+      ]
+    },
+    "deleteMessage": {
+      "argOrder": [
+        "messageExternalId"
+      ],
+      "args": {
+        "messageExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:c563f2267c972cc3b603b9607bb2473996d73894313ff9189d48674c2d7ccb1e",
+      "implementationHash": "sha256:df87063371060ac24f400c77074cc369526632f837fd382539cf38dc7f8553f7",
+      "invalidates": [
+        "messages",
+        "messageViews",
+        "messageSearchViews",
+        "inboxes"
+      ],
+      "name": "deleteMessage",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "messageViews",
+        "messageSearchViews",
+        "inboxes"
+      ]
+    },
+    "editMessage": {
+      "argOrder": [
+        "messageExternalId",
+        "text"
+      ],
+      "args": {
+        "messageExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "text": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:274fab6878ecc167ba679909be8a47904d3a2959ec8afee40ed3a6d2cee1130d",
+      "implementationHash": "sha256:6dcb4b3fdb8a5b68187d9552ddf1e3093926357e9951a1cfe07d3fc8243d17a4",
+      "invalidates": [
+        "messages",
+        "messageViews",
+        "messageSearchViews"
+      ],
+      "name": "editMessage",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "messageViews",
+        "messageSearchViews"
+      ]
+    },
+    "ensureDm": {
+      "argOrder": [
+        "otherHandle"
+      ],
+      "args": {
+        "otherHandle": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:8b0bfb271aebc047f8ba3954459b5c5784e7e8c6339ebc5c5623bed602f48a4d",
+      "implementationHash": "sha256:a0e920e56f39e3d97f035c9568fdf195a93c587095d4fdd7fe1be7d6b9c8b72d",
+      "invalidates": [
+        "conversations",
+        "memberships",
+        "inboxes"
+      ],
+      "name": "ensureDm",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "serverRunnable": true,
+      "writes": [
+        "conversations",
+        "memberships",
+        "inboxes"
+      ]
+    },
+    "markConversationDelivered": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "implementationHash": "sha256:9959f1598a042d3e117a2b17f359bd99297fe1cc9016e1dba31760fa1f4a5701",
+      "invalidates": [
+        "messageViews"
+      ],
+      "name": "markConversationDelivered",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "messageViews"
+      ]
+    },
+    "markConversationRead": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "implementationHash": "sha256:d06af6e255f6d4101627de2f617831af221413d45b9ba8b441add60cdaa415a0",
+      "invalidates": [
+        "inboxes",
+        "messageViews"
+      ],
+      "name": "markConversationRead",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "inboxes",
+        "messageViews"
+      ]
+    },
+    "sendMessage": {
+      "argOrder": [
+        "externalId",
+        "conversationExternalId",
+        "text",
+        "mediaUri",
+        "mediaKind",
+        "viewOnce",
+        "replyToExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "externalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mediaKind": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mediaUri": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "replyToExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "text": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "viewOnce": {
+          "name": "boolean",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:567cd9e4e02224e077b3df9ce05f88cb5d0db07ce2c5811ce2a95864d801cabb",
+      "implementationHash": "sha256:db092aa57764ed5620c29db8b848cd66b94a3e6440fd94e114e6fece2633a41e",
+      "invalidates": [
+        "messages",
+        "messageViews",
+        "messageSearchViews",
+        "inboxes",
+        "notifications"
+      ],
+      "name": "sendMessage",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "serverRunnable": true,
+      "writes": [
+        "messages",
+        "messageViews",
+        "messageSearchViews",
+        "inboxes",
+        "notifications"
+      ]
+    },
+    "setFollow": {
+      "argOrder": [
+        "targetHandle",
+        "state",
+        "mutationId"
+      ],
+      "args": {
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "state": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "targetHandle": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:170fe5f802268f29d7311abf7e2c574ac8069291c9b09d1bd764088bd08a6bb6",
+      "implementationHash": "sha256:0cd882346da1a6cd76d25ab30a5cb020d45c22a8f6a87391064ce276c3a3b6a6",
+      "invalidates": [
+        "profiles",
+        "follows",
+        "feedEntries",
+        "mutationIntents",
+        "insights"
+      ],
+      "name": "setFollow",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "profiles",
+        "follows",
+        "feedEntries",
+        "mutationIntents",
+        "insights"
+      ]
+    },
+    "setMessageReaction": {
+      "argOrder": [
+        "messageExternalId",
+        "emoji",
+        "mutationId"
+      ],
+      "args": {
+        "emoji": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "messageExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:81719addd179bcf26bcba7350374e0f0b95f4428bdc8fe10fb138c52079096b2",
+      "implementationHash": "sha256:24c9ece6f5144f292db34f903c1413f4389bce6ab6cd72441a72484854117a6d",
+      "invalidates": [
+        "reactions",
+        "messageViews",
+        "mutationIntents"
+      ],
+      "name": "setMessageReaction",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "reactions",
+        "messageViews",
+        "mutationIntents"
+      ]
+    },
+    "setPostLike": {
+      "argOrder": [
+        "postExternalId",
+        "state",
+        "mutationId"
+      ],
+      "args": {
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "postExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "state": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:549ba7abcc69f4eab61f6ba631d89d927ceadbef85574626fe19ff2bc6024ed5",
+      "implementationHash": "sha256:37ab662ba6bd75b7879471fc35898ba97b6614508479f94308d892b2ffdb06cc",
+      "invalidates": [
+        "posts",
+        "postLikes",
+        "mutationIntents",
+        "insights",
+        "activityDays"
+      ],
+      "name": "setPostLike",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "posts",
+        "postLikes",
+        "mutationIntents",
+        "insights",
+        "activityDays"
+      ]
+    },
+    "setRepost": {
+      "argOrder": [
+        "postExternalId",
+        "state",
+        "mutationId"
+      ],
+      "args": {
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "postExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "state": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:549ba7abcc69f4eab61f6ba631d89d927ceadbef85574626fe19ff2bc6024ed5",
+      "implementationHash": "sha256:74393ba90b4241ded0525645d5acca8a8dd351ff8b6a4d2fa6235854cfc3eee8",
+      "invalidates": [
+        "posts",
+        "reposts",
+        "feedEntries",
+        "mutationIntents",
+        "insights"
+      ],
+      "name": "setRepost",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "posts",
+        "reposts",
+        "feedEntries",
+        "mutationIntents",
+        "insights"
+      ]
+    },
+    "updateConversation": {
+      "argOrder": [
+        "conversationExternalId",
+        "name",
+        "description",
+        "accent",
+        "backgroundUri",
+        "disappearing"
+      ],
+      "args": {
+        "accent": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "backgroundUri": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "description": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "disappearing": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:9c503373cb658719a4aadd5eb39c5de5eceed0a15790357fe393c13901dce536",
+      "implementationHash": "sha256:b7b3b002443161aaf675ac28b1e9387cbfc2ae774ba4ec114216214322cc523b",
+      "invalidates": [
+        "conversations",
+        "inboxes"
+      ],
+      "name": "updateConversation",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "boolean"
+        }
+      },
+      "resultHash": "sha256:cef85756389fe6697581c9fdc29a14fa046523065517ac2ab38e451f0024e158",
+      "serverRunnable": true,
+      "writes": [
+        "conversations",
+        "inboxes"
+      ]
+    },
+    "upsertProfile": {
+      "argOrder": [
+        "email",
+        "handle",
+        "displayName",
+        "bio",
+        "location",
+        "link",
+        "avatarUri"
+      ],
+      "args": {
+        "avatarUri": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "bio": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "displayName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "email": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "handle": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "link": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "location": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:ccbb6c7f3e537614e5cd2d5a2ae31f7fac045f48a2a60e226d963f54fa2744a2",
+      "implementationHash": "sha256:8b26ed12ba08b680f15ebb28750f713c3c17dd5e2b5d97cb9e1ceacf3d52d5f8",
+      "invalidates": [
+        "profiles",
+        "insights"
+      ],
+      "name": "upsertProfile",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "string",
+          "maxBytes": 1048576
+        }
+      },
+      "resultHash": "sha256:0d1fe89abb891626c45ac65a0ca438ead08236ed7c8c861352a2dcff54cdb96b",
+      "serverRunnable": true,
+      "writes": [
+        "profiles",
+        "insights"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "allPostLikes": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:7f886e4e8a6708728ccf1ddaafc0a6e4db4b9fd17a3a37999a8c7e1e8ad00ff5",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "allPostLikes",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "postLikes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "edgeKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "postLikes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "edgeKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "postExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "postLikes"
+      },
+      "resultHash": "sha256:b4445782757ee5db66d9aabfd103359ccdf8d78d4bc49bc5d1b02bc827b46c75",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "allReposts": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:802df186e14a534867df5618187d82e45d7ad371c5733c3c8b2c99838bf9bab1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "allReposts",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "reposts"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "edgeKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userName": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "reposts"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "edgeKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "postExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "reposts"
+      },
+      "resultHash": "sha256:4146f19f5dd3a79087bb5f7aebd404d6a56b58f7644c69edf16c36a7c5c4b1fe",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "followingFeed": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:5c4e96aae0730c65c1cf0a8d13599dcc4c002a2402487e84d401f9b72277cc9d",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "followingFeed",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "feedEntries"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "entryKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "projectedAuthorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "repostedByHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "repostedById": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "feedEntries"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "entryKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "postExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "projectedAuthorId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "repostedById",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "repostedByHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "feedEntries"
+      },
+      "resultHash": "sha256:4600a2e60f5a8422947068718207a229bdd7ed1200dee0b2f9b84e709ea9c9e1",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "globalPosts": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:0ef1a8baaa14650a0ee1dc908c8a516601418d1fe5c041bae98e946ac9145662",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "globalPosts",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "posts"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorAvatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "isReply": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "likeCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "mediaUri1": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUri2": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "parentExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "type": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "authorId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "authorHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "authorName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "authorAvatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "type",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaUri1",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaUri2",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "parentExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "isReply",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "likeCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "repostCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "replyCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "posts"
+      },
+      "resultHash": "sha256:479b48917b5c83d90ffbbab0379d9a1b97e6808a4a873c9647a93f7a8e5409f4",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "inboxForConversation": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:926d30e29069c9f9795755e6a8dd89ffaf91a04f04382f77a07febdd1829a486",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "inboxForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "inboxes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "accent": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "backgroundUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "counterpartHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "disappearing": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "identity": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "inboxKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "messageCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "preview": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unreadCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "inboxes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "inboxKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "identity",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "description",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "counterpartHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "accent",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "backgroundUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "disappearing",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "preview",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "unreadCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "messageCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "inboxes"
+      },
+      "resultHash": "sha256:26b4fdb21f7dd9c8144611cef5b8485b8dad5a2f18d7fe4f8719e751dece026a",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "membershipsForConversation": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:b6873ba263c1219d5d190951e2752094b7180ba0ac38b2da309aba6e0b9c9b9e",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "membershipsForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "memberships"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "active": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "edgeKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "joinedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userName": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "memberships"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "edgeKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "userName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "active",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "joinedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "memberships"
+      },
+      "resultHash": "sha256:5a8811e7531838008efc08e146eb82318f3f6e661f3cdaa8e377ecbfae1d2322",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "messagesForConversation": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:bd8da195288168cb2651cfc4b97e28fe61b2e82cbc06efd4b31658814c7ae7ca",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "messagesForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messageViews"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "edited": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "expiresAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pending": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "reactionsJson": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "receipt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyExcerpt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replySenderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyToExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderAvatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "tombstone": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "type": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewOnce": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "viewOnceState": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messageViews"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderAvatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "type",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaKind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewOnce",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "viewOnceState",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyToExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replySenderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyExcerpt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "reactionsJson",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "edited",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "tombstone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "receipt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pending",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "expiresAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messageViews"
+      },
+      "resultHash": "sha256:b92166a677931cb904c234942758c5bb4876fb796834108e4aa375387e2e6a38",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myActivityDays": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:843892960fdf4f20252022a1d5500e00cf64acd48ce7f9111a6b78a75b983739",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myActivityDays",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "activityDays"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "dayKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "likesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "posts": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "rowKey": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "activityDays"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "dayKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rowKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "posts",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "likesReceived",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "activityDays"
+      },
+      "resultHash": "sha256:156b7485775eae9d57cf294ee1d608501cc91f42d18c3a688b013e73a39b3d4e",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myInbox": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:e328c8b9c77763a40667ae77bee62f86eee5d04422dc0a29586fb3e1a10479be",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myInbox",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "inboxes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "accent": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "backgroundUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "counterpartHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "disappearing": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "identity": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "inboxKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "messageCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "preview": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "unreadCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "inboxes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "inboxKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "identity",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "description",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "counterpartHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "accent",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "backgroundUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "disappearing",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "role",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "preview",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "unreadCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "messageCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "inboxes"
+      },
+      "resultHash": "sha256:26b4fdb21f7dd9c8144611cef5b8485b8dad5a2f18d7fe4f8719e751dece026a",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myInsights": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:c108a2c422cb74be8f49d759c2d1c2964ba84588c4e67f11b1b5de3977daa213",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myInsights",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "insights"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "followers": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "following": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "likesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "posts": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repliesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostsReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "insights"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "posts",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "likesReceived",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "repostsReceived",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "repliesReceived",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "followers",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "following",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "insights"
+      },
+      "resultHash": "sha256:18cf1a67b11863e5837d6a9576ebf4e71ae35abb8440f98398e9b982cb26a88c",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myMessageSearch": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:03ab53a4d5e966365fd14c3efb7e2bcda603825c1797f2e851e4d2d535ece3a8",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myMessageSearch",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messageSearchViews"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "expiresAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "rowKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "tombstone": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messageSearchViews"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "rowKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "tombstone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "expiresAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messageSearchViews"
+      },
+      "resultHash": "sha256:b63dc3eaf094b2d3c2cc1e2cd13dac93ddf423880890ea3b2bf299b62102fd5c",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myMessages": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:1ee6f29ab8487bb245f31a680f2414ebd7abc4401c8b4c19c0d725c09c1e1da2",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myMessages",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messageViews"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "edited": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "expiresAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pending": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "reactionsJson": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "receipt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyExcerpt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replySenderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyToExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderAvatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "tombstone": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "type": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewOnce": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "viewOnceState": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messageViews"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderAvatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "type",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaKind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewOnce",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "viewOnceState",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyToExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replySenderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyExcerpt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "reactionsJson",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "edited",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "tombstone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "receipt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pending",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "expiresAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messageViews"
+      },
+      "resultHash": "sha256:b92166a677931cb904c234942758c5bb4876fb796834108e4aa375387e2e6a38",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myNotifications": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:12209651217cd58c92b16f28f82093350962c0c1dbf05d7aa1eac1a27835226f",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myNotifications",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "notifications"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "chatId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "payloadJson": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "preview": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderDisplayName": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "notifications"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "chatId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderDisplayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "preview",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "payloadJson",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "notifications"
+      },
+      "resultHash": "sha256:15adbf5078b8058a3c64e962a7ceca319c1f4896796901289206f4c40a72a74d",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "myProfile": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:382099e85796a8373a4cbee685dd5477757413202d4e61ae20183b49003b521c",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "myProfile",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "profiles"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "bio": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "email": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followerCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "followingCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "handle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "link": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "email",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "handle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "bio",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "location",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "link",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followerCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "followingCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:6963d36c20394a516836ecd1a02ec7aad7be2e800281665bf2fa54f632ddc245",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "profileByHandle": {
+      "argOrder": [
+        "handle"
+      ],
+      "args": {
+        "handle": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:a4b3c3a20a8d6982c15797de022d4007d5243a392c0b20f20bc45d90f9aa68b3",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:682f620f35ab3d6c7586f73a45fc24b7762c8f4ccab3cd6c1bb00689b7d36edf",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "profileByHandle",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "profiles"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "bio": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "email": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followerCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "followingCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "handle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "link": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "email",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "handle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "bio",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "location",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "link",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followerCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "followingCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:6963d36c20394a516836ecd1a02ec7aad7be2e800281665bf2fa54f632ddc245",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "publicFollows": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:b6e3eced56b90336821d729034825ee1a0664dbaeb84c61000a50ce33bdf6b52",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "publicFollows",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "follows"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "edgeKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followeeHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followeeId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followerHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followerId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "follows"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "edgeKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followeeId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followerHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followeeHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "follows"
+      },
+      "resultHash": "sha256:7ece8d491527aa3c710238d1ad60530463b810d2fad80d2037443d2177b304b4",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "publicProfiles": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:40e1b0edb7a60067d1f2c09235a660dc940d46baa26bd3b8d635608464b9959b",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "publicProfiles",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "profiles"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "avatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "bio": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "email": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "followerCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "followingCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "handle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "link": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "email",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "handle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "bio",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "location",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "link",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "followerCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "followingCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "profiles"
+      },
+      "resultHash": "sha256:6963d36c20394a516836ecd1a02ec7aad7be2e800281665bf2fa54f632ddc245",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "recentMessagesForConversation": {
+      "argOrder": [
+        "conversationExternalId"
+      ],
+      "args": {
+        "conversationExternalId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:e6aeb1a6687812cfc92ba086306ff9b24e735aea4732f1d3bb65c505d5cbef26",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:7d0bf4dbc3a03fbd7fdf779bc3e4b9f401f3e6adadfc1fc11bc8e388af5f6978",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "recentMessagesForConversation",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messageViews"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "conversationExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "edited": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "expiresAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "externalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "ownerId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pageKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "pending": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "reactionsJson": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "receipt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyExcerpt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replySenderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyToExternalId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderAvatarUri": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "senderName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sentAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "tombstone": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "type": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewKey": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "viewOnce": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "viewOnceState": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "messageViews"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "externalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "conversationExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderHandle",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "senderAvatarUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "type",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "text",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaUri",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "mediaKind",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "viewOnce",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "viewOnceState",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyToExternalId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replySenderName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "replyExcerpt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "reactionsJson",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "edited",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "tombstone",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "receipt",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "pending",
+              "required": true,
+              "value": {
+                "kind": "boolean"
+              }
+            },
+            {
+              "name": "expiresAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "sentAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            },
+            {
+              "name": "pageKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "messageViews"
+      },
+      "resultHash": "sha256:b92166a677931cb904c234942758c5bb4876fb796834108e4aa375387e2e6a38",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "typing": {
+      "argOrder": [
+        "conversationKey"
+      ],
+      "args": {
+        "conversationKey": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "defaultLive": true,
+      "defaultTtlMs": 4500,
+      "ephemeral": true,
+      "initialSnapshot": true,
+      "keyMode": "Connection",
+      "livePush": true,
+      "localRunnable": true,
+      "maxDeltaRateHz": 13,
+      "maxTtlMs": 5000,
+      "mode": "live",
+      "name": "typing",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "expiresAt": {
+              "name": "number",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "key": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "self": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "sourceClientId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "value": {
+              "fields": {
+                "displayName": {
+                  "name": "string",
+                  "shape": "primitive"
+                },
+                "handle": {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              },
+              "shape": "object"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "scopeFields": [
+        "conversationKey"
+      ],
+      "serverRunnable": false,
+      "subscription": "initial-snapshot",
+      "withdrawalVisibilityDeadlineMs": 2250
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:aa67104ce3ee21d34275581af8e72aacd86bd8695e4d428d9e5140addb1d4e02",
+  "schemaVersion": "snapback.v1"
+}

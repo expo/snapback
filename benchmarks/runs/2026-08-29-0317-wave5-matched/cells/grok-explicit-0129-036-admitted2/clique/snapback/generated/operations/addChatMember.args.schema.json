@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/addChatMember.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "handle": {
+      "type": "string"
+    },
+    "mutationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId",
+    "handle",
+    "mutationId"
+  ],
+  "title": "clique:addChatMember arguments",
+  "type": "object"
+}

@@ -1,0 +1,39 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/sendMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationExternalId": {
+      "type": "string"
+    },
+    "externalId": {
+      "type": "string"
+    },
+    "mediaKind": {
+      "type": "string"
+    },
+    "mediaUri": {
+      "type": "string"
+    },
+    "replyToExternalId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "viewOnce": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "externalId",
+    "conversationExternalId",
+    "text",
+    "mediaUri",
+    "mediaKind",
+    "viewOnce",
+    "replyToExternalId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:sendMessage arguments",
+  "type": "object"
+}

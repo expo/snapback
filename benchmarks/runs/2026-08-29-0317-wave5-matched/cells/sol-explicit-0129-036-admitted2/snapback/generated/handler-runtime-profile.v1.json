@@ -1,0 +1,1437 @@
+{
+  "admissionVersion": "snapback.handler-admission.legacy.v1",
+  "appId": "sol-explicit-0129-036-admitted2",
+  "artifactKind": "handlerRuntimeProfile",
+  "authoredSourceHash": "sha256:669973ec788190f61b693478d3861e506ddfa2d7626b93fac74ee009527d2cb1",
+  "computedAccess": {
+    "dynamicProperties": "forbidden",
+    "forbiddenReflectionProperties": [
+      "__proto__",
+      "constructor",
+      "prototype"
+    ],
+    "objectReflectionMethods": [
+      "getOwnPropertyDescriptor",
+      "getOwnPropertyDescriptors",
+      "getOwnPropertyNames",
+      "getOwnPropertySymbols",
+      "getPrototypeOf",
+      "setPrototypeOf"
+    ],
+    "staticNumericIndexes": "admitted-where-the-current-scanner-resolves-a-literal",
+    "staticStringProperties": "admitted"
+  },
+  "diagnostics": [
+    {
+      "alternative": "Move the helper into the same authored file; imported helpers are not admitted yet.",
+      "code": "BUNDLE_UNSUPPORTED_IMPORT",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "module.import.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Register closed-script handlers on globalThis.__snapbackHandlers.",
+      "code": "BUNDLE_UNSUPPORTED_EXPORT",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "module.export.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ordinary lexical bindings.",
+      "code": "BUNDLE_UNSUPPORTED_WITH",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.dynamic-scope.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass declared data through arguments, ctx, or configured action secrets.",
+      "code": "BUNDLE_UNSUPPORTED_PROCESS",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-use-node-crypto",
+      "id": "global.process.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use admitted JavaScript or a host-mediated capability.",
+      "code": "BUNDLE_UNSUPPORTED_WEBASSEMBLY",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "global.webassembly.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Treat fetched or stored text as data; do not evaluate it.",
+      "code": "BUNDLE_UNSUPPORTED_EVAL",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.eval.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use authored functions in the closed handler source.",
+      "code": "BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "syntax.function-constructor.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Move the helper into the same authored file; CommonJS loading is unavailable.",
+      "code": "BUNDLE_UNSUPPORTED_REQUIRE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "module.require.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use an Action and enable SNAPBACK_OUTBOUND_ACTIONS, or use a host-mediated declared capability.",
+      "code": "BUNDLE_UNSUPPORTED_FETCH",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.fetch.opt-in",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use durable jobs for delayed work and ctx.runtime.now() for trusted timestamps.",
+      "code": "BUNDLE_UNSUPPORTED_TIMER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.timer.opt-in",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ctx.runtime.id() for identifiers or pass deterministic input.",
+      "code": "BUNDLE_UNSUPPORTED_RANDOM",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.random.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use ctx.runtime.now() for a trusted integer timestamp.",
+      "code": "BUNDLE_UNSUPPORTED_TIME",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "global.time.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Fix the named JavaScript or TypeScript source span.",
+      "code": "BUNDLE_HANDLER_PARSE_FAILED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "closed-script.source.parse",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use one direct handler function or the documented closed-script source form.",
+      "code": "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.form.invalid",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Fix the named JavaScript or TypeScript source span.",
+      "code": "SNAPBACK_INLINE_HANDLER_SOURCE_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "inline.source.parse",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Write one direct non-computed handler property containing a function expression.",
+      "code": "SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.literal.direct",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use the admitted inline syntax or a declarative plan.",
+      "code": "SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#forbidden-syntax-and-computed-access",
+      "id": "inline.syntax.forbidden",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass data through args or ctx, or use a same-file function declaration.",
+      "code": "SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#globals-and-operation-kinds",
+      "id": "inline.global.allowlist",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Rewrite the helper using the admitted inline syntax.",
+      "code": "SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.syntax",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Pass the value as an argument or make the helper self-contained.",
+      "code": "SNAPBACK_INLINE_HELPER_FREE_IDENTIFIER",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.free-identifier",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Use a top-level function declaration; imports and top-level values cannot be spliced.",
+      "code": "SNAPBACK_INLINE_HELPER_INADMISSIBLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#can-i-import-a-helper",
+      "id": "inline.helper.inadmissible",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Break the same-file helper cycle.",
+      "code": "SNAPBACK_INLINE_HELPER_CYCLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.helper.cycle",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Keep the direct authored handler expression bound to its generated definition marker.",
+      "code": "SNAPBACK_INLINE_HANDLER_MARKER_INVALID",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.marker.invalid",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Export the direct inline definition so codegen can bind its authored handler.",
+      "code": "SNAPBACK_INLINE_HANDLER_NOT_BOUND",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#inline-handlers-and-same-file-helpers",
+      "id": "inline.marker.unbound",
+      "phase": "static-admission"
+    },
+    {
+      "alternative": "Replace the named value with strict JSON data.",
+      "code": "SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "definition.strict-json",
+      "phase": "definition-evaluation"
+    },
+    {
+      "alternative": "Add export to the named top-level builder binding.",
+      "code": "SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#diagnostic-attribution",
+      "id": "definition.export.required",
+      "phase": "definition-discovery"
+    },
+    {
+      "alternative": "See the diagnostic message and the Familiar handler dialect table.",
+      "code": "SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE",
+      "guideAnchor": "/_snapback/guide/backend/familiar-profile.md#translate-the-familiar-handler-dialect",
+      "id": "familiar.result.unlowerable",
+      "phase": "definition-evaluation"
+    },
+    {
+      "alternative": "Use the operation kind and ctx capability named by the diagnostic.",
+      "code": "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#static-and-runtime-refusals",
+      "id": "runtime.ambient-capability",
+      "phase": "runtime-check"
+    },
+    {
+      "alternative": "Register the closed-script export on globalThis.__snapbackHandlers.",
+      "code": "SNAPBACK_HANDLER_EXPORT_MISSING",
+      "guideAnchor": "/_snapback/guide/backend/handler-runtime.md#closed-script-handler-files",
+      "id": "runtime.export.required",
+      "phase": "runtime-check"
+    }
+  ],
+  "globals": {
+    "Action": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "LiveQuery": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "Mutation": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    },
+    "Query": {
+      "basis": "current-codegen-admission",
+      "handlerForms": {
+        "closedScript": {
+          "admissionModel": "scanner-denylist-plus-runtime-boundary",
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "process": "unavailable",
+          "timers": "unavailable"
+        },
+        "inline": {
+          "fetch": "unavailable",
+          "nodeCrypto": "unavailable",
+          "positiveAllowlist": [
+            "Array",
+            "BigInt",
+            "Boolean",
+            "Date",
+            "Error",
+            "Infinity",
+            "JSON",
+            "Map",
+            "Math",
+            "NaN",
+            "Number",
+            "Object",
+            "Promise",
+            "RangeError",
+            "ReferenceError",
+            "RegExp",
+            "Set",
+            "String",
+            "SyntaxError",
+            "TypeError",
+            "URIError",
+            "Uint8Array",
+            "decodeURI",
+            "decodeURIComponent",
+            "encodeURI",
+            "encodeURIComponent",
+            "isFinite",
+            "isNaN",
+            "parseFloat",
+            "parseInt",
+            "undefined"
+          ],
+          "process": "unavailable",
+          "timers": "unavailable"
+        }
+      },
+      "identifiers": [
+        "Array",
+        "BigInt",
+        "Boolean",
+        "Date",
+        "Error",
+        "Infinity",
+        "JSON",
+        "Map",
+        "Math",
+        "NaN",
+        "Number",
+        "Object",
+        "Promise",
+        "RangeError",
+        "ReferenceError",
+        "RegExp",
+        "Set",
+        "String",
+        "SyntaxError",
+        "TypeError",
+        "URIError",
+        "Uint8Array",
+        "decodeURI",
+        "decodeURIComponent",
+        "encodeURI",
+        "encodeURIComponent",
+        "isFinite",
+        "isNaN",
+        "parseFloat",
+        "parseInt",
+        "undefined"
+      ]
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436",
+  "moduleGraph": {
+    "admittedSpecifiers": [],
+    "cycles": "forbidden",
+    "graphRecordSchema": {
+      "admissionVersion": "snapback.handler-admission.legacy.v1",
+      "digestFields": {
+        "canonicalExecutableAstDigest": "canonical-executable",
+        "rawSourceEvidenceDigest": "raw-source-evidence"
+      },
+      "extractorVersion": "snapback.inline-handler-extractor.v1",
+      "moduleFormat": "esm",
+      "normalizedTarget": "root-relative-posix-path",
+      "sameFileTargetResolution": "self",
+      "schemaVersion": "snapback.handler-graph-record.v1",
+      "sourceSnapshot": {
+        "attestedReread": "not-applicable-while-relative-imports-are-not-admitted",
+        "protocol": "single-captured-source-buffer-v1"
+      },
+      "topology": "directed-node-and-edge-list"
+    },
+    "identityEvidence": {
+      "canonicalExecutableDigestField": "implementationHash",
+      "rawEvidenceDigestField": "authoredSourceHash"
+    },
+    "importedHelpers": "not-admitted",
+    "integerIndexGrammar": "not-applicable-to-legacy-profiles",
+    "maximumFiles": 1,
+    "maximumImportDepth": 0,
+    "reExports": "forbidden",
+    "records": [
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:23f8a1cebb2b8729370a36ac4e189cda7ee65a4206478e99767166d10be96990",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:c4e055512a6833969b9c9598f6a43a55bb0ced96de8e1e63563f1db9750b596c",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "changeMember",
+            "nodeId": "handler:changeMember",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:ce45d28a12b99edcb7339ec0133ceff0073e0aa6736593debf1ee1ee6c9c4498",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 441
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 441
+          },
+          "name": "changeMember",
+          "nodeId": "handler:changeMember",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:14db7470a4fee94a7b75ba5e92d590b0e5f35143dcdd96edad2d759c6c8e35f7",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:6d0dc8d471bdb9abb36af9442c0901f672cea2550f040476a0563531cff1621b",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "consumeViewOnce",
+            "nodeId": "handler:consumeViewOnce",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:ab2de5fd704ba8419645c9790fec612629529e890b4fd5cac33a7ce885eaba66",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 726
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 726
+          },
+          "name": "consumeViewOnce",
+          "nodeId": "handler:consumeViewOnce",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:057b4fac1392f3a7f85562fea42e7af592b11264b066751ac173cbeefdbc8594",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:e70275cdc28112ab89bc830ff83832aa8ac4df5f4602f1c3431339b750b7cda7",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "createGroup",
+            "nodeId": "handler:createGroup",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:3a991b4b6a4f59aa46d6d93d041bbcbb4d8db7a3eecaec514efdc4f8e08ce8d1",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 400
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 400
+          },
+          "name": "createGroup",
+          "nodeId": "handler:createGroup",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:e98a8dd540758b97a51be91ca102432ac4e0839225d8fe11d128d9751a91bc0c",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:9c1162850253cf2eda4ff218341f6f1ee983c1c2b7d3b26f7bba19af841a1d7f",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "createPost",
+            "nodeId": "handler:createPost",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:34471a2f41e53f887c2f8ed339597ee30a0c880276128000eeab0f8f8d8e02e6",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 221
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 221
+          },
+          "name": "createPost",
+          "nodeId": "handler:createPost",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:8a106a540ae2082e04fb6e80abbc43a9fecf303b73954f5834caaf468a9b8f88",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:24bf397668d9ad071246928f98a5fc124c7706836d6dcf45aba9b22845403f34",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "deleteMessage",
+            "nodeId": "handler:deleteMessage",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:d79eefb1b8e8c975acfcb2c087e0c2b6a31e5e5c1f030231a4aa9474e7f5868a",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 709
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 709
+          },
+          "name": "deleteMessage",
+          "nodeId": "handler:deleteMessage",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:c8898740037d1fdf0e665ebd96db039718d1a2f3b05c54852f4787b30a0da7a7",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:56d698aaa2c9062ef9a43734fa9c80d5ffb7dfdb7265eeecebf96af72b0ac7c1",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "editMessage",
+            "nodeId": "handler:editMessage",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:1d35fd75565389f879b9f1961f043ed1b7cf045381cdebcb7d3f11042d8d152c",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 691
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 691
+          },
+          "name": "editMessage",
+          "nodeId": "handler:editMessage",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:f7564deff9be630e6500606e88d294c8ca9254e8492242f3d8afeef1cc2135c0",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:9f9f48f97b02fe44eaa2d73e60592d5fcb4b648e7451be27ae1d1a0da0e58204",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "ensureDm",
+            "nodeId": "handler:ensureDm",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:9480a055c67bda7f92a451ea0b48c10beb019e10bb958b4e5d76a41c1d17e8b3",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 356
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 356
+          },
+          "name": "ensureDm",
+          "nodeId": "handler:ensureDm",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:aaaa3e1a1d7b0d0831b68255824d7ebc73ce24d2b73bda94ba7c0fe5130a902b",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:5a590a39251da6ecda3160ad6d324eee7b8f0a1f589b8ddebc830316176697da",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "markConversationDelivered",
+            "nodeId": "handler:markConversationDelivered",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:71013691037b60802cb62f62d3984cd6b28a10fa547b3e055d178fd94b1b24ae",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 626
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 626
+          },
+          "name": "markConversationDelivered",
+          "nodeId": "handler:markConversationDelivered",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:616d9b36fabc87ccc613fe3bec0c81dc6e5205dc4683a05f643849725534c388",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:8937aebdbdadc65d95795439ac5a87ff323bac11af393c9b9da3342c01260b7a",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "markConversationRead",
+            "nodeId": "handler:markConversationRead",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:0b62e3ea1169332a4e5c75f6f12e93d10c01ba7927d9b6ea8f296a493d8aea4f",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 597
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 597
+          },
+          "name": "markConversationRead",
+          "nodeId": "handler:markConversationRead",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:441d7876c8b3e20be30de9f32c5416307a343e521a1bd6a09eba51628af7330a",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:af11f427567575ce407e6edc31170c9fd379573698c34466b4d2149a0d2171ea",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "sendMessage",
+            "nodeId": "handler:sendMessage",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:0800b6cbd306eee66e5520456c8b6b396dc7d0d629d09ea2450cf46151db7aeb",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 516
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 516
+          },
+          "name": "sendMessage",
+          "nodeId": "handler:sendMessage",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:9ee7f1153d47dcd39091f10a14f0d5bd802c31899e18074a6b3047291bbcb29d",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:6e3f2098d8e5e8caf480397347a201117a2ae7c10cbfb500615084537a04181d",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "setFollow",
+            "nodeId": "handler:setFollow",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:09eea3491b209aea28cc7fb9660e84d31f3572727aa0a13177e15825ecaaa78e",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 158
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 158
+          },
+          "name": "setFollow",
+          "nodeId": "handler:setFollow",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:da0e5947f4b4a5d9a18b6c78906cf62b1821d2ea3509a53b0cc532f02acb5862",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:dfa9c2f4bed287b45fb01de39468c29657192da690a0db95b7c9c3818d7a39ec",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "setMessageReaction",
+            "nodeId": "handler:setMessageReaction",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:bd7f8714fcf4b19092c3d24c1e84f2e4e0958d155f878f72a27bfca0768035a0",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 650
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 650
+          },
+          "name": "setMessageReaction",
+          "nodeId": "handler:setMessageReaction",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:a5f8815afe475f04eac760f6af00e409932391446de49f00582906cadde06262",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:67fabc50f084c0a06883f4e7ac085eeac7a42cae7ae976bcb49c384928b74ac3",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "setPostLike",
+            "nodeId": "handler:setPostLike",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:12291f72cea2d22e99b6707c045c43445e401c5b6b6225c44e6c1d369301fdbf",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 273
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 273
+          },
+          "name": "setPostLike",
+          "nodeId": "handler:setPostLike",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:e2ef6de76f9c738f83e18d6155fdf8ab0ba89efd7a87eb29aed00d63f4293030",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:ac045f0dc3e64aa73a540ad55059709c06a868428facb10c23bd66dc0e80f55d",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "setRepost",
+            "nodeId": "handler:setRepost",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:1dc6563746b93f7bcc765843a9475f6c0a28f670258248b37e869ef63d16c5f2",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 312
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 312
+          },
+          "name": "setRepost",
+          "nodeId": "handler:setRepost",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:6f05112ddacedb75f901618798a689192d41d19da0099eb539f1af4d18223003",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:b77bf0ece02db988839c3811c08aa6c469f8ecddd9a02f91248e9c02d5eb1e58",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "updateConversation",
+            "nodeId": "handler:updateConversation",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:d11a170afb115e8b77306692d429673165f04cc50da601742ea4e70b7d427a12",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 743
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 743
+          },
+          "name": "updateConversation",
+          "nodeId": "handler:updateConversation",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      },
+      {
+        "admissionVersion": "snapback.handler-admission.legacy.v1",
+        "edges": [],
+        "extractorVersion": "snapback.inline-handler-extractor.v1",
+        "graphTopologyDigest": "sha256:6a37db01cfeb523e0ad0239d634cc849add4b91f85226860a1accb6bce20bbfb",
+        "moduleFormat": "esm",
+        "nodes": [
+          {
+            "canonicalExecutableAstDigest": "sha256:052af136b7601bde4ccb1e275ac96d34e11aaf6b78f83765d7c4a95d0448d326",
+            "kind": "handler",
+            "moduleFormat": "esm",
+            "name": "upsertProfile",
+            "nodeId": "handler:upsertProfile",
+            "normalizedTarget": "functions.mjs",
+            "rawSourceEvidenceDigest": "sha256:55fd13e4a4fd39f90bbf068c6a0bb6ac5d3f66d7051847ca1e865773bf70a14c",
+            "sourceSpan": {
+              "column": 12,
+              "file": "functions.mjs",
+              "line": 128
+            }
+          }
+        ],
+        "root": {
+          "importerSpan": {
+            "column": 12,
+            "file": "functions.mjs",
+            "line": 128
+          },
+          "name": "upsertProfile",
+          "nodeId": "handler:upsertProfile",
+          "normalizedTarget": "functions.mjs"
+        },
+        "schemaVersion": "snapback.handler-graph-record.v1"
+      }
+    ],
+    "sameFileFunctionDeclarations": true
+  },
+  "operations": [
+    {
+      "operation": "allPostLikes",
+      "operationId": "sol-explicit-0129-036-admitted2:allPostLikes",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "allReposts",
+      "operationId": "sol-explicit-0129-036-admitted2:allReposts",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "changeMember",
+      "operationId": "sol-explicit-0129-036-admitted2:changeMember",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "consumeViewOnce",
+      "operationId": "sol-explicit-0129-036-admitted2:consumeViewOnce",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "createGroup",
+      "operationId": "sol-explicit-0129-036-admitted2:createGroup",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "createPost",
+      "operationId": "sol-explicit-0129-036-admitted2:createPost",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "deleteMessage",
+      "operationId": "sol-explicit-0129-036-admitted2:deleteMessage",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "editMessage",
+      "operationId": "sol-explicit-0129-036-admitted2:editMessage",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "ensureDm",
+      "operationId": "sol-explicit-0129-036-admitted2:ensureDm",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "followingFeed",
+      "operationId": "sol-explicit-0129-036-admitted2:followingFeed",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "globalPosts",
+      "operationId": "sol-explicit-0129-036-admitted2:globalPosts",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "inboxForConversation",
+      "operationId": "sol-explicit-0129-036-admitted2:inboxForConversation",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "markConversationDelivered",
+      "operationId": "sol-explicit-0129-036-admitted2:markConversationDelivered",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "markConversationRead",
+      "operationId": "sol-explicit-0129-036-admitted2:markConversationRead",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "membershipsForConversation",
+      "operationId": "sol-explicit-0129-036-admitted2:membershipsForConversation",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "messagesForConversation",
+      "operationId": "sol-explicit-0129-036-admitted2:messagesForConversation",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myActivityDays",
+      "operationId": "sol-explicit-0129-036-admitted2:myActivityDays",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myInbox",
+      "operationId": "sol-explicit-0129-036-admitted2:myInbox",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myInsights",
+      "operationId": "sol-explicit-0129-036-admitted2:myInsights",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myMessageSearch",
+      "operationId": "sol-explicit-0129-036-admitted2:myMessageSearch",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myMessages",
+      "operationId": "sol-explicit-0129-036-admitted2:myMessages",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myNotifications",
+      "operationId": "sol-explicit-0129-036-admitted2:myNotifications",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "myProfile",
+      "operationId": "sol-explicit-0129-036-admitted2:myProfile",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "profileByHandle",
+      "operationId": "sol-explicit-0129-036-admitted2:profileByHandle",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "publicFollows",
+      "operationId": "sol-explicit-0129-036-admitted2:publicFollows",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "publicProfiles",
+      "operationId": "sol-explicit-0129-036-admitted2:publicProfiles",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "recentMessagesForConversation",
+      "operationId": "sol-explicit-0129-036-admitted2:recentMessagesForConversation",
+      "operationKind": "LiveQuery",
+      "selectedProfile": "host-plan-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "sendMessage",
+      "operationId": "sol-explicit-0129-036-admitted2:sendMessage",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "setFollow",
+      "operationId": "sol-explicit-0129-036-admitted2:setFollow",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "setMessageReaction",
+      "operationId": "sol-explicit-0129-036-admitted2:setMessageReaction",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "setPostLike",
+      "operationId": "sol-explicit-0129-036-admitted2:setPostLike",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "setRepost",
+      "operationId": "sol-explicit-0129-036-admitted2:setRepost",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "updateConversation",
+      "operationId": "sol-explicit-0129-036-admitted2:updateConversation",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    },
+    {
+      "operation": "upsertProfile",
+      "operationId": "sol-explicit-0129-036-admitted2:upsertProfile",
+      "operationKind": "Mutation",
+      "selectedProfile": "inline-handler-v1",
+      "selectionReason": "legacy-profile"
+    }
+  ],
+  "profileVersion": "snapback.handler-runtime-profile.v1",
+  "runtimeCapabilities": {
+    "dynamicCodeGeneration": false,
+    "filesystem": false,
+    "freshIdentifiers": "ctx.runtime.id",
+    "nodeBuiltins": false,
+    "nodeCrypto": false,
+    "outboundFetch": false,
+    "trustedTime": "ctx.runtime.now",
+    "wasm": false
+  },
+  "schemaVersion": "snapback.handler-runtime-profile.v1",
+  "selectionReasonVocabulary": {
+    "current": [
+      "legacy-profile"
+    ],
+    "reservedForBoundedModules": [
+      "explicit",
+      "required-by-import"
+    ]
+  },
+  "syntax": {
+    "admitted": [
+      "direct function and arrow-function expressions",
+      "statically named ordinary property access",
+      "same-file top-level function declarations reached from a handler"
+    ],
+    "forbidden": [
+      "class syntax",
+      "ambient this or super",
+      "dynamic import",
+      "eval",
+      "Function construction",
+      "dynamic computed member access",
+      "prototype and descriptor reflection",
+      "helper cycles"
+    ]
+  },
+  "targetDifferences": {
+    "local-dev-sqlite-ibex": {
+      "engine": "Hermes through Ibex",
+      "handlerAdmission": "legacy-v1"
+    },
+    "remote-service-sqlite-ibex": {
+      "engine": "Hermes through Ibex",
+      "handlerAdmission": "legacy-v1"
+    },
+    "workerd-v8": {
+      "status": "not-admitted-in-rollout-1"
+    }
+  },
+  "targetProfile": "local-dev-sqlite-ibex"
+}

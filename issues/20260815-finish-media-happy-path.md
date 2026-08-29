@@ -270,3 +270,21 @@ published. LLP 0317 Wave 5 matched cells requiring a published `0.1.30` pin
 remain blocked at their publication entry gate; same-instrument published
 `0.1.29` baseline cells may proceed and must be reported separately rather
 than compared with an unpublished candidate.
+
+## Wave 5 requalification disposition — 2026-08-29
+
+Two entry-admitted Explicit cells ran the repaired
+`social-messenger@0.3.6-m8` journey against published Snapback `0.1.29`, but
+final curation found neither complete under the preregistered measurement
+contract. Sol retained green application proof but not per-obligation mapping
+or loop attribution. Grok additionally retained hash-incoherent M1/M2 proof
+pairs and incomplete runtime/template identity. Protocol loop counts and an
+admissible baseline are therefore unknown. M7 was environment-null. The
+evidence is under `benchmarks/runs/2026-08-29-0317-wave5-matched/`.
+
+No result weakens this ticket's publication prerequisite. Candidate `0.1.30`
+cells remained inadmissible after the qualification refusal, and Familiar
+baseline cells remained behind their preregistered candidate-first order.
+There is no matched-pin comparison or published-package media closure. Keep
+this issue open for the LLP 0239 rollout and the LLP 0110-authorized public
+capability attestation path described above.

@@ -1,0 +1,30 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/setChatSettings.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accent": {
+      "type": "string"
+    },
+    "background": {
+      "type": "string"
+    },
+    "chatId": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "disappearing": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "clique:setChatSettings arguments",
+  "type": "object"
+}

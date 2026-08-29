@@ -1,0 +1,38 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/sendMedia.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "caption": {
+      "type": "string"
+    },
+    "chatId": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "mediaKind": {
+      "type": "string"
+    },
+    "video": {
+      "type": "string"
+    },
+    "viewOnce": {
+      "type": "boolean"
+    },
+    "viewOnceImage": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "clientId",
+    "chatId",
+    "mediaKind"
+  ],
+  "title": "clique:sendMedia arguments",
+  "type": "object"
+}

@@ -1,0 +1,27 @@
+{
+  "milestone": "m4",
+  "passed": true,
+  "results": [
+    {
+      "id": "m4-a01",
+      "pass": true
+    },
+    {
+      "id": "m4-a03",
+      "pass": true
+    },
+    {
+      "id": "m4-a06",
+      "pass": true
+    },
+    {
+      "id": "m4-a07",
+      "pass": true
+    },
+    {
+      "id": "m4-a09",
+      "pass": true
+    }
+  ],
+  "at": "2026-08-29T12:01:32.598Z"
+}

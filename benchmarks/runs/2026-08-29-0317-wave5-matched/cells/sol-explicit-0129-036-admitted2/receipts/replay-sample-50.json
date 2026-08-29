@@ -1,0 +1,363 @@
+{
+  "schemaVersion": "clique.sample-replay.v1",
+  "ok": true,
+  "instrument": "social-messenger@0.3.6-m8",
+  "segments": [
+    "sample-50"
+  ],
+  "actionCount": 50,
+  "actions": [
+    {
+      "segment": "sample-50",
+      "line": 1,
+      "timestamp": "2026-01-01T00:00:00Z",
+      "actor": "sample-a",
+      "action": "register"
+    },
+    {
+      "segment": "sample-50",
+      "line": 2,
+      "timestamp": "2026-01-01T00:00:01Z",
+      "actor": "sample-a",
+      "action": "profile-set"
+    },
+    {
+      "segment": "sample-50",
+      "line": 3,
+      "timestamp": "2026-01-01T00:00:02Z",
+      "actor": "sample-b",
+      "action": "register"
+    },
+    {
+      "segment": "sample-50",
+      "line": 4,
+      "timestamp": "2026-01-01T00:00:03Z",
+      "actor": "sample-b",
+      "action": "profile-set"
+    },
+    {
+      "segment": "sample-50",
+      "line": 5,
+      "timestamp": "2026-01-01T00:00:04Z",
+      "actor": "sample-c",
+      "action": "register"
+    },
+    {
+      "segment": "sample-50",
+      "line": 6,
+      "timestamp": "2026-01-01T00:00:05Z",
+      "actor": "sample-c",
+      "action": "profile-set"
+    },
+    {
+      "segment": "sample-50",
+      "line": 7,
+      "timestamp": "2026-01-01T00:00:06Z",
+      "actor": "sample-d",
+      "action": "register"
+    },
+    {
+      "segment": "sample-50",
+      "line": 8,
+      "timestamp": "2026-01-01T00:00:07Z",
+      "actor": "sample-d",
+      "action": "profile-set"
+    },
+    {
+      "segment": "sample-50",
+      "line": 9,
+      "timestamp": "2026-01-01T00:00:08Z",
+      "actor": "sample-a",
+      "action": "follow"
+    },
+    {
+      "segment": "sample-50",
+      "line": 10,
+      "timestamp": "2026-01-01T00:00:09Z",
+      "actor": "sample-a",
+      "action": "follow"
+    },
+    {
+      "segment": "sample-50",
+      "line": 11,
+      "timestamp": "2026-01-01T00:00:10Z",
+      "actor": "sample-a",
+      "action": "follow"
+    },
+    {
+      "segment": "sample-50",
+      "line": 12,
+      "timestamp": "2026-01-01T00:00:11Z",
+      "actor": "sample-d",
+      "action": "follow"
+    },
+    {
+      "segment": "sample-50",
+      "line": 13,
+      "timestamp": "2026-01-01T00:00:12Z",
+      "actor": "sample-a",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 14,
+      "timestamp": "2026-01-01T00:00:13Z",
+      "actor": "sample-b",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 15,
+      "timestamp": "2026-01-01T00:00:14Z",
+      "actor": "sample-c",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 16,
+      "timestamp": "2026-01-01T00:00:15Z",
+      "actor": "sample-d",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 17,
+      "timestamp": "2026-01-01T00:00:16Z",
+      "actor": "sample-a",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 18,
+      "timestamp": "2026-01-01T00:00:17Z",
+      "actor": "sample-b",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 19,
+      "timestamp": "2026-01-01T00:00:18Z",
+      "actor": "sample-c",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 20,
+      "timestamp": "2026-01-01T00:00:19Z",
+      "actor": "sample-d",
+      "action": "post"
+    },
+    {
+      "segment": "sample-50",
+      "line": 21,
+      "timestamp": "2026-01-01T00:00:20Z",
+      "actor": "sample-b",
+      "action": "like"
+    },
+    {
+      "segment": "sample-50",
+      "line": 22,
+      "timestamp": "2026-01-01T00:00:21Z",
+      "actor": "sample-c",
+      "action": "like"
+    },
+    {
+      "segment": "sample-50",
+      "line": 23,
+      "timestamp": "2026-01-01T00:00:22Z",
+      "actor": "sample-b",
+      "action": "like"
+    },
+    {
+      "segment": "sample-50",
+      "line": 24,
+      "timestamp": "2026-01-01T00:00:23Z",
+      "actor": "sample-d",
+      "action": "like"
+    },
+    {
+      "segment": "sample-50",
+      "line": 25,
+      "timestamp": "2026-01-01T00:00:24Z",
+      "actor": "sample-b",
+      "action": "repost"
+    },
+    {
+      "segment": "sample-50",
+      "line": 26,
+      "timestamp": "2026-01-01T00:00:25Z",
+      "actor": "sample-b",
+      "action": "repost"
+    },
+    {
+      "segment": "sample-50",
+      "line": 27,
+      "timestamp": "2026-01-01T00:00:26Z",
+      "actor": "sample-c",
+      "action": "repost"
+    },
+    {
+      "segment": "sample-50",
+      "line": 28,
+      "timestamp": "2026-01-01T00:00:27Z",
+      "actor": "sample-b",
+      "action": "reply"
+    },
+    {
+      "segment": "sample-50",
+      "line": 29,
+      "timestamp": "2026-01-01T00:00:28Z",
+      "actor": "sample-c",
+      "action": "reply"
+    },
+    {
+      "segment": "sample-50",
+      "line": 30,
+      "timestamp": "2026-01-01T00:00:29Z",
+      "actor": "sample-d",
+      "action": "reply"
+    },
+    {
+      "segment": "sample-50",
+      "line": 31,
+      "timestamp": "2026-01-01T00:00:30Z",
+      "actor": "sample-a",
+      "action": "reply"
+    },
+    {
+      "segment": "sample-50",
+      "line": 32,
+      "timestamp": "2026-01-01T00:00:31Z",
+      "actor": "sample-a",
+      "action": "dm-create"
+    },
+    {
+      "segment": "sample-50",
+      "line": 33,
+      "timestamp": "2026-01-01T00:00:32Z",
+      "actor": "sample-a",
+      "action": "group-create"
+    },
+    {
+      "segment": "sample-50",
+      "line": 34,
+      "timestamp": "2026-01-01T00:00:33Z",
+      "actor": "sample-a",
+      "action": "member-add"
+    },
+    {
+      "segment": "sample-50",
+      "line": 35,
+      "timestamp": "2026-01-01T00:00:34Z",
+      "actor": "sample-a",
+      "action": "member-add"
+    },
+    {
+      "segment": "sample-50",
+      "line": 36,
+      "timestamp": "2026-01-01T00:00:35Z",
+      "actor": "sample-a",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 37,
+      "timestamp": "2026-01-01T00:00:36Z",
+      "actor": "sample-b",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 38,
+      "timestamp": "2026-01-01T00:00:37Z",
+      "actor": "sample-a",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 39,
+      "timestamp": "2026-01-01T00:00:38Z",
+      "actor": "sample-c",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 40,
+      "timestamp": "2026-01-01T00:00:39Z",
+      "actor": "sample-d",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 41,
+      "timestamp": "2026-01-01T00:00:40Z",
+      "actor": "sample-b",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 42,
+      "timestamp": "2026-01-01T00:00:41Z",
+      "actor": "sample-a",
+      "action": "send"
+    },
+    {
+      "segment": "sample-50",
+      "line": 43,
+      "timestamp": "2026-01-01T00:00:42Z",
+      "actor": "sample-a",
+      "action": "send-media"
+    },
+    {
+      "segment": "sample-50",
+      "line": 44,
+      "timestamp": "2026-01-01T00:00:43Z",
+      "actor": "sample-b",
+      "action": "send-media"
+    },
+    {
+      "segment": "sample-50",
+      "line": 45,
+      "timestamp": "2026-01-01T00:00:44Z",
+      "actor": "sample-c",
+      "action": "send-media"
+    },
+    {
+      "segment": "sample-50",
+      "line": 46,
+      "timestamp": "2026-01-01T00:00:45Z",
+      "actor": "sample-b",
+      "action": "react"
+    },
+    {
+      "segment": "sample-50",
+      "line": 47,
+      "timestamp": "2026-01-01T00:00:46Z",
+      "actor": "sample-b",
+      "action": "react"
+    },
+    {
+      "segment": "sample-50",
+      "line": 48,
+      "timestamp": "2026-01-01T00:00:47Z",
+      "actor": "sample-b",
+      "action": "react"
+    },
+    {
+      "segment": "sample-50",
+      "line": 49,
+      "timestamp": "2026-01-01T00:00:48Z",
+      "actor": "sample-c",
+      "action": "react"
+    },
+    {
+      "segment": "sample-50",
+      "line": 50,
+      "timestamp": "2026-01-01T00:00:49Z",
+      "actor": "sample-d",
+      "action": "react"
+    }
+  ],
+  "failure": null,
+  "completedAt": "2026-08-29T10:06:05.213Z"
+}

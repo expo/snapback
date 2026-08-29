@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m6",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m6-a08",
+      "m6-a09",
+      "m6-a10",
+      "m6-a11",
+      "m6-a13"
+    ],
+    "observedAssertionIds": [
+      "m6-a08",
+      "m6-a09",
+      "m6-a10",
+      "m6-a11",
+      "m6-a13"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T10:05:07.246Z"
+  },
+  "checks": [
+    {
+      "id": "m6-a08",
+      "pass": true,
+      "startedAt": 1787997908759,
+      "completedAt": 1787997910166,
+      "details": {
+        "targetUserId": "usr_72f6z0f4spxyxn9x2k9swj76jr",
+        "chatId": "dm-alice-bob",
+        "senderDisplayName": "Alice Alvarez",
+        "preview": "This message has a deliberately long preview boundary xxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "id": "m6-a09",
+      "pass": true,
+      "startedAt": 1787997911560,
+      "completedAt": 1787997912893,
+      "details": {
+        "externalId": "push-suite-push-photo-17879978281652b8d3-usr_72f6z0f4spxyxn9x2k9swj76jr",
+        "preview": "Photo"
+      }
+    },
+    {
+      "id": "m6-a10",
+      "pass": true,
+      "startedAt": 1787997914596,
+      "completedAt": 1787997914596,
+      "details": {
+        "ok": true,
+        "auth": "password-session",
+        "conversationCount": 7,
+        "selectedConversation": "dm-alice-bob",
+        "historyBefore": 144,
+        "historyAfter": 145,
+        "receiveMode": "polling"
+      }
+    },
+    {
+      "id": "m6-a11",
+      "pass": true,
+      "startedAt": 1787997914596,
+      "completedAt": 1787997914596,
+      "details": {
+        "operations": [
+          "authenticate",
+          "list conversations",
+          "page history",
+          "send text",
+          "poll receive"
+        ],
+        "receipt": {
+          "ok": true,
+          "auth": "password-session",
+          "conversationCount": 7,
+          "selectedConversation": "dm-alice-bob",
+          "historyBefore": 144,
+          "historyAfter": 145,
+          "receiveMode": "polling"
+        }
+      }
+    },
+    {
+      "id": "m6-a13",
+      "pass": true,
+      "startedAt": 1787997965237,
+      "completedAt": 1787997965237,
+      "details": {
+        "validator": [
+          "valid instrument/fixtures/social-messenger/sample-50.log: 50 actions, 0 markers, 13 verbs",
+          "validated 1 logs and 50 actions against 0.1.0-p1"
+        ],
+        "replayedActions": 50,
+        "verbs": [
+          "register",
+          "profile-set",
+          "follow",
+          "post",
+          "like",
+          "repost",
+          "reply",
+          "dm-create",
+          "group-create",
+          "member-add",
+          "send",
+          "send-media",
+          "react"
+        ]
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997908759,
+  "completedAt": 1787997965244
+}

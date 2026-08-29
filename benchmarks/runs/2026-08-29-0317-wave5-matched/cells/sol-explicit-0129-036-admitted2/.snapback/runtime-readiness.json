@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "snapback.runtime-readiness.v1",
+  "issuedAt": "2026-08-29T10:56:42.471Z",
+  "issuer": "snapback-cli-runtime-qualify",
+  "platform": "linux-x64",
+  "binary": {
+    "bytes": 202200440,
+    "sha256": "03c4c2d8b407e767951a88a2710d1a29cbe3d57b650d1fb089e4c2e5d8d95c84"
+  },
+  "buildIdentity": {
+    "crateVersion": "0.1.0",
+    "gitCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+    "gitDirty": false,
+    "buildProfile": "release",
+    "startupNonce": "01a04d2a-235c-7c60-a92d-10ed9cdc0ea9"
+  },
+  "artifacts": [
+    {
+      "path": "include/hermes/hermes.h.artifact",
+      "bytes": 11126,
+      "sha256": "4327ff32a1d4b68fabee775055660118fede4deeac7b88ddc6edf587b8b2a354"
+    },
+    {
+      "path": "lib/libhermesvm.so",
+      "bytes": 7080480,
+      "sha256": "d1bde2b2912ff3b71a30328813b0b2477ef03c08657dc18fd309854615f35d5d"
+    },
+    {
+      "path": "lib/libicudata.so.74",
+      "bytes": 30795392,
+      "sha256": "ddbb3718b8bd9cbd780e5ab08b4503c30a6c4fa0706ebe5d074ed6b596c1714e"
+    },
+    {
+      "path": "lib/libicui18n.so.74",
+      "bytes": 3455304,
+      "sha256": "3550b194eb2cf2e6f798f033eb9ca279d498c21296b4a18790ce158d2023e47b"
+    },
+    {
+      "path": "lib/libicuuc.so.74",
+      "bytes": 2140336,
+      "sha256": "7560aadde38e5f4237a47a1ddd5891f9b36768a77a60faae30beee003ac01901"
+    },
+    {
+      "path": "lib/libz.so.1",
+      "bytes": 113000,
+      "sha256": "9b64150b28505a33d6bc3ecf709c279f6de97a1c184dbda65d06ee4537f6d286"
+    },
+    {
+      "path": "admin/__exact/native/mac-appkit-hermes/diagnostics.json",
+      "bytes": 727,
+      "sha256": "a4089f168a1b83a4dbd7c9bee5d227ee64846bb9d6519e88d534d970e0572006"
+    },
+    {
+      "path": "admin/__exact/native/mac-appkit-hermes/exact-native.json",
+      "bytes": 1435,
+      "sha256": "a4d0f295c5310ddd5c0d5e6fe5cf893ce53f6bf645a93d0b621f3ce72073aebc"
+    },
+    {
+      "path": "admin/__exact/native/mac-appkit-hermes/startup.js",
+      "bytes": 3072589,
+      "sha256": "1068e812431a98c5d9c8713c492d9d51ef7b314b5ba925919ed0e949a1bedb84"
+    },
+    {
+      "path": "admin/__exact/platform-manifest.json",
+      "bytes": 921,
+      "sha256": "33ec063a5b68ccae575a94c68ff30a99d948df2e2d853ea8a161f6d2e1ef80a1"
+    },
+    {
+      "path": "admin/assets/main-C1mB4TNo.js",
+      "bytes": 947816,
+      "sha256": "ced2c1665164ef96de3d0f1a1ac5e57a19408603ec593a16de758f4fda6a571f"
+    },
+    {
+      "path": "admin/exact.desktop.manifest.json",
+      "bytes": 138,
+      "sha256": "177d916d3ccc9c07c3679d6bdaaafd6fc9b2fafd07de3b35b4de48293b020baf"
+    },
+    {
+      "path": "admin/index.html",
+      "bytes": 2278,
+      "sha256": "4b53c5d518c94e686c5a4340ad118eed1c999a1fa6319148e8cae8f768d96ae1"
+    },
+    {
+      "path": "admin/snapback-admin-snapshot.json",
+      "bytes": 1781,
+      "sha256": "8cb8d6f37f350ce3b6a175c74712c4b1022bf3a3576b4723eb8d8c4235192a9b"
+    },
+    {
+      "path": "admin/snapback-mark-dark.svg",
+      "bytes": 724,
+      "sha256": "79686a75da107dd22ecb2af722759695d7a15c187bd0596201e0f37c1f235542"
+    },
+    {
+      "path": "admin/snapback-mark-light.svg",
+      "bytes": 724,
+      "sha256": "97e78b4acd31ee2e17177132c21c274c1358d6b2625cb9b6177e8cd5575a2a96"
+    }
+  ],
+  "qualification": {
+    "probe": "restricted-no-eval-handler-vm",
+    "ok": true,
+    "report": {
+      "schemaVersion": "snapback.runtime-qualify.v1",
+      "probe": "restricted-no-eval-handler-vm",
+      "ok": true,
+      "binary": {
+        "crateVersion": "0.1.0",
+        "gitCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+        "gitDirty": false,
+        "buildProfile": "release",
+        "startupNonce": "01a04d2a-235c-7c60-a92d-10ed9cdc0ea9"
+      }
+    }
+  }
+}

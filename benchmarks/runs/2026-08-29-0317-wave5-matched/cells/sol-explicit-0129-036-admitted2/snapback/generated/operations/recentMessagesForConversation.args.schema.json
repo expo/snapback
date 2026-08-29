@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/recentMessagesForConversation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationExternalId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationExternalId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:recentMessagesForConversation arguments",
+  "type": "object"
+}

@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/editMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "messageId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "messageId",
+    "text"
+  ],
+  "title": "clique:editMessage arguments",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/postMediaForPost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "postId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "postId"
+  ],
+  "title": "clique:postMediaForPost arguments",
+  "type": "object"
+}

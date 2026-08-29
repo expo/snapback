@@ -1,0 +1,34 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/upsertProfile.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "avatar": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "handle": {
+      "type": "string"
+    },
+    "link": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "displayName",
+    "handle"
+  ],
+  "title": "clique:upsertProfile arguments",
+  "type": "object"
+}

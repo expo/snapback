@@ -1,0 +1,12 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/followingFeed.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "type": "integer"
+    }
+  },
+  "title": "clique:followingFeed arguments",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/thread.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "postId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "postId"
+  ],
+  "title": "clique:thread arguments",
+  "type": "object"
+}

@@ -1,0 +1,39 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/upsertProfile.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "avatarUri": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "handle": {
+      "type": "string"
+    },
+    "link": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "email",
+    "handle",
+    "displayName",
+    "bio",
+    "location",
+    "link",
+    "avatarUri"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:upsertProfile arguments",
+  "type": "object"
+}

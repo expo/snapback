@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m2",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m2-a01",
+      "m2-a02",
+      "m2-a03",
+      "m2-a06",
+      "m2-a08",
+      "m2-a09",
+      "m2-a10",
+      "m2-a11",
+      "m2-a12",
+      "m2-a13",
+      "m2-a15",
+      "m2-a16",
+      "m2-a17",
+      "m2-a18",
+      "m2-a20",
+      "m2-a21",
+      "m2-a22",
+      "m2-a23",
+      "m2-a24",
+      "m2-a25",
+      "m2-a26",
+      "m2-a27"
+    ],
+    "observedAssertionIds": [
+      "m2-a01",
+      "m2-a02",
+      "m2-a03",
+      "m2-a06",
+      "m2-a08",
+      "m2-a09",
+      "m2-a10",
+      "m2-a11",
+      "m2-a12",
+      "m2-a13",
+      "m2-a15",
+      "m2-a16",
+      "m2-a18",
+      "m2-a17",
+      "m2-a20",
+      "m2-a21",
+      "m2-a22",
+      "m2-a23",
+      "m2-a24",
+      "m2-a25",
+      "m2-a26",
+      "m2-a27"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T09:56:28.752Z"
+  },
+  "checks": [
+    {
+      "id": "m2-a01",
+      "pass": true,
+      "startedAt": 1787997391849,
+      "completedAt": 1787997391850,
+      "details": {
+        "externalId": "suite-text-17879973084183l8ng"
+      }
+    },
+    {
+      "id": "m2-a02",
+      "pass": true,
+      "startedAt": 1787997391850,
+      "completedAt": 1787997391850,
+      "details": {
+        "externalId": "suite-images-17879973084183l8ng",
+        "media": [
+          "fixture:img-01",
+          "fixture:img-02"
+        ]
+      }
+    },
+    {
+      "id": "m2-a03",
+      "pass": true,
+      "startedAt": 1787997391850,
+      "completedAt": 1787997391850,
+      "details": {
+        "externalId": "suite-video-17879973084183l8ng",
+        "media": "fixture:vid-01"
+      }
+    },
+    {
+      "id": "m2-a06",
+      "pass": true,
+      "startedAt": 1787997391949,
+      "completedAt": 1787997391978,
+      "details": {
+        "followed": "alice",
+        "projectedPost": "suite-text-17879973084183l8ng"
+      }
+    },
+    {
+      "id": "m2-a08",
+      "pass": true,
+      "startedAt": 1787997392077,
+      "completedAt": 1787997392106,
+      "details": {
+        "absentDirectPosts": [
+          "suite-text-17879973084183l8ng",
+          "suite-images-17879973084183l8ng",
+          "suite-video-17879973084183l8ng"
+        ]
+      }
+    },
+    {
+      "id": "m2-a09",
+      "pass": true,
+      "startedAt": 1787997392106,
+      "completedAt": 1787997392138,
+      "details": {
+        "globalStillContains": "suite-text-17879973084183l8ng"
+      }
+    },
+    {
+      "id": "m2-a10",
+      "pass": true,
+      "startedAt": 1787997393543,
+      "completedAt": 1787997394884,
+      "details": {
+        "globalPost": "suite-carol-global-17879973084183l8ng",
+        "author": "carol"
+      }
+    },
+    {
+      "id": "m2-a11",
+      "pass": true,
+      "startedAt": 1787997394884,
+      "completedAt": 1787997394919,
+      "details": {
+        "absentFromFollowing": "suite-carol-global-17879973084183l8ng"
+      }
+    },
+    {
+      "id": "m2-a12",
+      "pass": true,
+      "startedAt": 1787997394919,
+      "completedAt": 1787997394919,
+      "details": {
+        "detectedScheme": "https",
+        "role": "link",
+        "opener": "Linking.openURL"
+      }
+    },
+    {
+      "id": "m2-a13",
+      "pass": true,
+      "startedAt": 1787997394919,
+      "completedAt": 1787997394919,
+      "details": {
+        "previewCard": false
+      }
+    },
+    {
+      "id": "m2-a15",
+      "pass": true,
+      "startedAt": 1787997395131,
+      "completedAt": 1787997395186,
+      "details": {
+        "beforeLike": 0,
+        "afterUnlike": 0
+      }
+    },
+    {
+      "id": "m2-a16",
+      "pass": true,
+      "startedAt": 1787997397978,
+      "completedAt": 1787997399307,
+      "details": {
+        "repostedBy": "Bob Bennett",
+        "handle": "bob"
+      }
+    },
+    {
+      "id": "m2-a18",
+      "pass": true,
+      "startedAt": 1787997399307,
+      "completedAt": 1787997400638,
+      "details": {
+        "follower": "dave",
+        "originalPost": "suite-text-17879973084183l8ng",
+        "reposter": "bob"
+      }
+    },
+    {
+      "id": "m2-a17",
+      "pass": true,
+      "startedAt": 1787997402034,
+      "completedAt": 1787997403378,
+      "details": {
+        "cleared": true
+      }
+    },
+    {
+      "id": "m2-a20",
+      "pass": true,
+      "startedAt": 1787997406265,
+      "completedAt": 1787997407618,
+      "details": {
+        "parentId": "suite-thread-17879973084183l8ng",
+        "replies": [
+          "suite-reply-1-17879973084183l8ng",
+          "suite-reply-2-17879973084183l8ng"
+        ]
+      }
+    },
+    {
+      "id": "m2-a21",
+      "pass": true,
+      "startedAt": 1787997407618,
+      "completedAt": 1787997408947,
+      "details": {
+        "absentReplyIds": [
+          "suite-reply-1-17879973084183l8ng",
+          "suite-reply-2-17879973084183l8ng"
+        ]
+      }
+    },
+    {
+      "id": "m2-a22",
+      "pass": true,
+      "startedAt": 1787997410270,
+      "completedAt": 1787997410270,
+      "details": {
+        "totalEntries": 71,
+        "pageSize": 20,
+        "nextPageTrigger": "scroll threshold"
+      }
+    },
+    {
+      "id": "m2-a23",
+      "pass": true,
+      "startedAt": 1787997410270,
+      "completedAt": 1787997410270,
+      "details": {
+        "totalGlobalPosts": 62,
+        "pageSize": 20
+      }
+    },
+    {
+      "id": "m2-a24",
+      "pass": true,
+      "startedAt": 1787997410270,
+      "completedAt": 1787997410270,
+      "details": {
+        "globalUnique": 62,
+        "followingUnique": 71,
+        "pageExpansion": "stable prefix slice"
+      }
+    },
+    {
+      "id": "m2-a25",
+      "pass": true,
+      "startedAt": 1787997411575,
+      "completedAt": 1787997411622,
+      "details": {
+        "ownPost": "suite-bob-own-17879973084183l8ng",
+        "explicitSelfEdge": false
+      }
+    },
+    {
+      "id": "m2-a26",
+      "pass": true,
+      "startedAt": 1787997411740,
+      "completedAt": 1787997411766,
+      "details": {
+        "ownRepostOf": "suite-carol-global-17879973084183l8ng"
+      }
+    },
+    {
+      "id": "m2-a27",
+      "pass": true,
+      "startedAt": 1787997411766,
+      "completedAt": 1787997411817,
+      "details": {
+        "followerCount": 3,
+        "followingCount": 0,
+        "explicitSelfEdge": false
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997391849,
+  "completedAt": 1787997411819
+}

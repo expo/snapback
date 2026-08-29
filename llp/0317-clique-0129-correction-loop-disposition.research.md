@@ -7,6 +7,11 @@ Diagnostics, React/Expo, Local server lifecycle, Auth, Client integration,
 Live queries, Assets, Code generation, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-27
+**Revised:** 2026-08-29 (Wave 5 partial execution: two fresh Explicit
+same-instrument `0.1.29` cells ran, but final curation found incomplete
+measurement records and certified no baseline. `0.1.30` publication failed
+closed before registry mutation. Candidate and Familiar cells remain unrun,
+so the coherent-published-pin exit criterion is unsatisfied.)
 **Revised:** 2026-08-28 (r2.8: Wave 3 record reconciliation. O26's
 cross-platform publication capability gate and O36's specialized
 `defineMediaCommand` task already ship; the broader physical-device media GAP
@@ -662,6 +667,15 @@ landed but unpublished. The next publication is what moves this to `Active`, not
 another revision. Its child RFC, LLP 0317.000, is `Accepted` as of the same
 date; the plan is agreed, the evidence claim is not yet closable.
 
+**Status note, 2026-08-29.** Wave 5's two fresh Explicit `0.1.29`
+same-instrument cells ran, but final curation found incomplete per-obligation
+and loop-attribution metadata in both, plus Grok M1/M2 proof-pair and exact
+identity gaps. Their four and seven narrated episodes are not protocol counts,
+and neither cell is a certified baseline. `0.1.30` publication qualification
+refused before npm mutation, candidate cells could not start, and the
+preregistered candidate-first Familiar cells remained unrun. This document
+therefore stays `Review`.
+
 This research can move from Review to Active after:
 
 1. ~~the current matrix artifacts and diaries are imported into the
@@ -679,6 +693,14 @@ This research can move from Review to Active after:
    (see §Proposed proof and routing).
 
 ## Revision history
+
+**Wave 5 partial execution — 2026-08-29.** The run under
+`benchmarks/runs/2026-08-29-0317-wave5-matched/` retained two Explicit
+same-instrument `0.1.29` diagnostic cells, but no complete preregistered
+baseline. The fail-closed O26 publication gate refused `0.1.30` because
+`assets.media-collection.v1` was required by codegen but unavailable in the
+Darwin public runtime advertisement. No registry mutation, candidate cell,
+Familiar cell, matched comparison, or status advance followed.
 
 **r2.8 — 2026-08-28 (Wave 3 record reconciliation).** O26's fail-closed
 publication capability-coherence gate landed at `f3c09fcb0`; its narrower

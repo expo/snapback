@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "benchmark-lane-report.v1",
+  "laneId": "grok-explicit-0129-036-admitted2",
+  "orientation": {
+    "schemaVersion": "benchmark-orientation.v1",
+    "laneKind": "snapback-web-clique",
+    "instrument": {
+      "pin": "social-messenger@0.3.6-m8",
+      "manifest": {
+        "path": "instrument.manifest.json",
+        "sha256": "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623"
+      },
+      "versions": {
+        "schema": "0.3.0-m8",
+        "ui": "0.3.2-m8",
+        "choreography": "0.3.6-m8"
+      }
+    },
+    "selectedSkills": [
+      "snapback-authoring"
+    ],
+    "artifacts": [
+      {
+        "id": "lane-agents",
+        "kind": "lane-packet",
+        "path": "AGENTS.md",
+        "bytes": 1212,
+        "sha256": "26e71491107483ec25da6411fc29e54ed4737b7e3936925f5752f592826fbc42",
+        "deduplicated": false
+      },
+      {
+        "id": "benchmark-orientation",
+        "kind": "orientation",
+        "path": "BENCHMARK-ORIENTATION.md",
+        "bytes": 3960,
+        "sha256": "ef77b12833f3651206748cbc0a783f5f4aefd3fbc4981d3ba30eab8554a15142",
+        "deduplicated": false
+      },
+      {
+        "id": "skill:snapback-authoring:1",
+        "kind": "skill-body",
+        "path": "skills/snapback-authoring/SKILL.md",
+        "bytes": 10158,
+        "sha256": "ec44af3cf16fe60053904b0d3e11bc41ccdeb4a77d6230f00b9589d9fa1bb276",
+        "deduplicated": false
+      }
+    ],
+    "uniqueBytes": 15330,
+    "deliveredBytes": 15330,
+    "preflightWarnings": []
+  },
+  "firstProductEdit": {
+    "at": "2026-08-29T07:38:15.000Z",
+    "orientationBytes": 15330,
+    "orientationTokens": {
+      "input": null,
+      "output": null,
+      "cacheRead": null,
+      "cacheWrite": null,
+      "reasoning": null
+    },
+    "selectedSkills": ["snapback-authoring"]
+  }
+}

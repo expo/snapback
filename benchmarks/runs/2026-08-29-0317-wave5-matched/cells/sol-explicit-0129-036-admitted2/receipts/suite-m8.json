@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m8",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m8-a01",
+      "m8-a03",
+      "m8-a04",
+      "m8-a05",
+      "m8-a06",
+      "m8-a07"
+    ],
+    "observedAssertionIds": [
+      "m8-a01",
+      "m8-a03",
+      "m8-a04",
+      "m8-a05",
+      "m8-a06",
+      "m8-a07"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T10:09:21.051Z"
+  },
+  "checks": [
+    {
+      "id": "m8-a01",
+      "pass": true,
+      "startedAt": 1787998161080,
+      "completedAt": 1787998162650,
+      "details": {
+        "totals": {
+          "posts": 35,
+          "likesReceived": 19,
+          "repostsReceived": 8,
+          "repliesReceived": 6,
+          "followers": 3,
+          "following": 2
+        },
+        "consistencyBasis": "current starter-derived state plus retained journey actions"
+      }
+    },
+    {
+      "id": "m8-a03",
+      "pass": true,
+      "startedAt": 1787998162763,
+      "completedAt": 1787998162794,
+      "details": {
+        "post": "suite-today-1787998080717hxhf5",
+        "dayKey": "20694",
+        "posts": 36,
+        "boundary": "server epoch UTC day"
+      }
+    },
+    {
+      "id": "m8-a04",
+      "pass": true,
+      "startedAt": 1787998162794,
+      "completedAt": 1787998162794,
+      "details": {
+        "renderedDays": 7,
+        "missingValue": 0
+      }
+    },
+    {
+      "id": "m8-a05",
+      "pass": true,
+      "startedAt": 1787998174950,
+      "completedAt": 1787998174950,
+      "details": {
+        "first": "suite-trending-newer-1787998080717hxhf5",
+        "likeCount": 8
+      }
+    },
+    {
+      "id": "m8-a06",
+      "pass": true,
+      "startedAt": 1787998174950,
+      "completedAt": 1787998174951,
+      "details": {
+        "unitBoundaryMs": 86400000,
+        "excluded": "old-heavy",
+        "evidenceKind": "source-plus-boundary-unit"
+      }
+    },
+    {
+      "id": "m8-a07",
+      "pass": true,
+      "startedAt": 1787998174951,
+      "completedAt": 1787998174951,
+      "details": {
+        "newer": "suite-trending-newer-1787998080717hxhf5",
+        "older": "suite-trending-older-1787998080717hxhf5",
+        "positions": [
+          0,
+          1
+        ],
+        "tiedLikes": 8
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787998161080,
+  "completedAt": 1787998174951
+}

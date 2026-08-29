@@ -1,0 +1,39 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/applyGradingSettings.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "deleteWindowMs": {
+      "type": "integer"
+    },
+    "digestAnchorHourUtc": {
+      "type": "integer"
+    },
+    "digestPeriodMs": {
+      "type": "integer"
+    },
+    "disappear24hMs": {
+      "type": "integer"
+    },
+    "disappear7dMs": {
+      "type": "integer"
+    },
+    "editWindowMs": {
+      "type": "integer"
+    },
+    "replayMode": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "editWindowMs",
+    "deleteWindowMs",
+    "disappear24hMs",
+    "disappear7dMs",
+    "digestPeriodMs",
+    "digestAnchorHourUtc",
+    "replayMode"
+  ],
+  "title": "clique:applyGradingSettings arguments",
+  "type": "object"
+}

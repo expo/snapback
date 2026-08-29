@@ -1,0 +1,3908 @@
+{
+  "appId": "clique",
+  "artifactKind": "clientLifecycleManifest",
+  "authoredSourceHash": "sha256:dd90485b2f5b010f63daf170f8b847de55ae53a8206b05c240f675eab7c2a41d",
+  "commands": [
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:68cbbfa5f23369f22b7670af5e2341dd5f7d7bfbc42720ef7d449d994367d59c",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "clique:upsertProfile",
+      "name": "saveProfile",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "clique:command:saveProfile",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:82c7ce068a58c489e236adeccde0088ca61654c50b30a0fa162db5ace3a142ab",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "clique:sendMedia",
+      "name": "sendMediaImage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "clique:command:sendMediaImage",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:82c7ce068a58c489e236adeccde0088ca61654c50b30a0fa162db5ace3a142ab",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "clique:sendMedia",
+      "name": "sendMediaVideo",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "clique:command:sendMediaVideo",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:2878411e9f44ab27d66d76829b66d60d606b4664f5ffde9fcb138e0668115c54",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "clique:createPost",
+      "name": "sendVideoPost",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "clique:command:sendVideoPost",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:82c7ce068a58c489e236adeccde0088ca61654c50b30a0fa162db5ace3a142ab",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "clique:sendMedia",
+      "name": "sendViewOnceImage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "semanticIdentity": "clique:command:sendViewOnceImage",
+      "states": [
+        "preparing",
+        "transferring",
+        "committing",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    }
+  ],
+  "compatibilityAliases": [
+    {
+      "current": "useSnapbackQuery",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackLiveQuery",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackMutation",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationDispatch",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackOutbox().mutationStatus",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationStatus",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackCommand",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackTask",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "client.query",
+      "emittedInRollout1": false,
+      "plannedCanonical": "client.read",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    }
+  ],
+  "custody": {
+    "committedProjectionRequired": false,
+    "consumer": "developer-tooling",
+    "rationale": "rollout 1 has no runtime consumer; codegen, generated declarations, tests, and guide checks consume the same source table",
+    "storageClass": "regenerable-cache"
+  },
+  "diagnostics": [
+    {
+      "acceptedField": "acceptedKinds",
+      "code": "SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "phase": "client-call-boundary-before-transport",
+      "receivedField": "receivedKind",
+      "remediationField": "correctVerb"
+    }
+  ],
+  "futureClassM": {
+    "forbiddenMeaning": "raw row version, app commit, or storage snapshot",
+    "note": "when class-M handles ship, snapshotVersion identifies the authorized principal/query view",
+    "shippedInRollout1": false,
+    "snapshotVersionMeaning": "authorized principal/query viewRevision"
+  },
+  "handleStates": {
+    "commandTask": {
+      "nonterminal": [
+        "preparing",
+        "transferring",
+        "committing"
+      ],
+      "terminal": [
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    "liveQueryHandle": {
+      "disposalMeaning": "disposed handles publish no further rows and release their subscription resources",
+      "nonterminalConnection": [
+        "connecting",
+        "live",
+        "polling",
+        "stale"
+      ],
+      "terminalConnection": [
+        "disconnected"
+      ]
+    }
+  },
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b5c9a43ba6f815b9e8e22f47887fc49698d7db08c572b478e16bc406060ae2c1",
+  "mutationSettlement": {
+    "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
+    "dispositions": [
+      "pending",
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone",
+      "unknown"
+    ],
+    "nonterminal": [
+      "pending",
+      "unknown"
+    ],
+    "settlement": "mutationStatus()/subscribeMutation() project durable disposition by clientMutationId",
+    "terminal": [
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone"
+    ]
+  },
+  "operations": [
+    {
+      "argsContractHash": "sha256:f75d75cfeec33b80d1b1f8632bcda4f65fbc17c5ade73a929e88879f9a3ad7ed",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:f7068cb774e00531cadda5e994783e9abaa285ecb5a5a9bd3aa73a2fc5c4e454",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "addChatMember",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:addChatMember",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:789b9537bf87fbd5b9034e317476095b5d43924c9904208b943bd5cb936edbe1",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:4ba57c280ab7831ba57fa2ea692d7fb9e8e3ae0a6c0c146f693c6fa88b8ee582",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "applyGradingSettings",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:applyGradingSettings",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:f944e9d212ba762a76d4a38f78fdd3a34b121c8f24c6dc79c77627a2a6259a1e",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "appSettingsLive",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:043183edc0e6a4e8902cd77852f49d4a1360d68bcebaec31359f2456a4bf290e",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:appSettingsLive",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d09faa3554d3404e5e62ff44bce019b003038f62ba8b72874940fa7cb0c5fcf3",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:45e70f11ca2f855970ffe13a73e3c5850c896b93aaba9dbaf365ab7a14605507",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "chatByClientId",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3951dec8430117cf7743053f74379a1896d35e10a699aa5c2145449ce5261d6e",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:chatByClientId",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:ef0029b276bc81a364a8d8885439b3b4487d999f33dc8b9506158a1e729994fa",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "chatCutsForChat",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:f41a9979a844d2cfe911d2bc5d4930a7882dd5b02326f2b8209f9016033b64a9",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:chatCutsForChat",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:6d14421cb1997bfb3db94cac36d4f3afa3f60b1c25ee1bae3822919bb56f809b",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "chatDetails",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3951dec8430117cf7743053f74379a1896d35e10a699aa5c2145449ce5261d6e",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:chatDetails",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:c13d34dbd56170c1c674af3462fb632e71ba40839b71a8492e8d52db43afbdb6",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "chatRoster",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3e7c951c7e5fbc2b38c8aafc79372323776c09f24028df172992ce4389be8d34",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:chatRoster",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:22cae55042d852d31890198fe4abba537c7553277234aa95ac1162220ade5e4c",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:580c166bb48be62b25380d5f36961658e3f0e2bd522d8bd7d51b2ed14d183441",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "createDm",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:d35b59a1bb81cd230eb122944d5b6c8483c3952b68cf875e905ae03f4953b6e5",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:createDm",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:dc38db0692cfe4d3916452e297a8cfa468f6a17a7d16b72affadf9accbfff0f2",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:d396b67272580969cf2b95b56ede3b690b331deeea806ca9b2de4625d2ddb98e",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "createGroup",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:d35b59a1bb81cd230eb122944d5b6c8483c3952b68cf875e905ae03f4953b6e5",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:createGroup",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:f3668691bc19406a499cf81bd689990df5c1869732cca400da47502d7ee57a98",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:2878411e9f44ab27d66d76829b66d60d606b4664f5ffde9fcb138e0668115c54",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "createPost",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5a561076af4ba872fafc28b88fc01e9201a16b65260fe7027b77758558ce2304",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:createPost",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:12e26e746aacc65f903551f317390bc53ed651ba8f5750a585d895c08f13194c",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:2d31cf917d0209baee91ec9502249004798f47c784cf3c00b724055cbc8d5575",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "createReply",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5a561076af4ba872fafc28b88fc01e9201a16b65260fe7027b77758558ce2304",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:createReply",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:0c9a25ca85b4279b94a99187304744064eb36f71c311f61d563dfe71761a4356",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:234597027787e01a33401f4d7cd3d8df6ad2c8e703631060e123566256bb8724",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "deleteMessage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:deleteMessage",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a4aa006e8f21668d71ae9a3885ec843f1b4c8aea7ddce03825f20ec7779757f5",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:09835171c8bd5e36685d942764f231994df714609dec6528c471b4aa92019b02",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "editMessage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:editMessage",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:53b8dd476d8c6a38a353f43a910e885dae65da4fb0d14396ec6eab952d2be8fd",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "fixturePeople",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:14e72511c3e092da96e9d8dfa15b669e50bd4e75cb9642f80d4d6cffddd6f83c",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:fixturePeople",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:e428f964eb9cb73094638bc5b90e6ecfee30d97a064f76a4f5b720c7d3db2b50",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:8ff5939d235c781d427d077f78941f622c708016b1b345cf3c8f506128390a63",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "followingFeed",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:ec2a796da5291397547fa538ece20f2afa195e71ac1793a42994698be44c8670",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:followingFeed",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a4b3c3a20a8d6982c15797de022d4007d5243a392c0b20f20bc45d90f9aa68b3",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:4dcd3b05089f6deb6ac02240e5b20c5c230d11239a6afcb4cd86b231e37593b3",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "followsOf",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:739887228f8d6ee1e88a738c7f06e10260c4544f7bb500783cfe569ec0f4bfd6",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:followsOf",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:7add4910db859192b1cc936c1d66b48d1c229eb257b81fc6bacbeee7f9dd4374",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "getMine",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:14e72511c3e092da96e9d8dfa15b669e50bd4e75cb9642f80d4d6cffddd6f83c",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:getMine",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:e428f964eb9cb73094638bc5b90e6ecfee30d97a064f76a4f5b720c7d3db2b50",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:ab464ff5cd2fe076159b4d677451ad3d59aa0eb962bb46d372ae063b98d129ab",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "globalFeed",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:78dd4d08c544c0c193b4c5f5d91faa81215f809f3c1e96a917d0a04cd307c643",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:globalFeed",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "query",
+      "delivery": "read",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:52a217c345f2f4e4e31a919db6bdd397d6ffa9fdbfd7e0ea2f52e58547b18f10",
+      "kind": "Query",
+      "legalVerbs": [
+        "query",
+        "liveQuery"
+      ],
+      "name": "insightsForMe",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:15404b96747b18727bbf97eb4c48052925873e6073ec01f8265eef601a784292",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "semanticIdentity": "clique:insightsForMe",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:bdeb2b6672d64b70d9da03d3bc2fd0913af351ef7dabaea57feafaf71ff497f0",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "leaveChat",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:leaveChat",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:01e5010ec56d08c76b7e9c597261b65329b8d45c3a2999fde3b738b663d16ed0",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "markDelivered",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:markDelivered",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:05a5125322f929b94ade3e4b10aeb36bdbc5955dbab0cb5a5455ad2addd608dc",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "markRead",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:markRead",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:cb068fd4aafa20b01a443dd6697f8671e6422a1c339e4d6dd870bcd00f3600ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:0435f3adfbff5058a12618d64aa1ef121899207a781f2be22808f85977976ff5",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "messagesForChat",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:98a8b03a9b4560f348ef535cbed7ef2b99b43f29a09a042952d6bdea310d1de1",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:messagesForChat",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:277a9af6a9852cfa0b68ed041890b39016035c7abe471cb104c0e92029053fba",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "myChats",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:9dbbb3fd0d5191013f225a8249c244a096002ff07d6d474b58f15e1a3ebca182",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:myChats",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:d0983e5b59223906d774f17573807fc529852543e385dfad47ddabbde1aba477",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "myFollows",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:739887228f8d6ee1e88a738c7f06e10260c4544f7bb500783cfe569ec0f4bfd6",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:myFollows",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:aae40a820e7609fdd1a03c96e5a9fb468796a82b4271b46b59083082dc982439",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "myLikes",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:633374217ec2c3fd6d81dc18777425d19b47d610f5314a95cb77c0942e1c9f18",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:myLikes",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:8b2da3b3cf822a40549a4c7e1b1db7d59a7a06d54a84929a279775ba045a0b75",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "myPushLogs",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:f1030619a537788806425995ddb6e9b6bd1c6bbb15007eb4b602417a487e4c07",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:myPushLogs",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:9c5ae0015834e826f8086aa1b8d7291ef8a7947af30463956a6407ab013b66d3",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "myReposts",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:ba3c9df4a292cb791e552631a0247a086693c2dbf84a7e8fb6ee16b0f721a467",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:myReposts",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:0c9a25ca85b4279b94a99187304744064eb36f71c311f61d563dfe71761a4356",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:4dc83f449c10c2dd0f29585796ff45e1c860d7879ce293c84fbf9faec125ed95",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "openViewOnce",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:openViewOnce",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:fa8de2680b01c6878992ffd52f667d94072079f0e788d705ce15983f1f8edb02",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:14edd68f58b5c8a9391ffaf24c280c7e2ff8e1cf704e9036f27ded1a128a1270",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "postMediaForPost",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:93d77465bc98541ce218b5c41080ea52f06c84f3e4c7578b03faf05b642196e4",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:postMediaForPost",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a4b3c3a20a8d6982c15797de022d4007d5243a392c0b20f20bc45d90f9aa68b3",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:17d7b017d32f51fbd1887bea339c862e48c9a8da2de628c2668c502ad8f36986",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "profileByHandle",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:14e72511c3e092da96e9d8dfa15b669e50bd4e75cb9642f80d4d6cffddd6f83c",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:profileByHandle",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a4b3c3a20a8d6982c15797de022d4007d5243a392c0b20f20bc45d90f9aa68b3",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:ceb99277d37a943acff20f2814978a2525208578634c4292fec60fc8806cfa54",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "profilePosts",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:e995138481ff14b5abea37a455b328655925e6d94977999f36fe55efe3f883ee",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:profilePosts",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:8ea01157dfc8bb2e435e429ab77b8670bcbe81d4b2b34f30f82af74cbc220b33",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "profilesLive",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1",
+        "single_table_v1"
+      ],
+      "resultContractHash": "sha256:14e72511c3e092da96e9d8dfa15b669e50bd4e75cb9642f80d4d6cffddd6f83c",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:profilesLive",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:94a514fe12e220b97ec81de471a5f21f9529be5a3fb91dc9c6188731f094ccea",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:280bc5d30d9e31d4a9f2219dd94a2694d65c544ac680436908d9f69e53a0c367",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "promoteChatMember",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:promoteChatMember",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:c7bd87cc52416a3215bb18ad97f36d44463e5cc8b3e6679c56a7bdc084f483b2",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "reactionsForChat",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:e982ee48571a7fc4d0934ef0f0a0f1677958606706c4a26677b993077275e430",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:reactionsForChat",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:d1e574ee0cde643526821ae3a300222987d8182f2c665acb5458a24932ae3cb0",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:30da95b2c7f717c932b34163cd21937c03416bd8781bd9a43531bf7be86e2589",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "receiptsForChat",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:cfd1ce3a8ebf013955aec26e51467046496a1edc04a5cbfb0f255c5cb63af718",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:receiptsForChat",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:94a514fe12e220b97ec81de471a5f21f9529be5a3fb91dc9c6188731f094ccea",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:12746014dce3c398944e5939561765422e101b5a53fbbf5ac2a1dc88a6d95aaf",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "removeChatMember",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:removeChatMember",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:b8a00318ebec468c1787c78f7ba85f7633bd9a272936b6b28b7b8edc172853d1",
+      "authRequirement": "authenticated",
+      "correctVerb": "query",
+      "delivery": "read",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:d90e1c33ad12448f411a975d8e730ede0bb236e56cfd20f351b4a6cd77c988ba",
+      "kind": "Query",
+      "legalVerbs": [
+        "query",
+        "liveQuery"
+      ],
+      "name": "resolveExternal",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:f1eb044c0d2ae96d9d674199c9dd337b9177cbc35b7a89591430c6565aa73fc7",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "semanticIdentity": "clique:resolveExternal",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:b111eb5157f2a757e0c94050c929eed79f1626708478241cc95d3fcbd151967e",
+      "authRequirement": "authenticated",
+      "correctVerb": "query",
+      "delivery": "read",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:b6df8e5143808a6289bfff5872440531ef9b601fd51b037c2e2a1f0f238d6748",
+      "kind": "Query",
+      "legalVerbs": [
+        "query",
+        "liveQuery"
+      ],
+      "name": "searchMessages",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "full_text_search_v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:46c93b47ba5712cd90d03c6aec08d1f6cd70ee17153ac145e0601cd64aa2fc46",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "semanticIdentity": "clique:searchMessages",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:c4dd2779c4fd9bf44bad1b75ebbe13780cd1ce6fb1a357b40eefdb54c8ccff16",
+      "authRequirement": "public",
+      "correctVerb": "query",
+      "delivery": "read",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:35cc434cbb348bac9bbaff564414e1dad952ed10e43afb1ec722102fc59656b6",
+      "kind": "Query",
+      "legalVerbs": [
+        "query",
+        "liveQuery"
+      ],
+      "name": "searchPeople",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "full_text_search_v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:65ccfc931b590a3ae3b5bcde276dd7da7f3ad0d980e08306b338374c3fbf778c",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "semanticIdentity": "clique:searchPeople",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:f6fbee64c08a2e76401fb4c185c944916ed68376cc99f85f5a0d68411861746e",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:82c7ce068a58c489e236adeccde0088ca61654c50b30a0fa162db5ace3a142ab",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendMedia",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:sendMedia",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:8e84e2ea8bc8cf37cd04b91ba84377fb1a5bd49f15688887118e5e5dbd044404",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:ae9eea737f9bfcf250c2fd242e8c8262189840aa639e7369a318af2d4ab9db91",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendText",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:5d40a11d2dd3c7c273d1fd3dcb5e37d6150af9b70a47c703a7db7fd6f1d067c0",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:sendText",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:4635521cce4ca3f6183367d4f37538bdf52c3abb9d02a507d40c0f708dea8564",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:1c3e6cf9d9c0c284d422d49186002a1a18fb9455e6678ac885ccdea5b24ac6dc",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "setChatSettings",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:3ffc0edbc72f7ecb724ee43e99c156523faddd4e50b7c2ecbb53dadc53314dd1",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:setChatSettings",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:e93881db3bca6a5ba3e94aba21290fcaab8980abe515cad9c888e1573386de19",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:f6d3adfd85c96fe06dbc5a466f878deed7667e7bde8731977d4642f9b512cee5",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "setFollow",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:576891ccc015f6bdfa5f08f246f397bd8ea2535646f8c33e7ac24227324caa9e",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:setFollow",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:77127a2784060433d265af21e890287049f3aa22dcffa7a79de05805f6134d65",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:bceef91259b8e7e26d11590dbd059570b126c51d63c8cacebbec928772029a23",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "setLike",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:dec62358ff0bcbb5b815f9d4174f1a5d4ba0e01d5d26fc457939825efb8b9646",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:setLike",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:8b04a32550e2b315ed5467da901efa31ef7120c56e565e6c39231279675f028c",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:7e37423e542d1468ecb677254fa8917bb0c4b6e9cff68443ac69ea5a9f4a79a2",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "setReaction",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:6c8410af7e984b0a3be583ecf97383ed2a50536ec1f5e3aed600d6f9d4b69f7e",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:setReaction",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:77127a2784060433d265af21e890287049f3aa22dcffa7a79de05805f6134d65",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:a6c27ee1bfa0119f419b2bca540e9b698e584cc28026b3201616d7c6eb1ed217",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "setRepost",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:905d98bd772479e2d1ebaafa9ddd17aa6c26921ec38240886aee843a834b50ed",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:setRepost",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:fa8de2680b01c6878992ffd52f667d94072079f0e788d705ce15983f1f8edb02",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:b2a630ef5b34504420ce3309afabbfaff443877d4eace5952ffc542d2e98d5ce",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "thread",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:e995138481ff14b5abea37a455b328655925e6d94977999f36fe55efe3f883ee",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "clique:thread",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "correctVerb": "query",
+      "delivery": "read",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:0d74931f2c65e13d3054924a51d4af86de6857da61c2103c382a08cdc72fedf9",
+      "kind": "Query",
+      "legalVerbs": [
+        "query",
+        "liveQuery"
+      ],
+      "name": "trending",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:686660bf106edd4a2ad45111ce78abfb2fcd5d35f3112fcb2f79d4d79939be55",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "semanticIdentity": "clique:trending",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:3951f5152bba2dc74c3532b88178ec4e97eeb94920d6597b96d3fa7a73070b66",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:68cbbfa5f23369f22b7670af5e2341dd5f7d7bfbc42720ef7d449d994367d59c",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "upsertProfile",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:72e70b5a952ad8abe70f31d7242302a2dfebb164c60674b19fe86e9aec0f872f",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "clique:upsertProfile",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    }
+  ],
+  "referenceKinds": [
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "query",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Query",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "stateCarrier": "Promise<QueryOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "liveQuery",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "LiveQuery",
+      "retention": "per-operation retainable/retentionClass declaration",
+      "runtimeDiscriminant": "LiveQuery",
+      "stateCarrier": "LiveQueryHandle or React QueryState"
+    },
+    {
+      "acceptedBy": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "mutate",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Mutation",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "stateCarrier": "MutationDispatchOutcome plus MutationDisposition"
+    },
+    {
+      "acceptedBy": [
+        "action"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "action",
+      "freshness": "one-shot online response",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Action",
+      "retention": "none",
+      "runtimeDiscriminant": "Action",
+      "stateCarrier": "Promise<ActionOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "auth": "inherited from the descriptor mutation and asset intent",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Command",
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "stateCarrier": "CommandTask"
+    }
+  ],
+  "resourceIdentity": {
+    "ingredients": [
+      "reference semantic identity",
+      "canonical argument contract and canonical argument bytes",
+      "authority partition",
+      "normalized lifecycle options",
+      "build identity inputsHash"
+    ],
+    "version": "snapback.client-resource-key.v1"
+  },
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "clique:addChatMember",
+          "kind": "Mutation",
+          "name": "addChatMember",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:appSettingsLive",
+          "kind": "LiveQuery",
+          "name": "appSettingsLive",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:applyGradingSettings",
+          "kind": "Mutation",
+          "name": "applyGradingSettings",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:chatByClientId",
+          "kind": "LiveQuery",
+          "name": "chatByClientId",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:chatCutsForChat",
+          "kind": "LiveQuery",
+          "name": "chatCutsForChat",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:chatDetails",
+          "kind": "LiveQuery",
+          "name": "chatDetails",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:chatRoster",
+          "kind": "LiveQuery",
+          "name": "chatRoster",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:createDm",
+          "kind": "Mutation",
+          "name": "createDm",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:createGroup",
+          "kind": "Mutation",
+          "name": "createGroup",
+          "optionalPropertyPaths": [
+            "args.description"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:createPost",
+          "kind": "Mutation",
+          "name": "createPost",
+          "optionalPropertyPaths": [
+            "args.body",
+            "args.images",
+            "args.video"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:createReply",
+          "kind": "Mutation",
+          "name": "createReply",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:deleteMessage",
+          "kind": "Mutation",
+          "name": "deleteMessage",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:editMessage",
+          "kind": "Mutation",
+          "name": "editMessage",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:fixturePeople",
+          "kind": "LiveQuery",
+          "name": "fixturePeople",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:followingFeed",
+          "kind": "LiveQuery",
+          "name": "followingFeed",
+          "optionalPropertyPaths": [
+            "args.cursor"
+          ],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:followsOf",
+          "kind": "LiveQuery",
+          "name": "followsOf",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:getMine",
+          "kind": "LiveQuery",
+          "name": "getMine",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:globalFeed",
+          "kind": "LiveQuery",
+          "name": "globalFeed",
+          "optionalPropertyPaths": [
+            "args.cursor"
+          ],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:insightsForMe",
+          "kind": "Query",
+          "name": "insightsForMe",
+          "optionalPropertyPaths": [],
+          "verb": "query"
+        },
+        {
+          "functionId": "clique:leaveChat",
+          "kind": "Mutation",
+          "name": "leaveChat",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:markDelivered",
+          "kind": "Mutation",
+          "name": "markDelivered",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:markRead",
+          "kind": "Mutation",
+          "name": "markRead",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:messagesForChat",
+          "kind": "LiveQuery",
+          "name": "messagesForChat",
+          "optionalPropertyPaths": [
+            "args.cursor"
+          ],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:myChats",
+          "kind": "LiveQuery",
+          "name": "myChats",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:myFollows",
+          "kind": "LiveQuery",
+          "name": "myFollows",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:myLikes",
+          "kind": "LiveQuery",
+          "name": "myLikes",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:myPushLogs",
+          "kind": "LiveQuery",
+          "name": "myPushLogs",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:myReposts",
+          "kind": "LiveQuery",
+          "name": "myReposts",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:openViewOnce",
+          "kind": "Mutation",
+          "name": "openViewOnce",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:postMediaForPost",
+          "kind": "LiveQuery",
+          "name": "postMediaForPost",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:profileByHandle",
+          "kind": "LiveQuery",
+          "name": "profileByHandle",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:profilePosts",
+          "kind": "LiveQuery",
+          "name": "profilePosts",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:profilesLive",
+          "kind": "LiveQuery",
+          "name": "profilesLive",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:promoteChatMember",
+          "kind": "Mutation",
+          "name": "promoteChatMember",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:reactionsForChat",
+          "kind": "LiveQuery",
+          "name": "reactionsForChat",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:receiptsForChat",
+          "kind": "LiveQuery",
+          "name": "receiptsForChat",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:removeChatMember",
+          "kind": "Mutation",
+          "name": "removeChatMember",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:resolveExternal",
+          "kind": "Query",
+          "name": "resolveExternal",
+          "optionalPropertyPaths": [],
+          "verb": "query"
+        },
+        {
+          "functionId": "clique:searchMessages",
+          "kind": "Query",
+          "name": "searchMessages",
+          "optionalPropertyPaths": [
+            "args.after",
+            "args.limit"
+          ],
+          "verb": "query"
+        },
+        {
+          "functionId": "clique:searchPeople",
+          "kind": "Query",
+          "name": "searchPeople",
+          "optionalPropertyPaths": [
+            "args.after",
+            "args.limit"
+          ],
+          "verb": "query"
+        },
+        {
+          "functionId": "clique:sendMedia",
+          "kind": "Mutation",
+          "name": "sendMedia",
+          "optionalPropertyPaths": [
+            "args.caption",
+            "args.image",
+            "args.video",
+            "args.viewOnce",
+            "args.viewOnceImage"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:sendText",
+          "kind": "Mutation",
+          "name": "sendText",
+          "optionalPropertyPaths": [
+            "args.quoteId"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:setChatSettings",
+          "kind": "Mutation",
+          "name": "setChatSettings",
+          "optionalPropertyPaths": [
+            "args.accent",
+            "args.background",
+            "args.description",
+            "args.disappearing",
+            "args.name"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:setFollow",
+          "kind": "Mutation",
+          "name": "setFollow",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:setLike",
+          "kind": "Mutation",
+          "name": "setLike",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:setReaction",
+          "kind": "Mutation",
+          "name": "setReaction",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:setRepost",
+          "kind": "Mutation",
+          "name": "setRepost",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "clique:thread",
+          "kind": "LiveQuery",
+          "name": "thread",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "clique:trending",
+          "kind": "Query",
+          "name": "trending",
+          "optionalPropertyPaths": [],
+          "verb": "query"
+        },
+        {
+          "functionId": "clique:upsertProfile",
+          "kind": "Mutation",
+          "name": "upsertProfile",
+          "optionalPropertyPaths": [
+            "args.avatar",
+            "args.bio",
+            "args.clientId",
+            "args.link",
+            "args.location"
+          ],
+          "verb": "mutate"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authAnchors": {
+      "capabilityIndex": [
+        "auth.passwords",
+        "auth.browser-session-custody",
+        "auth.application-bootstrap-native-custody",
+        "clients.react-expo"
+      ],
+      "guide": [
+        "guide/auth/passwords.md#sign-up-then-sign-in",
+        "guide/auth/passwords.md#recovery-codes-are-the-recovery-path",
+        "guide/auth/targets.md",
+        "guide/auth/native-apps.md",
+        "guide/clients/headless.md#enter-and-leave-session-authority",
+        "guide/clients/react.md",
+        "guide/clients/react-expo.md"
+      ]
+    },
+    "authBootstrapPolicy": {
+      "configured": true,
+      "fields": [
+        {
+          "derivation": "constant:APPLICATION_AUTH_BOOTSTRAP_FORMAT",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated identically"
+          },
+          "field": "format",
+          "semanticIdentityEffect": "included-constant",
+          "value": "snapback.application-auth-bootstrap.v1"
+        },
+        {
+          "derivation": "normalized-schema:appId",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated from the same normalized application id"
+          },
+          "field": "appId",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "clique"
+        },
+        {
+          "derivation": "settled-schema-and-defineAuth:auth.mode",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared verbatim"
+          },
+          "field": "mode",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "sessions"
+        },
+        {
+          "derivation": "normalized-defineAuth:custody(default:durable-required)",
+          "familiarDisposition": {
+            "disposition": 2,
+            "route": "defaults to durable-required; volatile-explicit is refused"
+          },
+          "field": "custody",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "durable-required"
+        },
+        {
+          "derivation": "normalized-defineAuth:mechanisms+externalSessionEntry",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "entryMechanisms",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": [
+            "password-v1"
+          ]
+        },
+        {
+          "derivation": "normalized-defineAuth:providers",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "providers",
+          "optional": true,
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": null
+        },
+        {
+          "derivation": "normalized-functions:authRequirement+normalized-schema:table.visibility",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "derived from the same normalized operations and schema"
+          },
+          "field": "anonymousPublic",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "allowed"
+        },
+        {
+          "derivation": "constant:1",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated identically"
+          },
+          "field": "lifecycleProtocol",
+          "semanticIdentityEffect": "included-constant",
+          "value": 1
+        }
+      ],
+      "profiles": [
+        {
+          "disposition": "direct-normalized-auth-program",
+          "profile": "snapback-explicit-v1",
+          "selected": true
+        },
+        {
+          "disposition": "same-runtime-with-declared-field-dispositions",
+          "profile": "snapback-familiar-ts-v1",
+          "selected": false
+        }
+      ],
+      "sourceFields": [
+        {
+          "bootstrapProjection": [],
+          "disposition": "auth-abuse-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared generated abuse-policy extension"
+          },
+          "field": "abuseBudgets",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "assuranceRequirements",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "custody"
+          ],
+          "disposition": "bootstrap-source",
+          "familiarDisposition": {
+            "disposition": 2,
+            "route": "defaults to durable-required; volatile-explicit is refused in the familiar profile"
+          },
+          "field": "custody",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "bootstrap-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared explicit advanced-session seam"
+          },
+          "field": "externalSessionEntry",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "guest-entry-policy-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "guestPolicy",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "bootstrap-and-mechanism-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "mechanisms",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "providers"
+          ],
+          "disposition": "bootstrap-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "providers",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "recovery-lifecycle-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "recoveryPolicy",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "secretReferences",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "verifiedProvisioning",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "version",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        }
+      ]
+    },
+    "authBootstrapState": {
+      "advisories": [
+        {
+          "authorityEffect": "non-authoritative",
+          "diagnosticCode": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT",
+          "state": "ready"
+        }
+      ],
+      "diagnostics": [
+        {
+          "class": "durable-custody-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE",
+            "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED"
+          ],
+          "remediations": [
+            "installDurableCustody",
+            "selectSupportedPlatform"
+          ],
+          "state": "unsupported"
+        },
+        {
+          "class": "custody-owner-key-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "blocked"
+        },
+        {
+          "class": "duplicate-ordinary-advanced-owner",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID"
+          ],
+          "remediations": [
+            "disposeAndReconstruct",
+            "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "storage-partition-invalid",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_PARTITION_INVALID"
+          ],
+          "remediations": [
+            "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "binding-app-profile-mismatch",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID",
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID",
+            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID"
+          ],
+          "remediations": [
+            "regenerateAppDescriptor",
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "binding-capability-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE"
+          ],
+          "remediations": [
+            "selectCompatibleBinding"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "binding-owner-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct",
+            "useStoragePartition"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "rqs-store-identity-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "rqs-store-custody-incompatible",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "live-policy-rotation",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION"
+          ],
+          "remediations": [
+            "disposeAndReconstruct"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "stale-or-expired-binding",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE",
+            "SNAPBACK_APP_BINDING_EXPIRED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "hosted-binding-invalid",
+          "codes": [
+            "SNAPBACK_APP_BINDING_TARGET_INVALID",
+            "SNAPBACK_APP_BINDING_INTEGRITY_INVALID"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "custody-digest-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_MODULE_UNAVAILABLE",
+            "SNAPBACK_AUTH_BOOTSTRAP_DIGEST_FAILED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap",
+            "selectSupportedPlatform"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "completeness-unclassified",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED"
+          ],
+          "remediations": [
+            "regenerateAppDescriptor"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "bootstrap-failure-fallback",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_FAILED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "custody-corrupt-or-unrecognized",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_CORRUPT",
+            "SNAPBACK_AUTH_CUSTODY_AMBIGUOUS",
+            "SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED",
+            "SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "blocked"
+        },
+        {
+          "class": "supervised-principal-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT"
+          ],
+          "remediations": [
+            "keepCurrentPrincipal",
+            "signOut"
+          ],
+          "state": "ready"
+        },
+        {
+          "class": "mechanism-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE"
+          ],
+          "remediations": [
+            "regenerateAppDescriptor"
+          ],
+          "state": "error"
+        },
+        {
+          "class": "recovery-rotation-predecessor",
+          "codes": [
+            "SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED"
+          ],
+          "remediations": [],
+          "state": "error"
+        },
+        {
+          "class": "auth-mode-not-sessions",
+          "codes": [
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+            "SNAPBACK_AUTH_MODE_PENDING"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "authority-required"
+        },
+        {
+          "class": "participant-barrier-or-final-confirmation",
+          "codes": [
+            "SNAPBACK_AUTH_TRANSITION_FAILED",
+            "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID"
+          ],
+          "remediations": [
+            "retryAuthBootstrap"
+          ],
+          "state": "error"
+        }
+      ],
+      "remediations": [
+        {
+          "authorityEffect": "none",
+          "kind": "retryAuthBootstrap",
+          "machineApplicable": true,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "regenerateAppDescriptor",
+          "machineApplicable": "context-dependent",
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "selectCompatibleBinding",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "selectSupportedPlatform",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "installDurableCustody",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "keepCurrentPrincipal",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "clears-session",
+          "kind": "signOut",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "useStoragePartition",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "disposeAndReconstruct",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        }
+      ],
+      "stages": [
+        "binding",
+        "custody",
+        "authority",
+        "client"
+      ],
+      "states": [
+        {
+          "fields": [
+            "stage"
+          ],
+          "status": "starting"
+        },
+        {
+          "fields": [
+            "custody",
+            "authoritySource",
+            "advisories"
+          ],
+          "status": "ready"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "authority-required"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "blocked"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "unsupported"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "error"
+        }
+      ]
+    },
+    "authCustodyPlatforms": {
+      "platforms": [
+        {
+          "adapter": "createIndexedDbAuthCustodyStorage",
+          "carriers": [
+            "indexeddb-web-locks",
+            "indexeddb-fenced-lease"
+          ],
+          "disposition": "shipped",
+          "grade": "durable",
+          "platform": "browser",
+          "policy": "durable-required-or-explicit-memory",
+          "refusalCode": null,
+          "runtimePlatformKind": "browser"
+        },
+        {
+          "adapter": "createIndexedDbAuthCustodyStorage",
+          "carriers": [
+            "indexeddb-web-locks",
+            "indexeddb-fenced-lease"
+          ],
+          "disposition": "shipped",
+          "grade": "durable",
+          "platform": "expo-web",
+          "policy": "durable-required-or-explicit-memory",
+          "refusalCode": null,
+          "runtimePlatformKind": "expo-web"
+        },
+        {
+          "adapter": "createMemoryAuthCustodyStorage",
+          "carriers": [
+            "memory"
+          ],
+          "disposition": "shipped-nonclaim",
+          "grade": "volatile",
+          "platform": "memory",
+          "policy": "volatile-explicit-only",
+          "refusalCode": "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE",
+          "runtimePlatformKind": "memory"
+        },
+        {
+          "adapter": "createSecureStoreAuthCustodyStorage",
+          "carriers": [],
+          "disposition": "refused-pending-evidence",
+          "grade": "pending-per-os-evidence",
+          "platform": "expo-native-phase-2-evidence-required",
+          "policy": "durable-required-refused",
+          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
+          "runtimePlatformKind": "expo-native-phase-2-evidence-required"
+        }
+      ],
+      "selectedPolicy": "durable-required"
+    },
+    "authEntryMechanisms": {
+      "entries": [
+        {
+          "configured": false,
+          "familiarHook": "useAuth",
+          "mechanism": "guest-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "enterAsGuest",
+              "clientMethod": "authEnterAsGuest",
+              "clientNamespaceMethod": "authEnterAsGuest",
+              "facadeMethod": "enterAsGuest",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "enter",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "claimGuestWithPassword",
+              "clientMethod": "authClaimGuestWithPassword",
+              "clientNamespaceMethod": "authClaimGuestWithPassword",
+              "collisionContract": "different-principal-refuses-without-link-merge-or-switch",
+              "facadeMethod": "claimGuestWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "claim-password",
+              "predecessor": "settled-active-guest-same-session-and-authority",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+              "targetCapability": "auth.guest-sessions"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.guest-sessions"
+        },
+        {
+          "configured": true,
+          "familiarHook": "useAuth",
+          "mechanism": "password-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "signUpWithPassword",
+              "clientMethod": "authPasswordSignup",
+              "clientNamespaceMethod": "authPasswordSignup",
+              "facadeMethod": "signUpWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "signup",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "signInWithPassword",
+              "clientMethod": "authPasswordSignIn",
+              "clientNamespaceMethod": "authPasswordSignIn",
+              "facadeMethod": "signInWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "signin",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "changePassword",
+              "clientMethod": "authPasswordChange",
+              "clientNamespaceMethod": "authPasswordChange",
+              "facadeMethod": "changePassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "change",
+              "predecessor": "settled-authenticated-same-authority",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.passwords"
+        },
+        {
+          "configured": false,
+          "familiarHook": null,
+          "mechanism": "email-code-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "authRequestCode",
+              "clientNamespaceMethod": "authRequestCode",
+              "facadeMethod": "authRequestCode",
+              "facadeOwner": "SnapbackClient.auth",
+              "operation": "request-code",
+              "predecessor": "none",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthChallengePublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "authExchange",
+              "clientNamespaceMethod": "authExchange",
+              "facadeMethod": "authExchange",
+              "facadeOwner": "SnapbackClient.auth",
+              "operation": "exchange",
+              "predecessor": "settled-anonymous",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "deferred-facade-phase",
+          "reactHook": null,
+          "targetCapability": null
+        },
+        {
+          "configured": false,
+          "familiarHook": null,
+          "mechanism": "external-session-explicit-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "createExternalSessionClient",
+              "clientNamespaceMethod": null,
+              "facadeMethod": null,
+              "facadeOwner": null,
+              "operation": "construct-external-session-client",
+              "predecessor": "explicit-advanced-construction",
+              "recoveryProjection": "none",
+              "resultType": "SnapbackClient"
+            }
+          ],
+          "phase": "advanced-explicit-only",
+          "reactHook": null,
+          "targetCapability": "auth.sessions.v1"
+        }
+      ],
+      "sourceMechanisms": [
+        {
+          "disposition": "shipped-policy-gated-entry",
+          "entryMechanism": "guest-v1",
+          "kind": "guest"
+        },
+        {
+          "disposition": "shipped",
+          "entryMechanism": "password-v1",
+          "kind": "password"
+        },
+        {
+          "disposition": "deferred-facade-phase",
+          "entryMechanism": "email-code-v1",
+          "kind": "email-code"
+        },
+        {
+          "disposition": "deferred-llp-0151-slot",
+          "entryMechanism": null,
+          "kind": "passkey"
+        }
+      ]
+    },
+    "authOwnership": {
+      "advancedForms": [
+        "prepared-binding",
+        "prepared-provider"
+      ],
+      "conflictingOwnerKeyDisposition": "SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT",
+      "duplicateRefusalCode": "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID",
+      "exclusive": true,
+      "ordinaryForms": [
+        "appClient",
+        "app+binding"
+      ],
+      "ordinaryOwner": "createSnapbackAppClient",
+      "sameOwnerKeyDisposition": "reference-counted-reuse"
+    },
+    "authRecoveryLifecycle": {
+      "operations": [
+        {
+          "applicationFacadeMethod": "consumeRecoveryCode",
+          "clientMethod": "authRecoveryConsume",
+          "clientNamespaceMethod": "authRecoveryConsume",
+          "facadeDisposition": "shipped-ordinary-app-facade-exact-client-contract",
+          "facadeMethod": "consumeRecoveryCode",
+          "facadeOwner": "SnapbackAppClient.auth",
+          "operation": "consume",
+          "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+          "recoveryProjection": "one-time-response",
+          "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+          "targetCapability": "auth.passwords"
+        },
+        {
+          "applicationFacadeMethod": "rotateRecoveryCodes",
+          "clientMethod": "authRecoveryRotate",
+          "clientNamespaceMethod": "authRecoveryRotate",
+          "facadeDisposition": "shipped-ordinary-app-facade-exact-client-contract",
+          "facadeMethod": "rotateRecoveryCodes",
+          "facadeOwner": "SnapbackAppClient.auth",
+          "operation": "rotate",
+          "predecessor": "settled-authenticated-same-authority-with-recent-auth",
+          "recoveryProjection": "one-time-response",
+          "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>",
+          "targetCapability": "auth.passwords"
+        }
+      ],
+      "policy": {
+        "lastAuthenticator": "enforce",
+        "recoveryCodes": {
+          "enabled": true,
+          "plaintextCustody": "one-time-response",
+          "requiredWhen": "no-independent-recovery",
+          "rotateAfterUse": true
+        }
+      },
+      "sourceField": "recoveryPolicy"
+    },
+    "authSupervisedPrecedence": {
+      "conflictDiagnostic": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT",
+      "conflictState": "ready-advisory",
+      "events": [
+        "binding-remint",
+        "supervisor-restart",
+        "refreshAuthority"
+      ],
+      "midEntryRule": "drop-supervisor-adoption-at-arrival",
+      "order": [
+        "valid-durable-settled-record",
+        "explicit-application-entry",
+        "admitted-supervised-development-over-anonymous",
+        "explicit-advanced-external-adoption"
+      ],
+      "protectedRule": "application-entered-or-restored-updates-binding-and-transport-facts-only",
+      "replacementRule": "replace-only-process-local-supervised-capture-or-anonymous"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:addChatMember",
+          "kind": "Mutation",
+          "name": "addChatMember",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:appSettingsLive",
+          "kind": "LiveQuery",
+          "name": "appSettingsLive",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:applyGradingSettings",
+          "kind": "Mutation",
+          "name": "applyGradingSettings",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:chatByClientId",
+          "kind": "LiveQuery",
+          "name": "chatByClientId",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:chatCutsForChat",
+          "kind": "LiveQuery",
+          "name": "chatCutsForChat",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:chatDetails",
+          "kind": "LiveQuery",
+          "name": "chatDetails",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:chatRoster",
+          "kind": "LiveQuery",
+          "name": "chatRoster",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:createDm",
+          "kind": "Mutation",
+          "name": "createDm",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:createGroup",
+          "kind": "Mutation",
+          "name": "createGroup",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:createPost",
+          "kind": "Mutation",
+          "name": "createPost",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:createReply",
+          "kind": "Mutation",
+          "name": "createReply",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:deleteMessage",
+          "kind": "Mutation",
+          "name": "deleteMessage",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:editMessage",
+          "kind": "Mutation",
+          "name": "editMessage",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:fixturePeople",
+          "kind": "LiveQuery",
+          "name": "fixturePeople",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:followingFeed",
+          "kind": "LiveQuery",
+          "name": "followingFeed",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:followsOf",
+          "kind": "LiveQuery",
+          "name": "followsOf",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:getMine",
+          "kind": "LiveQuery",
+          "name": "getMine",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:globalFeed",
+          "kind": "LiveQuery",
+          "name": "globalFeed",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:insightsForMe",
+          "kind": "Query",
+          "name": "insightsForMe",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:leaveChat",
+          "kind": "Mutation",
+          "name": "leaveChat",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:markDelivered",
+          "kind": "Mutation",
+          "name": "markDelivered",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:markRead",
+          "kind": "Mutation",
+          "name": "markRead",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:messagesForChat",
+          "kind": "LiveQuery",
+          "name": "messagesForChat",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:myChats",
+          "kind": "LiveQuery",
+          "name": "myChats",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:myFollows",
+          "kind": "LiveQuery",
+          "name": "myFollows",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:myLikes",
+          "kind": "LiveQuery",
+          "name": "myLikes",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:myPushLogs",
+          "kind": "LiveQuery",
+          "name": "myPushLogs",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:myReposts",
+          "kind": "LiveQuery",
+          "name": "myReposts",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:openViewOnce",
+          "kind": "Mutation",
+          "name": "openViewOnce",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:postMediaForPost",
+          "kind": "LiveQuery",
+          "name": "postMediaForPost",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:profileByHandle",
+          "kind": "LiveQuery",
+          "name": "profileByHandle",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:profilePosts",
+          "kind": "LiveQuery",
+          "name": "profilePosts",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:profilesLive",
+          "kind": "LiveQuery",
+          "name": "profilesLive",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:promoteChatMember",
+          "kind": "Mutation",
+          "name": "promoteChatMember",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:reactionsForChat",
+          "kind": "LiveQuery",
+          "name": "reactionsForChat",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:receiptsForChat",
+          "kind": "LiveQuery",
+          "name": "receiptsForChat",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:removeChatMember",
+          "kind": "Mutation",
+          "name": "removeChatMember",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:resolveExternal",
+          "kind": "Query",
+          "name": "resolveExternal",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:searchMessages",
+          "kind": "Query",
+          "name": "searchMessages",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:searchPeople",
+          "kind": "Query",
+          "name": "searchPeople",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:sendMedia",
+          "kind": "Mutation",
+          "name": "sendMedia",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:sendText",
+          "kind": "Mutation",
+          "name": "sendText",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:setChatSettings",
+          "kind": "Mutation",
+          "name": "setChatSettings",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:setFollow",
+          "kind": "Mutation",
+          "name": "setFollow",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:setLike",
+          "kind": "Mutation",
+          "name": "setLike",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:setReaction",
+          "kind": "Mutation",
+          "name": "setReaction",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:setRepost",
+          "kind": "Mutation",
+          "name": "setRepost",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:thread",
+          "kind": "LiveQuery",
+          "name": "thread",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "clique:trending",
+          "kind": "Query",
+          "name": "trending",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "query"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "clique:upsertProfile",
+          "kind": "Mutation",
+          "name": "upsertProfile",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [
+        {
+          "collection": "typing",
+          "withdrawalVisibilityDeadlineMs": 1750
+        }
+      ],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1",
+  "surfaceFamilies": [
+    "query",
+    "liveQuery",
+    "mutate",
+    "action",
+    "commands"
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

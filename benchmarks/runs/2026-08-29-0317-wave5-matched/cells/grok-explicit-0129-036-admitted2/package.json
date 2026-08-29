@@ -1,0 +1,8 @@
+{
+  "name": "grok-explicit-0129-036-admitted2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "acceptance": "node clique/scripts/acceptance.mjs"
+  }
+}

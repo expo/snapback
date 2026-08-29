@@ -1,0 +1,31 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/createPost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "images": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "video": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "clientId",
+    "kind"
+  ],
+  "title": "clique:createPost arguments",
+  "type": "object"
+}

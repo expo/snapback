@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/chatByClientId.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clientId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "clientId"
+  ],
+  "title": "clique:chatByClientId arguments",
+  "type": "object"
+}

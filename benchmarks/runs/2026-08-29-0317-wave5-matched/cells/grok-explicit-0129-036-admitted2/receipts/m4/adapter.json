@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "social-messenger.choreography-adapter.v1",
+  "routes": {
+    "profile": "/profile/{handle}",
+    "profileEdit": "/profile/edit",
+    "settings": "/settings",
+    "search": "/search",
+    "insights": "/insights",
+    "conversation": "/conversation/{handle}",
+    "groupConversation": "/conversation/group/{group}",
+    "groupSettings": "/conversation/group/{group}/settings"
+  },
+  "fixtures": {
+    "directory": "/Users/ccheever/bench-0317-wave5/lanes/grok-explicit-0129-036-admitted2/instrument/fixtures/social-messenger",
+    "image": "media/img-05.png",
+    "background": "media/img-01.png",
+    "video": "media/vid-01.mp4",
+    "groupTitle": "Weekend Plans",
+    "searchToken": "coffee",
+    "searchExpected": "Coffee after work?",
+    "pollOptionId": "m7-option-a",
+    "pollAlternateOptionId": "m7-option-b",
+    "addedMemberHandle": "dave"
+  },
+  "disappearing": {
+    "optionValue": "24h",
+    "waitMs": 300000
+  }
+}

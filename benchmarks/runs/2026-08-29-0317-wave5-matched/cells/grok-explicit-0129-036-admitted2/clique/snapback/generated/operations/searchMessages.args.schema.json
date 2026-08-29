@@ -1,0 +1,365 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/searchMessages.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "type": "string"
+    },
+    "chatId": {
+      "type": "string"
+    },
+    "limit": {
+      "maximum": 50,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "query": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "items": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Term": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "Term"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Phrase": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "values": {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "values"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "Phrase"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Prefix": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "value": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "Prefix"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Any": {
+                    "items": {
+                      "oneOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "Term": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "field": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "Term"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "Phrase": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "field": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "values": {
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "type": "array"
+                                }
+                              },
+                              "required": [
+                                "values"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "Phrase"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "Prefix": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "field": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "value": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "Prefix"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "Any"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Not": {
+                    "oneOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "Term": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "field": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "Term"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "Phrase": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "field": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "values": {
+                                "items": {
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              }
+                            },
+                            "required": [
+                              "values"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "Phrase"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "Prefix": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "field": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "value": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "value"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "Prefix"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "Not"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "Filter": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "field": {
+                        "type": "string"
+                      },
+                      "op": {
+                        "description": "The one filter operator the v1 parser profile admits. A closed enum rather\nthan a free string so the deserialization grammar, the exported request\nschema, and the published client typings admit exactly the same set — a new\noperator is a new parser profile, not a wider string.\n\n@ref LLP 0131#the-search-fixture-cv-5 — every carrier of the AST grammar\nderives from or verifies against the one exported request schema.",
+                        "enum": [
+                          "eq"
+                        ],
+                        "type": "string"
+                      },
+                      "value": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "number"
+                          },
+                          {
+                            "type": "boolean"
+                          }
+                        ],
+                        "description": "The closed scalar vocabulary for equality-filter values. Previously this\nfield was an open `serde_json::Value` whose non-scalar shapes were refused\nlater by semantic validation; closing it at the deserialization grammar\nkeeps the accepted query set identical while letting every schema carrier\nstate the same admissible set."
+                      }
+                    },
+                    "required": [
+                      "field",
+                      "op",
+                      "value"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "Filter"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "all"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "query",
+    "chatId"
+  ],
+  "title": "clique:searchMessages arguments",
+  "type": "object"
+}

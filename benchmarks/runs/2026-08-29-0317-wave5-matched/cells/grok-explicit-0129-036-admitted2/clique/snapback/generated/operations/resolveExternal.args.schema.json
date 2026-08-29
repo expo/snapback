@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/resolveExternal.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "externalId": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "externalId"
+  ],
+  "title": "clique:resolveExternal arguments",
+  "type": "object"
+}

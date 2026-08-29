@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/createPost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "externalId": {
+      "type": "string"
+    },
+    "mediaUri1": {
+      "type": "string"
+    },
+    "mediaUri2": {
+      "type": "string"
+    },
+    "parentExternalId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "externalId",
+    "type",
+    "text",
+    "mediaUri1",
+    "mediaUri2",
+    "parentExternalId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:createPost arguments",
+  "type": "object"
+}

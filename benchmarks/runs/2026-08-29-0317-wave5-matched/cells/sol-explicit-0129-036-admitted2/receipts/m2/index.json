@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "clique.milestone-evidence.v1",
+  "milestone": "M2",
+  "green": true,
+  "suite": {
+    "path": "suite.json",
+    "sha256": "sha256:73f364f73a821755123bdc0aaa8e8ab80222418c4433785e77297c13aa9e8d38",
+    "assertions": 22,
+    "pass": true
+  },
+  "choreography": {
+    "path": "choreography.jsonl",
+    "sha256": "sha256:6e6799d38b37e04bf45ab1207143ace8d5e19a8ab24607cfc5017ef12f717855",
+    "observations": "choreography.observations.jsonl",
+    "observationsSha256": "sha256:fb6c62eb66a6004fac32267bb58caf7e36ba288b11d2a5d78508117d275d3061",
+    "assertions": {
+      "total": 9,
+      "required": 9,
+      "implemented": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "notImplemented": 0,
+      "requiredUnimplemented": 0
+    },
+    "pass": true
+  },
+  "end": 1788001167
+}

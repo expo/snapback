@@ -1,0 +1,13 @@
+# Clique milestone diary
+
+- M1 boundary 1787988922: started with accounts and profiles. The important product choice was immutable session identity plus a separately editable public profile. Duplicate email and handle failures stay visible at the form boundary. Retained final green: 1787998206.
+- M2 boundary 1787991693 (reconstructed from the first proof start): modeled following feeds as explicit per-owner projections, not a client-side filter over global posts. That made unfollow, repost attribution, own-post inclusion, self-edge exclusion, and pagination observable across browsers. Retained final green: 1787998290.
+- M3 boundary 1787992220 (reconstructed): messaging required per-recipient views so receipts, view state, membership cutoff, and offline history did not collapse into one global row. The later scale-up forced a separate bounded browser query from headless history. Retained final green: 1787998962.
+- M4 boundary 1787993719 (reconstructed): fixture image/video references exercised the message write path and UI contracts. Reactions are edge rows; edits and deletes fan out to recipient views; delete waits for a pending same-message send. Retained final green: 1787999055.
+- M5 boundary 1787993977 (reconstructed): chat settings and disappearing state needed explicit navigation reconciliation. Search moved to a compact owner projection retained above route changes so a warm offline relaunch could answer without reviving the full conversation subscription. Retained final green: 1788000115.
+- M6 boundary 1787995503 (reconstructed): the client library's reconnect behavior was insufficient for the required pending UI and deterministic FIFO proof. The product therefore owns a local persistent outbox layered on idempotent server message identities. Push is an inspectable seam, and the documented custom client authenticates, lists, pages, sends, and receives by polling. Retained final green: 1788000884.
+- M7: environment-null by lane contract. No simulator, device, or EAS claim was attempted.
+- M8 boundary 1787995971 (reconstructed): insights are server-updated counters plus UTC-day rows; trending is a current-window ranking. Two same-account browser contexts exposed stale hydration and optimistic-order edge cases that single-context tests missed. Retained final green: 1788000862.
+- Closure: the application is benchmark-green on web, with published Snapback 0.1.29 and the default explicit profile. Production gaps remain around schema visibility, asset custody/revocation, physical TTL purge, scheduled digest execution, strict large-scale search, and N+1 fan-out.
+
+end=1788001350

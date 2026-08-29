@@ -1,0 +1,788 @@
+{
+  "artifactKind": "snapbackVerifyReceipt",
+  "schemaVersion": "snapback.verify-receipt.v1",
+  "ok": true,
+  "status": "passed",
+  "startedAtMs": 1788001007805,
+  "finishedAtMs": 1788001012814,
+  "durationMs": 5009,
+  "profileSet": {
+    "ids": [
+      "clique-evidence-closure"
+    ],
+    "identity": "sha256:722ad8e1639b421d0e0d34256f6dd207cbbb058eb8b08f5561b614bec46a041c",
+    "testBytes": {
+      "algorithm": "sha256-path-length-content.v1",
+      "sha256": "sha256:a79c53ccfbcd4e18ce3cdd39c930e35aca74028d77713763dbec6f84eaebe616",
+      "bytes": 149508,
+      "files": [
+        {
+          "path": "receipts/choreography-m1.jsonl",
+          "bytes": 4392,
+          "sha256": "sha256:eca095677648ee69817de66f7f3fafd423d3792cbc687b1b0dbfd7ac190e83a8"
+        },
+        {
+          "path": "receipts/choreography-m1.observations.jsonl",
+          "bytes": 1706,
+          "sha256": "sha256:39cd55e7a994263c99a45ea62c706fa0611bed147b44e05c01fa67a38f1424f6"
+        },
+        {
+          "path": "receipts/choreography-m2.jsonl",
+          "bytes": 10275,
+          "sha256": "sha256:6e6799d38b37e04bf45ab1207143ace8d5e19a8ab24607cfc5017ef12f717855"
+        },
+        {
+          "path": "receipts/choreography-m2.observations.jsonl",
+          "bytes": 7460,
+          "sha256": "sha256:fb6c62eb66a6004fac32267bb58caf7e36ba288b11d2a5d78508117d275d3061"
+        },
+        {
+          "path": "receipts/choreography-m3.jsonl",
+          "bytes": 8257,
+          "sha256": "sha256:d94f82e30a9f6d1d15a020bc9ab68279ea8b354e4f702c6f54deb2c252daa0e6"
+        },
+        {
+          "path": "receipts/choreography-m3.observations.jsonl",
+          "bytes": 3771,
+          "sha256": "sha256:1aff9fde1f7e6523700d3684838a3b97a643fbf97d05d75b3ebf13aa4b8856ed"
+        },
+        {
+          "path": "receipts/choreography-m4.jsonl",
+          "bytes": 5987,
+          "sha256": "sha256:b603cc8e2a7083fff3f9930088cff30c8da636a5b2f8e0bf32cae3795b7bf5a9"
+        },
+        {
+          "path": "receipts/choreography-m4.observations.jsonl",
+          "bytes": 3388,
+          "sha256": "sha256:9c3cdfb4616d8e2f1331698bf16540914a8d5cdefb476ce6ef70079010070ad4"
+        },
+        {
+          "path": "receipts/choreography-m5.jsonl",
+          "bytes": 4329,
+          "sha256": "sha256:796c179b5e2237d0cd102eaa4141f8264572716499e03b5f6b6b7a15f30b6496"
+        },
+        {
+          "path": "receipts/choreography-m5.observations.jsonl",
+          "bytes": 1434,
+          "sha256": "sha256:671f4ba1c24d05dde156c6abdb4a8a7be5feac066080832a00dec437288db0f0"
+        },
+        {
+          "path": "receipts/choreography-m6.jsonl",
+          "bytes": 3001,
+          "sha256": "sha256:90c3c095312d92dd6062b804991f9d8fef52e85ed37df6739983e4f354579af8"
+        },
+        {
+          "path": "receipts/choreography-m6.observations.jsonl",
+          "bytes": 554,
+          "sha256": "sha256:b711fa796fe8fff75386d152cf423597e4019b7201e8503da7f4d75de3343b97"
+        },
+        {
+          "path": "receipts/choreography-m8.jsonl",
+          "bytes": 5142,
+          "sha256": "sha256:1570b00f1f1c8f8026bcfb39c604ae596e98d45e4e017ce7d79cec35758a4ce0"
+        },
+        {
+          "path": "receipts/choreography-m8.observations.jsonl",
+          "bytes": 1707,
+          "sha256": "sha256:68f158ea991824672b50fd5bc5533f6100d39bd8dbee7e7991753f71b0cc63c2"
+        },
+        {
+          "path": "receipts/replay-sample-50.json",
+          "bytes": 8050,
+          "sha256": "sha256:094a6e3a3067faed9fa222c440b7f793633dfc526304600c0fd9a41c62f43e58"
+        },
+        {
+          "path": "receipts/replay.json",
+          "bytes": 12866,
+          "sha256": "sha256:c054d26a65aa4747c7b523e01acd00e58d81e2db1787ff02459945a9a88e828c"
+        },
+        {
+          "path": "receipts/suite-m1.json",
+          "bytes": 2532,
+          "sha256": "sha256:3cad27a4ce2b188c46deb5f0f8fc505befb181d22aa5759eac892fcb368df0c1"
+        },
+        {
+          "path": "receipts/suite-m2.json",
+          "bytes": 6473,
+          "sha256": "sha256:73f364f73a821755123bdc0aaa8e8ab80222418c4433785e77297c13aa9e8d38"
+        },
+        {
+          "path": "receipts/suite-m3.json",
+          "bytes": 2640,
+          "sha256": "sha256:b00a34d40fd2bfdf9db4ceb7cf83330b7956c691c988096203fc42a3a6c70283"
+        },
+        {
+          "path": "receipts/suite-m4.json",
+          "bytes": 1867,
+          "sha256": "sha256:8c381d3fad275bcc15d1ce377bbef2895bc177a9496d8989424a9640720e732f"
+        },
+        {
+          "path": "receipts/suite-m5.json",
+          "bytes": 2230,
+          "sha256": "sha256:b478a41628c3a900b1a3ac273ecb8a808f18b66bbd695b8729f140e338865e54"
+        },
+        {
+          "path": "receipts/suite-m6.json",
+          "bytes": 2966,
+          "sha256": "sha256:15493bf3dd5795255e1d0dfc6d3402b9aa207be5c8c553e888f603991d966d53"
+        },
+        {
+          "path": "receipts/suite-m8.json",
+          "bytes": 2475,
+          "sha256": "sha256:3a1390fdcd60b3b9b138308ebe95619558212fc07fc51713f5807727e9840c9d"
+        },
+        {
+          "path": "scripts/acceptance.mjs",
+          "bytes": 35080,
+          "sha256": "sha256:3a67c620ce5f42eb5a3364fdcf241d18d6c0e114b785f3350491c79384facb4b"
+        },
+        {
+          "path": "scripts/replay.mjs",
+          "bytes": 6335,
+          "sha256": "sha256:1ce50c66ac13108b33ede111617991d10f328c8d9ebae1ccd9984ce45d307fc1"
+        },
+        {
+          "path": "scripts/verify-evidence-profile.mjs",
+          "bytes": 1345,
+          "sha256": "sha256:dc55b9381884c336da13122bc6165ce32e3da4e565090320bc77c35b79afa5ce"
+        },
+        {
+          "path": "snapback.verify.config.mjs",
+          "bytes": 1008,
+          "sha256": "sha256:679b66e1347806adb7a37ffaeaea20314359b271aa0dc241ac57c5b8bf9d0f4c"
+        },
+        {
+          "path": "tests/evidence.test.mjs",
+          "bytes": 2238,
+          "sha256": "sha256:73823a4dc75ffcb1342faa14d164a0198a11011cd091052d9657ebfd8356b9b7"
+        }
+      ]
+    }
+  },
+  "context": {
+    "target": {
+      "kind": "local-generated-artifact",
+      "identity": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436"
+    },
+    "data": {
+      "kind": "not-exercised",
+      "identity": null
+    },
+    "authority": {
+      "kind": "not-exercised",
+      "identity": null,
+      "principalClass": "not-exercised"
+    },
+    "seed": {
+      "kind": "authored-seed-bytes",
+      "identity": "sha256:05f6aa5f0a11ffb234b3c40cd8a599097477d5af5bce94d68fef667f70b97015"
+    }
+  },
+  "stages": [
+    {
+      "id": "artifact-freshness",
+      "status": "passed",
+      "diagnostics": [],
+      "evidence": {
+        "identity": {
+          "appId": "sol-explicit-0129-036-admitted2",
+          "schemaVersion": "snapback.v1",
+          "schemaHash": "snapback.v1:sessions:schema:sha256:aa67104ce3ee21d34275581af8e72aacd86bd8695e4d428d9e5140addb1d4e02",
+          "bundleHash": "snapback.v1:sessions:function:sha256:49c5de87a910b3012921011c5b26bd38fceaa77aa5f989309c4d9cb1dac1be32",
+          "inputsHash": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436"
+        },
+        "generatedRoot": "/home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/snapback/generated",
+        "verifiedGraph": {
+          "inputsHash": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436",
+          "files": 97
+        }
+      }
+    },
+    {
+      "id": "runtime-readiness",
+      "status": "passed",
+      "diagnostics": [],
+      "evidence": {
+        "receiptPath": "/home/ccheever/bench-0317-wave5/lanes/sol-explicit-0129-036-admitted2/.snapback/runtime-readiness.json",
+        "receipt": {
+          "schemaVersion": "snapback.runtime-readiness.v1",
+          "issuedAt": "2026-08-29T10:56:42.471Z",
+          "issuer": "snapback-cli-runtime-qualify",
+          "platform": "linux-x64",
+          "binary": {
+            "bytes": 202200440,
+            "sha256": "03c4c2d8b407e767951a88a2710d1a29cbe3d57b650d1fb089e4c2e5d8d95c84"
+          },
+          "buildIdentity": {
+            "crateVersion": "0.1.0",
+            "gitCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+            "gitDirty": false,
+            "buildProfile": "release",
+            "startupNonce": "01a04d2a-235c-7c60-a92d-10ed9cdc0ea9"
+          },
+          "artifacts": [
+            {
+              "path": "include/hermes/hermes.h.artifact",
+              "bytes": 11126,
+              "sha256": "4327ff32a1d4b68fabee775055660118fede4deeac7b88ddc6edf587b8b2a354"
+            },
+            {
+              "path": "lib/libhermesvm.so",
+              "bytes": 7080480,
+              "sha256": "d1bde2b2912ff3b71a30328813b0b2477ef03c08657dc18fd309854615f35d5d"
+            },
+            {
+              "path": "lib/libicudata.so.74",
+              "bytes": 30795392,
+              "sha256": "ddbb3718b8bd9cbd780e5ab08b4503c30a6c4fa0706ebe5d074ed6b596c1714e"
+            },
+            {
+              "path": "lib/libicui18n.so.74",
+              "bytes": 3455304,
+              "sha256": "3550b194eb2cf2e6f798f033eb9ca279d498c21296b4a18790ce158d2023e47b"
+            },
+            {
+              "path": "lib/libicuuc.so.74",
+              "bytes": 2140336,
+              "sha256": "7560aadde38e5f4237a47a1ddd5891f9b36768a77a60faae30beee003ac01901"
+            },
+            {
+              "path": "lib/libz.so.1",
+              "bytes": 113000,
+              "sha256": "9b64150b28505a33d6bc3ecf709c279f6de97a1c184dbda65d06ee4537f6d286"
+            },
+            {
+              "path": "admin/__exact/native/mac-appkit-hermes/diagnostics.json",
+              "bytes": 727,
+              "sha256": "a4089f168a1b83a4dbd7c9bee5d227ee64846bb9d6519e88d534d970e0572006"
+            },
+            {
+              "path": "admin/__exact/native/mac-appkit-hermes/exact-native.json",
+              "bytes": 1435,
+              "sha256": "a4d0f295c5310ddd5c0d5e6fe5cf893ce53f6bf645a93d0b621f3ce72073aebc"
+            },
+            {
+              "path": "admin/__exact/native/mac-appkit-hermes/startup.js",
+              "bytes": 3072589,
+              "sha256": "1068e812431a98c5d9c8713c492d9d51ef7b314b5ba925919ed0e949a1bedb84"
+            },
+            {
+              "path": "admin/__exact/platform-manifest.json",
+              "bytes": 921,
+              "sha256": "33ec063a5b68ccae575a94c68ff30a99d948df2e2d853ea8a161f6d2e1ef80a1"
+            },
+            {
+              "path": "admin/assets/main-C1mB4TNo.js",
+              "bytes": 947816,
+              "sha256": "ced2c1665164ef96de3d0f1a1ac5e57a19408603ec593a16de758f4fda6a571f"
+            },
+            {
+              "path": "admin/exact.desktop.manifest.json",
+              "bytes": 138,
+              "sha256": "177d916d3ccc9c07c3679d6bdaaafd6fc9b2fafd07de3b35b4de48293b020baf"
+            },
+            {
+              "path": "admin/index.html",
+              "bytes": 2278,
+              "sha256": "4b53c5d518c94e686c5a4340ad118eed1c999a1fa6319148e8cae8f768d96ae1"
+            },
+            {
+              "path": "admin/snapback-admin-snapshot.json",
+              "bytes": 1781,
+              "sha256": "8cb8d6f37f350ce3b6a175c74712c4b1022bf3a3576b4723eb8d8c4235192a9b"
+            },
+            {
+              "path": "admin/snapback-mark-dark.svg",
+              "bytes": 724,
+              "sha256": "79686a75da107dd22ecb2af722759695d7a15c187bd0596201e0f37c1f235542"
+            },
+            {
+              "path": "admin/snapback-mark-light.svg",
+              "bytes": 724,
+              "sha256": "97e78b4acd31ee2e17177132c21c274c1358d6b2625cb9b6177e8cd5575a2a96"
+            }
+          ],
+          "qualification": {
+            "probe": "restricted-no-eval-handler-vm",
+            "ok": true,
+            "report": {
+              "schemaVersion": "snapback.runtime-qualify.v1",
+              "probe": "restricted-no-eval-handler-vm",
+              "ok": true,
+              "binary": {
+                "crateVersion": "0.1.0",
+                "gitCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+                "gitDirty": false,
+                "buildProfile": "release",
+                "startupNonce": "01a04d2a-235c-7c60-a92d-10ed9cdc0ea9"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "admission-and-conformance",
+      "status": "passed",
+      "diagnostics": [],
+      "evidence": {
+        "admissionMode": "generated-artifact-local-admission",
+        "servedTarget": {
+          "disposition": "not-configured",
+          "claim": false,
+          "nonclaim": "no live served target was configured for admission/capability resolution"
+        },
+        "conformance": {
+          "status": "not-claimed",
+          "disposition": "no-registered-acceptance-paths",
+          "coverageRequirement": "path-observation",
+          "scope": "registered-or-repository-adapted-paths",
+          "limitationReason": "no configured or repository-adapted acceptance paths were selected",
+          "complete": false,
+          "expectedPaths": 0,
+          "observedPaths": 0,
+          "pathEvidence": [],
+          "underDeclarations": [],
+          "overDeclarations": [],
+          "diagnostics": []
+        }
+      }
+    },
+    {
+      "id": "capability-resolution",
+      "status": "passed",
+      "diagnostics": [],
+      "evidence": {
+        "targetProfileId": "local-dev-sqlite-ibex",
+        "required": [
+          "args_contract_v1",
+          "auth.sessions.v1",
+          "host_plan_runtime",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "live_subscriptions",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "supported": [
+          "args_contract_v1",
+          "asset_image_finalization_v1",
+          "asset_image_pipeline_v1",
+          "asset_lifecycle_v1",
+          "asset_reference_gc_v1",
+          "asset_video_finalization_v1",
+          "assets.media-collection.v1",
+          "assets.media-command.v1",
+          "assets.media-ref-projection.v1",
+          "auth.guest-sessions",
+          "auth.passwords",
+          "auth.sessions.v1",
+          "bounded_batch_reads_v1",
+          "bounded_children_v1",
+          "cron",
+          "cron_action_run_mutation",
+          "full_text_search_v1",
+          "host_plan_runtime",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "jobs_one_off_v1",
+          "live_subscriptions",
+          "migration_keyset_scan_v1",
+          "mixed_bundle_boot_v2",
+          "mutation_read_set_validation",
+          "notifications.expoPushSeam",
+          "offline_mutation_replay",
+          "permission_epoch_resync",
+          "realtime.connected-client-predicate",
+          "registered_bundle_boot_v1",
+          "relational_query_v1",
+          "result_contract_v1",
+          "sequence_allocation_v1",
+          "settlement.bounded_skew",
+          "single_table_v1",
+          "snapshot_batch_v1",
+          "snapshot_batch_v2",
+          "structured_stored_value_v1",
+          "vector_search_v1",
+          "versioned_seed_install_v1",
+          "versioned_seed_reset_v1",
+          "write_activity_v1"
+        ],
+        "missing": [],
+        "resolutionMode": "generated-capability-manifest"
+      }
+    },
+    {
+      "id": "acceptance-profiles",
+      "status": "passed",
+      "diagnostics": [],
+      "evidence": {
+        "profiles": [
+          {
+            "profileId": "clique-evidence-closure",
+            "title": "Clique typed suite and two-browser evidence closure",
+            "status": "passed",
+            "startedAtMs": 1788001012812,
+            "finishedAtMs": 1788001012814,
+            "durationMs": 2,
+            "testBytes": {
+              "algorithm": "sha256-path-length-content.v1",
+              "sha256": "sha256:a79c53ccfbcd4e18ce3cdd39c930e35aca74028d77713763dbec6f84eaebe616",
+              "bytes": 149508,
+              "files": [
+                {
+                  "path": "receipts/choreography-m1.jsonl",
+                  "bytes": 4392,
+                  "sha256": "sha256:eca095677648ee69817de66f7f3fafd423d3792cbc687b1b0dbfd7ac190e83a8"
+                },
+                {
+                  "path": "receipts/choreography-m1.observations.jsonl",
+                  "bytes": 1706,
+                  "sha256": "sha256:39cd55e7a994263c99a45ea62c706fa0611bed147b44e05c01fa67a38f1424f6"
+                },
+                {
+                  "path": "receipts/choreography-m2.jsonl",
+                  "bytes": 10275,
+                  "sha256": "sha256:6e6799d38b37e04bf45ab1207143ace8d5e19a8ab24607cfc5017ef12f717855"
+                },
+                {
+                  "path": "receipts/choreography-m2.observations.jsonl",
+                  "bytes": 7460,
+                  "sha256": "sha256:fb6c62eb66a6004fac32267bb58caf7e36ba288b11d2a5d78508117d275d3061"
+                },
+                {
+                  "path": "receipts/choreography-m3.jsonl",
+                  "bytes": 8257,
+                  "sha256": "sha256:d94f82e30a9f6d1d15a020bc9ab68279ea8b354e4f702c6f54deb2c252daa0e6"
+                },
+                {
+                  "path": "receipts/choreography-m3.observations.jsonl",
+                  "bytes": 3771,
+                  "sha256": "sha256:1aff9fde1f7e6523700d3684838a3b97a643fbf97d05d75b3ebf13aa4b8856ed"
+                },
+                {
+                  "path": "receipts/choreography-m4.jsonl",
+                  "bytes": 5987,
+                  "sha256": "sha256:b603cc8e2a7083fff3f9930088cff30c8da636a5b2f8e0bf32cae3795b7bf5a9"
+                },
+                {
+                  "path": "receipts/choreography-m4.observations.jsonl",
+                  "bytes": 3388,
+                  "sha256": "sha256:9c3cdfb4616d8e2f1331698bf16540914a8d5cdefb476ce6ef70079010070ad4"
+                },
+                {
+                  "path": "receipts/choreography-m5.jsonl",
+                  "bytes": 4329,
+                  "sha256": "sha256:796c179b5e2237d0cd102eaa4141f8264572716499e03b5f6b6b7a15f30b6496"
+                },
+                {
+                  "path": "receipts/choreography-m5.observations.jsonl",
+                  "bytes": 1434,
+                  "sha256": "sha256:671f4ba1c24d05dde156c6abdb4a8a7be5feac066080832a00dec437288db0f0"
+                },
+                {
+                  "path": "receipts/choreography-m6.jsonl",
+                  "bytes": 3001,
+                  "sha256": "sha256:90c3c095312d92dd6062b804991f9d8fef52e85ed37df6739983e4f354579af8"
+                },
+                {
+                  "path": "receipts/choreography-m6.observations.jsonl",
+                  "bytes": 554,
+                  "sha256": "sha256:b711fa796fe8fff75386d152cf423597e4019b7201e8503da7f4d75de3343b97"
+                },
+                {
+                  "path": "receipts/choreography-m8.jsonl",
+                  "bytes": 5142,
+                  "sha256": "sha256:1570b00f1f1c8f8026bcfb39c604ae596e98d45e4e017ce7d79cec35758a4ce0"
+                },
+                {
+                  "path": "receipts/choreography-m8.observations.jsonl",
+                  "bytes": 1707,
+                  "sha256": "sha256:68f158ea991824672b50fd5bc5533f6100d39bd8dbee7e7991753f71b0cc63c2"
+                },
+                {
+                  "path": "receipts/replay-sample-50.json",
+                  "bytes": 8050,
+                  "sha256": "sha256:094a6e3a3067faed9fa222c440b7f793633dfc526304600c0fd9a41c62f43e58"
+                },
+                {
+                  "path": "receipts/replay.json",
+                  "bytes": 12866,
+                  "sha256": "sha256:c054d26a65aa4747c7b523e01acd00e58d81e2db1787ff02459945a9a88e828c"
+                },
+                {
+                  "path": "receipts/suite-m1.json",
+                  "bytes": 2532,
+                  "sha256": "sha256:3cad27a4ce2b188c46deb5f0f8fc505befb181d22aa5759eac892fcb368df0c1"
+                },
+                {
+                  "path": "receipts/suite-m2.json",
+                  "bytes": 6473,
+                  "sha256": "sha256:73f364f73a821755123bdc0aaa8e8ab80222418c4433785e77297c13aa9e8d38"
+                },
+                {
+                  "path": "receipts/suite-m3.json",
+                  "bytes": 2640,
+                  "sha256": "sha256:b00a34d40fd2bfdf9db4ceb7cf83330b7956c691c988096203fc42a3a6c70283"
+                },
+                {
+                  "path": "receipts/suite-m4.json",
+                  "bytes": 1867,
+                  "sha256": "sha256:8c381d3fad275bcc15d1ce377bbef2895bc177a9496d8989424a9640720e732f"
+                },
+                {
+                  "path": "receipts/suite-m5.json",
+                  "bytes": 2230,
+                  "sha256": "sha256:b478a41628c3a900b1a3ac273ecb8a808f18b66bbd695b8729f140e338865e54"
+                },
+                {
+                  "path": "receipts/suite-m6.json",
+                  "bytes": 2966,
+                  "sha256": "sha256:15493bf3dd5795255e1d0dfc6d3402b9aa207be5c8c553e888f603991d966d53"
+                },
+                {
+                  "path": "receipts/suite-m8.json",
+                  "bytes": 2475,
+                  "sha256": "sha256:3a1390fdcd60b3b9b138308ebe95619558212fc07fc51713f5807727e9840c9d"
+                },
+                {
+                  "path": "scripts/acceptance.mjs",
+                  "bytes": 35080,
+                  "sha256": "sha256:3a67c620ce5f42eb5a3364fdcf241d18d6c0e114b785f3350491c79384facb4b"
+                },
+                {
+                  "path": "scripts/replay.mjs",
+                  "bytes": 6335,
+                  "sha256": "sha256:1ce50c66ac13108b33ede111617991d10f328c8d9ebae1ccd9984ce45d307fc1"
+                },
+                {
+                  "path": "scripts/verify-evidence-profile.mjs",
+                  "bytes": 1345,
+                  "sha256": "sha256:dc55b9381884c336da13122bc6165ce32e3da4e565090320bc77c35b79afa5ce"
+                },
+                {
+                  "path": "snapback.verify.config.mjs",
+                  "bytes": 1008,
+                  "sha256": "sha256:679b66e1347806adb7a37ffaeaea20314359b271aa0dc241ac57c5b8bf9d0f4c"
+                },
+                {
+                  "path": "tests/evidence.test.mjs",
+                  "bytes": 2238,
+                  "sha256": "sha256:73823a4dc75ffcb1342faa14d164a0198a11011cd091052d9657ebfd8356b9b7"
+                }
+              ]
+            },
+            "context": {
+              "target": {
+                "kind": "local-generated-artifact",
+                "identity": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436"
+              },
+              "data": {
+                "kind": "local-dev-sqlite-receipts",
+                "identity": "sha256:05f6aa5f0a11ffb234b3c40cd8a599097477d5af5bce94d68fef667f70b97015"
+              },
+              "authority": {
+                "kind": "password-session-personas",
+                "identity": "clique-fixture-personas-v1",
+                "principalClass": "authenticated-fixture"
+              },
+              "seed": {
+                "kind": "authored-seed-bytes",
+                "identity": "sha256:05f6aa5f0a11ffb234b3c40cd8a599097477d5af5bce94d68fef667f70b97015"
+              }
+            },
+            "coverageCapability": null,
+            "conformance": [],
+            "diagnostics": []
+          }
+        ]
+      }
+    }
+  ],
+  "acceptanceProfiles": [
+    {
+      "profileId": "clique-evidence-closure",
+      "title": "Clique typed suite and two-browser evidence closure",
+      "status": "passed",
+      "startedAtMs": 1788001012812,
+      "finishedAtMs": 1788001012814,
+      "durationMs": 2,
+      "testBytes": {
+        "algorithm": "sha256-path-length-content.v1",
+        "sha256": "sha256:a79c53ccfbcd4e18ce3cdd39c930e35aca74028d77713763dbec6f84eaebe616",
+        "bytes": 149508,
+        "files": [
+          {
+            "path": "receipts/choreography-m1.jsonl",
+            "bytes": 4392,
+            "sha256": "sha256:eca095677648ee69817de66f7f3fafd423d3792cbc687b1b0dbfd7ac190e83a8"
+          },
+          {
+            "path": "receipts/choreography-m1.observations.jsonl",
+            "bytes": 1706,
+            "sha256": "sha256:39cd55e7a994263c99a45ea62c706fa0611bed147b44e05c01fa67a38f1424f6"
+          },
+          {
+            "path": "receipts/choreography-m2.jsonl",
+            "bytes": 10275,
+            "sha256": "sha256:6e6799d38b37e04bf45ab1207143ace8d5e19a8ab24607cfc5017ef12f717855"
+          },
+          {
+            "path": "receipts/choreography-m2.observations.jsonl",
+            "bytes": 7460,
+            "sha256": "sha256:fb6c62eb66a6004fac32267bb58caf7e36ba288b11d2a5d78508117d275d3061"
+          },
+          {
+            "path": "receipts/choreography-m3.jsonl",
+            "bytes": 8257,
+            "sha256": "sha256:d94f82e30a9f6d1d15a020bc9ab68279ea8b354e4f702c6f54deb2c252daa0e6"
+          },
+          {
+            "path": "receipts/choreography-m3.observations.jsonl",
+            "bytes": 3771,
+            "sha256": "sha256:1aff9fde1f7e6523700d3684838a3b97a643fbf97d05d75b3ebf13aa4b8856ed"
+          },
+          {
+            "path": "receipts/choreography-m4.jsonl",
+            "bytes": 5987,
+            "sha256": "sha256:b603cc8e2a7083fff3f9930088cff30c8da636a5b2f8e0bf32cae3795b7bf5a9"
+          },
+          {
+            "path": "receipts/choreography-m4.observations.jsonl",
+            "bytes": 3388,
+            "sha256": "sha256:9c3cdfb4616d8e2f1331698bf16540914a8d5cdefb476ce6ef70079010070ad4"
+          },
+          {
+            "path": "receipts/choreography-m5.jsonl",
+            "bytes": 4329,
+            "sha256": "sha256:796c179b5e2237d0cd102eaa4141f8264572716499e03b5f6b6b7a15f30b6496"
+          },
+          {
+            "path": "receipts/choreography-m5.observations.jsonl",
+            "bytes": 1434,
+            "sha256": "sha256:671f4ba1c24d05dde156c6abdb4a8a7be5feac066080832a00dec437288db0f0"
+          },
+          {
+            "path": "receipts/choreography-m6.jsonl",
+            "bytes": 3001,
+            "sha256": "sha256:90c3c095312d92dd6062b804991f9d8fef52e85ed37df6739983e4f354579af8"
+          },
+          {
+            "path": "receipts/choreography-m6.observations.jsonl",
+            "bytes": 554,
+            "sha256": "sha256:b711fa796fe8fff75386d152cf423597e4019b7201e8503da7f4d75de3343b97"
+          },
+          {
+            "path": "receipts/choreography-m8.jsonl",
+            "bytes": 5142,
+            "sha256": "sha256:1570b00f1f1c8f8026bcfb39c604ae596e98d45e4e017ce7d79cec35758a4ce0"
+          },
+          {
+            "path": "receipts/choreography-m8.observations.jsonl",
+            "bytes": 1707,
+            "sha256": "sha256:68f158ea991824672b50fd5bc5533f6100d39bd8dbee7e7991753f71b0cc63c2"
+          },
+          {
+            "path": "receipts/replay-sample-50.json",
+            "bytes": 8050,
+            "sha256": "sha256:094a6e3a3067faed9fa222c440b7f793633dfc526304600c0fd9a41c62f43e58"
+          },
+          {
+            "path": "receipts/replay.json",
+            "bytes": 12866,
+            "sha256": "sha256:c054d26a65aa4747c7b523e01acd00e58d81e2db1787ff02459945a9a88e828c"
+          },
+          {
+            "path": "receipts/suite-m1.json",
+            "bytes": 2532,
+            "sha256": "sha256:3cad27a4ce2b188c46deb5f0f8fc505befb181d22aa5759eac892fcb368df0c1"
+          },
+          {
+            "path": "receipts/suite-m2.json",
+            "bytes": 6473,
+            "sha256": "sha256:73f364f73a821755123bdc0aaa8e8ab80222418c4433785e77297c13aa9e8d38"
+          },
+          {
+            "path": "receipts/suite-m3.json",
+            "bytes": 2640,
+            "sha256": "sha256:b00a34d40fd2bfdf9db4ceb7cf83330b7956c691c988096203fc42a3a6c70283"
+          },
+          {
+            "path": "receipts/suite-m4.json",
+            "bytes": 1867,
+            "sha256": "sha256:8c381d3fad275bcc15d1ce377bbef2895bc177a9496d8989424a9640720e732f"
+          },
+          {
+            "path": "receipts/suite-m5.json",
+            "bytes": 2230,
+            "sha256": "sha256:b478a41628c3a900b1a3ac273ecb8a808f18b66bbd695b8729f140e338865e54"
+          },
+          {
+            "path": "receipts/suite-m6.json",
+            "bytes": 2966,
+            "sha256": "sha256:15493bf3dd5795255e1d0dfc6d3402b9aa207be5c8c553e888f603991d966d53"
+          },
+          {
+            "path": "receipts/suite-m8.json",
+            "bytes": 2475,
+            "sha256": "sha256:3a1390fdcd60b3b9b138308ebe95619558212fc07fc51713f5807727e9840c9d"
+          },
+          {
+            "path": "scripts/acceptance.mjs",
+            "bytes": 35080,
+            "sha256": "sha256:3a67c620ce5f42eb5a3364fdcf241d18d6c0e114b785f3350491c79384facb4b"
+          },
+          {
+            "path": "scripts/replay.mjs",
+            "bytes": 6335,
+            "sha256": "sha256:1ce50c66ac13108b33ede111617991d10f328c8d9ebae1ccd9984ce45d307fc1"
+          },
+          {
+            "path": "scripts/verify-evidence-profile.mjs",
+            "bytes": 1345,
+            "sha256": "sha256:dc55b9381884c336da13122bc6165ce32e3da4e565090320bc77c35b79afa5ce"
+          },
+          {
+            "path": "snapback.verify.config.mjs",
+            "bytes": 1008,
+            "sha256": "sha256:679b66e1347806adb7a37ffaeaea20314359b271aa0dc241ac57c5b8bf9d0f4c"
+          },
+          {
+            "path": "tests/evidence.test.mjs",
+            "bytes": 2238,
+            "sha256": "sha256:73823a4dc75ffcb1342faa14d164a0198a11011cd091052d9657ebfd8356b9b7"
+          }
+        ]
+      },
+      "context": {
+        "target": {
+          "kind": "local-generated-artifact",
+          "identity": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436"
+        },
+        "data": {
+          "kind": "local-dev-sqlite-receipts",
+          "identity": "sha256:05f6aa5f0a11ffb234b3c40cd8a599097477d5af5bce94d68fef667f70b97015"
+        },
+        "authority": {
+          "kind": "password-session-personas",
+          "identity": "clique-fixture-personas-v1",
+          "principalClass": "authenticated-fixture"
+        },
+        "seed": {
+          "kind": "authored-seed-bytes",
+          "identity": "sha256:05f6aa5f0a11ffb234b3c40cd8a599097477d5af5bce94d68fef667f70b97015"
+        }
+      },
+      "coverageCapability": null,
+      "conformance": [],
+      "diagnostics": []
+    }
+  ],
+  "next": [],
+  "nonclaims": [
+    "a passing receipt proves readiness under the registered contract, not product completion",
+    "no registered acceptance paths means D1 aggregate coverage is not claimed",
+    "generated-artifact-local-admission does not claim a live target admitted the same bytes",
+    "this receipt does not perform semantic review or satisfy LLP 0115 CV-14 review custody"
+  ]
+}

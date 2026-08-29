@@ -1,0 +1,1656 @@
+{
+  "appId": "clique",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions",
+    "passwordIdentifierMode": "email-v1",
+    "passwordMinimumLength": 8
+  },
+  "authProgram": {
+    "assuranceRequirements": {},
+    "custody": "durable-required",
+    "guestPolicy": {
+      "claiming": [],
+      "enabled": false
+    },
+    "mechanisms": {
+      "password": {
+        "identifier": "email",
+        "kind": "password",
+        "minimumLength": 8,
+        "provider": "builtIn",
+        "recovery": "recoveryCodes"
+      }
+    },
+    "recoveryPolicy": {
+      "lastAuthenticator": "enforce",
+      "recoveryCodes": {
+        "enabled": true,
+        "plaintextCustody": "one-time-response",
+        "requiredWhen": "no-independent-recovery",
+        "rotateAfterUse": true
+      }
+    },
+    "secretReferences": {},
+    "version": 1
+  },
+  "authProgramReadiness": {
+    "assuranceRequirementsCompiled": true,
+    "catalogRequired": 3,
+    "claimsProjectionCompiled": true,
+    "declarationValid": true,
+    "deliveryChannels": {},
+    "noDeliveryCheck": {
+      "enforced": false,
+      "satisfied": true
+    },
+    "programVersion": 1,
+    "requiredAssuranceProducers": {},
+    "verifiedProvisioningCompiled": false,
+    "verifiedProvisioningDeclared": false
+  },
+  "authoredSourceHash": "sha256:dd90485b2f5b010f63daf170f8b847de55ae53a8206b05c240f675eab7c2a41d",
+  "authoringProfile": "snapback-explicit-v1",
+  "ephemeralCollections": [
+    {
+      "burst": 8,
+      "defaultTtlMs": 3500,
+      "dispatchMs": 80,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 4800,
+      "maxValueBytes": 128,
+      "name": "typing",
+      "publish": "AllowAll",
+      "routingFields": [
+        "chatId"
+      ],
+      "scopeContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "chatId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "chats"
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "scopeFields": [
+        "chatId"
+      ],
+      "subscribe": "AllowAll",
+      "sustainedHz": 4,
+      "valueContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "displayName",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "withdrawalVisibilityDeadlineMs": 1750
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b5c9a43ba6f815b9e8e22f47887fc49698d7db08c572b478e16bc406060ae2c1",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1",
+    "full_text_search_v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:4b7ba3857c0b792f86dba9a5d07edd3a317e7ab999d147b76fb133afffb972e2",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "key",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "editWindowMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "deleteWindowMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "disappear24hMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "disappear7dMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "digestPeriodMs",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "digestAnchorHourUtc",
+          "optional": false
+        },
+        {
+          "field_type": "Boolean",
+          "name": "replayMode",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "key"
+          ],
+          "name": "by_key",
+          "unique": true
+        }
+      ],
+      "name": "appSettings",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "assetSharing": {
+        "kind": "public-read"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "handle",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "bio",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "location",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "link",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicImageUpload"
+            }
+          },
+          "name": "avatar",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "followerCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "followingCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "postCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "likesReceived",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "repostsReceived",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "repliesReceived",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user",
+          "unique": true
+        },
+        {
+          "fields": [
+            "handle"
+          ],
+          "name": "by_handle",
+          "unique": true
+        }
+      ],
+      "name": "profiles",
+      "searchIndexes": [
+        {
+          "analyzer": "snapback-category-unicode17-v1",
+          "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+          "cursorLimits": {
+            "maxBytes": 2048,
+            "ttlMs": 120000
+          },
+          "equalityFilters": [],
+          "fieldClassifications": {
+            "bio": "public",
+            "link": "public",
+            "location": "public",
+            "userId": "public"
+          },
+          "formatVersion": 1,
+          "highlightFields": [
+            "displayName",
+            "handle"
+          ],
+          "maintenanceLimits": {
+            "searchBytes": 262144,
+            "searchMaintenanceEffects": 1024,
+            "searchPositions": 8192,
+            "searchPostingOps": 4096
+          },
+          "name": "search_people",
+          "queryLimits": {
+            "maxCandidateWork": 10000,
+            "maxPrefixTerms": 256,
+            "minPrefixScalars": 2
+          },
+          "semanticVersion": "clique-people.v1",
+          "sourceLimits": {
+            "maxIndexedBytes": 32768,
+            "maxPostingOperations": 4096,
+            "maxTokens": 2048
+          },
+          "storedFields": [
+            "bio",
+            "displayName",
+            "handle",
+            "link",
+            "location",
+            "userId"
+          ],
+          "textFields": {
+            "displayName": {
+              "classification": "public",
+              "weight": 8
+            },
+            "handle": {
+              "classification": "public",
+              "weight": 8
+            }
+          },
+          "tieBreak": "score-desc-row-id-asc.v1",
+          "visibility": {
+            "kind": "public-read"
+          }
+        }
+      ],
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "followerId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "followeeId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "mutationId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "followerId",
+            "followeeId"
+          ],
+          "name": "by_pair",
+          "unique": true
+        },
+        {
+          "fields": [
+            "followerId"
+          ],
+          "name": "by_follower"
+        },
+        {
+          "fields": [
+            "followeeId"
+          ],
+          "name": "by_followee"
+        },
+        {
+          "fields": [
+            "mutationId"
+          ],
+          "name": "by_mutation",
+          "unique": true
+        }
+      ],
+      "name": "follows",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "clientId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "parentId",
+          "optional": true
+        },
+        {
+          "field_type": "Boolean",
+          "name": "isReply",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "likeCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "repostCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "replyCount",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "clientId"
+          ],
+          "name": "by_client",
+          "unique": true
+        },
+        {
+          "fields": [
+            "createdAt"
+          ],
+          "name": "by_created"
+        },
+        {
+          "fields": [
+            "authorId",
+            "createdAt"
+          ],
+          "name": "by_author_created"
+        },
+        {
+          "fields": [
+            "parentId",
+            "createdAt"
+          ],
+          "name": "by_parent"
+        }
+      ],
+      "name": "posts",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "assetSharing": {
+        "kind": "public-read"
+      },
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "postId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "ord",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicImageUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicVideoUpload"
+            }
+          },
+          "name": "video",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "postId",
+            "ord"
+          ],
+          "name": "by_post"
+        }
+      ],
+      "name": "postMedia",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "postId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "mutationId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "postId",
+            "userId"
+          ],
+          "name": "by_pair",
+          "unique": true
+        },
+        {
+          "fields": [
+            "postId"
+          ],
+          "name": "by_post"
+        },
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "mutationId"
+          ],
+          "name": "by_mutation",
+          "unique": true
+        }
+      ],
+      "name": "likes",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "postId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "mutationId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "postId",
+            "userId"
+          ],
+          "name": "by_pair",
+          "unique": true
+        },
+        {
+          "fields": [
+            "postId"
+          ],
+          "name": "by_post"
+        },
+        {
+          "fields": [
+            "userId",
+            "createdAt"
+          ],
+          "name": "by_user_created"
+        },
+        {
+          "fields": [
+            "mutationId"
+          ],
+          "name": "by_mutation",
+          "unique": true
+        }
+      ],
+      "name": "reposts",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "postId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "actorId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "createdAt"
+          ],
+          "name": "by_created"
+        },
+        {
+          "fields": [
+            "actorId",
+            "createdAt"
+          ],
+          "name": "by_actor_created"
+        },
+        {
+          "fields": [
+            "postId",
+            "actorId"
+          ],
+          "name": "by_post_actor"
+        }
+      ],
+      "name": "feedEvents",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "assetSharing": {
+        "kind": "membership",
+        "membership": "chatAccess"
+      },
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "clientId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "name",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "description",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "createdBy",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "accent",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicImageUpload"
+            }
+          },
+          "name": "background",
+          "optional": true
+        },
+        {
+          "field_type": "String",
+          "name": "disappearing",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "lastPreview",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "lastMessageAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "clientId"
+          ],
+          "name": "by_client",
+          "unique": true
+        },
+        {
+          "fields": [
+            "name"
+          ],
+          "name": "by_name"
+        },
+        {
+          "fields": [
+            "lastMessageAt"
+          ],
+          "name": "by_updated"
+        }
+      ],
+      "name": "chats",
+      "syncable": true,
+      "visibility": {
+        "declaration": "chatAccess",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "admin",
+          "member"
+        ]
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "joinedAt",
+          "optional": true
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat"
+        }
+      ],
+      "membership": {
+        "bootstrapRole": "admin",
+        "id": "chatAccess",
+        "lastHolder": {
+          "protect": "admin"
+        },
+        "principal": "userId",
+        "principalAddressedWrites": {
+          "remove": true
+        },
+        "provenance": "full",
+        "resource": "chatId",
+        "resourceTable": "chats",
+        "role": "role",
+        "roles": [
+          "admin",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "admin",
+              "member"
+            ],
+            "fields": [
+              "joinedAt"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "admin"
+            ],
+            "fields": [
+              "joinedAt"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "admin"
+            ]
+          },
+          {
+            "by": [
+              "admin"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "setRole",
+            "target": "other",
+            "to": [
+              "admin"
+            ]
+          },
+          {
+            "by": [
+              "admin"
+            ],
+            "op": "remove",
+            "target": "other"
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "admin",
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "chatMembers",
+      "syncable": true,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "handle",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "displayName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat"
+        },
+        {
+          "fields": [
+            "chatId",
+            "handle"
+          ],
+          "name": "by_chat_handle",
+          "unique": true
+        }
+      ],
+      "name": "chatRosterRows",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "handle",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "cutAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat"
+        },
+        {
+          "fields": [
+            "chatId",
+            "handle"
+          ],
+          "name": "by_chat_handle",
+          "unique": true
+        }
+      ],
+      "name": "chatCuts",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userLo",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userHi",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userLo",
+            "userHi"
+          ],
+          "name": "by_pair",
+          "unique": true
+        },
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat",
+          "unique": true
+        }
+      ],
+      "name": "dmPairs",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "assetSharing": {
+        "kind": "membership",
+        "membership": "chatAccess"
+      },
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "clientId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "senderId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "text",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "quoteId",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicImageUpload"
+            }
+          },
+          "name": "image",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "publicVideoUpload"
+            }
+          },
+          "name": "video",
+          "optional": true
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "upload": "viewOnceImageUpload"
+            }
+          },
+          "name": "viewOnceImage",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "editedAt",
+          "optional": true
+        },
+        {
+          "field_type": "Boolean",
+          "name": "tombstoned",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "expiresAt",
+          "optional": true
+        },
+        {
+          "field_type": "Boolean",
+          "name": "viewOnce",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "clientId"
+          ],
+          "name": "by_client",
+          "unique": true
+        },
+        {
+          "fields": [
+            "chatId",
+            "createdAt"
+          ],
+          "name": "by_chat_created"
+        }
+      ],
+      "name": "messages",
+      "searchIndexes": [
+        {
+          "analyzer": "snapback-category-unicode17-v1",
+          "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+          "cursorLimits": {
+            "maxBytes": 2048,
+            "ttlMs": 120000
+          },
+          "equalityFilters": [
+            "chatId",
+            "tombstoned"
+          ],
+          "fieldClassifications": {
+            "chatId": "public",
+            "createdAt": "public",
+            "senderId": "public",
+            "tombstoned": "public"
+          },
+          "formatVersion": 1,
+          "highlightFields": [
+            "text"
+          ],
+          "maintenanceLimits": {
+            "searchBytes": 262144,
+            "searchMaintenanceEffects": 1024,
+            "searchPositions": 8192,
+            "searchPostingOps": 4096
+          },
+          "name": "search_messages",
+          "queryLimits": {
+            "maxCandidateWork": 10000,
+            "maxPrefixTerms": 256,
+            "minPrefixScalars": 2
+          },
+          "semanticVersion": "clique-messages.v1",
+          "sourceLimits": {
+            "maxIndexedBytes": 32768,
+            "maxPostingOperations": 4096,
+            "maxTokens": 2048
+          },
+          "storedFields": [
+            "chatId",
+            "createdAt",
+            "senderId",
+            "text",
+            "tombstoned"
+          ],
+          "textFields": {
+            "text": {
+              "classification": "public",
+              "weight": 8
+            }
+          },
+          "tieBreak": "score-desc-row-id-asc.v1",
+          "visibility": {
+            "declaration": "chatAccess",
+            "kind": "membership",
+            "resourceField": "chatId",
+            "roles": [
+              "admin",
+              "member"
+            ]
+          }
+        }
+      ],
+      "syncable": true,
+      "visibility": {
+        "declaration": "chatAccess",
+        "kind": "membership",
+        "resourceField": "chatId",
+        "roles": [
+          "admin",
+          "member"
+        ]
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "messageId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "state",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "updatedAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "messageId",
+            "userId"
+          ],
+          "name": "by_message_user",
+          "unique": true
+        },
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat"
+        }
+      ],
+      "name": "receipts",
+      "syncable": true,
+      "visibility": {
+        "declaration": "chatAccess",
+        "kind": "membership",
+        "resourceField": "chatId",
+        "roles": [
+          "admin",
+          "member"
+        ]
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "messageId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "emoji",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "mutationId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "messageId",
+            "userId"
+          ],
+          "name": "by_message_user",
+          "unique": true
+        },
+        {
+          "fields": [
+            "messageId"
+          ],
+          "name": "by_message"
+        },
+        {
+          "fields": [
+            "chatId"
+          ],
+          "name": "by_chat"
+        },
+        {
+          "fields": [
+            "mutationId"
+          ],
+          "name": "by_mutation",
+          "unique": true
+        }
+      ],
+      "name": "messageReactions",
+      "syncable": true,
+      "visibility": {
+        "declaration": "chatAccess",
+        "kind": "membership",
+        "resourceField": "chatId",
+        "roles": [
+          "admin",
+          "member"
+        ]
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "messageId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "messageId",
+            "userId"
+          ],
+          "name": "by_pair",
+          "unique": true
+        }
+      ],
+      "name": "viewOnceViews",
+      "syncable": true,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "targetUserId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "chats"
+            }
+          },
+          "name": "chatId",
+          "optional": true
+        },
+        {
+          "field_type": "String",
+          "name": "senderDisplayName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "preview",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "periodStart",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "periodEnd",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "newFollowers",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "newPostsInFollowing",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "unreadMessages",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "unreadChats",
+          "optional": true
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "targetUserId",
+            "createdAt"
+          ],
+          "name": "by_target_created"
+        },
+        {
+          "fields": [
+            "kind",
+            "createdAt"
+          ],
+          "name": "by_kind_created"
+        }
+      ],
+      "name": "pushLogs",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "periodStart",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "periodEnd",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId",
+            "periodStart"
+          ],
+          "name": "by_user_period",
+          "unique": true
+        }
+      ],
+      "name": "digestEmissions",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "dayUtc",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "postsCreated",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "likesReceived",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId",
+            "dayUtc"
+          ],
+          "name": "by_user_day",
+          "unique": true
+        }
+      ],
+      "name": "dailyStats",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "externalId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "internalId",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "kind",
+            "externalId"
+          ],
+          "name": "by_external",
+          "unique": true
+        },
+        {
+          "fields": [
+            "kind",
+            "internalId"
+          ],
+          "name": "by_internal"
+        }
+      ],
+      "name": "externalIds",
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

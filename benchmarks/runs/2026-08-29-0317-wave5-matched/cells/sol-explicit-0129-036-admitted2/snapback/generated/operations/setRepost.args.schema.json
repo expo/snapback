@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/setRepost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "mutationId": {
+      "type": "string"
+    },
+    "postExternalId": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "postExternalId",
+    "state",
+    "mutationId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:setRepost arguments",
+  "type": "object"
+}

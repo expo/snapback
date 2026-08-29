@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/setFollow.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "mutationId": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "targetHandle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "targetHandle",
+    "state",
+    "mutationId"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:setFollow arguments",
+  "type": "object"
+}

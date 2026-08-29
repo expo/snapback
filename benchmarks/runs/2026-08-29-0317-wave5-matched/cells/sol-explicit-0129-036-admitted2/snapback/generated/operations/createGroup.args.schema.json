@@ -1,0 +1,30 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/createGroup.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "externalId": {
+      "type": "string"
+    },
+    "memberHandles": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "externalId",
+    "name",
+    "description",
+    "memberHandles"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:createGroup arguments",
+  "type": "object"
+}

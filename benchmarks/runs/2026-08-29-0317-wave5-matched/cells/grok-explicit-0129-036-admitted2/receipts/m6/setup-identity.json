@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "social-messenger.setup-identity.v1",
+  "instrumentPin": "social-messenger@0.3.6-m8",
+  "backend": {
+    "kind": "snapback",
+    "version": "0.1.29"
+  },
+  "runtime": {
+    "qualifiedBinary": {
+      "claimed": false,
+      "reason": "Using published @expo/snapback-runtime-darwin-arm64 packaged binary via snapback-cli 0.1.29; not copied into the receipts tree."
+    },
+    "wrapper": {
+      "claimed": false,
+      "reason": "Using published @expo/snapback-cli@0.1.29 wrapper; not copied into the receipts tree."
+    }
+  },
+  "packageClosure": {
+    "mode": "workspace",
+    "prepack": "not-applicable",
+    "artifacts": [
+      {
+        "name": "@expo/snapback-cli",
+        "version": "0.1.29",
+        "sha256": null
+      },
+      {
+        "name": "@expo/snapback-client",
+        "version": "0.1.29",
+        "sha256": null
+      },
+      {
+        "name": "@expo/snapback-expo",
+        "version": "0.1.29",
+        "sha256": null
+      }
+    ]
+  },
+  "toolchain": {
+    "node": {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "version": "v24.18.0"
+    },
+    "bun": "1.3.12",
+    "npm": "11.11.1",
+    "playwright": "1.62.1",
+    "browser": "chromium"
+  },
+  "host": {
+    "id": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64"
+  }
+}

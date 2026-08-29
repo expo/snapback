@@ -1,0 +1,9 @@
+{
+  "m1": { "pass": true, "receipt": "suite-m1.json" },
+  "m2": { "pass": true, "receipt": "suite-m2.json" },
+  "m3": { "pass": true, "receipt": "suite-m3.json" },
+  "m4": { "pass": true, "receipt": "suite-m4.json" },
+  "m5": { "pass": true, "receipt": "suite-m5.json" },
+  "m6": { "pass": true, "receipt": "suite-m6.json" },
+  "m8": { "pass": true, "receipt": "suite-m8.json" }
+}

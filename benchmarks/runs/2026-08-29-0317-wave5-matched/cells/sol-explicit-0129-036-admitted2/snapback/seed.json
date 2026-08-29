@@ -1,0 +1,21 @@
+{
+  "tables": {
+  "profiles": [],
+  "follows": [],
+  "posts": [],
+  "postLikes": [],
+  "reposts": [],
+  "feedEntries": [],
+  "conversations": [],
+  "memberships": [],
+  "inboxes": [],
+  "messages": [],
+  "messageViews": [],
+  "messageSearchViews": [],
+  "reactions": [],
+  "notifications": [],
+  "insights": [],
+  "activityDays": [],
+  "mutationIntents": []
+  }
+}

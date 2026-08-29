@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m1",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m1-a01",
+      "m1-a02",
+      "m1-a03",
+      "m1-a04",
+      "m1-a08",
+      "m1-a10",
+      "m1-a11"
+    ],
+    "observedAssertionIds": [
+      "m1-a01",
+      "m1-a02",
+      "m1-a08",
+      "m1-a10",
+      "m1-a11",
+      "m1-a03",
+      "m1-a04"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T09:55:03.457Z"
+  },
+  "checks": [
+    {
+      "id": "m1-a01",
+      "pass": true,
+      "startedAt": 1787997303600,
+      "completedAt": 1787997303601,
+      "details": {
+        "email": "suite-1787997223469568vz@example.com",
+        "passwordLength": 16,
+        "path": "built-in-password-signup"
+      }
+    },
+    {
+      "id": "m1-a02",
+      "pass": true,
+      "startedAt": 1787997303601,
+      "completedAt": 1787997303601,
+      "details": {
+        "principalStatus": "authenticated"
+      }
+    },
+    {
+      "id": "m1-a08",
+      "pass": true,
+      "startedAt": 1787997303698,
+      "completedAt": 1787997303803,
+      "details": {
+        "ownerId": "usr_47smydkfzjg8fayhvh2v8g6n8e",
+        "displayName": "Suite Member Edited",
+        "bio": "Edited bio persists"
+      }
+    },
+    {
+      "id": "m1-a10",
+      "pass": true,
+      "startedAt": 1787997303803,
+      "completedAt": 1787997303833,
+      "details": {
+        "avatarUri": "fixture:avatar-alice",
+        "fixtureUploadPath": true
+      }
+    },
+    {
+      "id": "m1-a11",
+      "pass": true,
+      "startedAt": 1787997303833,
+      "completedAt": 1787997303858,
+      "details": {
+        "renderedAvatarReference": "fixture:avatar-alice"
+      }
+    },
+    {
+      "id": "m1-a03",
+      "pass": true,
+      "startedAt": 1787997303912,
+      "completedAt": 1787997303992,
+      "details": {
+        "rejected": "SNAPBACK_HANDLER_FAILED: JavaScript handler 'upsertProfile' failed at handler source 7:66: Error: HANDLE_TAKEN",
+        "visibleErrorSurface": true
+      }
+    },
+    {
+      "id": "m1-a04",
+      "pass": true,
+      "startedAt": 1787997303993,
+      "completedAt": 1787997304025,
+      "details": {
+        "rejected": "SNAPBACK_AUTH_PASSWORD_EXISTS: a password credential already exists for this identifier",
+        "visibleErrorSurface": true
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997303600,
+  "completedAt": 1787997304026
+}

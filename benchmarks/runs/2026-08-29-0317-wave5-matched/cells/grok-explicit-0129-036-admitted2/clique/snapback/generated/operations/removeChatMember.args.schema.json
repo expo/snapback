@@ -1,0 +1,19 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/removeChatMember.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "handle": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId",
+    "handle"
+  ],
+  "title": "clique:removeChatMember arguments",
+  "type": "object"
+}

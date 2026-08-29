@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m3",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m3-a03",
+      "m3-a04",
+      "m3-a05",
+      "m3-a10",
+      "m3-a11",
+      "m3-a14",
+      "m3-a15"
+    ],
+    "observedAssertionIds": [
+      "m3-a03",
+      "m3-a04",
+      "m3-a05",
+      "m3-a10",
+      "m3-a11",
+      "m3-a14",
+      "m3-a15"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T10:00:28.539Z"
+  },
+  "checks": [
+    {
+      "id": "m3-a03",
+      "pass": true,
+      "startedAt": 1787997630150,
+      "completedAt": 1787997630150,
+      "details": {
+        "first": "dm-alice-bob",
+        "second": "dm-alice-bob"
+      }
+    },
+    {
+      "id": "m3-a04",
+      "pass": true,
+      "startedAt": 1787997630243,
+      "completedAt": 1787997630272,
+      "details": {
+        "group": "suite-group-one-1787997548584sp2ut",
+        "members": [
+          "alice",
+          "bob",
+          "carol"
+        ]
+      }
+    },
+    {
+      "id": "m3-a05",
+      "pass": true,
+      "startedAt": 1787997630377,
+      "completedAt": 1787997630406,
+      "details": {
+        "groups": [
+          "suite-group-one-1787997548584sp2ut",
+          "suite-group-two-1787997548584sp2ut"
+        ]
+      }
+    },
+    {
+      "id": "m3-a10",
+      "pass": true,
+      "startedAt": 1787997631889,
+      "completedAt": 1787997633226,
+      "details": {
+        "reply": "suite-quote-reply-1787997548584sp2ut",
+        "quoted": "suite-quote-original-1787997548584sp2ut",
+        "excerpt": "Quoted source excerpt"
+      }
+    },
+    {
+      "id": "m3-a11",
+      "pass": true,
+      "startedAt": 1787997633226,
+      "completedAt": 1787997633226,
+      "details": {
+        "interaction": "quote preview scrollIntoView target"
+      }
+    },
+    {
+      "id": "m3-a14",
+      "pass": true,
+      "startedAt": 1787997633226,
+      "completedAt": 1787997634627,
+      "details": {
+        "rejected": "SNAPBACK_HANDLER_FAILED: JavaScript handler 'changeMember' failed at handler source 12:81: Error: ADMIN_REQUIRED",
+        "actor": "bob",
+        "role": "member"
+      }
+    },
+    {
+      "id": "m3-a15",
+      "pass": true,
+      "startedAt": 1787997634627,
+      "completedAt": 1787997636016,
+      "details": {
+        "replayedActions": 87,
+        "uniquePostIds": 76,
+        "uniqueInboxKeys": 7,
+        "uniqueStarterGroupMessageIds": 20
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997630150,
+  "completedAt": 1787997636017
+}

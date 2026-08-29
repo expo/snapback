@@ -1,0 +1,29 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/createGroup.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "clientId": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "memberHandles": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "clientId",
+    "name",
+    "memberHandles"
+  ],
+  "title": "clique:createGroup arguments",
+  "type": "object"
+}

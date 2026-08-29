@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m5",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m5-a04",
+      "m5-a05",
+      "m5-a08",
+      "m5-a09",
+      "m5-a10",
+      "m5-a11"
+    ],
+    "observedAssertionIds": [
+      "m5-a04",
+      "m5-a05",
+      "m5-a08",
+      "m5-a09",
+      "m5-a10",
+      "m5-a11"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T10:03:39.466Z"
+  },
+  "checks": [
+    {
+      "id": "m5-a04",
+      "pass": true,
+      "startedAt": 1787997820976,
+      "completedAt": 1787997822412,
+      "details": {
+        "firstOpen": true,
+        "state": "opened"
+      }
+    },
+    {
+      "id": "m5-a05",
+      "pass": true,
+      "startedAt": 1787997822412,
+      "completedAt": 1787997822505,
+      "details": {
+        "secondOpenDenied": "SNAPBACK_HANDLER_FAILED: JavaScript handler 'consumeViewOnce' failed at handler source 5:57: Error: VIEW_ONCE_CONSUMED"
+      }
+    },
+    {
+      "id": "m5-a08",
+      "pass": true,
+      "startedAt": 1787997822505,
+      "completedAt": 1787997822589,
+      "details": {
+        "rejected": "SNAPBACK_HANDLER_FAILED: JavaScript handler 'updateConversation' failed at handler source 6:82: Error: ADMIN_REQUIRED"
+      }
+    },
+    {
+      "id": "m5-a09",
+      "pass": true,
+      "startedAt": 1787997822589,
+      "completedAt": 1787997823917,
+      "details": {
+        "term": "car",
+        "matches": [
+          "carol"
+        ]
+      }
+    },
+    {
+      "id": "m5-a10",
+      "pass": true,
+      "startedAt": 1787997823917,
+      "completedAt": 1787997823951,
+      "details": {
+        "chat": "g-starter",
+        "knownMessage": "sm0007",
+        "text": "Saturday plan: coffee, lake, then noodles."
+      }
+    },
+    {
+      "id": "m5-a11",
+      "pass": true,
+      "startedAt": 1787997824135,
+      "completedAt": 1787997824193,
+      "details": {
+        "resultCount": 2,
+        "groups": [
+          "Weekend Plans",
+          "Bob Bennett"
+        ]
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997820976,
+  "completedAt": 1787997824194
+}

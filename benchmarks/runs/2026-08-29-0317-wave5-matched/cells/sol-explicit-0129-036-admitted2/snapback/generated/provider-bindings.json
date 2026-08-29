@@ -1,0 +1,849 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"conversationKey\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "typing",
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"displayName\": string; \"handle\": string } }>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"action\": string; \"conversationExternalId\": string; \"mutationId\": string; \"targetHandle\": string }",
+        "effects": {
+          "invalidates": [
+            "memberships",
+            "inboxes",
+            "messageViews",
+            "mutationIntents"
+          ],
+          "writes": [
+            "memberships",
+            "inboxes",
+            "messageViews",
+            "mutationIntents"
+          ]
+        },
+        "name": "changeMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"messageExternalId\": string }",
+        "effects": {
+          "invalidates": [
+            "messageViews"
+          ],
+          "writes": [
+            "messageViews"
+          ]
+        },
+        "name": "consumeViewOnce",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"description\": string; \"externalId\": string; \"memberHandles\": ReadonlyArray<string>; \"name\": string }",
+        "effects": {
+          "invalidates": [
+            "conversations",
+            "memberships",
+            "inboxes"
+          ],
+          "writes": [
+            "conversations",
+            "memberships",
+            "inboxes"
+          ]
+        },
+        "name": "createGroup",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"externalId\": string; \"mediaUri1\": string; \"mediaUri2\": string; \"parentExternalId\": string; \"text\": string; \"type\": string }",
+        "effects": {
+          "invalidates": [
+            "posts",
+            "feedEntries",
+            "insights",
+            "activityDays"
+          ],
+          "writes": [
+            "posts",
+            "feedEntries",
+            "insights",
+            "activityDays"
+          ]
+        },
+        "name": "createPost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"messageExternalId\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "messageViews",
+            "messageSearchViews",
+            "inboxes"
+          ],
+          "writes": [
+            "messages",
+            "messageViews",
+            "messageSearchViews",
+            "inboxes"
+          ]
+        },
+        "name": "deleteMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"messageExternalId\": string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "messageViews",
+            "messageSearchViews"
+          ],
+          "writes": [
+            "messages",
+            "messageViews",
+            "messageSearchViews"
+          ]
+        },
+        "name": "editMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"otherHandle\": string }",
+        "effects": {
+          "invalidates": [
+            "conversations",
+            "memberships",
+            "inboxes"
+          ],
+          "writes": [
+            "conversations",
+            "memberships",
+            "inboxes"
+          ]
+        },
+        "name": "ensureDm",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "effects": {
+          "invalidates": [
+            "messageViews"
+          ],
+          "writes": [
+            "messageViews"
+          ]
+        },
+        "name": "markConversationDelivered",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "effects": {
+          "invalidates": [
+            "inboxes",
+            "messageViews"
+          ],
+          "writes": [
+            "inboxes",
+            "messageViews"
+          ]
+        },
+        "name": "markConversationRead",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string; \"externalId\": string; \"mediaKind\": string; \"mediaUri\": string; \"replyToExternalId\": string; \"text\": string; \"viewOnce\": boolean }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "messageViews",
+            "messageSearchViews",
+            "inboxes",
+            "notifications"
+          ],
+          "writes": [
+            "messages",
+            "messageViews",
+            "messageSearchViews",
+            "inboxes",
+            "notifications"
+          ]
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      },
+      {
+        "argumentsType": "{ \"mutationId\": string; \"state\": string; \"targetHandle\": string }",
+        "effects": {
+          "invalidates": [
+            "profiles",
+            "follows",
+            "feedEntries",
+            "mutationIntents",
+            "insights"
+          ],
+          "writes": [
+            "profiles",
+            "follows",
+            "feedEntries",
+            "mutationIntents",
+            "insights"
+          ]
+        },
+        "name": "setFollow",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"emoji\": string; \"messageExternalId\": string; \"mutationId\": string }",
+        "effects": {
+          "invalidates": [
+            "reactions",
+            "messageViews",
+            "mutationIntents"
+          ],
+          "writes": [
+            "reactions",
+            "messageViews",
+            "mutationIntents"
+          ]
+        },
+        "name": "setMessageReaction",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"mutationId\": string; \"postExternalId\": string; \"state\": string }",
+        "effects": {
+          "invalidates": [
+            "posts",
+            "postLikes",
+            "mutationIntents",
+            "insights",
+            "activityDays"
+          ],
+          "writes": [
+            "posts",
+            "postLikes",
+            "mutationIntents",
+            "insights",
+            "activityDays"
+          ]
+        },
+        "name": "setPostLike",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"mutationId\": string; \"postExternalId\": string; \"state\": string }",
+        "effects": {
+          "invalidates": [
+            "posts",
+            "reposts",
+            "feedEntries",
+            "mutationIntents",
+            "insights"
+          ],
+          "writes": [
+            "posts",
+            "reposts",
+            "feedEntries",
+            "mutationIntents",
+            "insights"
+          ]
+        },
+        "name": "setRepost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"accent\": string; \"backgroundUri\": string; \"conversationExternalId\": string; \"description\": string; \"disappearing\": string; \"name\": string }",
+        "effects": {
+          "invalidates": [
+            "conversations",
+            "inboxes"
+          ],
+          "writes": [
+            "conversations",
+            "inboxes"
+          ]
+        },
+        "name": "updateConversation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "boolean"
+      },
+      {
+        "argumentsType": "{ \"avatarUri\": string; \"bio\": string; \"displayName\": string; \"email\": string; \"handle\": string; \"link\": string; \"location\": string }",
+        "effects": {
+          "invalidates": [
+            "profiles",
+            "insights"
+          ],
+          "writes": [
+            "profiles",
+            "insights"
+          ]
+        },
+        "name": "upsertProfile",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "string"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "postLikes"
+          ]
+        },
+        "name": "allPostLikes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"edgeKey\": string; \"postExternalId\": string; \"userHandle\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reposts"
+          ]
+        },
+        "name": "allReposts",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"edgeKey\": string; \"pageKey\": string; \"postExternalId\": string; \"userHandle\": string; \"userId\": string; \"userName\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "feedEntries"
+          ]
+        },
+        "name": "followingFeed",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"entryKey\": string; \"ownerId\": string; \"pageKey\": string; \"postExternalId\": string; \"projectedAuthorId\": string; \"repostedByHandle\": string; \"repostedById\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts"
+          ]
+        },
+        "name": "globalPosts",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorAvatarUri\": string; \"authorHandle\": string; \"authorId\": string; \"authorName\": string; \"createdAt\": number; \"externalId\": string; \"isReply\": boolean; \"likeCount\": number; \"mediaUri1\": string; \"mediaUri2\": string; \"pageKey\": string; \"parentExternalId\": string; \"replyCount\": number; \"repostCount\": number; \"text\": string; \"type\": string }>"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "inboxes"
+          ]
+        },
+        "name": "inboxForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"avatarUri\": string; \"backgroundUri\": string; \"conversationExternalId\": string; \"counterpartHandle\": string; \"description\": string; \"disappearing\": string; \"identity\": string; \"inboxKey\": string; \"kind\": string; \"messageCount\": number; \"ownerId\": string; \"pageKey\": string; \"preview\": string; \"role\": string; \"title\": string; \"unreadCount\": number; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "memberships"
+          ]
+        },
+        "name": "membershipsForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"active\": boolean; \"avatarUri\": string; \"conversationExternalId\": string; \"edgeKey\": string; \"joinedAt\": number; \"role\": string; \"userHandle\": string; \"userId\": string; \"userName\": string }>"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messageViews"
+          ]
+        },
+        "name": "messagesForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationExternalId\": string; \"edited\": boolean; \"expiresAt\": number; \"externalId\": string; \"mediaKind\": string; \"mediaUri\": string; \"ownerId\": string; \"pageKey\": string; \"pending\": boolean; \"reactionsJson\": string; \"receipt\": string; \"replyExcerpt\": string; \"replySenderName\": string; \"replyToExternalId\": string; \"senderAvatarUri\": string; \"senderHandle\": string; \"senderId\": string; \"senderName\": string; \"sentAt\": number; \"text\": string; \"tombstone\": boolean; \"type\": string; \"viewKey\": string; \"viewOnce\": boolean; \"viewOnceState\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "activityDays"
+          ]
+        },
+        "name": "myActivityDays",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"dayKey\": string; \"likesReceived\": number; \"ownerId\": string; \"posts\": number; \"rowKey\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "inboxes"
+          ]
+        },
+        "name": "myInbox",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"avatarUri\": string; \"backgroundUri\": string; \"conversationExternalId\": string; \"counterpartHandle\": string; \"description\": string; \"disappearing\": string; \"identity\": string; \"inboxKey\": string; \"kind\": string; \"messageCount\": number; \"ownerId\": string; \"pageKey\": string; \"preview\": string; \"role\": string; \"title\": string; \"unreadCount\": number; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "insights"
+          ]
+        },
+        "name": "myInsights",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"followers\": number; \"following\": number; \"likesReceived\": number; \"ownerId\": string; \"posts\": number; \"repliesReceived\": number; \"repostsReceived\": number; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messageSearchViews"
+          ]
+        },
+        "name": "myMessageSearch",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationExternalId\": string; \"expiresAt\": number; \"externalId\": string; \"ownerId\": string; \"rowKey\": string; \"senderName\": string; \"sentAt\": number; \"text\": string; \"tombstone\": boolean }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messageViews"
+          ]
+        },
+        "name": "myMessages",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationExternalId\": string; \"edited\": boolean; \"expiresAt\": number; \"externalId\": string; \"mediaKind\": string; \"mediaUri\": string; \"ownerId\": string; \"pageKey\": string; \"pending\": boolean; \"reactionsJson\": string; \"receipt\": string; \"replyExcerpt\": string; \"replySenderName\": string; \"replyToExternalId\": string; \"senderAvatarUri\": string; \"senderHandle\": string; \"senderId\": string; \"senderName\": string; \"sentAt\": number; \"text\": string; \"tombstone\": boolean; \"type\": string; \"viewKey\": string; \"viewOnce\": boolean; \"viewOnceState\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notifications"
+          ]
+        },
+        "name": "myNotifications",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"chatId\": string; \"createdAt\": number; \"externalId\": string; \"kind\": string; \"ownerId\": string; \"payloadJson\": string; \"preview\": string; \"senderDisplayName\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "myProfile",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatarUri\": string; \"bio\": string; \"createdAt\": number; \"displayName\": string; \"email\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"link\": string; \"location\": string; \"ownerId\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"handle\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "profileByHandle",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatarUri\": string; \"bio\": string; \"createdAt\": number; \"displayName\": string; \"email\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"link\": string; \"location\": string; \"ownerId\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "follows"
+          ]
+        },
+        "name": "publicFollows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"edgeKey\": string; \"followeeHandle\": string; \"followeeId\": string; \"followerHandle\": string; \"followerId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "publicProfiles",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatarUri\": string; \"bio\": string; \"createdAt\": number; \"displayName\": string; \"email\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"link\": string; \"location\": string; \"ownerId\": string; \"updatedAt\": number }>"
+      },
+      {
+        "argumentsType": "{ \"conversationExternalId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messageViews"
+          ]
+        },
+        "name": "recentMessagesForConversation",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"conversationExternalId\": string; \"edited\": boolean; \"expiresAt\": number; \"externalId\": string; \"mediaKind\": string; \"mediaUri\": string; \"ownerId\": string; \"pageKey\": string; \"pending\": boolean; \"reactionsJson\": string; \"receipt\": string; \"replyExcerpt\": string; \"replySenderName\": string; \"replyToExternalId\": string; \"senderAvatarUri\": string; \"senderHandle\": string; \"senderId\": string; \"senderName\": string; \"sentAt\": number; \"text\": string; \"tombstone\": boolean; \"type\": string; \"viewKey\": string; \"viewOnce\": boolean; \"viewOnceState\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:2c5262f396b3f04619562476b5f55cbbf8e71e6b78738116a53d2b522c7be436",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

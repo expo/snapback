@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/leaveChat.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chatId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "clique:leaveChat arguments",
+  "type": "object"
+}

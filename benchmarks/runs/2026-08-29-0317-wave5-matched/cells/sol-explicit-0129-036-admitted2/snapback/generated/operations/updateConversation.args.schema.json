@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/sol-explicit-0129-036-admitted2/updateConversation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accent": {
+      "type": "string"
+    },
+    "backgroundUri": {
+      "type": "string"
+    },
+    "conversationExternalId": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "disappearing": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationExternalId",
+    "name",
+    "description",
+    "accent",
+    "backgroundUri",
+    "disappearing"
+  ],
+  "title": "sol-explicit-0129-036-admitted2:updateConversation arguments",
+  "type": "object"
+}

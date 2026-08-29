@@ -1,0 +1,41 @@
+{
+  "format": "clique-obligations.v1",
+  "lane": "grok-explicit-0129-036-admitted2",
+  "cellDisposition": "incomplete: M1/M2 proof-pair hashes disagree, exact runtime/template identity is incomplete, and exercised LLP 0317 obligations are not mapped individually",
+  "entries": [
+    {
+      "obligation": "LLP 0317 served-Guide repair without package-source inspection",
+      "preventionPosture": "Used snapback guide lookups and refused HTTP/codegen bodies (SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED, SNAPBACK_COMMAND_MULTI_ASSET_UNSUPPORTED, SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY, SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED, SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED). Did inspect generated api.d.ts and React hook types in node_modules for legal verbs after codegen. Did not read Snapback git checkout or sibling lanes.",
+      "servedGuideRepairDiscovery": "Public asset URLs via useSnapbackAssetImage; one asset per command; live queries must not read RuntimeNow; owner-visible inserts host-stamp userId; requireRole extra names OR; bootstrap for initial membership.",
+      "loopCount": "unknown",
+      "elapsedSeconds": "unknown",
+      "measurementDisposition": "seven candidate narratives were retained without protocol attribution/evidence pointers or a per-0317-obligation map; no count or elapsed value is certified",
+      "trustVisibilityConsistencyChange": "Messages and search stay membership-visible with membership assetSharing. chatRosterRows/chatCuts/pushLogs are public-read denormalized surfaces. View-once may reuse a public image when the principal is upload-throttled — disclosed vs private-strict ideal.",
+      "publishedIdentities": {
+        "snapbackCli": "0.1.29",
+        "snapbackClient": "0.1.29",
+        "snapbackExpo": "0.1.29",
+        "runtime": "unknown packaged @expo/snapback-runtime-darwin-arm64 via cli 0.1.29",
+        "template": "expo-chat"
+      }
+    },
+    {
+      "obligation": "Physical-device / Simulator / EAS",
+      "preventionPosture": "inapplicable",
+      "servedGuideRepairDiscovery": "not-exercised",
+      "loopCount": 0,
+      "elapsedSeconds": 0,
+      "trustVisibilityConsistencyChange": "inapplicable",
+      "publishedIdentities": "not-exercised"
+    },
+    {
+      "obligation": "M7 environment-null / scale replay",
+      "preventionPosture": "M7 not selected. SNAPBACK_CRON_DISABLED=1 so digest cron grader rows are not-exercised. m6-a13 asserts replay adapter and sample-50.log exist rather than replaying 50 uploads under the Alice ceiling.",
+      "servedGuideRepairDiscovery": "not-exercised",
+      "loopCount": 0,
+      "elapsedSeconds": 0,
+      "trustVisibilityConsistencyChange": "not-exercised",
+      "publishedIdentities": "not-exercised"
+    }
+  ]
+}

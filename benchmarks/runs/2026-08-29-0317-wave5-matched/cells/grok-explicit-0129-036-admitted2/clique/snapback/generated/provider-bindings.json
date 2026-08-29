@@ -1,0 +1,1236 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [],
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "typing",
+        "resultType": "ReadonlyArray<{ \"expiresAt\"?: number; \"key\": string; \"self\": boolean; \"sourceClientId\": string; \"updatedAt\": number; \"value\": { \"displayName\": string } }>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"chatId\": string; \"handle\": string; \"mutationId\": string }",
+        "effects": {
+          "invalidates": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ],
+          "writes": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ]
+        },
+        "name": "addChatMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"deleteWindowMs\": number; \"digestAnchorHourUtc\": number; \"digestPeriodMs\": number; \"disappear24hMs\": number; \"disappear7dMs\": number; \"editWindowMs\": number; \"replayMode\": boolean }",
+        "effects": {
+          "invalidates": [
+            "appSettings"
+          ],
+          "writes": [
+            "appSettings"
+          ]
+        },
+        "name": "applyGradingSettings",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"clientId\": string; \"handle\": string }",
+        "effects": {
+          "invalidates": [
+            "chats",
+            "chatMembers",
+            "chatRosterRows",
+            "externalIds",
+            "dmPairs"
+          ],
+          "writes": [
+            "chats",
+            "chatMembers",
+            "chatRosterRows",
+            "externalIds",
+            "dmPairs"
+          ]
+        },
+        "name": "createDm",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"chatId\": string }"
+      },
+      {
+        "argumentsType": "{ \"clientId\": string; \"description\"?: string; \"memberHandles\": ReadonlyArray<string>; \"name\": string }",
+        "effects": {
+          "invalidates": [
+            "chats",
+            "chatMembers",
+            "chatRosterRows",
+            "externalIds"
+          ],
+          "writes": [
+            "chats",
+            "chatMembers",
+            "chatRosterRows",
+            "externalIds"
+          ]
+        },
+        "name": "createGroup",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"chatId\": string }"
+      },
+      {
+        "argumentsType": "{ \"body\"?: string; \"clientId\": string; \"images\"?: ReadonlyArray<string>; \"kind\": string; \"video\"?: string }",
+        "effects": {
+          "invalidates": [
+            "posts",
+            "postMedia",
+            "feedEvents",
+            "profiles",
+            "dailyStats",
+            "externalIds"
+          ],
+          "writes": [
+            "posts",
+            "postMedia",
+            "feedEvents",
+            "profiles",
+            "dailyStats",
+            "externalIds"
+          ]
+        },
+        "name": "createPost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"postId\": string }"
+      },
+      {
+        "argumentsType": "{ \"body\": string; \"clientId\": string; \"parentId\": string }",
+        "effects": {
+          "invalidates": [
+            "posts",
+            "profiles",
+            "externalIds"
+          ],
+          "writes": [
+            "posts",
+            "profiles",
+            "externalIds"
+          ]
+        },
+        "name": "createReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"postId\": string }"
+      },
+      {
+        "argumentsType": "{ \"messageId\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "appSettings"
+          ],
+          "writes": [
+            "messages",
+            "appSettings"
+          ]
+        },
+        "name": "deleteMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"messageId\": string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "appSettings"
+          ],
+          "writes": [
+            "messages",
+            "appSettings"
+          ]
+        },
+        "name": "editMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "effects": {
+          "invalidates": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ],
+          "writes": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ]
+        },
+        "name": "leaveChat",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "effects": {
+          "invalidates": [
+            "receipts",
+            "messages"
+          ],
+          "writes": [
+            "receipts",
+            "messages"
+          ]
+        },
+        "name": "markDelivered",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "effects": {
+          "invalidates": [
+            "receipts",
+            "messages"
+          ],
+          "writes": [
+            "receipts",
+            "messages"
+          ]
+        },
+        "name": "markRead",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"messageId\": string }",
+        "effects": {
+          "invalidates": [
+            "viewOnceViews"
+          ],
+          "writes": [
+            "viewOnceViews"
+          ]
+        },
+        "name": "openViewOnce",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string; \"handle\": string }",
+        "effects": {
+          "invalidates": [
+            "chatMembers",
+            "chatRosterRows"
+          ],
+          "writes": [
+            "chatMembers",
+            "chatRosterRows"
+          ]
+        },
+        "name": "promoteChatMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string; \"handle\": string }",
+        "effects": {
+          "invalidates": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ],
+          "writes": [
+            "chatMembers",
+            "chatRosterRows",
+            "chatCuts"
+          ]
+        },
+        "name": "removeChatMember",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"caption\"?: string; \"chatId\": string; \"clientId\": string; \"image\"?: string; \"mediaKind\": string; \"video\"?: string; \"viewOnce\"?: boolean; \"viewOnceImage\"?: string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "chats",
+            "pushLogs",
+            "externalIds",
+            "appSettings",
+            "chatRosterRows",
+            "dmPairs",
+            "profiles"
+          ],
+          "writes": [
+            "messages",
+            "chats",
+            "pushLogs",
+            "externalIds",
+            "appSettings",
+            "chatRosterRows",
+            "dmPairs",
+            "profiles"
+          ]
+        },
+        "name": "sendMedia",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"messageId\": string }"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string; \"clientId\": string; \"quoteId\"?: string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages",
+            "chats",
+            "pushLogs",
+            "externalIds",
+            "appSettings",
+            "chatRosterRows",
+            "dmPairs",
+            "profiles"
+          ],
+          "writes": [
+            "messages",
+            "chats",
+            "pushLogs",
+            "externalIds",
+            "appSettings",
+            "chatRosterRows",
+            "dmPairs",
+            "profiles"
+          ]
+        },
+        "name": "sendText",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"messageId\": string }"
+      },
+      {
+        "argumentsType": "{ \"accent\"?: string; \"background\"?: string; \"chatId\": string; \"description\"?: string; \"disappearing\"?: string; \"name\"?: string }",
+        "effects": {
+          "invalidates": [
+            "chats"
+          ],
+          "writes": [
+            "chats"
+          ]
+        },
+        "name": "setChatSettings",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"ok\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"handle\": string; \"mutationId\": string; \"op\": string }",
+        "effects": {
+          "invalidates": [
+            "follows",
+            "profiles"
+          ],
+          "writes": [
+            "follows",
+            "profiles"
+          ]
+        },
+        "name": "setFollow",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"following\": boolean }"
+      },
+      {
+        "argumentsType": "{ \"mutationId\": string; \"op\": string; \"postId\": string }",
+        "effects": {
+          "invalidates": [
+            "likes",
+            "posts",
+            "profiles",
+            "dailyStats"
+          ],
+          "writes": [
+            "likes",
+            "posts",
+            "profiles",
+            "dailyStats"
+          ]
+        },
+        "name": "setLike",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"liked\": boolean; \"likeCount\": number }"
+      },
+      {
+        "argumentsType": "{ \"emoji\": string; \"messageId\": string; \"mutationId\": string }",
+        "effects": {
+          "invalidates": [
+            "messageReactions"
+          ],
+          "writes": [
+            "messageReactions"
+          ]
+        },
+        "name": "setReaction",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"emoji\": string }"
+      },
+      {
+        "argumentsType": "{ \"mutationId\": string; \"op\": string; \"postId\": string }",
+        "effects": {
+          "invalidates": [
+            "reposts",
+            "posts",
+            "profiles",
+            "feedEvents"
+          ],
+          "writes": [
+            "reposts",
+            "posts",
+            "profiles",
+            "feedEvents"
+          ]
+        },
+        "name": "setRepost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"reposted\": boolean; \"repostCount\": number }"
+      },
+      {
+        "argumentsType": "{ \"avatar\"?: string; \"bio\"?: string; \"clientId\"?: string; \"displayName\": string; \"handle\": string; \"link\"?: string; \"location\"?: string }",
+        "effects": {
+          "invalidates": [
+            "profiles",
+            "externalIds"
+          ],
+          "writes": [
+            "profiles",
+            "externalIds"
+          ]
+        },
+        "name": "upsertProfile",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"profileId\": string }"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "appSettings"
+          ]
+        },
+        "name": "appSettingsLive",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"deleteWindowMs\": number; \"digestAnchorHourUtc\": number; \"digestPeriodMs\": number; \"disappear24hMs\": number; \"disappear7dMs\": number; \"editWindowMs\": number; \"key\": string; \"replayMode\": boolean }>"
+      },
+      {
+        "argumentsType": "{ \"clientId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "chats",
+            "chatMembers"
+          ]
+        },
+        "name": "chatByClientId",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"background\": null | string; \"clientId\": string; \"createdAt\": number; \"createdBy\": string; \"description\": string; \"disappearing\": string; \"kind\": string; \"lastMessageAt\": number; \"lastPreview\": string; \"name\": string }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "chatCuts"
+          ]
+        },
+        "name": "chatCutsForChat",
+        "resultType": "ReadonlyArray<{ \"cutAt\": number; \"handle\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "chats",
+            "chatMembers"
+          ]
+        },
+        "name": "chatDetails",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"background\": null | string; \"clientId\": string; \"createdAt\": number; \"createdBy\": string; \"description\": string; \"disappearing\": string; \"kind\": string; \"lastMessageAt\": number; \"lastPreview\": string; \"name\": string }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "chatMembers",
+            "profiles",
+            "chatRosterRows"
+          ]
+        },
+        "name": "chatRoster",
+        "resultType": "ReadonlyArray<{ \"displayName\": string; \"handle\": string; \"role\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "fixturePeople",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatar\": null | string; \"bio\": string; \"displayName\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"likesReceived\": number; \"link\": string; \"location\": string; \"postCount\": number; \"repliesReceived\": number; \"repostsReceived\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: number }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "follows",
+            "feedEvents",
+            "posts",
+            "postMedia",
+            "profiles",
+            "likes",
+            "reposts"
+          ]
+        },
+        "name": "followingFeed",
+        "resultType": "ReadonlyArray<{ \"actorHandle\": string; \"actorId\": string; \"actorName\": string; \"authorHandle\": string; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"eventId\": string; \"kind\": string; \"likeCount\": number; \"parentId\"?: string; \"postId\": string; \"postKind\": string; \"replyCount\": number; \"repostCount\": number }>"
+      },
+      {
+        "argumentsType": "{ \"handle\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "follows",
+            "profiles"
+          ]
+        },
+        "name": "followsOf",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"followeeId\": string; \"followerId\": string; \"mutationId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "getMine",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatar\": null | string; \"bio\": string; \"displayName\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"likesReceived\": number; \"link\": string; \"location\": string; \"postCount\": number; \"repliesReceived\": number; \"repostsReceived\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: number }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "feedEvents",
+            "posts",
+            "postMedia",
+            "profiles",
+            "likes",
+            "reposts"
+          ]
+        },
+        "name": "globalFeed",
+        "resultType": "ReadonlyArray<{ \"actorHandle\": string; \"actorId\": string; \"actorName\": string; \"authorHandle\": string; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"eventId\": string; \"kind\": string; \"likeCount\": number; \"parentId\"?: string; \"postId\": string; \"postKind\": string; \"replyCount\": number; \"repostCount\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles",
+            "dailyStats"
+          ]
+        },
+        "name": "insightsForMe",
+        "resultType": "ReadonlyArray<{ \"dayLikes\": number; \"dayPosts\": number; \"dayUtc\": number; \"followers\": number; \"following\": number; \"likesReceived\": number; \"posts\": number; \"repliesReceived\": number; \"repostsReceived\": number }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string; \"cursor\"?: number }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages",
+            "chatMembers"
+          ]
+        },
+        "name": "messagesForChat",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"chatId\": string; \"clientId\": string; \"createdAt\": number; \"editedAt\": null | number; \"expiresAt\": null | number; \"image\": null | string; \"kind\": string; \"quoteId\": null | string; \"senderId\": string; \"text\": string; \"tombstoned\": boolean; \"video\": null | string; \"viewOnce\": boolean; \"viewOnceImage\": null | string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "chatMembers",
+            "chats",
+            "profiles",
+            "messages",
+            "receipts"
+          ]
+        },
+        "name": "myChats",
+        "resultType": "ReadonlyArray<{ \"accent\": string; \"chatId\": string; \"clientId\": string; \"disappearing\": string; \"kind\": string; \"lastMessageAt\": number; \"lastPreview\": string; \"name\": string; \"role\": string; \"unreadCount\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "follows"
+          ]
+        },
+        "name": "myFollows",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"followeeId\": string; \"followerId\": string; \"mutationId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "likes"
+          ]
+        },
+        "name": "myLikes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"mutationId\": string; \"postId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "pushLogs"
+          ]
+        },
+        "name": "myPushLogs",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"chatId\": null | string; \"createdAt\": number; \"kind\": string; \"newFollowers\": null | number; \"newPostsInFollowing\": null | number; \"periodEnd\": null | number; \"periodStart\": null | number; \"preview\": string; \"senderDisplayName\": string; \"targetUserId\": string; \"unreadChats\": null | number; \"unreadMessages\": null | number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "reposts"
+          ]
+        },
+        "name": "myReposts",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"mutationId\": string; \"postId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"postId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "postMedia"
+          ]
+        },
+        "name": "postMediaForPost",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"image\": null | string; \"kind\": string; \"ord\": number; \"postId\": string; \"video\": null | string }>"
+      },
+      {
+        "argumentsType": "{ \"handle\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "profileByHandle",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatar\": null | string; \"bio\": string; \"displayName\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"likesReceived\": number; \"link\": string; \"location\": string; \"postCount\": number; \"repliesReceived\": number; \"repostsReceived\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"handle\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts",
+            "profiles"
+          ]
+        },
+        "name": "profilePosts",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"clientId\": string; \"createdAt\": number; \"isReply\": boolean; \"kind\": string; \"likeCount\": number; \"parentId\": null | string; \"replyCount\": number; \"repostCount\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "profilesLive",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"avatar\": null | string; \"bio\": string; \"displayName\": string; \"followerCount\": number; \"followingCount\": number; \"handle\": string; \"likesReceived\": number; \"link\": string; \"location\": string; \"postCount\": number; \"repliesReceived\": number; \"repostsReceived\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messageReactions",
+            "chatMembers"
+          ]
+        },
+        "name": "reactionsForChat",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"chatId\": string; \"emoji\": string; \"messageId\": string; \"mutationId\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"chatId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "receipts",
+            "chatMembers"
+          ]
+        },
+        "name": "receiptsForChat",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"chatId\": string; \"messageId\": string; \"state\": string; \"updatedAt\": number; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"externalId\": string; \"kind\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "externalIds"
+          ]
+        },
+        "name": "resolveExternal",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"externalId\": string; \"internalId\": string; \"kind\": string }>"
+      },
+      {
+        "argumentsType": "{ \"after\"?: string; \"chatId\": string; \"limit\"?: number; \"query\": { \"all\": ReadonlyArray<{ \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } } | { \"Any\": ReadonlyArray<{ \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } }> } | { \"Not\": { \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } } } | { \"Filter\": { \"field\": string; \"op\": \"eq\"; \"value\": string | number | boolean } }> } }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages",
+            "chatMembers"
+          ]
+        },
+        "name": "searchMessages",
+        "resultType": "ReadonlyArray<{ \"fields\": { \"chatId\": string; \"createdAt\": number; \"senderId\": string; \"text\": string; \"tombstoned\": boolean }; \"highlights\": ReadonlyArray<{ \"field\": string; \"matches\": ReadonlyArray<{ \"end\": number; \"start\": number }>; \"text\": string }>; \"rowId\": string; \"score\": number }>"
+      },
+      {
+        "argumentsType": "{ \"after\"?: string; \"limit\"?: number; \"query\": { \"all\": ReadonlyArray<{ \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } } | { \"Any\": ReadonlyArray<{ \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } }> } | { \"Not\": { \"Term\": { \"field\"?: string; \"value\": string } } | { \"Phrase\": { \"field\"?: string; \"values\": ReadonlyArray<string> } } | { \"Prefix\": { \"field\"?: string; \"value\": string } } } | { \"Filter\": { \"field\": string; \"op\": \"eq\"; \"value\": string | number | boolean } }> } }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "profiles"
+          ]
+        },
+        "name": "searchPeople",
+        "resultType": "ReadonlyArray<{ \"fields\": { \"bio\": string; \"displayName\": string; \"handle\": string; \"link\": string; \"location\": string; \"userId\": string }; \"highlights\": ReadonlyArray<{ \"field\": string; \"matches\": ReadonlyArray<{ \"end\": number; \"start\": number }>; \"text\": string }>; \"rowId\": string; \"score\": number }>"
+      },
+      {
+        "argumentsType": "{ \"postId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts",
+            "profiles"
+          ]
+        },
+        "name": "thread",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"clientId\": string; \"createdAt\": number; \"isReply\": boolean; \"kind\": string; \"likeCount\": number; \"parentId\": null | string; \"replyCount\": number; \"repostCount\": number }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts",
+            "profiles"
+          ]
+        },
+        "name": "trending",
+        "resultType": "ReadonlyArray<{ \"authorHandle\": string; \"authorId\": string; \"authorName\": string; \"body\": string; \"createdAt\": number; \"likeCount\": number; \"postId\": string; \"replyCount\": number; \"repostCount\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:b5c9a43ba6f815b9e8e22f47887fc49698d7db08c572b478e16bc406060ae2c1",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

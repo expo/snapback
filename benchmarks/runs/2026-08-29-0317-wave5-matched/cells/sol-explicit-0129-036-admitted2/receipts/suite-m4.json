@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "clique.suite-receipt.v2",
+  "instrument": "social-messenger@0.3.6-m8",
+  "milestone": "m4",
+  "pass": true,
+  "outcomeClass": null,
+  "coverage": {
+    "expectedAssertionIds": [
+      "m4-a01",
+      "m4-a03",
+      "m4-a06",
+      "m4-a07",
+      "m4-a09"
+    ],
+    "observedAssertionIds": [
+      "m4-a01",
+      "m4-a03",
+      "m4-a06",
+      "m4-a07",
+      "m4-a09"
+    ],
+    "complete": true
+  },
+  "starterReplay": {
+    "pass": true,
+    "actionCount": 87,
+    "completedAt": "2026-08-29T10:02:03.060Z"
+  },
+  "checks": [
+    {
+      "id": "m4-a01",
+      "pass": true,
+      "startedAt": 1787997724584,
+      "completedAt": 1787997725939,
+      "details": {
+        "message": "suite-photo-message-1787997642256xnvg7",
+        "media": "fixture:img-01"
+      }
+    },
+    {
+      "id": "m4-a03",
+      "pass": true,
+      "startedAt": 1787997727350,
+      "completedAt": 1787997728694,
+      "details": {
+        "message": "suite-video-message-1787997642256xnvg7",
+        "media": "fixture:vid-01"
+      }
+    },
+    {
+      "id": "m4-a06",
+      "pass": true,
+      "startedAt": 1787997728896,
+      "completedAt": 1787997730233,
+      "details": {
+        "reactions": [
+          {
+            "emoji": "❤️",
+            "count": 1,
+            "mine": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "m4-a07",
+      "pass": true,
+      "startedAt": 1787997731631,
+      "completedAt": 1787997732974,
+      "details": {
+        "reactions": []
+      }
+    },
+    {
+      "id": "m4-a09",
+      "pass": true,
+      "startedAt": 1787997733076,
+      "completedAt": 1787997734415,
+      "details": {
+        "message": "suite-photo-message-1787997642256xnvg7",
+        "edited": true,
+        "labelBinding": true
+      }
+    }
+  ],
+  "failure": null,
+  "startedAt": 1787997724584,
+  "completedAt": 1787997734416
+}

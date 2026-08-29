@@ -1,0 +1,2 @@
+{"version":"social-messenger-observation.v1","laneRunId":"sol-explicit-0129-036-admitted2","milestone":"M6","sequence":1,"at":"2026-08-29T10:54:44.107Z","type":"assertion-wait","owner":"choreography","assertion":"offline-message-queue-flush-in-order","attempt":1,"durationMs":9264.8,"pass":true}
+{"version":"social-messenger-observation.v1","laneRunId":"sol-explicit-0129-036-admitted2","milestone":"M6","sequence":2,"at":"2026-08-29T10:54:44.109Z","type":"block-claim","block":"browserAssertionWait","owner":"choreography","claimed":true,"reason":null}

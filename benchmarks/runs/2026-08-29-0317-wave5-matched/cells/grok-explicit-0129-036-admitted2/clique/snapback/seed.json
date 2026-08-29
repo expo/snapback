@@ -1,0 +1,18 @@
+{
+  "seedVersion": "clique.v1",
+  "tables": {
+    "appSettings": [
+      {
+        "_id": "settings_default",
+        "key": "default",
+        "editWindowMs": 900000,
+        "deleteWindowMs": 3600000,
+        "disappear24hMs": 86400000,
+        "disappear7dMs": 604800000,
+        "digestPeriodMs": 86400000,
+        "digestAnchorHourUtc": 8,
+        "replayMode": false
+      }
+    ]
+  }
+}

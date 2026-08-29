@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "benchmark-first-product-edit.v1",
+  "laneId": "sol-explicit-0129-036-admitted2",
+  "at": 1787989134,
+  "stampStatus": "late-reconstruction",
+  "evidence": {
+    "path": "package.json",
+    "basis": "earliest retained product-file birth/mtime",
+    "runLogClaimAt": 1787989130,
+    "limitation": "the harness-required immediate stamp was not emitted before editing; this file records the first retained filesystem evidence and does not claim a harness-native token snapshot"
+  },
+  "orientationBytes": 15328,
+  "orientationTokens": {
+    "input": null,
+    "output": null,
+    "cacheRead": null,
+    "cacheWrite": null,
+    "reasoning": null,
+    "disposition": "unknown"
+  },
+  "selectedSkills": [
+    "snapback-authoring"
+  ],
+  "end": 1788001262
+}

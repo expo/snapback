@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/createReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "parentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "clientId",
+    "parentId",
+    "body"
+  ],
+  "title": "clique:createReply arguments",
+  "type": "object"
+}

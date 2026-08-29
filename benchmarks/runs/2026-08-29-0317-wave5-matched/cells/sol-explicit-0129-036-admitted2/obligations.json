@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "clique.llp0317-obligations.v1",
+  "laneId": "sol-explicit-0129-036-admitted2",
+  "cellDisposition": "measurement-incomplete: green application proof is retained, but exercised LLP 0317 obligations are not mapped individually and correction-loop attribution is absent",
+  "obligations": [
+    {
+      "id": "prevention-posture",
+      "status": "exercised",
+      "result": "packet-first, skill-allowlisted, published-only explicit authoring; no sibling lane, prior Clique app, or Snapback source checkout inspected",
+      "evidence": [
+        "AGENTS.md",
+        "BENCHMARK-ORIENTATION.md",
+        ".agents/skills/snapback-authoring/SKILL.md",
+        "run-log.md"
+      ]
+    },
+    {
+      "id": "served-guide-repair-discovery",
+      "status": "exercised",
+      "result": "structured generation refusals and exact symbols were repaired from the served Guide; the no-anchor fan-out refusal remained a disclosed capability boundary",
+      "guideBuildSha256": "sha256:d256138f15ebabd9b3c0157fdee32ca6562db4f9c284838c79bde02cf74a4c00",
+      "runtimeCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+      "packageSourceInspection": false,
+      "evidence": [
+        "run-log.md",
+        "harness.ndjson"
+      ]
+    },
+    {
+      "id": "correction-accounting",
+      "status": "exercised",
+      "loopCount": "unknown",
+      "elapsedSeconds": "unknown",
+      "reason": "four candidate narratives are retained, but protocol attribution and per-0317-obligation mapping are incomplete; exact ordering is retained but the harness event format also omitted wall timestamps for the prior done claims",
+      "evidence": "correction-loops.json"
+    },
+    {
+      "id": "trust-visibility-consistency-change",
+      "status": "exercised",
+      "before": "intended schema-enforced owner-row visibility for recipient projections",
+      "contrary": "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED and SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE refused cross-recipient fan-out",
+      "after": "all 17 tables declare public-read visibility; exported owner projection queries remain authenticated and constrain ownerId with authUserId(), while mutations check actor membership",
+      "trustEffect": "reduced defense in depth; raw table visibility is broader than the application query surface",
+      "consistencyEffect": "server-authored recipient projections made live fan-out and offline convergence deterministic",
+      "evidence": [
+        "snapback/schema.mjs",
+        "snapback/functions.mjs",
+        "snapback/generated/authorization-review.json"
+      ]
+    },
+    {
+      "id": "published-identities",
+      "status": "exercised",
+      "packages": {
+        "@expo/snapback-acceptance": "0.1.29",
+        "@expo/snapback-cli": "0.1.29",
+        "@expo/snapback-client": "0.1.29",
+        "@expo/snapback-codegen": "0.1.29",
+        "@expo/snapback-expo": "0.1.29",
+        "@expo/snapback-react": "0.1.29"
+      },
+      "runtime": {
+        "package": "@expo/snapback-runtime-linux-x64",
+        "path": "node_modules/@expo/snapback-runtime-linux-x64/bin/snapback",
+        "platform": "linux-x64",
+        "bytes": 202200440,
+        "sha256": "sha256:03c4c2d8b407e767951a88a2710d1a29cbe3d57b650d1fb089e4c2e5d8d95c84",
+        "gitCommit": "90ee0937d20beab14463ba837f2228c9c06818cc",
+        "gitDirty": false
+      },
+      "template": {
+        "name": "expo-chat",
+        "version": "0.1.29",
+        "source": "published snapback new template generated in an isolated temporary directory",
+        "sourceCheckoutInspected": false
+      },
+      "instrument": {
+        "pin": "social-messenger@0.3.6-m8",
+        "revision": "eff33c5882fce03edfcd572fb1e0284344a3827d"
+      },
+      "evidence": [
+        "package.json",
+        "bun.lock",
+        ".snapback/runtime-readiness.json",
+        ".snapback/verify-receipt.json"
+      ]
+    },
+    {
+      "id": "scale-disposition",
+      "status": "exercised",
+      "sample50": {
+        "status": "passed",
+        "actions": 50,
+        "verbs": 13,
+        "receipt": "receipts/replay-sample-50.json"
+      },
+      "fullScale": {
+        "status": "not-exercised",
+        "o5": null,
+        "reason": "the full scale log was not attempted; no zero or throughput estimate is asserted"
+      }
+    }
+  ],
+  "end": 1788001262
+}

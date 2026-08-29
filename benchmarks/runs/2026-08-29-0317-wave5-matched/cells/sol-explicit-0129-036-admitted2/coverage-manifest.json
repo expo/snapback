@@ -1,0 +1,701 @@
+{
+  "schemaVersion": "clique.coverage-manifest.v1",
+  "laneId": "sol-explicit-0129-036-admitted2",
+  "instrument": {
+    "pin": "social-messenger@0.3.6-m8",
+    "revision": "eff33c5882fce03edfcd572fb1e0284344a3827d"
+  },
+  "scope": {
+    "milestones": [
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5",
+      "M6",
+      "M8"
+    ],
+    "m7": "environment-null",
+    "platform": "web-only"
+  },
+  "summary": {
+    "suiteRequired": 58,
+    "suitePassed": 58,
+    "milestoneGreen": 7,
+    "milestoneTotal": 7
+  },
+  "milestoneEvidence": [
+    {
+      "milestone": "M1",
+      "green": true,
+      "suiteReceipt": "receipts/m1/suite.json",
+      "suiteSha256": "sha256:3cad27a4ce2b188c46deb5f0f8fc505befb181d22aa5759eac892fcb368df0c1",
+      "choreographyReceipt": "receipts/m1/choreography.jsonl",
+      "choreographySha256": "sha256:eca095677648ee69817de66f7f3fafd423d3792cbc687b1b0dbfd7ac190e83a8",
+      "observationReceipt": "receipts/m1/choreography.observations.jsonl",
+      "observationSha256": "sha256:39cd55e7a994263c99a45ea62c706fa0611bed147b44e05c01fa67a38f1424f6"
+    },
+    {
+      "milestone": "M2",
+      "green": true,
+      "suiteReceipt": "receipts/m2/suite.json",
+      "suiteSha256": "sha256:73f364f73a821755123bdc0aaa8e8ab80222418c4433785e77297c13aa9e8d38",
+      "choreographyReceipt": "receipts/m2/choreography.jsonl",
+      "choreographySha256": "sha256:6e6799d38b37e04bf45ab1207143ace8d5e19a8ab24607cfc5017ef12f717855",
+      "observationReceipt": "receipts/m2/choreography.observations.jsonl",
+      "observationSha256": "sha256:fb6c62eb66a6004fac32267bb58caf7e36ba288b11d2a5d78508117d275d3061"
+    },
+    {
+      "milestone": "M3",
+      "green": true,
+      "suiteReceipt": "receipts/m3/suite.json",
+      "suiteSha256": "sha256:b00a34d40fd2bfdf9db4ceb7cf83330b7956c691c988096203fc42a3a6c70283",
+      "choreographyReceipt": "receipts/m3/choreography.jsonl",
+      "choreographySha256": "sha256:d94f82e30a9f6d1d15a020bc9ab68279ea8b354e4f702c6f54deb2c252daa0e6",
+      "observationReceipt": "receipts/m3/choreography.observations.jsonl",
+      "observationSha256": "sha256:1aff9fde1f7e6523700d3684838a3b97a643fbf97d05d75b3ebf13aa4b8856ed"
+    },
+    {
+      "milestone": "M4",
+      "green": true,
+      "suiteReceipt": "receipts/m4/suite.json",
+      "suiteSha256": "sha256:8c381d3fad275bcc15d1ce377bbef2895bc177a9496d8989424a9640720e732f",
+      "choreographyReceipt": "receipts/m4/choreography.jsonl",
+      "choreographySha256": "sha256:b603cc8e2a7083fff3f9930088cff30c8da636a5b2f8e0bf32cae3795b7bf5a9",
+      "observationReceipt": "receipts/m4/choreography.observations.jsonl",
+      "observationSha256": "sha256:9c3cdfb4616d8e2f1331698bf16540914a8d5cdefb476ce6ef70079010070ad4"
+    },
+    {
+      "milestone": "M5",
+      "green": true,
+      "suiteReceipt": "receipts/m5/suite.json",
+      "suiteSha256": "sha256:b478a41628c3a900b1a3ac273ecb8a808f18b66bbd695b8729f140e338865e54",
+      "choreographyReceipt": "receipts/m5/choreography.jsonl",
+      "choreographySha256": "sha256:796c179b5e2237d0cd102eaa4141f8264572716499e03b5f6b6b7a15f30b6496",
+      "observationReceipt": "receipts/m5/choreography.observations.jsonl",
+      "observationSha256": "sha256:671f4ba1c24d05dde156c6abdb4a8a7be5feac066080832a00dec437288db0f0"
+    },
+    {
+      "milestone": "M6",
+      "green": true,
+      "suiteReceipt": "receipts/m6/suite.json",
+      "suiteSha256": "sha256:15493bf3dd5795255e1d0dfc6d3402b9aa207be5c8c553e888f603991d966d53",
+      "choreographyReceipt": "receipts/m6/choreography.jsonl",
+      "choreographySha256": "sha256:90c3c095312d92dd6062b804991f9d8fef52e85ed37df6739983e4f354579af8",
+      "observationReceipt": "receipts/m6/choreography.observations.jsonl",
+      "observationSha256": "sha256:b711fa796fe8fff75386d152cf423597e4019b7201e8503da7f4d75de3343b97"
+    },
+    {
+      "milestone": "M8",
+      "green": true,
+      "suiteReceipt": "receipts/m8/suite.json",
+      "suiteSha256": "sha256:3a1390fdcd60b3b9b138308ebe95619558212fc07fc51713f5807727e9840c9d",
+      "choreographyReceipt": "receipts/m8/choreography.jsonl",
+      "choreographySha256": "sha256:1570b00f1f1c8f8026bcfb39c604ae596e98d45e4e017ce7d79cec35758a4ce0",
+      "observationReceipt": "receipts/m8/choreography.observations.jsonl",
+      "observationSha256": "sha256:68f158ea991824672b50fd5bc5533f6100d39bd8dbee7e7991753f71b0cc63c2"
+    }
+  ],
+  "assertionCoverage": [
+    {
+      "id": "m1-a01",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303600,
+      "completedAtMs": 1787997303601
+    },
+    {
+      "id": "m1-a02",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303601,
+      "completedAtMs": 1787997303601
+    },
+    {
+      "id": "m1-a03",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303912,
+      "completedAtMs": 1787997303992
+    },
+    {
+      "id": "m1-a04",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303993,
+      "completedAtMs": 1787997304025
+    },
+    {
+      "id": "m1-a08",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303698,
+      "completedAtMs": 1787997303803
+    },
+    {
+      "id": "m1-a10",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303803,
+      "completedAtMs": 1787997303833
+    },
+    {
+      "id": "m1-a11",
+      "milestone": "M1",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m1/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997303833,
+      "completedAtMs": 1787997303858
+    },
+    {
+      "id": "m2-a01",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997391849,
+      "completedAtMs": 1787997391850
+    },
+    {
+      "id": "m2-a02",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997391850,
+      "completedAtMs": 1787997391850
+    },
+    {
+      "id": "m2-a03",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997391850,
+      "completedAtMs": 1787997391850
+    },
+    {
+      "id": "m2-a06",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997391949,
+      "completedAtMs": 1787997391978
+    },
+    {
+      "id": "m2-a08",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997392077,
+      "completedAtMs": 1787997392106
+    },
+    {
+      "id": "m2-a09",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997392106,
+      "completedAtMs": 1787997392138
+    },
+    {
+      "id": "m2-a10",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997393543,
+      "completedAtMs": 1787997394884
+    },
+    {
+      "id": "m2-a11",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997394884,
+      "completedAtMs": 1787997394919
+    },
+    {
+      "id": "m2-a12",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997394919,
+      "completedAtMs": 1787997394919
+    },
+    {
+      "id": "m2-a13",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997394919,
+      "completedAtMs": 1787997394919
+    },
+    {
+      "id": "m2-a15",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997395131,
+      "completedAtMs": 1787997395186
+    },
+    {
+      "id": "m2-a16",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997397978,
+      "completedAtMs": 1787997399307
+    },
+    {
+      "id": "m2-a17",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997402034,
+      "completedAtMs": 1787997403378
+    },
+    {
+      "id": "m2-a18",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997399307,
+      "completedAtMs": 1787997400638
+    },
+    {
+      "id": "m2-a20",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997406265,
+      "completedAtMs": 1787997407618
+    },
+    {
+      "id": "m2-a21",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997407618,
+      "completedAtMs": 1787997408947
+    },
+    {
+      "id": "m2-a22",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997410270,
+      "completedAtMs": 1787997410270
+    },
+    {
+      "id": "m2-a23",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997410270,
+      "completedAtMs": 1787997410270
+    },
+    {
+      "id": "m2-a24",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997410270,
+      "completedAtMs": 1787997410270
+    },
+    {
+      "id": "m2-a25",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997411575,
+      "completedAtMs": 1787997411622
+    },
+    {
+      "id": "m2-a26",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997411740,
+      "completedAtMs": 1787997411766
+    },
+    {
+      "id": "m2-a27",
+      "milestone": "M2",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m2/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997411766,
+      "completedAtMs": 1787997411817
+    },
+    {
+      "id": "m3-a03",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997630150,
+      "completedAtMs": 1787997630150
+    },
+    {
+      "id": "m3-a04",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997630243,
+      "completedAtMs": 1787997630272
+    },
+    {
+      "id": "m3-a05",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997630377,
+      "completedAtMs": 1787997630406
+    },
+    {
+      "id": "m3-a10",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997631889,
+      "completedAtMs": 1787997633226
+    },
+    {
+      "id": "m3-a11",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997633226,
+      "completedAtMs": 1787997633226
+    },
+    {
+      "id": "m3-a14",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997633226,
+      "completedAtMs": 1787997634627
+    },
+    {
+      "id": "m3-a15",
+      "milestone": "M3",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m3/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997634627,
+      "completedAtMs": 1787997636016
+    },
+    {
+      "id": "m4-a01",
+      "milestone": "M4",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m4/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997724584,
+      "completedAtMs": 1787997725939
+    },
+    {
+      "id": "m4-a03",
+      "milestone": "M4",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m4/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997727350,
+      "completedAtMs": 1787997728694
+    },
+    {
+      "id": "m4-a06",
+      "milestone": "M4",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m4/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997728896,
+      "completedAtMs": 1787997730233
+    },
+    {
+      "id": "m4-a07",
+      "milestone": "M4",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m4/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997731631,
+      "completedAtMs": 1787997732974
+    },
+    {
+      "id": "m4-a09",
+      "milestone": "M4",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m4/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997733076,
+      "completedAtMs": 1787997734415
+    },
+    {
+      "id": "m5-a04",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997820976,
+      "completedAtMs": 1787997822412
+    },
+    {
+      "id": "m5-a05",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997822412,
+      "completedAtMs": 1787997822505
+    },
+    {
+      "id": "m5-a08",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997822505,
+      "completedAtMs": 1787997822589
+    },
+    {
+      "id": "m5-a09",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997822589,
+      "completedAtMs": 1787997823917
+    },
+    {
+      "id": "m5-a10",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997823917,
+      "completedAtMs": 1787997823951
+    },
+    {
+      "id": "m5-a11",
+      "milestone": "M5",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m5/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997824135,
+      "completedAtMs": 1787997824193
+    },
+    {
+      "id": "m6-a08",
+      "milestone": "M6",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m6/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997908759,
+      "completedAtMs": 1787997910166
+    },
+    {
+      "id": "m6-a09",
+      "milestone": "M6",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m6/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997911560,
+      "completedAtMs": 1787997912893
+    },
+    {
+      "id": "m6-a10",
+      "milestone": "M6",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m6/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997914596,
+      "completedAtMs": 1787997914596
+    },
+    {
+      "id": "m6-a11",
+      "milestone": "M6",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m6/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997914596,
+      "completedAtMs": 1787997914596
+    },
+    {
+      "id": "m6-a13",
+      "milestone": "M6",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m6/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787997965237,
+      "completedAtMs": 1787997965237
+    },
+    {
+      "id": "m8-a01",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998161080,
+      "completedAtMs": 1787998162650
+    },
+    {
+      "id": "m8-a03",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998162763,
+      "completedAtMs": 1787998162794
+    },
+    {
+      "id": "m8-a04",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998162794,
+      "completedAtMs": 1787998162794
+    },
+    {
+      "id": "m8-a05",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998174950,
+      "completedAtMs": 1787998174950
+    },
+    {
+      "id": "m8-a06",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998174950,
+      "completedAtMs": 1787998174951
+    },
+    {
+      "id": "m8-a07",
+      "milestone": "M8",
+      "executor": "suite-required",
+      "mappedTest": "scripts/acceptance.mjs",
+      "receipt": "receipts/m8/suite.json",
+      "status": "passed",
+      "startedAtMs": 1787998174951,
+      "completedAtMs": 1787998174951
+    }
+  ],
+  "replays": [
+    {
+      "path": "receipts/replay.json",
+      "sha256": "sha256:c054d26a65aa4747c7b523e01acd00e58d81e2db1787ff02459945a9a88e828c",
+      "actions": 87,
+      "pass": true
+    },
+    {
+      "path": "receipts/replay-sample-50.json",
+      "sha256": "sha256:094a6e3a3067faed9fa222c440b7f793633dfc526304600c0fd9a41c62f43e58",
+      "actions": 50,
+      "pass": true
+    }
+  ],
+  "verifyReceipt": {
+    "path": ".snapback/verify-receipt.json",
+    "sha256": "sha256:ff23fa5ed83493736642927371151596458961bbf874ebec5608cd26691cf454",
+    "status": "passed"
+  },
+  "end": 1788001167
+}

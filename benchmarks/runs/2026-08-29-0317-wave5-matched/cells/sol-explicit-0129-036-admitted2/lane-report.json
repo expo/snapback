@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "benchmark-lane-report.v1",
+  "laneId": "sol-explicit-0129-036-admitted2",
+  "orientation": {
+    "schemaVersion": "benchmark-orientation.v1",
+    "laneKind": "snapback-web-clique",
+    "instrument": {
+      "pin": "social-messenger@0.3.6-m8",
+      "manifest": {
+        "path": "instrument.manifest.json",
+        "sha256": "ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623"
+      },
+      "versions": {
+        "schema": "0.3.0-m8",
+        "ui": "0.3.2-m8",
+        "choreography": "0.3.6-m8"
+      }
+    },
+    "selectedSkills": [
+      "snapback-authoring"
+    ],
+    "artifacts": [
+      {
+        "id": "lane-agents",
+        "kind": "lane-packet",
+        "path": "AGENTS.md",
+        "bytes": 1211,
+        "sha256": "e744be3e219b56ce0bdb937c8f4d2d4b655719065604184b3c07b1dd25c02fa9",
+        "deduplicated": false
+      },
+      {
+        "id": "benchmark-orientation",
+        "kind": "orientation",
+        "path": "BENCHMARK-ORIENTATION.md",
+        "bytes": 3959,
+        "sha256": "909ee0ec6b976a8c1be94e8dc72c9059ab987278d867875230ba27e800b746fc",
+        "deduplicated": false
+      },
+      {
+        "id": "skill:snapback-authoring:1",
+        "kind": "skill-body",
+        "path": "skills/snapback-authoring/SKILL.md",
+        "bytes": 10158,
+        "sha256": "ec44af3cf16fe60053904b0d3e11bc41ccdeb4a77d6230f00b9589d9fa1bb276",
+        "deduplicated": false
+      }
+    ],
+    "uniqueBytes": 15328,
+    "deliveredBytes": 15328,
+    "preflightWarnings": []
+  },
+  "firstProductEdit": {
+    "at": 1787989134,
+    "orientationBytes": 15328,
+    "orientationTokens": {
+      "input": null,
+      "output": null,
+      "cacheRead": null,
+      "cacheWrite": null,
+      "reasoning": null,
+      "disposition": "unknown"
+    },
+    "selectedSkills": [
+      "snapback-authoring"
+    ],
+    "stampStatus": "late-reconstruction",
+    "snapshotPath": "first-product-edit.json"
+  },
+  "end": 1788001262
+}

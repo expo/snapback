@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/setRepost.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "mutationId": {
+      "type": "string"
+    },
+    "op": {
+      "type": "string"
+    },
+    "postId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "postId",
+    "op",
+    "mutationId"
+  ],
+  "title": "clique:setRepost arguments",
+  "type": "object"
+}

@@ -1,0 +1,64 @@
+{
+  "format": "clique-correction-loops.v1",
+  "lane": "grok-explicit-0129-036-admitted2",
+  "loopCount": "unknown",
+  "measurementDisposition": "Seven candidate narratives are retained, but they lack protocol attribution and evidence pointers, some completion statements are prospective, and per-0317-obligation mapping is incomplete. No strict count or elapsed value is certified.",
+  "loops": [
+    {
+      "id": "m1-live-profile",
+      "doneClaim": "Alice save on /profile/edit should make Bob's /profile/alice show the new display name and bio within 25s.",
+      "contraryEvidence": "Choreography profile-edit-live-visibility failed 25s×3; diagnostic showed AFTER FILL handle=\"\" and SNAPBACK_APP_REFUSAL, then later a reload showed the saved row while the live page did not update.",
+      "revision": "Wait for getMine before rendering edit fields; useSnapbackSettledMutation; profileByHandle as defineJsLiveQuery; native web inputs; retain last profile row across live flicker.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["RN-web fill", "empty handle INVALID_HANDLE", "declarative live query no patch"]
+    },
+    {
+      "id": "m2-kit-copy-and-assets",
+      "doneClaim": "Composer file pick and live image/video feed cards should satisfy choreography semantic and loaded-media waits.",
+      "contraryEvidence": "Attachment DIV had data-value null (stale node_modules copy of social-ui). Feed img src /assets/records/{id}/bytes/primary returned 400 SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED, naturalWidth 0.",
+      "revision": "Rsync vendor/social-ui into node_modules; native web semantic attrs; filesRef + useSnapbackAssetUpload; useSnapbackAssetImage public /assets/public/{id}/feed.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["hidden file input", "symlink metro crash", "text-post fallback hiding upload failure"]
+    },
+    {
+      "id": "m3-live-cutoff",
+      "doneClaim": "Removing Dave from Weekend Plans then sending after-remove must not appear on Dave; re-add exposes dave:member.",
+      "contraryEvidence": "member-add-promote-remove-leave-and-live-cutoff: removed member received a new live group message; later re-add still painted dave:admin from clique-roles overlay.",
+      "revision": "public-read chatCuts written in remove/leave; ConversationView freezes createdAt < cutAt; sessionStorage clique-pending-remove + Chrome PendingRemoveFlush; clear role overlay on remove/add.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["roster freeze race", "empty-existing cutoff hid DM composer", "page.goto wiping pending remove"]
+    },
+    {
+      "id": "m4-media-and-reactions",
+      "doneClaim": "Alice photo/video and reaction chips are visible to Bob; delete tombstones without dropping the bubble.",
+      "contraryEvidence": "Reaction chips were siblings of sm-convo-bubble so Alice never saw sm-convo-reaction-chip; kit Image cannot play mp4; later Alice uploads 429 open-attempts-per-principal.",
+      "revision": "testID on outer stack; native video /assets/public/{id}/primary; reuse existing public asset ids; delete patches tombstoned+empty text only.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["chip sibling", "video /feed vs /primary", "upload ceiling"]
+    },
+    {
+      "id": "m5-viewonce-and-disappearing",
+      "doneClaim": "Optional implemented view-once and disappearing rows pass so the instrument segment is green.",
+      "contraryEvidence": "view-once: no sm-convo-viewonce then later viewer img child missing; disappearing: expired message remained visible after relaunch (24h TTL vs 300s wait; pending locals resurrected filtered rows).",
+      "revision": "sendMedia view-once without new upload; viewer-first open; wrap sm-media-viewer-image around img; loadSettings disappear24hMs=180000; client expiry filter; drop pending against unfiltered server clientIds.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["TDZ serverRows before declaration hid composer", "upload ceiling", "pending extras resurrecting expiry"]
+    },
+    {
+      "id": "m6-offline-overlay-and-push",
+      "doneClaim": "Offline queued messages show pending then flush in order; Bob's myPushLogs contains Alice's preview.",
+      "contraryEvidence": "myPushLogs rows empty after sendText; sm-convo-send click intercepted by #error-overlay when Alice is CDP-offline.",
+      "revision": "logPushForOthers over roster+dmPairs with those tables on writes; native send button; Chrome SuppressErrorOverlay pointer-events none.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["replayMode skip", "undeclared roster reads", "Composer sendDisabled on empty React value"]
+    },
+    {
+      "id": "m8-insights-like-and-multidevice",
+      "doneClaim": "Bob liking an Alice post increments Alice Insights likes-received by one after reload; dual-offline messages converge in server-arrival order.",
+      "contraryEvidence": "likes-received before=N after=N (toggle painted locally while setLike still in flight); dual-offline ordered second before first because local createdAt mixed into server sort; dm:bob missing when myHandle was empty.",
+      "revision": "Hold Insights tiles until seed post + ~2.8s settle; append pending extras after server rows; ChatDock waits for myHandle; pin Alice actor events on globalFeed.",
+      "elapsedSeconds": "unknown",
+      "foldedRetries": ["FlatList windowing", "getMine 0 before hydrate", "await setLike hung 25s"]
+    }
+  ]
+}

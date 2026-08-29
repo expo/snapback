@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "clique.correction-loops.v1",
+  "definition": "a done claim followed by contrary evidence and a revision of already-produced work; retries before the first done claim are excluded",
+  "loopCount": "unknown",
+  "measurementDisposition": "Four candidate narratives are retained, but protocol attribution and the preregistered per-0317-obligation map are incomplete; no strict count is certified.",
+  "totalElapsedSeconds": "unknown",
+  "elapsedDisposition": "harness.ndjson preserves exact item ordering but no per-item wall timestamp; unsupported elapsed values are not estimated",
+  "loops": [
+    {
+      "id": "m3-bounded-live-window",
+      "doneClaim": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_260",
+        "claim": "M3 choreography green"
+      },
+      "contraryEvidence": {
+        "at": 1787998589,
+        "evidence": "harness.ndjson item_429 and receipts/attempts/choreography-m3-before-bounded-render-window.jsonl",
+        "finding": "after the corrected suites accumulated more history, the browser subscription exceeded its renderable snapshot and five M3 checks failed"
+      },
+      "revision": {
+        "at": 1787998962,
+        "evidence": "harness.ndjson item_453 and receipts/choreography-m3.jsonl",
+        "change": "separated the 100-row live browser window from the 500-row headless history query"
+      },
+      "elapsedSeconds": "unknown"
+    },
+    {
+      "id": "m5-offline-search-history",
+      "doneClaim": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_318",
+        "claim": "M5 choreography green"
+      },
+      "contraryEvidence": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_457",
+        "finding": "the later accumulated-state run could not find an older seeded message in the warm offline search window"
+      },
+      "revision": {
+        "at": 1788000115,
+        "evidence": "harness.ndjson item_497 and receipts/choreography-m5.jsonl",
+        "change": "added the compact owner-scoped messageSearchViews projection and a root-persistent warm search subscription"
+      },
+      "elapsedSeconds": "unknown"
+    },
+    {
+      "id": "m6-offline-outbox-contention",
+      "doneClaim": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_353",
+        "claim": "M6 choreography green"
+      },
+      "contraryEvidence": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_505",
+        "finding": "the second queued send was abandoned after a concurrent inbox/receipt mutation failure"
+      },
+      "revision": {
+        "at": 1788000884,
+        "evidence": "harness.ndjson items item_535 and item_557 plus receipts/choreography-m6.jsonl",
+        "change": "made outbox replay sequential, idempotently retrying, terminal-error-visible, identity-window-triggered, and authoritative-order aligned"
+      },
+      "elapsedSeconds": "unknown"
+    },
+    {
+      "id": "m8-dual-context-authoritative-order",
+      "doneClaim": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_369",
+        "claim": "M8 choreography green"
+      },
+      "contraryEvidence": {
+        "at": "unknown",
+        "evidence": "harness.ndjson item_536",
+        "finding": "a later run exposed an online-send contention miss and transient dual-context optimistic ordering"
+      },
+      "revision": {
+        "at": 1788000862,
+        "evidence": "harness.ndjson item_555 and receipts/choreography-m8.jsonl",
+        "change": "bounded normal-send retries and aligned optimistic timestamps to actual flush order before converging on server rows"
+      },
+      "elapsedSeconds": "unknown"
+    }
+  ],
+  "excludedRetries": {
+    "disposition": "not-counted",
+    "evidence": "receipts/attempts/",
+    "reason": "these failures preceded the first milestone done claims or repeated the same unresolved cause"
+  },
+  "end": 1788001262
+}

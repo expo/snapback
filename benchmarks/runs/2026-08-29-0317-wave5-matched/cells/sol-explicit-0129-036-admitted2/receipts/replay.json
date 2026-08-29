@@ -1,0 +1,624 @@
+{
+  "schemaVersion": "clique.starter-replay.v1",
+  "ok": true,
+  "instrument": "social-messenger@0.3.6-m8",
+  "segments": [
+    "m1",
+    "m2",
+    "m3"
+  ],
+  "actionCount": 87,
+  "actions": [
+    {
+      "segment": "m1",
+      "line": 1,
+      "timestamp": "2026-01-01T00:00:00Z",
+      "actor": "alice",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 2,
+      "timestamp": "2026-01-01T00:00:01Z",
+      "actor": "alice",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 3,
+      "timestamp": "2026-01-01T00:00:02Z",
+      "actor": "bob",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 4,
+      "timestamp": "2026-01-01T00:00:03Z",
+      "actor": "bob",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 5,
+      "timestamp": "2026-01-01T00:00:04Z",
+      "actor": "carol",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 6,
+      "timestamp": "2026-01-01T00:00:05Z",
+      "actor": "carol",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 7,
+      "timestamp": "2026-01-01T00:00:06Z",
+      "actor": "dave",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 8,
+      "timestamp": "2026-01-01T00:00:07Z",
+      "actor": "dave",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 9,
+      "timestamp": "2026-01-01T00:00:08Z",
+      "actor": "erin",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 10,
+      "timestamp": "2026-01-01T00:00:09Z",
+      "actor": "erin",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 11,
+      "timestamp": "2026-01-01T00:00:10Z",
+      "actor": "frank",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 12,
+      "timestamp": "2026-01-01T00:00:11Z",
+      "actor": "frank",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 13,
+      "timestamp": "2026-01-01T00:00:12Z",
+      "actor": "grace",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 14,
+      "timestamp": "2026-01-01T00:00:13Z",
+      "actor": "grace",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m1",
+      "line": 15,
+      "timestamp": "2026-01-01T00:00:14Z",
+      "actor": "henry",
+      "action": "register"
+    },
+    {
+      "segment": "m1",
+      "line": 16,
+      "timestamp": "2026-01-01T00:00:15Z",
+      "actor": "henry",
+      "action": "profile-set"
+    },
+    {
+      "segment": "m2",
+      "line": 1,
+      "timestamp": "2026-01-01T00:00:16Z",
+      "actor": "alice",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 2,
+      "timestamp": "2026-01-01T00:00:17Z",
+      "actor": "alice",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 3,
+      "timestamp": "2026-01-01T00:00:18Z",
+      "actor": "bob",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 4,
+      "timestamp": "2026-01-01T00:00:19Z",
+      "actor": "bob",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 5,
+      "timestamp": "2026-01-01T00:00:20Z",
+      "actor": "carol",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 6,
+      "timestamp": "2026-01-01T00:00:21Z",
+      "actor": "dave",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 7,
+      "timestamp": "2026-01-01T00:00:22Z",
+      "actor": "erin",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 8,
+      "timestamp": "2026-01-01T00:00:23Z",
+      "actor": "erin",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 9,
+      "timestamp": "2026-01-01T00:00:24Z",
+      "actor": "frank",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 10,
+      "timestamp": "2026-01-01T00:00:25Z",
+      "actor": "grace",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 11,
+      "timestamp": "2026-01-01T00:00:26Z",
+      "actor": "henry",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 12,
+      "timestamp": "2026-01-01T00:00:27Z",
+      "actor": "henry",
+      "action": "follow"
+    },
+    {
+      "segment": "m2",
+      "line": 13,
+      "timestamp": "2026-01-01T00:00:28Z",
+      "actor": "alice",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 14,
+      "timestamp": "2026-01-01T00:00:29Z",
+      "actor": "alice",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 15,
+      "timestamp": "2026-01-01T00:00:30Z",
+      "actor": "alice",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 16,
+      "timestamp": "2026-01-01T00:00:31Z",
+      "actor": "bob",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 17,
+      "timestamp": "2026-01-01T00:00:32Z",
+      "actor": "bob",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 18,
+      "timestamp": "2026-01-01T00:00:33Z",
+      "actor": "bob",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 19,
+      "timestamp": "2026-01-01T00:00:34Z",
+      "actor": "carol",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 20,
+      "timestamp": "2026-01-01T00:00:35Z",
+      "actor": "carol",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 21,
+      "timestamp": "2026-01-01T00:00:36Z",
+      "actor": "carol",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 22,
+      "timestamp": "2026-01-01T00:00:37Z",
+      "actor": "dave",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 23,
+      "timestamp": "2026-01-01T00:00:38Z",
+      "actor": "dave",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 24,
+      "timestamp": "2026-01-01T00:00:39Z",
+      "actor": "dave",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 25,
+      "timestamp": "2026-01-01T00:00:40Z",
+      "actor": "erin",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 26,
+      "timestamp": "2026-01-01T00:00:41Z",
+      "actor": "erin",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 27,
+      "timestamp": "2026-01-01T00:00:42Z",
+      "actor": "erin",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 28,
+      "timestamp": "2026-01-01T00:00:43Z",
+      "actor": "frank",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 29,
+      "timestamp": "2026-01-01T00:00:44Z",
+      "actor": "frank",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 30,
+      "timestamp": "2026-01-01T00:00:45Z",
+      "actor": "frank",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 31,
+      "timestamp": "2026-01-01T00:00:46Z",
+      "actor": "grace",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 32,
+      "timestamp": "2026-01-01T00:00:47Z",
+      "actor": "grace",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 33,
+      "timestamp": "2026-01-01T00:00:48Z",
+      "actor": "grace",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 34,
+      "timestamp": "2026-01-01T00:00:49Z",
+      "actor": "henry",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 35,
+      "timestamp": "2026-01-01T00:00:50Z",
+      "actor": "henry",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 36,
+      "timestamp": "2026-01-01T00:00:51Z",
+      "actor": "henry",
+      "action": "post"
+    },
+    {
+      "segment": "m2",
+      "line": 37,
+      "timestamp": "2026-01-01T00:00:52Z",
+      "actor": "bob",
+      "action": "reply"
+    },
+    {
+      "segment": "m2",
+      "line": 38,
+      "timestamp": "2026-01-01T00:00:53Z",
+      "actor": "carol",
+      "action": "reply"
+    },
+    {
+      "segment": "m2",
+      "line": 39,
+      "timestamp": "2026-01-01T00:00:54Z",
+      "actor": "alice",
+      "action": "reply"
+    },
+    {
+      "segment": "m2",
+      "line": 40,
+      "timestamp": "2026-01-01T00:00:55Z",
+      "actor": "grace",
+      "action": "reply"
+    },
+    {
+      "segment": "m2",
+      "line": 41,
+      "timestamp": "2026-01-01T00:00:56Z",
+      "actor": "bob",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 42,
+      "timestamp": "2026-01-01T00:00:57Z",
+      "actor": "carol",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 43,
+      "timestamp": "2026-01-01T00:00:58Z",
+      "actor": "dave",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 44,
+      "timestamp": "2026-01-01T00:00:59Z",
+      "actor": "erin",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 45,
+      "timestamp": "2026-01-01T00:01:00Z",
+      "actor": "frank",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 46,
+      "timestamp": "2026-01-01T00:01:01Z",
+      "actor": "grace",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 47,
+      "timestamp": "2026-01-01T00:01:02Z",
+      "actor": "henry",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 48,
+      "timestamp": "2026-01-01T00:01:03Z",
+      "actor": "alice",
+      "action": "like"
+    },
+    {
+      "segment": "m2",
+      "line": 49,
+      "timestamp": "2026-01-01T00:01:04Z",
+      "actor": "carol",
+      "action": "repost"
+    },
+    {
+      "segment": "m2",
+      "line": 50,
+      "timestamp": "2026-01-01T00:01:05Z",
+      "actor": "alice",
+      "action": "repost"
+    },
+    {
+      "segment": "m2",
+      "line": 51,
+      "timestamp": "2026-01-01T00:01:06Z",
+      "actor": "henry",
+      "action": "repost"
+    },
+    {
+      "segment": "m2",
+      "line": 52,
+      "timestamp": "2026-01-01T00:01:07Z",
+      "actor": "bob",
+      "action": "repost"
+    },
+    {
+      "segment": "m3",
+      "line": 1,
+      "timestamp": "2026-01-01T00:01:08Z",
+      "actor": "alice",
+      "action": "dm-create"
+    },
+    {
+      "segment": "m3",
+      "line": 2,
+      "timestamp": "2026-01-01T00:01:09Z",
+      "actor": "alice",
+      "action": "group-create"
+    },
+    {
+      "segment": "m3",
+      "line": 3,
+      "timestamp": "2026-01-01T00:01:10Z",
+      "actor": "alice",
+      "action": "member-add"
+    },
+    {
+      "segment": "m3",
+      "line": 4,
+      "timestamp": "2026-01-01T00:01:11Z",
+      "actor": "alice",
+      "action": "member-add"
+    },
+    {
+      "segment": "m3",
+      "line": 5,
+      "timestamp": "2026-01-01T00:01:12Z",
+      "actor": "alice",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 6,
+      "timestamp": "2026-01-01T00:01:13Z",
+      "actor": "bob",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 7,
+      "timestamp": "2026-01-01T00:01:14Z",
+      "actor": "alice",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 8,
+      "timestamp": "2026-01-01T00:01:15Z",
+      "actor": "bob",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 9,
+      "timestamp": "2026-01-01T00:01:16Z",
+      "actor": "alice",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 10,
+      "timestamp": "2026-01-01T00:01:17Z",
+      "actor": "bob",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 11,
+      "timestamp": "2026-01-01T00:01:18Z",
+      "actor": "alice",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 12,
+      "timestamp": "2026-01-01T00:01:19Z",
+      "actor": "carol",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 13,
+      "timestamp": "2026-01-01T00:01:20Z",
+      "actor": "erin",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 14,
+      "timestamp": "2026-01-01T00:01:21Z",
+      "actor": "bob",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 15,
+      "timestamp": "2026-01-01T00:01:22Z",
+      "actor": "alice",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 16,
+      "timestamp": "2026-01-01T00:01:23Z",
+      "actor": "carol",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 17,
+      "timestamp": "2026-01-01T00:01:24Z",
+      "actor": "erin",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 18,
+      "timestamp": "2026-01-01T00:01:25Z",
+      "actor": "bob",
+      "action": "send"
+    },
+    {
+      "segment": "m3",
+      "line": 19,
+      "timestamp": "2026-01-01T00:01:26Z",
+      "actor": "alice",
+      "action": "send"
+    }
+  ],
+  "failure": null,
+  "completedAt": "2026-08-29T10:29:19.325Z"
+}

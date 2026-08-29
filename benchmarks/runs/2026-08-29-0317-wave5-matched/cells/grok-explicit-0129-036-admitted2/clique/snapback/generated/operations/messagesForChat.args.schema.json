@@ -1,0 +1,18 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/clique/messagesForChat.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "cursor": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "clique:messagesForChat arguments",
+  "type": "object"
+}
