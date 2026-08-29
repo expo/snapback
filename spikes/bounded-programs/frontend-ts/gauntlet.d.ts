@@ -10,8 +10,12 @@ declare const following: any;
 declare const followerCounts: any;
 declare const followingCounts: any;
 declare const memberships: any;
-declare const messages: any;
+declare const messages: Table & {
+  derive(name: string, value: (row: any) => any): any;
+  index(name: string, value: any): any;
+};
 declare const receipts: any;
+declare const receiptFacts: any;
 declare const receiptState: any;
 declare const conversations: any;
 declare const dmKeys: any;
@@ -31,6 +35,7 @@ declare const media: any;
 declare const given: any;
 declare const receivedReactions: any;
 declare const reactionFacts: any;
+declare const reactions: any;
 declare const messageFacts: any;
 declare const conversationFirstSeen: any;
 declare const daily: any;
@@ -51,19 +56,28 @@ declare const HOUR: number;
 declare const DAY: number;
 declare const byTimeDesc: any;
 declare const schema: any;
-declare const maintain: any;
-declare const ephemeral: any;
+declare const maintain: {
+  count(source: any, options: { where?: (value: any) => any; [name: string]: any }): any;
+  sum(source: any, options: { where?: (value: any) => any; [name: string]: any }): any;
+};
+declare const ephemeral: {
+  channel(options: { room?: (value: any) => any; authorize?: (context: Context) => any; [name: string]: any }): any;
+};
 
-declare function top(...values: any[]): any;
+declare function top(limit: number, values: any[], comparator: any, tie: (value: any) => any): any;
 declare function orderedPair(...values: any[]): any;
 declare function normalizeWordPrefix(value: any): any;
 declare function intersectById(value: any): any;
 declare function mergeByTime(...values: any[]): any;
 declare function createHeadlessClient(value: any): any;
 declare function textIndex(...values: any[]): any;
-declare function rule(...values: any[]): any;
+declare function rule(table: any, rules: { read?: (value: any) => any; update?: (value: any) => any; [name: string]: any }): any;
 declare function schedule(...values: any[]): any;
-declare function channel(...values: any[]): any;
+declare function channel<A extends Record<string, Arg<any>>>(
+  args: A,
+  options: { publish?: (value: ArgsOf<A>) => any; subscribe?: (value: ArgsOf<A>) => any; [name: string]: any },
+): any;
 declare function memberOf(...values: any[]): any;
 declare function viewer(): any;
 declare const never: any;
+declare function tokens(value: string): any;

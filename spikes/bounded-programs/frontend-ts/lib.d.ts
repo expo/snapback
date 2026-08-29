@@ -35,12 +35,14 @@ interface NewableFunction extends Function {}
 
 declare class Map<K, V> {
   constructor(values?: Array<[K, V]>);
+  readonly size: number;
   get(key: K): V | undefined;
   set(key: K, value: V): this;
   has(key: K): boolean;
 }
 declare class Set<T> {
   constructor(values?: Array<T>);
+  readonly size: number;
   add(value: T): this;
   has(value: T): boolean;
 }
@@ -54,10 +56,11 @@ declare const Math: {
 type Row = Record<string, any>;
 type Page<T = Row> = Array<T> & { hasMore: boolean };
 type Table = { readonly [index: string]: Table };
-type Arg = { readonly max?: number; readonly kind?: string };
+type Arg<T = any> = { readonly max?: number; readonly kind?: string; readonly __value?: T };
 type Context = {
   db: Db;
   ctx: {
+    [name: string]: any;
     viewer: any;
     now(): any;
     newId(): any;
@@ -67,6 +70,7 @@ type Context = {
   args: Record<string, any>;
 };
 type Db = {
+  [name: string]: any;
   get(target: Table, key: any): any;
   exists(target: Table, key: any): boolean;
   scan(target: Table, prefix: any, options?: Record<string, any>): Page;
@@ -81,15 +85,17 @@ type Db = {
 declare function table(name: string): Table;
 declare function privateTable(name: string): Table;
 declare function maintained(name: string, source: Table): Table;
-declare function scalar(): Arg;
-declare function id(table?: Table): Arg;
-declare function text(options?: { max?: number } | number): Arg;
-declare function int(): Arg;
-declare function time(): Arg;
-declare function optional(value: Arg): Arg;
-declare function list(value: Arg, options: { max: number }): Arg;
-declare function query(args: Record<string, Arg>, handler: (context: Context) => any): any;
-declare function mutation(args: Record<string, Arg>, handler: (context: Context) => any): any;
+declare function scalar(): Arg<any>;
+declare function id(table?: Table): Arg<any>;
+declare function text(options?: { max?: number } | number): Arg<string>;
+declare function int(): Arg<number>;
+declare function time(): Arg<number>;
+declare function optional<T>(value: Arg<T>): Arg<T | undefined>;
+declare function list<T>(value: Arg<T>, options: { max: number }): Arg<T[]>;
+type ArgsOf<A extends Record<string, Arg<any>>> = { [K in keyof A]: A[K] extends Arg<infer T> ? T : never };
+type OperationContext<A extends Record<string, Arg<any>>> = Omit<Context, "args"> & { args: ArgsOf<A> };
+declare function query<A extends Record<string, Arg<any>>>(args: A, handler: (context: OperationContext<A>) => any): any;
+declare function mutation<A extends Record<string, Arg<any>>>(args: A, handler: (context: OperationContext<A>) => any): any;
 declare function range(start: number, end: number): number[];
 declare function mentionTokens(value: string): string[];
 declare function deterministicShare(amount: number, recipients: any[], recipient: any): number;
@@ -101,3 +107,6 @@ declare function recurse(seed: any, step: (value: any) => any, options: { depth:
 declare function publicReason(reason: string): any;
 
 type Record<K extends string | number | symbol, T> = { [P in K]: T };
+type Exclude<T, U> = T extends U ? never : T;
+type Pick<T, K extends keyof T> = { [P in K]: T[P] };
+type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
