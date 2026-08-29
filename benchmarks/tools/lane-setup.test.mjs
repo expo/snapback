@@ -186,6 +186,28 @@ test('lane setup emits deterministic bounded steering with the full skill body i
   );
 });
 
+test('lane setup represents the full continuous journey without inventing starter segments', () => {
+  const run = provisionRun();
+  const options = setupOptions(run, {
+    laneId: 'sol-clique-full-r01',
+    laneDir: join(run.runRoot, 'lanes/sol-clique-full-r01'),
+    milestones: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8'],
+  });
+
+  generateLaneSetup(options);
+  const agents = readFileSync(join(options.laneDir, AGENTS_FILE), 'utf8');
+  const orientation = readFileSync(join(options.laneDir, ORIENTATION_FILE), 'utf8');
+
+  assert.match(agents, /milestones M1, M2, M3, M4, M5, M6, M8/u);
+  assert.match(orientation, /Build Clique for `M1`, `M2`, `M3`, `M4`, `M5`, `M6`, `M8`, in order/u);
+  assert.match(orientation, /M4, M5, M6, M8 have no separate starter logs/u);
+  assert.match(orientation, /continue from the M3 state/u);
+  assert.doesNotMatch(orientation, /starter-m4\.log/u);
+  for (const milestone of ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M8']) {
+    assert.match(orientation, new RegExp(`\\| ${milestone} \\|`, 'u'));
+  }
+});
+
 test('lane kind is explicit and renders matching web, native-simulator, and competitor instructions', () => {
   const run = provisionRun();
   assert.throws(

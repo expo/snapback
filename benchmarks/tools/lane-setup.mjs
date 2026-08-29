@@ -281,6 +281,15 @@ function childArtifact(parent, name) {
   };
 }
 
+function optionalChildArtifact(parent, name) {
+  const path = resolve(parent.path, name);
+  if (!isWithin(parent.path, path) || !existsSync(path)) return null;
+  return {
+    path,
+    logicalPath: `${parent.logicalPath}/${toLogicalPath(name)}`,
+  };
+}
+
 function artifactLink(label, artifact) {
   return `[${label}](${markdownPath(`${INSTRUMENT_LINK}/${artifact.logicalPath}`)}) (snapshot \`${artifact.logicalPath}\`)`;
 }
@@ -358,6 +367,21 @@ export function renderOrientation({
   laneDefinition(laneKind);
   const summaries = assertionSummary(assertionManifest, milestones);
   const fixture = (name) => childArtifact(artifacts.fixtureRoot, name);
+  const starterInputs = milestones.flatMap((milestone) => {
+    const name = `starter-${milestone.toLowerCase()}.log`;
+    const artifact = optionalChildArtifact(artifacts.fixtureRoot, name);
+    return artifact === null ? [] : [{ milestone, name, artifact }];
+  });
+  const continuationMilestones = milestones.filter((milestone) => (
+    !starterInputs.some((input) => input.milestone === milestone)
+  ));
+  // @ref LLP 0201#d1--the-app-and-why-this-app — the full journey is one
+  // continuous M1-M6/M8 build even though the canonical fixture pack has
+  // committed starter segments only for M1-M3.
+  const inputLine = continuationMilestones.length === 0
+    ? starterInputs.map(({ name, artifact }) => artifactLink(name, artifact)).join(', ')
+    : `${starterInputs.map(({ name, artifact }) => artifactLink(name, artifact)).join(', ')}. `
+      + `${continuationMilestones.join(', ')} have no separate starter logs; continue from the M3 state and exercise their product actions through the app write path per the brief`;
   const scope = milestones.map((milestone) => `\`${milestone}\``).join(', ');
   const assertionRows = summaries.map(({ milestone, title, counts }) => (
     `| ${milestone} | ${title} | ${counts['suite-required']} | ${counts.choreo} | ${counts.grader} | ${counts.simulator} |`
@@ -393,7 +417,7 @@ ${assertionRows}
 
 - Personas: ${artifactLink('personas.json', fixture('personas.json'))}.
 - Replay grammar: ${artifactLink('action-schema.json', fixture('action-schema.json'))}; use the app's write path.
-- Inputs: ${milestones.map((milestone) => artifactLink(`starter-${milestone.toLowerCase()}.log`, fixture(`starter-${milestone.toLowerCase()}.log`))).join(', ')}.
+- Inputs: ${inputLine}.
 - Media: ${artifactLink('media/manifest.json', fixture('media/manifest.json'))}.
 - UI kit: ${artifactLink('ui/', artifacts.uiRoot)}; preserve component contracts and \`sm-*\` vocabulary.
 - ${proofLabel}: ${artifactLink('choreography/', artifacts.choreographyRoot)}.
