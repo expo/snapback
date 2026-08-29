@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v2",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:d8da10321d67b4c4f49b877b91ae7ba97a8cb7d624c620c591484a62930ce524",
+    "sourceDigest": "sha256:3e187cbf65e4811bdda679a83b9f3deb7dfa1f6f12b610e40d2709db21d2b016",
     "publishedClosureVersion": "0.1.29",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.29",
@@ -3710,7 +3710,7 @@
       ],
       "projectionIdentity": {
         "algorithm": "snapback-symbol-registry-projection.v1",
-        "sourceDigest": "sha256:2d5e4a68388b0753f4f746399ea4c1d7d0df685152e4e6907702d9a97844f843",
+        "sourceDigest": "sha256:b8a1feec03f3e00ec2bb4d45891218e5002e1695e3940d5fefb106c2a2d98dc2",
         "inputs": {
           "files": [
             "guide/reference/lifecycle.schema.json",

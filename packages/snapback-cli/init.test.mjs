@@ -1094,6 +1094,25 @@ test('supported Expo/Vite majors and complex tsconfig project boundaries fail cl
     });
   });
 
+  for (const [dependency, declared] of [
+    ['expo', '>=57'],
+    ['expo', '57 || 58'],
+    ['react', '>=19'],
+    ['react', '19 || 20'],
+  ]) {
+    await t.test(`open or disjunctive range refuses ${dependency} ${declared}`, () => {
+      const { root } = createExpoFixture();
+      const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+      manifest.dependencies[dependency] = declared;
+      writeJson(join(root, 'package.json'), manifest);
+      assert.throws(() => initApp(root), (error) => {
+        assert.equal(error.code, 'SNAPBACK_INIT_VERSION_UNSUPPORTED');
+        assert.equal(error.diagnostic.details.dependency, dependency);
+        return true;
+      });
+    });
+  }
+
   for (const [dependency, declared, supportedRange] of [
     ['react', '18.3.1', '>=19.0.0 <20.0.0'],
     ['react-native', '0.85.9', '>=0.86.0 <0.87.0'],

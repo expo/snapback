@@ -31,6 +31,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import semver from 'semver';
 import { SnapbackClient } from '@expo/snapback-client';
 import {
   defineReplay,
@@ -2549,15 +2550,23 @@ function renderInitJson(source, value) {
   return JSON.stringify(value, null, initJsonIndent(source)).replaceAll('\n', newline) + trailingNewline;
 }
 
+function initDeclaredRangeAdmitted(declared, supportedRange) {
+  if (typeof declared !== 'string' || declared.trim() === '') return false;
+  try {
+    return semver.subset(
+      new semver.Range(declared.trim()),
+      new semver.Range(supportedRange),
+    );
+  } catch {
+    return false;
+  }
+}
+
 function initSupportedVersion(root, manifest, detected) {
   const profile = initProfile(detected);
   const dependencies = initDependencies(manifest);
   const version = dependencies[profile.supportedDependency];
-  const versionTuple = typeof version === 'string'
-    ? version.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?/u)
-    : null;
-  const major = versionTuple === null ? Number.NaN : Number(versionTuple[1]);
-  if (!Number.isInteger(major) || major !== profile.supportedMajor) {
+  if (!initDeclaredRangeAdmitted(version, profile.supportedRange)) {
     throw initRefusal(
       'SNAPBACK_INIT_VERSION_UNSUPPORTED',
       `snapback init supports ${profile.supportedDependency} ${profile.supportedRange} for this closure, but the app declares ${JSON.stringify(version)}`,
@@ -2573,14 +2582,7 @@ function initSupportedVersion(root, manifest, detected) {
   for (const member of INIT_EXPO_RUNTIME_TUPLE) {
     const declared = dependencies[member.dependency];
     if (declared === undefined && !member.required) continue;
-    const match = typeof declared === 'string'
-      ? declared.trim().match(/^(?:[~^]|>=?|=)?\s*(\d+)(?:\.(\d+))?(?:\.(\d+))?/u)
-      : null;
-    const declaredMajor = match === null ? Number.NaN : Number(match[1]);
-    const declaredMinor = match?.[2] === undefined ? Number.NaN : Number(match[2]);
-    const admitted = Number.isInteger(declaredMajor)
-      && declaredMajor === member.major
-      && (member.minor === undefined || declaredMinor === member.minor);
+    const admitted = initDeclaredRangeAdmitted(declared, member.supportedRange);
     if (admitted) continue;
     throw initRefusal(
       'SNAPBACK_INIT_VERSION_UNSUPPORTED',

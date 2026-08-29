@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:046bcfdddf53eeb1dbd0f8897bb6eaf98a1d4afe427a5b47047463756b68acb8"
+    "sourceDigest": "sha256:8235c0c9d7a82f1e42889a9f1d5ab169f194bdc88e24863d4a7f48c3a70960d9"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -6642,8 +6642,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:6a8ae534aabac7cf495a1f80d6f17dcfa60df5dde5ccaaac2bd5c3336ec1c967",
-      "sha256": "3185b15fda7547fffa791ab2d01f273772405920edc1c15a5a1e2629f5a139ae",
+      "reviewedAuthoritiesDigest": "sha256:7ab9a86f4173f49a26340af98a02da3db6d921301ea54079a5539e5d04df5e12",
+      "sha256": "eb7311954fe891ff6cac9ccc98212305574146113c9fa71adba02aed6c005574",
       "snippets": [
         {
           "lang": "ts",
@@ -13918,7 +13918,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:c4a87b272f54ff55c8d296755784a662905ab6ea2a4570be9b11619b2bbfea22",
-      "sha256": "f959ec9df74b8cc8c515e9ba43925feb9ee5854045846ec26c17b19004fe58b7",
+      "sha256": "529a1682fc7fd3a5f63adbba1f4672d147ec829181a2f7b3bee28713b5295dee",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -14538,7 +14538,7 @@
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
       "bytes": 5258215,
-      "sha256": "1a560367f8da00779b5728d075e2b7594a50cee96ee9245a5d0670ee560ed257",
+      "sha256": "9a491e205af7bc88fccaee7f2f9a822e91713e469d7e104dc04945ad57b12cf9",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -14547,7 +14547,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v2",
-      "sourceDigest": "sha256:d8da10321d67b4c4f49b877b91ae7ba97a8cb7d624c620c591484a62930ce524",
+      "sourceDigest": "sha256:3e187cbf65e4811bdda679a83b9f3deb7dfa1f6f12b610e40d2709db21d2b016",
       "modules": 56,
       "symbols": 1482
     },
@@ -14556,7 +14556,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 1755226,
-      "sha256": "858de0eb16adac98113085672475658f37640e3e561a7c14d1ead338cb812893",
+      "sha256": "5fbe4baa85708703eca6f3a815d7a89a79c8bc243ce102b1f3c20d52459b0f11",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -14565,7 +14565,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v2",
-      "sourceDigest": "sha256:1a392a956be6010feb20ab7cc8a66ea7ceba6b84689409af077abe0066ed8ec0",
+      "sourceDigest": "sha256:8955db8efd6eb738b79da1f930722302c032fa7c98fcacaef50632ace2f5f9b3",
       "codes": 3596,
       "emittingSites": 9691,
       "receivedSites": 380,
@@ -14716,7 +14716,7 @@
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
       "bytes": 4238968,
-      "sha256": "c37f5beff0874b4bb2d798748dc87df0db3ffd6a1f5d5fd89be19199ef3074df"
+      "sha256": "ad073c753da1b8e7d196aaa0c03a2b57bd6ac2e39037bb7cec9d2205605eb32d"
     },
     "sections": {
       "meta": {
@@ -14794,7 +14794,7 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 2292359,
-        "sha256": "07cf022a52d0e6a98078b3222d5f388c652b764a7e7d3417ce7f76e238249a66"
+        "sha256": "af8529ca2bbfa0afc02d7b4954247d00697e8fdf2cb2678967acafe8e10f5f67"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -14819,5 +14819,5 @@
       }
     }
   },
-  "contentHash": "046bcfdddf53eeb1dbd0f8897bb6eaf98a1d4afe427a5b47047463756b68acb8"
+  "contentHash": "8235c0c9d7a82f1e42889a9f1d5ab169f194bdc88e24863d4a7f48c3a70960d9"
 }

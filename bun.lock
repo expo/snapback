@@ -65,6 +65,7 @@
         "@expo/snapback-contract": "workspace:*",
         "@expo/snapback-react": "workspace:*",
         "ajv": "^8.20.0",
+        "semver": "7.8.5",
       },
       "optionalDependencies": {
         "@expo/snapback-runtime-darwin-arm64": "workspace:*",
