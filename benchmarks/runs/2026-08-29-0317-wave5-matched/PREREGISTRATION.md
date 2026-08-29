@@ -3,7 +3,7 @@
 Committed in the execution branch before reading any Wave 5 cell outcome.
 
 - Instrument: `social-messenger@0.3.6-m8`, source revision
-  `db3fe84d2e2f05fa7592119016d1a68991a0945b`.
+  `9742ab4b5130643fa362c717575a1a1d0a3fa4aa`.
 - Product pins: published Snapback `0.1.29` and `0.1.30`, exact across every
   `@expo/snapback-*` package and the hosted runtime selected by that closure.
 - Cells: `gpt-5.6-sol` at `xhigh` and `grok-4.6` at `xhigh`, each against the
@@ -38,8 +38,9 @@ emitter, setup identity, receipt schemas, meter, record validator, and
 production driver still declared 0.3.4, so that partial repair is also
 inadmissible and no result was read from either attempted replacement.
 
-Commit `db3fe84d2e2f05fa7592119016d1a68991a0945b` aligns the complete executable
-evidence stack at `0.3.6-m8`. It passed read-only materialization and manifest
+Commit `9742ab4b5130643fa362c717575a1a1d0a3fa4aa` contains the complete executable
+evidence stack aligned at `0.3.6-m8` while preserving explicitly retained 0.3.4
+records under their historical pin. It passed read-only materialization and manifest
 verification at SHA-256
 `ee75020c41bb09186dc003e1f2cdf0dedebbb3adc21abfbfeb83addba2e64623`, the
 167,157-action scale hash/validator, the N7 preflight, lane-setup 11/11, 140
