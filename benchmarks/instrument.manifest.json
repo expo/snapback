@@ -1,10 +1,10 @@
 {
   "schemaVersion": "benchmark-instrument-snapshot.v1",
-  "instrumentPin": "social-messenger@0.3.5-m8",
+  "instrumentPin": "social-messenger@0.3.6-m8",
   "versions": {
     "schema": "0.3.0-m8",
     "ui": "0.3.2-m8",
-    "choreography": "0.3.5-m8"
+    "choreography": "0.3.6-m8"
   },
   "artifacts": {
     "brief": {
@@ -50,7 +50,7 @@
     "choreographyRoot": {
       "kind": "directory",
       "path": "tools/social-messenger/choreography",
-      "sha256": "45893b748b872bee5e2f3714a3b3668889a9135190aaae8e3c94fc52e130b995"
+      "sha256": "3d163c0e76eb857b0d5d54461f0c0b0baa2285365f1a7a360b1c1545826b0832"
     },
     "toolsLibRoot": {
       "kind": "directory",
@@ -60,7 +60,7 @@
     "choreographyVersion": {
       "kind": "file",
       "path": "tools/social-messenger/choreography/VERSION",
-      "sha256": "078f50de385a04e1876c5638380e740a9b718a9d16a45dc1e9163c64d1d869cd"
+      "sha256": "e96fe454597d11e241822dea892f5a1a6bda61104c3313fca513a739e39f8191"
     },
     "schemaVersion": {
       "kind": "file",

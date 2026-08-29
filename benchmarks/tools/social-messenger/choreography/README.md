@@ -272,4 +272,14 @@ the frozen M3 starter segment and refuses if a future fixture revision puts the
 declared add-member target back into the starter group. This changes fixture
 state and instrument identity; retained 0.3.4 receipts remain historical and
 must not be compared as if they used the repaired precondition.
+
+## 0.3.6-m8 migration
+
+`0.3.6-m8` repairs the frozen-root identity after the first Wave 5 launch
+found that `0.3.5-m8`'s manifest digest predated the concurrently integrated W9
+choreography files. The snapshot verifier refused that root on both benchmark
+hosts. The two partial cells were interrupted before admission, their lanes
+were retained as invalid entry-gate evidence, and no result from them is
+counted. This pin changes snapshot identity only; it keeps the `0.3.5-m8` N7
+and scale-fixture semantics.
 `0.3.0-m8` added the M8 choreography surfaces.

@@ -6,7 +6,7 @@
 
 **Retained instrument:** `social-messenger@0.3.4-m8`
 
-**L17-fixed instrument:** `social-messenger@0.3.5-m8`
+**L17-fixed instrument:** `social-messenger@0.3.6-m8`
 
 **Machine record:** [`l18-correction-loop-baseline.json`](./l18-correction-loop-baseline.json)
 
@@ -50,11 +50,13 @@ analogy.
 ## Instrument confound and residual gate
 
 The retained cells ran `social-messenger@0.3.4-m8`. L17 changed the instrument
-to `social-messenger@0.3.5-m8` to repair the M3 Dave precondition, restore the
-scale fixture, and add the choreography self-test. Retrospective annotation
-cannot remove that confound.
+to `social-messenger@0.3.6-m8`: `0.3.5-m8` repaired the M3 Dave precondition,
+restored the scale fixture, and added the choreography self-test, while
+`0.3.6-m8` repaired the frozen choreography-root identity after the first
+Wave 5 launch found the 0.3.5 digest stale. Retrospective annotation cannot
+remove that confound.
 
-Before any comparative claim, run fresh published-0.1.29 cells under 0.3.5 with
+Before any comparative claim, run fresh published-0.1.29 cells under 0.3.6 with
 the same model, effort, profile, and platform conditions. A “fewer loops” or
 ordering claim additionally requires N≥8 per configuration unless a
 variance-transfer rule was preregistered. Until then this record supports only

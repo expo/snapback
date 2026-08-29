@@ -9,7 +9,7 @@
   "scope": {
     "backendPin": "published Snapback 0.1.29",
     "retainedInstrumentPin": "social-messenger@0.3.4-m8",
-    "fixedInstrumentPin": "social-messenger@0.3.5-m8",
+    "fixedInstrumentPin": "social-messenger@0.3.6-m8",
     "cells": 8,
     "repetitionsPerCell": 1
   },
@@ -20,10 +20,10 @@
       "status": "inapplicable",
       "reason": "Retained logs were not emitted by a protocol-aware loop recorder and do not prove that every loop was captured. Retrospective absence is not zero."
     },
-    "instrumentConfound": "The retained cells ran social-messenger@0.3.4-m8. L17 repaired and versioned the Dave precondition, scale fixture, and choreography self-test as social-messenger@0.3.5-m8. Any comparison to a 0.3.5 rerun changes both product and instrument.",
+    "instrumentConfound": "The retained cells ran social-messenger@0.3.4-m8. L17 repaired and versioned the Dave precondition, scale fixture, and choreography self-test as social-messenger@0.3.5-m8, then repaired that pin's stale frozen-root digest as social-messenger@0.3.6-m8 before any cell was admitted. Any comparison to a 0.3.6 rerun changes both product and instrument.",
     "comparativeBaseline": {
       "status": "required-not-run",
-      "gate": "Run fresh published-0.1.29 cells under social-messenger@0.3.5-m8 with the same model, effort, profile, and platform conditions before any magnitude or ordering comparison.",
+      "gate": "Run fresh published-0.1.29 cells under social-messenger@0.3.6-m8 with the same model, effort, profile, and platform conditions before any magnitude or ordering comparison.",
       "orderingMinimum": "N>=8 per configuration unless a variance-transfer rule is preregistered"
     }
   },

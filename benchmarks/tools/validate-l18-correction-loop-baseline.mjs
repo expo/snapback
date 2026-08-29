@@ -45,7 +45,7 @@ function markdownHeadingAnchors(source) {
 
 requireFact(record.schemaVersion === 'llp-0317-l18-retrospective-baseline.v1', 'unexpected schemaVersion');
 requireFact(record.scope?.retainedInstrumentPin === 'social-messenger@0.3.4-m8', 'retained instrument pin must be 0.3.4-m8');
-requireFact(record.scope?.fixedInstrumentPin === 'social-messenger@0.3.5-m8', 'fixed instrument pin must be 0.3.5-m8');
+requireFact(record.scope?.fixedInstrumentPin === 'social-messenger@0.3.6-m8', 'fixed instrument pin must be 0.3.6-m8');
 requireFact(record.interpretation?.floorClaim === 'existence-only', 'floor must be existence-only');
 requireFact(record.interpretation?.totalLoopCount?.status === 'inapplicable', 'total loop count must remain inapplicable');
 requireFact(record.interpretation?.comparativeBaseline?.status === 'required-not-run', 'comparative baseline must remain required-not-run');
