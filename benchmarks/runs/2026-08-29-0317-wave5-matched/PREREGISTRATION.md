@@ -3,7 +3,7 @@
 Committed in the execution branch before reading any Wave 5 cell outcome.
 
 - Instrument: `social-messenger@0.3.6-m8`, source revision
-  `607dd776d231bc13c4de60bc06be17407c0023c6`.
+  `eff33c5882fce03edfcd572fb1e0284344a3827d`.
 - Product pins: published Snapback `0.1.29` and `0.1.30`, exact across every
   `@expo/snapback-*` package and the hosted runtime selected by that closure.
 - Cells: `gpt-5.6-sol` at `xhigh` and `grok-4.6` at `xhigh`, each against the
@@ -38,7 +38,7 @@ emitter, setup identity, receipt schemas, meter, record validator, and
 production driver still declared 0.3.4, so that partial repair is also
 inadmissible and no result was read from either attempted replacement.
 
-Commit `607dd776d231bc13c4de60bc06be17407c0023c6` contains the complete executable
+Commit `eff33c5882fce03edfcd572fb1e0284344a3827d` contains the complete executable
 evidence stack aligned at `0.3.6-m8` while preserving explicitly retained 0.3.4
 records under their historical pin. It passed read-only materialization and manifest
 verification at SHA-256
@@ -56,7 +56,7 @@ was stopped because lane setup's default reduced-run orientation named only
 M1-M3. A replacement full-scope setup then reproduced the pre-existing
 `starter-m4.log` failure disclosed by the 2026-08-22 local-main run: the fixture
 pack intentionally has committed starter segments only for M1-M3. Commit
-`607dd776d231bc13c4de60bc06be17407c0023c6` repairs the packet generator to link
+`eff33c5882fce03edfcd572fb1e0284344a3827d` repairs the packet generator to link
 only real starter inputs, state that M4-M6/M8 continue from M3, and emit every
 full-journey assertion row. Both prematurely launched processes were stopped;
 their lanes are entry evidence, not outcomes. Admitted replacements use new
