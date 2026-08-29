@@ -90,7 +90,8 @@ authored files remain under `spikes/bounded-programs/`; the crate-local
 - Per-member unread maintenance: **256** counter writes per send, nine measured
   sends, all final counters equal nine. Final debug-test p95: **73,082 µs** on
   this machine. This is a test-harness number, not a product latency claim.
-- Final full test run: **12.40 s**; `cargo clippy --all-targets -- -D warnings`
+- Instrumented `--nocapture` test run: **12.40 s**; the clean-build final
+  `cargo test` run: **12.45 s**. `cargo clippy --all-targets -- -D warnings`
   also passes.
 
 ## Ambiguities and restrictive choices
