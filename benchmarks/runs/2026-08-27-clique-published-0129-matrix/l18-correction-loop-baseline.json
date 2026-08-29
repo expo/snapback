@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "llp-0317-l18-retrospective-baseline.v1",
+  "recordedAt": "2026-08-29",
+  "governingRefs": [
+    "benchmarks/protocol.md#correction-loop-attribution",
+    "llp/0201-social-messenger-canonical-benchmark.plan.md#d2--quantitative-instrument",
+    "llp/0317.000-paved-loop-correction-program.rfc.md#wave-5--requalification-the-only-real-closure"
+  ],
+  "scope": {
+    "backendPin": "published Snapback 0.1.29",
+    "retainedInstrumentPin": "social-messenger@0.3.4-m8",
+    "fixedInstrumentPin": "social-messenger@0.3.5-m8",
+    "cells": 8,
+    "repetitionsPerCell": 1
+  },
+  "interpretation": {
+    "floorClaim": "existence-only",
+    "certifiedLoopCountMeaning": "Number of listed retained events whose evidence independently supplies a done-claim, contrary evidence, and a revision of already-produced work. It is not an exhaustive lane total.",
+    "totalLoopCount": {
+      "status": "inapplicable",
+      "reason": "Retained logs were not emitted by a protocol-aware loop recorder and do not prove that every loop was captured. Retrospective absence is not zero."
+    },
+    "instrumentConfound": "The retained cells ran social-messenger@0.3.4-m8. L17 repaired and versioned the Dave precondition, scale fixture, and choreography self-test as social-messenger@0.3.5-m8. Any comparison to a 0.3.5 rerun changes both product and instrument.",
+    "comparativeBaseline": {
+      "status": "required-not-run",
+      "gate": "Run fresh published-0.1.29 cells under social-messenger@0.3.5-m8 with the same model, effort, profile, and platform conditions before any magnitude or ordering comparison.",
+      "orderingMinimum": "N>=8 per configuration unless a variance-transfer rule is preregistered"
+    }
+  },
+  "counts": {
+    "certifiedExistenceLoops": 22,
+    "byAttribution": {
+      "snapback-defect": 9,
+      "agent-error": 10,
+      "environment": 2,
+      "ambiguous": 1
+    },
+    "applicableCells": 4,
+    "inapplicableCells": 4
+  },
+  "cells": [
+    {
+      "cellId": "sol-snapback-explicit",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "profile": "explicit",
+      "evidenceStatus": "applicable-for-certified-existence-only",
+      "provenanceNote": "The run-log header retains a stale grok lane/model template string; the sealed matrix record, scores.json, diary, and final report identify this directory as the Sol Explicit cell.",
+      "runLog": "lanes/sol-snapback-explicit/run-log.md",
+      "certifiedLoopCount": 13,
+      "registeredFields": {
+        "milestoneStatus": {"status": "recorded", "values": {"M1": "green", "M2": "green", "M3": "green", "M4": "green", "M5": "green", "M6": "green", "M7": "not-run", "M8": "green"}},
+        "firstGreenAt": {"status": "recorded", "values": {"M1": 1787853966, "M2": 1787856232, "M3": 1787859249, "M4": 1787862002, "M5": 1787864364, "M6": 1787865002, "M7": "inapplicable:not-run", "M8": 1787868680}},
+        "wallClockPhases": {"status": "inapplicable", "reason": "No retained harness-stamped per-milestone phase record; event epochs are not reconstructed into phase durations."},
+        "tokensPhases": {"status": "inapplicable", "reason": "No retained harness token-phase record."},
+        "authoringClock": {"status": "inapplicable", "reason": "No retained separately stamped aggregate authoring clock."},
+        "gradingClock": {"status": "inapplicable", "reason": "No retained separately stamped grader clock."},
+        "scaleReplayClock": {"status": "recorded", "replaySeconds": 14468.839, "probeSecondsExcluded": 435.277, "evidenceLocator": "1787884071"},
+        "m7Clock": {"status": "inapplicable", "reason": "M7 was not run."}
+      },
+      "loops": [
+        {"id": "sol-explicit-01", "phase": "M1", "attribution": "agent-error", "obligations": ["O2"], "done": {"locator": "1787853100 event=lifecycle-start", "lines": [26]}, "contrary": {"locator": "1787853100 event=error", "lines": [27]}, "revision": {"locator": "1787853100 event=correction-loop", "lines": [28, 29]}, "foldedLocators": []},
+        {"id": "sol-explicit-02", "phase": "M1", "attribution": "agent-error", "obligations": ["N5"], "done": {"locator": "1787853791 milestone=M1 event=suite-green", "lines": [48]}, "contrary": {"locator": "1787853890 event=failure", "lines": [50]}, "revision": {"locator": "1787853910 event=retry", "lines": [52]}, "foldedLocators": []},
+        {"id": "sol-explicit-03", "phase": "M2", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["F1"], "done": {"locator": "1787854330 milestone=M2 event=additive-successor", "lines": [63]}, "contrary": {"locator": "1787854616 event=error", "lines": [64]}, "revision": {"locator": "1787854616 event=correction-loop", "lines": [65]}, "foldedLocators": ["1787855013 event=error", "1787855013 event=workaround"]},
+        {"id": "sol-explicit-04", "phase": "M2", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O26"], "done": {"locator": "1787854935 event=failure", "lines": [80]}, "contrary": {"locator": "SNAPBACK_CAPABILITY_UNSUPPORTED assets.media-collection.v1", "lines": [80]}, "revision": {"locator": "1787854935 event=workaround", "lines": [81]}, "foldedLocators": []},
+        {"id": "sol-explicit-05", "phase": "M2", "attribution": "environment", "obligations": ["N8", "N9"], "done": {"locator": "1787855439 milestone=M2 event=suite-green", "lines": [93]}, "contrary": {"locator": "1787855570 milestone=M2 event=choreography-failure", "lines": [90]}, "revision": {"locator": "1787855570 event=retry", "lines": [91, 92]}, "foldedLocators": []},
+        {"id": "sol-explicit-06", "phase": "M3", "attribution": "agent-error", "obligations": ["N2"], "done": {"locator": "1787858100 milestone=M3 event=suite-green", "lines": [111]}, "contrary": {"locator": "1787858130 milestone=M3 event=choreography-failure", "lines": [113]}, "revision": {"locator": "1787858130 event=retry", "lines": [114]}, "foldedLocators": []},
+        {"id": "sol-explicit-07", "phase": "M3", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O7"], "done": {"locator": "authenticated warm run", "lines": [122]}, "contrary": {"locator": "SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE", "lines": [122]}, "revision": {"locator": "1787858700 event=workaround", "lines": [123]}, "foldedLocators": []},
+        {"id": "sol-explicit-08", "phase": "M3", "attribution": "agent-error", "obligations": ["O20"], "done": {"locator": "1787858100 milestone=M3 event=suite-green", "lines": [111]}, "contrary": {"locator": "1787859000 milestone=M3 event=choreography-failure", "lines": [124]}, "revision": {"locator": "1787859060 event=retry", "lines": [125, 126]}, "foldedLocators": ["1787859300 milestone=M3 event=choreography-failure", "1787859300 event=retry"]},
+        {"id": "sol-explicit-09", "phase": "M4", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O14"], "done": {"locator": "1787859800 milestone=M4 event=suite-green", "lines": [135]}, "contrary": {"locator": "1787860576 milestone=M4 event=choreography-failure", "lines": [145]}, "revision": {"locator": "1787861040 event=workaround", "lines": [146, 147, 148]}, "foldedLocators": []},
+        {"id": "sol-explicit-10", "phase": "M4", "attribution": "environment", "obligations": ["N10"], "done": {"locator": "1787859800 milestone=M4 event=suite-green", "lines": [135]}, "contrary": {"locator": "1787861710 event=correction-loop", "lines": [150]}, "revision": {"locator": "1787861710 event=retry", "lines": [151]}, "foldedLocators": []},
+        {"id": "sol-explicit-11", "phase": "M5", "attribution": "agent-error", "obligations": ["N10", "N11", "O20"], "done": {"locator": "1787862900 milestone=M5 event=suite-green", "lines": [165]}, "contrary": {"locator": "1787863330 milestone=M5 event=choreography-failure", "lines": [167]}, "revision": {"locator": "1787863388 event=retry", "lines": [168, 169]}, "foldedLocators": ["1787863804 milestone=M5 event=choreography-failure", "1787863845 milestone=M5 event=choreography-failure"]},
+        {"id": "sol-explicit-12", "phase": "M6", "attribution": "agent-error", "obligations": ["O21"], "done": {"locator": "1787864780 milestone=M6 event=suite-green", "lines": [186]}, "contrary": {"locator": "1787864800 milestone=M6 event=choreography-failure", "lines": [189]}, "revision": {"locator": "1787864800 event=retry", "lines": [190]}, "foldedLocators": []},
+        {"id": "sol-explicit-13", "phase": "M8", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O17", "O24"], "done": {"locator": "1787865803 milestone=M8 event=suite-green", "lines": [203]}, "contrary": {"locator": "1787866650 milestone=M8 event=error", "lines": [215]}, "revision": {"locator": "1787866650 milestone=M8 event=workaround", "lines": [216]}, "foldedLocators": ["1787866840 milestone=M8 event=correction-loop", "1787867130 milestone=M8 event=correction-loop", "1787867300 milestone=M8 event=correction-loop", "1787868140 milestone=M8 event=correction-loop", "1787868270 milestone=M8 event=correction-loop", "1787868550 milestone=M8 event=correction-loop"]}
+      ]
+    },
+    {
+      "cellId": "sol-snapback-familiar",
+      "model": "gpt-5.6-sol",
+      "effort": "xhigh",
+      "profile": "familiar",
+      "evidenceStatus": "applicable-for-certified-existence-only",
+      "runLog": "lanes/sol-snapback-familiar/run-log.md",
+      "certifiedLoopCount": 4,
+      "registeredFields": {
+        "milestoneStatus": {"status": "recorded", "values": {"M1": "green", "M2": "green", "M3": "aborted", "M4": "blocked-by-M3", "M5": "blocked-by-M3", "M6": "blocked-by-M3", "M7": "not-run", "M8": "blocked-by-M3"}},
+        "firstGreenAt": {"status": "recorded-partial", "values": {"M1": 1787853647, "M2": 1787855525, "M3": "inapplicable:not-green", "M4": "inapplicable:not-run", "M5": "inapplicable:not-run", "M6": "inapplicable:not-run", "M7": "inapplicable:not-run", "M8": "inapplicable:not-run"}},
+        "wallClockPhases": {"status": "recorded-partial", "values": {"M1": {"authoringSeconds": 1159}, "M2": {"authoringSeconds": 1878}, "M3": {"terminalSeconds": 3281}, "M4": "inapplicable:not-run", "M5": "inapplicable:not-run", "M6": "inapplicable:not-run", "M7": "inapplicable:not-run", "M8": "inapplicable:not-run"}},
+        "tokensPhases": {"status": "inapplicable", "reason": "No retained harness token-phase record."},
+        "authoringClock": {"status": "inapplicable", "reason": "No separately stamped aggregate authoring clock; the overall run wall is not substituted."},
+        "gradingClock": {"status": "inapplicable", "reason": "No retained separately stamped grader clock."},
+        "scaleReplayClock": {"status": "inapplicable", "reason": "Scale replay was not attempted because M3 aborted."},
+        "m7Clock": {"status": "inapplicable", "reason": "M7 was not run."}
+      },
+      "loops": [
+        {"id": "sol-familiar-01", "phase": "M1", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["F1"], "done": {"locator": "1787853002 application-ready", "lines": [26]}, "contrary": {"locator": "1787853028 error", "lines": [29]}, "revision": {"locator": "1787853028 correction-loop", "lines": [31]}, "foldedLocators": []},
+        {"id": "sol-familiar-02", "phase": "M2", "attribution": "agent-error", "obligations": ["N9"], "done": {"locator": "1787855192 suite-green M2", "lines": [86]}, "contrary": {"locator": "1787855348 milestone-failure M2", "lines": [87]}, "revision": {"locator": "1787855348 correction-loop", "lines": [88]}, "foldedLocators": []},
+        {"id": "sol-familiar-03", "phase": "M3", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O14", "O15"], "done": {"locator": "1787857038 evidence=manual-playwright debug-send mutation settled", "lines": [112]}, "contrary": {"locator": "absent from same live hook for 3s", "lines": [112]}, "revision": {"locator": "1787857038 workaround", "lines": [113]}, "foldedLocators": ["1787857128 correction-loop", "1787857181 correction-loop", "1787857327 correction-loop", "1787857472 failure", "1787857472 workaround", "1787857608 correction-loop", "1787857672 correction-loop", "1787857727 workaround", "1787857819 workaround"]},
+        {"id": "sol-familiar-04", "phase": "recording", "attribution": "agent-error", "obligations": [], "done": {"locator": "1787853647 milestone-green M1 first-green wall=159s", "lines": [44]}, "contrary": {"locator": "raw epochs 1787852488->1787853647", "lines": [147]}, "revision": {"locator": "used in final reporting", "lines": [147]}, "foldedLocators": []}
+      ]
+    },
+    {
+      "cellId": "grok-snapback-explicit",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "profile": "explicit",
+      "evidenceStatus": "applicable-for-certified-existence-only",
+      "runLog": "lanes/grok-snapback-explicit/run-log.md",
+      "certifiedLoopCount": 4,
+      "registeredFields": {
+        "milestoneStatus": {"status": "recorded", "values": {"M1": "green", "M2": "green", "M3": "green", "M4": "green", "M5": "aborted", "M6": "aborted", "M7": "not-run", "M8": "aborted"}},
+        "firstGreenAt": {"status": "recorded-partial", "values": {"M1": 1787855869, "M2": 1787858863, "M3": 1787867300, "M4": 1787862527, "M5": "inapplicable:not-green", "M6": "inapplicable:not-green", "M7": "inapplicable:not-run", "M8": "inapplicable:not-green"}},
+        "wallClockPhases": {"status": "inapplicable", "reason": "No retained harness-stamped per-milestone phase record."},
+        "tokensPhases": {"status": "inapplicable", "reason": "No retained harness token-phase record."},
+        "authoringClock": {"status": "inapplicable", "reason": "No retained separately stamped aggregate authoring clock."},
+        "gradingClock": {"status": "inapplicable", "reason": "No retained separately stamped grader clock."},
+        "scaleReplayClock": {"status": "inapplicable", "reason": "Scale setup was attempted but no separately stamped replay clock was retained."},
+        "m7Clock": {"status": "inapplicable", "reason": "M7 was not run."}
+      },
+      "loops": [
+        {"id": "grok-explicit-01", "phase": "M1", "attribution": "agent-error", "obligations": ["O2"], "done": {"locator": "1787854560 lifecycle", "lines": [14]}, "contrary": {"locator": "1787854565 correction-loop", "lines": [15]}, "revision": {"locator": "1787854820 lifecycle", "lines": [16]}, "foldedLocators": []},
+        {"id": "grok-explicit-02", "phase": "M3", "attribution": "ambiguous", "obligations": ["O6"], "done": {"locator": "1787854820 lifecycle", "lines": [16]}, "contrary": {"locator": "1787865000 correction-loop: lifecycle owner pid=86118 died", "lines": [35]}, "revision": {"locator": "1787863856 lifecycle restart", "lines": [50]}, "foldedLocators": []},
+        {"id": "grok-explicit-03", "phase": "M3", "attribution": "agent-error", "obligations": ["O14", "O35"], "done": {"locator": "1787862527 M3 suite green", "lines": [40]}, "contrary": {"locator": "M3 choreography not green", "lines": [40]}, "revision": {"locator": "1787866047 correction-loop: M3 dm-live empty", "lines": [52, 54]}, "foldedLocators": []},
+        {"id": "grok-explicit-04", "phase": "M3", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O7", "O21"], "done": {"locator": "1787862527 M3 suite green", "lines": [40]}, "contrary": {"locator": "delivered receipts after Playwright setOffline", "lines": [53]}, "revision": {"locator": "ReceiptSync now reloads non-conversation surfaces", "lines": [53]}, "foldedLocators": ["1787867200 correction-loop"]}
+      ]
+    },
+    {
+      "cellId": "grok-snapback-familiar",
+      "model": "grok-4.6",
+      "effort": "xhigh",
+      "profile": "familiar",
+      "evidenceStatus": "applicable-for-certified-existence-only",
+      "runLog": "lanes/grok-snapback-familiar/run-log.md",
+      "certifiedLoopCount": 1,
+      "registeredFields": {
+        "milestoneStatus": {"status": "recorded", "values": {"M1": "green", "M2": "green", "M3": "aborted", "M4": "aborted", "M5": "aborted", "M6": "aborted", "M7": "not-run", "M8": "aborted"}},
+        "firstGreenAt": {"status": "recorded-partial", "values": {"M1": 1787855994, "M2": 1787859268, "M3": "inapplicable:not-green", "M4": "inapplicable:not-green", "M5": "inapplicable:not-green", "M6": "inapplicable:not-green", "M7": "inapplicable:not-run", "M8": "inapplicable:not-green"}},
+        "wallClockPhases": {"status": "inapplicable", "reason": "No retained harness-stamped per-milestone phase record."},
+        "tokensPhases": {"status": "inapplicable", "reason": "No retained harness token-phase record."},
+        "authoringClock": {"status": "inapplicable", "reason": "No retained separately stamped aggregate authoring clock."},
+        "gradingClock": {"status": "inapplicable", "reason": "No retained separately stamped grader clock."},
+        "scaleReplayClock": {"status": "inapplicable", "reason": "The replay hung before settlement and no separately stamped replay clock was retained."},
+        "m7Clock": {"status": "inapplicable", "reason": "M7 was not run."}
+      },
+      "loops": [
+        {"id": "grok-familiar-01", "phase": "M4-M8", "attribution": "snapback-defect", "subAttribution": "defect", "obligations": ["O33"], "done": {"locator": "1787865420 M4-M8 schema successor", "lines": [32]}, "contrary": {"locator": "SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE after generate deleted application-ready", "lines": [37]}, "revision": {"locator": "remint recovered", "lines": [37]}, "foldedLocators": []}
+      ]
+    },
+    {
+      "cellId": "terra-snapback-explicit",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "profile": "explicit",
+      "evidenceStatus": "inapplicable",
+      "inapplicableReason": "The matrix classifies this 220-second premature stop as non-signal; its score metadata also misidentifies the model as grok-4.6. A complete protocol loop count and registered clocks cannot be recovered honestly.",
+      "runLog": "lanes/terra-snapback-explicit/run-log.md",
+      "certifiedLoopCount": null,
+      "registeredFields": {"all": {"status": "inapplicable", "reason": "Non-signal premature stop with contradictory score metadata."}},
+      "loops": []
+    },
+    {
+      "cellId": "terra-snapback-familiar",
+      "model": "gpt-5.6-terra",
+      "effort": "medium",
+      "profile": "familiar",
+      "evidenceStatus": "inapplicable",
+      "inapplicableReason": "The matrix classifies this 348-second premature stop as non-signal. A complete protocol loop count and registered clocks cannot be recovered honestly.",
+      "runLog": "lanes/terra-snapback-familiar/run-log.md",
+      "certifiedLoopCount": null,
+      "registeredFields": {"all": {"status": "inapplicable", "reason": "Non-signal premature stop."}},
+      "loops": []
+    },
+    {
+      "cellId": "glm-snapback-explicit",
+      "model": "GLM-5.3-flash",
+      "effort": "unrecorded",
+      "profile": "explicit",
+      "evidenceStatus": "inapplicable",
+      "inapplicableReason": "The retained file identifies itself as a grok lane, contains multiple resumed builders, and now reports M2 green while the sealed matrix record and LLP 0317 parent classify the cell as M1-only after an OpenCode hang. No scores.json resolves the conflict.",
+      "runLog": "lanes/glm-snapback-explicit/run-log.md",
+      "certifiedLoopCount": null,
+      "registeredFields": {"all": {"status": "inapplicable", "reason": "Conflicting lane identity, ownership, and terminal-depth evidence; no machine score record."}},
+      "loops": []
+    },
+    {
+      "cellId": "glm-snapback-familiar",
+      "model": "GLM-5.3-flash",
+      "effort": "unrecorded",
+      "profile": "familiar",
+      "evidenceStatus": "inapplicable",
+      "inapplicableReason": "The retained file is an observer/mirror log with template-mandated grok identity fields and no direct official post-M1 run record or scores.json.",
+      "runLog": "lanes/glm-snapback-familiar/run-log.md",
+      "certifiedLoopCount": null,
+      "registeredFields": {"all": {"status": "inapplicable", "reason": "Observer-only provenance and no machine score record."}},
+      "loops": []
+    }
+  ]
+}

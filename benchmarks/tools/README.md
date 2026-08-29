@@ -10,6 +10,7 @@ runtime is unstable:
 
 ```sh
 volta run --node 24.18.0 node benchmarks/tools/validate-records.mjs
+node benchmarks/tools/validate-l18-correction-loop-baseline.mjs
 volta run --node 24.18.0 node benchmarks/tools/publish.mjs \
   --manifest path/to/claim-manifest.json \
   --output path/to/generated-comparison.md
@@ -18,6 +19,11 @@ volta run --node 24.18.0 node benchmarks/tools/publish.mjs \
   --output path/to/generated-comparison.md \
   --check
 ```
+
+`validate-l18-correction-loop-baseline.mjs` checks the LLP 0317.000 L18
+retrospective record: the eight-cell inventory, exact evidence-line locators,
+done/contrary/revision triads, folded retries, attribution totals, explicit
+inapplicability, and the 0.3.4→0.3.5 comparative gate.
 
 `validate-records.mjs` asks Git for every committed
 `benchmarks/records/*.json`, parses every one, and validates the known current
