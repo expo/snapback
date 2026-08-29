@@ -207,3 +207,112 @@ The evidence program should add: classify the three generated trees separately; 
 The document is strong as a map of a real category error (generated catalogs vs args) and as a warning not to globally bump 4,096. It is not yet a legitimate recommendation of Option C, because that option’s result half is underdetermined, High-rated on unverifiable evidence, and unreconciled with related result-identity LLPs. Narrow the recommendation to the artifact/argument split plus inventory-gated result work (Option E/F), drop or downgrade Finding 3’s role until it is importable, and rewrite §Confidence to match. Then this Research can feed an RFC.
 
 VERDICT: NOT READY
+
+## Round 2 — 2026-08-24 (delta round)
+
+- Reviewer: `grok-4.6` @ xhigh, headless, same invocation shape as round 1,
+  cwd = `scratchpad/0297-loop/capsule-r2/`, full terminal ban in the prompt.
+- Target revision (r2, sha256):
+  `5678bb4488a7a2b71f0b8bd410d3233ff61cbcb7b30a0882c15e0f0be5f7659c`
+- Capsule hash:
+  `d68d5b9c09cda1d0ba7dd4005d7ec622aa053742965428d5b345e4994ce3da06`
+- Instruction hash (`CAPSULE.md`):
+  `c8e7b2737cb54af3da81c586aef4a475c5dee48fb0f095248ee96717867ae522`
+- Blindness: structural; delta round (r1→r2 delta enumerated; IN-DELTA vs
+  PRE-EXISTING classification required); sealed from the codex review until
+  both landed.
+- Received 2026-08-24, exit code 0; persisted verbatim below (the first
+  paragraph is the runner's own progress narration, part of the received
+  stdout).
+- Verdict: **READY** — zero MATERIAL; m1–m8 IN-DELTA minors, m9
+  PRE-EXISTING minor; explicit "No MATERIAL concern exists in PRE-EXISTING
+  text."
+
+### Verbatim body
+
+I'll read `CAPSULE.md` with the file tool only and follow its review instructions exactly.I'll load the target document and the listed context files next so the review can cite them directly.The remaining context files still need to be read so I can check the document’s citations against the capsule sources.I’ll keep reading the spec and evidence files in sections so the review can check the new citations against the source.I still need the LLP 0114 identity/budget sections and the LLP 0179 descriptor-digest ceilings.# Review of LLP 0297 r2 — Client canonicalization budgets
+
+Fresh review of `0297-client-canonicalization-budgets.research.md` (Research, Status: Review, r2) against the capsule sources only. Concerns are classified IN-DELTA or PRE-EXISTING. No MATERIAL concern is left unresolved.
+
+## Option judgment
+
+**Option E is the right next design direction** — over full C, D-first, B, A, and “name a result profile now.”
+
+Finding 6 is what changes the balance. Combined with Findings 1–5 it supports a **split decision**, not a third versioned profile:
+
+| Class | What the sources show | What that rules out |
+| --- | --- | --- |
+| Arguments / store keys | `canonicalReactStoreKeyV1` walks provider id, complete reference, and args **per component** under the default 4,096 profile (`canonical-client-value.mjs:211–245`). That is the grammar LLP 0114 specified. | Option A (global raise) still conflates classes and changes a public default for every inheriting call site. |
+| Generated artifacts | Boot catalog/route digests call `sha256Canonical` → `canonicalizeClientValueV1(value)` with **no** limits override (`react-binding.mjs:95–97`, `:1169`, `:1453`). The 65,536-node profile is the **receipt-digest** exception in LLP 0114’s 2026-08-01 amendment, inlined at `react-binding.mjs:104–112` and duplicated as `artifactCanonicalLimits` in `rqs-preload.mjs:100–106`. Clique’s ~6,251-node `app.api.queries` boot refusal is in-repo (ticket, calibration record, Diary 0106). | Option B’s “4,096 everywhere” is already false in the accepted spec and in shipped result admission. D-first leaves this verified boot defect untouched. |
+| Results | Admission already has `RESULT_CONTRACT_LIMITS_V1` (65,536 nodes, 4 MiB, …) at `result-contract-validator.mjs:9–18`. Identity then re-walks the **whole snapshot** (including `data`) with the **argument** profile (`implementation.mjs:980`, `:1022–1025`, `:1193`). | Full Option C’s third bullet (a new result/snapshot profile) is still underdetermined: the missing piece is not “a budget,” it is that **equality is borrowing an admission grammar**. |
+
+E matches that map: keep the argument profile; finish the already-accepted artifact split **without** assuming the receipt ceiling is a measured boot budget; treat diagnostic vocabulary and silent-drop as bugs under every option; leave result **equality** as D (default prior) versus result-scale identity limits (interim), decided by the purpose/phase program.
+
+D is the right **prior for the equality job** (LLP 0155 args-keyed fragments, LLP 0200 version stamps, LLP 0278 D05 suppression at `implementation.mjs:1163–1168`) because the hot path’s job is “did the consumer-visible snapshot change?”, not “admit this JSON again.” It is **not** a reason to skip the artifact work. Routing `consumerVisibleSnapshotKey` through result-scale limits is a coherent **interim candidate**, not a third public profile (Finding 1: `options.limits` is already unclamped call-site routing).
+
+## High-confidence claims vs capsule sources
+
+**High: generated catalogs ride the argument profile and `SNAPBACK_REACT_ARGS_INVALID` on the boot path.** Justified. `sha256Canonical` has no limits override; `canonicalizeClientValueV1` always throws `SNAPBACK_REACT_ARGS_INVALID` (`canonical-client-value.mjs:34–39`, `:28`). Clique boot + blank web screen is independently recorded in the open ticket, the calibration run record, and Diary 0106.
+
+**High: LLP 0114’s distinct artifact profile is receipt-digest precedent, not a ruling that every hydrated catalog must be walked at 65,536.** Justified. The 2026-08-01 amendment says the receipt digest “does **not** classify the complete generated manifest as a React query argument” and gives the separate finite profile; “an admitted function catalog may legitimately exceed the argument-node budget.” LLP 0179 independently pins descriptor identity to sentinel + RFC 8785, with a tighter byte/depth budget still an open question. r2’s refusal to treat 65,536 as a measured product budget is correct.
+
+**High: React path admits at result-scale limits then re-canonicalizes identity under the argument profile, with at least one silent-drop route.** The **admit-then-refuse incoherence** is justified as a structural claim: `RESULT_CONTRACT_LIMITS_V1.maxResultNodes` is 65,536; `consumerVisibleSnapshotKey` uses default `canonicalizeClientValueV1` on `{status, data, error, connection, freshness, answerClass, retention, optimisticPresentation}`. A records result can pass admission (especially when `descriptor.rows` is omitted — only nodes/bytes then cap the instance) and still throw at 4,096 on the equality walk. The **silent-drop** conjunct is the weakest High: `deliverIsolated`’s empty catch at `index.mjs:18533–18539` is real, and the four `deliverIsolated(onUpdate, …)` sites are real, and `publish` computes the key **before** mutating `store.snapshot` (`:1022–1024`), so a throw would drop the frame. The excerpts do not show the `onUpdate` → `publish` function header, so an intermediate catch is not disproven. That is a Confidence-calibration gap, not a hole in Option E (see m1).
+
+Finding 3 is correctly downgraded to hypothesis-grade. The quoted diagnostic string is exactly `TypeError` `${code}: ${message}` with reason `value exceeds the node limit` (`canonical-client-value.mjs:28`, `:37`, `:113`). Medium on the out-of-repo incident is right.
+
+## Citation verification (new r2 code claims)
+
+| Citation | Capsule check |
+| --- | --- |
+| `canonical-client-value.mjs` limits, incremental node/depth, unclamped `options.limits`, post-visit byte check, per-component store key | Accurate. Object field limit is enforced **after** `captureObject` (two `ownKeys` + descriptors). Array **length** is enforced **before** `captureObject`. Strings are UTF-8-encoded before the string-byte check. Proxy refusal is detection-based: a stable transparent proxy with consistent descriptors and `Object.prototype`/`null` prototype is not refused. LLP 0114 §Exact identity bytes (“Proxy input is refused”) and §One finite canonical identity grammar (proxies in the refuse list) are stronger than shipped behavior. |
+| `react-binding.mjs:1453` `functionCatalogDigest` | Accurate (`sha256Canonical(Object.values(references))`). |
+| `react-binding.mjs:1169` `routeManifestHash` | Accurate (`sha256Canonical(generated.routes)`). |
+| `react-binding.mjs:107` / `rqs-preload.mjs:102` artifact profile | Profile numbers match LLP 0114 and the closed 2026-08-01 ticket. Line numbers point at interior literals (`maxDepth` / `maxNodes`), not the function/const start (`:104` / `:100`). |
+| `result-contract-validator.mjs:9–18` | Matches: depth 16, 128 fields, 1,024 array items, 1 MiB per value, 4 MiB per result, 65,536 result nodes. |
+| `implementation.mjs:980`, `:1022–1025`, `:1193` | Accurate. Second path implements D05 value-equal suppression, then calls `publish`, which walks **again** on a changing delivery. |
+| `index.mjs:18533` empty catch | Accurate. |
+| Other-path codes (`SNAPBACK_LIVE_REGISTRATION_ANSWER_INVALID`, `SNAPBACK_COMPLETENESS_RESULT_INVALID`) | Not in the capsule excerpts; cannot verify. The React identity path will still leak `SNAPBACK_REACT_ARGS_INVALID` because that code is hardcoded in the canonicalizer. |
+
+No citation is a load-bearing misstatement of the shown bytes.
+
+## Findings 1–5 after the r1→r2 rewrite
+
+Finding 1’s admission-vs-resource correction is source-true and is the right reason **not** to treat 4,096 as a measured CPU/memory budget. Finding 2’s incomplete-split story is the in-repo incident plus a verified mechanism; the boot-identity comparison (artifact-profile walk vs LLP 0179 / prepared-binding digest, no hydrated re-walk) is correctly left open. Finding 4’s drop of a numeric “far below” is required: vendor units are not convertible to JS value-tree nodes. Finding 5’s table is still only desktop-Node linearity; Low confidence on 8k–16k affordability is earned. The evidence program’s predeclared thresholds, D05-preserving D prototype, descriptor-digest prototype, and hostile pre-admission measurement close the round-1 “underdetermined C” hole at Research altitude.
+
+## Concerns
+
+### MATERIAL
+
+None.
+
+### Non-material (do not block READY)
+
+**m1 — IN-DELTA.** Confidence packs admit-then-refuse **and** silent-drop into one High / “source-verified” sentence (`Confidence`; Finding 6). The first is in the shown bytes; the second composes `deliverIsolated` with `publish` without the connecting handler in `CODE-EXCERPTS.md`. Split the claim (High incoherence, Medium silent-drop until that header is cited). Implementation-phase / calibration: E already treats no-silent-drop as a now-bug.
+
+**m2 — IN-DELTA.** Finding 6 states the incoherence as **nodes** (65,536 vs 4,096). The same argument profile also admits-then-refuses on **bytes** (4 MiB `maxResultBytes` vs 262,144 `maxKeyUtf8Bytes`) and **per-string** (1 MiB `maxValueBytes` vs 65,536 `maxStringUtf8Bytes`). Fat-string results can fail identity without ever approaching 4,096 nodes. E still covers this at class level (“argument profile”), but an interim that only bumps `maxNodes` would not. Implementation-phase for the prototype; not a defective option choice.
+
+**m3 — IN-DELTA.** “Routing `consumerVisibleSnapshotKey` through result-scale limits” is not a drop-in `options.limits: RESULT_CONTRACT_LIMITS_V1`. Field names differ (`maxResultNodes` vs `maxNodes`, `maxArrayItems` vs `maxArrayEntries`, …). The snapshot **wrapper** adds nodes beyond `data`, so a result at the admission node cap can still throw after a naive copy of 65,536. Evidence-program mapping work, not a decision defect.
+
+**m4 — IN-DELTA.** Finding 2/6 cite Clique ~6,251 nodes on `app.api.queries`, then name `sha256Canonical(Object.values(references))`. If `references` is the full function catalog, the failing tree may be larger than the queries-only figure. Both still exceed 4,096; mechanism identification holds.
+
+**m5 — IN-DELTA.** “Artifact profile applied **only** to the offline receipt digest” is verified for `sha256GeneratedManifest` vs `sha256Canonical`. `rqs-preload.mjs` defines the same limits under `mixed-route.v2`; uses are not in the excerpt, so “only” is slightly ahead of the shown code.
+
+**m6 — IN-DELTA.** Finding 1 / Open Q10 / recommendation item 1 ask a future RFC to reconcile LLP 0114’s “admission-versus-resource” wording. The cited 0114 sections say **finite** and give numeric limits; they do **not** claim pre-work CPU/memory budgets. The proxy over-claim is real. Don’t invent a resource-ceiling sentence to amend.
+
+**m7 — IN-DELTA.** Evidence program item 6 is titled “competing **equality** mechanisms” but also contains the Finding 2 **boot-identity** prototype. Labeling only.
+
+**m8 — IN-DELTA.** Changing deliveries that miss the D05 equal-key branch pay **two** full RFC 8785 walks (`:1193` then `:1022`). Strengthens D’s hot-path case; the document says “a” walk.
+
+**m9 — PRE-EXISTING.** Finding 5’s heading (“a modest increase looks inexpensive on one desktop”) is warmer than the Low confidence bullet and the body’s isolation list. The body is adequate.
+
+## PRE-EXISTING MATERIAL
+
+**No MATERIAL concern exists in PRE-EXISTING text.** Remaining un-reworked material (scope non-goals, competitor table as vocabulary evidence, synthetic desktop table with explicit non-claims, analysis steps 1–4, open questions 2–7) is consistent with a Research document that does not pick a number or amend LLP 0114.
+
+## Stress-test remainder (not defects)
+
+E would be the wrong call if the remaining inventory (outside `snapback-client` / `snapback-react`) found a result path with **no** admission budget and **no** version stamp, so a named result profile became the only finite bound — that is what evidence-program item 1’s leftover sweep is for. It would also be wrong if D cannot preserve D05 suppression under reorder/coalesce/optimistic/authority transitions; the program already requires that proof before D wins. Those are residual risks, not unresolved holes in r2.
+
+The sequencing “fix vocabulary and silence **first**, then decide equality” is conservative: making 5k-node snapshots **succeed** is a behavior/performance change (Finding 5 is Low on Hermes/cadence); making them **fail with a result code and no empty catch** is a product-bug fix that does not need a device matrix. That split is defensible at Research altitude. A later RFC can promote call-site result-scale routing into the same now-bucket without becoming Option C.
+
+VERDICT: READY

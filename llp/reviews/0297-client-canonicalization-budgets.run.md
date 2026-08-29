@@ -184,3 +184,40 @@ expansion (codex M4), the Option E synthesis both rankings converged on, the
 Disclosed here and to the author at close-out; any further net growth in
 later revisions with open MATERIAL concerns triggers the growth-budget
 escalation rather than silent continuation.
+
+## Round 2 — 2026-08-24 (delta round)
+
+- Target revision (r2, sha256):
+  `5678bb4488a7a2b71f0b8bd410d3233ff61cbcb7b30a0882c15e0f0be5f7659c`
+- Topology: single target, two families, one fresh blind **delta** review
+  each; delta r1→r2 enumerated in the instructions (9 items); every concern
+  must be classified IN-DELTA vs PRE-EXISTING. Convergence per the LLP 0010
+  §2 addendum: no family reporting a MATERIAL concern in pre-existing text
+  converges the loop; in-delta MATERIALs get one more delta round or the
+  final revision is labeled unreviewed.
+- Capsule: `scratchpad/0297-loop/capsule-r2/` = round-1 context cloned
+  (blindness preserved: no review artifacts, journal, or notes) + r2 target
+  + three new context files reviewers need to check Finding 6:
+  `packages/snapback-contract/result-contract-validator.mjs` (complete),
+  `issues/closed/20260801-react-package-fixture-node-limit.md`, and
+  `CODE-EXCERPTS.md` (verbatim sed-extracted regions of `react-binding.mjs`,
+  `rqs-preload.mjs`, `implementation.mjs`, `index.mjs` with real line
+  numbers; excerpt boundaries orchestrator-chosen and disclosed as
+  self-attested) + new `CAPSULE.md`. Capsule hash:
+  `d68d5b9c09cda1d0ba7dd4005d7ec622aa053742965428d5b345e4994ce3da06`
+- Instruction hash (`CAPSULE.md` sha256):
+  `c8e7b2737cb54af3da81c586aef4a475c5dee48fb0f095248ee96717867ae522`
+- Outbound inventory (disclosed before launch): the twelve capsule files —
+  all tracked repository content, mechanical excerpts of tracked content,
+  plus the instruction file; no secrets, no review artifacts, no journal.
+- Runners: identical to round 1 (codex gpt-5.6-sol @ ultra read-only; grok
+  grok-4.6 @ xhigh with full terminal ban). Launch/receipt status recorded
+  on receipt.
+
+### Receipt state
+
+- Grok round-2 review received and persisted verbatim: **READY**, with no
+  MATERIAL concern in pre-existing text and nine non-material concerns.
+- No Codex round-2 artifact was recovered from this interrupted run.
+- The two-family delta round is therefore incomplete. It establishes no
+  convergence verdict and does not authorize an acceptance transition.
