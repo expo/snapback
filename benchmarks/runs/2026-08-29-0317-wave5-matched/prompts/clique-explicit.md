@@ -6,8 +6,8 @@ Build Clique as an Expo Router web app on published Snapback {{SNAPBACK_VERSION}
 using the DEFAULT EXPLICIT authoring profile. The authoritative read-only
 instrument is `{{INSTRUMENT_DIR}}`; read its social-messenger brief, contract,
 fixtures, assertions, UI kit, and choreography. Its identity is
-`social-messenger@0.3.5-m8` at source revision
-`eb9989261ddb31afce40f31e6cc401cafb5074f1`. Use only published packages and the
+`social-messenger@0.3.6-m8` at source revision
+`ccce55a03a31b66fd2831e8a91c044c26d9b0662`. Use only published packages and the
 served Guide for Snapback facts. Do not set `authoringProfile`; keep explicit
 `snapback/schema.mjs` and `snapback/functions.mjs` with generated exact refs.
 
@@ -40,4 +40,3 @@ first-green times, proof results, correction-loop triads, exact pins and source
 inspection disclosure, M7/scale disposition, and candid gaps. End every final
 artifact with end=<epoch>. Continue until the journey finishes or a real cap or
 capability boundary is reached; do not stop merely to summarize progress.
-

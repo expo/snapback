@@ -1,8 +1,11 @@
 # Wave 5 publication entry gate
 
-**Observed:** 2026-08-29  
-**Candidate:** Snapback `0.1.30`  
-**Source revision:** `eb9989261ddb31afce40f31e6cc401cafb5074f1`  
+**Observed:** 2026-08-29
+
+**Candidate:** Snapback `0.1.30`
+
+**Source revision:** `eb9989261ddb31afce40f31e6cc401cafb5074f1`
+
 **Disposition:** blocked before registry mutation
 
 Wave 5 step 4 requires a published pin before any candidate cell may begin.
@@ -29,8 +32,8 @@ single-table qualification receipt are not substitutes. The repository's
 Registry probes after the refusal returned `@expo/snapback` latest `0.1.29`
 and E404 for exact `0.1.30`. Therefore:
 
-- published `0.1.29` Explicit baseline cells may run with the repaired
-  `social-messenger@0.3.5-m8` instrument;
+- published `0.1.29` Explicit baseline cells may run with the repaired and
+  snapshot-verified `social-messenger@0.3.6-m8` instrument;
 - Familiar baseline cells remain behind their preregistered candidate-first
   order and do not run early;
 - all `0.1.30` cells are blocked at the publication entry gate; and

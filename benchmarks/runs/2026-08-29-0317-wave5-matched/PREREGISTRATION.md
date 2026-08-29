@@ -2,8 +2,8 @@
 
 Committed in the execution branch before reading any Wave 5 cell outcome.
 
-- Instrument: `social-messenger@0.3.5-m8`, source revision
-  `eb9989261ddb31afce40f31e6cc401cafb5074f1`.
+- Instrument: `social-messenger@0.3.6-m8`, source revision
+  `ccce55a03a31b66fd2831e8a91c044c26d9b0662`.
 - Product pins: published Snapback `0.1.29` and `0.1.30`, exact across every
   `@expo/snapback-*` package and the hosted runtime selected by that closure.
 - Cells: `gpt-5.6-sol` at `xhigh` and `grok-4.6` at `xhigh`, each against the
@@ -21,6 +21,31 @@ Committed in the execution branch before reading any Wave 5 cell outcome.
 - Comparative baseline: the fresh `0.1.29` cells in this run use the same
   repaired instrument as the fresh `0.1.30` cells. The retained 0.1.29 L18
   floor remains separate, existence-only evidence from the older instrument.
+
+## Pre-admission instrument amendment — 2026-08-29
+
+The initial preregistration named `social-messenger@0.3.5-m8`. Before any cell
+was admitted, the registered snapshot verifier found that pin's
+`choreographyRoot` digest omitted concurrently integrated W9 files. The Sol
+and Grok Explicit processes were interrupted, their partial lanes were
+preserved as entry-gate evidence, and none of their observations or work is a
+cell outcome.
+
+Commit `ccce55a03a31b66fd2831e8a91c044c26d9b0662` re-versioned the exact
+semantics as `0.3.6-m8`, updated the complete frozen-root identity, and passed
+read-only materialization, manifest verification, the 167,157-action scale
+hash/validator, the N7 preflight, lane-setup 11/11, and the full choreography
+self-test. Replacement cells use fresh directories and sessions. Product
+pins, model/profile roster, effort, N, milestone scope, counterbalancing, and
+claim boundary are unchanged. This amendment was committed before inspecting
+any replacement-cell outcome.
+
+The repair was then rebased onto the concurrently advanced `origin/main`,
+changing only its commit identity to the final SHA recorded above. The first
+replacement processes had already read the pre-rebase SHA, so they too were
+interrupted before admission and retained as provenance-refusal evidence.
+Admitted cells start only after the final repair SHA is reachable on
+`origin/main` and use fresh directories and model sessions.
 
 ## Counterbalancing
 
@@ -57,4 +82,3 @@ profile. A cell that lacks enough evidence is `inapplicable` or `unknown`, never
 estimated. Repro-gated rows and Wave 4 commissioned primitives keep their
 existing disposition unless the matched cell directly exercises them; the
 rerun does not self-accept or implement those commissions.
-

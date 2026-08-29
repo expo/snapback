@@ -1,8 +1,11 @@
 # Social-messenger M7 calibration is nondeterministic
 
-**Status:** Open  
-**Opened:** 2026-08-29  
-**Systems:** Benchmarks, Social-messenger choreography, M7 polls  
+**Status:** Open
+
+**Opened:** 2026-08-29
+
+**Systems:** Benchmarks, Social-messenger choreography, M7 polls
+
 **Related:** LLP 0201; `benchmarks/tools/social-messenger/choreography/self-test.mjs`
 
 ## Problem
