@@ -4,7 +4,7 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/limits.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/index.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/_kit/tests/live-query-invalidation-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
@@ -181,6 +181,14 @@ reevaluation; this is not a detached socket or matcher miss. Put the desired
 ordering and filters on the server, then declare the intended window with
 `.take(n)` (or narrow the predicate). The terse search “stopped updating large
 thread” routes to this same failure.
+
+Generated live-query type hovers also show the client composition budget:
+React warns with `SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED` above 16
+independent live subscriptions while they are still supported, then refuses at
+the hard ceiling of 64. The public `REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET`
+and `REACT_SERVER_SUBSCRIPTION_CEILING` constants carry those exact literal
+types. The warning reports the owner and current count before the refusal and
+routes repeated point reads toward a set aggregate or chunked semijoin.
 
 ## Matching inserts in point and parent queries
 

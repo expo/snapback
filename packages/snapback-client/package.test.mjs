@@ -6,6 +6,7 @@ import { SEARCH_REQUEST_ARGS_CONTRACT_HASH } from './search-contract.generated.m
 import {
   AgentAuthorityFence,
   SnapbackClient,
+  SNAPBACK_PUBLIC_BUDGETS_V1,
   admitSnapbackId,
   bindSnapbackAppLifecycle,
   createExternalSessionClient,
@@ -17,6 +18,9 @@ import {
   newSeedOperationIdV1,
   projectMutationPhaseCostV1,
 } from './index.mjs';
+
+assert.equal(SNAPBACK_PUBLIC_BUDGETS_V1.query.takeRows, 1_024);
+assert.equal(SNAPBACK_PUBLIC_BUDGETS_V1.retainedMutationOutput.maxBytes, 65_536);
 import {
   SnapbackClient as OnlineSnapbackClient,
   bindSnapbackAppLifecycle as bindOnlineSnapbackAppLifecycle,

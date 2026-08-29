@@ -6,6 +6,10 @@
 // construct the same provider/store owner; this entry only narrows capability
 // reachability.
 export {
+  REACT_QUERY_CONSUMER_CEILING,
+  REACT_QUERY_STORE_CEILING,
+  REACT_SERVER_SUBSCRIPTION_CEILING,
+  REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET,
   createSnapbackReactCoreProvider as createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackOptimisticCreate,

@@ -26,6 +26,32 @@ import {
 const INLINE_BUILDERS = new Set(INLINE_HANDLER_RULES.builders);
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
+// @ref LLP 0317-clique-0129-correction-loop-disposition.research.md#implementation-charter-wave-3
+// — computed batch correlation gets one executable, identity-preserving
+// recovery payload. It is deliberately a suggested rewrite, not an automatic
+// source edit: the extractor cannot infer which authored ID is authoritative.
+export const INLINE_HANDLER_COMPUTED_ACCESS_RECOVERY = Object.freeze({
+  schemaVersion: 'snapback.inline-handler-recovery.v1',
+  kind: 'rewrite',
+  title: 'Carry each requested ID through a for...of loop and match by identity',
+  requiresAuthorSelection: true,
+  exampleSource: `
+export const correlateMessages = defineJsQuery({
+  args: { ids: v.array(v.id('messages'), { maxItems: 32 }) },
+  reads: ['messages'],
+  handler: async (ctx, args) => {
+    const rows = await ctx.db.getMany('messages', args.ids);
+    const correlated = [];
+    for (const requestedId of args.ids) {
+      const row = rows.find((candidate) => candidate?._id === requestedId) ?? null;
+      correlated.push({ messageId: requestedId, row });
+    }
+    return correlated;
+  },
+});
+`.trim(),
+});
+
 // The extracted property per builder: upload intents spell their handler
 // `authorize` (LLP 0044 §Generated upload intents); every other builder
 // spells it `handler`. Same marker pipeline either way.
@@ -256,11 +282,17 @@ function queryChainProblem(node, contextName) {
   const takeCeilingProblem = takeValue !== null
     && takeValue > RELATIONAL_TAKE_CEILING
     ? {
-        reason: `take(${takeValue}) exceeds the relational take ceiling ${RELATIONAL_TAKE_CEILING}`,
+        reason: `take(${takeValue}) exceeds the relational take ceiling ${RELATIONAL_TAKE_CEILING}; select a fixed bound at or below ${RELATIONAL_TAKE_CEILING}, then slice the returned rows in ordinary JavaScript`,
         details: {
           ceiling: 'relationalTake',
           limit: RELATIONAL_TAKE_CEILING,
           observed: takeValue,
+          dynamicTake: 'supported-with-runtime-ceiling',
+          recovery: {
+            kind: 'fixed-bound-then-slice',
+            take: RELATIONAL_TAKE_CEILING,
+            next: 'slice returned rows in ordinary JavaScript',
+          },
         },
       }
     : null;
@@ -531,7 +563,13 @@ function selfContainedProblems(expression, checker, sourceFile) {
         ? null
         : reflectionProblem(node, checker, expression);
       if (reason) {
-        forbidden.push({ node, reason });
+        forbidden.push({
+          node,
+          reason,
+          ...(reason === 'dynamic computed member access is outside inline_handler_v1'
+            ? { details: { recovery: INLINE_HANDLER_COMPUTED_ACCESS_RECOVERY } }
+            : {}),
+        });
       }
       const dbMemberReason = ctxDbMemberProblem(node, checker, expression);
       if (dbMemberReason) {

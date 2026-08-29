@@ -12,6 +12,10 @@ import { measureCanonicalClientValueV1 } from '@expo/snapback-client/canonical-c
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
+  REACT_QUERY_CONSUMER_CEILING,
+  REACT_QUERY_STORE_CEILING,
+  REACT_SERVER_SUBSCRIPTION_CEILING,
+  REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET,
   SnapbackProvider,
   createSnapbackReactProvider,
   observeSnapbackQueries,
@@ -22,6 +26,11 @@ import {
   useSnapbackQueries,
   useSnapbackQuery,
 } from './index.mjs';
+
+assert.equal(REACT_QUERY_STORE_CEILING, 256);
+assert.equal(REACT_QUERY_CONSUMER_CEILING, 1_024);
+assert.equal(REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET, 16);
+assert.equal(REACT_SERVER_SUBSCRIPTION_CEILING, 64);
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => new Promise((resolve) => setImmediate(resolve));

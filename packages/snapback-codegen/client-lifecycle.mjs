@@ -4,6 +4,8 @@
 // generated reference JSDoc. Keeping the prose projection beside the artifact
 // prevents the declaration surface from acquiring a second lifecycle table.
 
+import { SNAPBACK_PUBLIC_BUDGETS_V1 } from '@expo/snapback-contract/limits';
+
 export const CLIENT_LIFECYCLE_MANIFEST_FILE = 'client-lifecycle.v1.json';
 export const CLIENT_LIFECYCLE_MANIFEST_VERSION = 'snapback.client-lifecycle.v1';
 export const CLIENT_REFERENCE_GUIDE = '/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs';
@@ -812,6 +814,22 @@ export function renderReferenceJSDoc(reference, manifest, authoringProfile = 'sn
     ? 'promise-only (no handle state table)'
     : projected.states.map(code).join(', ');
   const profileRoutes = [];
+  const budgetLines = [];
+  if (projected.kind === 'Query' || projected.kind === 'LiveQuery') {
+    budgetLines.push(
+      ` * Budget: implicit results and ${code('.take(n)')} are bounded at ${SNAPBACK_PUBLIC_BUDGETS_V1.query.takeRows} rows; dynamic limits remain supported and are checked at runtime. Repair an over-ceiling literal with a fixed bound, then slice.`,
+    );
+  }
+  if (projected.kind === 'LiveQuery') {
+    budgetLines.push(
+      ` * React warns at ${SNAPBACK_PUBLIC_BUDGETS_V1.react.viewSubscriptionWarning} independent subscriptions (${code(SNAPBACK_PUBLIC_BUDGETS_V1.react.warningDiagnostic)}); the hard ceiling is ${SNAPBACK_PUBLIC_BUDGETS_V1.react.serverSubscriptions}.`,
+    );
+  }
+  if (projected.kind === 'Mutation') {
+    budgetLines.push(
+      ` * Budget: logical results are at most ${SNAPBACK_PUBLIC_BUDGETS_V1.result.maxBytes} bytes; retained mutation output is at most ${SNAPBACK_PUBLIC_BUDGETS_V1.retainedMutationOutput.maxBytes} bytes (${code(SNAPBACK_PUBLIC_BUDGETS_V1.retainedMutationOutput.diagnostic)}).`,
+    );
+  }
   if (authoringProfile === 'snapback-familiar-ts-v1' && projected.kind === 'Mutation') {
     const dispatch = CLIENT_COMPATIBILITY_ALIASES.find(
       ({ current }) => current === 'useSnapbackMutation',
@@ -836,6 +854,7 @@ export function renderReferenceJSDoc(reference, manifest, authoringProfile = 'sn
     ` * Auth: ${code(projected.authRequirement)}; required capabilities: ${capabilities}.`,
     ` * Freshness: ${jsdocSafe(projected.freshness)} Retention: ${jsdocSafe(projected.retention)}.`,
     ` * Dispatch/task states: ${states}.`,
+    ...budgetLines,
     ...profileRoutes,
     ` * Build identity: ${code(manifest.inputsHash)}. Guide: ${code(entry.guideAnchor)}.`,
     ' */',

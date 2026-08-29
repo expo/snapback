@@ -9,3 +9,27 @@
 
 export const RELATIONAL_TAKE_CEILING = 1_024;
 export const SNAPSHOT_BATCH_SUMMED_TAKE_CEILING = 1_024;
+
+// @ref LLP 0317-clique-0129-correction-loop-disposition.research.md#implementation-charter-wave-3
+// — one public, typed budget vocabulary lets generated declarations and
+// client arms explain the causal limit before an author reaches it.
+export const SNAPBACK_PUBLIC_BUDGETS_V1 = Object.freeze({
+  query: Object.freeze({
+    implicitResultRows: 1_024,
+    takeRows: 1_024,
+    dynamicTake: 'supported-with-runtime-ceiling',
+    repair: 'fixed-bound-then-slice',
+  }),
+  result: Object.freeze({ maxBytes: 4 * 1_024 * 1_024, maxArrayItems: 1_024 }),
+  retainedMutationOutput: Object.freeze({
+    maxBytes: 65_536,
+    diagnostic: 'SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE',
+  }),
+  react: Object.freeze({
+    queryStores: 256,
+    queryConsumers: 1_024,
+    viewSubscriptionWarning: 16,
+    serverSubscriptions: 64,
+    warningDiagnostic: 'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+  }),
+});

@@ -5,11 +5,32 @@ import { fileURLToPath } from 'node:url';
 
 import {
   RELATIONAL_TAKE_CEILING,
+  SNAPBACK_PUBLIC_BUDGETS_V1,
   SNAPSHOT_BATCH_SUMMED_TAKE_CEILING,
 } from './limits.mjs';
 
 assert.equal(RELATIONAL_TAKE_CEILING, 1_024);
 assert.equal(SNAPSHOT_BATCH_SUMMED_TAKE_CEILING, 1_024);
+assert.deepEqual(SNAPBACK_PUBLIC_BUDGETS_V1, {
+  query: {
+    implicitResultRows: 1_024,
+    takeRows: 1_024,
+    dynamicTake: 'supported-with-runtime-ceiling',
+    repair: 'fixed-bound-then-slice',
+  },
+  result: { maxBytes: 4_194_304, maxArrayItems: 1_024 },
+  retainedMutationOutput: {
+    maxBytes: 65_536,
+    diagnostic: 'SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE',
+  },
+  react: {
+    queryStores: 256,
+    queryConsumers: 1_024,
+    viewSubscriptionWarning: 16,
+    serverSubscriptions: 64,
+    warningDiagnostic: 'SNAPBACK_REACT_SUBSCRIPTION_VIEW_BUDGET_EXCEEDED',
+  },
+});
 
 // define.mjs participates in every explicit-profile app's authored module
 // graph, so importing this module from it would rotate all generated artifact

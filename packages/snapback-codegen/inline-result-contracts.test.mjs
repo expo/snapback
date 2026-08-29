@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
+import { extractInlineHandlers } from './inline-handlers.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -410,6 +411,31 @@ try {
     ), `${label} must fail at the authored handler expression`);
     assert.equal(readFileSync(manifestPath, 'utf8'), lastGood);
   }
+
+  writeFileSync(join(dir, 'functions.mjs'), `
+    import { defineJsQuery } from ${JSON.stringify(defineUrl)};
+    export const correlateTodos = defineJsQuery({
+      args: {},
+      reads: ['todos'],
+      handler: async (ctx) => {
+        const ids = ['todo-1'];
+        const rows = await ctx.db.getMany('todos', ids);
+        return ids.map((id, index) => ({ id, row: rows[index] }));
+      },
+    });
+  `);
+  generated = await generate(dir);
+  assert.equal(generated.ok, false);
+  const computedAccess = generated.diagnostics.find(({ code, recovery }) => (
+    code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+      && recovery?.schemaVersion === 'snapback.inline-handler-recovery.v1'
+  ));
+  assert.ok(computedAccess, JSON.stringify(generated.diagnostics));
+  assert.match(computedAccess.message, /dynamic computed member access/u);
+  assert.match(computedAccess.recovery.title, /for\.\.\.of.*identity/u);
+  const recovered = extractInlineHandlers(computedAccess.recovery.exampleSource);
+  assert.deepEqual(recovered.diagnostics, [], JSON.stringify(recovered.diagnostics));
+  assert.ok(recovered.handlers.has('correlateMessages'));
 
   writeFileSync(join(dir, 'functions.mjs'), `
     import { defineAction, results, v } from ${JSON.stringify(defineUrl)};

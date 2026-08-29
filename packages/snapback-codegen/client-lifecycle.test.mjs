@@ -260,7 +260,7 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
       : apiTypes;
     const start = declarationSurface.indexOf(`reference \`${operation.semanticIdentity}\``);
     assert.notEqual(start, -1, operation.semanticIdentity);
-    const declaration = declarationSurface.slice(start, start + 1_000);
+    const declaration = declarationSurface.slice(start, start + 1_500);
     for (const verb of operation.legalVerbs) {
       assert.ok(declaration.includes(`\`${verb}\``), `${operation.semanticIdentity} omits ${verb}`);
     }
@@ -269,6 +269,9 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
     assert.ok(envelope.declarations.appBindings.includes(operation.semanticIdentity));
   }
   assert.match(apiTypes, /readonly __snapbackReferenceKind: Kind;/u);
+  assert.match(apiTypes, /bounded at 1024 rows; dynamic limits remain supported/u);
+  assert.match(apiTypes, /React warns at 16 independent subscriptions/u);
+  assert.match(apiTypes, /retained mutation output is at most 65536 bytes/u);
   for (const alias of ['QueryRef', 'LiveQueryRef', 'MutationRef', 'ActionRef']) {
     assert.ok(apiTypes.includes(`export type ${alias}<`));
   }

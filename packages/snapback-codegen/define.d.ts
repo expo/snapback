@@ -47,6 +47,8 @@ export interface Validator<
   Value = unknown,
   Type extends FieldType = FieldType,
   Optional extends boolean = boolean,
+  FunctionAdmissible extends boolean = boolean,
+  ContainsId extends boolean = boolean,
 > {
   readonly __validator: true;
   readonly fieldType: Type;
@@ -54,10 +56,34 @@ export interface Validator<
   readonly optional: Optional;
   readonly fields?: Record<string, Validator>;
   readonly __value?: Value;
+  /** Type-only admission facts; the runtime validator object stays unchanged. */
+  readonly __functionAdmissible?: FunctionAdmissible;
+  readonly __containsId?: ContainsId;
 }
 
-export type InferValidator<Input extends Validator> =
-  Input extends Validator<infer Value, FieldType, boolean> ? Value : never;
+export type AnyValidator = Validator<unknown, FieldType, boolean, boolean, boolean>;
+export type FunctionValidator = Validator<unknown, FieldType, boolean, true, boolean>;
+
+export type InferValidator<Input extends AnyValidator> =
+  Input extends Validator<infer Value, FieldType, boolean, boolean, boolean> ? Value : never;
+
+type FunctionAdmissionOf<Input extends AnyValidator> =
+  Input extends Validator<unknown, FieldType, boolean, infer Admitted, boolean> ? Admitted : never;
+type ContainsIdOf<Input extends AnyValidator> =
+  Input extends Validator<unknown, FieldType, boolean, boolean, infer ContainsId> ? ContainsId : never;
+type AllFunctionAdmissible<Inputs extends readonly AnyValidator[]> =
+  false extends FunctionAdmissionOf<Inputs[number]> ? false : true;
+type AnyContainsId<Inputs extends readonly AnyValidator[]> =
+  true extends ContainsIdOf<Inputs[number]> ? true : false;
+
+type ValidatorTuple2To8 =
+  | readonly [AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator]
+  | readonly [AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator, AnyValidator];
 
 type OptionalValidatorKeys<Fields extends Record<string, Validator>> = {
   [Name in keyof Fields]-?: Fields[Name]['optional'] extends true ? Name : never;
@@ -71,17 +97,17 @@ export type InferObjectValidatorFields<Fields extends Record<string, Validator>>
   & { [Name in OptionalValidatorKeys<Fields>]?: Exclude<InferValidator<Fields[Name]>, undefined> };
 
 export declare const v: {
-  string(options?: { maxBytes?: number }): Validator<string, 'String', false>;
-  principal(): Validator<string, 'Principal', false>;
-  id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false>;
+  string(options?: { maxBytes?: number }): Validator<string, 'String', false, true, false>;
+  principal(): Validator<string, 'Principal', false, true, false>;
+  id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false, true, true>;
   /** Complete stored document shape, valid only inside a result contract. */
-  doc<const Table extends string>(table: Table): Validator<Readonly<Record<string, unknown>>, { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
+  doc<const Table extends string>(table: Table): Validator<Readonly<Record<string, unknown>>, { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false, true, false>;
   relationIncarnationOf<const ForeignKey extends string, const Parent extends string>(
     spec: { foreignKeyField: ForeignKey; parentTable: Parent },
-  ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false>;
+  ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false, true, false>;
   assetRef<const Upload extends string = string>(
     options?: { upload?: Upload | null },
-  ): Validator<string, { readonly AssetRef: { readonly upload?: Upload } }, false>;
+  ): Validator<string, { readonly AssetRef: { readonly upload?: Upload } }, false, true, false>;
   media<
     const Intent extends string,
     const Policy extends string,
@@ -104,30 +130,54 @@ export declare const v: {
       readonly retentionClass: 'media-reference.v1';
       readonly targetCapability: 'assets.media-ref-projection.v1';
     };
-  } }, false>;
-  boolean(): Validator<boolean, 'Boolean', false>;
-  integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false>;
-  real(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
-  number(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
-  finiteReal(options?: { min?: number; max?: number }): Validator<number, 'Real', false>;
+  } }, false, false, false>;
+  boolean(): Validator<boolean, 'Boolean', false, true, false>;
+  integer(options?: { min?: number; max?: number }): Validator<number, 'Integer', false, true, false>;
+  real(options?: { min?: number; max?: number }): Validator<number, 'Real', false, true, false>;
+  number(options?: { min?: number; max?: number }): Validator<number, 'Real', false, true, false>;
+  finiteReal(options?: { min?: number; max?: number }): Validator<number, 'Real', false, true, false>;
   vector<const Dimensions extends number>(
     dimensions: Dimensions,
-  ): Validator<ReadonlyArray<number> & { readonly length: Dimensions }, { readonly Vector: { readonly dimensions: Dimensions } }, false>;
-  json(options?: { maxDepth?: number; maxBytes?: number }): Validator<unknown, 'Json', false>;
-  null(): Validator<null, 'Json', false>;
-  literal<const Value extends string | number | boolean | null>(value: Value): Validator<Value, 'Json', false>;
-  object<const Fields extends Record<string, Validator>>(fields: Fields): Validator<InferObjectValidatorFields<Fields>, 'Json', false> & { readonly fields: Fields };
-  optional<Inner extends Validator>(inner: Inner): Validator<InferValidator<Inner> | undefined, Inner['fieldType'], true>;
-  array<Inner extends Validator>(
+  ): Validator<ReadonlyArray<number> & { readonly length: Dimensions }, { readonly Vector: { readonly dimensions: Dimensions } }, false, true, false>;
+  json(options?: { maxDepth?: number; maxBytes?: number }): Validator<unknown, 'Json', false, true, false>;
+  null(): Validator<null, 'Json', false, true, false>;
+  literal<const Value extends string | number | boolean | null>(value: Value): Validator<Value, 'Json', false, true, false>;
+  object<const Fields extends Record<string, AnyValidator>>(fields: Fields): Validator<
+    InferObjectValidatorFields<Fields>,
+    'Json',
+    false,
+    AllFunctionAdmissible<readonly Fields[keyof Fields][]>,
+    AnyContainsId<readonly Fields[keyof Fields][]>
+  > & { readonly fields: Fields };
+  optional<Inner extends AnyValidator>(inner: Inner): Validator<
+    InferValidator<Inner> | undefined,
+    Inner['fieldType'],
+    true,
+    FunctionAdmissionOf<Inner>,
+    ContainsIdOf<Inner>
+  >;
+  array<Inner extends AnyValidator>(
     inner: Inner,
     options?: { maxItems?: number },
-  ): Validator<ReadonlyArray<InferValidator<Inner>>, 'Json', false>;
-  tuple<const Elements extends readonly Validator[]>(
+  ): Validator<ReadonlyArray<InferValidator<Inner>>, 'Json', false, FunctionAdmissionOf<Inner>, ContainsIdOf<Inner>>;
+  tuple<const Elements extends readonly AnyValidator[]>(
     elements: Elements,
-  ): Validator<{ readonly [Index in keyof Elements]: InferValidator<Elements[Index]> }, 'Json', false>;
-  union<const Variants extends readonly Validator[]>(
+  ): Validator<
+    { readonly [Index in keyof Elements]: InferValidator<Elements[Index]> },
+    'Json',
+    false,
+    AllFunctionAdmissible<Elements>,
+    AnyContainsId<Elements>
+  >;
+  union<const Variants extends ValidatorTuple2To8>(
     variants: Variants,
-  ): Validator<InferValidator<Variants[number]>, 'Json', false>;
+  ): Validator<
+    InferValidator<Variants[number]>,
+    'Json',
+    false,
+    AllFunctionAdmissible<Variants>,
+    AnyContainsId<Variants>
+  >;
 };
 
 export interface ResultContract<Result = unknown> {
@@ -137,12 +187,12 @@ export interface ResultContract<Result = unknown> {
 
 export declare const results: {
   documents<const Table extends string>(table: Table): ResultContract<ReadonlyArray<{ readonly _id: string }>>;
-  records<const RowValidator extends Validator>(
+  records<const RowValidator extends FunctionValidator>(
     validator: RowValidator,
     options?: { minItems?: number; maxItems?: number },
   ): ResultContract<ReadonlyArray<InferValidator<RowValidator>>>;
   document<const Table extends string>(table: Table): ResultContract<{ readonly _id: string }>;
-  value<const ValueValidator extends Validator>(
+  value<const ValueValidator extends FunctionValidator>(
     validator: ValueValidator,
   ): ResultContract<InferValidator<ValueValidator>>;
 };
@@ -457,7 +507,7 @@ export declare const authorization: {
 
 interface HostPlanQueryFields {
   table: string;
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   filter?: FilterSpec[];
   order?: OrderSpec[];
   limit?: number;
@@ -485,9 +535,9 @@ export type HostPlanQuerySpec = HostPlanQueryFields
   & HostPlanPublicInlineOptions;
 
 interface JsQuerySpecFields {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   reads: string[];
-  result?: Validator | ResultContract;
+  result?: FunctionValidator | ResultContract;
   authScopeField?: string;
   /** Interim LLP 0231 field-masking residual. This records the fields the
    * opaque handler claims to conceal and its disclosure condition; it is
@@ -521,7 +571,7 @@ export type JsQuerySpec = JsQuerySpecFields & QueryAuthOptions & (
 );
 
 export interface HostPlanMutationSpec extends AuthorityCreatingAuthOptions {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   plan: MutationStep | MutationStep[];
   returns?: ReturnSpec;
   result?: ResultContract;
@@ -541,7 +591,7 @@ export interface WriteConflictDisclosureV1 {
 }
 
 interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   reads?: string[];
   writes: string[];
   discloseUniqueConflicts?: readonly WriteConflictDisclosureV1[];
@@ -579,7 +629,7 @@ export type JsMutationSpec = JsMutationSpecBase & (
 );
 
 export interface HostPlanActionSpec extends AuthorityCreatingAuthOptions {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   plan: unknown | unknown[];
   returns?: unknown;
   writes?: string[];
@@ -588,7 +638,7 @@ export interface HostPlanActionSpec extends AuthorityCreatingAuthOptions {
 }
 
 export interface JsActionSpec extends AuthorityCreatingAuthOptions {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   js?: { source: string; exportName: string };
   handler?: (ctx: any, args: any) => unknown;
   writes?: string[];
@@ -824,7 +874,23 @@ export interface MembershipTableBuilder<
     : [resource: MembershipResourceRef, role: Role, ...roles: Role[]]): MembershipPredicate;
 }
 
-export declare function defineTable<const Fields extends Record<string, Validator>>(fields: Fields): TableBuilder<Fields>;
+type StoredSchemaField<Input extends AnyValidator> =
+  Input extends Validator<unknown, infer Type, boolean, boolean, infer ContainsId>
+    ? Type extends { readonly Id: { readonly table: string } }
+      ? Input
+      : ContainsId extends true ? never : Input
+    : never;
+type StoredSchemaFields<Fields extends Record<string, AnyValidator>> = {
+  readonly [Name in keyof Fields]: StoredSchemaField<Fields[Name]>;
+};
+
+/**
+ * Top-level IDs retain lifecycle authority; IDs hidden in structured arrays,
+ * objects, tuples, or unions are rejected before codegen.
+ */
+export declare function defineTable<const Fields extends Record<string, AnyValidator>>(
+  fields: Fields & StoredSchemaFields<Fields>,
+): TableBuilder<Fields>;
 export type AuthAssuranceKind = 'authenticated' | 'email_verified' | 'phone_verified' | 'recent_auth' | 'phishing_resistant';
 export type AuthClaimIdentity =
   | Readonly<{
@@ -1183,7 +1249,7 @@ export interface GraphNodeCostSourceV1 {
   readonly maxWindowResultBytes?: number;
   readonly maxWindowIndexRanges?: number;
 }
-export interface GraphQuerySpecBase<Args extends Record<string, Validator> = Record<string, Validator>> {
+export interface GraphQuerySpecBase<Args extends Record<string, FunctionValidator> = Record<string, FunctionValidator>> {
   readonly nodes: readonly GraphDataNodeSourceV1[];
   readonly projection: {
     readonly nodeId: string;
@@ -1221,7 +1287,7 @@ export interface GraphQuerySpecBase<Args extends Record<string, Validator> = Rec
     };
   };
 }
-export type GraphQuerySpec<Args extends Record<string, Validator> = Record<string, Validator>> =
+export type GraphQuerySpec<Args extends Record<string, FunctionValidator> = Record<string, FunctionValidator>> =
   GraphQuerySpecBase<Args> & (
     | {
         readonly membership?: readonly MembershipPredicate[];
@@ -1242,7 +1308,7 @@ export type GraphQuerySpec<Args extends Record<string, Validator> = Record<strin
         };
       }
   );
-export declare function defineGraphQuery<const Args extends Record<string, Validator>>(
+export declare function defineGraphQuery<const Args extends Record<string, FunctionValidator>>(
   spec: GraphQuerySpec<Args>,
 ): unknown;
 
@@ -1329,7 +1395,7 @@ export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): u
  * `image.location`; video media require the distinct `video.location`
  * sibling — omission refuses at generation. */
 export interface AssetUploadSpec {
-  args?: Record<string, Validator>;
+  args?: Record<string, FunctionValidator>;
   auth?: 'public' | 'optional-user' | 'authenticated';
   reads?: readonly string[];
   accept: { mediaTypes: readonly string[]; maxBytes: number };

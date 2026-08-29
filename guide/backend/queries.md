@@ -278,16 +278,21 @@ const media = await ctx.db.uniqueMany(
   'byMessage',
   messages.map((message) => ({ messageId: message._id })),
 );
-return messages.map((message) => ({
-  messageId: message._id,
-  media: media.find((row) => row?.messageId === message._id) ?? null,
-}));
+const correlated = [];
+for (const message of messages) {
+  const row = media.find((candidate) => candidate?.messageId === message._id) ?? null;
+  correlated.push({ messageId: message._id, media: row });
+}
+return correlated;
 ```
 
 The same rewrite works for `getMany`: match each returned document's `_id`
 against the ID carried by the source record. It avoids forbidden computed
 member access, preserves the ID even when a lookup is hidden or missing, and
 uses the same inline-handler grammar in Explicit and Familiar authoring.
+`SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN` also carries this compilable
+`for...of` rewrite as a structured recovery payload; tooling may present it as
+a code action, but it requires the author to select the authoritative ID.
 
 Each `ids` or `keys` array admits **0..256 items**, inclusive. The complete
 canonically encoded host request is capped at **1,048,576 bytes (1 MiB)**, and
@@ -394,6 +399,14 @@ An explicit `.take(1_024)` is allowed and means “this bounded prefix is
 intentional”; it does not claim the whole predicate has only 1,024 matches.
 Do not collect a large prefix and then sort or filter it in JavaScript to infer
 the global top rows—the omitted rows may contain the actual winners.
+
+Generated query references repeat this budget in their type hover, and
+`SNAPBACK_PUBLIC_BUDGETS_V1.query` exposes the exact typed values. A literal
+over 1,024 refuses at generation with `limit`, `observed`, and a
+`fixed-bound-then-slice` recovery. A dynamic `.take(limit)` remains supported:
+the runtime checks its eventual value against the same ceiling. After choosing
+a semantically complete fixed server window, slice only when the caller wants
+a smaller subset of that already-correct window.
 
 ### The complete builder chain
 

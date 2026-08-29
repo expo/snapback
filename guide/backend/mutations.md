@@ -326,7 +326,12 @@ writes or retaining a successful settlement. A mismatch returns
 `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`; no write, durable version, or
 successful settlement survives, and the diagnostic never echoes the rejected
 value. The general result ceiling is 4 MiB, while retained mutation output
-also keeps its existing 65,536-byte ceiling.
+also keeps its existing 65,536-byte ceiling. Generated mutation-reference
+hovers name both limits, and the public typed
+`SNAPBACK_PUBLIC_BUDGETS_V1.retainedMutationOutput` fact names the exact cap
+and `SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE`. That diagnostic reports
+`maxBytes` and `bytes`; reduce the declared mutation result rather than
+dropping replay retention or retrying the same oversized output.
 
 The violation details name the failing bound so you do not have to guess which
 one it was: `constraint` carries one closed name (`maxResultBytes`, `maxBytes`,

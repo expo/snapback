@@ -56,6 +56,7 @@ import {
   positiveDevelopmentEnvironment,
   projectDiagnosticV1,
 } from '@expo/snapback-client/client-diagnostics';
+import { SNAPBACK_PUBLIC_BUDGETS_V1 } from '@expo/snapback-contract/limits';
 import { placeholderToDataURL, thumbHashToApproximateAspectRatio } from './thumbhash.mjs';
 
 // @ref LLP 0114#prepared-binding-and-provider-ownership — the provider owns
@@ -80,10 +81,14 @@ function readActivityPresenceSessionEpoch(provider) {
   return provider.registry[ACTIVITY_PRESENCE_SESSION_EPOCH]?.() ?? 0;
 }
 
-const QUERY_CACHE_CAP = 256;
-const CONSUMER_CAP = 1_024;
-const VIEW_SUBSCRIPTION_BUDGET = 16;
-const SERVER_SUBSCRIPTION_CAP = 64;
+export const REACT_QUERY_STORE_CEILING = SNAPBACK_PUBLIC_BUDGETS_V1.react.queryStores;
+export const REACT_QUERY_CONSUMER_CEILING = SNAPBACK_PUBLIC_BUDGETS_V1.react.queryConsumers;
+export const REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET = SNAPBACK_PUBLIC_BUDGETS_V1.react.viewSubscriptionWarning;
+export const REACT_SERVER_SUBSCRIPTION_CEILING = SNAPBACK_PUBLIC_BUDGETS_V1.react.serverSubscriptions;
+const QUERY_CACHE_CAP = REACT_QUERY_STORE_CEILING;
+const CONSUMER_CAP = REACT_QUERY_CONSUMER_CEILING;
+const VIEW_SUBSCRIPTION_BUDGET = REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET;
+const SERVER_SUBSCRIPTION_CAP = REACT_SERVER_SUBSCRIPTION_CEILING;
 const PRESENCE_ROOM_CACHE_CAP = 128;
 const PRESENCE_SUBSCRIPTION_CAP = 64;
 const PRESENCE_CONSUMER_CAP = 256;

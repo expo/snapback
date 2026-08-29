@@ -117,6 +117,11 @@ export type {
 } from '@expo/snapback-client/commands';
 export type SnapbackDiagnostic = import('@expo/snapback-client').SnapbackDiagnostic;
 export type SnapbackDiagnosticsSnapshot = import('@expo/snapback-client').SnapbackClientDiagnosticsSnapshot;
+/** Public provider budgets; diagnostics fire before the hard subscription ceiling. */
+export declare const REACT_QUERY_STORE_CEILING: 256;
+export declare const REACT_QUERY_CONSUMER_CEILING: 1024;
+export declare const REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET: 16;
+export declare const REACT_SERVER_SUBSCRIPTION_CEILING: 64;
 export {
   ARGUMENT_NORMALIZATION_VERSION,
   SnapbackDiagnosticError,

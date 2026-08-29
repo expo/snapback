@@ -40,6 +40,10 @@ export {
 // @ref LLP 0145#option-2--static-capability-modules-around-a-shared-kernel —
 // the root stays Full while the narrow entry makes capability selection static.
 export {
+  REACT_QUERY_CONSUMER_CEILING,
+  REACT_QUERY_STORE_CEILING,
+  REACT_SERVER_SUBSCRIPTION_CEILING,
+  REACT_VIEW_SUBSCRIPTION_WARNING_BUDGET,
   invokeSnapbackMutation,
   observeSnapbackDiagnostics,
   observeSnapbackOptimisticCreate,

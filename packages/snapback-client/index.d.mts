@@ -21,6 +21,7 @@ export type {
   SnapbackDiagnosticOperation,
 } from './diagnostic-error.mjs';
 export { DEFAULT_AUTH_STORAGE_PARTITION } from './app-client-defaults.mjs';
+export { SNAPBACK_PUBLIC_BUDGETS_V1 } from '@expo/snapback-contract/limits';
 export { createSnapbackAppClient } from './app-client.mjs';
 export type {
   ApplicationAuthBootstrapV1,
