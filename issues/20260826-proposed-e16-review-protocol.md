@@ -79,5 +79,5 @@ can leave armed after commit — is exactly the class of defect this programme e
 ## Related
 
 - `issues/20260826-what-landing-e-requires.md` — E-16 and the other fifteen bundles
-- `issues/20260826-f145-witness-arity-drift-manufactures-a-false-closure.md` — the witness-evidence rules
+- `issues/closed/20260826-f145-witness-arity-drift-manufactures-a-false-closure.md` — the witness-evidence rules
 - `llp/0313-authority-creation-chokepoint.spec.md` §8, §11
