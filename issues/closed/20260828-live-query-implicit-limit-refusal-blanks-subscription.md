@@ -1,6 +1,6 @@
 # Live query silently blanks past the 1,024-row implicit ceiling: bound refusal during reevaluation is delivered as an anonymous quarantine (LLP 0317 O14 shape d / O35 live-query half)
 
-**Status:** Resolved pending landing
+**Status:** Closed (landed `9f7eb7f5d`; checkout-bound 10/10 on macOS arm64 and Linux x86_64 — see the last section)
 **Opened:** 2026-08-28
 **Owner:** LLP 0317.000 lane L19 (live-query invalidation fix); this ticket is its charter
 **Systems:** Live queries, Authorization invalidation, Client SDK, React bindings, Wire v1, Guide
@@ -141,3 +141,23 @@ base-tree red set (597 passed / 17 failed), and `check-guide` retains the
 base-tree generated API cold-signature mismatch; neither failure is in this
 ticket's touched behavior. The orchestrator must rerun the checkout-bound gates
 after committing the regenerated artifacts.
+
+## Checkout-bound evidence (post-landing, 2026-08-29)
+
+Landed on `main` as `9f7eb7f5d`. The shape (d) acceptance was then rerun with
+no development-smoke override, on clean trees at exactly that commit, with
+binaries whose readiness identity is `gitCommit 9f7eb7f5d…, gitDirty: false`:
+
+| Platform | Host | Result | Report |
+|---|---|---|---|
+| macOS arm64 (Darwin 25.6.0) | control Mac | `PASS LLP 0317.000 O14 sound live-query invalidation — 10/10`, `evidenceEligibleForCurrentCheckout: true` | session scratchpad `o14d-shape-d-landed-mac-10.json` |
+| Linux x86_64 (6.8.0-100-generic) | `expo-build-450b`, lane `~/lanes/o14-linux` | `PASS … — 10/10`, `evidenceEligibleForCurrentCheckout: true`, binary sha256 `4d785e4883ca5b1e5ded26464cc9986cf1b7f3d70b968b79589e433d63ceb360` | `~/o14-linux-results/o14-l19-landed.json` on the host (copy retained in the session scratchpad) |
+
+Pre-landing, the same harness against the pre-fix `6edfe7a45` binary failed
+0/3 with `O14_D_IMPLICIT_LIMIT_SILENCE_CONFIRMED`, and the Linux base run at
+`8b332808f` failed 10/10 the same way (`issues/closed/20260829-l1-live-query-invalidation-linux-verdict.md`).
+Client arm on both platforms: headless browser-shaped + React renderer.
+
+**Status: Closed.** The past-ceiling refusal now reaches the still-attached
+subscription as a typed diagnostic on both platforms. Follow-up:
+`issues/20260829-deterministic-refusal-host-provenance.md`.
