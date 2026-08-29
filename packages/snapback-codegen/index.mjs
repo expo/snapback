@@ -4480,6 +4480,13 @@ async function generateInProcessLocked({
   Object.assign(functionsModule, assetCollectionCompilation.definitions);
   Object.assign(functionDefinitionSourceSpans, assetCollectionCompilation.sourceSpans);
   const assetCollections = assetCollectionCompilation.collections;
+  const assetCollectionAuthoringPreflight = assetCollections.length === 0
+    ? null
+    : {
+        schemaVersion: 'snapback.asset-collection-authoring-preflight.v1',
+        timing: 'generation-before-activation',
+        collections: assetCollectionCompilation.authoringPreflights,
+      };
   if (assetCollections.length > 0) {
     for (const capability of [
       'assets.media-collection.v1',
@@ -8921,6 +8928,9 @@ async function generateInProcessLocked({
       ...(routesManifest ? { './routes': './routes.manifest.json' } : {}),
       ...(seedArtifact ? { './seed': './seed.artifact.json' } : {}),
       ...(seedAssetFixtures ? { './seed-assets': './seed.asset-fixtures.artifact.json' } : {}),
+      ...(assetCollectionAuthoringPreflight
+        ? { './asset-collection-authoring-preflight': './asset-collection-authoring-preflight.json' }
+        : {}),
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -8978,7 +8988,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', AUTHORIZATION_REVIEW_FILE, 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'app.d.mts', 'api.mjs', 'api.d.ts', 'api.d.mts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', AUTHORIZATION_REVIEW_FILE, 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'app.d.mts', 'api.mjs', 'api.d.ts', 'api.d.mts', ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...(assetCollectionAuthoringPreflight ? ['asset-collection-authoring-preflight.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -9035,6 +9045,7 @@ async function generateInProcessLocked({
       schemaManifest,
       functionManifest,
       authorizationReview,
+      assetCollectionAuthoringPreflight,
       visibilityGovernance,
       normalizedDefinition,
       handlerRuntimeProfile,
@@ -9222,6 +9233,7 @@ async function generateInProcessLocked({
     schemaManifest,
     functionManifest,
     authorizationReview,
+    assetCollectionAuthoringPreflight,
     visibilityGovernance,
     normalizedDefinition,
     handlerRuntimeProfile,
@@ -12140,6 +12152,7 @@ function normalizeAssetCollectionSharing(definition, refuse) {
 // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
 function buildAssetCollections({ functionsModule, tables, attribution, err }) {
   const collections = [];
+  const authoringPreflights = [];
   const definitions = dict();
   const sourceSpans = dict();
   const collectionDefs = Object.entries(functionsModule)
@@ -12374,6 +12387,72 @@ function buildAssetCollections({ functionsModule, tables, attribution, err }) {
       retentionClass: 'media-reference.v1',
       targetCapability: 'assets.media-ref-projection.v1',
     };
+    const ownerRequiredFields = owner.fields
+      .filter((field) => field.optional !== true && field.name !== owner.visibility.field)
+      .map((field) => field.name)
+      .sort(compareCodeUnits);
+    const ownerOptionalFields = owner.fields
+      .filter((field) => field.optional === true && field.name !== owner.visibility.field)
+      .map((field) => field.name)
+      .sort(compareCodeUnits);
+    const uniqueConstraints = (owner.indexes ?? [])
+      .filter((index) => index.unique === true)
+      .map((index) => ({
+        name: index.name,
+        fields: [...index.fields],
+        ownerPartitioned: index.fields.includes(owner.visibility.field),
+      }))
+      .sort((left, right) => compareCodeUnits(left.name, right.name));
+    // @ref LLP 0264#d3-owner-inserts-are-host-stamped — collection admission
+    // changes more than child storage: it selects an owner-visible parent,
+    // host-stamped insert shape, and unique-conflict disclosure posture. Keep
+    // the complete choice in the generated review surface before activation.
+    const authoringPreflight = {
+      format: 'snapback.asset-collection-authoring-preflight.v1',
+      timing: 'generation-before-activation',
+      collection: {
+        model: 'generated-asset-collection',
+        custody: 'framework-owned-child-rows',
+        rawWrites: 'refused',
+        duplicateAssetIds: 'unique-conflict-refused',
+      },
+      parent: {
+        table: def.ownerTable,
+        requiredVisibility: structuredClone(owner.visibility),
+        readability: {
+          sameOwner: 'admitted',
+          crossAuthor: 'not-readable-through-owner-policy',
+        },
+        ownership: {
+          field: owner.visibility.field,
+          value: 'effective-authenticated-principal',
+          ctxDbInsertInput: 'must-omit',
+          hostPlanInsertInput: 'omit-or-sealed-auth-user-id-marker',
+          mutation: 'immutable',
+        },
+        staticInsertShape: {
+          requiredFields: ownerRequiredFields,
+          optionalFields: ownerOptionalFields,
+          forbiddenCallerFields: [owner.visibility.field],
+        },
+        uniqueConflicts: {
+          constraints: uniqueConstraints,
+          disclosureRequired: uniqueConstraints
+            .filter(({ ownerPartitioned }) => !ownerPartitioned)
+            .map(({ name }) => name),
+          consequence: 'success-versus-conflict-can-disclose-row-existence',
+        },
+      },
+      alternative: {
+        model: 'typed-child-row',
+        custody: 'application-owned',
+        parentReadability: 'may-remain-public-read-for-cross-author-feeds',
+        mediaField: 'top-level v.media(...) or v.assetRef(...)',
+        relationshipFields: ['parentId', 'ordinal', 'media'],
+        authorOwns: ['child policy', 'bounded query', 'write operations', 'duplicate handling'],
+        guide: '/_snapback/guide/backend/assets.md#attach-several-assets-to-one-row-multi-image-posts',
+      },
+    };
     tables[childTable] = {
       name: childTable,
       fields: [
@@ -12427,6 +12506,10 @@ function buildAssetCollections({ functionsModule, tables, attribution, err }) {
       operations: names,
     };
     collections.push(descriptor);
+    authoringPreflights.push({
+      collection: binding,
+      ...authoringPreflight,
+    });
 
     const resultContract = results.value(v.object({
       parentId: v.id(def.ownerTable),
@@ -12566,7 +12649,7 @@ function buildAssetCollections({ functionsModule, tables, attribution, err }) {
       }
     }
   }
-  return { collections, definitions, sourceSpans };
+  return { collections, authoringPreflights, definitions, sourceSpans };
 }
 
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
@@ -22305,6 +22388,7 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   authorizationReview,
+  assetCollectionAuthoringPreflight,
   visibilityGovernance,
   normalizedDefinition,
   handlerRuntimeProfile,
@@ -22347,6 +22431,12 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, AUTHORIZATION_REVIEW_FILE), serializeAuthorizationReview(authorizationReview));
+  if (assetCollectionAuthoringPreflight) {
+    writeFileSync(
+      join(outDir, 'asset-collection-authoring-preflight.json'),
+      stableJson(assetCollectionAuthoringPreflight) + '\n',
+    );
+  }
   const elevatedReadEntries = authorizationReview.elevatedReadSites;
   writeFileSync(join(outDir, 'elevated-read-site-baseline.json'), stableJson({
     schemaVersion: 'snapback.elevated-read-site-baseline.v1',

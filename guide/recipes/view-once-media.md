@@ -4,13 +4,14 @@ id: recipes.view-once-media
 order: 8
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0220-recipient-bound-asset-grants.plan.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0044-asset-storage-pipeline.rfc.md, crates/snapback-kernel/src/storage/asset_grants.rs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
-examples: [demos/messaging-snapback]
+authorities: [llp/0220-recipient-bound-asset-grants.plan.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0239-asset-collections-and-media-field.rfc.md, llp/0044-asset-storage-pipeline.rfc.md, crates/snapback-kernel/src/storage/asset_grants.rs, packages/snapback-react/media-render-contract.fixture.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/snapback/functions.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+examples: [demos/messaging-snapback, packages/snapback-react/assets.test.mjs, packages/snapback-react/media-render-contract.fixture.mjs]
 status: current
 targets: [local]
 maturity: partial
+authoring-profiles: [explicit]
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:b2f44450f65c94d36f116a994a9586c316339fadc42dc0e20ca51f8c17976f9c
+reviewed-authorities-digest: sha256:6c2222b689f6a9071145c9b8a973ebd117904607b80c6a6890333ef81a1642fe
 ---
 
 # Recipe: view-once media with per-recipient access
@@ -38,6 +39,49 @@ URL before the activation mutation. After activation, only `ready` and
 delivery attempt. Gate only the open/retry/media controls—keep the surrounding
 message and caption rendered. This consumer contract is the same for Explicit
 and Familiar authoring; the declaration examples below are Explicit.
+
+The executable render witness makes those gates independent. `available`
+means the product may activate view-once access from metadata; `activated`
+still waits for delivery before exposing the URL; `consumed` and delivery
+denial are terminal. `unavailable` remains retryable. Every branch keeps the
+message and caption mounted:
+
+```js source=packages/snapback-react/media-render-contract.fixture.mjs
+export function mediaRenderWitness(state, { recipientState = 'activated' } = {}) {
+  if (!state || typeof state !== 'object') throw new TypeError('state must be a MediaState');
+  if (!['available', 'activated', 'consumed'].includes(recipientState)) {
+    throw new TypeError('recipientState must be available, activated, or consumed');
+  }
+  const metadataReady = state.status !== 'empty';
+  const deliveryReady = state.status === 'ready' || state.status === 'refreshing';
+  const terminal = recipientState === 'consumed' || state.status === 'denied';
+  const openable = recipientState === 'activated' && deliveryReady && !terminal;
+  const retryable = state.status === 'unavailable' && !terminal;
+  const control = terminal
+    ? 'terminal'
+    : recipientState === 'available' && metadataReady
+      ? 'activate'
+      : openable
+        ? 'open'
+        : retryable
+          ? 'retry'
+          : 'waiting';
+
+  return Object.freeze({
+    messageVisible: true,
+    captionVisible: true,
+    mediaStatus: state.status,
+    metadataReady,
+    kind: metadataReady ? state.media.kind : null,
+    deliveryReady,
+    openable,
+    terminal,
+    retryable,
+    control,
+    url: deliveryReady ? state.url : null,
+  });
+}
+```
 
 Read [Grant and revoke per-recipient access](../backend/assets.md#grant-and-revoke-per-recipient-access)
 for the complete operation, authorization, GC, quota, and delivery semantics.

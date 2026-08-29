@@ -8,7 +8,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 
 import { generate } from './index.mjs';
-import { buildSeedAssetFixturesV1, seedAssetFixturesDigest } from './seed-artifact.mjs';
+import {
+  buildSeedAssetFixturesV1,
+  parseSeedSourceV1,
+  seedAssetFixturesDigest,
+} from './seed-artifact.mjs';
 
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
 
@@ -48,6 +52,34 @@ async function runCase({ seed, seedAssets, fixtureFiles }) {
 }
 
 const codes = (result) => result.diagnostics.map((d) => d.code);
+
+// --- pre-replay refusal: media bytes are typed fixtures, never row strings -
+
+for (const [encoding, value, fieldPath] of [
+  ['data-uri', 'data:image/png;base64,iVBORw0KGgo=', 'posts.0.payload.preview'],
+  ['base64', Buffer.alloc(256, 0xa7).toString('base64'), 'posts.0.payload'],
+]) {
+  assert.throws(
+    () => parseSeedSourceV1(JSON.stringify({
+      seedVersion: '2026-08-28.media-refusal',
+      tables: { posts: [{ _id: 'inline-media', payload: encoding === 'data-uri' ? { preview: value } : value }] },
+    }), 'media-refusal'),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_SEED_DECLARATION_INVALID');
+      assert.equal(error.details.encoding, encoding);
+      assert.equal(error.details.fieldPath, fieldPath);
+      assert.match(error.details.repair.fixture, /seed-assets\.json/u);
+      assert.match(error.details.repair.schema, /v\.assetRef/u);
+      return true;
+    },
+  );
+}
+
+const longOrdinaryText = 'ordinary prose '.repeat(64);
+assert.doesNotThrow(() => parseSeedSourceV1(JSON.stringify({
+  seedVersion: '2026-08-28.long-text',
+  tables: { posts: [{ _id: 'long-text', body: longOrdinaryText }] },
+}), 'media-refusal'));
 
 // --- unit: builder digest identity and refusals ----------------------------
 

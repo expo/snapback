@@ -52,6 +52,60 @@ function closedKeys(value, expected, label) {
   }
 }
 
+const DATA_URI_BYTES = /^data:[^,;]+(?:;[^,;=]+=[^,;]*)*;base64,/iu;
+const BASE64_BYTES_MIN_CHARS = 256;
+
+function structuredMediaBytesEncoding(value) {
+  if (DATA_URI_BYTES.test(value)) return 'data-uri';
+  if (value.length < BASE64_BYTES_MIN_CHARS || value.length % 4 !== 0) return null;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/u.test(value)) return null;
+  const characterClasses = [/[A-Z]/u, /[a-z]/u, /[0-9]/u, /[+/=]/u]
+    .filter((pattern) => pattern.test(value)).length;
+  if (characterClasses < 3) return null;
+  try {
+    const bytes = Buffer.from(value, 'base64');
+    return bytes.toString('base64') === value ? 'base64' : null;
+  } catch {
+    return null;
+  }
+}
+
+// @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 — fixture
+// bytes belong in committed files plus the typed $assetFixture carrier. A
+// string-shaped byte payload must refuse before seed replay can settle any
+// earlier row or discover the structured-value ceiling at runtime.
+function refuseStructuredMediaBytes(value, { table, index, path }) {
+  if (typeof value === 'string') {
+    const encoding = structuredMediaBytesEncoding(value);
+    if (encoding === null) return;
+    const fieldPath = [table, String(index), ...path].join('.');
+    fail(
+      'SNAPBACK_SEED_DECLARATION_INVALID',
+      `seed ${fieldPath} looks like ${encoding === 'data-uri' ? 'a base64 data URI' : 'base64-encoded bytes'}; media bytes are assets, not structured row strings`,
+      {
+        table,
+        index,
+        fieldPath,
+        encoding,
+        repair: {
+          fixture: 'Put the bytes in a committed file declared by seed-assets.json, then place { "$assetFixture": "<fixture-id>" } in the seed row.',
+          schema: 'Declare the destination as v.assetRef(...) or finalized-only v.media(...), not v.string()/v.json().',
+        },
+      },
+    );
+  }
+  if (value === null || typeof value !== 'object') return;
+  if (Array.isArray(value)) {
+    for (const [childIndex, child] of value.entries()) {
+      refuseStructuredMediaBytes(child, { table, index, path: [...path, String(childIndex)] });
+    }
+    return;
+  }
+  for (const [field, child] of Object.entries(value)) {
+    refuseStructuredMediaBytes(child, { table, index, path: [...path, field] });
+  }
+}
+
 function validateTables(tables) {
   if (!tables || typeof tables !== 'object' || Array.isArray(tables)) {
     fail('SNAPBACK_SEED_DECLARATION_INVALID', 'seed tables must be a name-keyed object');
@@ -78,6 +132,7 @@ function validateTables(tables) {
           index,
         });
       }
+      refuseStructuredMediaBytes(row, { table, index, path: [] });
       canonicalJson(row);
     }
   }

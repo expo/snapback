@@ -4,14 +4,15 @@ id: backend.media-happy-paths
 order: 10
 audience: agent-first
 capabilities: [assets.media-field.v1, assets.media-collection.v1, assets.media-command.v1]
-authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback-kernel/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, llp/0264-table-write-policy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback-kernel/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
 examples: [tests/acceptance/fixtures/media-profile/snapback/schema.mjs, tests/acceptance/fixtures/media-profile/snapback/functions.mjs, packages/snapback-codegen/media-field-authoring.test.mjs, packages/snapback-codegen/media-collection-authoring.test.mjs, packages/snapback-codegen/media-command-authoring.test.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/assets.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-react/asset-upload-types.fixture.ts, packages/snapback-react/media-collection-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
+authoring-profiles: [explicit]
 since: 0.1.21
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:17c83fe601e56488b64e3952744f80e95cc17c899099ba8f0729ea401da5efac
+reviewed-authorities-digest: sha256:f0f9617cae3ce7c8bedc30a9695e7885bc011b9562d3fae30c232af4c8c302c7
 ---
 
 # Media happy paths
@@ -107,6 +108,24 @@ across authors instead uses the explicit
 That design choice is profile-neutral. The collection declarations below are
 Snapback extension/Explicit vocabulary; the typed child-row model can be
 authored in either profile.
+
+Every admitted collection records a generated review sidecar at
+`generated/asset-collection-authoring-preflight.json → collections[]`. Read it
+before activating the schema. This is the complete choice the declaration
+makes, not a runtime surprise:
+
+| Consequence | Generated `assetCollection` | Application-owned typed child row |
+| --- | --- | --- |
+| Parent reads | Parent must be owner-visible; cross-author feed reads through that policy are unavailable. | Parent may remain `public-read` or use another admitted policy. |
+| Parent ownership | Owner field is the effective principal, immutable, and host-stamped. `ctx.db.insert` must omit it; a HostPlan insert may omit it or use the sealed auth-user marker. | Follows the app-owned parent and child policies you declare. |
+| Static insert shape | The preflight lists required, optional, and forbidden caller fields for the parent. | The authored mutation/result contracts own the child insert shape. |
+| Unique conflicts | Duplicate asset ids refuse. Every parent unique index is listed; a non-owner-partitioned constraint requires operation-bound conflict disclosure because success versus conflict can reveal existence. | The app declares duplicate behavior and owns any required conflict disclosure. |
+| Child custody and writes | Framework-owned rows; raw writes refuse; generated list/append/replace/remove/reorder enforce the bound. | Application-owned rows; you author bounded reads and authorized writes. |
+
+Do not widen an owner parent to silence the preflight. If posts must be readable
+across authors, follow the
+[typed child-row pattern](./assets.md#attach-several-assets-to-one-row-multi-image-posts)
+side by side with this table and choose that model before activation.
 
 Declare a finite collection before accepting files: `maxItems` is required and
 must be 1–32, ordering is `manual` or `created`, and every admitted item must

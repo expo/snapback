@@ -23,6 +23,7 @@ import {
   useSnapbackMedia,
   useSnapbackMediaCollection,
 } from './index.mjs';
+import { mediaRenderWitness } from './media-render-contract.fixture.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -747,6 +748,74 @@ function renderHook(provider, hook, { strict = false } = {}) {
 }
 
 // --- media hook: empty-safe render, transitions, authority blanking -------
+
+{
+  const media = Object.freeze({ assetId: 'asset-render-contract', kind: 'video' });
+  const diagnostic = Object.freeze({ code: 'SNAPBACK_ASSET_STORE_UNAVAILABLE' });
+  const cases = [
+    {
+      name: 'empty',
+      state: { status: 'empty', media: null },
+      recipientState: 'available',
+      expected: [false, false, false, false, 'waiting'],
+    },
+    {
+      name: 'metadata-ready before activation',
+      state: { status: 'issuing', media },
+      recipientState: 'available',
+      expected: [true, false, false, false, 'activate'],
+    },
+    {
+      name: 'activated but delivery pending',
+      state: { status: 'issuing', media },
+      recipientState: 'activated',
+      expected: [true, false, false, false, 'waiting'],
+    },
+    {
+      name: 'delivery-ready and openable',
+      state: { status: 'ready', media, url: 'https://asset.test/video', expiresAt: 1, rendition: 'primary' },
+      recipientState: 'activated',
+      expected: [true, true, true, false, 'open'],
+    },
+    {
+      name: 'refresh keeps the last URL openable',
+      state: { status: 'refreshing', media, url: 'https://asset.test/video', expiresAt: 1, rendition: 'primary' },
+      recipientState: 'activated',
+      expected: [true, true, true, false, 'open'],
+    },
+    {
+      name: 'unavailable is retryable without hiding metadata',
+      state: { status: 'unavailable', media, diagnostic },
+      recipientState: 'activated',
+      expected: [true, false, false, false, 'retry'],
+    },
+    {
+      name: 'denial is terminal for this authorized attempt',
+      state: { status: 'denied', media, diagnostic },
+      recipientState: 'activated',
+      expected: [true, false, false, true, 'terminal'],
+    },
+    {
+      name: 'product consumption is terminal even with retained delivery',
+      state: { status: 'ready', media, url: 'https://asset.test/video', expiresAt: 1, rendition: 'primary' },
+      recipientState: 'consumed',
+      expected: [true, true, false, true, 'terminal'],
+    },
+  ];
+  for (const { name, state, recipientState, expected } of cases) {
+    const rendered = mediaRenderWitness(state, { recipientState });
+    assert.deepEqual(
+      [rendered.metadataReady, rendered.deliveryReady, rendered.openable, rendered.terminal, rendered.control],
+      expected,
+      name,
+    );
+    assert.equal(rendered.messageVisible, true, `${name}: message remains rendered`);
+    assert.equal(rendered.captionVisible, true, `${name}: caption remains rendered`);
+    assert.equal(rendered.kind, state.status === 'empty' ? null : 'video', name);
+    assert.equal(rendered.url, rendered.deliveryReady ? 'https://asset.test/video' : null, name);
+  }
+  console.log('media UI metadata/delivery/openable/terminal render contract: ok');
+}
 
 {
   const { provider, assets } = await harness();

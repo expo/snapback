@@ -20,9 +20,11 @@ import { defineSchema, defineTable, v } from ${JSON.stringify(packageUrl)};
 export const messages = defineTable({
   ownerId: v.principal(),
   body: v.string(),
+  caption: v.optional(v.string()),
 })
   .visibility({ kind: 'owner', field: 'ownerId' })
   .assetSharing({ kind: 'owner', field: 'ownerId' })
+  .index('by_body_unique', ['body'], { unique: true })
   .sync();
 export const publicMessages = defineTable({
   ownerId: v.principal(),
@@ -87,6 +89,58 @@ assert.equal(collection.name, 'attachments');
 assert.equal(collection.maxItems, 8);
 assert.deepEqual(collection.kinds, ['image', 'video']);
 assert.match(collection.generation, /^sha256:[0-9a-f]{64}$/u);
+assert.equal(collection.authoringPreflight, undefined);
+const preflight = JSON.parse(readFileSync(
+  join(happy, 'generated/asset-collection-authoring-preflight.json'),
+  'utf8',
+));
+assert.equal(preflight.schemaVersion, 'snapback.asset-collection-authoring-preflight.v1');
+assert.equal(preflight.timing, 'generation-before-activation');
+assert.deepEqual(preflight.collections, [{
+  collection: 'attachments',
+  format: 'snapback.asset-collection-authoring-preflight.v1',
+  timing: 'generation-before-activation',
+  collection: {
+    model: 'generated-asset-collection',
+    custody: 'framework-owned-child-rows',
+    rawWrites: 'refused',
+    duplicateAssetIds: 'unique-conflict-refused',
+  },
+  parent: {
+    table: 'messages',
+    requiredVisibility: { kind: 'owner', field: 'ownerId' },
+    readability: {
+      sameOwner: 'admitted',
+      crossAuthor: 'not-readable-through-owner-policy',
+    },
+    ownership: {
+      field: 'ownerId',
+      value: 'effective-authenticated-principal',
+      ctxDbInsertInput: 'must-omit',
+      hostPlanInsertInput: 'omit-or-sealed-auth-user-id-marker',
+      mutation: 'immutable',
+    },
+    staticInsertShape: {
+      requiredFields: ['body'],
+      optionalFields: ['caption'],
+      forbiddenCallerFields: ['ownerId'],
+    },
+    uniqueConflicts: {
+      constraints: [{ name: 'by_body_unique', fields: ['body'], ownerPartitioned: false }],
+      disclosureRequired: ['by_body_unique'],
+      consequence: 'success-versus-conflict-can-disclose-row-existence',
+    },
+  },
+  alternative: {
+    model: 'typed-child-row',
+    custody: 'application-owned',
+    parentReadability: 'may-remain-public-read-for-cross-author-feeds',
+    mediaField: 'top-level v.media(...) or v.assetRef(...)',
+    relationshipFields: ['parentId', 'ordinal', 'media'],
+    authorOwns: ['child policy', 'bounded query', 'write operations', 'duplicate handling'],
+    guide: '/_snapback/guide/backend/assets.md#attach-several-assets-to-one-row-multi-image-posts',
+  },
+}]);
 const child = schema.tables.find((table) => table.name === collection.childTable);
 assert.ok(collection.childTable.startsWith('_snapback_asset_collection_'));
 assert.deepEqual(child.fields.map(({ name }) => name), [
