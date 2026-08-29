@@ -97,7 +97,7 @@ const preflight = JSON.parse(readFileSync(
 assert.equal(preflight.schemaVersion, 'snapback.asset-collection-authoring-preflight.v1');
 assert.equal(preflight.timing, 'generation-before-activation');
 assert.deepEqual(preflight.collections, [{
-  collection: 'attachments',
+  name: 'attachments',
   format: 'snapback.asset-collection-authoring-preflight.v1',
   timing: 'generation-before-activation',
   collection: {

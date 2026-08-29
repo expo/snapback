@@ -255,6 +255,17 @@ test('a non-guest auth program may omit guestPolicy and normalizes it disabled',
   assert.throws(
     () => defineAuth({
       version: 1,
+      mechanisms: {},
+      assuranceRequirements: {},
+      recoveryPolicy: normalized.recoveryPolicy,
+      guestPolicy: null,
+      secretReferences: {},
+    }),
+    /defineAuth guestPolicy must be an object/u,
+  );
+  assert.throws(
+    () => defineAuth({
+      version: 1,
       mechanisms: { guest: { kind: 'guest' } },
       assuranceRequirements: {},
       recoveryPolicy: normalized.recoveryPolicy,

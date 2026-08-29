@@ -101,7 +101,7 @@ export declare const v: {
   principal(): Validator<string, 'Principal', false, true, false>;
   id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false, true, true>;
   /** Complete stored document shape, valid only inside a result contract. */
-  doc<const Table extends string>(table: Table): Validator<Readonly<Record<string, unknown>>, { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false, true, false>;
+  doc<const Table extends string>(table: Table): Validator<Readonly<Record<string, unknown>>, { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false, false, false>;
   relationIncarnationOf<const ForeignKey extends string, const Parent extends string>(
     spec: { foreignKeyField: ForeignKey; parentTable: Parent },
   ): Validator<string, { readonly RelationIncarnation: { readonly foreignKeyField: ForeignKey; readonly parentTable: Parent } }, false, true, false>;
@@ -166,7 +166,7 @@ export declare const v: {
     { readonly [Index in keyof Elements]: InferValidator<Elements[Index]> },
     'Json',
     false,
-    AllFunctionAdmissible<Elements>,
+    false,
     AnyContainsId<Elements>
   >;
   union<const Variants extends ValidatorTuple2To8>(

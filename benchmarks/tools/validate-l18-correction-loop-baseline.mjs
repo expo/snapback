@@ -31,6 +31,18 @@ function evidenceContains(lines, locator) {
   return wanted.every((token) => haystack.includes(token));
 }
 
+function markdownHeadingAnchors(source) {
+  return new Set(source
+    .split(/\r?\n/u)
+    .filter((line) => /^#{1,6}\s+/u.test(line))
+    .map((line) => line
+      .replace(/^#{1,6}\s+/u, '')
+      .replace(/\s+#+\s*$/u, '')
+      .toLowerCase()
+      .replace(/[^\p{Letter}\p{Number}_\-\s]/gu, '')
+      .replace(/\s/gu, '-')));
+}
+
 requireFact(record.schemaVersion === 'llp-0317-l18-retrospective-baseline.v1', 'unexpected schemaVersion');
 requireFact(record.scope?.retainedInstrumentPin === 'social-messenger@0.3.4-m8', 'retained instrument pin must be 0.3.4-m8');
 requireFact(record.scope?.fixedInstrumentPin === 'social-messenger@0.3.5-m8', 'fixed instrument pin must be 0.3.5-m8');
@@ -38,9 +50,11 @@ requireFact(record.interpretation?.floorClaim === 'existence-only', 'floor must 
 requireFact(record.interpretation?.totalLoopCount?.status === 'inapplicable', 'total loop count must remain inapplicable');
 requireFact(record.interpretation?.comparativeBaseline?.status === 'required-not-run', 'comparative baseline must remain required-not-run');
 for (const governingRef of record.governingRefs ?? []) {
-  const [relativePath] = governingRef.split('#', 1);
+  const [relativePath, anchor] = governingRef.split('#');
   try {
-    readFileSync(resolve(ROOT, relativePath), 'utf8');
+    const source = readFileSync(resolve(ROOT, relativePath), 'utf8');
+    requireFact(Boolean(anchor), `governing ref lacks an anchor: ${governingRef}`);
+    requireFact(markdownHeadingAnchors(source).has(anchor), `governing ref anchor does not resolve: ${governingRef}`);
   } catch {
     requireFact(false, `governing ref does not resolve: ${governingRef}`);
   }

@@ -2210,7 +2210,9 @@ export function defineAuth(program) {
   // mechanism should not need a ceremonial disabled policy. The normalized
   // artifact remains explicit, while declaring a guest mechanism without an
   // enabled policy still refuses below.
-  const guestPolicy = program.guestPolicy ?? { enabled: false };
+  const guestPolicy = program.guestPolicy === undefined
+    ? { enabled: false }
+    : program.guestPolicy;
   assert(guestPolicy && typeof guestPolicy === 'object' && !Array.isArray(guestPolicy), 'defineAuth guestPolicy must be an object');
   exactObject(guestPolicy, 'defineAuth guestPolicy', new Set(['enabled', 'claiming', 'reaping']));
   assert(typeof guestPolicy.enabled === 'boolean', 'defineAuth guestPolicy.enabled must be boolean');

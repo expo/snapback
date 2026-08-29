@@ -12507,7 +12507,7 @@ function buildAssetCollections({ functionsModule, tables, attribution, err }) {
     };
     collections.push(descriptor);
     authoringPreflights.push({
-      collection: binding,
+      name: binding,
       ...authoringPreflight,
     });
 

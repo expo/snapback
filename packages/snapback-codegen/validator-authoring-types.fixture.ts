@@ -58,6 +58,18 @@ defineJsQuery({
   reads: [],
   handler: async () => null,
 });
+defineJsQuery({
+  // @ts-expect-error v.doc() is result-contract vocabulary, not an argument validator
+  args: { document: v.doc('messages') },
+  reads: ['messages'],
+  handler: async () => null,
+});
+defineJsQuery({
+  // @ts-expect-error tuple arguments are not admitted by the runtime argument grammar
+  args: { pair: v.tuple([v.string(), v.string()]) },
+  reads: [],
+  handler: async () => null,
+});
 
 defineTable({
   // @ts-expect-error lifecycle-bearing IDs cannot hide in a structured array

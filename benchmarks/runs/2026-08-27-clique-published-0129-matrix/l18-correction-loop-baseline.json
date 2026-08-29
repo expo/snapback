@@ -2,7 +2,7 @@
   "schemaVersion": "llp-0317-l18-retrospective-baseline.v1",
   "recordedAt": "2026-08-29",
   "governingRefs": [
-    "benchmarks/protocol.md#correction-loop-attribution",
+    "benchmarks/protocol.md#correction-loop-attribution-rule-draft",
     "llp/0201-social-messenger-canonical-benchmark.plan.md#d2--quantitative-instrument",
     "llp/0317.000-paved-loop-correction-program.rfc.md#wave-5--requalification-the-only-real-closure"
   ],
