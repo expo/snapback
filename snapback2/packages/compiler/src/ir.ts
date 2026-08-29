@@ -77,6 +77,7 @@ export type Stmt =
   | { Update: { table: string; key: Expr; patch: Expr } }
   | { Upsert: { table: string; key: Expr; row: Expr } }
   | { Delete: { table: string; key: Expr } }
+  | { Emit: { effect: string; payload: Expr } }
   | { Return: Expr }
   | "Break"
   | "Continue";
@@ -97,21 +98,67 @@ export type Span = {
   column: number;
 };
 
-export type DiagnosticFamily =
+export type DiagnosticCode =
   | "E_UNBOUND_SCAN"
   | "E_UNBOUND_LOOP"
   | "E_UNBOUND_COUNT"
   | "E_STRUCTURAL_COUNT"
   | "E_AMBIENT_TIME"
   | "E_OPAQUE"
-  | "E_BOUND";
+  | "E_BOUND"
+  | "E_ARGS_TYPE"
+  | "E_OP_INVALID"
+  | "E_SCHEMA_RESERVED"
+  | "E_SCHEMA_UNKNOWN_TABLE"
+  | "E_SCHEMA_INDEX_COLUMN"
+  | "E_SCHEMA_DEFAULT_EXPORT"
+  | "E_SCHEMA_INVALID"
+  | "E_RULE_INVALID"
+  | "E_EFFECT_CLOSURE"
+  | "E_EFFECT_IMPORT"
+  | "E_EFFECT_GRANT"
+  | "E_EFFECT_THEN_ARGS"
+  | "E_EFFECT_UNKNOWN"
+  | "E_EMIT_IN_QUERY";
+
+export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op";
 
 export type FrontendDiagnostic = {
-  family: DiagnosticFamily;
-  span: Span;
+  code: DiagnosticCode;
+  family: RefusalFamily;
   message: string;
+  site: string;
+  rule?: string;
   rewrite: string;
+  guide: string;
 };
+
+export type SchemaJson = {
+  tables: Record<string, unknown>;
+  maintains: unknown[];
+  channels: Record<string, unknown>;
+  auth: { password: boolean; guests: boolean };
+  effects: string[];
+};
+
+export type EffectJson = {
+  name: string;
+  grants: string[];
+  source: string;
+  then: string | null;
+};
+
+export type ProjectJson = {
+  schema: SchemaJson;
+  programs: Program[];
+  effects: EffectJson[];
+};
+
+export type SourceSite = { file: string; line: number; col: number };
+
+export type ProjectResult =
+  | { ok: true; project: ProjectJson; sources: Record<string, SourceSite>; apiDts: string; ms: number }
+  | { ok: false; diagnostics: FrontendDiagnostic[]; ms: number };
 
 export type LowerResult =
   | { ok: true; programs: Program[] }

@@ -4,12 +4,41 @@
   "description": "Snapback 2 CLI (the platform binary ships in snapback2-<os>-<arch>).",
   "license": "MIT",
   "type": "module",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs"
+    },
+    "./react": {
+      "types": "./dist/placeholder.d.ts",
+      "import": "./dist/react.mjs"
+    },
+    "./test": {
+      "types": "./dist/placeholder.d.ts",
+      "import": "./dist/test.mjs"
+    }
+  },
   "bin": {
     "snapback2": "bin/snapback2.mjs"
   },
   "files": [
-    "bin"
+    "bin",
+    "dist"
   ],
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "typescript": "5.9.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
+  },
   "optionalDependencies": {
     "snapback2-darwin-arm64": "0.0.1",
     "snapback2-linux-x64": "0.0.1"

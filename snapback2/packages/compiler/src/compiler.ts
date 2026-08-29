@@ -1,6 +1,38 @@
 import ts from "typescript";
+import { diagnostic, refuse, Refusal } from "./diagnostics";
+import { findPolicyRefusal, mechanicalBoundRewrite } from "./policy";
+import {
+  binaryOperator,
+  callName,
+  collectionConstructor,
+  descriptorName,
+  expressionProperty,
+  findNarrowestNode,
+  firstDescendantCall,
+  hasExport,
+  identifierFromArgsOrLocal,
+  isDb,
+  isDbInsertCall,
+  isDbMember,
+  isDbWriteCall,
+  isFunctionLike,
+  isZero,
+  literal,
+  lowerFirst,
+  memberName,
+  numberProperty,
+  numericLiteral,
+  propertyName,
+  singular,
+  stringArgument,
+  stringLiteral,
+  syntheticIdentifier,
+  temporary,
+  unwrapCall,
+  unwrapExpression,
+  walk,
+} from "./syntax";
 import type {
-  DiagnosticFamily,
   Expr,
   FrontendDiagnostic,
   LoopDomain,
@@ -8,12 +40,10 @@ import type {
   Program,
   Provenance,
   Scan,
-  Span,
   Stmt,
-  Value,
 } from "./ir";
 
-type TableInfo = { name: string; private: boolean; maintainedFrom?: string };
+export type TableInfo = { name: string; private: boolean; maintainedFrom?: string };
 type VariableInfo = {
   provenance: Provenance;
   max?: number;
@@ -27,8 +57,15 @@ type ModuleInfo = {
   source: string;
   fileName: string;
   tables: Map<string, TableInfo>;
+  effects: Map<string, string>;
   helpers: Map<string, FunctionLike>;
   exports: Set<string>;
+};
+
+export type LowerSourceOptions = {
+  tables?: Map<string, TableInfo>;
+  effects?: Map<string, string>;
+  operationPrefix?: string;
 };
 
 type Environment = ModuleInfo & {
@@ -42,12 +79,6 @@ type Environment = ModuleInfo & {
 };
 
 type LoweredValue = { statements: Stmt[]; expression: Expr };
-
-class Refusal extends Error {
-  constructor(readonly diagnostic: FrontendDiagnostic) {
-    super(diagnostic.message);
-  }
-}
 
 export function typecheckSource(
   source: string,
@@ -90,26 +121,20 @@ export function formatTypeDiagnostic(diagnostic: ts.Diagnostic): string {
   return ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
 }
 
-export function mechanicalBoundRewrite(source: string): string {
-  const sourceFile = ts.createSourceFile("bound-rewrite.ts", source, ts.ScriptTarget.ES2022, true);
-  let largest: { node: ts.Expression; value: number } | undefined;
-  walk(sourceFile, (node) => {
-    if (!ts.isCallExpression(node) || !callName(node).endsWith(".scan")) return;
-    const options = node.arguments[2];
-    const takeNode = options && ts.isObjectLiteralExpression(options) ? expressionProperty(options, "take") : undefined;
-    const value = numericLiteral(takeNode);
-    if (takeNode && value !== undefined && (!largest || value > largest.value)) largest = { node: takeNode, value };
-  });
-  return largest ? replaceNode(source, largest.node, String(Math.max(1, Math.floor(largest.value / 2)))) : source;
+export { mechanicalBoundRewrite } from "./policy";
+
+export async function lowerProject(root: string) {
+  return (await import("./project")).lowerProject(root);
 }
 
 export function lowerSource(
   source: string,
   fileName = "input.ts",
   libText?: string,
+  options: LowerSourceOptions = {},
 ): LowerResult {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
-  const module = inspectModule(sourceFile, source, fileName);
+  const module = inspectModule(sourceFile, source, fileName, options);
   const policy = findPolicyRefusal(module);
   if (policy) return { ok: false, diagnostics: [policy] };
 
@@ -137,7 +162,10 @@ export function lowerSource(
         const call = unwrapCall(declaration.initializer);
         if (!call || !ts.isIdentifier(call.expression)) continue;
         if (call.expression.text !== "query" && call.expression.text !== "mutation") continue;
-        programs.push(lowerOperation(module, declaration.name.text, call.expression.text, call));
+        const name = options.operationPrefix
+          ? `${options.operationPrefix}.${declaration.name.text}`
+          : declaration.name.text;
+        programs.push(lowerOperation(module, name, call.expression.text, call));
       }
     }
     return { ok: true, programs };
@@ -147,8 +175,14 @@ export function lowerSource(
   }
 }
 
-function inspectModule(sourceFile: ts.SourceFile, source: string, fileName: string): ModuleInfo {
-  const tables = new Map<string, TableInfo>();
+function inspectModule(
+  sourceFile: ts.SourceFile,
+  source: string,
+  fileName: string,
+  options: LowerSourceOptions,
+): ModuleInfo {
+  const tables = new Map(options.tables ?? []);
+  const effects = new Map(options.effects ?? []);
   const helpers = new Map<string, FunctionLike>();
   const exports = new Set<string>();
   for (const statement of sourceFile.statements) {
@@ -175,125 +209,14 @@ function inspectModule(sourceFile: ts.SourceFile, source: string, fileName: stri
           ? call.arguments[1].text
           : undefined;
         tables.set(name, { name: tableName, private: callee === "privateTable", maintainedFrom });
+      } else if (callee === "effect") {
+        effects.set(name, name);
       } else if (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) {
         helpers.set(name, declaration.initializer);
       }
     }
   }
-  return { sourceFile, source, fileName, tables, helpers, exports };
-}
-
-function findPolicyRefusal(module: ModuleInfo): FrontendDiagnostic | undefined {
-  let found: FrontendDiagnostic | undefined;
-  const visit = (node: ts.Node, currentFunction?: string) => {
-    if (found) return;
-    if (ts.isFunctionDeclaration(node) && node.name) currentFunction = node.name.text;
-
-    if (ts.isWhileStatement(node)) {
-      found = diagnostic(
-        module,
-        "E_OPAQUE",
-        node,
-        "while loops have no static iteration bound",
-        rewriteWhile(module.source, node),
-      );
-      return;
-    }
-    if (ts.isAwaitExpression(node) || hasAsyncModifier(node)) {
-      found = diagnostic(module, "E_OPAQUE", node, "async/await is outside data programs", module.source);
-      return;
-    }
-    if (ts.isCallExpression(node)) {
-      const name = callName(node);
-      if (name === "Date.now" || (name === "Date" && node.arguments.length === 0)) {
-        found = diagnostic(
-          module,
-          "E_AMBIENT_TIME",
-          node,
-          "ambient time is not replay-stable",
-          rewriteAmbientTime(module.source, node),
-        );
-        return;
-      }
-      if (["Math.random", "fetch", "setTimeout", "eval"].includes(name)) {
-        found = diagnostic(module, "E_OPAQUE", node, `${name} is outside the deterministic subset`, module.source);
-        return;
-      }
-      if (currentFunction && ts.isIdentifier(node.expression) && node.expression.text === currentFunction) {
-        found = diagnostic(module, "E_OPAQUE", node, "recursive helpers must use recurse with depth and fanout", module.source);
-        return;
-      }
-    }
-    ts.forEachChild(node, (child) => visit(child, currentFunction));
-  };
-  visit(module.sourceFile);
-  if (found) return found;
-
-  const reductions: ts.CallExpression[] = [];
-  const scans: ts.CallExpression[] = [];
-  const forLoops: ts.ForOfStatement[] = [];
-  const structuralSorts: ts.ElementAccessExpression[] = [];
-  walk(module.sourceFile, (node) => {
-    if (ts.isCallExpression(node) && callName(node).endsWith(".scan")) scans.push(node);
-    if (ts.isCallExpression(node) && ["count", "reduce"].includes(memberName(node.expression) ?? "")) reductions.push(node);
-    if (ts.isForOfStatement(node)) forLoops.push(node);
-    if (ts.isElementAccessExpression(node) && isZero(node.argumentExpression) && containsCall(node.expression, ".sort")) {
-      structuralSorts.push(node);
-    }
-  });
-
-  for (const reduction of reductions) {
-    const scan = firstDescendantCall(reduction.expression, ".scan");
-    if (!scan) continue;
-    if (!scanTake(scan)) {
-      return diagnostic(
-        module,
-        "E_UNBOUND_COUNT",
-        reduction,
-        "an exact reduction over a growing population has no static bound",
-        rewriteUnboundCount(module.source),
-      );
-    }
-    if (scanIsPrivate(module, scan)) {
-      return structuralDiagnostic(module, reduction, scan);
-    }
-  }
-
-  for (const access of structuralSorts) {
-    const scan = firstDescendantCall(access.expression, ".scan");
-    if (scan && scanIsPrivate(module, scan)) return structuralDiagnostic(module, access, scan);
-  }
-
-  for (const loop of forLoops) {
-    const scan = firstDescendantCall(loop.expression, ".scan");
-    if (scan && scanIsPrivate(module, scan) && containsIncrement(loop.statement)) {
-      return structuralLoopDiagnostic(module, loop, scan);
-    }
-    if (containsCall(loop.expression, ".split") && !boundedSplit(loop.expression)) {
-      return diagnostic(
-        module,
-        "E_UNBOUND_LOOP",
-        loop.expression,
-        "split-derived loop cardinality is not declared",
-        rewriteSplit(module.source),
-      );
-    }
-  }
-
-  for (const scan of scans) {
-    if (!scanTake(scan)) {
-      return diagnostic(
-        module,
-        "E_UNBOUND_SCAN",
-        scan,
-        "scan requires a literal take or an argument with a declared maximum",
-        rewriteMapReturns(rewriteAllScans(module.sourceFile, module.source)),
-      );
-    }
-  }
-  const bound = boundRefusal(module);
-  if (bound) return bound;
-  return undefined;
+  return { sourceFile, source, fileName, tables, effects, helpers, exports };
 }
 
 function lowerOperation(
@@ -313,7 +236,7 @@ function lowerOperation(
     const argName = propertyName(property.name);
     if (!argName) refuse(module, "E_OPAQUE", property, "computed argument names are not supported");
     const descriptor = unwrapCall(property.initializer);
-    if (descriptor && ts.isIdentifier(descriptor.expression) && descriptor.expression.text === "list") {
+    if (descriptor && descriptorName(descriptor) === "list") {
       const options = descriptor.arguments[1];
       const max = options && ts.isObjectLiteralExpression(options) ? numberProperty(options, "max") : undefined;
       if (max === undefined) refuse(module, "E_UNBOUND_LOOP", property, `list argument ${argName} needs max`);
@@ -459,6 +382,23 @@ function lowerControlled(statement: ts.Statement, env: Environment): Stmt[] {
 
 function lowerExpressionStatement(expression: ts.Expression, env: Environment): Stmt[] {
   if (ts.isCallExpression(expression)) {
+    if (ts.isIdentifier(expression.expression) && expression.expression.text === "emit") {
+      // @ref LLP 1001#8-emit-and-the-outbox — Emit is IR, never an authoring-process side effect.
+      if (env.kind === "Query") {
+        refuse(env, "E_EMIT_IN_QUERY", expression, "emit is available only in mutations");
+      }
+      const effectNode = expression.arguments[0];
+      const payloadNode = expression.arguments[1];
+      if (!effectNode || !ts.isIdentifier(effectNode) || !payloadNode) {
+        refuse(env, "E_EFFECT_UNKNOWN", expression, "emit requires an imported effect and a JSON payload");
+      }
+      const effect = env.effects.get(effectNode.text);
+      if (!effect) {
+        refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.text} is not declared in this project`);
+      }
+      const payload = lowerValue(payloadNode, env, `${env.programName}.emit`);
+      return [...payload.statements, { Emit: { effect, payload: payload.expression } }];
+    }
     if (ts.isPropertyAccessExpression(expression.expression)) {
       const owner = expression.expression.expression;
       const method = expression.expression.name.text;
@@ -1544,222 +1484,8 @@ function staticBound(node: ts.Expression, env: Environment): number | undefined 
   return undefined;
 }
 
-function diagnostic(
-  module: Pick<ModuleInfo, "sourceFile" | "fileName">,
-  family: DiagnosticFamily,
-  node: ts.Node,
-  message: string,
-  rewrite: string,
-): FrontendDiagnostic {
-  return { family, span: span(module, node), message, rewrite };
-}
-
-function span(module: Pick<ModuleInfo, "sourceFile" | "fileName">, node: ts.Node): Span {
-  const start = node.getStart(module.sourceFile);
-  const position = module.sourceFile.getLineAndCharacterOfPosition(start);
-  return {
-    file: module.fileName,
-    start,
-    end: node.getEnd(),
-    line: position.line + 1,
-    column: position.character + 1,
-  };
-}
-
-function refuse(
-  module: Pick<ModuleInfo, "sourceFile" | "source" | "fileName">,
-  family: DiagnosticFamily,
-  node: ts.Node,
-  message: string,
-  rewrite = module.source,
-): never {
-  throw new Refusal(diagnostic(module, family, node, message, rewrite));
-}
-
-function structuralDiagnostic(module: ModuleInfo, node: ts.Node, scan: ts.CallExpression): FrontendDiagnostic {
-  const replacement = maintainedReplacement(module, scan);
-  return diagnostic(
-    module,
-    "E_STRUCTURAL_COUNT",
-    node,
-    "reduction would expose a fact about rows hidden by a non-tautologous rule",
-    replacement ? replaceNode(module.source, node, replacement) : module.source,
-  );
-}
-
-function structuralLoopDiagnostic(module: ModuleInfo, loop: ts.ForOfStatement, scan: ts.CallExpression): FrontendDiagnostic {
-  const replacement = maintainedReplacement(module, scan) ?? "null";
-  let start = loop.getStart(module.sourceFile);
-  let end = loop.getEnd();
-  const previous = previousStatement(module.sourceFile, loop);
-  const next = nextStatement(module.sourceFile, loop);
-  if (previous && ts.isVariableStatement(previous) && next && ts.isReturnStatement(next)) {
-    start = previous.getStart(module.sourceFile);
-    end = next.getEnd();
-  }
-  return diagnostic(
-    module,
-    "E_STRUCTURAL_COUNT",
-    loop,
-    "loop tally would expose a structural count through caller visibility",
-    `${module.source.slice(0, start)}return ${replacement};${module.source.slice(end)}`,
-  );
-}
-
-function maintainedReplacement(module: ModuleInfo, scan: ts.CallExpression): string | undefined {
-  const target = scan.arguments[0];
-  const prefix = scan.arguments[1];
-  if (!target || !prefix) return undefined;
-  const table = tableReference(target, { tables: module.tables }).table;
-  const maintained = [...module.tables.entries()].find(([, info]) => {
-    const source = info.maintainedFrom ? module.tables.get(info.maintainedFrom) : undefined;
-    return source?.name === table;
-  });
-  if (!maintained) return undefined;
-  const key = ts.isArrayLiteralExpression(prefix) && prefix.elements.length === 1
-    ? prefix.elements[0]!.getText(module.sourceFile)
-    : prefix.getText(module.sourceFile);
-  return `db.get(${maintained[0]}, ${key})`;
-}
-
-function rewriteAllScans(sourceFile: ts.SourceFile, source: string): string {
-  const edits: Array<{ start: number; end: number; text: string }> = [];
-  walk(sourceFile, (node) => {
-    if (!ts.isCallExpression(node) || !callName(node).endsWith(".scan") || scanTake(node)) return;
-    if (node.arguments.length < 3) {
-      edits.push({ start: node.arguments.end, end: node.arguments.end, text: ", { take: 50 }" });
-      return;
-    }
-    const options = node.arguments[2];
-    if (options && ts.isObjectLiteralExpression(options)) {
-      const at = options.properties.pos;
-      edits.push({ start: at, end: at, text: "take: 50, " });
-    }
-  });
-  return applyEdits(source, edits);
-}
-
-function rewriteUnboundCount(source: string): string {
-  const sourceFile = ts.createSourceFile("rewrite.ts", source, ts.ScriptTarget.ES2022, true);
-  let rewritten = rewriteAllScans(sourceFile, source);
-  rewritten = rewritten.replace(/\.count\s*\(\s*\)/g, ".countCapped()");
-  return rewritten;
-}
-
-function rewriteMapReturns(source: string): string {
-  const sourceFile = ts.createSourceFile("rewrite-map.ts", source, ts.ScriptTarget.ES2022, true);
-  const edits: Array<{ start: number; end: number; text: string }> = [];
-  walk(sourceFile, (node) => {
-    if (!ts.isReturnStatement(node) || !node.expression || !ts.isCallExpression(node.expression)
-      || !ts.isPropertyAccessExpression(node.expression.expression)
-      || node.expression.expression.name.text !== "map") return;
-    const callback = node.expression.arguments[0];
-    if (!callback || !isFunctionLike(callback) || callback.parameters.length !== 1
-      || !ts.isIdentifier(callback.parameters[0]!.name) || ts.isBlock(callback.body)) return;
-    const binding = callback.parameters[0].name.text;
-    const base = node.expression.expression.expression.getText(sourceFile);
-    const value = callback.body.getText(sourceFile);
-    edits.push({
-      start: node.getStart(sourceFile),
-      end: node.getEnd(),
-      text: `let mapped = []; for (const ${binding} of ${base}) mapped.push(${value}); return mapped;`,
-    });
-  });
-  return applyEdits(source, edits);
-}
-
-function rewriteSplit(source: string): string {
-  return source.replace(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.split\(\s*(['"]) \2\s*\)/g, "mentionTokens($1)");
-}
-
-function rewriteWhile(source: string, node: ts.WhileStatement): string {
-  if (!ts.isBinaryExpression(node.expression)
-    || node.expression.operatorToken.kind !== ts.SyntaxKind.LessThanToken
-    || !ts.isIdentifier(node.expression.left)
-    || numericLiteral(node.expression.right) === undefined) return source;
-  const variable = node.expression.left.text;
-  const end = numericLiteral(node.expression.right)!;
-  let body = node.statement.getText();
-  body = body.replace(new RegExp(`\\b${variable}\\+\\+\\s*;?`), "");
-  return replaceNode(source, node, `for (const _ of range(0, ${end})) ${body}`);
-}
-
-function rewriteAmbientTime(source: string, node: ts.CallExpression): string {
-  let rewritten = replaceNode(source, node, "ctx.now()");
-  if (!/\(\{[^}]*\bctx\b[^}]*\}\)\s*=>/.test(rewritten)) {
-    rewritten = rewritten.replace(/\(\{([^}]*)\}\)\s*=>/, (_match, bindings: string) => {
-      const values = bindings.split(",").map((value) => value.trim()).filter(Boolean);
-      const db = values.indexOf("db");
-      values.splice(db >= 0 ? db + 1 : 0, 0, "ctx");
-      return `({ ${values.join(", ")} }) =>`;
-    });
-  }
-  return rewritten;
-}
-
-function boundRefusal(module: ModuleInfo): FrontendDiagnostic | undefined {
-  let result: FrontendDiagnostic | undefined;
-  const visitLoop = (loop: ts.ForOfStatement, factors: Array<{ value: number; node: ts.Expression }>) => {
-    const scan = firstDescendantCall(loop.expression, ".scan");
-    const takeNode = scan && scan.arguments[2] && ts.isObjectLiteralExpression(scan.arguments[2])
-      ? expressionProperty(scan.arguments[2], "take")
-      : undefined;
-    const take = numericLiteral(takeNode);
-    const next = take !== undefined && takeNode ? [...factors, { value: take, node: takeNode }] : factors;
-    const product = next.reduce((total, factor) => total * factor.value, 1);
-    if (product > 10_240 && takeNode) {
-      const largest = [...next].sort((a, b) => b.value - a.value)[0]!;
-      const other = product / largest.value;
-      // Leave room for each scan's N+2 reservation and the outer scan itself.
-      const replacement = Math.max(1, Math.floor(10_240 / (other + 4)));
-      result = diagnostic(
-        module,
-        "E_BOUND",
-        loop,
-        `nested population product ${next.map((factor) => factor.value).join(" × ")} = ${product} exceeds 10240`,
-        replaceNode(module.source, largest.node, String(replacement)),
-      );
-      return;
-    }
-    const body = ts.isBlock(loop.statement) ? loop.statement.statements : [loop.statement];
-    for (const statement of body) {
-      if (result) return;
-      walk(statement, (node) => {
-        if (!result && ts.isForOfStatement(node) && node !== loop) visitLoop(node, next);
-      });
-    }
-  };
-  walk(module.sourceFile, (node) => {
-    if (!result && ts.isForOfStatement(node)
-      && !findAncestor(node, ts.isForOfStatement)) visitLoop(node, []);
-  });
-  return result;
-}
-
-function findAncestor<T extends ts.Node>(node: ts.Node, predicate: (node: ts.Node) => node is T): T | undefined {
-  let parent = node.parent;
-  while (parent) {
-    if (predicate(parent)) return parent;
-    parent = parent.parent;
-  }
-  return undefined;
-}
-
-function replaceNode(source: string, node: ts.Node, replacement: string): string {
-  return source.slice(0, node.getStart()) + replacement + source.slice(node.getEnd());
-}
-
-function applyEdits(source: string, edits: Array<{ start: number; end: number; text: string }>): string {
-  return edits
-    .sort((a, b) => b.start - a.start)
-    .reduce((text, edit) => text.slice(0, edit.start) + edit.text + text.slice(edit.end), source);
-}
-
-function scanIsPrivate(module: ModuleInfo, scan: ts.CallExpression): boolean {
-  const target = scan.arguments[0];
-  if (!target) return false;
-  const ref = tableReference(target, { tables: module.tables });
-  return [...module.tables.values()].some((info) => info.name === ref.table && info.private);
+function optionalLower(node: ts.Expression | undefined, env: Environment): Expr | null {
+  return node ? lowerExpr(node, env) : null;
 }
 
 function scanTake(call: ts.CallExpression): number | "arg" | undefined {
@@ -1768,213 +1494,4 @@ function scanTake(call: ts.CallExpression): number | "arg" | undefined {
   const take = expressionProperty(options, "take");
   if (!take) return undefined;
   return numericLiteral(take) ?? "arg";
-}
-
-function boundedSplit(expression: ts.Expression): boolean {
-  const text = expression.getText();
-  return /\.split\([^)]*\)\.slice\(\s*0\s*,\s*\d+\s*\)/.test(text) || text.includes("mentionTokens(");
-}
-
-function containsIncrement(node: ts.Node): boolean {
-  let found = false;
-  walk(node, (child) => {
-    if ((ts.isPostfixUnaryExpression(child) || ts.isPrefixUnaryExpression(child))
-      && (child.operator === ts.SyntaxKind.PlusPlusToken || child.operator === ts.SyntaxKind.MinusMinusToken)) found = true;
-  });
-  return found;
-}
-
-function containsCall(node: ts.Node, suffix: string): boolean {
-  let found = false;
-  walk(node, (child) => {
-    if (ts.isCallExpression(child) && callName(child).endsWith(suffix)) found = true;
-  });
-  return found;
-}
-
-function firstDescendantCall(node: ts.Node, suffix: string): ts.CallExpression | undefined {
-  let found: ts.CallExpression | undefined;
-  walk(node, (child) => {
-    if (!found && ts.isCallExpression(child) && callName(child).endsWith(suffix)) found = child;
-  });
-  return found;
-}
-
-function findNarrowestNode(sourceFile: ts.SourceFile, position: number): ts.Node {
-  let best: ts.Node = sourceFile;
-  const visit = (node: ts.Node) => {
-    if (node.getFullStart() <= position && position < node.getEnd()) {
-      best = node;
-      ts.forEachChild(node, visit);
-    }
-  };
-  visit(sourceFile);
-  return best;
-}
-
-function previousStatement(sourceFile: ts.SourceFile, node: ts.Statement): ts.Statement | undefined {
-  const statements = statementSiblings(sourceFile, node);
-  const index = statements?.indexOf(node) ?? -1;
-  return index > 0 ? statements![index - 1] : undefined;
-}
-
-function nextStatement(sourceFile: ts.SourceFile, node: ts.Statement): ts.Statement | undefined {
-  const statements = statementSiblings(sourceFile, node);
-  const index = statements?.indexOf(node) ?? -1;
-  return index >= 0 ? statements![index + 1] : undefined;
-}
-
-function statementSiblings(sourceFile: ts.SourceFile, node: ts.Statement): readonly ts.Statement[] | undefined {
-  if (node.parent === sourceFile) return sourceFile.statements;
-  if (ts.isBlock(node.parent)) return node.parent.statements;
-  return undefined;
-}
-
-function walk(node: ts.Node, visit: (node: ts.Node) => void): void {
-  visit(node);
-  ts.forEachChild(node, (child) => walk(child, visit));
-}
-
-function hasExport(node: ts.Node): boolean {
-  return ts.canHaveModifiers(node)
-    && !!ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
-}
-
-function hasAsyncModifier(node: ts.Node): boolean {
-  return !!ts.canHaveModifiers(node) && !!ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.AsyncKeyword);
-}
-
-function isFunctionLike(node: ts.Node): node is ts.ArrowFunction | ts.FunctionExpression {
-  return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
-}
-
-function unwrapCall(node: ts.Expression): ts.CallExpression | undefined {
-  const value = unwrapExpression(node);
-  return ts.isCallExpression(value) ? value : undefined;
-}
-
-function unwrapExpression(node: ts.Expression): ts.Expression {
-  let value = node;
-  while (ts.isParenthesizedExpression(value) || ts.isAsExpression(value) || ts.isNonNullExpression(value)) value = value.expression;
-  return value;
-}
-
-function callName(call: ts.CallExpression): string {
-  return call.expression.getText();
-}
-
-function memberName(node: ts.LeftHandSideExpression): string | undefined {
-  return ts.isPropertyAccessExpression(node) ? node.name.text : undefined;
-}
-
-function collectionConstructor(node: ts.Expression): "Map" | "Set" | undefined {
-  const value = unwrapExpression(node);
-  if (!ts.isNewExpression(value) || !ts.isIdentifier(value.expression)) return undefined;
-  return value.expression.text === "Map" || value.expression.text === "Set" ? value.expression.text : undefined;
-}
-
-function isDb(node: ts.Expression): boolean {
-  return ts.isIdentifier(node) && node.text === "db";
-}
-
-function isDbMember(node: ts.LeftHandSideExpression): boolean {
-  return ts.isPropertyAccessExpression(node) && isDb(node.expression);
-}
-
-function isDbWriteCall(node: ts.Expression): node is ts.CallExpression {
-  const call = unwrapCall(node);
-  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression)
-    && ["insert", "update", "upsert", "delete", "require", "assert"].includes(call.expression.name.text);
-}
-
-function isDbInsertCall(node: ts.Expression): boolean {
-  const call = unwrapCall(node);
-  return !!call && ts.isPropertyAccessExpression(call.expression) && isDb(call.expression.expression)
-    && call.expression.name.text === "insert";
-}
-
-function temporary(env: Environment, label: string): string {
-  const value = env.temp.value++;
-  return `__${label}${value}`;
-}
-
-function syntheticIdentifier(_sourceFile: ts.SourceFile, name: string): ts.Identifier {
-  return ts.factory.createIdentifier(name);
-}
-
-function propertyName(name: ts.PropertyName): string | undefined {
-  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name) ? name.text : undefined;
-}
-
-function expressionProperty(object: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined {
-  const property = object.properties.find((item): item is ts.PropertyAssignment =>
-    ts.isPropertyAssignment(item) && propertyName(item.name) === name);
-  return property?.initializer;
-}
-
-function numberProperty(object: ts.ObjectLiteralExpression, name: string): number | undefined {
-  return numericLiteral(expressionProperty(object, name));
-}
-
-function numericLiteral(node: ts.Expression | undefined): number | undefined {
-  return node && ts.isNumericLiteral(unwrapExpression(node)) ? Number((unwrapExpression(node) as ts.NumericLiteral).text) : undefined;
-}
-
-function stringLiteral(node: ts.Expression | undefined): string | undefined {
-  const value = node && unwrapExpression(node);
-  return value && ts.isStringLiteralLike(value) ? value.text : undefined;
-}
-
-function stringArgument(node: ts.Expression | undefined): string | undefined {
-  return stringLiteral(node);
-}
-
-function optionalLower(node: ts.Expression | undefined, env: Environment): Expr | null {
-  return node ? lowerExpr(node, env) : null;
-}
-
-function isZero(node: ts.Expression | undefined): boolean {
-  return numericLiteral(node) === 0;
-}
-
-function literal(value: null | boolean | number | string): Expr {
-  let encoded: Value;
-  if (value === null) encoded = "Null";
-  else if (typeof value === "boolean") encoded = { Bool: value };
-  else if (typeof value === "number") encoded = { Int: value };
-  else encoded = { String: value };
-  return { Literal: encoded };
-}
-
-function binaryOperator(kind: ts.SyntaxKind): string | undefined {
-  return new Map<ts.SyntaxKind, string>([
-    [ts.SyntaxKind.EqualsEqualsEqualsToken, "Eq"],
-    [ts.SyntaxKind.EqualsEqualsToken, "Eq"],
-    [ts.SyntaxKind.ExclamationEqualsEqualsToken, "Ne"],
-    [ts.SyntaxKind.ExclamationEqualsToken, "Ne"],
-    [ts.SyntaxKind.LessThanToken, "Lt"],
-    [ts.SyntaxKind.LessThanEqualsToken, "Lte"],
-    [ts.SyntaxKind.GreaterThanToken, "Gt"],
-    [ts.SyntaxKind.GreaterThanEqualsToken, "Gte"],
-    [ts.SyntaxKind.PlusToken, "Add"],
-    [ts.SyntaxKind.MinusToken, "Sub"],
-    [ts.SyntaxKind.AsteriskToken, "Mul"],
-    [ts.SyntaxKind.AmpersandAmpersandToken, "And"],
-    [ts.SyntaxKind.BarBarToken, "Or"],
-  ]).get(kind);
-}
-
-function singular(table: string): string {
-  return table.endsWith("ies") ? `${table.slice(0, -3)}y` : table.endsWith("s") ? table.slice(0, -1) : table;
-}
-
-function lowerFirst(value: string): string {
-  return value ? value[0]!.toLowerCase() + value.slice(1) : value;
-}
-
-function identifierFromArgsOrLocal(node: ts.Expression): string | undefined {
-  const value = unwrapExpression(node);
-  if (ts.isIdentifier(value)) return value.text;
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression) && value.expression.text === "args") return value.name.text;
-  return undefined;
 }
