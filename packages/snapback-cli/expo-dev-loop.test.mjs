@@ -92,6 +92,7 @@ const regularFileOnly = process.argv.includes('--regular-file-only');
 const retainedSessionLifecycleOnly = process.argv.includes('--retained-session-lifecycle-only');
 const supervisedWebSignOutReloadOnly = process.argv.includes('--supervised-web-signout-reload-only');
 const restartPortRebindOnly = process.argv.includes('--restart-port-rebind-only');
+const generationStagingOnly = process.argv.includes('--generation-staging-only');
 const retainedProcessTableNegativeOnly = process.argv.includes('--retained-process-table-negative-only');
 const retainedProcessTableInheritedSourceNegativeChild = process.argv.includes(
   '--retained-process-table-inherited-source-negative-child',
@@ -796,6 +797,7 @@ const scheduleRefresh = () => {
 };
 let generatedWatcher = null;
 let stagingWatcher = null;
+let generationStagingWatcher = null;
 if (watching && !skipGeneratedWatch && pollGeneratedAlias) {
   const aliasPath = join(generatedRoot, 'app.mjs');
   watchFile(aliasPath, { interval: 10 }, scheduleRefresh);
@@ -811,11 +813,26 @@ if (watching && !skipGeneratedWatch) {
     process.exit(86);
   });
 }
+// This watcher is the discriminating LLP 0317.000 L16/F1 proof. The test
+// harness forces CI mode, so unlike Metro's ordinary graph watcher it must
+// remain armed there: an in-tree generation candidate would reproduce the
+// exact FallbackWatcher crash instead of letting the test pass by omission.
+const generationsRoot = join(generatedRoot, '..', '..', '.snapback', 'generations');
+if (!skipGeneratedWatch && existsSync(generationsRoot)) {
+  generationStagingWatcher = watch(generationsRoot, (_event, filename) => {
+    const entry = String(filename ?? '').split(/[\\/]/u)[0];
+    if (!entry.startsWith('.tmp-') && !entry.startsWith('.latest-emitted.tmp-')) return;
+    console.error('ENOENT: Metro observed disappearing generation-envelope staging entry ' + entry);
+    process.exit(86);
+  });
+}
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_ENV, JSON.stringify({
   nodeOptions: process.env.NODE_OPTIONS,
   defaultResultOrder: getDefaultResultOrder(),
   ci: process.env.CI ?? null,
   watching,
+  generationTransientWatcherArmed: generationStagingWatcher !== null,
+  generationsRoot,
   backendOrigin: backendOrigin ?? null,
 }));
 writeFileSync(process.env.SNAPBACK_EXPO_TEST_BUNDLE, [
@@ -856,6 +873,7 @@ server.listen(port, '127.0.0.1', () => {
 const stop = () => {
   generatedWatcher?.close();
   stagingWatcher?.close();
+  generationStagingWatcher?.close();
   if (refreshTimer !== null) clearTimeout(refreshTimer);
   if (process.env.SNAPBACK_EXPO_TEST_METRO_STUBBORN_FIRST === '1' && launchCount === 1) return;
   server.close(() => process.exit(0));
@@ -1286,6 +1304,106 @@ async function startFixture(target, options = {}) {
     'supervised startup must not create or mutate any .env* file',
   );
   return { supervisor, events };
+}
+
+async function runGenerationStagingSafetySuite() {
+  // @ref LLP 0310.000#acceptance — C1 exercises the public generate command
+  // while Metro watches both generated graph custody and generation-envelope
+  // custody. Serving the successor proves watcher safety and graph freshness.
+  const target = fixture('generate-under-live-metro', {
+    sessions: false,
+    expoAtProjectRoot: true,
+  });
+  const criticalExits = [];
+  const run = await startFixture(target, {
+    platform: 'web',
+    onCriticalExit(error) { criticalExits.push(error); },
+  });
+  const { supervisor } = run;
+  const metroEnvironment = JSON.parse(readFileSync(target.metroEnv, 'utf8'));
+  assert.equal(
+    metroEnvironment.generationTransientWatcherArmed,
+    true,
+    'the live-generate proof must arm the .snapback/generations transient watcher even in CI mode',
+  );
+  assert.equal(
+    metroEnvironment.generationsRoot,
+    join(target.projectRoot, '.snapback', 'generations'),
+  );
+  const supervisorDescriptorPath = join(target.stateRoot, 'expo-supervisor.json');
+  const predecessorOwnerPid = JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).pid;
+  const predecessorBackendPid = JSON.parse(readFileSync(target.readyFile, 'utf8')).pid;
+  const predecessorMetroPid = supervisor.inspection().metro.pid;
+  const predecessorDescriptor = JSON.parse(readFileSync(
+    join(target.generatedRoot, 'app.descriptor.json'),
+    'utf8',
+  )).identity.descriptor;
+  const predecessorBundle = await (await fetch(`${supervisor.metroOrigin}/bundle`)).text();
+  assert.match(predecessorBundle, new RegExp(predecessorDescriptor, 'u'));
+
+  const functionsPath = join(target.backendRoot, 'functions.mjs');
+  const predecessorFunctions = readFileSync(functionsPath, 'utf8');
+  const successorFunctions = predecessorFunctions
+    .replace(
+      'export const publishLiveRow = defineJsMutation({',
+      'export const publishLiveRowAfterGenerate = defineJsMutation({',
+    )
+    .replace(
+      'mutations: { publish: bind(publishLiveRow,',
+      'mutations: { publish: bind(publishLiveRowAfterGenerate,',
+    );
+  assert.notEqual(successorFunctions, predecessorFunctions);
+  writeFileSync(functionsPath, successorFunctions);
+  const generated = await runSnapbackGenerate(target.backendRoot);
+  assert.equal(generated.outDir, target.generatedRoot);
+  const successorDescriptor = await eventually(() => {
+    const identity = JSON.parse(readFileSync(
+      join(target.generatedRoot, 'app.descriptor.json'),
+      'utf8',
+    )).identity.descriptor;
+    return identity === predecessorDescriptor ? false : identity;
+  }, { label: 'successor graph published by snapback generate' });
+  const successorBundle = await eventually(async () => {
+    const response = await fetch(`${supervisor.metroOrigin}/bundle`);
+    const source = await response.text();
+    return source.includes(successorDescriptor) ? { response, source } : false;
+  }, { timeoutMs: 30_000, label: 'Metro serves graph updated by snapback generate' });
+  assert.equal(successorBundle.source.includes(predecessorDescriptor), false);
+  assert.equal(JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).pid, predecessorOwnerPid);
+  assert.equal(JSON.parse(readFileSync(target.readyFile, 'utf8')).pid, predecessorBackendPid);
+  const successorMetroPid = supervisor.inspection().metro.pid;
+  if (successorMetroPid !== predecessorMetroPid) {
+    assert(
+      run.events.some((event) => (
+        event.state === 'metro-reloaded'
+        && event.reason === 'successor-binding'
+        && event.previousPid === predecessorMetroPid
+        && event.pid === successorMetroPid
+      )),
+      'a changed Metro child must be the supervisor\'s correlated successor-binding reload',
+    );
+  }
+  assert.equal(criticalExits.length, 0, criticalExits[0]?.stack);
+  assert.doesNotMatch(JSON.stringify(run.events), /SNAPBACK_EXPO_METRO_EXITED/u);
+  assert.deepEqual(
+    readdirSync(target.backendRoot).filter((name) => (
+      /^(?:\.generated\.tmp-|generated\.tmp-|generated\.bak-)/u.test(name)
+    )),
+    [],
+    'no codegen publication staging enters Metro\'s project tree',
+  );
+  assert.deepEqual(
+    readdirSync(join(target.projectRoot, '.snapback', 'generations')).filter((name) => (
+      name.startsWith('.tmp-') || name.startsWith('.latest-emitted.tmp-')
+    )),
+    [],
+    'no generation-envelope staging enters Metro\'s project tree',
+  );
+  await supervisor.close();
+  await eventually(() => !existsSync(target.readyFile), {
+    label: 'generate-under-live-Metro ready-file cleanup',
+  });
+  console.log('generation staging: live owner/backend/Metro survived and served the successor');
 }
 
 async function runRestartPortRebindSuite() {
@@ -4244,6 +4362,8 @@ async function runRegularFileControlInputSuite() {
 try {
   if (supervisedWebSignOutReloadOnly) {
     await runSupervisedWebSignOutReloadSuite();
+  } else if (generationStagingOnly) {
+    await runGenerationStagingSafetySuite();
   } else if (retainedSessionLifecycleOnly) {
     await runRetainedSessionLifecycleSuite();
   } else if (restartPortRebindOnly) {
@@ -4853,95 +4973,7 @@ writeFileSync('.snapback/cli-timeout-verify.json', JSON.stringify({
   assert.equal(existsSync(join(cliTimeoutArtifacts, 'expo-supervisor.json')), false);
   assert.equal(existsSync(join(cliTimeout.expoRoot, 'public')), false);
 
-  // @ref LLP 0310.000#acceptance — C1 exercises the public generate command
-  // while Metro watches the project that contains snapback/generated. The
-  // headless Metro child exits on any in-project generated staging directory,
-  // so serving the successor proves both watcher safety and graph freshness.
-  const generateLive = fixture('generate-under-live-metro', {
-    sessions: false,
-    expoAtProjectRoot: true,
-  });
-  const generateCriticalExits = [];
-  const generateRun = await startFixture(generateLive, {
-    platform: 'web',
-    onCriticalExit(error) { generateCriticalExits.push(error); },
-  });
-  const generateSupervisor = generateRun.supervisor;
-  const supervisorDescriptorPath = join(generateLive.stateRoot, 'expo-supervisor.json');
-  const predecessorOwnerPid = JSON.parse(
-    readFileSync(supervisorDescriptorPath, 'utf8'),
-  ).pid;
-  const generatePredecessorBackendPid = JSON.parse(
-    readFileSync(generateLive.readyFile, 'utf8'),
-  ).pid;
-  const generatePredecessorMetroPid = generateSupervisor.inspection().metro.pid;
-  const predecessorGeneratedDescriptor = JSON.parse(readFileSync(
-    join(generateLive.generatedRoot, 'app.descriptor.json'),
-    'utf8',
-  )).identity.descriptor;
-  const predecessorGeneratedBundle = await (
-    await fetch(`${generateSupervisor.metroOrigin}/bundle`)
-  ).text();
-  assert.match(predecessorGeneratedBundle, new RegExp(predecessorGeneratedDescriptor, 'u'));
-
-  const generateFunctionsPath = join(generateLive.backendRoot, 'functions.mjs');
-  const generatePredecessorFunctions = readFileSync(generateFunctionsPath, 'utf8');
-  const generateSuccessorFunctions = generatePredecessorFunctions
-    .replace(
-      'export const publishLiveRow = defineJsMutation({',
-      'export const publishLiveRowAfterGenerate = defineJsMutation({',
-    )
-    .replace(
-      'mutations: { publish: bind(publishLiveRow,',
-      'mutations: { publish: bind(publishLiveRowAfterGenerate,',
-    );
-  assert.notEqual(generateSuccessorFunctions, generatePredecessorFunctions);
-  writeFileSync(generateFunctionsPath, generateSuccessorFunctions);
-  const generatedByCommand = await runSnapbackGenerate(generateLive.backendRoot);
-  assert.equal(generatedByCommand.outDir, generateLive.generatedRoot);
-  const successorGeneratedDescriptor = await eventually(() => {
-    const identity = JSON.parse(readFileSync(
-      join(generateLive.generatedRoot, 'app.descriptor.json'),
-      'utf8',
-    )).identity.descriptor;
-    return identity === predecessorGeneratedDescriptor ? false : identity;
-  }, { label: 'successor graph published by snapback generate' });
-
-  const successorGeneratedBundle = await eventually(async () => {
-    const response = await fetch(`${generateSupervisor.metroOrigin}/bundle`);
-    const source = await response.text();
-    return source.includes(successorGeneratedDescriptor) ? { response, source } : false;
-  }, { timeoutMs: 30_000, label: 'Metro serves graph updated by snapback generate' });
-  assert.equal(successorGeneratedBundle.source.includes(predecessorGeneratedDescriptor), false);
-  assert(Number(successorGeneratedBundle.response.headers.get('x-metro-files-changed-count')) >= 1);
-  assert.equal(
-    JSON.parse(readFileSync(supervisorDescriptorPath, 'utf8')).pid,
-    predecessorOwnerPid,
-    'snapback generate preserves the supervised owner pid',
-  );
-  assert.equal(
-    JSON.parse(readFileSync(generateLive.readyFile, 'utf8')).pid,
-    generatePredecessorBackendPid,
-    'snapback generate preserves the backend pid',
-  );
-  assert.equal(
-    generateSupervisor.inspection().metro.pid,
-    generatePredecessorMetroPid,
-    'snapback generate preserves the Metro pid',
-  );
-  assert.equal(generateCriticalExits.length, 0, generateCriticalExits[0]?.stack);
-  assert.doesNotMatch(JSON.stringify(generateRun.events), /SNAPBACK_EXPO_METRO_EXITED/u);
-  assert.deepEqual(
-    readdirSync(generateLive.backendRoot).filter((name) => (
-      /^(?:\.generated\.tmp-|generated\.tmp-|generated\.bak-)/u.test(name)
-    )),
-    [],
-    'no codegen publication staging enters Metro\'s project tree',
-  );
-  await generateSupervisor.close();
-  await eventually(() => !existsSync(generateLive.readyFile), {
-    label: 'generate-under-live-Metro ready-file cleanup',
-  });
+  await runGenerationStagingSafetySuite();
 
   // Settled Sessions mode: real mint, provider boot, canonical live/mutation/
   // presence owners, HMR-shaped reattachment, reconnect, and authority barrier.

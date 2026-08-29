@@ -9180,6 +9180,7 @@ async function generateInProcessLocked({
       // succeeds and is explicitly non-authoritative build metadata.
       generationEnvelope = publishGenerationEnvelope({
         backendRoot: publicationBackendRoot,
+        stagingRoot: publicationStagingRoot,
         identities: splitIdentities,
         appIdentity: generationIdentityInputs.appIdentity,
         dataIdentity: generationIdentityInputs.dataIdentity,
@@ -9194,7 +9195,11 @@ async function generateInProcessLocked({
         reviewManifest: artifactIndex,
         testHooks: testHooks?.publication,
       });
-      recordLatestEmittedGeneration(generationEnvelope);
+      recordLatestEmittedGeneration({
+        ...generationEnvelope,
+        stagingRoot: publicationStagingRoot,
+        testHooks: testHooks?.generationEnvelope,
+      });
     }
   } catch (error) {
     rmSync(publicationStagingRoot, { recursive: true, force: true });

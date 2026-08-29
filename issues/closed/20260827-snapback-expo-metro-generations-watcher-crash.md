@@ -1,6 +1,6 @@
 # Supervised Expo Metro crashes (ENOENT) on `.snapback/generations/.tmp-*` codegen transients — `SNAPBACK_EXPO_METRO_EXITED`
 
-**Status:** Open
+**Status:** Closed
 **Systems:** Dev loop, Expo/Metro supervision, Codegen
 **Date:** 2026-08-27
 **Related:** LLP 0030 (managed snapback/vite dev), LLP 0061 (guide; guide-gap),
@@ -62,3 +62,25 @@ does not crawl/watch the dir Snapback churns.
 Lane run-logs under `~/clique-matrix-0129/lanes/{sol-snapback-explicit,
 sol-snapback-familiar}/run-log.md` on `expo-build-450b`; grok-0127 cell
 `benchmarks/runs/2026-08-25-clique-grok-0127/cells/grok-clique-familiar/`.
+
+## Resolution
+
+Closed by LLP 0317.000 Wave 3 lane L16/F1. Immutable generation envelopes and
+the non-authoritative `latest-emitted.json` pointer retain their stable paths
+under `.snapback/generations`, but their `.tmp-*` and
+`.latest-emitted.tmp-*` candidates are now written and verified in codegen's
+existing same-filesystem sibling publication staging root. Only the completed
+directory or file crosses into stable custody by atomic rename, so Metro never
+observes a transient entry that is subsequently removed.
+
+`packages/snapback-codegen/semantic-generation-rotation.test.mjs` proves both
+candidate kinds live outside the project tree, successful and failed staging
+roots are cleaned, immutable rotation remains deterministic, and a failed
+candidate preserves the predecessor envelope, generated graph, and latest
+pointer. `packages/snapback-cli/expo-dev-loop.test.mjs` keeps a transient-entry
+watcher armed even under its forced CI environment; live `snapback generate`
+must preserve the owner and backend, keep Metro serving the successor (with
+only the supervisor's explicit correlated successor-binding reload admitted),
+and never report `SNAPBACK_EXPO_METRO_EXITED`.
+The two template `blockList`s remain a compatible defense for older codegen
+versions rather than the primary fix.

@@ -806,8 +806,34 @@ export function generationEnvelopeRoot(backendRoot) {
   return join(projectRoot, '.snapback', 'generations');
 }
 
+function externalGenerationStagingRoot(root, stagingRoot) {
+  if (typeof stagingRoot !== 'string' || stagingRoot.length === 0) {
+    throw generationError(
+      'CODEGEN_WRITE_FAILED',
+      'generation envelope publication requires an external staging root',
+    );
+  }
+  const canonical = resolve(stagingRoot);
+  const projectRoot = dirname(dirname(root));
+  const projectRelative = relative(projectRoot, canonical);
+  if (
+    projectRelative === ''
+    || (!projectRelative.startsWith(`..${sep}`)
+      && projectRelative !== '..'
+      && !isAbsolute(projectRelative))
+  ) {
+    throw generationError(
+      'CODEGEN_WRITE_FAILED',
+      `generation envelope staging must stay outside the watched project tree: ${canonical}`,
+    );
+  }
+  mkdirSync(canonical, { recursive: true });
+  return canonical;
+}
+
 export function publishGenerationEnvelope({
   backendRoot,
+  stagingRoot,
   identities,
   appIdentity,
   dataIdentity,
@@ -817,6 +843,7 @@ export function publishGenerationEnvelope({
 }) {
   validateIdentities(identities);
   const root = generationEnvelopeRoot(backendRoot);
+  const staging = externalGenerationStagingRoot(root, stagingRoot);
   const envelopeRoot = safeGenerationPath(root, identities.generationId);
   mkdirSync(root, { recursive: true });
   const predecessorGenerationId = discoverPredecessor(root, identities.generationId);
@@ -838,7 +865,10 @@ export function publishGenerationEnvelope({
     members,
   };
   const integrityBytes = Buffer.from(`${canonicalGenerationJson(integrity, 2)}\n`, 'utf8');
-  const temporaryRoot = join(root, `.tmp-${process.pid}-${Date.now()}-${identities.generationId.slice(-12)}`);
+  // @ref LLP 0310.000#track-c--generate-must-not-kill-metro — immutable
+  // envelopes retain their stable in-project address, but candidate churn
+  // stays in the same-filesystem sibling staging root Metro does not crawl.
+  const temporaryRoot = join(staging, `.tmp-${process.pid}-${Date.now()}-${identities.generationId.slice(-12)}`);
   rmSync(temporaryRoot, { recursive: true, force: true });
   mkdirSync(temporaryRoot);
   try {
@@ -864,9 +894,10 @@ export function publishGenerationEnvelope({
   };
 }
 
-export function recordLatestEmittedGeneration({ root, generation }) {
+export function recordLatestEmittedGeneration({ root, generation, stagingRoot, testHooks = undefined }) {
+  const staging = externalGenerationStagingRoot(root, stagingRoot);
   const path = join(root, 'latest-emitted.json');
-  const temporaryPath = join(root, `.latest-emitted.tmp-${process.pid}-${Date.now()}`);
+  const temporaryPath = join(staging, `.latest-emitted.tmp-${process.pid}-${Date.now()}`);
   const record = {
     schemaVersion: LATEST_EMITTED_SCHEMA_VERSION,
     authority: 'non-authoritative-build-metadata',
@@ -874,6 +905,7 @@ export function recordLatestEmittedGeneration({ root, generation }) {
   };
   writeFileSync(temporaryPath, `${canonicalGenerationJson(record, 2)}\n`, { flag: 'wx' });
   try {
+    testHooks?.beforeLatestRename?.({ temporaryPath, path, record });
     renameSync(temporaryPath, path);
   } catch (error) {
     rmSync(temporaryPath, { force: true });

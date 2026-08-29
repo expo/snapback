@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -89,12 +89,21 @@ function generationDirectories(root) {
     .sort();
 }
 
+function pathIsInside(parent, candidate) {
+  const parentRelative = relative(parent, candidate);
+  return parentRelative === '' || (
+    parentRelative !== '..'
+    && !parentRelative.startsWith(`..${sep}`)
+    && !isAbsolute(parentRelative)
+  );
+}
+
 after(() => {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 });
 
 test('rotation matrix and deterministic immutable dual emission', async () => {
-  const { root } = initializeBackend();
+  const { project, root } = initializeBackend();
   const envelopeRoot = generationEnvelopeRoot(root);
 
   const checked = await generate(root, { check: true });
@@ -102,8 +111,40 @@ test('rotation matrix and deterministic immutable dual emission', async () => {
   assert.equal(checked.generationEnvelopeRoot, null);
   assert.equal(existsSync(envelopeRoot), false, '--check wrote a generation envelope');
 
-  const baseline = await generate(root);
+  let baselineEnvelopeTemporaryRoot = null;
+  let baselineLatestTemporaryPath = null;
+  const baseline = await generateInProcess(root, {}, {
+    generationEnvelope: {
+      beforeRename({ temporaryRoot }) {
+        baselineEnvelopeTemporaryRoot = temporaryRoot;
+        assert.equal(existsSync(temporaryRoot), true);
+      },
+      beforeLatestRename({ temporaryPath }) {
+        baselineLatestTemporaryPath = temporaryPath;
+        assert.equal(existsSync(temporaryPath), true);
+      },
+    },
+  });
   assert.equal(baseline.ok, true, JSON.stringify(baseline.diagnostics));
+  assert.equal(pathIsInside(project, baselineEnvelopeTemporaryRoot), false);
+  assert.equal(pathIsInside(project, baselineLatestTemporaryPath), false);
+  assert.equal(
+    dirname(baselineEnvelopeTemporaryRoot),
+    dirname(baselineLatestTemporaryPath),
+    'envelope and latest-pointer candidates share the external publication staging root',
+  );
+  assert.equal(
+    existsSync(dirname(baselineEnvelopeTemporaryRoot)),
+    false,
+    'successful generation removes the external publication staging root',
+  );
+  assert.equal(
+    readdirSync(envelopeRoot).some((name) => (
+      name.startsWith('.tmp-') || name.startsWith('.latest-emitted.tmp-')
+    )),
+    false,
+    'stable generation custody never contains transient publication entries',
+  );
   const baselineLegacy = operationImplementationHash(baseline);
   const baselineGenerationBytes = readFileSync(join(
     baseline.generationEnvelopeRoot,
@@ -188,7 +229,7 @@ test('rotation matrix and deterministic immutable dual emission', async () => {
 });
 
 test('failed envelope candidate is atomic and leaves prior output untouched', async () => {
-  const { root } = initializeBackend();
+  const { project, root } = initializeBackend();
   const baseline = await generate(root);
   assert.equal(baseline.ok, true, JSON.stringify(baseline.diagnostics));
   const envelopeRoot = generationEnvelopeRoot(root);
@@ -197,9 +238,11 @@ test('failed envelope candidate is atomic and leaves prior output untouched', as
   const priorLatestBytes = readFileSync(join(envelopeRoot, 'latest-emitted.json'));
 
   writeFileSync(join(root, 'functions.mjs'), functionSource({ behavior: '+ 2' }));
+  let failedTemporaryRoot = null;
   const failed = await generateInProcess(root, {}, {
     generationEnvelope: {
-      beforeRename() {
+      beforeRename({ temporaryRoot }) {
+        failedTemporaryRoot = temporaryRoot;
         const error = new Error('injected pre-rename envelope failure');
         error.code = 'CODEGEN_WRITE_FAILED';
         throw error;
@@ -207,6 +250,13 @@ test('failed envelope candidate is atomic and leaves prior output untouched', as
     },
   });
   assert.equal(failed.ok, false);
+  assert.equal(pathIsInside(project, failedTemporaryRoot), false);
+  assert.equal(existsSync(failedTemporaryRoot), false);
+  assert.equal(
+    existsSync(dirname(failedTemporaryRoot)),
+    false,
+    'failed generation removes the external publication staging root',
+  );
   assert(failed.diagnostics.some(({ message }) => /injected pre-rename envelope failure/u.test(message)));
   assert.deepEqual(generationDirectories(envelopeRoot), priorDirectories);
   assert(readFileSync(join(root, 'generated', 'artifacts.json')).equals(priorReviewBytes));
