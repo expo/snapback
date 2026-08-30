@@ -3,15 +3,31 @@
 pub mod certificate;
 pub mod client;
 pub mod engine;
+pub mod identity;
 pub mod ir;
+pub mod live;
 pub mod programs;
+pub mod registry;
 pub mod schema;
+pub mod store;
+pub mod successor;
 pub mod value;
 
-pub use certificate::{Ceilings, Certificate, CheckError, Checker, PredictionMode};
+pub use certificate::{
+    Ceilings, Certificate, CheckError, Checker, Completeness, PredictionMode, ReadSite, WriteKind,
+    WriteSite,
+};
 pub use client::{ClientStore, LocalState};
-pub use engine::{Context, Engine, Execution, RuntimeError, StopReason};
+pub use engine::{
+    AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
+    RuntimeError, StopReason,
+};
+pub use identity::{IdentityError, Principal, Session};
 pub use ir::*;
+pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use programs::*;
+pub use registry::{ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, Runtime};
 pub use schema::*;
+pub use store::{CommitRecord, Store, TouchedKey};
+pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;

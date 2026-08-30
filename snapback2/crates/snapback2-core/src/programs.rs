@@ -194,6 +194,9 @@ pub fn spike_schema() -> Schema {
                 }),
             },
         ],
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
     }
 }
 

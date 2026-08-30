@@ -1,5 +1,5 @@
-use snapback2_core::*;
 use pretty_assertions::assert_eq;
+use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -325,16 +325,20 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
         .unwrap();
     assert_ne!(execution.result, Value::Null);
     assert_eq!(execution.receipt.verdicts.len(), 1);
-    assert!(execution
-        .receipt
-        .rows
-        .iter()
-        .all(|row| row.table != "entitlements"));
-    assert!(execution
-        .receipt
-        .ranges
-        .iter()
-        .all(|range| range.table != "entitlements"));
+    assert!(
+        execution
+            .receipt
+            .rows
+            .iter()
+            .all(|row| row.table != "entitlements")
+    );
+    assert!(
+        execution
+            .receipt
+            .ranges
+            .iter()
+            .all(|range| range.table != "entitlements")
+    );
     assert!(execution.trace.rule_inputs.iter().any(|input| input.hidden));
 }
 
@@ -345,9 +349,11 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
         .check(&nested_expenses_program())
         .unwrap_err();
     assert_eq!(error.code, "E_BOUND");
-    assert!(error
-        .message
-        .contains("expenses take 500 × shares take 50 = 25000"));
+    assert!(
+        error
+            .message
+            .contains("expenses take 500 × shares take 50 = 25000")
+    );
     assert!(error.rewrite.contains("maintain.count/sum"));
 
     let helper_certificate = checker(&schema)
@@ -382,10 +388,12 @@ fn bound_products_helpers_and_structural_counts_are_checked() {
     let maintained = checker(&schema)
         .check(&maintained_waitlist_count_program())
         .unwrap();
-    assert!(maintained
-        .disclosures
-        .iter()
-        .any(|item| item.contains("waitlist") && item.contains("waitCounts")));
+    assert!(
+        maintained
+            .disclosures
+            .iter()
+            .any(|item| item.contains("waitlist") && item.contains("waitCounts"))
+    );
 }
 
 #[test]
@@ -545,13 +553,14 @@ fn receipt_only_client_replays_prediction_halo_computed_partial_and_revocation()
         .find(|site| site.mode == PredictionMode::Partial)
         .unwrap();
     assert_eq!(partial_prediction.reads, vec!["thread.mentionUser"]);
-    assert!(pair
-        .prediction_sites
-        .iter()
-        .find(|site| site.mode == PredictionMode::Closed)
-        .unwrap()
-        .reads
-        .contains(&"thread.author".to_owned()));
+    assert!(
+        pair.prediction_sites
+            .iter()
+            .find(|site| site.mode == PredictionMode::Closed)
+            .unwrap()
+            .reads
+            .contains(&"thread.author".to_owned())
+    );
 
     let mut server = Engine::memory(schema.clone()).unwrap();
     seed_identity(&mut server);
@@ -692,10 +701,12 @@ fn maintained_unread_256_member_fanout_records_p95() {
     let schema = spike_schema();
     let program = send_program(true);
     let certificate = checker(&schema).check(&program).unwrap();
-    assert!(certificate
-        .write_sites
-        .iter()
-        .any(|site| { site.table == "unreads" && site.max_rows == 256 }));
+    assert!(
+        certificate
+            .write_sites
+            .iter()
+            .any(|site| { site.table == "unreads" && site.max_rows == 256 })
+    );
     let mut engine = Engine::memory(schema).unwrap();
     engine
         .seed(
@@ -761,9 +772,11 @@ fn maintained_unread_256_member_fanout_records_p95() {
     eprintln!("maintained-unread fanout=256 p95_us={}", p95.as_micros());
     let unread_rows = engine.rows("unreads").unwrap();
     assert_eq!(unread_rows.len(), 256);
-    assert!(unread_rows
-        .iter()
-        .all(|row| row.field("value").unwrap() == &Value::Int(9)));
+    assert!(
+        unread_rows
+            .iter()
+            .all(|row| row.field("value").unwrap() == &Value::Int(9))
+    );
     assert!(p95 > Duration::ZERO);
 }
 

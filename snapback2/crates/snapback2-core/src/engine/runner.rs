@@ -4,8 +4,8 @@ use super::*;
 use crate::certificate::Certificate;
 use crate::ir::*;
 use crate::schema::*;
-use crate::value::{canonical_json, digest, object, Value, ValueError, I53_MAX, I53_MIN};
-use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Transaction};
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -22,7 +22,7 @@ pub(super) enum Flow {
 pub(super) struct Runner<'a> {
     pub(super) tx: &'a Transaction<'a>,
     pub(super) schema: &'a Schema,
-    pub(super) certificate: &'a Certificate,
+    pub(super) certificate: Option<&'a Certificate>,
     pub(super) context: Context,
     pub(super) env: BTreeMap<String, Value>,
     pub(super) consts: BTreeSet<String>,
@@ -30,6 +30,7 @@ pub(super) struct Runner<'a> {
     pub(super) receipt: ClosureReceipt,
     pub(super) rule_memo: BTreeMap<String, bool>,
     pub(super) verdicts: &'a [Verdict],
+    pub(super) seq: u64,
 }
 
 impl<'a> Runner<'a> {
@@ -39,12 +40,13 @@ impl<'a> Runner<'a> {
         certificate: &'a Certificate,
         context: Context,
         verdicts: &'a [Verdict],
+        seq: u64,
     ) -> Self {
         let env = context.args.clone();
         Self {
             tx,
             schema,
-            certificate,
+            certificate: Some(certificate),
             context,
             env,
             consts: BTreeSet::new(),
@@ -52,6 +54,30 @@ impl<'a> Runner<'a> {
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
             verdicts,
+            seq,
+        }
+    }
+
+    pub(super) fn probe(
+        tx: &'a Transaction<'a>,
+        schema: &'a Schema,
+        context: Context,
+        verdicts: &'a [Verdict],
+        seq: u64,
+    ) -> Self {
+        let env = context.args.clone();
+        Self {
+            tx,
+            schema,
+            certificate: None,
+            context,
+            env,
+            consts: BTreeSet::new(),
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            rule_memo: BTreeMap::new(),
+            verdicts,
+            seq,
         }
     }
 
@@ -93,7 +119,7 @@ impl<'a> Runner<'a> {
                                 expected: "array",
                                 actual: other.kind(),
                             }
-                            .into())
+                            .into());
                         }
                     }
                     Flow::Next
@@ -160,6 +186,11 @@ impl<'a> Runner<'a> {
                 Stmt::Delete { table, key } => {
                     let key = self.expr(key)?;
                     self.delete(table, key.as_str()?)?;
+                    Flow::Next
+                }
+                Stmt::Emit { effect, payload } => {
+                    let payload = self.expr(payload)?;
+                    self.emit(effect, payload)?;
                     Flow::Next
                 }
                 Stmt::Return(value) => Flow::Return(self.expr(value)?),
@@ -324,7 +355,12 @@ impl<'a> Runner<'a> {
         }
     }
 
-    pub(super) fn binary(&self, op: BinaryOp, left: Value, right: Value) -> Result<Value, RuntimeError> {
+    pub(super) fn binary(
+        &self,
+        op: BinaryOp,
+        left: Value,
+        right: Value,
+    ) -> Result<Value, RuntimeError> {
         let ordering = || left.total_cmp(&right);
         match op {
             BinaryOp::Eq => Ok(Value::Bool(left == right)),
@@ -347,7 +383,11 @@ impl<'a> Runner<'a> {
         }
     }
 
-    pub(super) fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
+    pub(super) fn builtin(
+        &mut self,
+        builtin: &Builtin,
+        mut args: Vec<Value>,
+    ) -> Result<Value, RuntimeError> {
         match builtin {
             Builtin::Len => {
                 let value = args
@@ -362,7 +402,7 @@ impl<'a> Runner<'a> {
                             expected: "string, array, or map",
                             actual: other.kind(),
                         }
-                        .into())
+                        .into());
                     }
                 };
                 Value::int(len as i128).map_err(Into::into)
@@ -586,7 +626,7 @@ impl<'a> Runner<'a> {
                 value as usize
             }
         };
-        let rows = scan_indexed(
+        let mut rows = scan_indexed(
             self.tx,
             &scan.table,
             &scan.index,
@@ -598,6 +638,9 @@ impl<'a> Runner<'a> {
             scan.order,
             take.saturating_add(2),
         )?;
+        for row in &mut rows {
+            materialize_optional_fields(row, table);
+        }
         let stop = if rows.len() > take {
             StopReason::Limit
         } else {

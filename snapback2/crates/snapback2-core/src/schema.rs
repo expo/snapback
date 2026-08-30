@@ -1,5 +1,5 @@
-use crate::ir::KeyProvenance;
-use crate::value::{digest, Value};
+use crate::ir::{ArgType, KeyProvenance};
+use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -8,6 +8,13 @@ pub struct Schema {
     pub tables: BTreeMap<String, Table>,
     #[serde(default)]
     pub maintains: Vec<Maintain>,
+    // @ref LLP 1001#9-schema-additions — defaults preserve the frozen S1 corpus shape.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub channels: BTreeMap<String, Channel>,
+    #[serde(default, skip_serializing_if = "Auth::is_default")]
+    pub auth: Auth,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<String>,
 }
 
 impl Schema {
@@ -40,10 +47,26 @@ pub enum ColumnType {
     Id,
     Text { max: u32 },
     Int,
+    // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
+    Enum { variants: Vec<String> },
+    Decimal { scale: u8 },
+    Money { currency: String, scale: u8 },
     Bool,
     Time,
     Ref { table: String },
     Json { max_bytes: u32 },
+    Optional(Box<ColumnType>),
+    List { of: Box<ColumnType>, max: u32 },
+}
+
+impl ColumnType {
+    pub(crate) fn contains_list(&self) -> bool {
+        match self {
+            Self::List { .. } => true,
+            Self::Optional(inner) => inner.contains_list(),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -145,6 +168,26 @@ pub struct Maintain {
 pub enum MaintainKind {
     Count,
     Sum { of: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Channel {
+    pub args: BTreeMap<String, ArgType>,
+    pub publish: RuleExpr,
+    pub subscribe: RuleExpr,
+    pub ttl_ms: u32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Auth {
+    pub password: bool,
+    pub guests: bool,
+}
+
+impl Auth {
+    fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
 }
 
 pub fn public_table(

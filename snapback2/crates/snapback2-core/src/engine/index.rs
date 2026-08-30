@@ -4,13 +4,12 @@ use super::*;
 use crate::certificate::Certificate;
 use crate::ir::*;
 use crate::schema::*;
-use crate::value::{canonical_json, digest, object, Value, ValueError, I53_MAX, I53_MIN};
-use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Transaction};
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
-
 
 #[derive(Clone)]
 pub(super) struct EvaluatedRange {
@@ -20,7 +19,7 @@ pub(super) struct EvaluatedRange {
     pub(super) lte: Option<Value>,
 }
 
-pub(super) fn fetch_table_connection(
+pub(crate) fn fetch_table_connection(
     connection: &Connection,
     table: &str,
 ) -> Result<Vec<Value>, RuntimeError> {
@@ -33,7 +32,7 @@ pub(super) fn fetch_table_connection(
     .collect()
 }
 
-pub(super) fn reindex_row(
+pub(crate) fn reindex_row(
     connection: &Connection,
     schema: &Schema,
     table_name: &str,
@@ -214,7 +213,7 @@ pub(super) fn encode_index_value(value: &Value) -> Result<String, RuntimeError> 
             return Err(RuntimeError::Schema(format!(
                 "{} is not an indexable scalar",
                 other.kind()
-            )))
+            )));
         }
     };
     Ok(encoded)
@@ -230,12 +229,24 @@ pub(super) fn hex(bytes: &[u8]) -> String {
     encoded
 }
 
-pub(super) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
+pub(crate) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
     index
         .columns
         .iter()
         .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
         .collect()
+}
+
+pub(crate) fn materialize_optional_fields(row: &mut Value, table: &Table) {
+    let fields = match row {
+        Value::Row(fields) | Value::Map(fields) => fields,
+        _ => return,
+    };
+    for (name, kind) in &table.columns {
+        if matches!(kind, ColumnType::Optional(_)) {
+            fields.entry(name.clone()).or_insert(Value::Null);
+        }
+    }
 }
 
 pub(super) fn row_ids(rows: &[Value]) -> Result<Vec<String>, RuntimeError> {
@@ -249,35 +260,52 @@ pub(super) fn row_ids(rows: &[Value]) -> Result<Vec<String>, RuntimeError> {
         .collect()
 }
 
-pub(super) fn validate_row(table: Option<&Table>, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
+pub(crate) fn validate_row(
+    table: Option<&Table>,
+    table_name: &str,
+    row: &Value,
+) -> Result<(), RuntimeError> {
     let table = table.ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     let object = row.as_object()?;
     if !object.contains_key("id") {
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
     for (name, kind) in &table.columns {
-        let value = object
-            .get(name)
-            .ok_or_else(|| RuntimeError::Schema(format!("{table_name}.{name} missing")))?;
-        let valid = match (kind, value) {
-            (ColumnType::Id | ColumnType::Ref { .. }, Value::Id(_)) => true,
-            (ColumnType::Text { max }, Value::String(text)) => {
-                text.chars().count() <= *max as usize
-            }
-            (ColumnType::Int | ColumnType::Time, Value::Int(value)) => {
-                (I53_MIN..=I53_MAX).contains(value)
-            }
-            (ColumnType::Bool, Value::Bool(_)) => true,
-            (ColumnType::Json { max_bytes }, value) => {
-                canonical_json(value).len() <= *max_bytes as usize
-            }
-            _ => false,
-        };
-        if !valid {
-            return Err(RuntimeError::Schema(format!(
+        if !valid_column_value(kind, object.get(name)) {
+            return Err(RuntimeError::Input(format!(
                 "{table_name}.{name} violates {kind:?}"
             )));
         }
     }
     Ok(())
+}
+
+fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
+    match (kind, value) {
+        (ColumnType::Optional(_), None | Some(Value::Null)) => true,
+        (ColumnType::Optional(inner), Some(value)) => valid_column_value(inner, Some(value)),
+        (ColumnType::List { of, max }, Some(Value::Array(values))) => {
+            values.len() <= *max as usize
+                && values
+                    .iter()
+                    .all(|value| valid_column_value(of, Some(value)))
+        }
+        (ColumnType::Id | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
+        (ColumnType::Text { max }, Some(Value::String(text))) => {
+            text.chars().count() <= *max as usize
+        }
+        (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
+        (
+            ColumnType::Int
+            | ColumnType::Time
+            | ColumnType::Decimal { .. }
+            | ColumnType::Money { .. },
+            Some(Value::Int(value)),
+        ) => (I53_MIN..=I53_MAX).contains(value),
+        (ColumnType::Bool, Some(Value::Bool(_))) => true,
+        (ColumnType::Json { max_bytes }, Some(value)) => {
+            canonical_json(value).len() <= *max_bytes as usize
+        }
+        _ => false,
+    }
 }

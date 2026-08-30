@@ -4,8 +4,8 @@ use super::*;
 use crate::certificate::Certificate;
 use crate::ir::*;
 use crate::schema::*;
-use crate::value::{canonical_json, digest, object, Value, ValueError, I53_MAX, I53_MIN};
-use rusqlite::{params, params_from_iter, Connection, OptionalExtension, Transaction};
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -27,12 +27,18 @@ impl<'a> Runner<'a> {
             params![table, id, canonical_json(&row)],
         )?;
         reindex_row(self.tx, self.schema, table, &row)?;
+        self.touch_row(table, &row)?;
         self.bump_write(table);
         self.maintain(table, None, Some(&row))?;
         Ok(())
     }
 
-    pub(super) fn update(&mut self, table: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
+    pub(super) fn update(
+        &mut self,
+        table: &str,
+        key: &Value,
+        patch: Value,
+    ) -> Result<(), RuntimeError> {
         let old = self.fetch_id(table, key.as_str()?)?.ok_or_else(|| {
             RuntimeError::Input(format!(
                 "missing {table} row {}",
@@ -46,7 +52,12 @@ impl<'a> Runner<'a> {
         self.replace(table, key, Value::Row(new))
     }
 
-    pub(super) fn replace(&mut self, table: &str, key: &Value, new: Value) -> Result<(), RuntimeError> {
+    pub(super) fn replace(
+        &mut self,
+        table: &str,
+        key: &Value,
+        new: Value,
+    ) -> Result<(), RuntimeError> {
         let old = self
             .fetch_id(table, key.as_str()?)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
@@ -60,11 +71,13 @@ impl<'a> Runner<'a> {
             });
         }
         self.check_constraints(table, Some(&old), &new, Effect::Update)?;
+        self.touch_row(table, &old)?;
         self.tx.execute(
             "UPDATE rows SET data = ?3 WHERE table_name = ?1 AND row_id = ?2",
             params![table, key.as_str()?, canonical_json(&new)],
         )?;
         reindex_row(self.tx, self.schema, table, &new)?;
+        self.touch_row(table, &new)?;
         self.bump_write(table);
         self.maintain(table, Some(&old), Some(&new))?;
         Ok(())
@@ -81,6 +94,7 @@ impl<'a> Runner<'a> {
             });
         }
         self.check_constraints(table, Some(&old), &old, Effect::Delete)?;
+        self.touch_row(table, &old)?;
         self.tx.execute(
             "DELETE FROM rows WHERE table_name = ?1 AND row_id = ?2",
             params![table, id],
@@ -153,38 +167,93 @@ impl<'a> Runner<'a> {
         for (field, value) in maintain.by.iter().zip(group) {
             row.insert(field.clone(), value);
         }
-        validate_row(
-            self.schema.table(&maintain.target),
-            &maintain.target,
-            &Value::Row(row.clone()),
-        )?;
+        self.write_aggregate_row(&maintain.target, Value::Row(row))
+    }
+
+    pub(super) fn write_aggregate_row(
+        &mut self,
+        target: &str,
+        row: Value,
+    ) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        let existing = self.fetch_id(target, &id)?;
+        validate_row(self.schema.table(target), target, &row)?;
         let effect = if existing.is_some() {
             Effect::Update
         } else {
             Effect::Insert
         };
-        if !self.check_rule(&maintain.target, effect, &Value::Row(row.clone()))? {
+        if !self.check_rule(target, effect, &row)? {
             return Err(RuntimeError::Rule {
-                table: maintain.target.clone(),
+                table: target.to_owned(),
                 effect,
             });
         }
-        self.check_constraints(
-            &maintain.target,
-            existing.as_ref(),
-            &Value::Row(row.clone()),
-            effect,
-        )?;
+        self.check_constraints(target, existing.as_ref(), &row, effect)?;
+        if let Some(existing) = &existing {
+            self.touch_row(target, existing)?;
+        }
         self.tx.execute(
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)
              ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
-            params![maintain.target, id, canonical_json(&Value::Row(row))],
+            params![target, id, canonical_json(&row)],
         )?;
         let aggregate = self
-            .fetch_id(&maintain.target, &id)?
+            .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
-        reindex_row(self.tx, self.schema, &maintain.target, &aggregate)?;
-        self.bump_write(&maintain.target);
+        reindex_row(self.tx, self.schema, target, &aggregate)?;
+        self.touch_row(target, &aggregate)?;
+        self.bump_write(target);
+        Ok(())
+    }
+
+    pub(super) fn emit(&mut self, effect: &str, payload: Value) -> Result<(), RuntimeError> {
+        let id = self
+            .context
+            .new_ids
+            .pop_front()
+            .ok_or_else(|| RuntimeError::Input("newId envelope exhausted".to_owned()))?;
+        let now = self
+            .context
+            .now
+            .ok_or_else(|| RuntimeError::Input("now was not pinned".to_owned()))?;
+        self.tx.execute(
+            "INSERT INTO _outbox(
+                id, seq, effect, payload, state, attempts, next_at,
+                last_error, result, created_at, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, NULL, NULL, ?5, ?5)",
+            params![id, self.seq as i64, effect, canonical_json(&payload), now],
+        )?;
+        self.trace.emits.push(EmitRecord {
+            id,
+            effect: effect.to_owned(),
+        });
+        self.bump_write("_outbox");
+        Ok(())
+    }
+
+    pub(super) fn touch_row(&mut self, table: &str, row: &Value) -> Result<(), RuntimeError> {
+        let table_schema = self
+            .schema
+            .table(table)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let row_id = row.field("id")?.as_str()?.to_owned();
+        if table_schema.indexes.is_empty() {
+            self.trace.touched.push(TouchedKey {
+                table: table.to_owned(),
+                index: String::new(),
+                key: Vec::new(),
+                row_id: row_id.clone(),
+            });
+        }
+        for (index, definition) in &table_schema.indexes {
+            self.trace.touched.push(TouchedKey {
+                table: table.to_owned(),
+                index: index.clone(),
+                key: index_values(row, definition),
+                row_id: row_id.clone(),
+            });
+        }
         Ok(())
     }
 
@@ -205,7 +274,7 @@ impl<'a> Runner<'a> {
                 Constraint::AppendOnly if effect != Effect::Insert => {
                     return Err(RuntimeError::Constraint(format!(
                         "{table_name} is appendOnly"
-                    )))
+                    )));
                 }
                 Constraint::Immutable { fields } if effect == Effect::Update => {
                     let old = old.expect("update has preimage");
@@ -319,15 +388,15 @@ impl<'a> Runner<'a> {
         effect: Effect,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
-        let rule = self
+        let table = self
             .schema
             .table(table)
-            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?
-            .rules
-            .for_effect(effect)
-            .clone();
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let rule = table.rules.for_effect(effect).clone();
+        let mut row = row.clone();
+        materialize_optional_fields(&mut row, table);
         let rule_hash = rule.hash();
-        self.eval_rule(&rule, &rule_hash, row)
+        self.eval_rule(&rule, &rule_hash, &row)
     }
 
     pub(super) fn eval_rule(
@@ -380,16 +449,16 @@ impl<'a> Runner<'a> {
                     return Ok(*result);
                 }
                 let hidden = *input_visibility == RuleInputVisibility::Hidden;
-                if hidden {
-                    if let Some(verdict) = self.verdicts.iter().find(|verdict| {
+                if hidden
+                    && let Some(verdict) = self.verdicts.iter().find(|verdict| {
                         verdict.rule_hash == rule_hash
                             && verdict.pinned_inputs_digest == pinned_inputs_digest
                             && verdict.principal == self.context.viewer
                             && verdict.auth_epoch == self.context.auth_epoch
-                    }) {
-                        self.rule_memo.insert(memo_key, verdict.result);
-                        return Ok(verdict.result);
-                    }
+                    })
+                {
+                    self.rule_memo.insert(memo_key, verdict.result);
+                    return Ok(verdict.result);
                 }
                 let found = self.lookup_raw(table, index, &key)?;
                 let result = found.is_some();
@@ -446,7 +515,11 @@ impl<'a> Runner<'a> {
         let index_schema = table_schema
             .index(index)
             .ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        lookup_indexed(self.tx, table, index, index_schema, key)
+        let mut found = lookup_indexed(self.tx, table, index, index_schema, key)?;
+        if let Some(row) = &mut found {
+            materialize_optional_fields(row, table_schema);
+        }
+        Ok(found)
     }
 
     pub(super) fn fetch_id(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
@@ -458,10 +531,19 @@ impl<'a> Runner<'a> {
                 |row| row.get(0),
             )
             .optional()?;
-        data.map(|data| {
-            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
-        })
-        .transpose()
+        let mut row = data
+            .map(|data| {
+                serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+            })
+            .transpose()?;
+        if let Some(row) = &mut row {
+            let table = self
+                .schema
+                .table(table)
+                .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+            materialize_optional_fields(row, table);
+        }
+        Ok(row)
     }
 
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {
@@ -495,29 +577,35 @@ impl<'a> Runner<'a> {
 
     pub(super) fn step(&mut self, amount: u64) -> Result<(), RuntimeError> {
         self.trace.steps = self.trace.steps.saturating_add(amount);
-        if self.trace.steps > self.certificate.max_steps {
-            return Err(RuntimeError::Steps(self.certificate.max_steps));
+        if let Some(certificate) = self.certificate
+            && self.trace.steps > certificate.max_steps
+        {
+            return Err(RuntimeError::Steps(certificate.max_steps));
         }
         Ok(())
     }
 
     pub(super) fn assert_bounds(&self) -> Result<(), RuntimeError> {
-        if self.trace.examined > self.certificate.max_examined {
+        let certificate = self
+            .certificate
+            .expect("ordinary program execution has a certificate");
+        if self.trace.examined > certificate.max_examined {
             return Err(RuntimeError::TraceSubset(format!(
                 "examined {} > certificate {}",
-                self.trace.examined, self.certificate.max_examined
+                self.trace.examined, certificate.max_examined
             )));
         }
-        if self.trace.rule_probes > self.certificate.max_rule_probes {
+        if self.trace.rule_probes > certificate.max_rule_probes {
             return Err(RuntimeError::TraceSubset(format!(
                 "rule probes {} > certificate {}",
-                self.trace.rule_probes, self.certificate.max_rule_probes
+                self.trace.rule_probes, certificate.max_rule_probes
             )));
         }
         let mut calls = BTreeMap::<&str, u64>::new();
         for point in &self.trace.points {
             let site = self
                 .certificate
+                .expect("checked above")
                 .read_sites
                 .iter()
                 .find(|site| site.site == point.site)
@@ -535,6 +623,7 @@ impl<'a> Runner<'a> {
         for range in &self.trace.ranges {
             let site = self
                 .certificate
+                .expect("checked above")
                 .read_sites
                 .iter()
                 .find(|site| site.site == range.site)
@@ -554,6 +643,7 @@ impl<'a> Runner<'a> {
         for (site, actual) in calls {
             let maximum = self
                 .certificate
+                .expect("checked above")
                 .read_sites
                 .iter()
                 .find(|read| read.site == site)
@@ -568,12 +658,13 @@ impl<'a> Runner<'a> {
         for (table, writes) in &self.trace.writes {
             let declared: u64 = self
                 .certificate
+                .expect("checked above")
                 .write_sites
                 .iter()
                 .filter(|site| &site.table == table)
                 .map(|site| site.max_rows)
                 .sum::<u64>()
-                + self.certificate.maintained_amplification;
+                + certificate.maintained_amplification;
             if *writes > declared
                 && !self
                     .schema
@@ -612,9 +703,19 @@ impl<'a> Runner<'a> {
                 )));
             }
         }
+        // @ref LLP 1001#2-what-a-commit-records — receipt absences stay inside the server trace.
+        // issues/20260829-bounded-programs-receipt-absences-unvalidated.md
+        for absence in &self.receipt.absences {
+            if !self.trace.absences.contains(absence) {
+                return Err(RuntimeError::TraceSubset(format!(
+                    "receipt absence {absence:?} absent from trace"
+                )));
+            }
+        }
         for verdict in &self.receipt.verdicts {
             if !self
                 .certificate
+                .expect("checked above")
                 .rule_hashes
                 .values()
                 .any(|hash| hash == &verdict.rule_hash)
@@ -634,7 +735,7 @@ impl<'a> Runner<'a> {
             }
         }
         for constraint in &self.trace.constraint_inputs {
-            if !self.certificate.constraint_checks.iter().any(|declared| {
+            if !certificate.constraint_checks.iter().any(|declared| {
                 declared.starts_with(&format!("{}:", constraint.table))
                     && declared.contains(&constraint.check)
             }) {
@@ -645,5 +746,48 @@ impl<'a> Runner<'a> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::certificate::{Ceilings, Checker};
+
+    #[test]
+    fn receipt_absence_missing_from_trace_is_rejected() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let schema = Schema::default();
+        let program = Program {
+            name: "absence-bound".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let verdicts = Vec::new();
+        let mut runner = Runner::new(
+            &transaction,
+            &schema,
+            &certificate,
+            Context::query("u1", BTreeMap::new()),
+            &verdicts,
+            0,
+        );
+        runner.receipt.absences.push((
+            "items".to_owned(),
+            "byId".to_owned(),
+            vec![Value::Id("missing".to_owned())],
+        ));
+
+        let error = runner.assert_bounds().unwrap_err();
+        assert!(error.to_string().starts_with("E_TRACE_SUBSET:"));
+        assert!(
+            matches!(error, RuntimeError::TraceSubset(message) if message.contains("receipt absence"))
+        );
     }
 }
