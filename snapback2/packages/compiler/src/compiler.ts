@@ -50,14 +50,7 @@ import {
   unwrapCall,
   unwrapExpression,
 } from "./syntax";
-import type {
-  Expr,
-  FrontendDiagnostic,
-  LowerResult,
-  Program,
-  Provenance,
-  Stmt,
-} from "./ir";
+import type { Expr, FrontendDiagnostic, LowerResult, Program, Provenance, Stmt } from "./ir";
 export type { TableInfo } from "./authored-types";
 export type VariableInfo = {
   provenance: Provenance;
@@ -78,11 +71,7 @@ type ModuleInfo = {
   helpers: Map<string, FunctionLike>;
   exports: Set<string>;
 };
-export type LowerSourceOptions = {
-  tables?: Map<string, TableInfo>;
-  effects?: Map<string, string>;
-  operationPrefix?: string;
-};
+export type LowerSourceOptions = { tables?: Map<string, TableInfo>; effects?: Map<string, string>; operationPrefix?: string };
 export type Environment = ModuleInfo & {
   programName: string;
   kind: "Query" | "Mutation";
@@ -297,43 +286,47 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   if (ts.isVariableStatement(statement)) {
     const out: Stmt[] = [];
     for (const declaration of statement.declarationList.declarations) {
-      if (!declaration.initializer) {
-        refuse(env, "E_OPAQUE", declaration, "destructuring declarations are not yet lowerable");
-      }
-      if (ts.isArrayBindingPattern(declaration.name)) {
-        const call = unwrapCall(declaration.initializer);
-        if (!call || !ts.isIdentifier(call.expression) || call.expression.text !== "orderedPair"
-          || declaration.name.elements.length !== 2 || call.arguments.length !== 2) {
-          refuse(env, "E_OPAQUE", declaration, "array destructuring is admitted only for orderedPair");
+      try {
+        if (!declaration.initializer) {
+          refuse(env, "E_OPAQUE", declaration, "destructuring declarations are not yet lowerable");
         }
-        const names = declaration.name.elements.map((element) => ts.isBindingElement(element) && ts.isIdentifier(element.name)
-          ? element.name.text
-          : undefined);
-        if (!names[0] || !names[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
-        const args = call.arguments.map((argument) => lowerExpr(argument, env));
-        out.push({ Let: { name: names[0], value: { Builtin: { builtin: "Min", args } } } });
-        out.push({ Let: { name: names[1], value: { Builtin: { builtin: "Max", args } } } });
-        env.variables.set(names[0], { provenance: combineProvenance(call.arguments.map((argument) => provenance(argument, env))) });
-        env.variables.set(names[1], { provenance: combineProvenance(call.arguments.map((argument) => provenance(argument, env))) });
-        continue;
+        if (ts.isArrayBindingPattern(declaration.name)) {
+          const call = unwrapCall(declaration.initializer);
+          if (!call || !ts.isIdentifier(call.expression) || call.expression.text !== "orderedPair"
+            || declaration.name.elements.length !== 2 || call.arguments.length !== 2) {
+            refuse(env, "E_OPAQUE", declaration, "array destructuring is admitted only for orderedPair");
+          }
+          const names = declaration.name.elements.map((element) => ts.isBindingElement(element) && ts.isIdentifier(element.name)
+            ? element.name.text
+            : undefined);
+          if (!names[0] || !names[1]) refuse(env, "E_OPAQUE", declaration.name, "orderedPair bindings must be identifiers");
+          const args = call.arguments.map((argument) => lowerExpr(argument, env));
+          out.push({ Let: { name: names[0], value: { Builtin: { builtin: "Min", args } } } });
+          out.push({ Let: { name: names[1], value: { Builtin: { builtin: "Max", args } } } });
+          env.variables.set(names[0], { provenance: combineProvenance(call.arguments.map((argument) => provenance(argument, env))) });
+          env.variables.set(names[1], { provenance: combineProvenance(call.arguments.map((argument) => provenance(argument, env))) });
+          continue;
+        }
+        if (!ts.isIdentifier(declaration.name)) refuse(env, "E_OPAQUE", declaration.name, "binding pattern is unsupported");
+        const name = declaration.name.text;
+        const lowered = lowerValue(declaration.initializer, env, `${env.programName}.${name}`);
+        const collection = collectionConstructor(declaration.initializer);
+        const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
+        const objectFields = isConst ? knownObjectFields(declaration.initializer, env) : undefined;
+        env.variables.set(name, {
+          provenance: provenance(declaration.initializer, env),
+          ...derivedBound(declaration.initializer, env),
+          ...(collection ? { collection } : {}),
+          ...(objectFields ? { objectFields } : {}),
+          ...(isNullableDbGet(declaration.initializer) ? { nullableRead: true } : {}),
+        });
+        out.push(...lowered.statements);
+        out.push(isConst
+          ? { Const: { name, value: lowered.expression } }
+          : { Let: { name, value: lowered.expression } });
+      } catch (error) {
+        captureRefusal(env.diagnostics, error);
       }
-      if (!ts.isIdentifier(declaration.name)) refuse(env, "E_OPAQUE", declaration.name, "binding pattern is unsupported");
-      const name = declaration.name.text;
-      const lowered = lowerValue(declaration.initializer, env, `${env.programName}.${name}`);
-      const collection = collectionConstructor(declaration.initializer);
-      const isConst = (statement.declarationList.flags & ts.NodeFlags.Const) !== 0;
-      const objectFields = isConst ? knownObjectFields(declaration.initializer, env) : undefined;
-      env.variables.set(name, {
-        provenance: provenance(declaration.initializer, env),
-        ...derivedBound(declaration.initializer, env),
-        ...(collection ? { collection } : {}),
-        ...(objectFields ? { objectFields } : {}),
-        ...(isNullableDbGet(declaration.initializer) ? { nullableRead: true } : {}),
-      });
-      out.push(...lowered.statements);
-      out.push(isConst
-        ? { Const: { name, value: lowered.expression } }
-        : { Let: { name, value: lowered.expression } });
     }
     return out;
   }
@@ -388,7 +381,13 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   refuse(env, "E_OPAQUE", statement, `statement ${ts.SyntaxKind[statement.kind]} is outside the subset`);
 }
 function lowerControlled(statement: ts.Statement, env: Environment): Stmt[] {
-  return ts.isBlock(statement) ? lowerStatements(statement.statements, env) : lowerStatement(statement, env);
+  if (ts.isBlock(statement)) return lowerStatements(statement.statements, env);
+  try {
+    return lowerStatement(statement, env);
+  } catch (error) {
+    captureRefusal(env.diagnostics, error);
+    return [];
+  }
 }
 function lowerExpressionStatement(expression: ts.Expression, env: Environment): Stmt[] {
   if (ts.isCallExpression(expression)) {

@@ -135,12 +135,15 @@ function lowerEffect(
 }
 
 function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.FunctionExpression): FrontendDiagnostic | undefined {
+  const roots: ts.Node[] = [...run.parameters, run.body];
   let imported: ts.Node | undefined;
-  walk(run.body, (node) => {
-    if (imported) return;
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") imported = node;
-    if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) imported = node;
-  });
+  for (const root of roots) {
+    walk(root, (node) => {
+      if (imported) return;
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require") imported = node;
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) imported = node;
+    });
+  }
   if (imported) return effectDiagnostic(module, "E_EFFECT_IMPORT", imported, "effect run cannot import or require modules");
 
   const bindings: Array<{ name: string; owner: ts.Node }> = [];
@@ -162,10 +165,12 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
     "btoa", "atob", "setTimeout", "Promise", "Error", "crypto", "undefined", "NaN", "Infinity",
   ]);
   let escaped: ts.Identifier | undefined;
-  walk(run.body, (node) => {
-    if (escaped || !ts.isIdentifier(node) || !isReferenceIdentifier(node)) return;
-    if (!allowed.has(node.text) && !bindings.some((binding) => binding.name === node.text && isWithin(node, binding.owner))) escaped = node;
-  });
+  for (const root of roots) {
+    walk(root, (node) => {
+      if (escaped || !ts.isIdentifier(node) || !isReferenceIdentifier(node)) return;
+      if (!allowed.has(node.text) && !bindings.some((binding) => binding.name === node.text && isWithin(node, binding.owner))) escaped = node;
+    });
+  }
   if (!escaped) return undefined;
   const spread = invalidConstantSpread(module.sourceFile, escaped.text, constants);
   return spread

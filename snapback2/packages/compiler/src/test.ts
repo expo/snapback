@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
@@ -139,6 +139,34 @@ test("one operation reports every lowering refusal and marks diagnostic truncati
   assert(!many.ok && many.diagnostics.length === 20, `per-operation diagnostic bound differs: ${many.ok ? 0 : many.diagnostics.length}`);
   const truncated = many.diagnostics.find((item) => item.code === "E_DIAG_TRUNCATED");
   assert(truncated?.message.includes("…and 6 more"), `per-operation truncation was silent or miscounted: ${truncated?.message}`);
+});
+
+test("multi-declarations and unbraced control bodies report every lowering refusal", () => {
+  const declarations = lowerSource(`import { query } from "snapback2";
+    export const bad = query({}, ({ db }) => {
+      const first = db.scan("first", [], { take: 1 }), second = db.scan("second", [], { take: 1 });
+      return null;
+    });`, "multi-declaration.ts");
+  assert(!declarations.ok, "two invalid declarations unexpectedly lowered");
+  const declarationMessages = declarations.diagnostics
+    .filter((item) => item.message.includes("static table/index reference required"))
+    .map((item) => item.message);
+  assert(declarationMessages.some((message) => message.includes('"first"'))
+    && declarationMessages.some((message) => message.includes('"second"')),
+  `multi-declaration recovery omitted a refusal: ${declarationMessages.join("; ")}`);
+
+  const controlled = lowerSource(`import { mutation } from "snapback2";
+    export const bad = mutation({}, ({ db }) => {
+      if (true) db.insert("first", { id: "1" }); else db.insert("second", { id: "2" });
+      return null;
+    });`, "unbraced-if.ts");
+  assert(!controlled.ok, "two invalid unbraced branches unexpectedly lowered");
+  const controlledMessages = controlled.diagnostics
+    .filter((item) => item.message.includes("static table/index reference required"))
+    .map((item) => item.message);
+  assert(controlledMessages.some((message) => message.includes('"first"'))
+    && controlledMessages.some((message) => message.includes('"second"')),
+  `unbraced control recovery omitted a refusal: ${controlledMessages.join("; ")}`);
 });
 
 test("all first-attempt refusals carry complete envelopes and mechanical rewrites", async () => {
@@ -345,9 +373,10 @@ test("the thenable property name is reserved at every generated API path", async
 
 test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
   await withProject({
-    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+    "snapback/schema.ts": `import { schema as defineSchema, table, t } from "snapback2";
+      export const schema = table({ columns: { label: t.text(100) } });
       export const todos = table({ columns: { value: t.text(100) } });
-      export default schema({ tables: { todos } });`,
+      export default defineSchema({ tables: { schema, todos } });`,
     "snapback/callbacks.ts": `import { mutation, t } from "snapback2";
       export const record = mutation({ outboxId: t.id(), effect: t.text(100), result: t.json<{ delivered: true }>(100) }, ({ args }) => args.result);`,
     "snapback/effects.ts": `import { effect } from "snapback2";
@@ -374,6 +403,7 @@ test("schema and program namespace imports resolve table, index, emit, and then 
     assert(encoded.includes('"effect":"effects.notify"'), "program namespace effect reference did not resolve");
     assert(project.project.effects[0]?.then === "callbacks.record", "program namespace then reference did not resolve");
     assert(project.apiDts.includes("list: Op<{}, Page<TodosRow>>"), "schema namespace scan lost its authored API row type");
+    assert(!project.apiDts.includes("list: Op<{}, Page<SchemaRow>>"), "API inference treated the namespace binding as the schema table");
   });
 });
 
@@ -441,14 +471,6 @@ test("single-file type diagnostics choose the same family from the authored site
   assert(has("E_ARGS_TYPE", "args"), "single-file argument type error did not use the args family");
   assert(has("E_OPAQUE", "opaque"), "single-file body type error did not use the opaque family");
   assert(has("E_EFFECT_TYPE", "effect"), "single-file effect type error did not use the effect family");
-});
-
-test("placeholder declarations export every not-built client, React, and journey symbol", async () => {
-  const declarations = await readFile(`${crate}packages/snapback2/types/placeholder.d.ts`, "utf8");
-  for (const name of ["createClient", "useQuery", "useMutation", "useAuth", "useChannel", "SnapbackProvider", "DevOverlay", "journey"]) {
-    assert(new RegExp(`export declare const ${name}\\b`).test(declarations), `placeholder declarations omit ${name}`);
-  }
-  assert((declarations.match(/=> never/g) ?? []).length === 8, "placeholder exports are not typed as never-returning callables");
 });
 
 test("client, React, and test modules expose their real callable surfaces", () => {
@@ -787,6 +809,23 @@ test("effect source expands JSON constant spreads and scopes every nested functi
   });
 });
 
+test("effect closure refusals include parameter, destructuring, and computed-name defaults", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      let someOuterName = { y: 0 };
+      export const parameterDefault = effect({ grants: ["https://api.example.com"], run: async (_payload: null = (someOuterName.y, null)) => null });
+      export const destructuringDefault = effect({ grants: ["https://api.example.com"], run: async ({ x = (someOuterName.y = 1) }: { x?: number }) => x });
+      export const computedName = effect({ grants: ["https://api.example.com"], run: async ({ [someOuterName.y]: x }: Record<number, unknown>) => x });`,
+  }, async (root) => {
+    const invalid = await lowerProject(root);
+    assert(!invalid.ok, "effects that close over parameter syntax unexpectedly compiled");
+    const closure = invalid.diagnostics.filter((item) => item.code === "E_EFFECT_CLOSURE" && item.message.includes("someOuterName"));
+    assert(closure.length === 3, `expected three parameter-syntax closure refusals, got ${closure.length}`);
+    assert(new Set(closure.map((item) => item.site)).size === 3, "parameter-syntax closure refusals did not retain distinct sites");
+  });
+});
+
 test("seed validation checks personas, tables, rows, and every schema value shape", async () => {
   const invalid = await lowerSeed(`${frontend}fixtures/seed-invalid`);
   assert(!invalid.ok, "invalid seed unexpectedly lowered");
@@ -872,8 +911,47 @@ test("npm pack from a clean dist builds every exported module and declaration", 
   for (const path of [
     "dist/compiler.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
     "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
-    "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
+    "dist/compiler-lib.d.ts",
   ]) assert(files.has(path), `npm pack omitted ${path}`);
+  assert(!files.has("dist/placeholder.d.ts"), "npm pack still contains the obsolete placeholder declarations");
+});
+
+test("client, React, and test imports typecheck against distinct real declarations", async () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  await withProject({
+    "surfaces.ts": `import { api, createClient } from "snapback2/client";
+      import { DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery } from "snapback2/react";
+      import { journey } from "snapback2/test";
+      const client = createClient({ url: "http://127.0.0.1:3210" });
+      journey("real declarations", ({ as }) => { const same: typeof client = as("alice"); void same; });
+      void [api, DevOverlay, SnapbackProvider, useAuth, useChannel, useMutation, useQuery];`,
+    "wrong-surface.ts": `import { createClient } from "snapback2/react"; void createClient;`,
+  }, async (root) => {
+    await mkdir(resolve(root, "node_modules"));
+    await symlink(packageRoot, resolve(root, "node_modules/snapback2"), "dir");
+    const options: ts.CompilerOptions = {
+      baseUrl: root,
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      noEmit: true,
+      skipLibCheck: true,
+      strict: true,
+      target: ts.ScriptTarget.ES2022,
+      types: ["react"],
+    };
+    const sample = resolve(root, "surfaces.ts");
+    const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [sample], options }))
+      .filter((item) => item.file?.fileName === sample);
+    assert(diagnostics.length === 0,
+      `real package declarations did not typecheck:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`);
+
+    const wrong = resolve(root, "wrong-surface.ts");
+    const wrongDiagnostics = ts.getPreEmitDiagnostics(ts.createProgram({ rootNames: [wrong], options }))
+      .filter((item) => item.file?.fileName === wrong);
+    assert(wrongDiagnostics.some((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n").includes("no exported member 'createClient'")),
+      "snapback2/react still aliases the client declaration surface");
+  });
 });
 
 test("the React template typechecks against the built snapback2/react package", () => {

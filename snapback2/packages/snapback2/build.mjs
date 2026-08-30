@@ -62,7 +62,6 @@ await build({
 await cp(resolve(here, "../compiler/lib.d.ts"), resolve(dist, "index.d.ts"));
 await cp(resolve(here, "../compiler/subset-lib.d.ts"), resolve(dist, "compiler-lib.d.ts"));
 await cp(resolve(here, "types/test.d.ts"), resolve(dist, "test.d.ts"));
-await cp(resolve(here, "types/placeholder.d.ts"), resolve(dist, "placeholder.d.ts"));
 
 const declarationProgram = ts.createProgram({
   rootNames: [
