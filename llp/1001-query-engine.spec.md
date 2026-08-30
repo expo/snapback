@@ -88,6 +88,8 @@ write, for every index of the table:
 
 ```rust
 pub struct TouchedKey { pub table: String, pub index: String, pub key: Vec<Value>, pub row_id: String }
+// A write to a table with no index still emits one TouchedKey { index: "", key: [] } — the
+// table-level sentinel `constraint_inputs` overlap matches on (ruling 2026-08-30).
 // AuthoritativeTrace gains: pub touched: Vec<TouchedKey>, pub emits: Vec<EmitRecord>
 ```
 
@@ -153,7 +155,7 @@ pub struct Generation {
 }
 impl Generation {
     /// Certify every program; report EVERY refusal, never the first (rules/RULES.md):
-    /// `Checker::check_all` returns every structural refusal of a program plus the first bound error.
+    /// `Checker::check_all` returns every structural refusal of a program and every ceiling overrun (all bounds are computed first, then compared).
     pub fn certify(project: &ProjectJson, ceilings: Ceilings) -> Result<Generation, Vec<(String, CheckError)>>;
 }
 pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
@@ -291,6 +293,12 @@ M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
+
+**Maintained-target rows are engine-owned** (ruling 2026-08-30, round 3 M3).
+The target table's `insert`/`update`/`delete` rules bind only non-engine
+writers — templates set them to `deny` — and the engine's aggregate writes
+are exempt from those rules and never from constraints or unique indexes.
+A user mutation writing a maintained target is `Rejected` by its rule.
 
 ## 8. `emit` and the outbox
 
