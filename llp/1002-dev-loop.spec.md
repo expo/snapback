@@ -92,8 +92,12 @@ program the compiler scales a decimal literal written against a `Decimal<S>`
 target (`price: 9.99` → `999` when `price` is `t.decimal(2)`), admits `+`, `-`,
 comparisons, and `min`/`max` between operands of the same scale and `*` by an
 `int`, and refuses everything else with `E_DECIMAL_SCALE` and a rewrite naming
-the scales. The wire carries the integer; the client's `decimal(9.99, 2)`
-helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
+the scales. **Every numeric literal written against a `Decimal<S>` target is in whole
+units and is scaled** — `price: 2`, `price: 2.00`, and `price: 2e0` all lower
+to `200` at scale 2 — so an integer literal can never be a silent 100× error;
+minor units are only ever carried by a value already typed `Decimal<S>` (a
+column read, an arg, the wire). The wire carries the integer; the client's
+`decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
 `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`, `or(…)`, `not(r)`,
 `exists(table, index, key[], { hidden? })`, `principal(kind)`, `viewerIs(field)`
 (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`, `literal(v)`. Each
