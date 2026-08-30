@@ -36,11 +36,20 @@ record.incremental_build_s = +incr.seconds.toFixed(2);
 
 const test = run("cargo", ["test", "-q", "-p", "snapback2-core"]);
 if (test.status !== 0) fail(`core tests failed\n${test.stdout}\n${test.stderr}`);
-record.test_s = +test.seconds.toFixed(2);
+record.core_test_s = +test.seconds.toFixed(2);
 
 const bin = resolve(root, "target/debug/snapback2");
 const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
-const compilerEnv = { ...process.env, SNAPBACK2_COMPILER: compiler };
+const packageBuild = run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") });
+if (packageBuild.status !== 0) fail(`package build failed\n${packageBuild.stdout}\n${packageBuild.stderr}`);
+const packageDist = resolve(root, "packages/snapback2/dist");
+const compilerEnv = {
+  ...process.env,
+  SNAPBACK2_COMPILER: compiler,
+  SNAPBACK2_GUIDE: resolve(packageDist, "guide"),
+  SNAPBACK2_TEMPLATES: resolve(packageDist, "templates"),
+  SNAPBACK2_TEST_RUNNER: resolve(packageDist, "test-runner.mjs"),
+};
 // Take the better of two adjacent runs so post-test scheduler/pipe teardown
 // noise is not mistaken for the binary's boot-to-ready latency.
 const doctorRuns = [
@@ -70,6 +79,22 @@ record.dev_boot_s = +dev.seconds.toFixed(3);
 const stop = run(bin, ["dev", "--project", devRoot, "--stop", "--json"]);
 if (stop.status !== 0) fail(`measured owner stop failed\n${stop.stdout}\n${stop.stderr}`);
 rmSync(devRoot, { recursive: true, force: true });
+
+const loopRoot = mkdtempSync(resolve(tmpdir(), "snapback2-init-measure-"));
+const initStarted = performance.now();
+const initialized = run(bin, ["init", loopRoot, "--template", "chat", "--client", "none", "--json"], { env: compilerEnv });
+if (initialized.status !== 0) fail(`init failed\n${initialized.stdout}\n${initialized.stderr}`);
+const initializedDev = run(bin, ["dev", "--project", loopRoot], { env: compilerEnv });
+if (initializedDev.status !== 0 || !initializedDev.stdout.includes("SNAPBACK_URL=")) {
+  fail(`initialized dev boot failed\n${initializedDev.stdout}\n${initializedDev.stderr}`);
+}
+record.init_to_dev_s = +((performance.now() - initStarted) / 1000).toFixed(3);
+const initializedStop = run(bin, ["dev", "--project", loopRoot, "--stop", "--json"], { env: compilerEnv });
+if (initializedStop.status !== 0) fail(`initialized owner stop failed\n${initializedStop.stdout}\n${initializedStop.stderr}`);
+const productTest = run(bin, ["test", "--project", loopRoot, "--json"], { env: compilerEnv });
+if (productTest.status !== 0) fail(`template test failed\n${productTest.stdout}\n${productTest.stderr}`);
+record.test_s = +productTest.seconds.toFixed(3);
+rmSync(loopRoot, { recursive: true, force: true });
 record.debug_binary_bytes = statSync(bin).size;
 try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
@@ -86,7 +111,7 @@ if (args.has("--check")) {
   };
   const checks = [
     ["Incremental rebuild", record.incremental_build_s],
-    ["Test what you just changed", record.test_s],
+    ["Test what you just changed", record.core_test_s],
     ["`snapback2 check`", record.check_project_s],
     ["`snapback2 doctor`", record.boot_s],
   ];
@@ -96,4 +121,8 @@ if (args.has("--check")) {
     if (value > max) fail(`${label}: ${value}s over budget ${max}s`);
     else console.log(`ok ${label}: ${value}s ≤ ${max}s`);
   }
+  if (record.init_to_dev_s > 10) fail(`init → dev: ${record.init_to_dev_s}s over budget 10s`);
+  else console.log(`ok init → dev: ${record.init_to_dev_s}s ≤ 10s`);
+  if (record.test_s > 30) fail(`snapback2 test: ${record.test_s}s over budget 30s`);
+  else console.log(`ok snapback2 test: ${record.test_s}s ≤ 30s`);
 }
