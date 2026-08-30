@@ -23,7 +23,7 @@ impl Schema {
     }
 
     pub fn rule_hash(&self, rule: &RuleExpr) -> String {
-        // @ref LLP 1001#7-channels-schema-channels — a scoped verdict binds
+        // @ref LLP 1001#7-channels-schemachannels — a scoped verdict binds
         // the complete referenced policy graph, not a disclosure projection.
         // Scoped verdicts are reusable authority. Bind them to the complete
         // schema policy so a successor cannot carry a verdict across any

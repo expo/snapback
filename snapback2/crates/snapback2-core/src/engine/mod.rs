@@ -737,7 +737,7 @@ pub(crate) fn validate_arg_value(
     value: &Value,
     label: &str,
 ) -> Result<(), RuntimeError> {
-    // @ref LLP 1001#6-identity-and-personas — caller arguments cannot carry
+    // @ref LLP 1001#6-identity-identityrs — caller arguments cannot carry
     // the reserved identity even when their declared shape is generic.
     if value_contains_reserved_principal(value) {
         return Err(RuntimeError::Input(format!(

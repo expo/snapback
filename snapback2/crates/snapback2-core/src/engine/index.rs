@@ -271,7 +271,7 @@ pub(crate) fn validate_row(
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
     for (name, kind) in &table.columns {
-        // @ref LLP 1001#6-identity-and-personas — authored data cannot forge
+        // @ref LLP 1001#6-identity-identityrs — authored data cannot forge
         // the engine-private system actor through any Id/Ref-shaped column.
         if reserved_principal_value(kind, object.get(name)) {
             return Err(RuntimeError::Input(format!(

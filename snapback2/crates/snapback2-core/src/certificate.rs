@@ -956,7 +956,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn direct_visibility_probe_bound(rule: &RuleExpr) -> u64 {
-        // @ref LLP 1001#7-channels-schema-channels — visibility lookups are
+        // @ref LLP 1001#7-channels-schemachannels — visibility lookups are
         // authoritative probes and therefore consume the certificate meter.
         match rule {
             RuleExpr::Exists { .. } => 1,
