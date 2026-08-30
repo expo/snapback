@@ -184,6 +184,86 @@ test("bound and collection callback fixtures still certify", async () => {
   assert(rustCheck(subset.programs, "synthetic").every((result) => result.error === null), "collection/write-callback surface did not certify");
 });
 
+test("count and reduce retain O(1) closure through page bindings", () => {
+  const tables = new Map<string, TableInfo>([["items", {
+    name: "items",
+    private: false,
+    columns: {
+      id: { kind: "string" },
+      amount: { kind: "int" },
+      body: { kind: "string", max: 220 },
+    },
+  }]]);
+  const source = `import { query } from "snapback2";
+    export const inlineCount = query({}, ({ db }) => db.scan(items.byId, [], { take: 9405 }).count());
+    export const boundCount = query({}, ({ db }) => {
+      const page = db.scan(items.byId, [], { take: 9405 }); return page.count();
+    });
+    export const reduceSum = query({}, ({ db }) => {
+      const page = db.scan(items.byId, [], { take: 9405 });
+      return page.reduce((sum, item) => sum + item.amount, 0);
+    });`;
+  const lowered = lowerSource(source, "retention.ts", undefined, { tables });
+  assert(lowered.ok, `retention programs did not lower: ${lowered.ok ? "" : lowered.diagnostics[0]?.message}`);
+  const schema = {
+    tables: { items: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 220 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "retention fixture" } },
+        insert: { Public: { reason: "retention fixture" } },
+        update: { Public: { reason: "retention fixture" } },
+        delete: { Public: { reason: "retention fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const checked = rustCheck(lowered.programs, "synthetic", schema);
+  assert(checked.every((result) => result.error === null), `retention programs refused: ${JSON.stringify(checked)}`);
+  assert(checked.every((result) => result.certificate?.max_closure_bytes === 64),
+    `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
+});
+
+test("bound rewrite uses the refusing table's declared row width", () => {
+  const tables = new Map<string, TableInfo>([["wideRows", {
+    name: "wideRows",
+    private: false,
+    columns: {
+      id: { kind: "string" },
+      amount: { kind: "int" },
+      body: { kind: "string", max: 4000 },
+    },
+  }]]);
+  const source = `import { query } from "snapback2";
+    export const wide = query({}, ({ db }) => {
+      for (const row of db.scan(wideRows.byId, [], { take: 12000 })) { let observed = row.amount; }
+      return null;
+    });`;
+  const refused = lowerSource(source, "wide-bound.ts", undefined, { tables });
+  assert(!refused.ok && refused.diagnostics[0]?.code === "E_BOUND", "wide-row bound fixture did not refuse");
+  assert(refused.diagnostics[0].rewrite.includes("take: 49"),
+    `wide-row rewrite ignored the 4,226-byte declared row: ${refused.diagnostics[0].rewrite}`);
+  const fixed = lowerSource(refused.diagnostics[0].rewrite, "wide-bound-fixed.ts", undefined, { tables });
+  assert(fixed.ok, "wide-row bound rewrite did not lower");
+  const schema = {
+    tables: { wideRows: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 4000 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "wide-row fixture" } },
+        insert: { Public: { reason: "wide-row fixture" } },
+        update: { Public: { reason: "wide-row fixture" } },
+        delete: { Public: { reason: "wide-row fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  assert(rustCheck(fixed.programs, "synthetic", schema).every((result) => result.error === null),
+    "wide-row mechanical rewrite did not certify against the declared schema");
+});
+
 test("object and array spreads lower only from static shapes and preserve override order", () => {
   const tables = new Map<string, TableInfo>([["todos", {
     name: "todos",

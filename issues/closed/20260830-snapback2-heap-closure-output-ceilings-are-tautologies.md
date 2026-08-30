@@ -18,18 +18,24 @@ Minor, same review: the live error digest covers only `error.code()`, so two dif
 Resolved the whole ticket. `Checker::check_all` now compares raw heap and
 closure estimates with their ceilings, and output bytes are estimated from the
 program's return shape, schema column/argument shapes, accumulator pushes, and
-scan/loop bounds. The estimate remains deliberately coarse: calibration against
-the existing programs uses 416 bytes per examined closure entry and one quarter
-of declared Text/Json maxima. The default closure and output refusals remain
-reachable and are covered by focused tests.
+scan/loop bounds. Closure retention is data-flow-sensitive: a scanned page's
+declared-max rows are charged only when the page or its elements reach the result
+or a collection that grows with the page; count/sum/len and fixed-width loop
+folds retain 64 bytes of metadata. Text/Json use their full declared maxima (the
+1 KiB value is only the missing-table fallback). Focused tests cover inline and
+let-bound count, compiler-lowered reduce, returned slices, growing result lists,
+and isolated named heap/output/closure refusals.
 
 Added one named-refusal regression test for each of heap, closure, and output,
 plus a certification sweep over all 76 frozen corpus cases and their preludes.
-No corpus program flipped from certified to refused. Live runtime-error digests
-now include both code and rendered message; successive distinct `E_OVERFLOW`
-messages report `changed: true` in the new regression test.
+The owner `data` page is capped from each table's declared row maximum so wide
+rows remain certifiable. No corpus program flipped from certified to refused.
+Live runtime-error digests now include both code and rendered message;
+successive distinct `E_OVERFLOW` messages report `changed: true` in the new
+regression test.
 
 Verification from `snapback2/`:
 
-- `./scripts/test.sh` — passed (Rust workspace, 76/76 evaluator corpus, 42/42 compiler checks).
-- `node scripts/measure.mjs --check` — all green (core test 19.19 s, check-project 0.791 s, doctor samples 0.486/0.163 s).
+- `./scripts/test.sh` — passed (Rust workspace, 76/76 evaluator corpus, 44/44 compiler checks).
+- `node scripts/measure.mjs --check` — all green (core test 20.34 s,
+  check-project 0.376 s, doctor samples 0.464/0.163 s).

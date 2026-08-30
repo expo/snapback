@@ -465,7 +465,7 @@ fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
     let inbox = Checker::new(&inbox_schema, Ceilings::default())
         .check(&inbox_program(false))
         .expect("count-shaped inbox must retain only its bounded result rows");
-    assert_eq!(inbox.max_closure_bytes, 71_300);
+    assert_eq!(inbox.max_closure_bytes, 39_800);
 
     let declared_max = 3 * 1024 * 1024;
     let text_schema = ceiling_schema(declared_max);
@@ -480,6 +480,12 @@ fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
     .unwrap();
     assert_eq!(text.max_output_bytes, 3_145_915);
     assert!(text.max_output_bytes >= u64::from(declared_max));
+    assert_named_ceiling(
+        &text_schema,
+        &ceiling_scan(1),
+        Ceilings::default(),
+        "output bytes",
+    );
 }
 
 #[test]

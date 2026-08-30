@@ -8,6 +8,7 @@ pub mod ir;
 pub mod live;
 pub mod programs;
 pub mod registry;
+mod retention;
 pub mod schema;
 pub mod store;
 pub mod successor;
@@ -15,7 +16,7 @@ pub mod value;
 
 pub use certificate::{
     Ceilings, Certificate, CheckError, Checker, Completeness, PredictionMode, ReadSite, WriteKind,
-    WriteSite,
+    WriteSite, declared_serialized_row_max, max_certified_page_rows,
 };
 pub use client::{ClientStore, LocalState};
 pub use engine::{

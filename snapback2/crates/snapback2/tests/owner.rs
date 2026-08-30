@@ -130,11 +130,15 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
             "table": "messages",
             "index": "byConvTime",
             "prefix": ["conversation-1"],
-            "limit": 10,
+            "limit": 500,
             "as": "alice",
         }),
     );
-    assert_eq!(inspected.status, 200, "{}", inspected.body);
+    assert_eq!(
+        inspected.status, 200,
+        "the owner data verb must cap chat's t.text(4000) rows to a certifiable page: {}",
+        inspected.body
+    );
     let synthetic = request(
         port,
         "POST",

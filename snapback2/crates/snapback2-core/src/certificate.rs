@@ -1,13 +1,14 @@
 use crate::ir::*;
+use crate::retention::RetentionEstimator;
 use crate::schema::{ColumnType, MaintainKind, RuleExpr, RuleTerm, Schema};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
-// Calibration only: these estimates are admission heuristics, not allocator/serializer proofs.
+// Heap is a calibrated work estimate; output and closure use conservative declared
+// serialized maxima. They are admission bounds, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
-const CLOSURE_METADATA_BYTES: u64 = 64;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ceilings {
@@ -172,7 +173,7 @@ impl<'a> Checker<'a> {
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
         let max_heap_bytes = summary.steps.saturating_mul(HEAP_BYTES_PER_STEP);
         let max_output_bytes = OutputEstimator::estimate(self.schema, program);
-        let max_closure_bytes = summary.closure_bytes;
+        let max_closure_bytes = RetentionEstimator::estimate(self.schema, program);
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", summary.examined, self.ceilings.examined),
@@ -633,7 +634,6 @@ struct Summary {
     index_entries: u64,
     rule_probes: u64,
     steps: u64,
-    closure_bytes: u64,
     product_value: u64,
     product: Option<String>,
 }
@@ -651,7 +651,6 @@ impl Summary {
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
-        self.closure_bytes = self.closure_bytes.saturating_add(other.closure_bytes);
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -681,7 +680,6 @@ impl Summary {
         self.index_entries = self.index_entries.max(other.index_entries);
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
-        self.closure_bytes = self.closure_bytes.max(other.closure_bytes);
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -921,17 +919,7 @@ impl<'a> OutputEstimator<'a> {
     }
 
     fn row(&self, table: &str) -> u64 {
-        Self::declared_row(self.schema, table)
-    }
-
-    fn declared_row(schema: &Schema, table: &str) -> u64 {
-        schema.table(table).map_or(1024, |table| {
-            table.columns.iter().fold(10_u64, |size, (name, column)| {
-                size.saturating_add(name.len() as u64)
-                    .saturating_add(4)
-                    .saturating_add(Self::column(column))
-            })
-        })
+        declared_serialized_row_max(self.schema, table)
     }
 
     fn argument(argument: &ArgType) -> u64 {
@@ -954,26 +942,48 @@ impl<'a> OutputEstimator<'a> {
                 .unwrap_or(16),
         }
     }
+}
 
-    fn column(column: &ColumnType) -> u64 {
-        match column {
-            ColumnType::Id | ColumnType::Ref { .. } => 144,
-            ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => {
-                u64::from(*max).saturating_add(16)
-            }
-            ColumnType::Int
-            | ColumnType::Time
-            | ColumnType::Decimal { .. }
-            | ColumnType::Money { .. } => 32,
-            ColumnType::Bool => 16,
-            ColumnType::Optional(inner) => Self::column(inner).max(8),
-            ColumnType::List { of, max } => Self::repeated(Self::column(of), u64::from(*max)),
-            ColumnType::Enum { variants } => variants
-                .iter()
-                .map(|variant| variant.len() as u64 + 16)
-                .max()
-                .unwrap_or(16),
+/// Conservative maximum for the canonical serialized representation of one row.
+/// The 1 KiB value applies only when a checker has no declaration for the table.
+pub fn declared_serialized_row_max(schema: &Schema, table: &str) -> u64 {
+    schema.table(table).map_or(1024, |table| {
+        table.columns.iter().fold(10_u64, |size, (name, column)| {
+            size.saturating_add(name.len() as u64)
+                .saturating_add(4)
+                .saturating_add(declared_column_max(column))
+        })
+    })
+}
+
+/// Largest page that can be returned under the default certificate byte ceilings.
+pub fn max_certified_page_rows(schema: &Schema, table: &str, ceilings: &Ceilings) -> u32 {
+    let row = declared_serialized_row_max(schema, table);
+    let output_rows = ceilings.output_bytes.saturating_sub(2) / row.saturating_add(1);
+    let closure_rows = ceilings.closure_bytes / row.max(1);
+    output_rows.min(closure_rows).min(u64::from(u32::MAX)) as u32
+}
+
+fn declared_column_max(column: &ColumnType) -> u64 {
+    match column {
+        ColumnType::Id | ColumnType::Ref { .. } => 144,
+        ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => {
+            u64::from(*max).saturating_add(16)
         }
+        ColumnType::Int
+        | ColumnType::Time
+        | ColumnType::Decimal { .. }
+        | ColumnType::Money { .. } => 32,
+        ColumnType::Bool => 16,
+        ColumnType::Optional(inner) => declared_column_max(inner).max(8),
+        ColumnType::List { of, max } => {
+            OutputEstimator::repeated(declared_column_max(of), u64::from(*max))
+        }
+        ColumnType::Enum { variants } => variants
+            .iter()
+            .map(|variant| variant.len() as u64 + 16)
+            .max()
+            .unwrap_or(16),
     }
 }
 
@@ -1155,23 +1165,14 @@ impl<'a> Analyzer<'a> {
                     self.completeness = Completeness::Capped;
                 }
                 for value in args {
-                    let mut argument = self.expr(value, calls, factors)?;
-                    if matches!(
-                        builtin,
-                        Builtin::Len | Builtin::Count | Builtin::Sum | Builtin::CountCapped
-                    ) {
-                        argument.closure_bytes = calls.saturating_mul(CLOSURE_METADATA_BYTES);
-                    }
-                    summary = summary.add(argument);
+                    summary = summary.add(self.expr(value, calls, factors)?);
                 }
             }
             Expr::Get(read) => {
                 summary = summary.add(self.read(read, calls, factors)?);
             }
             Expr::Exists(read) => {
-                let mut existence = self.read(read, calls, factors)?;
-                existence.closure_bytes = calls.saturating_mul(CLOSURE_METADATA_BYTES);
-                summary = summary.add(existence);
+                summary = summary.add(self.read(read, calls, factors)?);
             }
             Expr::Scan(scan) => {
                 summary = summary.add(self.scan(scan, calls, factors)?);
@@ -1207,8 +1208,6 @@ impl<'a> Analyzer<'a> {
             summary.rule_probes = calls;
         }
         summary.steps = calls.saturating_mul(4);
-        summary.closure_bytes =
-            calls.saturating_mul(OutputEstimator::declared_row(self.schema, &read.table));
         set_product(&mut summary, factors, (&read.site, 1));
         Ok(summary)
     }
@@ -1248,12 +1247,6 @@ impl<'a> Analyzer<'a> {
         summary.index_entries = summary.examined;
         summary.rule_probes = rule_probes;
         summary.steps = summary.examined.saturating_mul(5);
-        // Closure prices client-retained replay state, not scan work. A page can
-        // hold `take` rows, each at the table's declared serialized column maxima;
-        // reductions and existence checks replace this with O(1) metadata above.
-        summary.closure_bytes = calls
-            .saturating_mul(take)
-            .saturating_mul(OutputEstimator::declared_row(self.schema, &scan.table));
         set_product(&mut summary, factors, (&scan.site, take));
         Ok(summary)
     }
