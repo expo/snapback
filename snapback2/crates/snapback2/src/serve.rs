@@ -344,7 +344,10 @@ fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
     let _ = request.respond(response);
 }
 
-fn respond_refusal(request: Request, status: u16, refusal: Refusal, mode: &str) {
+fn respond_refusal(request: Request, status: u16, mut refusal: Refusal, mode: &str) {
+    if mode == "serve" && refusal.code == "E_AUTH_REQUIRED" {
+        refusal.rewrite = Some("send Authorization: Bearer <token>".to_owned());
+    }
     respond_json(request, status, refusal_json(&refusal), mode);
 }
 

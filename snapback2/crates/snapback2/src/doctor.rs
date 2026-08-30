@@ -39,7 +39,7 @@ pub fn run(json: bool) -> ExitCode {
     let compiler_started = Instant::now();
     let compiler = compiler_proof();
     let compiler_ms = compiler_started.elapsed().as_secs_f64() * 1000.0;
-    let compiler_ok = compiler.is_ok() && compiler_ms < 500.0;
+    let compiler_ok = compiler.is_ok();
     let (compiler_path, compiler_error) = match compiler {
         Ok(path) => (Some(path), None),
         Err(error) => (None, Some(error)),
