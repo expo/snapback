@@ -140,16 +140,18 @@ impl<'a> Checker<'a> {
         match self.analyze(program) {
             Ok(certificate) if errors.is_empty() => Ok(certificate),
             Ok(_) => Err(errors),
-            Err(error) => {
-                errors.push(error);
+            Err(mut analysis_errors) => {
+                errors.append(&mut analysis_errors);
                 Err(errors)
             }
         }
     }
 
-    fn analyze(&self, program: &Program) -> Result<Certificate, CheckError> {
+    fn analyze(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
         let mut analyzer = Analyzer::new(self.schema);
-        let summary = analyzer.statements(&program.body, 1, &[])?;
+        let summary = analyzer
+            .statements(&program.body, 1, &[])
+            .map_err(|error| vec![error])?;
         let maintained_amplification = summary
             .writes
             .iter()
@@ -164,27 +166,43 @@ impl<'a> Checker<'a> {
             .sum();
         let max_writes =
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
-        self.check_ceiling(
-            "examined entries",
-            summary.examined,
-            self.ceilings.examined,
-            &summary,
-        )?;
-        self.check_ceiling(
-            "index entries",
-            summary.index_entries,
-            self.ceilings.index_entries,
-            &summary,
-        )?;
-        self.check_ceiling(
-            "rule probes",
-            summary.rule_probes,
-            self.ceilings.rule_probes,
-            &summary,
-        )?;
-        self.check_ceiling("steps", summary.steps, self.ceilings.steps, &summary)?;
+        let max_heap_bytes = summary
+            .steps
+            .saturating_mul(32)
+            .min(self.ceilings.heap_bytes);
+        let max_output_bytes = self.ceilings.output_bytes;
+        let max_closure_bytes = summary
+            .examined
+            .saturating_mul(1024)
+            .min(self.ceilings.closure_bytes);
+        let mut bound_errors = Vec::new();
+        for (name, actual, ceiling) in [
+            ("examined entries", summary.examined, self.ceilings.examined),
+            (
+                "index entries",
+                summary.index_entries,
+                self.ceilings.index_entries,
+            ),
+            (
+                "rule probes",
+                summary.rule_probes,
+                self.ceilings.rule_probes,
+            ),
+            ("steps", summary.steps, self.ceilings.steps),
+            ("heap bytes", max_heap_bytes, self.ceilings.heap_bytes),
+            ("output bytes", max_output_bytes, self.ceilings.output_bytes),
+            (
+                "closure bytes",
+                max_closure_bytes,
+                self.ceilings.closure_bytes,
+            ),
+        ] {
+            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary) {
+                bound_errors.push(error);
+            }
+        }
         if max_writes > self.ceilings.write_rows {
-            return Err(CheckError {
+            bound_errors.push(CheckError {
                 code: "E_BOUND".to_owned(),
                 message: format!(
                     "write amplification {} exceeds ceiling {} ({})",
@@ -198,6 +216,9 @@ impl<'a> Checker<'a> {
                 rewrite: "reduce the bounded fan-out or use an explicit maintained projection"
                     .to_owned(),
             });
+        }
+        if !bound_errors.is_empty() {
+            return Err(bound_errors);
         }
 
         let mut read_sites: Vec<_> = summary.reads.into_values().collect();
@@ -309,15 +330,9 @@ impl<'a> Checker<'a> {
             max_index_entries: summary.index_entries,
             max_rule_probes: summary.rule_probes,
             max_steps: summary.steps,
-            max_heap_bytes: summary
-                .steps
-                .saturating_mul(32)
-                .min(self.ceilings.heap_bytes),
-            max_output_bytes: self.ceilings.output_bytes,
-            max_closure_bytes: summary
-                .examined
-                .saturating_mul(1024)
-                .min(self.ceilings.closure_bytes),
+            max_heap_bytes,
+            max_output_bytes,
+            max_closure_bytes,
             completeness: analyzer.completeness,
             prediction_sites: Vec::new(),
             read_time_granularity_ms: program.read_time_granularity_ms,

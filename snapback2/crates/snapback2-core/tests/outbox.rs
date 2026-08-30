@@ -345,33 +345,44 @@ fn checker_and_generation_report_all_refusals_per_program() {
         kind: ProgramKind::Query,
         args: BTreeMap::new(),
         read_time_granularity_ms: None,
-        body: vec![Stmt::Return(Expr::Scan(Scan {
-            site: "items.bounded".to_owned(),
-            table: "items".to_owned(),
-            index: "byId".to_owned(),
-            prefix: Vec::new(),
-            order: Order::Asc,
-            take: Bound::Literal(10),
-            after: None,
-            before: None,
-            range: None,
-            provenance: KeyProvenance::Const,
-        }))],
+        body: vec![Stmt::For {
+            binding: "item".to_owned(),
+            domain: LoopDomain::Page(Scan {
+                site: "items.bounded".to_owned(),
+                table: "items".to_owned(),
+                index: "byId".to_owned(),
+                prefix: Vec::new(),
+                order: Order::Asc,
+                take: Bound::Literal(10),
+                after: None,
+                before: None,
+                range: None,
+                provenance: KeyProvenance::Const,
+            }),
+            body: Vec::new(),
+        }],
     };
     let bound_errors = Checker::new(
         &schema,
         Ceilings {
             examined: 1,
+            index_entries: 1,
+            steps: 1,
             ..Ceilings::default()
         },
     );
     let errors = bound_errors.check_all(&bounded).unwrap_err();
     assert_eq!(
-        errors.len(),
-        1,
-        "only the first bound-analysis refusal is returned"
+        errors
+            .iter()
+            .map(|error| error.code.as_str())
+            .collect::<Vec<_>>(),
+        vec!["E_BOUND", "E_BOUND", "E_STEPS"],
+        "every exceeded ceiling is returned"
     );
-    assert_eq!(errors[0].code, "E_BOUND");
+    assert!(errors[0].message.starts_with("examined entries 12"));
+    assert!(errors[1].message.starts_with("index entries 12"));
+    assert!(errors[2].message.starts_with("steps 61"));
 }
 
 #[test]

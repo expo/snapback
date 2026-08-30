@@ -1,7 +1,9 @@
 //! Additive generation succession and explicit destructive migration plans.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
-use crate::engine::{RuntimeError, reindex_row, write_aggregate_backfill};
+use crate::engine::{
+    RuntimeError, materialize_optional_fields, reindex_row, write_aggregate_backfill,
+};
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
@@ -273,7 +275,7 @@ pub(crate) fn additive_refusal(
                 .get_mut(&maintain.target)
                 .expect("target was just inserted")
         };
-        for row in projected_backfill_rows(connection, maintain)? {
+        for row in projected_backfill_rows(connection, next, maintain)? {
             let id = row.field("id")?.as_str()?.to_owned();
             rows.insert(id, row);
         }
@@ -476,16 +478,21 @@ fn backfill(
     schema: &Schema,
     maintain: &Maintain,
 ) -> Result<(), RuntimeError> {
-    let rows = projected_backfill_rows(transaction, maintain)?;
+    let rows = projected_backfill_rows(transaction, schema, maintain)?;
     write_aggregate_backfill(transaction, schema, &maintain.target, rows)
 }
 
 fn projected_backfill_rows(
     connection: &Connection,
+    schema: &Schema,
     maintain: &Maintain,
 ) -> Result<Vec<Value>, RuntimeError> {
+    let source = schema
+        .table(&maintain.source)
+        .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
     let mut groups = BTreeMap::<String, (Vec<Value>, i128)>::new();
-    for row in fetch_rows(connection, &maintain.source)? {
+    for mut row in fetch_rows(connection, &maintain.source)? {
+        materialize_optional_fields(&mut row, source);
         let group = maintain
             .by
             .iter()

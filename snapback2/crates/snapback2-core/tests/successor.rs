@@ -307,6 +307,78 @@ fn new_maintained_aggregate_is_backfilled_from_existing_rows() {
 }
 
 #[test]
+fn maintained_backfill_materializes_new_optional_group_as_null() {
+    let cards = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let counts = table(&[("id", ColumnType::Id), ("value", ColumnType::Int)], &[]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("cards".to_owned(), cards.clone()),
+                ("counts".to_owned(), counts.clone()),
+            ]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([("id", Value::Id("c1".to_owned()))]),
+            ),
+            (
+                "cards".to_owned(),
+                object([("id", Value::Id("c2".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let optional_bucket = ColumnType::Optional(Box::new(ColumnType::Text { max: 32 }));
+    let mut next_cards = cards;
+    next_cards
+        .columns
+        .insert("bucket".to_owned(), optional_bucket.clone());
+    let mut next_counts = counts;
+    next_counts
+        .columns
+        .insert("bucket".to_owned(), optional_bucket);
+    next_counts.indexes.insert(
+        "byBucket".to_owned(),
+        Index {
+            columns: vec!["bucket".to_owned()],
+            unique: true,
+        },
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([
+                ("cards".to_owned(), next_cards),
+                ("counts".to_owned(), next_counts),
+            ]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["bucket".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![get_program("counts.get", "counts", "byBucket", "bucket")],
+    );
+
+    runtime.apply_successor(next).unwrap();
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query("u1", BTreeMap::from([("bucket".to_owned(), Value::Null)])),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("bucket").unwrap(), &Value::Null);
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(2));
+}
+
+#[test]
 fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
     let items = table(
         &[
@@ -509,6 +581,17 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
 
     let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
     assert_eq!(error.code(), "E_SUCCESSOR_UNIQUE");
+    let RuntimeError::Successor(refusal) = error else {
+        panic!("migration must return the full successor refusal");
+    };
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "items".to_owned(),
+            index: "byName".to_owned(),
+            key: vec![Value::String("same".to_owned())],
+        }]
+    );
     assert_eq!(runtime.generation().hash, original_hash);
     let scratch = runtime
         .execute(
@@ -662,7 +745,7 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
 }
 
 #[test]
-fn maintained_backfill_enforces_target_rules_and_constraints() {
+fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
     fn setup(counts: Table) -> (Runtime, BTreeMap<String, Table>) {
         let cards = table(
             &[("id", ColumnType::Id), ("group", ColumnType::Id)],
@@ -734,14 +817,20 @@ fn maintained_backfill_enforces_target_rules_and_constraints() {
     );
     denied_counts.rules.insert = RuleExpr::Deny;
     let (mut denied, denied_tables) = setup(denied_counts);
-    let denied_hash = denied.generation().hash.clone();
-    let refusal = denied
+    let report = denied
         .apply_successor(successor(denied_tables))
-        .unwrap_err();
-    assert_eq!(refusal.code, "E_SUCCESSOR_STORE");
-    assert!(refusal.message.contains("E_RULE"));
-    assert_eq!(denied.generation().hash, denied_hash);
-    assert_empty(&mut denied);
+        .expect("engine-owned aggregate writes bypass target insert rules");
+    assert_eq!(report.backfilled_maintains, 1);
+    let aggregate = denied
+        .execute(
+            "counts.get",
+            Context::query(
+                "u1",
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(1));
 
     let mut capped_counts = table(
         &[
@@ -764,6 +853,110 @@ fn maintained_backfill_enforces_target_rules_and_constraints() {
     assert!(refusal.message.contains("E_CONSTRAINT"));
     assert_eq!(capped.generation().hash, capped_hash);
     assert_empty(&mut capped);
+}
+
+#[test]
+fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
+    let cards = table(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let mut counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    counts.rules.insert = RuleExpr::Deny;
+    counts.rules.update = RuleExpr::Deny;
+    counts.rules.delete = RuleExpr::Deny;
+    let aggregate_id = canonical_json(&vec![Value::Id("g1".to_owned())]);
+    let add_card = Program {
+        name: "cards.add".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "cards".to_owned(),
+            row: Expr::Literal(object([
+                ("id", Value::Id("c1".to_owned())),
+                ("group", Value::Id("g1".to_owned())),
+            ])),
+        }],
+    };
+    let insert_count = Program {
+        name: "counts.insert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "counts".to_owned(),
+            row: Expr::Literal(object([
+                ("id", Value::Id("manual".to_owned())),
+                ("group", Value::Id("g2".to_owned())),
+                ("value", Value::Int(1)),
+            ])),
+        }],
+    };
+    let update_count = Program {
+        name: "counts.update".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Update {
+            table: "counts".to_owned(),
+            key: Expr::Literal(Value::Id(aggregate_id)),
+            patch: Expr::Literal(object([("value", Value::Int(99))])),
+        }],
+    };
+    let generation = generation(
+        schema(
+            BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![
+            add_card,
+            insert_count,
+            update_count,
+            get_program("counts.get", "counts", "byGroup", "group"),
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let engine_write = runtime
+        .execute("cards.add", Context::mutation("u1", BTreeMap::new()))
+        .unwrap();
+    assert!(matches!(
+        engine_write.state,
+        ExecutionState::Committed { .. }
+    ));
+    for operation in ["counts.insert", "counts.update"] {
+        let user_write = runtime
+            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .unwrap();
+        assert!(matches!(
+            user_write.state,
+            ExecutionState::Rejected { ref code, .. } if code == "rule"
+        ));
+    }
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                "u1",
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(1));
 }
 
 #[test]
