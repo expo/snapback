@@ -74,7 +74,7 @@ impl BoundServer {
         })
     }
 
-    pub fn run(self, context: Context) {
+    pub fn run(self, context: Context) -> Result<(), Refusal> {
         while !context.stop.load(Ordering::SeqCst) {
             match self.server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(request)) => {
@@ -83,26 +83,28 @@ impl BoundServer {
                         .name("snapback2-http".to_owned())
                         .spawn(move || handle(request, connection_context))
                     {
+                        let refusal = fatal_server("connection thread", error);
                         crate::watch::log(
                             &context.root,
-                            json!({ "exited": "connection thread failed", "error": error.to_string() }),
+                            json!({ "exited": "fatal server failure", "refusal": refusal }),
                         );
                         context.stop.store(true, Ordering::SeqCst);
-                        break;
+                        return Err(refusal);
                     }
                 }
                 Ok(None) => {}
                 Err(error) => {
-                    eprintln!("{}", json!({ "serverError": error.to_string() }));
+                    let refusal = fatal_server("accept loop", error);
                     crate::watch::log(
                         &context.root,
-                        json!({ "exited": "server error", "error": error.to_string() }),
+                        json!({ "exited": "fatal server failure", "refusal": refusal }),
                     );
                     context.stop.store(true, Ordering::SeqCst);
-                    break;
+                    return Err(refusal);
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -110,6 +112,21 @@ fn handle(mut request: Request, context: Context) {
     let method = method_name(request.method());
     let raw_url = request.url().to_owned();
     let (path, query) = split_url(&raw_url);
+    if context.mode == "serve" && header(&request, "X-Snapback-As").is_some() {
+        respond_refusal(
+            request,
+            403,
+            Refusal::new(
+                "E_AUTH_PERSONA_NOT_DEV",
+                "auth",
+                "personas are refused by a serve owner",
+                "remove X-Snapback-As and use Authorization: Bearer <token>",
+                "auth/personas",
+            ),
+            &context.mode,
+        );
+        return;
+    }
     if method == "OPTIONS" {
         respond_json(request, 204, json!({}), &context.mode);
         return;
@@ -554,4 +571,26 @@ fn content_type(value: &str) -> Header {
 
 fn header_value(name: &str, value: &str) -> Header {
     Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("static HTTP header")
+}
+
+fn fatal_server(stage: &str, error: impl std::fmt::Display) -> Refusal {
+    Refusal::owner(
+        "E_OWNER_FATAL",
+        format!("{stage} failed: {error}"),
+        "inspect .snapback/log.jsonl and restart the owner",
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fatal_server_failures_have_the_owner_fatal_type_and_cause() {
+        let refusal = fatal_server("accept loop", "simulated accept failure");
+        assert_eq!(refusal.code, "E_OWNER_FATAL");
+        assert_eq!(refusal.family, "owner");
+        assert!(refusal.message.contains("accept loop"));
+        assert!(refusal.message.contains("simulated accept failure"));
+    }
 }

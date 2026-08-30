@@ -7,8 +7,6 @@ mod check;
 mod client;
 mod control;
 mod doctor;
-#[cfg(feature = "effects")]
-mod effects;
 mod owner;
 mod project;
 mod protocol;
@@ -19,8 +17,7 @@ mod writer;
 mod writer_util;
 mod writer_wire;
 
-use std::io::{IsTerminal, Read};
-use std::path::Path;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -55,35 +52,76 @@ fn main() -> ExitCode {
 }
 
 fn run_check(args: &[String], json: bool) -> ExitCode {
-    if verbs::has(args, "--ir") {
-        return check::run(verbs::flag(args, "--ir"));
-    }
-    if !std::io::stdin().is_terminal() {
-        let mut input = String::new();
-        if let Err(error) = std::io::stdin().read_to_string(&mut input) {
-            return owner::print_refusal(
-                protocol::Refusal::input(
-                    format!("cannot read check input: {error}"),
-                    "pipe project IR on stdin or run check in a project",
-                ),
-                json,
-                2,
-            );
+    match parse_check(args) {
+        Ok(CheckTarget::Ir(path)) => check::run(path.as_deref()),
+        Ok(CheckTarget::Project(explicit)) => {
+            if let Some(path) = explicit.as_deref().filter(|path| path.is_file()) {
+                eprintln!(
+                    "{}\n{} is a file; use --ir for project JSON",
+                    check_usage(),
+                    path.display()
+                );
+                return ExitCode::from(2);
+            }
+            match project::locate_root(explicit.as_deref()) {
+                Ok(root) => check::run_project(&root, json),
+                Err(error) => owner::print_refusal(error, json, 2),
+            }
         }
-        if !input.trim().is_empty() {
-            return check::run_input(input);
+        Err(message) => {
+            eprintln!("{}\n{message}", check_usage());
+            ExitCode::from(2)
         }
     }
-    let explicit = verbs::flag(args, "--project").map(Path::new);
-    if let Some(path) = explicit.filter(|path| path.is_file()) {
-        eprintln!(
-            "usage: snapback2 check [--project dir] [--ir project.json] [--json]\n{} is a file; use --ir for project JSON",
-            path.display()
-        );
-        return ExitCode::from(2);
+}
+
+enum CheckTarget {
+    Project(Option<PathBuf>),
+    Ir(Option<String>),
+}
+
+fn parse_check(args: &[String]) -> Result<CheckTarget, String> {
+    let mut project = None;
+    let mut ir = false;
+    let mut ir_file = None;
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--json" => {}
+            "--project" => {
+                if ir || project.is_some() {
+                    return Err("choose exactly one of --project or --ir".to_owned());
+                }
+                let value = args
+                    .get(index + 1)
+                    .ok_or_else(|| "--project requires a directory value".to_owned())?;
+                if value.starts_with("--") {
+                    return Err(format!("--project requires a directory, not {value}"));
+                }
+                project = Some(PathBuf::from(value));
+                index += 1;
+            }
+            "--ir" => {
+                if ir || project.is_some() {
+                    return Err("choose exactly one of --project or --ir".to_owned());
+                }
+                ir = true;
+            }
+            option if option.starts_with("--") => {
+                return Err(format!("unknown check option {option}"));
+            }
+            positional if ir && ir_file.is_none() => ir_file = Some(positional.to_owned()),
+            positional => return Err(format!("unexpected check argument {positional}")),
+        }
+        index += 1;
     }
-    match project::locate_root(explicit) {
-        Ok(root) => check::run_project(&root, json),
-        Err(error) => owner::print_refusal(error, json, 2),
+    if ir {
+        Ok(CheckTarget::Ir(ir_file))
+    } else {
+        Ok(CheckTarget::Project(project))
     }
+}
+
+fn check_usage() -> &'static str {
+    "usage: snapback2 check [--project <dir>] [--json]\n       snapback2 check --ir [<file>] [--json]"
 }

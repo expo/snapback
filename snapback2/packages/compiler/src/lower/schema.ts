@@ -554,11 +554,15 @@ export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
     const max = numberValue(options && property(options, "max"));
     const known = options && propertyEntries(options).every((entry) => entry.name === "max")
       && options.properties.length === propertyEntries(options).length;
-    return call.arguments.length === 2 && call.arguments[0] && validArgDescriptor(call.arguments[0]) && known && validPositiveInteger(max)
-      ? { List: { max } }
+    const of = call.arguments[0] && lowerArgDescriptor(call.arguments[0]);
+    return call.arguments.length === 2 && of !== undefined && known && validPositiveInteger(max)
+      ? { List: { of, max } }
       : undefined;
   }
-  if (call && callLeaf(call) === "optional" && call.arguments[0]) return lowerArgDescriptor(call.arguments[0]);
+  if (call && callLeaf(call) === "optional" && call.arguments[0]) {
+    const inner = lowerArgDescriptor(call.arguments[0]);
+    return call.arguments.length === 1 && inner !== undefined ? { Optional: inner } : undefined;
+  }
   if (call && callLeaf(call) === "enum") {
     const variants = stringArray(call.arguments[0]);
     return call.arguments.length === 1 && validEnumVariants(variants)
@@ -576,7 +580,17 @@ export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
       ? { Money: { currency, scale } }
       : undefined;
   }
-  return validArgDescriptor(node) ? "Scalar" : undefined;
+  if (!call || !validArgDescriptor(node)) return undefined;
+  switch (callLeaf(call)) {
+    case "id":
+    case "ref": return "Id";
+    case "int": return "Int";
+    case "bool": return "Bool";
+    case "time": return "Time";
+    case "text": return { Text: { max: numberValue(call.arguments[0]) } };
+    case "json": return { Json: { max_bytes: numberValue(call.arguments[0]) } };
+    default: return undefined;
+  }
 }
 
 export function lowerLegacyArgDescriptor(node: ts.Expression): unknown | undefined {

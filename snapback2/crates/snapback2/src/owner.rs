@@ -165,14 +165,6 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         mode.clone(),
         stop.clone(),
     )?;
-    // Lane C supplies `effects.rs` with exactly:
-    // `pub fn spawn(handle: OwnerHandle) -> EffectsStatus`.
-    // `OwnerHandle::execute_system` returns `then` mutations to this writer;
-    // its outbox claim/read additions must also remain writer-thread actions.
-    // @ref LLP 1003#4-in-the-owner — the effect runner is an optional owner thread.
-    #[cfg(feature = "effects")]
-    let _effects_status = crate::effects::spawn(handle.clone());
-
     let secret = random_secret()?;
     let url = format!("http://127.0.0.1:{}", server.port);
     let info = OwnerInfo {
@@ -207,7 +199,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         }),
     );
     let watcher = watch::spawn(compiler, root.clone(), handle.clone(), stop.clone());
-    server.run(ServerContext {
+    let server_result = server.run(ServerContext {
         handle,
         root: root.clone(),
         secret,
@@ -228,7 +220,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         // A foreground owner must never return silently.
         println!("owner exited");
     }
-    Ok(())
+    server_result
 }
 
 fn detach(root: PathBuf, options: DevOptions) -> ExitCode {

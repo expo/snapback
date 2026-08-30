@@ -278,7 +278,7 @@ function lowerOperation(
     name,
     kind: environment.kind,
     args,
-    read_time_granularity_ms: null,
+    read_time_granularity_ms: environment.kind === "Query" && JSON.stringify(body).includes('"Input":"ReadTime"') ? 1 : null,
     body,
   };
 }

@@ -1,6 +1,6 @@
 //! Typed execution and live-delivery shapes for the HTTP/SSE wire.
 
-use crate::protocol::{Refusal, value_to_json};
+use crate::protocol::{Refusal, refusal_json, value_to_json};
 use crate::writer_util::rejection_family;
 use serde_json::{Value as Json, json};
 use snapback2_core::{Execution, ExecutionState};
@@ -32,27 +32,88 @@ pub fn execution_json(execution: &Execution) -> Json {
     }
 }
 
-pub fn live_json(execution: Result<&Execution, Refusal>, refused_seq: u64) -> Json {
+pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (Json, bool) {
     match execution {
         Ok(execution) => match &execution.state {
-            ExecutionState::Complete => {
-                json!({ "state": "live", "seq": execution.seq, "data": value_to_json(&execution.result) })
-            }
-            ExecutionState::Capped { take, .. } => {
-                json!({ "state": "live", "seq": execution.seq, "data": value_to_json(&execution.result), "take": take })
-            }
-            ExecutionState::Partial { reason } => {
-                json!({ "state": "partial", "seq": execution.seq, "data": value_to_json(&execution.result), "reason": reason })
-            }
-            ExecutionState::Denied { rule } => {
-                json!({ "state": "refused", "seq": execution.seq, "code": "E_RULE", "rule": rule })
-            }
-            ExecutionState::Committed { .. } | ExecutionState::Rejected { .. } => {
-                json!({ "state": "refused", "seq": execution.seq, "code": "E_OP_KIND" })
-            }
+            ExecutionState::Complete
+            | ExecutionState::Capped { .. }
+            | ExecutionState::Partial { .. }
+            | ExecutionState::Denied { .. } => (execution_json(execution), false),
+            ExecutionState::Committed { .. } | ExecutionState::Rejected { .. } => refusal_frame(
+                Refusal::new(
+                    "E_OP_KIND",
+                    "op",
+                    "a subscription query produced a mutation state",
+                    "subscribe only to query operations",
+                    "op/kind",
+                ),
+                execution.seq,
+            ),
         },
-        Err(refusal) => {
-            json!({ "state": "refused", "seq": refused_seq, "code": refusal.code, "family": refusal.family, "message": refusal.message })
+        Err(refusal) => refusal_frame(refusal, refused_seq),
+    }
+}
+
+fn refusal_frame(refusal: Refusal, seq: u64) -> (Json, bool) {
+    let mut frame = refusal_json(&refusal);
+    if let Some(object) = frame.as_object_mut() {
+        object.insert("state".to_owned(), Json::String("refused".to_owned()));
+        object.insert("seq".to_owned(), Json::from(seq));
+    }
+    (frame, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snapback2_core::engine::ClosureReceipt;
+    use snapback2_core::{AuthoritativeTrace, Value};
+
+    fn execution(state: ExecutionState) -> Execution {
+        Execution {
+            result: Value::String("result".to_owned()),
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            state,
+            seq: 41,
         }
+    }
+
+    #[test]
+    fn subscription_frames_preserve_query_states_and_terminal_refusals() {
+        for state in [
+            ExecutionState::Complete,
+            ExecutionState::Capped {
+                site: "items.page".to_owned(),
+                take: 10,
+            },
+            ExecutionState::Partial {
+                reason: "coverage".to_owned(),
+            },
+            ExecutionState::Denied {
+                rule: "items.Read".to_owned(),
+            },
+        ] {
+            let execution = execution(state);
+            let (frame, terminal) = live_frame(Ok(&execution), execution.seq);
+            assert_eq!(frame, execution_json(&execution));
+            assert!(!terminal);
+            assert!(!matches!(frame["state"].as_str(), Some("live" | "stale")));
+        }
+
+        let refusal = Refusal::new(
+            "E_DIV_ZERO",
+            "input",
+            "division by zero",
+            "guard the divisor",
+            "input/arithmetic",
+        );
+        let (frame, terminal) = live_frame(Err(refusal), 42);
+        assert!(terminal);
+        assert_eq!(frame["state"], "refused");
+        assert_eq!(frame["seq"], 42);
+        assert_eq!(frame["code"], "E_DIV_ZERO");
+        assert_eq!(frame["family"], "input");
+        assert_eq!(frame["message"], "division by zero");
     }
 }

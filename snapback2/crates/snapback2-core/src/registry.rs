@@ -4,7 +4,7 @@
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
-    RuleInputTrace, RuntimeError, is_sqlite_constraint,
+    RuleInputTrace, RuntimeError, is_sqlite_constraint, validate_arg_value,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
@@ -14,7 +14,7 @@ use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
     apply_migration_drops, plan, successor_refusal,
 };
-use crate::value::{I53_MAX, I53_MIN, Value, ValueError, digest};
+use crate::value::{Value, ValueError, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -356,6 +356,7 @@ impl Runtime {
             .map_err(|error| RuntimeError::Schema(error.to_string()))?;
         let mut context = Context::system();
         context.now = Some(unix_millis());
+        context.seed_write = true;
         self.engine
             .execute_with_kind(&program, &certificate, context, Some("seed"))
             .map(|execution| execution.seq)
@@ -476,28 +477,8 @@ impl Runtime {
                         "channel {name} arg {arg} must be scalar"
                     )));
                 }
-                ArgType::List { max } if value.as_array()?.len() > *max as usize => {
-                    return Err(RuntimeError::Fanout);
-                }
-                ArgType::List { .. } => {
-                    value.as_array()?;
-                }
-                ArgType::Enum { variants } if !matches!(value, Value::String(value) if variants.contains(value)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be one of {variants:?}"
-                    )));
-                }
-                ArgType::Decimal { .. } | ArgType::Money { .. } if !matches!(value, Value::Int(value) if (I53_MIN..=I53_MAX).contains(value)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be an integer"
-                    )));
-                }
-                ArgType::Enum { .. }
-                | ArgType::Decimal { .. }
-                | ArgType::Money { .. }
-                | ArgType::Scalar => {}
+                ArgType::Scalar => {}
+                kind => validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?,
             }
         }
         let rule = match side {

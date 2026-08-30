@@ -185,6 +185,17 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].emits, 1);
     assert!(commits[0].touched.iter().any(|key| key.index == "byName"));
+    assert_eq!(
+        runtime.store().outbox_counts().unwrap(),
+        OutboxCounts {
+            queued: 1,
+            running: 0,
+            then_pending: 0,
+            sent: 0,
+            failed: 0,
+            sent_unknown: 0,
+        }
+    );
     drop(runtime);
 
     let connection = rusqlite::Connection::open(&path).unwrap();
@@ -194,6 +205,76 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
     assert_eq!(outbox, 1);
     drop(connection);
     cleanup(&path);
+}
+
+#[test]
+fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
+    let mut denied = schema();
+    denied.effects.clear();
+    let table = denied.tables.get_mut("items").unwrap();
+    table.rules.insert = RuleExpr::Deny;
+    table.rules.update = RuleExpr::Deny;
+    table.indexes.get_mut("byName").unwrap().columns = vec!["name".to_owned()];
+    table.constraints.push(Constraint::Unique {
+        index: "byName".to_owned(),
+    });
+    let generation = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema: denied,
+            programs: Vec::new(),
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("seed-1".to_owned())),
+                ("name", Value::String("allowed only for seed".to_owned())),
+            ]),
+        )])
+        .expect("seed bypasses deny rules");
+    assert_eq!(runtime.store().commit_seq().unwrap(), 1);
+
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("seed-1".to_owned())),
+                ("name", Value::String("updated by seed".to_owned())),
+            ]),
+        )])
+        .expect("seed updates also bypass deny rules");
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let duplicate = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-2".to_owned())),
+            ("name", Value::String("updated by seed".to_owned())),
+        ]),
+    )]);
+    assert!(
+        matches!(duplicate, Err(RuntimeError::Constraint(_))),
+        "{duplicate:?}"
+    );
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let invalid = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-3".to_owned())),
+            ("name", Value::Int(7)),
+        ]),
+    )]);
+    assert!(matches!(invalid, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
 }
 
 #[test]

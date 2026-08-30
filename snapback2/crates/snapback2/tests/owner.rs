@@ -11,6 +11,30 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 fn chat_owner_wire_sse_channels_and_successors() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let messages = root.join("snapback/messages.ts");
+    let source = fs::read_to_string(&messages).unwrap().replace(
+        "import { memberships, messages, profiles } from \"./schema\";",
+        "import { memberships, messageCounts, messages, profiles } from \"./schema\";",
+    ) + r#"
+
+export const forceCount = mutation({ conversationId: t.id() }, ({ db, ctx, args }) => {
+  db.insert(messageCounts, { id: ctx.newId(), conversationId: args.conversationId, value: 999 });
+  return null;
+});
+
+export const counts = query({ conversationId: t.id() }, ({ db, args }) =>
+  db.scan(messageCounts.byConversation, [args.conversationId], { take: 10 }),
+);
+
+export const viewerMatches = query({ userId: t.id() }, ({ args, ctx }) =>
+  args.userId === ctx.viewer,
+);
+
+export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
+  ctx.now() < args.boundary ? ["before"] : [],
+);
+"#;
+    fs::write(&messages, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler();
 
@@ -22,8 +46,9 @@ fn chat_owner_wire_sse_channels_and_successors() {
         .unwrap();
     assert!(
         check.status.success(),
-        "{}",
-        String::from_utf8_lossy(&check.stderr)
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&check.stdout),
+        String::from_utf8_lossy(&check.stderr),
     );
     assert!(String::from_utf8_lossy(&check.stdout).starts_with("ok "));
 
@@ -71,7 +96,53 @@ fn chat_owner_wire_sse_channels_and_successors() {
     );
     let first = live.event();
     let first_seq = first["seq"].as_u64().unwrap();
-    assert_eq!(first["state"], "live");
+    assert_eq!(first["state"], "complete");
+
+    let direct_maintained_write = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", "alice")],
+        json!({ "op": "messages.forceCount", "args": { "conversationId": "conversation-1" } }),
+    );
+    assert_eq!(direct_maintained_write.status, 200);
+    assert_eq!(
+        direct_maintained_write.body["state"], "rejected",
+        "{}",
+        direct_maintained_write.body
+    );
+
+    let equality = request(
+        port,
+        "POST",
+        "/api/query",
+        &[("X-Snapback-As", "alice")],
+        json!({ "op": "messages.viewerMatches", "args": { "userId": "dev:alice" } }),
+    );
+    assert_eq!(equality.body["state"], "complete", "{}", equality.body);
+    assert_eq!(
+        equality.body["data"], true,
+        "ID args must compare equal to ctx.viewer"
+    );
+
+    let boundary = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+        + 60_000;
+    let clock_path =
+        format!("/api/subscribe?op=messages.before&args=%7B%22boundary%22%3A{boundary}%7D");
+    let mut clocked = Sse::open(port, &clock_path, "alice");
+    assert_eq!(clocked.event()["data"], json!(["before"]));
+    let advanced = request(
+        port,
+        "POST",
+        "/control/clock",
+        &[("X-Snapback-Control", &secret)],
+        json!({ "advanceMs": 120_000 }),
+    );
+    assert_eq!(advanced.status, 200, "{}", advanced.body);
+    assert_eq!(clocked.event()["data"], json!([]));
 
     let mutation = request(
         port,
@@ -88,7 +159,31 @@ fn chat_owner_wire_sse_channels_and_successors() {
     assert!(committed_seq > first_seq);
     let delivery = live.event();
     assert_eq!(delivery["seq"], committed_seq);
+    assert_eq!(delivery["state"], "complete");
     assert_eq!(delivery["data"][0]["body"], "hello");
+
+    let counts = request(
+        port,
+        "POST",
+        "/api/query",
+        &[("X-Snapback-As", "alice")],
+        json!({ "op": "messages.counts", "args": { "conversationId": "conversation-1" } }),
+    );
+    assert_eq!(counts.body["state"], "complete", "{}", counts.body);
+    assert_eq!(counts.body["data"][0]["value"], 1);
+    let effects = status(port, &secret)["effects"].clone();
+    assert_eq!(
+        effects,
+        json!({
+            "engine": "none",
+            "queued": 1,
+            "running": 0,
+            "thenPending": 0,
+            "sent": 0,
+            "failed": 0,
+            "sentUnknown": 0,
+        })
+    );
 
     let mut typing = Sse::open(
         port,
@@ -110,7 +205,6 @@ fn chat_owner_wire_sse_channels_and_successors() {
 
     let before = status(port, &secret);
     let old_generation = before["generation"].as_str().unwrap().to_owned();
-    let messages = root.join("snapback/messages.ts");
     let mut source = fs::read_to_string(&messages).unwrap();
     source.push_str("\nexport const hotAdded = query({}, () => ({ hot: true }));\n");
     fs::write(&messages, source).unwrap();
@@ -120,6 +214,16 @@ fn chat_owner_wire_sse_channels_and_successors() {
     });
     assert_eq!(applied["status"], "ready");
 
+    let source = fs::read_to_string(&messages).unwrap();
+    let source = source
+        .split("\nexport const forceCount")
+        .next()
+        .unwrap()
+        .replace(
+            "import { memberships, messageCounts, messages, profiles } from \"./schema\";",
+            "import { memberships, messages, profiles } from \"./schema\";",
+        );
+    fs::write(&messages, source).unwrap();
     let schema_path = root.join("snapback/schema.ts");
     let seed_path = root.join("snapback/seed.ts");
     let seed = fs::read_to_string(&seed_path)
@@ -191,6 +295,150 @@ fn chat_owner_wire_sse_channels_and_successors() {
             .unwrap()
             .contains(&secret)
     );
+    if let Err(error) = fs::remove_dir_all(root) {
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    }
+}
+
+#[test]
+fn serve_refuses_personas_before_every_route_dispatch() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let mut owner = ChildGuard::spawn_with(binary, &compiler, &root, true);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+
+    let response = request(
+        port,
+        "POST",
+        "/api/auth/signup",
+        &[("X-Snapback-As", "alice")],
+        json!({ "email": "alice@example.com", "password": "correct horse" }),
+    );
+    assert_eq!(response.status, 403, "{}", response.body);
+    assert_eq!(response.body["code"], "E_AUTH_PERSONA_NOT_DEV");
+
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", secret)],
+        json!({ "cause": "serve persona test" }),
+    );
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    owner.wait();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+
+    let empty_ir = Command::new(binary)
+        .args(["check", "--ir", "--json"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(empty_ir.status.code(), Some(2));
+
+    let extra_ir = Command::new(binary)
+        .args(["check", "--ir", "/dev/null", "extra"])
+        .output()
+        .unwrap();
+    assert_eq!(extra_ir.status.code(), Some(2));
+
+    let missing_project = Command::new(binary)
+        .args(["check", "--project", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(missing_project.status.code(), Some(2));
+
+    let mut explicit_project = Command::new(binary)
+        .args(["check", "--project"])
+        .arg(&root)
+        .arg("--json")
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    explicit_project
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"programs":"stdin must not override --project"}"#)
+        .unwrap();
+    let explicit_project = explicit_project.wait_with_output().unwrap();
+    assert!(explicit_project.status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&explicit_project.stdout).unwrap()["ok"],
+        true
+    );
+
+    let request = json!({
+        "schema": { "FutureSchema": {} },
+        "programs": [
+            {
+                "name": "broken",
+                "kind": "Future",
+                "args": {},
+                "read_time_granularity_ms": null,
+                "body": []
+            },
+            {
+                "name": "validButBlocked",
+                "kind": "Query",
+                "args": {},
+                "read_time_granularity_ms": null,
+                "body": [{ "Return": "Null" }]
+            }
+        ]
+    });
+    let mut aggregate = Command::new(binary)
+        .args(["check", "--ir"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    aggregate
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(serde_json::to_string(&request).unwrap().as_bytes())
+        .unwrap();
+    let aggregate = aggregate.wait_with_output().unwrap();
+    assert_eq!(aggregate.status.code(), Some(1));
+    let response: Value = serde_json::from_slice(&aggregate.stdout).unwrap();
+    assert_eq!(
+        response["results"].as_array().unwrap().len(),
+        3,
+        "{response}"
+    );
+    assert_eq!(response["results"][0]["program"], "<schema>");
+    assert_eq!(response["results"][1]["program"], "broken");
+    assert_eq!(response["results"][2]["program"], "validButBlocked");
+
+    for args in [
+        ["logs", "--since", "nope"].as_slice(),
+        ["data", "items", "--as", "alice", "--limit", "nope"].as_slice(),
+    ] {
+        let output = Command::new(binary).args(args).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("nope"));
+    }
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -317,16 +565,23 @@ struct ChildGuard {
 
 impl ChildGuard {
     fn spawn(binary: &str, compiler: &Path, root: &Path) -> Self {
-        let mut child = Command::new(binary)
+        Self::spawn_with(binary, compiler, root, false)
+    }
+
+    fn spawn_with(binary: &str, compiler: &Path, root: &Path, serve: bool) -> Self {
+        let mut command = Command::new(binary);
+        command
             .args(["dev", "--project"])
             .arg(root)
             .arg("--foreground")
             .env("SNAPBACK2_COMPILER", compiler)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::piped());
+        if serve {
+            command.arg("--serve");
+        }
+        let mut child = command.spawn().unwrap();
         let stdout = BufReader::new(child.stdout.take().unwrap());
         Self { child, stdout }
     }

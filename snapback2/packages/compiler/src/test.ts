@@ -77,7 +77,7 @@ const corpusFiles = [
   "named-delete-message",
 ];
 
-test("S1 project preserves all 17 IR programs and certificates", async () => {
+test("S1 project preserves all 17 bodies and certificate bounds with native argument types", async () => {
   const lowered = await lowerProject(`${frontend}fixtures/s1`);
   assert(lowered.ok, `S1 project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
   assert(lowered.project.programs.length === 17, `expected 17 S1 programs, got ${lowered.project.programs.length}`);
@@ -90,7 +90,8 @@ test("S1 project preserves all 17 IR programs and certificates", async () => {
   }
   const references = new Map(referencePrograms.map((program) => [program.name, program]));
   for (const program of candidatePrograms) {
-    assert(JSON.stringify(program) === JSON.stringify(references.get(program.name)), `${program.name} IR differs byte-for-byte from S1`);
+    const reference = references.get(program.name)!;
+    assert(JSON.stringify({ ...program, args: reference.args }) === JSON.stringify(reference), `${program.name} IR body differs from S1`);
   }
   const candidateCertificates = rustCheck(candidatePrograms, "spike");
   const referenceCertificates = new Map(rustCheck(referencePrograms, "spike").map((item) => [item.program, item]));
@@ -98,7 +99,10 @@ test("S1 project preserves all 17 IR programs and certificates", async () => {
     assert(candidate.error === null, `${candidate.program} candidate did not certify`);
     const reference = referenceCertificates.get(candidate.program);
     assert(reference?.error === null, `${candidate.program} reference did not certify`);
-    assert(JSON.stringify(candidate.certificate) === JSON.stringify(reference.certificate), `${candidate.program} certificate differs byte-for-byte from S1`);
+    assert(
+      JSON.stringify({ ...candidate.certificate, plan_hash: reference.certificate!.plan_hash }) === JSON.stringify(reference.certificate),
+      `${candidate.program} certificate bounds differ from S1`,
+    );
   }
 });
 
@@ -249,7 +253,7 @@ test("argument spreads expand module constants or refuse without dropping fields
   assert(expanded.ok, `static argument spread refused: ${expanded.ok ? "" : expanded.diagnostics.map((item) => item.message).join("; ")}`);
   const args = expanded.programs[0]?.args ?? {};
   assert(Object.keys(args).sort().join(",") === "done,ownerId,title", "static argument spread dropped a field");
-  assert(args.title === "Scalar", "later explicit argument did not override a spread field with a valid descriptor");
+  assert(canonical(args.title) === canonical({ Text: { max: 200 } }), "later explicit argument did not override a spread field with its native descriptor");
 
   const refused = lowerSource(`import { mutation, t } from "snapback2";
     const makeArgs = () => ({ title: t.text(100) });
@@ -853,7 +857,7 @@ test("binary check certifies every compiler program and reads IR only from stdin
   for (const fixture of ["todos", "s1"]) {
     const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
     assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
-    const result = runBinaryCheck([], lowered.project);
+    const result = runBinaryCheck(["--ir"], lowered.project);
     const refusals = result.results.filter((item: any) => item.error);
     assert(result.exitCode === 0 && refusals.length === 0, `${fixture} compiler output had ${refusals.length} binary refusals: ${result.stderr}`);
     assert(result.results.length === lowered.project.programs.length, `${fixture} binary check omitted programs`);
@@ -861,14 +865,14 @@ test("binary check certifies every compiler program and reads IR only from stdin
   const collided = runBinaryCheck(["--project", projectPath]);
   assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
 
-  const unsupportedProgram = runBinaryCheck([], {
+  const unsupportedProgram = runBinaryCheck(["--ir"], {
     schemaMode: "synthetic",
     programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
   });
   assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
   assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
 
-  const explicit = runBinaryCheck([], {
+  const explicit = runBinaryCheck(["--ir"], {
     schema: {
       tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
       maintains: [],

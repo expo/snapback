@@ -139,6 +139,15 @@ pub fn run(path: Option<&str>) -> ExitCode {
             }
         }
     }
+    if input.trim().is_empty() {
+        return print_response_with_code(
+            vec![refused_item(
+                "<input>",
+                SerializableError::input("<stdin>:1:1", "check --ir received empty input"),
+            )],
+            2,
+        );
+    }
     run_input(input)
 }
 
@@ -176,13 +185,27 @@ pub fn run_input(input: String) -> ExitCode {
         Some(schema) => match serde_json::from_value(schema) {
             Ok(schema) => schema,
             Err(error) => {
-                return print_response(vec![refused_item(
+                let mut results = vec![refused_item(
                     "<schema>",
                     SerializableError::unsupported(
                         "<project>:schema",
                         format!("project schema contains an unsupported IR variant: {error}"),
                     ),
-                )]);
+                )];
+                results.extend(programs.into_iter().map(|(name, program)| {
+                    let error = match program {
+                        Err(message) => SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            format!("program JSON contains an unsupported IR variant: {message}"),
+                        ),
+                        Ok(_) => SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            "program cannot be certified because the project schema is unsupported",
+                        ),
+                    };
+                    refused_item(&name, error)
+                }));
+                return print_response(results);
             }
         },
         None => match request.schema_mode {
@@ -268,6 +291,14 @@ fn print_response(results: Vec<ResultItem>) -> ExitCode {
     } else {
         ExitCode::SUCCESS
     }
+}
+
+fn print_response_with_code(results: Vec<ResultItem>, code: u8) -> ExitCode {
+    println!(
+        "{}",
+        serde_json::to_string(&Response { results }).expect("serialize check response")
+    );
+    ExitCode::from(code)
 }
 
 fn synthetic_schema(programs: &[Program]) -> Schema {

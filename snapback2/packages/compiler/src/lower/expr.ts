@@ -448,7 +448,10 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
   if (expanded) return lowerExpr(expanded.expression, expanded.environment, expanded.siteHint ?? hint);
   const name = callName(call);
   if (name === "decimal" && call.arguments[0]) return lowerExpr(call.arguments[0], env, hint);
-  if (name === "ctx.now" || name === "ctx.commitTime") return { Input: "Now" };
+  if (name === "ctx.now") {
+    return { Input: env.kind === "Query" ? "ReadTime" : "Now" };
+  }
+  if (name === "ctx.commitTime") return { Input: "Now" };
   if (name === "ctx.newId") return { Input: "NewId" };
   if (name.endsWith(".get") && isDbMember(call.expression)) return { Get: lowerRead(call, env, hint) };
   if (name.endsWith(".exists") && isDbMember(call.expression)) return { Exists: lowerRead(call, env, hint) };
