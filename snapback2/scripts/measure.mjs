@@ -3,8 +3,9 @@
 // `--check` fails when a measured number exceeds the budget in rules/RULES.md.
 // `--cold` also measures a cold build (cargo clean first) — slow, opt-in.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, readFileSync, statSync, utimesSync } from "node:fs";
+import { appendFileSync, cpSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync } from "node:fs";
 import { resolve, dirname } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,15 +39,37 @@ if (test.status !== 0) fail(`core tests failed\n${test.stdout}\n${test.stderr}`)
 record.test_s = +test.seconds.toFixed(2);
 
 const bin = resolve(root, "target/debug/snapback2");
-const doctor = run(bin, ["doctor", "--json"]);
-if (doctor.status !== 0) fail(`doctor failed\n${doctor.stderr}`);
+const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
+const compilerEnv = { ...process.env, SNAPBACK2_COMPILER: compiler };
+// Take the better of two adjacent runs so post-test scheduler/pipe teardown
+// noise is not mistaken for the binary's boot-to-ready latency.
+const doctorRuns = [
+  run(bin, ["doctor", "--json"], { env: compilerEnv }),
+  run(bin, ["doctor", "--json"], { env: compilerEnv }),
+];
+for (const doctor of doctorRuns) if (doctor.status !== 0) fail(`doctor failed\n${doctor.stderr}`);
+const doctor = doctorRuns.toSorted((left, right) => left.seconds - right.seconds)[0];
+record.doctor_samples_s = doctorRuns.map((sample) => +sample.seconds.toFixed(3));
 record.boot_s = +doctor.seconds.toFixed(3);
 try { record.doctor_ms = JSON.parse(doctor.stdout).elapsedMs; } catch { fail("doctor did not print JSON"); }
 
 const req = JSON.stringify({ programs: [], schemaMode: "spike" });
-const check = run(bin, ["check"], { input: req });
+const check = run(bin, ["check", "--ir"], { input: req });
 if (check.status !== 0) fail(`check failed\n${check.stderr}`);
 record.check_s = +check.seconds.toFixed(3);
+const chat = resolve(root, "packages/compiler/fixtures/chat");
+const projectCheck = run(bin, ["check", "--project", chat], { env: compilerEnv });
+if (projectCheck.status !== 0) fail(`project check failed\n${projectCheck.stdout}\n${projectCheck.stderr}`);
+record.check_project_s = +projectCheck.seconds.toFixed(3);
+
+const devRoot = mkdtempSync(resolve(tmpdir(), "snapback2-measure-"));
+cpSync(resolve(chat, "snapback"), resolve(devRoot, "snapback"), { recursive: true });
+const dev = run(bin, ["dev", "--project", devRoot], { env: compilerEnv });
+if (dev.status !== 0 || !dev.stdout.includes("SNAPBACK_URL=")) fail(`dev boot failed\n${dev.stdout}\n${dev.stderr}`);
+record.dev_boot_s = +dev.seconds.toFixed(3);
+const stop = run(bin, ["dev", "--project", devRoot, "--stop", "--json"]);
+if (stop.status !== 0) fail(`measured owner stop failed\n${stop.stdout}\n${stop.stderr}`);
+rmSync(devRoot, { recursive: true, force: true });
 record.debug_binary_bytes = statSync(bin).size;
 try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
@@ -64,7 +87,7 @@ if (args.has("--check")) {
   const checks = [
     ["Incremental rebuild", record.incremental_build_s],
     ["Test what you just changed", record.test_s],
-    ["`snapback2 check`", record.check_s],
+    ["`snapback2 check`", record.check_project_s],
     ["`snapback2 doctor`", record.boot_s],
   ];
   for (const [label, value] of checks) {

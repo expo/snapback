@@ -390,6 +390,11 @@ impl<'a> Runner<'a> {
         effect: Effect,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
+        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — seed rows
+        // are engine-owned; user rules do not bind them, while write validation below does.
+        if self.context.seed_write {
+            return Ok(true);
+        }
         let table = self
             .schema
             .table(table)

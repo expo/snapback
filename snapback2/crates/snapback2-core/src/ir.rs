@@ -20,12 +20,34 @@ pub enum ProgramKind {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArgType {
+    Id,
+    Text {
+        max: u32,
+    },
+    Int,
+    Bool,
+    Time,
+    Json {
+        max_bytes: u32,
+    },
+    Optional(Box<ArgType>),
     Scalar,
-    List { max: u32 },
+    List {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        of: Option<Box<ArgType>>,
+        max: u32,
+    },
     // @ref LLP 1001#9-schema-additions — typed scalar args preserve enum and fixed-scale checks.
-    Enum { variants: Vec<String> },
-    Decimal { scale: u8 },
-    Money { currency: String, scale: u8 },
+    Enum {
+        variants: Vec<String>,
+    },
+    Decimal {
+        scale: u8,
+    },
+    Money {
+        currency: String,
+        scale: u8,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -82,15 +82,24 @@ export type Stmt =
   | "Break"
   | "Continue";
 
+export type ArgType =
+  | "Id"
+  | "Int"
+  | "Bool"
+  | "Time"
+  | "Scalar"
+  | { Text: { max: number } }
+  | { Json: { max_bytes: number } }
+  | { Optional: ArgType }
+  | { List: { of: ArgType; max: number } }
+  | { Enum: { variants: string[] } }
+  | { Decimal: { scale: number } }
+  | { Money: { currency: string; scale: number } };
+
 export type Program = {
   name: string;
   kind: ProgramKind;
-  args: Record<string,
-    | "Scalar"
-    | { List: { max: number } }
-    | { Enum: { variants: string[] } }
-    | { Decimal: { scale: number } }
-    | { Money: { currency: string; scale: number } }>;
+  args: Record<string, ArgType>;
   read_time_granularity_ms: number | null;
   body: Stmt[];
 };

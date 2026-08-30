@@ -12,7 +12,7 @@ export function rustCheck(
 ): RustCheckResult[] {
   const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
   const process = Bun.spawnSync({
-    cmd: ["cargo", "run", "--quiet", "-p", "snapback2", "--", "check"],
+    cmd: ["cargo", "run", "--quiet", "-p", "snapback2", "--", "check", "--ir"],
     cwd: crate,
     stdin: new TextEncoder().encode(JSON.stringify({ programs, schemaMode })),
     stdout: "pipe",
