@@ -270,10 +270,30 @@ pub(crate) fn validate_row(
     if !object.contains_key("id") {
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
+    if let Some(name) = object
+        .keys()
+        .find(|name| !table.columns.contains_key(*name))
+    {
+        return Err(RuntimeError::Input(format!(
+            "{table_name} row contains undeclared field {name}"
+        )));
+    }
+    if object
+        .get("id")
+        .is_some_and(value_contains_reserved_principal)
+    {
+        return Err(RuntimeError::Input(format!(
+            "{table_name}.id cannot carry the reserved system principal"
+        )));
+    }
     for (name, kind) in &table.columns {
         // @ref LLP 1001#6-identity-identityrs — authored data cannot forge
-        // the engine-private system actor through any Id/Ref-shaped column.
-        if reserved_principal_value(kind, object.get(name)) {
+        // the engine-private system actor through any nested value, including
+        // generic JSON that can later be projected into an actor-bearing slot.
+        if object
+            .get(name)
+            .is_some_and(value_contains_reserved_principal)
+        {
             return Err(RuntimeError::Input(format!(
                 "{table_name}.{name} cannot carry the reserved system principal"
             )));
@@ -285,19 +305,6 @@ pub(crate) fn validate_row(
         }
     }
     Ok(())
-}
-
-fn reserved_principal_value(kind: &ColumnType, value: Option<&Value>) -> bool {
-    match (kind, value) {
-        (ColumnType::Optional(inner), Some(value)) => reserved_principal_value(inner, Some(value)),
-        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values
-            .iter()
-            .any(|value| reserved_principal_value(of, Some(value))),
-        (ColumnType::Id | ColumnType::Ref { .. }, Some(Value::Id(value))) => {
-            value == SYSTEM_PRINCIPAL_ID.as_str()
-        }
-        _ => false,
-    }
 }
 
 fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {

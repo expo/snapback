@@ -647,42 +647,45 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                         Vec::new(),
                     );
                 }
-                let execution = match runtime.execute(query_name, context) {
-                    Ok(execution) => execution,
-                    Err(_) => continue,
-                };
-                if matches!(execution.state, ExecutionState::Denied { .. })
-                    || is_blank(&execution.result)
-                {
-                    return (
-                        json!({
-                            "status": "pass",
-                            "disposition": "replanned",
-                            "query": query_name,
-                            "table": site.table,
-                            "fromGeneration": from,
-                            "toGeneration": to,
-                            "certificateDisposition": "successorReplanned",
-                            "predecessorSchemaHash": certificate.schema_hash,
-                            "executedSchemaHash": successor_schema_hash,
-                        }),
-                        Vec::new(),
-                        Vec::new(),
-                    );
+                match runtime.execute_handle(query, certificate, context) {
+                    Err(error)
+                        if error.code() == "E_TRACE_SUBSET"
+                            && error.to_string().contains("schema hash mismatch") =>
+                    {
+                        return (
+                            json!({
+                                "status": "pass",
+                                "disposition": "refused",
+                                "query": query_name,
+                                "table": site.table,
+                                "fromGeneration": from,
+                                "toGeneration": to,
+                                "certificateDisposition": "predecessorRefused",
+                                "refusalCode": error.code(),
+                                "predecessorSchemaHash": certificate.schema_hash,
+                                "runtimeSchemaHash": successor_schema_hash,
+                            }),
+                            Vec::new(),
+                            Vec::new(),
+                        );
+                    }
+                    result => {
+                        return (
+                            json!({ "status": "fail", "query": query_name }),
+                            vec![json!({
+                                "probe": "staleHandle",
+                                "query": query_name,
+                                "table": site.table,
+                                "fromGeneration": from,
+                                "toGeneration": to,
+                                "error": format!("retained predecessor handle was not fenced: {result:?}"),
+                                "predecessorSchemaHash": certificate.schema_hash,
+                                "runtimeSchemaHash": successor_schema_hash,
+                            })],
+                            Vec::new(),
+                        );
+                    }
                 }
-                return (
-                    json!({ "status": "fail", "query": query_name }),
-                    vec![json!({
-                        "probe": "staleHandle",
-                        "query": query_name,
-                        "table": site.table,
-                        "fromGeneration": from,
-                        "toGeneration": to,
-                        "state": execution.state,
-                        "result": execution.result,
-                    })],
-                    Vec::new(),
-                );
             }
         }
     }

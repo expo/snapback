@@ -50,15 +50,19 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     );
     assert_eq!(
         invalidation["detail"]["staleHandle"]["status"], "pass",
-        "the chat receipt did not prove successor handle replanning: {invalidation}"
+        "the chat receipt did not prove successor fencing of a retained handle: {invalidation}"
     );
     assert_eq!(
-        invalidation["detail"]["staleHandle"]["certificateDisposition"], "successorReplanned",
-        "the stale handle did not explicitly bind execution to the successor certificate: {invalidation}"
+        invalidation["detail"]["staleHandle"]["certificateDisposition"], "predecessorRefused",
+        "the retained predecessor handle was not presented to the successor runtime: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["staleHandle"]["refusalCode"], "E_TRACE_SUBSET",
+        "the retained predecessor handle was not fenced by the runtime: {invalidation}"
     );
     assert_ne!(
         invalidation["detail"]["staleHandle"]["predecessorSchemaHash"],
-        invalidation["detail"]["staleHandle"]["executedSchemaHash"],
+        invalidation["detail"]["staleHandle"]["runtimeSchemaHash"],
         "the policy replacement did not replace the certificate hash: {invalidation}"
     );
     let bounds = check(&receipt, "bounds");

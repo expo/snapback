@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use crate::certificate::Certificate;
+use crate::certificate::{Certificate, RuleCertificate};
 use crate::identity::{Actor, SYSTEM_PRINCIPAL_ID};
 use crate::ir::*;
 use crate::schema::*;
@@ -695,11 +695,30 @@ impl Engine {
         rule: &RuleExpr,
         row: &Value,
         context: Context,
+        certificate: Option<&RuleCertificate>,
     ) -> Result<(bool, AuthoritativeTrace), RuntimeError> {
+        if let Some(certificate) = certificate {
+            if certificate.schema_hash != self.schema.hash() {
+                return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
+            }
+            if certificate.rule_hash != self.schema.rule_hash(rule) {
+                return Err(RuntimeError::TraceSubset("rule hash mismatch".to_owned()));
+            }
+        }
         let seq = self.store.commit_seq()?;
         let transaction = self.store.conn.transaction()?;
-        let mut runner = Runner::probe(&transaction, &self.schema, context, &self.verdicts, seq);
+        let mut runner = Runner::probe(
+            &transaction,
+            &self.schema,
+            context,
+            &self.verdicts,
+            seq,
+            certificate,
+        );
         let result = runner.eval_rule(rule, &self.schema.rule_hash(rule), row)?;
+        if certificate.is_some() {
+            runner.assert_rule_bounds()?;
+        }
         let trace = runner.trace;
         transaction.commit()?;
         Ok((result, trace))
@@ -712,7 +731,7 @@ pub(crate) fn write_aggregate_backfill<'a>(
     target: &str,
     rows: Vec<Value>,
 ) -> Result<(), RuntimeError> {
-    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0);
+    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0, None);
     for row in rows {
         runner.write_aggregate_row(target, row)?;
     }
@@ -804,7 +823,7 @@ pub(crate) fn validate_arg_value(
     }
 }
 
-fn value_contains_reserved_principal(value: &Value) -> bool {
+pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
     match value {
         Value::Id(value) => value == SYSTEM_PRINCIPAL_ID.as_str(),
         Value::Row(values) | Value::Map(values) => {
@@ -892,13 +911,23 @@ pub(crate) fn append_commit(
     Ok(())
 }
 
-pub(crate) fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
+pub fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
     if let Some(name) = schema.tables.keys().find(|name| name.starts_with('_')) {
         return Err(RuntimeError::SchemaReserved(name.clone()));
     }
     for (table_name, table) in &schema.tables {
+        if table.columns.get("id") != Some(&ColumnType::Id) {
+            return Err(RuntimeError::Schema(format!(
+                "table {table_name} must declare the implicit id column as Id"
+            )));
+        }
         for (index_name, index) in &table.indexes {
             for column in &index.columns {
+                if !table.columns.contains_key(column) {
+                    return Err(RuntimeError::Schema(format!(
+                        "index {table_name}.{index_name} names undeclared column {column}"
+                    )));
+                }
                 if table
                     .columns
                     .get(column)

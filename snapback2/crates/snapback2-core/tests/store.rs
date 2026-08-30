@@ -28,6 +28,10 @@ fn schema() -> Schema {
                             table: "items".to_owned(),
                         })),
                     ),
+                    (
+                        "payload".to_owned(),
+                        ColumnType::Optional(Box::new(ColumnType::Json { max_bytes: 1024 })),
+                    ),
                 ]),
                 BTreeMap::from([
                     (
@@ -298,6 +302,45 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
         ]),
     )]);
     assert!(matches!(reserved_ref, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let undeclared = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-5".to_owned())),
+            ("name", Value::String("unknown field".to_owned())),
+            ("notInSchema", Value::String("refuse me".to_owned())),
+        ]),
+    )]);
+    assert!(
+        matches!(undeclared, Err(RuntimeError::Input(ref message)) if message.contains("undeclared field notInSchema")),
+        "{undeclared:?}"
+    );
+
+    let reserved_json = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-6".to_owned())),
+            ("name", Value::String("reserved JSON".to_owned())),
+            (
+                "payload",
+                Value::Map(BTreeMap::from([(
+                    "actor".to_owned(),
+                    Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
+                )])),
+            ),
+        ]),
+    )]);
+    assert!(matches!(reserved_json, Err(RuntimeError::Input(_))));
+
+    let reserved_row_id = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+            ("name", Value::String("reserved id".to_owned())),
+        ]),
+    )]);
+    assert!(matches!(reserved_row_id, Err(RuntimeError::Input(_))));
     assert_eq!(runtime.store().commit_seq().unwrap(), 2);
 
     let mut caller_runtime =

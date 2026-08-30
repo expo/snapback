@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapback2_core::{
     Ceilings, Certificate, CheckError, Checker, Index, Program, RuleExpr, Rules, Schema, Table,
-    spike_schema,
+    spike_schema, validate_schema,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Read};
@@ -105,6 +105,18 @@ impl SerializableError {
             rule: None,
             rewrite: "pass a readable project JSON file or pipe project JSON on stdin".to_owned(),
             guide: "programs/check".to_owned(),
+        }
+    }
+
+    fn schema(error: snapback2_core::RuntimeError) -> Self {
+        Self {
+            code: error.code().to_owned(),
+            family: "schema".to_owned(),
+            message: error.to_string(),
+            site: "<project>:schema".to_owned(),
+            rule: None,
+            rewrite: "restore the compiler-emitted schema invariants".to_owned(),
+            guide: "schema/project".to_owned(),
         }
     }
 }
@@ -227,6 +239,12 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
             SchemaMode::Synthetic => synthetic_schema(&parsed_programs),
         },
     };
+    if let Err(error) = validate_schema(&schema) {
+        return print_response(
+            vec![refused_item("<schema>", SerializableError::schema(error))],
+            json,
+        );
+    }
     let checker = Checker::new(&schema, Ceilings::default());
     let results = programs
         .into_iter()
@@ -364,7 +382,7 @@ fn synthetic_table() -> Table {
         reason: "frontend synthetic checker schema".to_owned(),
     };
     Table {
-        columns: BTreeMap::new(),
+        columns: BTreeMap::from([("id".to_owned(), snapback2_core::ColumnType::Id)]),
         indexes: BTreeMap::from([(
             "byId".to_owned(),
             Index {

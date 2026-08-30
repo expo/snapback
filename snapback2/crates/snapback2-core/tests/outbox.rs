@@ -796,6 +796,9 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         Ceilings::default(),
     )
     .unwrap();
+    let subscribe_certificate = &generation.channel_certificates["typing"].subscribe;
+    assert_eq!(subscribe_certificate.max_rule_probes, 1);
+    assert_eq!(subscribe_certificate.max_steps, 2);
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     runtime
         .seed(&[(
@@ -828,6 +831,16 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         .unwrap();
     assert!(!refused.admitted);
     assert_eq!(refused.rule_inputs.len(), 1);
+    let reserved_scalar = runtime.channel_admit(
+        "typing",
+        ChannelSide::Subscribe,
+        &BTreeMap::from([(
+            "room".to_owned(),
+            Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
+        )]),
+        &Context::query(Actor::user("u2").unwrap(), BTreeMap::new()),
+    );
+    assert!(matches!(reserved_scalar, Err(RuntimeError::Input(_))));
 
     let unrelated_seq = runtime
         .seed(&[(
@@ -862,6 +875,69 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         .unwrap()
         .remove(0);
     assert!(Runtime::channel_touched(&matching, &refused));
+}
+
+#[test]
+fn channel_rules_are_refused_when_their_certified_probe_or_step_bound_exceeds_the_ceiling() {
+    let memberships = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("room".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Id),
+        ]),
+        BTreeMap::from([(
+            "byRoomUser".to_owned(),
+            Index {
+                columns: vec!["room".to_owned(), "user".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let probe = RuleExpr::Exists {
+        table: "memberships".to_owned(),
+        index: "byRoomUser".to_owned(),
+        key: vec![RuleTerm::Field("room".to_owned()), RuleTerm::Viewer],
+        provenance: KeyProvenance::Shape,
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
+        channels: BTreeMap::from([(
+            "typing".to_owned(),
+            Channel {
+                args: BTreeMap::from([("room".to_owned(), ArgType::Scalar)]),
+                publish: RuleExpr::And(vec![probe.clone(), probe]),
+                subscribe: RuleExpr::Allow,
+                ttl_ms: 10_000,
+            },
+        )]),
+        ..Schema::default()
+    };
+    let errors = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema,
+            programs: Vec::new(),
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings {
+            rule_probes: 1,
+            steps: 1,
+            ..Ceilings::default()
+        },
+    )
+    .unwrap_err();
+
+    assert!(
+        errors
+            .iter()
+            .any(|(site, error)| { site == "channel.typing.publish" && error.code == "E_BOUND" })
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|(site, error)| { site == "channel.typing.publish" && error.code == "E_STEPS" })
+    );
 }
 
 #[test]

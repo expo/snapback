@@ -412,6 +412,9 @@ impl<'a> Runner<'a> {
         rule_hash: &str,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
+        if self.rule_certificate.is_some() {
+            self.step(1)?;
+        }
         match rule {
             RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
             RuleExpr::Deny => Ok(false),
@@ -522,6 +525,9 @@ impl<'a> Runner<'a> {
         rule_hash: &str,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
+        if self.rule_certificate.is_some() {
+            self.step(1)?;
+        }
         match rule {
             RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
             RuleExpr::Deny => Ok(false),
@@ -664,10 +670,36 @@ impl<'a> Runner<'a> {
 
     pub(super) fn step(&mut self, amount: u64) -> Result<(), RuntimeError> {
         self.trace.steps = self.trace.steps.saturating_add(amount);
-        if let Some(certificate) = self.certificate
-            && self.trace.steps > certificate.max_steps
+        let max_steps = self
+            .certificate
+            .map(|certificate| certificate.max_steps)
+            .or_else(|| {
+                self.rule_certificate
+                    .map(|certificate| certificate.max_steps)
+            });
+        if let Some(max_steps) = max_steps
+            && self.trace.steps > max_steps
         {
-            return Err(RuntimeError::Steps(certificate.max_steps));
+            return Err(RuntimeError::Steps(max_steps));
+        }
+        Ok(())
+    }
+
+    pub(super) fn assert_rule_bounds(&self) -> Result<(), RuntimeError> {
+        let certificate = self
+            .rule_certificate
+            .expect("certified rule execution has a certificate");
+        if self.trace.rule_probes > certificate.max_rule_probes {
+            return Err(RuntimeError::TraceSubset(format!(
+                "rule probes {} > certificate {}",
+                self.trace.rule_probes, certificate.max_rule_probes
+            )));
+        }
+        if self.trace.steps > certificate.max_steps {
+            return Err(RuntimeError::TraceSubset(format!(
+                "steps {} > certificate {}",
+                self.trace.steps, certificate.max_steps
+            )));
         }
         Ok(())
     }

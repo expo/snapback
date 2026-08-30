@@ -1,7 +1,7 @@
 //! Certified project generations and the stateful query runtime.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — one certified project is live.
 
-use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
+use crate::certificate::{Ceilings, Certificate, CheckError, Checker, RuleCertificate};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
     RuleInputTrace, RuntimeError, validate_arg_value,
@@ -43,7 +43,15 @@ pub struct Generation {
     pub hash: String,
     pub schema: Schema,
     pub programs: BTreeMap<String, (Program, Certificate)>,
+    pub channel_certificates: BTreeMap<String, ChannelCertificates>,
     pub effects: BTreeMap<String, EffectDecl>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChannelCertificates {
+    pub publish: RuleCertificate,
+    pub subscribe: RuleCertificate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -129,8 +137,33 @@ impl Generation {
         }
 
         for (table_name, table) in &schema.tables {
+            if table.columns.get("id") != Some(&crate::schema::ColumnType::Id) {
+                errors.push((
+                    format!("schema.{table_name}"),
+                    CheckError {
+                        code: "E_SCHEMA_ID_RESERVED".to_owned(),
+                        message: format!(
+                            "table {table_name} must declare the implicit id column as Id"
+                        ),
+                        rewrite: "restore the compiler-emitted id: Id column".to_owned(),
+                    },
+                ));
+            }
             for (index_name, index) in &table.indexes {
                 for column in &index.columns {
+                    if !table.columns.contains_key(column) {
+                        errors.push((
+                            format!("schema.{table_name}"),
+                            CheckError {
+                                code: "E_SCHEMA_INDEX_COLUMN".to_owned(),
+                                message: format!(
+                                    "index {table_name}.{index_name} names undeclared column {column}"
+                                ),
+                                rewrite: "declare the column or remove it from the index"
+                                    .to_owned(),
+                            },
+                        ));
+                    }
                     if table
                         .columns
                         .get(column)
@@ -146,6 +179,35 @@ impl Generation {
                                 rewrite: "index scalar columns instead of list values".to_owned(),
                             },
                         ));
+                    }
+                }
+            }
+        }
+
+        let mut channel_certificates = BTreeMap::new();
+        for (name, channel) in &schema.channels {
+            let checker = Checker::new(&schema, ceilings.clone());
+            let publish = checker.check_rule(&channel.publish);
+            let subscribe = checker.check_rule(&channel.subscribe);
+            match (publish, subscribe) {
+                (Ok(publish), Ok(subscribe)) => {
+                    channel_certificates
+                        .insert(name.clone(), ChannelCertificates { publish, subscribe });
+                }
+                (publish, subscribe) => {
+                    if let Err(rule_errors) = publish {
+                        errors.extend(
+                            rule_errors
+                                .into_iter()
+                                .map(|error| (format!("channel.{name}.publish"), error)),
+                        );
+                    }
+                    if let Err(rule_errors) = subscribe {
+                        errors.extend(
+                            rule_errors
+                                .into_iter()
+                                .map(|error| (format!("channel.{name}.subscribe"), error)),
+                        );
                     }
                 }
             }
@@ -233,6 +295,7 @@ impl Generation {
                 hash: digest(project),
                 schema,
                 programs,
+                channel_certificates,
                 effects,
             })
         } else {
@@ -318,6 +381,19 @@ impl Runtime {
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         self.execute_certified(&program, &certificate, context)
+    }
+
+    /// Execute a retained certified handle against the currently installed
+    /// generation. The engine's plan/schema hash checks fence stale handles.
+    // @ref LLP 1002#7-test-and-the-receipt — the derived stale-handle proof
+    // presents its retained predecessor handle to the successor runtime.
+    pub fn execute_handle(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+    ) -> Result<Execution, RuntimeError> {
+        self.execute_certified(program, certificate, context)
     }
 
     /// Execute an effect's `then` mutation and settle its durable outbox row
@@ -614,7 +690,8 @@ impl Runtime {
         let rows = self.engine.rows(table)?;
         rows.into_iter()
             .map(|row| {
-                let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+                let (admitted, trace) =
+                    self.engine.probe_rule(&rule, &row, context.clone(), None)?;
                 Ok(RowRuleVerdict {
                     id: row.field("id")?.as_str()?.to_owned(),
                     admitted,
@@ -649,24 +726,30 @@ impl Runtime {
             let value = args
                 .get(arg)
                 .ok_or_else(|| RuntimeError::Input(format!("channel {name} missing arg {arg}")))?;
-            match kind {
-                ArgType::Scalar
-                    if matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be scalar"
-                    )));
-                }
-                ArgType::Scalar => {}
-                kind => validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?,
+            validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?;
+            if matches!(kind, ArgType::Scalar)
+                && matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
+            {
+                return Err(RuntimeError::Input(format!(
+                    "channel {name} arg {arg} must be scalar"
+                )));
             }
         }
-        let rule = match side {
-            ChannelSide::Publish => channel.publish,
-            ChannelSide::Subscribe => channel.subscribe,
+        let certificates = self
+            .generation
+            .channel_certificates
+            .get(name)
+            .ok_or_else(|| {
+                RuntimeError::TraceSubset(format!("channel {name} lacks certificate"))
+            })?;
+        let (rule, certificate) = match side {
+            ChannelSide::Publish => (channel.publish, &certificates.publish),
+            ChannelSide::Subscribe => (channel.subscribe, &certificates.subscribe),
         };
         let row = Value::Row(args.clone());
-        let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+        let (admitted, trace) =
+            self.engine
+                .probe_rule(&rule, &row, context.clone(), Some(certificate))?;
         Ok(ChannelVerdict {
             admitted,
             rule_inputs: trace.rule_inputs,

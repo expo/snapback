@@ -23,9 +23,13 @@ and template use it. Authored rule probes no longer carry `hidden` /
 `input_visibility`; the evaluator derives readable versus scoped-verdict
 delivery from the referenced table's read rule for the running viewer, with
 tests for both outcomes. The existing `snapback2 test` invalidation check now
-asserts a live membership-row revocation delivery and replans a generation-N
-query handle after a policy-only generation-N+1 successor.
+asserts a live membership-row revocation delivery, retains a generation-N
+query program and certificate across a policy-only generation-N+1 successor,
+and presents that exact handle to the same runtime to assert
+`E_TRACE_SUBSET`/schema-hash refusal with both hashes in the receipt.
 
-The frozen 76-program corpus contains no `PrincipalKind`, and its complete
-certificate response remained byte-identical across the change. Item 4 is
-still the open author decision, so this ticket remains **Open**.
+The regenerated frozen 76-program corpus contains no `PrincipalKind`. Its
+complete deterministic `check --ir --json` certificate response is 71,497
+bytes with SHA-256
+`3f211a85d3f887b9cb0bbe07b8724242ace1054af3d1306a386c31741ff57875`.
+Item 4 is still the open author decision, so this ticket remains **Open**.

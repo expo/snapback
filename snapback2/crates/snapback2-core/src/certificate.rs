@@ -61,6 +61,14 @@ pub struct Certificate {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuleCertificate {
+    pub schema_hash: String,
+    pub rule_hash: String,
+    pub max_rule_probes: u64,
+    pub max_steps: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReadSite {
     pub site: String,
     pub table: String,
@@ -144,6 +152,38 @@ impl<'a> Checker<'a> {
                 errors.append(&mut analysis_errors);
                 Err(errors)
             }
+        }
+    }
+
+    // @ref LLP 1001#7-channels-schemachannels — channel admission is a
+    // certified rule site with transitive visibility-probe and step bounds.
+    pub fn check_rule(&self, rule: &RuleExpr) -> Result<RuleCertificate, Vec<CheckError>> {
+        let analyzer = Analyzer::new(self.schema);
+        let max_rule_probes = analyzer.rule_probe_bound(rule);
+        let max_steps = analyzer.rule_step_bound(rule);
+        let summary = Summary {
+            rule_probes: max_rule_probes,
+            steps: max_steps,
+            ..Summary::default()
+        };
+        let mut errors = Vec::new();
+        for (name, actual, ceiling) in [
+            ("rule probes", max_rule_probes, self.ceilings.rule_probes),
+            ("steps", max_steps, self.ceilings.steps),
+        ] {
+            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary) {
+                errors.push(error);
+            }
+        }
+        if errors.is_empty() {
+            Ok(RuleCertificate {
+                schema_hash: self.schema.hash(),
+                rule_hash: self.schema.rule_hash(rule),
+                max_rule_probes,
+                max_steps,
+            })
+        } else {
+            Err(errors)
         }
     }
 
@@ -988,6 +1028,34 @@ impl<'a> Analyzer<'a> {
                 .fold(0_u64, u64::saturating_add),
             RuleExpr::Not(rule) => self.rule_probe_bound(rule),
             _ => 0,
+        }
+    }
+
+    fn direct_rule_step_bound(rule: &RuleExpr) -> u64 {
+        match rule {
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(Self::direct_rule_step_bound)
+                .fold(1_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => 1_u64.saturating_add(Self::direct_rule_step_bound(rule)),
+            _ => 1,
+        }
+    }
+
+    fn rule_step_bound(&self, rule: &RuleExpr) -> u64 {
+        match rule {
+            RuleExpr::Exists { table, .. } => 1_u64.saturating_add(
+                self.schema
+                    .table(table)
+                    .map(|table| Self::direct_rule_step_bound(&table.rules.read))
+                    .unwrap_or(0),
+            ),
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(|rule| self.rule_step_bound(rule))
+                .fold(1_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => 1_u64.saturating_add(self.rule_step_bound(rule)),
+            _ => 1,
         }
     }
 

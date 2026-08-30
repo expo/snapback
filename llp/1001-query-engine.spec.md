@@ -151,6 +151,7 @@ pub struct Generation {
     pub hash: String,                                   // digest of the project JSON
     pub schema: Schema,
     pub programs: BTreeMap<String, (Program, Certificate)>,   // key = "module.export"
+    pub channel_certificates: BTreeMap<String, ChannelCertificates>,
     pub effects: BTreeMap<String, EffectDecl>,
 }
 impl Generation {
@@ -162,6 +163,7 @@ pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
 impl Runtime {
     pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // applies gen to an empty or same-hash store; else runs the successor check
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError>; // E_OP_UNKNOWN when op is not in the generation
+    pub fn execute_handle(&mut self, program: &Program, certificate: &Certificate, context: Context) -> Result<Execution, RuntimeError>; // retained handles are fenced by plan/schema hashes
     pub fn apply_successor(&mut self, next: Generation) -> Result<SuccessorReport, SuccessorRefusal>;
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError>;  // one commit, kind "seed"
     pub fn generation(&self) -> &Generation;
@@ -196,8 +198,11 @@ never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 system context cannot be constructed by an ordinary caller, and is exempt
 from the tables' user rules (never from constraints, unique indexes, or
 column validation) — a seed is data the author declared, not a client
-intent. Seed and caller-controlled values may not carry the reserved `system`
-token in an `Id` or `Ref`, including inside optional/list values. Likewise:
+intent. Every table schema must declare the compiler-implicit `id: Id` column,
+and every write rejects fields outside the table declaration. Seed and
+caller-controlled values may not carry the reserved `system` token in the row
+id or any nested value, including optional/list/JSON values that could later
+be projected into an actor-bearing slot. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
@@ -311,8 +316,10 @@ reads an arg), and the verdict *carries its trace* (review ruling 2026-08-30,
 M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
 Every lookup performed while deriving a referenced row's visibility is also
-an authoritative rule probe and consumes the certificate's transitive probe
-ceiling.
+an authoritative rule probe. Generation certification emits separate
+publish/subscribe rule certificates with transitive probe and step ceilings;
+channel admission presents the selected certificate to the runner, which
+enforces both ceilings.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
 

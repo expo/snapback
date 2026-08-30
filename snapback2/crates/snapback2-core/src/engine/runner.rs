@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 //! Runner, part 1: statements, expressions, builtins, reads, ranges.
 use super::*;
-use crate::certificate::Certificate;
+use crate::certificate::{Certificate, RuleCertificate};
 use crate::ir::*;
 use crate::schema::*;
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
@@ -23,6 +23,7 @@ pub(super) struct Runner<'a> {
     pub(super) tx: &'a Transaction<'a>,
     pub(super) schema: &'a Schema,
     pub(super) certificate: Option<&'a Certificate>,
+    pub(super) rule_certificate: Option<&'a RuleCertificate>,
     pub(super) context: Context,
     pub(super) env: BTreeMap<String, Value>,
     pub(super) consts: BTreeSet<String>,
@@ -48,6 +49,7 @@ impl<'a> Runner<'a> {
             tx,
             schema,
             certificate: Some(certificate),
+            rule_certificate: None,
             context,
             env,
             consts: BTreeSet::new(),
@@ -66,12 +68,14 @@ impl<'a> Runner<'a> {
         context: Context,
         verdicts: &'a [Verdict],
         seq: u64,
+        rule_certificate: Option<&'a RuleCertificate>,
     ) -> Self {
         let env = context.args.clone();
         Self {
             tx,
             schema,
             certificate: None,
+            rule_certificate,
             context,
             env,
             consts: BTreeSet::new(),
