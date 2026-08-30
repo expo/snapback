@@ -62,6 +62,18 @@ Tables whose names begin with `_` are engine-owned: the schema may not declare
 them (`E_SCHEMA_RESERVED`), programs may not read or write them, and `data`
 reads them only through the dedicated verbs.
 
+**Exclusive write ownership** (LLP 0329.021 P2, LLP 0329.022 R1 — folded
+2026-08-30). The Snapback 2 owner is the *only* writer of its store. An
+external writer advances no commit `seq`, joins no read-set validation, and
+applies no maintained-aggregate delta, so a receipt minted over a database
+someone else writes is unsound in the silent direction (`Fresh` over rows
+that moved). `Store::open` therefore takes the file exclusively
+(`PRAGMA locking_mode = EXCLUSIVE` in WAL mode) and stamps `_meta.owner` with
+the opening process; a second opener fails with `E_STORE_OWNED` naming the
+holder. "Snapback in front of a database another system writes" is not an
+integration this engine supports; the honest forms are that system writing
+*through* named mutations, or being read-only.
+
 `Engine` keeps its shape (`execute(program, certificate, context)`), but is
 constructed over a `Store`: `Engine::new(store, schema)`; `Engine::memory(schema)`
 remains as `Engine::new(Store::memory()?, schema)` so the receipt-only client
@@ -90,6 +102,16 @@ pub struct CommitRecord { pub seq: u64, pub at: i64, pub program: String, pub pr
 
 Queries record nothing. `seq` is the store's version: every result, receipt,
 and delivery carries the `seq` it was computed at.
+
+**The receipt factors three ways** (LLP 0329.021 P4/P5, folded 2026-08-30),
+by who may issue each part: `rows` — "I hold these" — is client-issuable;
+`absences` and *complete* `ranges` — "no row exists there / this range is
+whole" — and `verdicts` — "this principal may see this" — are authority-only.
+The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
+*asserted*, not merely true by construction: `assert_bounds` checks
+`receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
+negative test (`issues/20260829-bounded-programs-receipt-absences-unvalidated.md`).
+Nothing in this crate ever constructs a receipt from anything but a trace.
 
 ## 3. Read and write states (no silent states)
 
@@ -282,6 +304,28 @@ or `Null` is valid) and `List { of: Box<ColumnType>, max: u32 }`
 (`{"List": {"of": <type>, "max": n}}`; an array of ≤ `max` elements); a `List`
 may not be an index column (`E_SCHEMA_INDEX_COLUMN`). Existing corpus JSON
 stays valid.
+
+Two more, from the column-type survey
+(`issues/20260829-bounded-programs-column-type-survey.md`, folded 2026-08-30),
+both representable in today's value model so nothing about storage,
+arithmetic, ordering, or the evaluator twin changes:
+
+- `Enum { variants: Vec<String> }` (`{"Enum": {"variants": ["dm","group"]}}`)
+  — a `Value::String` constrained to the closed list; any other string is
+  `E_INPUT` at write time. Indexable.
+- `Decimal { scale: u8 }` (`{"Decimal": {"scale": 2}}`) — a `Value::Int` of
+  minor units, i53 underneath; the *scale lives on the type*. The engine
+  stores, compares, and adds it as an integer; it is the compiler's job (LLP
+  1002 §2) to scale source literals and to refuse mixed-scale arithmetic.
+  Indexable, orderable, exact. `Money { currency, scale }` is the same with a
+  currency tag for the compiler to check; the engine treats it as `Decimal`.
+
+Deferred, recorded so they are not re-derived: `Bytes { max }` (needs a value
+variant and a canonical encoding shared with the twin — a value-model version
+bump), `Interval { of }` (four archetypes need it, but it interacts with
+visibility, retention, and the deferred `exclusion` constraint), `Duration`,
+`Set { of, max }`. Floats stay out (the survey's "why no floats" section is
+the ruling).
 
 ## 10. What binds, and how it is checked
 
