@@ -1,5 +1,7 @@
 #![cfg(feature = "hermes")]
 
+mod common;
+
 use serde_json::{Value, json};
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -20,7 +22,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     prepare_effect_fixture(&root, &provider.origin());
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
 
     let check = Command::new(binary)
         .args(["check", "--project"])
@@ -447,8 +449,8 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/chat")
 }
 
-fn compiler() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/dist/compiler.mjs")
+fn compiler(root: &Path) -> PathBuf {
+    common::isolated_compiler(&root.join(".test-package"))
 }
 
 fn temp_root() -> PathBuf {

@@ -15,6 +15,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod common;
 mod owner_cases;
 mod owner_support;
 mod owner_wire;
@@ -58,7 +59,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
 "#;
     fs::write(&messages, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
 
     let check = Command::new(binary)
         .args(["check", "--project"])
@@ -489,7 +490,7 @@ fn default_owner_replays_then_pending_without_an_engine() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let seq = seed_effect_row(
         &root,
         binary,
@@ -540,7 +541,7 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
         .replace("rule.principal(\"system\")", "rule.deny()");
     fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let seq = seed_effect_row(
         &root,
         binary,
@@ -590,7 +591,7 @@ fn fractional_effect_result_rejects_then_and_still_settles_sent() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let seq = seed_effect_row(&root, binary, &compiler, Some(json!({ "ratio": 1.5 })));
 
     let mut owner = ChildGuard::spawn(binary, &compiler, &root);
@@ -637,7 +638,7 @@ fn doctor_counts_queued_rows_from_store_without_an_owner() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     seed_effect_row(&root, binary, &compiler, None);
 
     let doctor = Command::new(binary)
@@ -664,7 +665,7 @@ fn reset_seed_refusal_is_atomic_and_keeps_the_owner_running() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn(binary, &compiler, &root);
     let port = owner
         .ready_line()
@@ -749,7 +750,7 @@ fn serve_refuses_personas_before_every_route_dispatch() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn_with(binary, &compiler, &root, true);
     let port = owner
         .ready_line()
@@ -842,8 +843,8 @@ fn serve_refuses_personas_before_every_route_dispatch() {
 #[test]
 fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
     let root = temp_root();
+    let compiler = compiler(&root);
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
 
     let empty_ir = Command::new(binary)
@@ -1028,7 +1029,7 @@ fn concurrent_detached_dev_attaches_without_replacing_the_winner() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let launch = || {
         let mut command = Command::new(binary);
         command
@@ -1088,7 +1089,7 @@ fn detached_stop_removes_owner_state_and_waits_for_the_pid() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let started = Command::new(binary)
         .args(["dev", "--project"])
         .arg(&root)
@@ -1135,7 +1136,7 @@ fn stop_during_generation_update_is_bounded_and_cannot_recreate_owner_state() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let binary = env!("CARGO_BIN_EXE_snapback2");
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let checked = Command::new(binary)
         .args(["check", "--project"])
         .arg(&root)

@@ -28,7 +28,7 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
     assert!(output.contains("E_FIRST"), "{output}");
     assert!(output.contains("E_SECOND"), "{output}");
 
-    let compiler = compiler();
+    let compiler = compiler(&root);
     let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
     let port = owner
         .ready_line()
