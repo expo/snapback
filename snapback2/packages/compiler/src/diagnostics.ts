@@ -65,6 +65,37 @@ export function typeDiagnostic(
   return { code, family, message, site: `${file}:${line}:${col}`, rewrite, guide };
 }
 
+export function boundedDiagnostics(
+  values: FrontendDiagnostic[],
+  limit: number,
+  scope: string,
+): FrontendDiagnostic[] {
+  const seen = new Set<string>();
+  const unique = values.filter((item) => {
+    const key = `${item.code}\0${item.site}\0${item.message}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((left, right) => left.site.localeCompare(right.site) || left.code.localeCompare(right.code));
+  if (unique.length <= limit) return unique;
+  const kept = unique.slice(0, limit - 1);
+  const exemplar = unique[limit - 1]!;
+  const more = unique.slice(limit - 1).reduce((total, item) => {
+    const represented = item.code === "E_DIAG_TRUNCATED" && item.message.match(/^…and (\d+) more/);
+    return total + (represented ? Number(represented[1]) : 1);
+  }, 0);
+  kept.push({
+    ...exemplar,
+    code: "E_DIAG_TRUNCATED",
+    family: "opaque",
+    message: `…and ${more} more ${scope}`,
+    rule: undefined,
+    rewrite: `${exemplar.rewrite}\n// Fix the remaining diagnostics and run snapback2 check again.`,
+    guide: "opaque/subset",
+  });
+  return kept;
+}
+
 function span(module: Pick<DiagnosticModule, "sourceFile" | "fileName">, node: ts.Node): Span {
   const start = node.getStart(module.sourceFile);
   const position = module.sourceFile.getLineAndCharacterOfPosition(start);

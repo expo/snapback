@@ -135,6 +135,12 @@ impl<'a> Runner<'a> {
         source: &Value,
         direction: i64,
     ) -> Result<(), RuntimeError> {
+        let table = self
+            .schema
+            .table(&maintain.source)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
+        let mut source = source.clone();
+        materialize_optional_fields(&mut source, table);
         let group: Vec<_> = maintain
             .by
             .iter()
@@ -183,12 +189,8 @@ impl<'a> Runner<'a> {
         } else {
             Effect::Insert
         };
-        if !self.check_rule(target, effect, &row)? {
-            return Err(RuntimeError::Rule {
-                table: target.to_owned(),
-                effect,
-            });
-        }
+        // LLP 1001 §7 ruling: maintained targets are engine-owned, so aggregate
+        // writes bypass user insert/update/delete rules but never constraints or unique indexes.
         self.check_constraints(target, existing.as_ref(), &row, effect)?;
         if let Some(existing) = &existing {
             self.touch_row(target, existing)?;
@@ -388,6 +390,11 @@ impl<'a> Runner<'a> {
         effect: Effect,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
+        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — seed rows
+        // are engine-owned; user rules do not bind them, while write validation below does.
+        if self.context.seed_write {
+            return Ok(true);
+        }
         let table = self
             .schema
             .table(table)

@@ -19,6 +19,8 @@ pub struct Context {
     pub now: Option<i64>,
     pub new_ids: VecDeque<String>,
     pub read_time: Option<i64>,
+    #[serde(default)]
+    pub(crate) seed_write: bool,
 }
 
 impl Context {
@@ -31,6 +33,7 @@ impl Context {
             now: None,
             new_ids: VecDeque::new(),
             read_time: None,
+            seed_write: false,
         }
     }
 
@@ -49,6 +52,7 @@ impl Context {
             now: Some(0),
             new_ids: VecDeque::new(),
             read_time: None,
+            seed_write: false,
         }
     }
 }
@@ -223,12 +227,8 @@ pub enum RuntimeError {
     OpUnknown(String),
     #[error("E_MIGRATION_PLAN: {0}")]
     MigrationPlan(String),
-    #[error("{code}: {message}; rewrite: {rewrite}")]
-    Successor {
-        code: String,
-        message: String,
-        rewrite: String,
-    },
+    #[error(transparent)]
+    Successor(#[from] Box<crate::successor::SuccessorRefusal>),
 }
 
 impl RuntimeError {
@@ -256,7 +256,7 @@ impl RuntimeError {
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
             Self::OpUnknown(_) => "E_OP_UNKNOWN",
             Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
-            Self::Successor { code, .. } => code,
+            Self::Successor(refusal) => &refusal.code,
         }
     }
 }
@@ -504,37 +504,74 @@ fn validate_inputs(
         let value = inputs
             .get(name)
             .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
-        match kind {
-            ArgType::List { max } => match value {
-                Value::Array(values) if values.len() <= *max as usize => {}
-                Value::Array(_) => return Err(RuntimeError::Fanout),
-                _ => return Err(RuntimeError::Input(format!("arg {name} must be a list"))),
-            },
-            ArgType::Enum { variants } => match value {
-                Value::String(value) if variants.contains(value) => {}
-                Value::String(value) => {
-                    return Err(RuntimeError::Input(format!(
-                        "arg {name} value {value:?} is not in {variants:?}"
-                    )));
-                }
-                _ => {
-                    return Err(RuntimeError::Input(format!(
-                        "arg {name} must be an enum string"
-                    )));
-                }
-            },
-            ArgType::Decimal { .. } | ArgType::Money { .. } => match value {
-                Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => {}
-                _ => {
-                    return Err(RuntimeError::Input(format!(
-                        "arg {name} must be an i53 integer"
-                    )));
-                }
-            },
-            ArgType::Scalar => {}
-        }
+        validate_arg_value(kind, value, &format!("arg {name}"))?;
     }
     Ok(())
+}
+
+pub(crate) fn validate_arg_value(
+    kind: &ArgType,
+    value: &Value,
+    label: &str,
+) -> Result<(), RuntimeError> {
+    match kind {
+        ArgType::Optional(_) if *value == Value::Null => Ok(()),
+        ArgType::Optional(inner) => validate_arg_value(inner, value, label),
+        ArgType::Id => match value {
+            Value::Id(_) => Ok(()),
+            _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
+        },
+        ArgType::Text { max } => match value {
+            Value::String(value) if value.chars().count() <= *max as usize => Ok(()),
+            Value::String(_) => Err(RuntimeError::Input(format!(
+                "{label} exceeds text max {max}"
+            ))),
+            _ => Err(RuntimeError::Input(format!("{label} must be text"))),
+        },
+        ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => {
+            match value {
+                Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => Ok(()),
+                _ => Err(RuntimeError::Input(format!(
+                    "{label} must be an i53 integer"
+                ))),
+            }
+        }
+        ArgType::Bool => match value {
+            Value::Bool(_) => Ok(()),
+            _ => Err(RuntimeError::Input(format!("{label} must be a boolean"))),
+        },
+        ArgType::Json { max_bytes } => {
+            if canonical_json(value).len() <= *max_bytes as usize {
+                Ok(())
+            } else {
+                Err(RuntimeError::Input(format!(
+                    "{label} exceeds JSON max {max_bytes} bytes"
+                )))
+            }
+        }
+        ArgType::List { of, max } => match value {
+            Value::Array(values) if values.len() <= *max as usize => {
+                if let Some(of) = of {
+                    for value in values {
+                        validate_arg_value(of, value, label)?;
+                    }
+                }
+                Ok(())
+            }
+            Value::Array(_) => Err(RuntimeError::Fanout),
+            _ => Err(RuntimeError::Input(format!("{label} must be a list"))),
+        },
+        ArgType::Enum { variants } => match value {
+            Value::String(value) if variants.contains(value) => Ok(()),
+            Value::String(value) => Err(RuntimeError::Input(format!(
+                "{label} value {value:?} is not in {variants:?}"
+            ))),
+            _ => Err(RuntimeError::Input(format!(
+                "{label} must be an enum string"
+            ))),
+        },
+        ArgType::Scalar => Ok(()),
+    }
 }
 
 fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {

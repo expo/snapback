@@ -38,6 +38,17 @@ pub struct CommitRecord {
     pub emits: u64,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxCounts {
+    pub queued: u64,
+    pub running: u64,
+    pub then_pending: u64,
+    pub sent: u64,
+    pub failed: u64,
+    pub sent_unknown: u64,
+}
+
 pub struct Store {
     pub(crate) conn: Connection,
 }
@@ -226,6 +237,31 @@ impl Store {
         .collect()
     }
 
+    pub fn outbox_counts(&self) -> Result<OutboxCounts, RuntimeError> {
+        let counts = self.conn.query_row(
+            "SELECT
+                COALESCE(SUM(CASE WHEN state = 'queued' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN state = 'running' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN state = 'then_pending' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN state = 'sent' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN state = 'failed' THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(CASE WHEN state = 'sent_unknown' THEN 1 ELSE 0 END), 0)
+             FROM _outbox",
+            [],
+            |row| {
+                Ok(OutboxCounts {
+                    queued: row.get::<_, i64>(0)?.max(0) as u64,
+                    running: row.get::<_, i64>(1)?.max(0) as u64,
+                    then_pending: row.get::<_, i64>(2)?.max(0) as u64,
+                    sent: row.get::<_, i64>(3)?.max(0) as u64,
+                    failed: row.get::<_, i64>(4)?.max(0) as u64,
+                    sent_unknown: row.get::<_, i64>(5)?.max(0) as u64,
+                })
+            },
+        )?;
+        Ok(counts)
+    }
+
     pub fn snapshot_to(&self, path: &Path) -> Result<(), RuntimeError> {
         let mut destination = Connection::open(path)?;
         let backup = Backup::new(&self.conn, &mut destination)?;
@@ -315,6 +351,49 @@ fn hostname() -> String {
         hostname.to_string_lossy().into_owned()
     } else {
         "unknown-host".to_owned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outbox_counts_reads_each_durable_lifecycle_state() {
+        let store = Store::memory().unwrap();
+        for (index, state) in [
+            "queued",
+            "running",
+            "then_pending",
+            "sent",
+            "failed",
+            "sent_unknown",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO _outbox(
+                        id, seq, effect, payload, state, attempts, next_at,
+                        last_error, result, created_at, updated_at
+                     ) VALUES (?1, 1, 'test', 'Null', ?2, 0, 0, NULL, NULL, 0, 0)",
+                    params![format!("outbox-{index}"), state],
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            store.outbox_counts().unwrap(),
+            OutboxCounts {
+                queued: 1,
+                running: 1,
+                then_pending: 1,
+                sent: 1,
+                failed: 1,
+                sent_unknown: 1,
+            }
+        );
     }
 }
 

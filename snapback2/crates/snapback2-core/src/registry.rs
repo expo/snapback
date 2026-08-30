@@ -4,7 +4,7 @@
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
-    RuleInputTrace, RuntimeError, is_sqlite_constraint,
+    RuleInputTrace, RuntimeError, is_sqlite_constraint, validate_arg_value,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
@@ -14,7 +14,7 @@ use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
     apply_migration_drops, plan, successor_refusal,
 };
-use crate::value::{I53_MAX, I53_MIN, Value, ValueError, digest};
+use crate::value::{Value, ValueError, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -301,6 +301,26 @@ impl Runtime {
             .get(op)
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
+        self.execute_certified(&program, &certificate, context)
+    }
+
+    pub fn execute_adhoc(
+        &mut self,
+        program: &Program,
+        context: Context,
+    ) -> Result<Execution, RuntimeError> {
+        let certificate = Checker::new(&self.generation.schema, Ceilings::default())
+            .check(program)
+            .map_err(|error| RuntimeError::Schema(error.to_string()))?;
+        self.execute_certified(program, &certificate, context)
+    }
+
+    fn execute_certified(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+    ) -> Result<Execution, RuntimeError> {
         match self.engine.execute(&program, &certificate, context) {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation => {
@@ -356,6 +376,7 @@ impl Runtime {
             .map_err(|error| RuntimeError::Schema(error.to_string()))?;
         let mut context = Context::system();
         context.now = Some(unix_millis());
+        context.seed_write = true;
         self.engine
             .execute_with_kind(&program, &certificate, context, Some("seed"))
             .map(|execution| execution.seq)
@@ -418,11 +439,7 @@ impl Runtime {
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
-            return Err(RuntimeError::Successor {
-                code: refusal.code,
-                message: refusal.message,
-                rewrite: refusal.rewrite,
-            });
+            return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let report = apply_additive(
             &transaction,
@@ -480,28 +497,8 @@ impl Runtime {
                         "channel {name} arg {arg} must be scalar"
                     )));
                 }
-                ArgType::List { max } if value.as_array()?.len() > *max as usize => {
-                    return Err(RuntimeError::Fanout);
-                }
-                ArgType::List { .. } => {
-                    value.as_array()?;
-                }
-                ArgType::Enum { variants } if !matches!(value, Value::String(value) if variants.contains(value)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be one of {variants:?}"
-                    )));
-                }
-                ArgType::Decimal { .. } | ArgType::Money { .. } if !matches!(value, Value::Int(value) if (I53_MIN..=I53_MAX).contains(value)) =>
-                {
-                    return Err(RuntimeError::Input(format!(
-                        "channel {name} arg {arg} must be an integer"
-                    )));
-                }
-                ArgType::Enum { .. }
-                | ArgType::Decimal { .. }
-                | ArgType::Money { .. }
-                | ArgType::Scalar => {}
+                ArgType::Scalar => {}
+                kind => validate_arg_value(kind, value, &format!("channel {name} arg {arg}"))?,
             }
         }
         let rule = match side {
@@ -614,5 +611,45 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
         }
         RuleExpr::Not(rule) => collect_reserved_rule_reads(rule, reads),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema: Schema::default(),
+                programs: Vec::new(),
+                effects: Vec::new(),
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let before = generation.clone();
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+        let program = Program {
+            name: "__owner.inspect".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Literal(Value::Int(42)))],
+        };
+
+        let execution = runtime
+            .execute_adhoc(&program, Context::query("dev:alice", BTreeMap::new()))
+            .unwrap();
+
+        assert_eq!(execution.result, Value::Int(42));
+        assert_eq!(runtime.generation(), &before);
+        assert_eq!(
+            runtime.store().meta("generation").unwrap(),
+            Some(before.hash)
+        );
     }
 }

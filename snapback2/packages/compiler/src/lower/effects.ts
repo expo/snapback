@@ -1,8 +1,9 @@
 import ts from "typescript";
+import { expandArgumentObject } from "../args";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
-import { hasExport, isFunctionLike, propertyName, unwrapCall, unwrapExpression, walk } from "../syntax";
-import { callLeaf, moduleJsonConstants, objectOf, property, propertyEntries, staticJson, stringArray } from "./static";
+import { hasExport, staticMemberPath, unwrapCall, unwrapExpression, walk } from "../syntax";
+import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringArray } from "./static";
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
 
@@ -51,7 +52,13 @@ export function effectBindings(module: SourceModule, catalog: EffectCatalog): Ma
       || !statement.moduleSpecifier.text.startsWith(".")) continue;
     const targetModule = moduleNameFromSpecifier(statement.moduleSpecifier.text);
     const imports = statement.importClause?.namedBindings;
-    if (!imports || !ts.isNamedImports(imports)) continue;
+    if (!imports) continue;
+    if (ts.isNamespaceImport(imports)) {
+      for (const [qualified, effect] of catalog) {
+        if (effect.module.moduleName === targetModule) bindings.set(`${imports.name.text}.${effect.exportName}`, qualified);
+      }
+      continue;
+    }
     for (const item of imports.elements) {
       const imported = item.propertyName?.text ?? item.name.text;
       const qualified = `${targetModule}.${imported}`;
@@ -140,7 +147,7 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   for (const parameter of run.parameters) collectScopedBindings(parameter.name, run, bindings);
   walk(run.body, (node) => {
     if (ts.isVariableDeclaration(node)) collectScopedBindings(node.name, bindingOwner(node, run), bindings);
-    if (isFunctionLike(node)) {
+    if (isScopedFunction(node)) {
       for (const parameter of node.parameters) collectScopedBindings(parameter.name, node, bindings);
       if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
         bindings.push({ name: node.name.text, owner: ts.isFunctionDeclaration(node) ? bindingOwner(node, run) : node });
@@ -159,9 +166,34 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
     if (escaped || !ts.isIdentifier(node) || !isReferenceIdentifier(node)) return;
     if (!allowed.has(node.text) && !bindings.some((binding) => binding.name === node.text && isWithin(node, binding.owner))) escaped = node;
   });
-  return escaped
-    ? effectDiagnostic(module, "E_EFFECT_CLOSURE", escaped, `effect run closes over non-JSON value ${escaped.text}`)
-    : undefined;
+  if (!escaped) return undefined;
+  const spread = invalidConstantSpread(module.sourceFile, escaped.text, constants);
+  return spread
+    ? effectDiagnostic(module, "E_EFFECT_CLOSURE", spread, `effect JSON constant spread ${spread.expression.getText(module.sourceFile)} is not statically JSON`)
+    : effectDiagnostic(module, "E_EFFECT_CLOSURE", escaped, `effect run closes over non-JSON value ${escaped.text}`);
+}
+
+function isScopedFunction(node: ts.Node): node is ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration {
+  return ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node) || ts.isMethodDeclaration(node);
+}
+
+function invalidConstantSpread(
+  sourceFile: ts.SourceFile,
+  name: string,
+  constants: Map<string, unknown>,
+): ts.SpreadAssignment | undefined {
+  let invalid: ts.SpreadAssignment | undefined;
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+    const declaration = statement.declarationList.declarations.find((item) => ts.isIdentifier(item.name) && item.name.text === name);
+    if (!declaration?.initializer) continue;
+    walk(declaration.initializer, (node) => {
+      if (invalid || !ts.isSpreadAssignment(node)) return;
+      const value = staticJson(node.expression, constants);
+      if (!value || typeof value !== "object" || Array.isArray(value)) invalid = node;
+    });
+  }
+  return invalid;
 }
 
 function collectScopedBindings(name: ts.BindingName, owner: ts.Node, output: Array<{ name: string; owner: ts.Node }>): void {
@@ -172,7 +204,7 @@ function collectScopedBindings(name: ts.BindingName, owner: ts.Node, output: Arr
 function bindingOwner(node: ts.Node, fallback: ts.Node): ts.Node {
   let current = node.parent;
   while (current && current !== fallback) {
-    if (ts.isBlock(current) || isFunctionLike(current) || ts.isCatchClause(current)) return current;
+    if (ts.isBlock(current) || isScopedFunction(current) || ts.isCatchClause(current)) return current;
     current = current.parent;
   }
   return fallback;
@@ -211,16 +243,23 @@ function isInsideType(node: ts.Node): boolean {
 }
 
 function resolveOperation(module: SourceModule, node: ts.Expression, operations: Map<string, OperationDecl>): OperationDecl | undefined {
-  const value = unwrapExpression(node);
-  if (!ts.isIdentifier(value)) return undefined;
-  const local = operations.get(`${module.moduleName}.${value.text}`);
+  const path = staticMemberPath(node);
+  if (!path) return undefined;
+  const local = !path.includes(".") ? operations.get(`${module.moduleName}.${path}`) : undefined;
   if (local) return local;
   for (const statement of module.sourceFile.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
       || !statement.moduleSpecifier.text.startsWith(".")) continue;
     const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    const item = bindings.elements.find((entry) => entry.name.text === value.text);
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      const prefix = `${bindings.name.text}.`;
+      if (path.startsWith(prefix) && !path.slice(prefix.length).includes(".")) {
+        return operations.get(`${moduleNameFromSpecifier(statement.moduleSpecifier.text)}.${path.slice(prefix.length)}`);
+      }
+      continue;
+    }
+    const item = bindings.elements.find((entry) => entry.name.text === path);
     if (!item) continue;
     const exported = item.propertyName?.text ?? item.name.text;
     return operations.get(`${moduleNameFromSpecifier(statement.moduleSpecifier.text)}.${exported}`);
@@ -231,7 +270,7 @@ function resolveOperation(module: SourceModule, node: ts.Expression, operations:
 function validThenArgs(call: ts.CallExpression): boolean {
   const args = objectOf(call.arguments[0]);
   if (!args) return false;
-  const entries = propertyEntries(args);
+  const entries = expandArgumentObject(args).entries;
   if (entries.map((item) => item.name).sort().join(",") !== "effect,outboxId,result") return false;
   const descriptors = new Map(entries.map((item) => [item.name, callLeaf(item.value)]));
   return ["id", "text"].includes(descriptors.get("outboxId") ?? "")

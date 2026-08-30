@@ -1,12 +1,13 @@
 import ts from "typescript";
 import type { Environment, FunctionLike, LoweredValue, VariableInfo } from "../compiler";
-import { refuse } from "../diagnostics";
+import { refuse, Refusal } from "../diagnostics";
 import type { Expr, LoopDomain, Provenance, Scan } from "../ir";
 import {
   binaryOperator,
   callName,
   collectionConstructor,
   expressionProperty,
+  expandedNumericLiteral,
   identifierFromArgsOrLocal,
   isDbMember,
   isFunctionLike,
@@ -17,6 +18,7 @@ import {
   propertyName,
   replaceNode,
   singular,
+  staticMemberPath,
   stringLiteral,
   syntheticIdentifier,
   temporary,
@@ -66,6 +68,21 @@ export function knownObjectFields(node: ts.Expression, env: Environment): string
     return knownObjectFields(call.expression.expression, env);
   }
   return undefined;
+}
+
+export function nullableReadSpread(node: ts.Expression, env: Environment): string | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value) && env.variables.get(value.text)?.nullableRead) return value.text;
+  const call = unwrapCall(value);
+  return call && callName(call).endsWith(".get") && isDbMember(call.expression) ? call.getText(env.sourceFile) : undefined;
+}
+
+export function nullableSpreadRefusal(node: ts.SpreadAssignment, env: Environment, value: string): never {
+  const direct = value.includes(".get(");
+  const rewrite = direct
+    ? `const row = ${value};\ndb.require(row !== null, "ROW_REQUIRED");\n{ ...row }`
+    : `db.require(${value} !== null, "ROW_REQUIRED");\n{ ...${value} }`;
+  refuse(env, "E_OPAQUE", node, `nullable db.get result ${value} cannot be spread before it is required`, rewrite);
 }
 
 function rowFields(target: ts.Expression | undefined, env: Environment): string[] | undefined {
@@ -293,13 +310,16 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
   if (node.kind === ts.SyntaxKind.FalseKeyword) return literal(false);
   if (ts.isNumericLiteral(node)) {
     const scaled = env.literalValues.get(node.getStart(env.sourceFile));
-    if (node.text.includes(".") && scaled === undefined) {
+    const expanded = expandedNumericLiteral(node.text);
+    const fractional = !Number.isInteger(Number(node.text)) || (expanded?.fraction.length ?? 0) > 0;
+    if (fractional && scaled === undefined) {
+      const scale = Math.max(1, expanded?.fraction.length ?? 0);
       refuse(
         env,
         "E_DECIMAL_SCALE",
         node,
         `fractional literal ${node.text} has no known Decimal scale`,
-        env.source.slice(0, node.getStart(env.sourceFile)) + node.text.replace(".", "") + env.source.slice(node.getEnd()),
+        replaceNode(env.source, node, `decimal(${node.text}, ${scale})`),
       );
     }
     return literal(scaled ?? Number(node.text));
@@ -314,20 +334,24 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
       plain = [];
     };
     for (const element of node.elements) {
-      if (ts.isSpreadElement(element)) {
-        if (staticBound(element.expression, env) === undefined) {
-          refuse(
-            env,
-            "E_OPAQUE",
-            element,
-            "array spread requires a statically bounded array; spell its elements explicitly",
-            arraySpreadRewrite(env, element),
-          );
+      try {
+        if (ts.isSpreadElement(element)) {
+          if (staticBound(element.expression, env) === undefined) {
+            refuse(
+              env,
+              "E_OPAQUE",
+              element,
+              "array spread requires a statically bounded array; spell its elements explicitly",
+              arraySpreadRewrite(env, element),
+            );
+          }
+          flush();
+          segments.push(lowerExpr(element.expression, env));
+        } else {
+          plain.push(lowerExpr(element, env));
         }
-        flush();
-        segments.push(lowerExpr(element.expression, env));
-      } else {
-        plain.push(lowerExpr(element, env));
+      } catch (error) {
+        captureRefusal(env, error);
       }
     }
     flush();
@@ -336,37 +360,43 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
   if (ts.isObjectLiteralExpression(node)) {
     const object: Record<string, Expr> = {};
     for (const property of node.properties) {
-      if (ts.isSpreadAssignment(property)) {
-        const fields = knownObjectFields(property.expression, env);
-        if (!fields) {
-          refuse(
-            env,
-            "E_OPAQUE",
-            property,
-            "object spread requires a statically known object shape; spell its fields explicitly",
-            objectSpreadRewrite(env, property),
-          );
-        }
-        if (ts.isIdentifier(property.expression) && property.expression.text === "args") {
-          for (const field of fields) object[field] = { Variable: field };
-        } else {
-          const base = lowerExpr(property.expression, env);
-          if ("Object" in base) {
-            for (const [field, expression] of Object.entries(base.Object)) object[field] = expression;
-          } else {
-            for (const field of fields) object[field] = { Field: { base, name: field } };
+      try {
+        if (ts.isSpreadAssignment(property)) {
+          const nullable = nullableReadSpread(property.expression, env);
+          if (nullable) nullableSpreadRefusal(property, env, nullable);
+          const fields = knownObjectFields(property.expression, env);
+          if (!fields) {
+            refuse(
+              env,
+              "E_OPAQUE",
+              property,
+              "object spread requires a statically known object shape; spell its fields explicitly",
+              objectSpreadRewrite(env, property),
+            );
           }
+          if (ts.isIdentifier(property.expression) && property.expression.text === "args") {
+            for (const field of fields) object[field] = { Variable: field };
+          } else {
+            const base = lowerExpr(property.expression, env);
+            if ("Object" in base) {
+              for (const [field, expression] of Object.entries(base.Object)) object[field] = expression;
+            } else {
+              for (const field of fields) object[field] = { Field: { base, name: field } };
+            }
+          }
+          continue;
         }
-        continue;
+        if (ts.isShorthandPropertyAssignment(property)) {
+          object[property.name.text] = lowerExpr(property.name, env);
+          continue;
+        }
+        if (!ts.isPropertyAssignment(property)) refuse(env, "E_OPAQUE", property, "object method/property form is unsupported");
+        const name = propertyName(property.name);
+        if (!name) refuse(env, "E_OPAQUE", property.name, "computed object keys are unsupported");
+        object[name] = lowerExpr(property.initializer, env, hint ? `${hint}.${name}` : name);
+      } catch (error) {
+        captureRefusal(env, error);
       }
-      if (ts.isShorthandPropertyAssignment(property)) {
-        object[property.name.text] = lowerExpr(property.name, env);
-        continue;
-      }
-      if (!ts.isPropertyAssignment(property)) refuse(env, "E_OPAQUE", property, "object method/property form is unsupported");
-      const name = propertyName(property.name);
-      if (!name) refuse(env, "E_OPAQUE", property.name, "computed object keys are unsupported");
-      object[name] = lowerExpr(property.initializer, env, hint ? `${hint}.${name}` : name);
     }
     return { Object: object };
   }
@@ -408,12 +438,20 @@ export function lowerExpr(node: ts.Expression, env: Environment, hint?: string):
   refuse(env, "E_OPAQUE", node, `expression ${ts.SyntaxKind[node.kind]} is outside the S1 IR`);
 }
 
+function captureRefusal(env: Environment, error: unknown): void {
+  if (error instanceof Refusal) env.diagnostics.push(error.diagnostic);
+  else throw error;
+}
+
 function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Expr {
   const expanded = expandHelper(call, env);
   if (expanded) return lowerExpr(expanded.expression, expanded.environment, expanded.siteHint ?? hint);
   const name = callName(call);
   if (name === "decimal" && call.arguments[0]) return lowerExpr(call.arguments[0], env, hint);
-  if (name === "ctx.now" || name === "ctx.commitTime") return { Input: "Now" };
+  if (name === "ctx.now") {
+    return { Input: env.kind === "Query" ? "ReadTime" : "Now" };
+  }
+  if (name === "ctx.commitTime") return { Input: "Now" };
   if (name === "ctx.newId") return { Input: "NewId" };
   if (name.endsWith(".get") && isDbMember(call.expression)) return { Get: lowerRead(call, env, hint) };
   if (name.endsWith(".exists") && isDbMember(call.expression)) return { Exists: lowerRead(call, env, hint) };
@@ -513,7 +551,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   } else {
     const name = identifierFromArgsOrLocal(takeNode);
     const arg = name && env.args[name];
-    const max = name && arg && typeof arg !== "string" ? arg.List.max : undefined;
+    const max = name && arg && typeof arg !== "string" && "List" in arg ? arg.List.max : undefined;
     if (!name || max === undefined) refuse(env, "E_UNBOUND_SCAN", takeNode, "take argument needs a declared max");
     take = { Arg: { name, max } };
   }
@@ -540,16 +578,20 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   };
 }
 
-export function tableReference(node: ts.Expression, env: Pick<Environment, "tables">): { table: string; index: string } {
-  if (ts.isIdentifier(node)) {
-    const info = env.tables.get(node.text);
-    return { table: info?.name ?? node.text, index: info?.maintainedFrom ? "byGroup" : "byId" };
-  }
-  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-    const info = env.tables.get(node.expression.text);
-    return { table: info?.name ?? node.expression.text, index: node.name.text };
-  }
-  throw new Error(`non-static table reference: ${node.getText()}`);
+export function tableReference(node: ts.Expression, env: Environment): { table: string; index: string } {
+  const path = staticMemberPath(node);
+  const direct = path && env.tables.get(path);
+  if (direct) return { table: direct.name, index: direct.maintainedFrom ? "byGroup" : "byId" };
+  const separator = path?.lastIndexOf(".") ?? -1;
+  const owner = separator > 0 ? env.tables.get(path!.slice(0, separator)) : undefined;
+  if (owner) return { table: owner.name, index: path!.slice(separator + 1) };
+  refuse(
+    env,
+    "E_OPAQUE",
+    node,
+    `static table/index reference required; ${node.getText(env.sourceFile)} does not resolve to an imported table or table.index`,
+    replaceNode(env.source, node, "table.index"),
+  );
 }
 
 export function lowerKey(node: ts.Expression, env: Environment): Expr[] {

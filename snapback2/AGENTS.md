@@ -10,6 +10,7 @@ scripts/test.sh                  # everything that blocks: cargo + evaluator + c
 node scripts/measure.mjs --check # loop numbers → metrics/loop.jsonl; fails on regression
 node scripts/publish.mjs --dry-run   # production build + npm pack; drop --dry-run to ship
 scripts/hermes build             # only for effects: links Ibex 2 + vanilla Hermes
+scripts/hermes test -p snapback2-effects # effects engine proof; never blocking
 ./target/debug/snapback2 doctor  # boot-to-ready proof; `check <program.json>` certifies
 ```
 

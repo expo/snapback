@@ -682,7 +682,7 @@ pub fn add_expense_program() -> Program {
         args: BTreeMap::from([
             ("groupId".to_owned(), ArgType::Scalar),
             ("amount".to_owned(), ArgType::Scalar),
-            ("recipients".to_owned(), ArgType::List { max: 50 }),
+            ("recipients".to_owned(), ArgType::List { of: None, max: 50 }),
         ]),
         read_time_granularity_ms: None,
         body: vec![

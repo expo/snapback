@@ -2,12 +2,15 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use snapback2_core::{
-    spike_schema, Ceilings, Certificate, CheckError, Checker, Index, Program, RuleExpr, Rules,
-    Schema, Table,
+    Ceilings, Certificate, CheckError, Checker, Index, Program, RuleExpr, Rules, Schema, Table,
+    spike_schema,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Read};
+use std::path::Path;
 use std::process::ExitCode;
+
+use crate::project;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +139,19 @@ pub fn run(path: Option<&str>) -> ExitCode {
             }
         }
     }
+    if input.trim().is_empty() {
+        return print_response_with_code(
+            vec![refused_item(
+                "<input>",
+                SerializableError::input("<stdin>:1:1", "check --ir received empty input"),
+            )],
+            2,
+        );
+    }
+    run_input(input)
+}
+
+pub fn run_input(input: String) -> ExitCode {
     let request: Request = match serde_json::from_str(&input) {
         Ok(request) => request,
         Err(error) => {
@@ -169,13 +185,27 @@ pub fn run(path: Option<&str>) -> ExitCode {
         Some(schema) => match serde_json::from_value(schema) {
             Ok(schema) => schema,
             Err(error) => {
-                return print_response(vec![refused_item(
+                let mut results = vec![refused_item(
                     "<schema>",
                     SerializableError::unsupported(
                         "<project>:schema",
                         format!("project schema contains an unsupported IR variant: {error}"),
                     ),
-                )]);
+                )];
+                results.extend(programs.into_iter().map(|(name, program)| {
+                    let error = match program {
+                        Err(message) => SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            format!("program JSON contains an unsupported IR variant: {message}"),
+                        ),
+                        Ok(_) => SerializableError::unsupported(
+                            &format!("<project>:{name}"),
+                            "program cannot be certified because the project schema is unsupported",
+                        ),
+                    };
+                    refused_item(&name, error)
+                }));
+                return print_response(results);
             }
         },
         None => match request.schema_mode {
@@ -212,6 +242,36 @@ pub fn run(path: Option<&str>) -> ExitCode {
     print_response(results)
 }
 
+/// Compile and certify an authored project, then refresh its uncommitted build cache.
+// @ref LLP 1002#6-verbs-this-wave — project check is the one-shot owner pipeline.
+pub fn run_project(root: &Path, json: bool) -> ExitCode {
+    match project::compile_once(root) {
+        Ok(compiled) => {
+            let short = &compiled.generation.hash[..compiled.generation.hash.len().min(8)];
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "ok": true,
+                        "generation": compiled.generation.hash,
+                        "operations": compiled.generation.programs.len(),
+                        "compilerMs": compiled.compiler_ms,
+                    })
+                );
+            } else {
+                println!("ok {short} {} ops", compiled.generation.programs.len());
+            }
+            ExitCode::SUCCESS
+        }
+        Err(refusals) => {
+            for refusal in refusals {
+                println!("{}", serde_json::to_string(&refusal).unwrap_or_default());
+            }
+            ExitCode::from(1)
+        }
+    }
+}
+
 fn refused_item(program: &str, error: SerializableError) -> ResultItem {
     ResultItem {
         program: program.to_owned(),
@@ -231,6 +291,14 @@ fn print_response(results: Vec<ResultItem>) -> ExitCode {
     } else {
         ExitCode::SUCCESS
     }
+}
+
+fn print_response_with_code(results: Vec<ResultItem>, code: u8) -> ExitCode {
+    println!(
+        "{}",
+        serde_json::to_string(&Response { results }).expect("serialize check response")
+    );
+    ExitCode::from(code)
 }
 
 fn synthetic_schema(programs: &[Program]) -> Schema {
@@ -302,10 +370,10 @@ fn collect_sites(
                 reads.insert((table.clone(), index.clone()));
             }
             for kind in ["Insert", "Update", "Upsert", "Delete"] {
-                if let Some(Value::Object(write)) = values.get(kind) {
-                    if let Some(Value::String(table)) = write.get("table") {
-                        writes.insert(table.clone());
-                    }
+                if let Some(Value::Object(write)) = values.get(kind)
+                    && let Some(Value::String(table)) = write.get("table")
+                {
+                    writes.insert(table.clone());
                 }
             }
             values

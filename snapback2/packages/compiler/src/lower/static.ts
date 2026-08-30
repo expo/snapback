@@ -7,8 +7,12 @@ export function callLeaf(node: ts.Expression | undefined): string | undefined {
   if (!call) return undefined;
   const snapback = snapbackCallName(call);
   if (snapback) return snapback;
-  if (ts.isIdentifier(call.expression)) return call.expression.text;
-  return ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
+  const leaf = ts.isIdentifier(call.expression)
+    ? call.expression.text
+    : ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
+  return leaf && ["query", "mutation", "effect", "channel", "table", "schema", "seed", "emit"].includes(leaf)
+    ? undefined
+    : leaf;
 }
 
 export function callOf(node: ts.Expression | undefined, name: string): ts.CallExpression | undefined {
@@ -87,7 +91,17 @@ export function staticJson(node: ts.Expression, constants: Map<string, unknown> 
   }
   if (ts.isObjectLiteralExpression(value)) {
     const output: Record<string, unknown> = {};
-    for (const entry of propertyEntries(value)) {
+    for (const item of value.properties) {
+      if (ts.isSpreadAssignment(item)) {
+        const spread = staticJson(item.expression, constants);
+        if (!spread || typeof spread !== "object" || Array.isArray(spread)) return undefined;
+        Object.assign(output, spread);
+        continue;
+      }
+      const entry = ts.isPropertyAssignment(item)
+        ? { name: propertyName(item.name), value: item.initializer }
+        : ts.isShorthandPropertyAssignment(item) ? { name: item.name.text, value: item.name } : undefined;
+      if (!entry?.name) return undefined;
       const lowered = staticJson(entry.value, constants);
       if (lowered === undefined) return undefined;
       output[entry.name] = lowered;
