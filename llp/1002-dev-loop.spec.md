@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2` (the binary: owner, server, verbs), `snapback2/packages/compiler` (project lowering, worker), `snapback2/packages/snapback2` (authoring runtime, client, React, test runner, shim), `snapback2/scripts/measure.mjs`
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
-**Revised:** 2026-08-29
+**Revised:** 2026-08-30
 **Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects), LLP 0329.016 §5 (the design this implements verbatim where it can), LLP 0329.016 §5.11 (the verb table — no verb exists without its row), LLP 0329.016 §8 (gates)
 
 ## Summary
@@ -66,7 +66,7 @@ export const profiles = table({
            update: rule.viewerIs('id'), delete: rule.deny() },
 })
 export const memberships = table({
-  columns: { conversationId: t.ref('conversations'), userId: t.ref('profiles'), lastReadAt: t.time() },
+  columns: { conversationId: t.ref(conversations), userId: t.ref(profiles), lastReadAt: t.time() },   // refs name the exported table, not a string
   indexes: { byConvUser: { columns: ['conversationId', 'userId'], unique: true }, byUser: { columns: ['userId'] } },
   rules: { read: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
            insert: rule.allow(), update: rule.viewerIs('userId'), delete: rule.viewerIs('userId') },
@@ -84,7 +84,16 @@ export default schema({
 ```
 
 `t`: `id()`, `text(max)`, `int()`, `bool()`, `time()`, `ref(table)`,
-`json(maxBytes)`, `optional(x)`, `list(x, { max })`. `rule`: `public(reason)`,
+`json(maxBytes)`, `optional(x)`, `list(x, { max })`, and (folded 2026-08-30
+from the column-type survey) `enum(['dm', 'group'])` and `decimal(scale)` /
+`money(currency, scale = 2)`. A `Decimal` column or arg is typed
+`Decimal<S>` — a branded `number` of minor units — in `api.d.ts`; inside a
+program the compiler scales a decimal literal written against a `Decimal<S>`
+target (`price: 9.99` → `999` when `price` is `t.decimal(2)`), admits `+`, `-`,
+comparisons, and `min`/`max` between operands of the same scale and `*` by an
+`int`, and refuses everything else with `E_DECIMAL_SCALE` and a rewrite naming
+the scales. The wire carries the integer; the client's `decimal(9.99, 2)`
+helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
 `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`, `or(…)`, `not(r)`,
 `exists(table, index, key[], { hidden? })`, `principal(kind)`, `viewerIs(field)`
 (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`, `literal(v)`. Each
@@ -110,7 +119,9 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
 envelope. The one-shot form `node compiler.mjs --project <root>` prints the
 same response and exits 0/1, so `check` works without the binary and the
-compiler's own tests need no spawn. The compiler is bundled by esbuild into
+compiler's own tests need no spawn. The binary's IR-file form is
+`snapback2 check --ir <project.json>` (stdin when omitted) — `--project` on
+the binary always means the §6 verb over a project directory. The compiler is bundled by esbuild into
 `packages/snapback2/dist/compiler.mjs` and runs under Node ≥ 20 (no `Bun.*`).
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
@@ -284,7 +295,27 @@ client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 `Api` augmentation in `.snapback/build/api.d.ts`. Eight states surface as the
 union `hydrating | live | stale | partial | denied | refused | capped |
 complete` on `useQuery`; `useMutation` returns `{ run, last }` with
-`committed | queued | rejected`. `SnapbackProvider({ url, as? })` and an
+`committed | queued | rejected`.
+
+Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
+
+- **Every state here is receipt-backed**, and the type says so: there is no
+  `unknown`, no `cached`, no `empty: bool`. `hydrating` is *partially
+  arrived* (a spinner); `partial(sites)` is *partially held* (coverage — the
+  client cannot resolve it without the server); `complete` with `[]` is an
+  authority's "no rows exist"; the three are never collapsed (LLP 0329.019
+  A2, LLP 0329.023 F2). A foreign backend is a separately typed resource
+  (`Cached | Stale | Failed`, LLP 0329.022) that this package does not
+  provide and its types cannot be coerced into.
+- **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
+  and run the 7.8 KB TypeScript twin; the Contract-native (Exact 2) arm hosts
+  none and links `snapback2-core`'s interpreter — the same `ClientStore` the
+  corpus already proves byte-identical. Two implementations, assigned by
+  runtime, never a third.
+- **Coverage is client-issuable; absence and authorization are not**
+  (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a
+  read whose result depends on an absence the receipt does not carry is
+  `partial`, never `complete`. `SnapbackProvider({ url, as? })` and an
 optional `<DevOverlay/>` (persona, connection, generation, last refusal).
 Reconnect with backoff; a lost SSE stream reports `stale(since)` until the
 first delivery after reconnect. The evaluator twin gains `Emit` as a
@@ -317,6 +348,17 @@ schedule kind, retention.
 
 ## Open author decisions
 
+0. **The surface, after LLP 0329.017.** A Contract-block (additive) front end
+   lowers 17/17 S1 programs and refuses 8/8 first attempts *at parse*, where
+   the TypeScript front end refuses them by policy after they type-check.
+   This spec keeps TypeScript for the React-web-first benchmark (the gauntlet
+   measures naturally written TypeScript; a Contract surface scores 0 there
+   by construction) and treats the Contract block as the Exact 2 arm's
+   authoring form over the same IR. Two facts from that spike bind the
+   compiler now: `provenance` and `site` are **authored facts, not derivable**
+   (0329.017 C4) — the compiler's inference of them is a silent-wrongness
+   surface and must become either an explicit annotation or a verified
+   inference with a refusal when it cannot decide (`E_PROVENANCE_AMBIGUOUS`).
 1. `tiny_http` versus a std-only server (size vs. correctness of chunked SSE).
 2. Whether `init --client react` should exist before the React arm has a
    benchmark run, or `init` should scaffold the backend only.
