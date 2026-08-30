@@ -809,6 +809,19 @@ test("effect source expands JSON constant spreads and scopes every nested functi
   });
 });
 
+test("effect closure ignores non-computed destructuring property names", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      export const renamed = effect({ grants: ["https://api.example.com"], run: async (_p: null, { value: local }: any) => local });
+      export const renamedDefault = effect({ grants: ["https://api.example.com"], run: async (_p: null, { value: local = 1 }: any) => local });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `non-computed destructuring property names were refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    assert(project.project.effects.length === 2, "renamed destructuring effects were omitted");
+  });
+});
+
 test("effect closure refusals include parameter, destructuring, and computed-name defaults", async () => {
   await withProject({
     "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,

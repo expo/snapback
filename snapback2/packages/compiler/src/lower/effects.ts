@@ -230,7 +230,7 @@ function isReferenceIdentifier(node: ts.Identifier): boolean {
   if (ts.isPropertyAssignment(parent) && parent.name === node && parent.initializer !== node) return false;
   if (ts.isMethodDeclaration(parent) && parent.name === node) return false;
   if (ts.isPropertySignature(parent) || ts.isTypeReferenceNode(parent) || ts.isTypeParameterDeclaration(parent)) return false;
-  if (ts.isBindingElement(parent) && parent.name === node) return false;
+  if (ts.isBindingElement(parent) && (parent.name === node || parent.propertyName === node)) return false;
   if (ts.isVariableDeclaration(parent) && parent.name === node) return false;
   if (ts.isParameter(parent) && parent.name === node) return false;
   if (ts.isFunctionDeclaration(parent) && parent.name === node) return false;
