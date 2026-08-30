@@ -183,7 +183,10 @@ impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &Migrat
 ```
 
 `apply_migration` performs exactly the listed drops (type changes drop the
-column's values) and then applies the successor as additive. Never a prompt,
+column's values) and then applies the successor as additive — *with the same
+admission checks* (`E_SUCCESSOR_UNIQUE`, `E_SUCCESSOR_COLUMN_REQUIRED`) as the
+additive path, in the same transaction, so a refusal rolls the drops back too
+(review ruling 2026-08-30, round 2 G1). Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
@@ -230,7 +233,11 @@ included, LLP 0329.014.004 §7 "Two traces"):
 
 Conservative by design: a range with `after`/`before`/`range` bounds is
 indexed by its prefix alone (a superset), and a rerun that produces the same
-result digest is delivered with `changed: false` so the loop can coalesce.
+`(state, result)` digest is delivered with `changed: false` so the loop can
+coalesce — the state is part of the digest, so `Complete` → `Denied` over the
+same payload is a change. Every write emits at least one touched entry for its
+table even when the table has no index, so `constraint_inputs` overlap works
+without assuming `byId` exists (round 2 G2/G3).
 `rerun` executes at most once per id per call, in id order, and updates the
 subscription's key entries from the fresh trace. Subscriptions live in memory
 with the owner; a restart re-subscribes from the clients (LLP 1002).
