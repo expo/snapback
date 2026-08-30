@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "check": "tsc -p tsconfig.json",
-    "test": "bun src/test.ts",
-    "cli": "bun src/cli.ts"
+    "test": "bun src/test.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
+    "esbuild": "0.25.9",
     "typescript": "5.9.2"
   }
 }

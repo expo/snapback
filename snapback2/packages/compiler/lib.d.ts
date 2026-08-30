@@ -1,112 +1,137 @@
-interface SymbolConstructor { readonly iterator: unique symbol; }
-declare const Symbol: SymbolConstructor;
-interface IteratorResult<T> { done?: boolean; value: T; }
-interface Iterator<T> { next(): IteratorResult<T>; }
-interface Iterable<T> { [Symbol.iterator](): Iterator<T>; }
-
-interface Array<T> extends Iterable<T> {
-  readonly length: number;
-  [index: number]: T;
-  map<U>(callback: (value: T, index: number) => U): U[];
-  flatMap<U>(callback: (value: T, index: number) => U[]): U[];
-  filter(callback: (value: T, index: number) => boolean): T[];
-  reduce<U>(callback: (value: U, item: T) => U, initial: U): U;
-  some(callback: (value: T) => boolean): boolean;
-  slice(start?: number, end?: number): T[];
-  sort(comparator: (a: T, b: T) => number): T[];
-  push(value: T): number;
-  count(): number;
-  countCapped(): { count: number; atCap: boolean };
-}
-
-interface ReadonlyArray<T> extends Array<T> {}
-interface String {
-  readonly length: number;
-  split(separator: string): string[];
-}
-interface Number {}
-interface Boolean {}
-interface Function {}
-interface Object {}
-interface RegExp {}
-interface IArguments {}
-interface CallableFunction extends Function {}
-interface NewableFunction extends Function {}
-
-declare class Map<K, V> {
-  constructor(values?: Array<[K, V]>);
-  readonly size: number;
-  get(key: K): V | undefined;
-  set(key: K, value: V): this;
-  has(key: K): boolean;
-}
-declare class Set<T> {
-  constructor(values?: Array<T>);
-  readonly size: number;
-  add(value: T): this;
-  has(value: T): boolean;
-}
-
-declare const Math: {
-  min(...values: number[]): number;
-  max(...values: number[]): number;
-  abs(value: number): number;
-};
-
-type Row = Record<string, any>;
-type Page<T = Row> = Array<T> & { hasMore: boolean };
-type Table = { readonly [index: string]: Table };
-type Arg<T = any> = { readonly max?: number; readonly kind?: string; readonly __value?: T };
-type Context = {
-  db: Db;
-  ctx: {
-    [name: string]: any;
-    viewer: any;
-    now(): any;
-    newId(): any;
-    readonly readTime: any;
-    readonly commitTime: any;
+declare module "snapback2" {
+  export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+  export type Decimal<S extends number> = number & {
+    readonly __decimalScale: S;
+    readonly __decimalBrand: unique symbol;
   };
-  args: Record<string, any>;
-};
-type Db = {
-  [name: string]: any;
-  get(target: Table, key: any): any;
-  exists(target: Table, key: any): boolean;
-  scan(target: Table, prefix: any, options?: Record<string, any>): Page;
-  insert(target: Table, row: Row): any;
-  update(target: Table, key: any, patch: Row | ((row: any) => Row)): void;
-  upsert(target: Table, key: any, row: Row | ((row: any) => Row)): void;
-  delete(target: Table, key: any): void;
-  require(condition: any, code?: string): void;
-  assert(condition: any): void;
-};
+  export type Money<C extends string, S extends number = 2> = Decimal<S> & {
+    readonly __moneyCurrency: C;
+    readonly __moneyBrand: unique symbol;
+  };
+  export type Column<T = unknown, Optional extends boolean = false> = {
+    readonly __value: T;
+    readonly __optional: Optional;
+    readonly __column: unique symbol;
+  };
+  export type Arg<T = unknown, Optional extends boolean = false> = Column<T, Optional>;
+  export type RowOfColumns<C extends Record<string, Column<any, any>>> =
+    { id: string }
+    & { [K in keyof C as C[K] extends Column<any, true> ? never : K]: C[K] extends Column<infer T, any> ? T : never }
+    & { [K in keyof C as C[K] extends Column<any, true> ? K : never]?: C[K] extends Column<infer T, any> ? T : never };
+  export type Table<Row extends Record<string, any> = Record<string, any>> = {
+    readonly __row: Row;
+    readonly __table: unique symbol;
+  } & { readonly [index: string]: TableIndex<Row> };
+  export type TableIndex<Row extends Record<string, any> = Record<string, any>> = {
+    readonly __row: Row;
+    readonly __index: unique symbol;
+  };
+  export type Rule = { readonly __rule: unique symbol };
+  export type RuleTerm = { readonly __term: unique symbol };
+  export type Channel<A = unknown> = { readonly __args: A; readonly __channel: unique symbol };
+  export type Operation<Args, Result, Kind extends "query" | "mutation"> = {
+    readonly __args: Args;
+    readonly __result: Result;
+    readonly __kind: Kind;
+  };
+  export type Effect<Payload = Json, Result = Json> = {
+    readonly __payload: Payload;
+    readonly __result: Result;
+    readonly __effect: unique symbol;
+  };
 
-declare function table(name: string): Table;
-declare function privateTable(name: string): Table;
-declare function maintained(name: string, source: Table): Table;
-declare function scalar(): Arg<any>;
-declare function id(table?: Table): Arg<any>;
-declare function text(options?: { max?: number } | number): Arg<string>;
-declare function int(): Arg<number>;
-declare function time(): Arg<number>;
-declare function optional<T>(value: Arg<T>): Arg<T | undefined>;
-declare function list<T>(value: Arg<T>, options: { max: number }): Arg<T[]>;
-type ArgsOf<A extends Record<string, Arg<any>>> = { [K in keyof A]: A[K] extends Arg<infer T> ? T : never };
-type OperationContext<A extends Record<string, Arg<any>>> = Omit<Context, "args"> & { args: ArgsOf<A> };
-declare function query<A extends Record<string, Arg<any>>>(args: A, handler: (context: OperationContext<A>) => any): any;
-declare function mutation<A extends Record<string, Arg<any>>>(args: A, handler: (context: OperationContext<A>) => any): any;
-declare function range(start: number, end: number): number[];
-declare function mentionTokens(value: string): string[];
-declare function deterministicShare(amount: number, recipients: any[], recipient: any): number;
-declare function concat(...values: any[]): any;
-declare function max(...values: any[]): any;
-declare function min(...values: any[]): any;
-declare function divmod(value: number, divisor: number): any;
-declare function recurse(seed: any, step: (value: any) => any, options: { depth: number; fanout: number }): any[];
-declare function publicReason(reason: string): any;
+  export type ArgsOf<A extends Record<string, Arg<any, any>>> =
+    { [K in keyof A as A[K] extends Arg<any, true> ? never : K]: A[K] extends Arg<infer T, any> ? T : never }
+    & { [K in keyof A as A[K] extends Arg<any, true> ? K : never]?: A[K] extends Arg<infer T, any> ? T : never };
+  export type Page<T> = Array<T> & { hasMore: boolean };
+  export type WriteValue<T> = T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
+  export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
+  export type Db = {
+    get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
+    exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
+    scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: Record<string, any>): Page<R>;
+    insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
+    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<WriteRow<R>> | ((row: R) => Partial<WriteRow<R>>)): void;
+    upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: WriteRow<R> | ((row: R | null) => WriteRow<R>)): void;
+    delete(target: Table<any>, key: unknown): void;
+    require(condition: unknown, code?: string): void;
+    assert(condition: unknown): void;
+  };
+  export type Context<A extends Record<string, any> = Record<string, any>> = {
+    db: Db;
+    ctx: { viewer: string; now(): number; newId(): string; readonly readTime: number; readonly commitTime: number; [name: string]: any };
+    args: A;
+  };
 
-type Record<K extends string | number | symbol, T> = { [P in K]: T };
-type Exclude<T, U> = T extends U ? never : T;
-type Pick<T, K extends keyof T> = { [P in K]: T[P] };
-type Omit<T, K extends keyof any> = Pick<T, Exclude<keyof T, K>>;
+  export function schema<const S extends Record<string, unknown>>(value: S): { readonly __schema: S };
+  export function table<const C extends Record<string, Column<any, any>>>(value: {
+    columns: C;
+    indexes?: Record<string, { columns: ReadonlyArray<keyof C | "id">; unique?: boolean }>;
+    rules?: Partial<Record<"read" | "insert" | "update" | "delete", Rule>>;
+    constraints?: ReadonlyArray<unknown>;
+  }): Table<RowOfColumns<C>>;
+  export const t: {
+    id(): Column<string>;
+    text(max: number): Column<string>;
+    int(): Column<number>;
+    bool(): Column<boolean>;
+    time(): Column<number>;
+    enum<const V extends readonly [string, ...string[]]>(variants: V): Column<V[number]>;
+    decimal<const S extends number>(scale: S): Column<Decimal<S>>;
+    money<const C extends string>(currency: C): Column<Money<C, 2>>;
+    money<const C extends string, const S extends number>(currency: C, scale: S): Column<Money<C, S>>;
+    ref<R extends Record<string, any>>(target: Table<R>): Column<string>;
+    json<T extends Json = Json>(maxBytes: number): Column<T>;
+    optional<T>(value: Column<T, any>): Column<T, true>;
+    list<T>(value: Column<T, any>, options: { max: number }): Column<T[]>;
+  };
+  export const rule: {
+    public(reason: string): Rule;
+    allow(): Rule;
+    deny(): Rule;
+    eq(a: RuleTerm, b: RuleTerm): Rule;
+    ne(a: RuleTerm, b: RuleTerm): Rule;
+    and(...rules: Rule[]): Rule;
+    or(...rules: Rule[]): Rule;
+    not(value: Rule): Rule;
+    exists(table: Table<any>, index: string, key: RuleTerm[], options?: { hidden?: boolean }): Rule;
+    principal(kind: string): Rule;
+    viewerIs(field: string): Rule;
+    field(name: string): RuleTerm;
+    readonly viewer: RuleTerm;
+    literal(value: Json): RuleTerm;
+  };
+  export function channel<A extends Record<string, Arg<any, any>>>(value: {
+    args: A;
+    publish: Rule;
+    subscribe: Rule;
+    ttlMs: number;
+  }): Channel<ArgsOf<A>>;
+  export function query<A extends Record<string, Arg<any, any>>, R>(
+    args: A,
+    handler: (context: Context<ArgsOf<A>>) => R,
+  ): Operation<ArgsOf<A>, R, "query">;
+  export function mutation<A extends Record<string, Arg<any, any>>, R>(
+    args: A,
+    handler: (context: Context<ArgsOf<A>>) => R,
+  ): Operation<ArgsOf<A>, R, "mutation">;
+  export function effect<P extends Json, R extends Json>(value: {
+    grants: string[];
+    run: (payload: P, tools: { fetch: typeof fetch; meta: { id: string } }) => R | Promise<R>;
+    then?: Operation<{ outboxId: string; effect: string; result: Awaited<R> }, unknown, "mutation">;
+  }): Effect<P, Awaited<R>>;
+  export function emit<P extends Json>(target: Effect<P, any>, payload: P): void;
+  export function seed<const S extends { personas: string[]; rows: Record<string, Json[]> }>(value: S): S;
+
+  export function range(start: number, end: number): number[];
+  export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
+  export function mentionTokens(value: string): string[];
+  export function deterministicShare(amount: number, recipients: unknown[], recipient: unknown): number;
+  export function concat(...values: unknown[]): string;
+  export function max<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
+  export function max(...values: number[]): number;
+  export function min<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
+  export function min(...values: number[]): number;
+  export function divmod(value: number, divisor: number): { quotient: number; remainder: number };
+  export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];
+}

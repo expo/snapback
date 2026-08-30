@@ -3,7 +3,7 @@ import type { Program } from "./ir";
 export type RustCheckResult = {
   program: string;
   certificate: Record<string, unknown> | null;
-  error: { family: string; message: string; rewrite: string } | null;
+  error: { code: string; family: string; message: string; site: string; rewrite: string; guide: string } | null;
 };
 
 export function rustCheck(
@@ -18,7 +18,7 @@ export function rustCheck(
     stdout: "pipe",
     stderr: "pipe",
   });
-  if (process.exitCode !== 0) {
+  if (process.exitCode !== 0 && process.exitCode !== 1) {
     throw new Error(`Rust checker failed: ${new TextDecoder().decode(process.stderr)}`);
   }
   const output = JSON.parse(new TextDecoder().decode(process.stdout)) as { results: RustCheckResult[] };

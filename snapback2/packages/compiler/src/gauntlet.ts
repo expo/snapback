@@ -72,7 +72,7 @@ export function assessGauntlet(
             shape,
             disposition: "mechanical",
             operations: fixed.programs.length,
-            reason: first.diagnostics[0]!.family,
+            reason: first.diagnostics[0]!.code,
             source,
           };
         }
@@ -80,7 +80,7 @@ export function assessGauntlet(
     }
     const reason = first.ok
       ? "shape contains no exported query or mutation"
-      : `${first.diagnostics[0]!.family}: ${first.diagnostics[0]!.message}`;
+      : `${first.diagnostics[0]!.code}: ${first.diagnostics[0]!.message}`;
     return { family, shape, disposition: "refused", operations: first.ok ? 0 : 0, reason, source };
   });
 }

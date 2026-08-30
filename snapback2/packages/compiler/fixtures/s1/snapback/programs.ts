@@ -1,19 +1,32 @@
-const users = table("users");
-const conversations = table("conversations");
-const memberships = table("memberships");
-const messages = table("messages");
-const unreads = table("unreads");
-const dmKeys = table("dmKeys");
-const columns = table("columns");
-const cards = table("cards");
-const cardCounts = maintained("cardCounts", cards);
-const owed = maintained("owed", table("shares"));
-const expenses = table("expenses");
-const shares = table("shares");
-const accounts = table("accounts");
-const waitlist = privateTable("waitlist");
-const waitCounts = maintained("waitCounts", waitlist);
-const secretDocs = privateTable("secretDocs");
+import {
+  concat,
+  deterministicShare,
+  mentionTokens,
+  mutation,
+  query,
+  recurse,
+  t,
+  type Context,
+  type Db,
+} from "snapback2";
+import {
+  accounts,
+  cardCounts,
+  cards,
+  columns,
+  conversations,
+  dmKeys,
+  expenses,
+  memberships,
+  messages,
+  owed,
+  secretDocs,
+  shares,
+  unreads,
+  users,
+  waitCounts,
+  waitlist,
+} from "./schema";
 
 function threadMentionUser(db: Db, handle: any) {
   return db.scan(users.byHandle, [handle], { take: 1 });
@@ -95,7 +108,7 @@ function mentionScanUsers(db: Db, handle: any) {
   return db.scan(users.byHandle, [normalizeHandle(handle)], { order: "asc", take: 20 });
 }
 
-export const thread = query({ conversationId: scalar() }, ({ db, args }) => {
+export const thread = query({ conversationId: t.id() }, ({ db, args }) => {
   let result: any[] = [];
   for (const message of db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 3 })) {
     let author = db.get(users, message.authorId);
@@ -109,7 +122,7 @@ export const thread = query({ conversationId: scalar() }, ({ db, args }) => {
 });
 
 export const send = mutation(
-  { conversationId: scalar(), body: scalar(), at: scalar() },
+  { conversationId: t.id(), body: t.text(256), at: t.time() },
   ({ db, ctx, args }) => {
     db.require(
       sendMembership(db, ctx, args.conversationId),
@@ -128,7 +141,7 @@ export const send = mutation(
 );
 
 export const sendMaintainedUnread = mutation(
-  { conversationId: scalar(), body: scalar(), at: scalar() },
+  { conversationId: t.id(), body: t.text(256), at: t.time() },
   ({ db, ctx, args }) => {
     db.require(
       sendMembership(db, ctx, args.conversationId),
@@ -159,7 +172,7 @@ export const sendMaintainedUnread = mutation(
   },
 );
 
-export const markRead = mutation({ membershipId: scalar(), at: scalar() }, ({ db, args }) => {
+export const markRead = mutation({ membershipId: t.id(), at: t.time() }, ({ db, args }) => {
   db.update(memberships, args.membershipId, { lastReadAt: args.at });
   return true;
 });
@@ -186,7 +199,7 @@ export const inboxMaintained = query({}, ({ db, ctx }) => {
   return result;
 });
 
-export const startDm = mutation({ lo: scalar(), hi: scalar() }, ({ db, ctx, args }) => {
+export const startDm = mutation({ lo: t.id(), hi: t.id() }, ({ db, ctx, args }) => {
   let existing = startDmUnique(db, args.lo, args.hi);
   if (existing === null) {
     let conversationId = ctx.newId();
@@ -215,7 +228,7 @@ export const startDm = mutation({ lo: scalar(), hi: scalar() }, ({ db, ctx, args
   }
 });
 
-export const boardView = query({ boardId: scalar() }, ({ db, args }) => {
+export const boardView = query({ boardId: t.id() }, ({ db, args }) => {
   let result: any[] = [];
   for (const column of boardColumns(db, args.boardId)) {
     result.push({ column, child: boardViewCards(db, column) });
@@ -223,7 +236,7 @@ export const boardView = query({ boardId: scalar() }, ({ db, args }) => {
   return result;
 });
 
-export const boardSummary = query({ boardId: scalar() }, ({ db, args }) => {
+export const boardSummary = query({ boardId: t.id() }, ({ db, args }) => {
   let result: any[] = [];
   for (const column of boardColumns(db, args.boardId)) {
     result.push({ column, child: boardSummaryCount(db, column) });
@@ -231,12 +244,12 @@ export const boardSummary = query({ boardId: scalar() }, ({ db, args }) => {
   return result;
 });
 
-export const ledger = query({ groupId: scalar() }, ({ db, args }) =>
+export const ledger = query({ groupId: t.id() }, ({ db, args }) =>
   ledgerOwed(db, args.groupId),
 );
 
 export const addExpense = mutation(
-  { groupId: scalar(), amount: scalar(), recipients: list(id(users), { max: 50 }) },
+  { groupId: t.id(), amount: t.int(), recipients: t.list(t.ref(users), { max: 50 }) },
   ({ db, ctx, args }) => {
     let expenseId = ctx.newId();
     db.insert(expenses, {
@@ -259,7 +272,7 @@ export const addExpense = mutation(
   },
 );
 
-export const ancestors = query({ accountId: scalar() }, ({ db, args }) => {
+export const ancestors = query({ accountId: t.id() }, ({ db, args }) => {
   let result: any[] = [];
   for (const account of recurse(
     args.accountId,
@@ -271,22 +284,22 @@ export const ancestors = query({ accountId: scalar() }, ({ db, args }) => {
   return result;
 });
 
-export const mentionScan = query({ handle: scalar() }, ({ db, args }) =>
+export const mentionScan = query({ handle: t.text(32) }, ({ db, args }) =>
   mentionScanUsers(db, args.handle),
 );
 
-export const helperWrappedScan = query({ columnId: scalar() }, ({ db, args }) =>
+export const helperWrappedScan = query({ columnId: t.id() }, ({ db, args }) =>
   helperCards(db, args.columnId),
 );
 
-export const maintainedWaitlistDepth = query({ resourceId: scalar() }, ({ db, args }) =>
+export const maintainedWaitlistDepth = query({ resourceId: t.id() }, ({ db, args }) =>
   waitlistMaintainedDepth(db, args.resourceId),
 );
 
-export const hiddenRuleDocument = query({ id: scalar() }, ({ db, args }) =>
+export const hiddenRuleDocument = query({ id: t.id() }, ({ db, args }) =>
   secretDocument(db, args.id),
 );
 
-export const deleteMessage = mutation({ id: scalar() }, ({ db, args }) => {
+export const deleteMessage = mutation({ id: t.id() }, ({ db, args }) => {
   db.delete(messages, args.id);
 });
