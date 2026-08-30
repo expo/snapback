@@ -13,6 +13,7 @@
   const allowedGlobals = __SNAPBACK_ALLOWED_GLOBALS__;
   const fireTimer = globalThis.__ibex2_fire_timer;
   const scheduleTimer = globalThis.setTimeout;
+  const NativeReferenceError = globalThis.ReferenceError;
   globalThis.__ibex2_response_field = saved.field;
   globalThis.__ibex2_text_decode = saved.decode;
   globalThis.__ibex2_text_encode = saved.encode;
@@ -34,10 +35,15 @@
     result: null,
     error: null,
     errorCode: null,
+    thrownError: null,
     contaminated: false,
     sourceEvaluations: 0,
     pendingFetches: 0,
   };
+  // Failure classification is an isolation decision, not application data.
+  // Only errors created inside this closure can enter either identity set.
+  const deniedErrors = new WeakSet();
+  const resultErrors = new WeakSet();
   let permanentGlobals = [];
   let timerPermit = 0;
   let installedEntry = null;
@@ -95,6 +101,7 @@
     const tagged = new Error("denied: net.fetch " + origin + "; declare " + origin);
     tagged.code = "E_EFFECT_GRANT";
     tagged.origin = origin;
+    deniedErrors.add(tagged);
     return tagged;
   }
 
@@ -196,15 +203,51 @@
   }
 
   function errorText(error) {
-    if (error && error.stack) return String(error.stack);
-    if (error && error.message) return String(error.message);
-    return String(error);
+    try {
+      if (error && error.stack) return String(error.stack);
+      if (error && error.message) return String(error.message);
+      return String(error);
+    } catch (_) {
+      return "effect failed";
+    }
+  }
+
+  function errorCode(error) {
+    try {
+      return error && error.code ? String(error.code) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function errorMessage(error, fallback) {
+    try {
+      return String(error && error.message ? error.message : fallback);
+    } catch (_) {
+      return fallback;
+    }
   }
 
   function resultError(message) {
     const error = new TypeError(message || "E_EFFECT_RESULT");
     error.code = "E_EFFECT_RESULT";
+    resultErrors.add(error);
     return error;
+  }
+
+  function recordedBy(errors, value) {
+    return value !== null
+      && (typeof value === "object" || typeof value === "function")
+      && errors.has(value);
+  }
+
+  function isReferenceFailure(value) {
+    try {
+      return typeof NativeReferenceError === "function"
+        && value instanceof NativeReferenceError;
+    } catch (_) {
+      return false;
+    }
   }
 
   function isJsonResult(value, stack) {
@@ -235,17 +278,18 @@
     state.result = null;
     state.error = null;
     state.errorCode = null;
+    state.thrownError = null;
     state.contaminated = false;
     state.pendingFetches = 0;
-    const payload = JSON.parse(payloadJson);
-    const jobMeta = Object.freeze(JSON.parse(metaJson));
-    if (jobMeta.effect !== effectName) throw new Error("effect source is not installed");
-    const jobFetch = makeJobFetch();
-    const tools = Object.freeze({ fetch: jobFetch, meta: jobMeta });
-    jobFetchBinding = jobFetch;
-    jobMetaBinding = jobMeta;
     let effectResult;
     try {
+      const payload = JSON.parse(payloadJson);
+      const jobMeta = Object.freeze(JSON.parse(metaJson));
+      if (jobMeta.effect !== effectName) throw new Error("effect source is not installed");
+      const jobFetch = makeJobFetch();
+      const tools = Object.freeze({ fetch: jobFetch, meta: jobMeta });
+      jobFetchBinding = jobFetch;
+      jobMetaBinding = jobMeta;
       // Invoke synchronously while the timer permit is disarmed. The returned
       // promise is what the host drives with one separately armed pump at a time.
       effectResult = compiledEffect(payload, tools);
@@ -262,34 +306,50 @@
           if (!isJsonResult(value, new Set())) throw resultError();
           encoded = JSON.stringify(value);
         } catch (error) {
-          if (error && error.code === "E_EFFECT_RESULT") throw error;
+          if (recordedBy(resultErrors, error)) throw error;
           throw resultError();
         }
         if (encoded === undefined) throw resultError();
         state.result = encoded;
         state.status = "sent";
+        state.thrownError = null;
         cleanJobGlobals();
         jobFetchBinding = undefined;
         jobMetaBinding = undefined;
         return value;
       })
       .catch(function (error) {
-        const referenceFailure = error && error.name === "ReferenceError";
-        state.errorCode = error && error.code
-          ? String(error.code)
-          : (referenceFailure ? "E_EFFECT_RESULT" : null);
-        if (state.errorCode === "E_EFFECT_RESULT") {
+        // Settle and revoke job capabilities before inspecting application
+        // error fields so even hostile accessors cannot strand shared state.
+        state.thrownError = error;
+        state.status = "failed";
+        jobFetchBinding = undefined;
+        jobMetaBinding = undefined;
+        const referenceFailure = isReferenceFailure(error);
+        const resultFailure = recordedBy(resultErrors, error);
+        state.errorCode = errorCode(error)
+          || (referenceFailure ? "E_EFFECT_RESULT" : null);
+        if (resultFailure || referenceFailure) {
           state.error = referenceFailure
             ? "E_EFFECT_RESULT: " + errorText(error)
-            : String(error && error.message ? error.message : "E_EFFECT_RESULT");
+            : errorMessage(error, "E_EFFECT_RESULT");
         } else {
           state.error = errorText(error);
         }
-        state.status = "failed";
         cleanJobGlobals();
-        jobFetchBinding = undefined;
-        jobMetaBinding = undefined;
       });
+  }
+
+  function classifyFailure(jobToken) {
+    if (String(jobToken) !== state.token || state.status !== "failed") {
+      throw resultError();
+    }
+    if (recordedBy(deniedErrors, state.thrownError)) return "grant";
+    if (recordedBy(resultErrors, state.thrownError)
+        || isReferenceFailure(state.thrownError)) {
+      return "result";
+    }
+    return "retryable";
   }
 
   function timerSnapshot() {
@@ -344,6 +404,7 @@
   Object.freeze(installEffect);
   Object.freeze(run);
   Object.freeze(read);
+  Object.freeze(classifyFailure);
   Object.freeze(armTimers);
   Object.freeze(disarmTimers);
   const hostEntry = Object.freeze(function hostEntry(command) {
@@ -352,6 +413,7 @@
       case "installEffect": return installEffect.apply(undefined, args);
       case "run": return run.apply(undefined, args);
       case "read": return read.apply(undefined, args);
+      case "classifyFailure": return classifyFailure.apply(undefined, args);
       case "armTimers": return armTimers();
       case "disarmTimers": return disarmTimers();
       default: throw new Error("E_EFFECT_HOST_CHANNEL: unknown host command");
