@@ -74,3 +74,55 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("public refusal types require family and guide", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-refusal-types-"));
+  try {
+    const sample = join(root, "sample.ts");
+    await writeFile(sample, `
+      import type {
+        ChannelPublishResult,
+        MutationRejected,
+        RefusalEnvelope,
+        RefusedDelivery,
+      } from "snapback2/client";
+      const envelopeWithoutGuide: RefusalEnvelope = { code: "E_NO", family: "op", message: "no" };
+      const envelopeWithoutFamily: RefusalEnvelope = { code: "E_NO", message: "no", guide: "op/no" };
+      const rejectedWithoutGuide: MutationRejected = { state: "rejected", code: "E_NO", family: "op", message: "no" };
+      const rejectedWithoutFamily: MutationRejected = { state: "rejected", code: "E_NO", message: "no", guide: "op/no" };
+      const deliveryWithoutGuide: RefusedDelivery = { state: "refused", code: "E_NO", family: "op", message: "no" };
+      const deliveryWithoutFamily: RefusedDelivery = { state: "refused", code: "E_NO", message: "no", guide: "op/no" };
+      const publishWithoutGuide: ChannelPublishResult = { state: "refused", code: "E_NO", family: "op", message: "no" };
+      const publishWithoutFamily: ChannelPublishResult = { state: "refused", code: "E_NO", message: "no", guide: "op/no" };
+      void envelopeWithoutGuide; void envelopeWithoutFamily;
+      void rejectedWithoutGuide; void rejectedWithoutFamily;
+      void deliveryWithoutGuide; void deliveryWithoutFamily;
+      void publishWithoutGuide; void publishWithoutFamily;
+    `);
+    const program = ts.createProgram({
+      rootNames: [sample],
+      options: {
+        baseUrl: root,
+        lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        noEmit: true,
+        paths: {
+          snapback2: [resolve(packageRoot, "dist/index.d.ts")],
+          "snapback2/client": [resolve(packageRoot, "dist/client.d.ts")],
+        },
+        skipLibCheck: true,
+        strict: true,
+        target: ts.ScriptTarget.ES2022,
+      },
+    });
+    const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
+    const rendered = diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
+    assert.equal(diagnostics.length, 8, `expected family/guide diagnostics for four refusal types:\n${rendered.join("\n")}`);
+    assert.ok(rendered.filter((message) => message.includes("guide")).length >= 4, rendered.join("\n"));
+    assert.ok(rendered.filter((message) => message.includes("family")).length >= 4, rendered.join("\n"));
+    context.diagnostic(diagnostics.map((item, index) => `TS${item.code}: ${rendered[index]}`).join("\n"));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
