@@ -1,0 +1,63 @@
+use super::settle_outbox;
+use serde_json::json;
+use snapback2_core::{
+    Auth, Ceilings, Context, EffectDecl, Expr, Generation, Program, ProgramKind, ProjectJson,
+    Runtime, Schema, Stmt, Store, Value,
+};
+use std::collections::{BTreeMap, VecDeque};
+
+#[test]
+fn fractional_json_result_settles_running_before_then_conversion() {
+    let emit = Program {
+        name: "effects.emit".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Emit {
+            effect: "effects.run".to_owned(),
+            payload: Expr::Literal(Value::Null),
+        }],
+    };
+    let generation = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema: Schema {
+                tables: BTreeMap::new(),
+                maintains: Vec::new(),
+                channels: BTreeMap::new(),
+                auth: Auth::default(),
+                effects: vec!["effects.run".to_owned()],
+            },
+            programs: vec![emit],
+            effects: vec![EffectDecl {
+                name: "effects.run".to_owned(),
+                grants: Vec::new(),
+                source: "async () => ({ ratio: 1.5 })".to_owned(),
+                then: Some("effects.then".to_owned()),
+            }],
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mut context = Context::mutation("user", BTreeMap::new());
+    context.now = Some(1);
+    context.new_ids = VecDeque::from(["outbox-1".to_owned()]);
+    runtime.execute("effects.emit", context).unwrap();
+    runtime.store().outbox_claim_next(1).unwrap().unwrap();
+
+    settle_outbox(
+        &runtime,
+        "outbox-1",
+        "then_pending",
+        Some(&json!({ "ratio": 1.5 })),
+        None,
+        None,
+    )
+    .unwrap();
+
+    let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
+    assert_eq!(row.state, "then_pending");
+    assert_eq!(row.result, Some(json!({ "ratio": 1.5 })));
+}

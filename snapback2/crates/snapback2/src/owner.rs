@@ -6,8 +6,6 @@ use crate::project::{CompilerWorker, locate_root, seed_rows, write_build_cache};
 use crate::protocol::Refusal;
 use crate::serve::{BoundServer, Context as ServerContext};
 use crate::watch;
-#[cfg(not(feature = "effects"))]
-use crate::writer::Action;
 use crate::writer::{apply_seed, spawn_writer};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
@@ -172,10 +170,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         mode.clone(),
         stop.clone(),
     )?;
-    #[cfg(feature = "effects")]
     let _effects = crate::effects::spawn(handle.clone());
-    #[cfg(not(feature = "effects"))]
-    handle.call(Action::OutboxMarkUnknown)?;
     let secret = random_secret()?;
     let url = format!("http://127.0.0.1:{}", server.port);
     let info = OwnerInfo {

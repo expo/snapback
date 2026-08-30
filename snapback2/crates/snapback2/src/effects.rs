@@ -8,29 +8,19 @@ use serde::Deserialize;
 use serde_json::{Value as Json, json};
 use snapback2_core::{EffectDecl, OutboxRow};
 use snapback2_effects::{
-    EffectLog, OutboxAccess, OutboxError, OutboxSettlement, PendingThen, Runner,
+    EffectDeclarations, EffectLog, OutboxAccess, OutboxError, OutboxSettlement, PendingThen,
+    Runner, ThenOutcome,
 };
-use std::collections::BTreeMap;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
+use std::sync::{Arc, atomic};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct EffectsGeneration {
-    generation: String,
-    effects: BTreeMap<String, EffectDecl>,
-}
 
 struct WriterAccess {
     handle: OwnerHandle,
 }
 
 impl WriterAccess {
-    fn generation(&self) -> Result<EffectsGeneration, OutboxError> {
-        decode(self.handle.call(Action::EffectsGeneration))
-    }
-
     fn logs(&self, logs: Vec<EffectLog>) {
         if !logs.is_empty() {
             let _ = self.handle.call(Action::EffectsLog {
@@ -60,7 +50,30 @@ impl OutboxAccess for WriterAccess {
             effect: row.effect,
             payload: value_to_json(&row.payload),
             attempt: row.attempts,
+            generation: row.generation,
         }))
+    }
+
+    fn effect_declarations(
+        &mut self,
+        job: &snapback2_effects::EffectJob,
+    ) -> Result<EffectDeclarations, OutboxError> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Resolved {
+            current_generation: String,
+            bound: Option<EffectDecl>,
+            current: Option<EffectDecl>,
+        }
+        let resolved: Resolved = decode(self.handle.call(Action::EffectsResolve {
+            effect: job.effect.clone(),
+            generation: job.generation.clone(),
+        }))?;
+        Ok(EffectDeclarations {
+            current_generation: resolved.current_generation,
+            bound: resolved.bound,
+            current: resolved.current,
+        })
     }
 
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError> {
@@ -96,11 +109,9 @@ impl OutboxAccess for WriterAccess {
                 Ok(PendingThen {
                     id: row.id,
                     effect: row.effect,
-                    result: value_to_json(
-                        &row.result.ok_or_else(|| {
-                            OutboxError("then_pending row has no result".to_owned())
-                        })?,
-                    ),
+                    result: row
+                        .result
+                        .ok_or_else(|| OutboxError("then_pending row has no result".to_owned()))?,
                     then_op: row.then_op,
                 })
             })
@@ -123,12 +134,23 @@ impl OutboxAccess for WriterAccess {
             .ok_or_else(|| OutboxError("writer omitted marked-running count".to_owned()))
     }
 
+    fn mark_queued_unavailable(&mut self, error: &str) -> Result<u64, OutboxError> {
+        self.handle
+            .call(Action::OutboxMarkQueuedUnavailable {
+                error: error.to_owned(),
+            })
+            .map_err(outbox_error)?
+            .get("changed")
+            .and_then(Json::as_u64)
+            .ok_or_else(|| OutboxError("writer omitted queued-unavailable count".to_owned()))
+    }
+
     fn execute_then(
         &mut self,
         op: &str,
         args: Json,
         outbox_id: &str,
-    ) -> Result<Option<String>, OutboxError> {
+    ) -> Result<ThenOutcome, OutboxError> {
         let execution = self
             .handle
             .call(Action::OutboxExecuteThen {
@@ -137,31 +159,37 @@ impl OutboxAccess for WriterAccess {
                 outbox_id: outbox_id.to_owned(),
             })
             .map_err(outbox_error)?;
-        Ok(
-            (execution.get("state") == Some(&Json::String("rejected".to_owned()))).then(|| {
-                format!(
-                    "{}: {}",
-                    execution
-                        .get("code")
-                        .and_then(Json::as_str)
-                        .unwrap_or("E_EFFECT_THEN"),
-                    execution
-                        .get("message")
-                        .and_then(Json::as_str)
-                        .unwrap_or("then mutation rejected")
-                )
-            }),
-        )
+        if execution.get("state") != Some(&Json::String("rejected".to_owned())) {
+            return Ok(ThenOutcome::Sent);
+        }
+        let code = execution
+            .get("code")
+            .and_then(Json::as_str)
+            .unwrap_or("E_EFFECT_THEN");
+        let error = format!(
+            "{code}: {}",
+            execution
+                .get("message")
+                .and_then(Json::as_str)
+                .unwrap_or("then mutation rejected")
+        );
+        if code == "E_EFFECT_THEN_CHANGED" {
+            Ok(ThenOutcome::Failed(error))
+        } else {
+            Ok(ThenOutcome::Rejected(error))
+        }
     }
 }
 
 pub struct EffectsStatus {
     wake: SyncSender<()>,
+    stop: Arc<atomic::AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl Drop for EffectsStatus {
     fn drop(&mut self) {
+        self.stop.store(true, atomic::Ordering::SeqCst);
         let _ = self.wake.try_send(());
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -171,38 +199,41 @@ impl Drop for EffectsStatus {
 
 pub fn spawn(handle: OwnerHandle) -> EffectsStatus {
     let (wake, receiver) = sync_channel(1);
+    let stop = Arc::new(atomic::AtomicBool::new(false));
     handle
         .call(Action::InstallEffectsWake { wake: wake.clone() })
         .expect("effects runner must install its writer wake channel");
     let thread = thread::Builder::new()
         .name("snapback2-effects".to_owned())
-        .spawn(move || run(handle, receiver))
+        .spawn({
+            let stop = stop.clone();
+            move || run(handle, receiver, stop)
+        })
         .expect("effects runner thread must start");
     EffectsStatus {
         wake,
+        stop,
         thread: Some(thread),
     }
 }
 
-fn run(handle: OwnerHandle, receiver: Receiver<()>) {
+fn run(handle: OwnerHandle, receiver: Receiver<()>, stop: Arc<atomic::AtomicBool>) {
     #[cfg(feature = "hermes")]
     let runner = Runner::new(
         snapback2_effects::Ibex2Host::new().expect("Hermes effect host must initialize"),
     );
     #[cfg(not(feature = "hermes"))]
     let runner = Runner::new(snapback2_effects::NoEngine);
-    run_with(runner, WriterAccess { handle }, receiver);
+    run_with(runner, WriterAccess { handle }, receiver, stop);
 }
 
 fn run_with<H: snapback2_effects::EffectHost>(
     mut runner: Runner<H>,
     mut access: WriterAccess,
     receiver: Receiver<()>,
+    stop: Arc<atomic::AtomicBool>,
 ) {
-    let Ok(mut generation) = access.generation() else {
-        return;
-    };
-    if let Err(error) = runner.initialize(&mut access, &generation.effects) {
+    if let Err(error) = runner.initialize(&mut access) {
         access.logs(vec![EffectLog {
             outbox_id: "runner".to_owned(),
             level: "error".to_owned(),
@@ -211,18 +242,10 @@ fn run_with<H: snapback2_effects::EffectHost>(
         return;
     }
     loop {
-        match access.generation() {
-            Ok(next) => {
-                if next.generation != generation.generation {
-                    runner.generation_changed();
-                    generation = next;
-                } else {
-                    generation.effects = next.effects;
-                }
-            }
-            Err(_) => return,
+        if stop.load(atomic::Ordering::SeqCst) {
+            return;
         }
-        match runner.drain(&mut access, &generation.effects) {
+        match runner.drain(&mut access) {
             Ok(drained) => access.logs(drained.logs),
             Err(error) => access.logs(vec![EffectLog {
                 outbox_id: "runner".to_owned(),

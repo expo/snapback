@@ -1155,10 +1155,7 @@ fn leave_then_pending(runtime: &mut Runtime) {
         .outbox_settle(
             "outbox-1",
             "then_pending",
-            Some(&object([(
-                "providerId",
-                Value::String("provider-1".to_owned()),
-            )])),
+            Some(&serde_json::json!({ "providerId": "provider-1" })),
             None,
             None,
         )

@@ -3,7 +3,7 @@
 
 use crate::engine::RuntimeError;
 use crate::registry::EffectDecl;
-use crate::value::{Value, canonical_json};
+use crate::value::Value;
 use rusqlite::backup::Backup;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ pub struct OutboxRow {
     pub attempts: u32,
     pub next_at: i64,
     pub last_error: Option<String>,
-    pub result: Option<Value>,
+    pub result: Option<serde_json::Value>,
     pub then_op: Option<String>,
     /// Project generation active when this row was claimed. The retained
     /// declaration metadata for that generation binds restart replay.
@@ -352,7 +352,7 @@ impl Store {
         &self,
         id: &str,
         state: &str,
-        result: Option<&Value>,
+        result: Option<&serde_json::Value>,
         last_error: Option<&str>,
         next_at: Option<i64>,
     ) -> Result<(), RuntimeError> {
@@ -362,7 +362,10 @@ impl Store {
             )));
         }
         let now = unix_millis();
-        let result = result.map(canonical_json);
+        let result = result
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
         let changed = self.conn.execute(
             "UPDATE _outbox SET
                 state = ?1,
@@ -388,6 +391,35 @@ impl Store {
                 "outbox row {id} is not running"
             )))
         }
+    }
+
+    pub(crate) fn settle_then_transaction(
+        transaction: &rusqlite::Transaction<'_>,
+        id: &str,
+        last_error: Option<&str>,
+        updated_at: i64,
+    ) -> Result<(), RuntimeError> {
+        let changed = transaction.execute(
+            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2
+             WHERE id = ?3 AND state = 'then_pending'",
+            params![last_error, updated_at, id],
+        )?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(RuntimeError::Input(format!(
+                "outbox row {id} is not then_pending"
+            )))
+        }
+    }
+
+    pub fn outbox_mark_queued_error(&self, error: &str) -> Result<u64, RuntimeError> {
+        let changed = self.conn.execute(
+            "UPDATE _outbox SET last_error = ?1, updated_at = ?2
+             WHERE state = 'queued' AND last_error IS NOT ?1",
+            params![error, unix_millis()],
+        )?;
+        Ok(changed as u64)
     }
 
     pub fn outbox_get(&self, id: &str) -> Result<Option<OutboxRow>, RuntimeError> {

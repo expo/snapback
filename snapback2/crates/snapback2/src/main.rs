@@ -7,7 +7,6 @@ mod check;
 mod client;
 mod control;
 mod doctor;
-#[cfg(feature = "effects")]
 mod effects;
 mod owner;
 mod project;

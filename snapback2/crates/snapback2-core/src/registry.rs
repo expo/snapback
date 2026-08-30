@@ -4,7 +4,7 @@
 use crate::certificate::{Ceilings, Certificate, CheckError, Checker};
 use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
-    RuleInputTrace, RuntimeError, is_sqlite_constraint, validate_arg_value,
+    RuleInputTrace, RuntimeError, validate_arg_value,
 };
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
@@ -14,7 +14,7 @@ use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
     apply_migration_drops, plan, successor_refusal,
 };
-use crate::value::{Value, ValueError, digest};
+use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -237,6 +237,8 @@ pub struct Runtime {
     pub(crate) engine: Engine,
     pub(crate) generation: Generation,
     pub(crate) subs: Subscriptions,
+    #[cfg(test)]
+    fail_after_then_commit: bool,
 }
 
 impl Runtime {
@@ -295,6 +297,8 @@ impl Runtime {
             engine,
             generation,
             subs: Subscriptions::default(),
+            #[cfg(test)]
+            fail_after_then_commit: false,
         })
     }
 
@@ -309,9 +313,7 @@ impl Runtime {
     }
 
     /// Execute an effect's `then` mutation and settle its durable outbox row
-    /// in the mutation's own SQLite transaction. A rejected mutation has no
-    /// data writes to commit, so its durable rejection and `sent` settlement
-    /// are recorded together by the writer before this method returns.
+    /// in the mutation's own SQLite transaction.
     // @ref LLP 1003#2-the-outbox-lifecycle — `then` and `then_pending` → `sent` are one transaction.
     pub fn execute_then(
         &mut self,
@@ -324,6 +326,52 @@ impl Runtime {
                 "effect then must execute as Context::system()".to_owned(),
             ));
         }
+        let Some((program, certificate)) = self.bound_then_target(op, outbox_id)? else {
+            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
+        };
+
+        // Effect completion is an engine-owned write. The system principal is
+        // still visible in the commit, while user table-write rules do not
+        // veto the declared bookkeeping mutation.
+        context.seed_write = true;
+        let execution = self
+            .engine
+            .execute_then(&program, &certificate, context, outbox_id)?;
+        #[cfg(test)]
+        if std::mem::take(&mut self.fail_after_then_commit) {
+            return Err(RuntimeError::Input(
+                "simulated crash after atomic then commit".to_owned(),
+            ));
+        }
+        Ok(execution)
+    }
+
+    /// Settle a `then` whose JSON could not be represented by its declared
+    /// data-plane argument type. No effect result conversion happens before
+    /// the durable `then_pending` row exists.
+    pub fn reject_then(
+        &mut self,
+        op: &str,
+        outbox_id: &str,
+        code: &str,
+        message: &str,
+    ) -> Result<Execution, RuntimeError> {
+        let Some(_) = self.bound_then_target(op, outbox_id)? else {
+            return self.then_rejection("E_EFFECT_THEN_CHANGED");
+        };
+        self.engine.settle_rejected_then(outbox_id, code, message)
+    }
+
+    #[cfg(test)]
+    fn fail_after_then_commit_once(&mut self) {
+        self.fail_after_then_commit = true;
+    }
+
+    fn bound_then_target(
+        &self,
+        op: &str,
+        outbox_id: &str,
+    ) -> Result<Option<(Program, Certificate)>, RuntimeError> {
         let pending = self
             .engine
             .store()
@@ -335,8 +383,8 @@ impl Runtime {
                 pending.state
             )));
         }
-        let declaration = self.generation.effects.get(&pending.effect);
-        let claimed_declaration = pending
+        let current = self.generation.effects.get(&pending.effect);
+        let claimed = pending
             .generation
             .as_deref()
             .map(|generation| format!("effects_json:{generation}"))
@@ -349,87 +397,23 @@ impl Runtime {
             })
             .transpose()?
             .and_then(|effects| effects.get(&pending.effect).cloned());
-        let binding_matches =
-            declaration
-                .zip(claimed_declaration.as_ref())
-                .is_some_and(|(current, claimed)| {
-                    current.then.as_deref() == Some(op)
-                        && pending.then_op.as_deref() == Some(op)
-                        && digest(&current.source) == digest(&claimed.source)
-                });
-        if !binding_matches {
+        let binding_matches = current
+            .zip(claimed.as_ref())
+            .is_some_and(|(current, claimed)| {
+                current.then.as_deref() == Some(op)
+                    && pending.then_op.as_deref() == Some(op)
+                    && digest(&current.source) == digest(&claimed.source)
+            });
+        let target = self.generation.programs.get(op).cloned();
+        if !binding_matches
+            || !target
+                .as_ref()
+                .is_some_and(|(program, _)| program.kind == ProgramKind::Mutation)
+        {
             self.fail_changed_then(outbox_id)?;
-            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
+            return Ok(None);
         }
-        let (program, certificate) = self
-            .generation
-            .programs
-            .get(op)
-            .cloned()
-            .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
-        if program.kind != ProgramKind::Mutation {
-            self.fail_changed_then(outbox_id)?;
-            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
-        }
-
-        // Effect completion is an engine-owned write. The system principal is
-        // still visible in the commit, while user table-write rules do not
-        // veto the declared bookkeeping mutation.
-        context.seed_write = true;
-        let trigger = format!("snapback2_then_{}", digest(&(outbox_id, op)));
-        let quoted_id = sqlite_quote(self.engine.store(), outbox_id)?;
-        let quoted_op = sqlite_quote(self.engine.store(), op)?;
-        self.engine.store().conn.execute_batch(&format!(
-            "DROP TRIGGER IF EXISTS temp.{trigger};
-             CREATE TEMP TRIGGER {trigger} AFTER INSERT ON main._commits
-             WHEN NEW.program = {quoted_op}
-             BEGIN
-               UPDATE _outbox SET state = 'sent', last_error = NULL,
-                      updated_at = NEW.at
-               WHERE id = {quoted_id} AND state = 'then_pending';
-             END;"
-        ))?;
-        let execution = self.execute_certified(&program, &certificate, context);
-        let drop_result = self
-            .engine
-            .store()
-            .conn
-            .execute_batch(&format!("DROP TRIGGER IF EXISTS temp.{trigger}"));
-        let execution = execution?;
-        drop_result?;
-        match &execution.state {
-            ExecutionState::Committed { .. } => {
-                let settled = self
-                    .engine
-                    .store()
-                    .outbox_get(outbox_id)?
-                    .is_some_and(|row| row.state == "sent");
-                if !settled {
-                    return Err(RuntimeError::Input(format!(
-                        "atomic then settlement did not update outbox row {outbox_id}"
-                    )));
-                }
-            }
-            ExecutionState::Rejected { code, message } => {
-                let error = format!("{code}: {message}");
-                let changed = self.engine.store().conn.execute(
-                    "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2
-                     WHERE id = ?3 AND state = 'then_pending'",
-                    rusqlite::params![error, unix_millis(), outbox_id],
-                )?;
-                if changed != 1 {
-                    return Err(RuntimeError::Input(format!(
-                        "rejected then could not settle outbox row {outbox_id}"
-                    )));
-                }
-            }
-            _ => {
-                return Err(RuntimeError::Input(format!(
-                    "effect then operation {op} did not produce a mutation state"
-                )));
-            }
-        }
-        Ok(execution)
+        Ok(target)
     }
 
     fn fail_changed_then(&self, outbox_id: &str) -> Result<(), RuntimeError> {
@@ -725,36 +709,12 @@ fn persist_generation_transaction(
     Ok(())
 }
 
-fn sqlite_quote(store: &Store, value: &str) -> Result<String, RuntimeError> {
-    store
-        .conn
-        .query_row("SELECT quote(?1)", [value], |row| row.get(0))
-        .map_err(Into::into)
-}
-
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
     SuccessorRefusal::store(&error)
 }
 
 fn rejection_code(error: &RuntimeError) -> Option<&str> {
-    match error {
-        RuntimeError::Require { code } => Some(code),
-        RuntimeError::Rule { .. } => Some("rule"),
-        RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
-        error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
-        RuntimeError::Input(_) => Some("E_INPUT"),
-        RuntimeError::Value(error) => Some(match error {
-            ValueError::DivideByZero => "E_DIV_ZERO",
-            ValueError::Overflow(_) => "E_OVERFLOW",
-            ValueError::Type { .. } => "E_TYPE",
-            ValueError::MissingField(_) => "E_FIELD",
-        }),
-        RuntimeError::Steps(_) | RuntimeError::Fanout | RuntimeError::TraceSubset(_) => {
-            Some("bound")
-        }
-        // SQLite I/O/corruption and all non-program database failures remain Err.
-        _ => None,
-    }
+    crate::engine::mutation_rejection_code(error)
 }
 
 fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
@@ -771,6 +731,140 @@ fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
             }
             Stmt::For { body, .. } => collect_emits(body, effects),
             _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod then_tests {
+    use super::*;
+    use crate::schema::Schema;
+    use std::collections::{BTreeMap, VecDeque};
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
+        let path = temp_path();
+        let generation = timed_then_generation();
+        {
+            let mut runtime =
+                Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
+            let mut emit = Context::mutation("user", BTreeMap::new());
+            emit.now = Some(1);
+            emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
+            runtime.execute("clock.emit", emit).unwrap();
+            runtime.store().outbox_claim_next(1).unwrap().unwrap();
+            runtime
+                .store()
+                .outbox_settle(
+                    "outbox-1",
+                    "then_pending",
+                    Some(&serde_json::Value::Null),
+                    None,
+                    None,
+                )
+                .unwrap();
+
+            let mut before_threshold = Context::system();
+            before_threshold.now = Some(5);
+            runtime.fail_after_then_commit_once();
+            let error = runtime
+                .execute_then("clock.then", before_threshold, "outbox-1")
+                .unwrap_err();
+            assert!(error.to_string().contains("simulated crash"));
+        }
+
+        let mut restarted = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
+        let row = restarted.store().outbox_get("outbox-1").unwrap().unwrap();
+        assert_eq!(row.state, "sent");
+        assert!(
+            row.last_error
+                .as_deref()
+                .is_some_and(|error| error.contains("TOO_EARLY"))
+        );
+        let mut after_threshold = Context::system();
+        after_threshold.now = Some(15);
+        assert!(
+            restarted
+                .execute_then("clock.then", after_threshold, "outbox-1")
+                .unwrap_err()
+                .to_string()
+                .contains("not then_pending"),
+            "restart cannot re-run a then that would now commit"
+        );
+        drop(restarted);
+        cleanup(&path);
+    }
+
+    fn timed_then_generation() -> Generation {
+        Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema: Schema {
+                    tables: BTreeMap::new(),
+                    maintains: Vec::new(),
+                    channels: BTreeMap::new(),
+                    auth: Auth::default(),
+                    effects: vec!["clock.effect".to_owned()],
+                },
+                programs: vec![
+                    Program {
+                        name: "clock.emit".to_owned(),
+                        kind: ProgramKind::Mutation,
+                        args: BTreeMap::new(),
+                        read_time_granularity_ms: None,
+                        body: vec![Stmt::Emit {
+                            effect: "clock.effect".to_owned(),
+                            payload: Expr::Literal(Value::Null),
+                        }],
+                    },
+                    Program {
+                        name: "clock.then".to_owned(),
+                        kind: ProgramKind::Mutation,
+                        args: BTreeMap::new(),
+                        read_time_granularity_ms: None,
+                        body: vec![Stmt::Require {
+                            condition: Expr::Binary {
+                                op: crate::ir::BinaryOp::Gte,
+                                left: Box::new(Expr::Input(crate::ir::Input::Now)),
+                                right: Box::new(Expr::Literal(Value::Int(10))),
+                            },
+                            code: "TOO_EARLY".to_owned(),
+                        }],
+                    },
+                ],
+                effects: vec![EffectDecl {
+                    name: "clock.effect".to_owned(),
+                    grants: Vec::new(),
+                    source: "async () => null".to_owned(),
+                    then: Some("clock.then".to_owned()),
+                }],
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap()
+    }
+
+    fn temp_path() -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "snapback2-then-fault-{}-{}.sqlite",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ))
+    }
+
+    fn cleanup(path: &std::path::Path) {
+        for path in [
+            path.to_path_buf(),
+            PathBuf::from(format!("{}-wal", path.display())),
+            PathBuf::from(format!("{}-shm", path.display())),
+        ] {
+            let _ = std::fs::remove_file(path);
         }
     }
 }

@@ -761,6 +761,7 @@ mod tests {
             effect: "notifications.notify".to_owned(),
             payload,
             attempt: 1,
+            generation: Some("generation-1".to_owned()),
         }
     }
 

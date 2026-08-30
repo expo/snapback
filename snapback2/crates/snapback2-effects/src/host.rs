@@ -10,6 +10,8 @@ pub struct EffectJob {
     pub payload: Value,
     /// The post-claim attempt number. The first run is attempt 1.
     pub attempt: u32,
+    /// The project generation atomically bound by this claim.
+    pub generation: Option<String>,
 }
 
 /// A console record attributed to the job that produced it.
@@ -101,6 +103,7 @@ mod tests {
             effect: "notifications.notify".to_owned(),
             payload: Value::Null,
             attempt: 1,
+            generation: Some("generation-1".to_owned()),
         }
     }
 

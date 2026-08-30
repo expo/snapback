@@ -80,7 +80,6 @@ impl OwnerHandle {
 
 // Apply carries a whole certified successor so the writer remains the sole Runtime owner.
 #[allow(clippy::large_enum_variant)]
-#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 pub enum Action {
     Status,
     Manifest,
@@ -172,7 +171,10 @@ pub enum Action {
     Clock {
         advance_ms: i64,
     },
-    EffectsGeneration,
+    EffectsResolve {
+        effect: String,
+        generation: Option<String>,
+    },
     OutboxClaim {
         now: i64,
     },
@@ -185,6 +187,9 @@ pub enum Action {
     },
     OutboxThenPending,
     OutboxMarkUnknown,
+    OutboxMarkQueuedUnavailable {
+        error: String,
+    },
     OutboxExecuteThen {
         op: String,
         args: Json,
@@ -477,10 +482,9 @@ impl State {
                 self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
             }
-            Action::EffectsGeneration => Ok(json!({
-                "generation": self.runtime().generation().hash,
-                "effects": self.runtime().generation().effects,
-            })),
+            Action::EffectsResolve { effect, generation } => {
+                self.effect_declarations(&effect, generation.as_deref())
+            }
             Action::OutboxClaim { now } => Ok(serde_json::to_value(
                 self.runtime()
                     .store()
@@ -494,14 +498,14 @@ impl State {
                 result,
                 last_error,
                 next_at,
-            } => {
-                let result = result.as_ref().map(json_to_value).transpose()?;
-                self.runtime()
-                    .store()
-                    .outbox_settle(&id, &state, result.as_ref(), last_error.as_deref(), next_at)
-                    .map_err(|error| Refusal::from_runtime(&error))?;
-                Ok(json!({ "ok": true }))
-            }
+            } => settle_outbox(
+                self.runtime(),
+                &id,
+                &state,
+                result.as_ref(),
+                last_error.as_deref(),
+                next_at,
+            ),
             Action::OutboxThenPending => Ok(serde_json::to_value(
                 self.runtime()
                     .store()
@@ -514,6 +518,14 @@ impl State {
                     .runtime()
                     .store()
                     .outbox_mark_unknown_running()
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "changed": changed }))
+            }
+            Action::OutboxMarkQueuedUnavailable { error } => {
+                let changed = self
+                    .runtime()
+                    .store()
+                    .outbox_mark_queued_error(&error)
                     .map_err(|error| Refusal::from_runtime(&error))?;
                 Ok(json!({ "changed": changed }))
             }
@@ -683,7 +695,16 @@ impl State {
     }
 
     fn execute_then(&mut self, op: &str, args: Json, outbox_id: &str) -> Result<Json, Refusal> {
-        let values = operation_args(self.runtime().generation(), op, &args)?;
+        let values = match operation_args(self.runtime().generation(), op, &args) {
+            Ok(values) => values,
+            Err(refusal) => {
+                let execution = self
+                    .runtime_mut()
+                    .reject_then(op, outbox_id, &refusal.code, &refusal.message)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                return Ok(execution_json(&execution));
+            }
+        };
         let now = self.now();
         let mut context = Context::system();
         context.args = values;
@@ -1206,6 +1227,32 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))
     }
 
+    fn effect_declarations(&self, effect: &str, generation: Option<&str>) -> Result<Json, Refusal> {
+        let current_generation = self.runtime().generation().hash.clone();
+        let current = self.runtime().generation().effects.get(effect).cloned();
+        let bound = generation
+            .map(|generation| format!("effects_json:{generation}"))
+            .map(|key| self.runtime().store().meta(&key))
+            .transpose()
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .flatten()
+            .map(|encoded| {
+                serde_json::from_str::<BTreeMap<String, snapback2_core::EffectDecl>>(&encoded)
+                    .map_err(|error| {
+                        Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
+                            error.to_string(),
+                        ))
+                    })
+            })
+            .transpose()?
+            .and_then(|declarations| declarations.get(effect).cloned());
+        Ok(json!({
+            "currentGeneration": current_generation,
+            "bound": bound,
+            "current": current,
+        }))
+    }
+
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
     }
@@ -1217,14 +1264,23 @@ impl State {
     }
 }
 
-#[cfg(feature = "effects")]
 fn effects_engine() -> &'static str {
     snapback2_effects::describe()
 }
 
-#[cfg(not(feature = "effects"))]
-fn effects_engine() -> &'static str {
-    "none"
+fn settle_outbox(
+    runtime: &Runtime,
+    id: &str,
+    state: &str,
+    result: Option<&Json>,
+    last_error: Option<&str>,
+    next_at: Option<i64>,
+) -> Result<Json, Refusal> {
+    runtime
+        .store()
+        .outbox_settle(id, state, result, last_error, next_at)
+        .map_err(|error| Refusal::from_runtime(&error))?;
+    Ok(json!({ "ok": true }))
 }
 
 #[cfg(test)]
@@ -1233,12 +1289,13 @@ mod tests {
 
     #[test]
     fn status_names_the_linked_effect_engine() {
-        #[cfg(feature = "effects")]
         assert_eq!(effects_engine(), snapback2_effects::describe());
-        #[cfg(not(feature = "effects"))]
-        assert_eq!(effects_engine(), "none");
     }
 }
+
+#[cfg(test)]
+#[path = "writer_effects_tests.rs"]
+mod effects_tests;
 
 fn operation_args(
     generation: &Generation,

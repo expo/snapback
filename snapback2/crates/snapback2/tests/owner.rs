@@ -1,4 +1,11 @@
 use serde_json::{Value, json};
+#[cfg(not(feature = "hermes"))]
+use snapback2_core::{
+    Ceilings, Context as CoreContext, Expr, Generation, Program, ProgramKind, ProjectJson, Runtime,
+    Stmt, Store,
+};
+#[cfg(not(feature = "hermes"))]
+use std::collections::{BTreeMap, VecDeque};
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
@@ -339,6 +346,127 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     if let Err(error) = fs::remove_dir_all(root) {
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     }
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn default_owner_replays_then_pending_without_an_engine() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let seq = seed_effect_row(
+        &root,
+        binary,
+        &compiler,
+        Some(json!({ "providerId": "replayed-provider" })),
+    );
+
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    let settled = wait_for(Duration::from_secs(5), || {
+        let status = status(port, &secret);
+        (status["effects"]["sent"] == 1).then_some(status)
+    });
+    assert_eq!(settled["effects"]["engine"], "none");
+    assert_eq!(settled["effects"]["thenPending"], 0);
+    assert_eq!(settled["seq"], 2, "then mutation committed");
+    let trace = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={seq}"),
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(trace.body["outbox"]["rows"][0]["state"], "sent");
+    assert_eq!(trace.body["outbox"]["rows"][0]["lastError"], Value::Null);
+
+    stop_owner(port, &secret, &mut owner, "default runner replay complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn fractional_effect_result_rejects_then_and_still_settles_sent() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let seq = seed_effect_row(&root, binary, &compiler, Some(json!({ "ratio": 1.5 })));
+
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    let settled = wait_for(Duration::from_secs(5), || {
+        let status = status(port, &secret);
+        (status["effects"]["sent"] == 1).then_some(status)
+    });
+    assert_eq!(settled["effects"]["running"], 0);
+    assert_eq!(settled["effects"]["thenPending"], 0);
+    assert_eq!(settled["seq"], 1, "rejected then writes no commit");
+    let trace = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={seq}"),
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(trace.body["outbox"]["rows"][0]["state"], "sent");
+    assert!(
+        trace.body["outbox"]["rows"][0]["lastError"]
+            .as_str()
+            .is_some_and(|error| error.contains("E_INPUT")),
+        "{}",
+        trace.body
+    );
+
+    stop_owner(port, &secret, &mut owner, "fractional result complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn doctor_counts_queued_rows_from_store_without_an_owner() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    seed_effect_row(&root, binary, &compiler, None);
+
+    let doctor = Command::new(binary)
+        .arg("doctor")
+        .current_dir(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(doctor.status.success());
+    assert!(
+        String::from_utf8_lossy(&doctor.stdout)
+            .contains("effects: no engine in this build — 1 queued"),
+        "{}",
+        String::from_utf8_lossy(&doctor.stdout)
+    );
+    let store = Store::open(&root.join(".snapback/store.sqlite")).unwrap();
+    assert_eq!(store.outbox_counts().unwrap().queued, 1);
+    drop(store);
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
@@ -928,6 +1056,70 @@ fn wait_for<T>(timeout: Duration, mut check: impl FnMut() -> Option<T>) -> T {
         thread::sleep(Duration::from_millis(100));
     }
     panic!("condition did not become true in {timeout:?}");
+}
+
+#[cfg(not(feature = "hermes"))]
+fn seed_effect_row(root: &Path, binary: &str, compiler: &Path, result: Option<Value>) -> u64 {
+    let checked = Command::new(binary)
+        .args(["check", "--project"])
+        .arg(root)
+        .env("SNAPBACK2_COMPILER", compiler)
+        .output()
+        .unwrap();
+    assert!(
+        checked.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let mut project: ProjectJson =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    project.programs.push(Program {
+        name: "__test.emitEffect".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Emit {
+            effect: "notifications.notify".to_owned(),
+            payload: Expr::Literal(snapback2_core::Value::Null),
+        }],
+    });
+    let generation = Generation::certify(&project, Ceilings::default()).unwrap();
+    let mut runtime = Runtime::open(
+        Store::open(&root.join(".snapback/store.sqlite")).unwrap(),
+        generation,
+    )
+    .unwrap();
+    let mut context = CoreContext::mutation("dev:test", BTreeMap::new());
+    context.now = Some(1);
+    context.new_ids = VecDeque::from(["seeded-outbox".to_owned()]);
+    let execution = runtime.execute("__test.emitEffect", context).unwrap();
+    if let Some(result) = result {
+        runtime
+            .store()
+            .outbox_claim_next(1)
+            .unwrap()
+            .expect("seeded outbox claim");
+        runtime
+            .store()
+            .outbox_settle("seeded-outbox", "then_pending", Some(&result), None, None)
+            .unwrap();
+    }
+    execution.seq
+}
+
+#[cfg(not(feature = "hermes"))]
+fn stop_owner(port: u16, secret: &str, owner: &mut ChildGuard, cause: &str) {
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", secret)],
+        json!({ "cause": cause }),
+    );
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    owner.wait();
 }
 
 fn fixture() -> PathBuf {

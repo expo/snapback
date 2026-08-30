@@ -361,6 +361,56 @@ impl Engine {
         }
     }
 
+    /// Run an effect bookkeeping mutation and settle its durable outbox row
+    /// in the same outer transaction. A program rejection rolls its writes
+    /// back to the savepoint, then commits only the `sent` settlement.
+    // @ref LLP 1003#2-the-outbox-lifecycle — attempted `then` writes and every settlement share one transaction.
+    pub(crate) fn execute_then(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+        outbox_id: &str,
+    ) -> Result<Execution, RuntimeError> {
+        if let Err(error) = validate_inputs(program, &context.args) {
+            let Some(code) = mutation_rejection_code(&error) else {
+                return Err(error);
+            };
+            return self.settle_rejected_then(outbox_id, code, &error.to_string());
+        }
+        self.execute_with_kind_inner(program, certificate, context, None, Some(outbox_id))
+    }
+
+    pub(crate) fn settle_rejected_then(
+        &mut self,
+        outbox_id: &str,
+        code: &str,
+        message: &str,
+    ) -> Result<Execution, RuntimeError> {
+        let transaction = self.store.conn.transaction()?;
+        Store::settle_then_transaction(
+            &transaction,
+            outbox_id,
+            Some(&format!("{code}: {message}")),
+            unix_millis(),
+        )?;
+        let seq =
+            transaction.query_row("SELECT COALESCE(MAX(seq), 0) FROM _commits", [], |row| {
+                row.get::<_, i64>(0)
+            })?;
+        transaction.commit()?;
+        Ok(Execution {
+            result: Value::Null,
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            state: ExecutionState::Rejected {
+                code: code.to_owned(),
+                message: message.to_owned(),
+            },
+            seq: seq.max(0) as u64,
+        })
+    }
+
     fn empty_execution(&self, state: ExecutionState) -> Result<Execution, RuntimeError> {
         Ok(Execution {
             result: Value::Null,
@@ -377,6 +427,17 @@ impl Engine {
         certificate: &Certificate,
         context: Context,
         commit_kind: Option<&str>,
+    ) -> Result<Execution, RuntimeError> {
+        self.execute_with_kind_inner(program, certificate, context, commit_kind, None)
+    }
+
+    fn execute_with_kind_inner(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+        commit_kind: Option<&str>,
+        then_outbox_id: Option<&str>,
     ) -> Result<Execution, RuntimeError> {
         if certificate.plan_hash != digest(program) {
             return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
@@ -399,6 +460,9 @@ impl Engine {
             current_seq
         };
         let transaction = self.store.conn.transaction()?;
+        if then_outbox_id.is_some() {
+            transaction.execute_batch("SAVEPOINT snapback2_effect_then")?;
+        }
         let mut runner = Runner::new(
             &transaction,
             &self.schema,
@@ -407,7 +471,14 @@ impl Engine {
             &self.verdicts,
             seq,
         );
-        let flow = match runner.statements(&program.body) {
+        let mut attempted = runner.statements(&program.body);
+        if attempted.is_ok()
+            && program.kind == ProgramKind::Mutation
+            && let Err(error) = runner.assert_bounds()
+        {
+            attempted = Err(error);
+        }
+        let flow = match attempted {
             Ok(flow) => flow,
             Err(error) if program.kind == ProgramKind::Query => {
                 let rule = match error {
@@ -426,13 +497,41 @@ impl Engine {
                 transaction.commit()?;
                 return Ok(execution);
             }
+            Err(error) if program.kind == ProgramKind::Mutation && then_outbox_id.is_some() => {
+                let Some(code) = mutation_rejection_code(&error) else {
+                    return Err(error);
+                };
+                drop(runner);
+                transaction.execute_batch(
+                    "ROLLBACK TO snapback2_effect_then; RELEASE snapback2_effect_then",
+                )?;
+                Store::settle_then_transaction(
+                    &transaction,
+                    then_outbox_id.expect("checked above"),
+                    Some(&format!("{code}: {error}")),
+                    commit_at,
+                )?;
+                transaction.commit()?;
+                return Ok(Execution {
+                    result: Value::Null,
+                    trace: AuthoritativeTrace::default(),
+                    receipt: ClosureReceipt::default(),
+                    state: ExecutionState::Rejected {
+                        code: code.to_owned(),
+                        message: error.to_string(),
+                    },
+                    seq: current_seq,
+                });
+            }
             Err(error) => return Err(error),
         };
         let result = match flow {
             Flow::Return(value) => value,
             _ => Value::Null,
         };
-        runner.assert_bounds()?;
+        if program.kind == ProgramKind::Query {
+            runner.assert_bounds()?;
+        }
         let state = match program.kind {
             ProgramKind::Mutation => ExecutionState::Committed { seq },
             ProgramKind::Query => query_state(&runner.trace, certificate),
@@ -462,6 +561,10 @@ impl Engine {
                 emits: execution.trace.emits.len() as u64,
             };
             append_commit(&transaction, &record)?;
+        }
+        if let Some(outbox_id) = then_outbox_id {
+            transaction.execute_batch("RELEASE snapback2_effect_then")?;
+            Store::settle_then_transaction(&transaction, outbox_id, None, commit_at)?;
         }
         transaction.commit()?;
         Ok(execution)
@@ -601,6 +704,26 @@ pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {
         RuntimeError::Sql(rusqlite::Error::SqliteFailure(sqlite, _))
             if sqlite.code == rusqlite::ErrorCode::ConstraintViolation
     )
+}
+
+pub(crate) fn mutation_rejection_code(error: &RuntimeError) -> Option<&str> {
+    match error {
+        RuntimeError::Require { code } => Some(code),
+        RuntimeError::Rule { .. } => Some("rule"),
+        RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
+        error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
+        RuntimeError::Input(_) => Some("E_INPUT"),
+        RuntimeError::Value(error) => Some(match error {
+            ValueError::DivideByZero => "E_DIV_ZERO",
+            ValueError::Overflow(_) => "E_OVERFLOW",
+            ValueError::Type { .. } => "E_TYPE",
+            ValueError::MissingField(_) => "E_FIELD",
+        }),
+        RuntimeError::Steps(_) | RuntimeError::Fanout | RuntimeError::TraceSubset(_) => {
+            Some("bound")
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn append_commit(
