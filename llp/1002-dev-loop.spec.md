@@ -261,7 +261,10 @@ read-only in the receipt, never editable):
 (spawned like the worker) against the same owner with the headless client
 (§9): `journey(name, async ({ as, tick, url }) => …)`; `as('alice')` returns a
 client bound to that persona; `tick(ms)` advances the owner's clock for
-`ctx.now()` (`POST /control/clock`); each journey ≤ 5 s.
+`ctx.now()` (`POST /control/clock`); each journey ≤ 5 s. A rerun re-samples
+`now` from the owner's clock at rerun time, and a clock advance reruns every
+subscription — a tick is a synthetic commit — so time-dependent live queries
+advance (review ruling 2026-08-30).
 
 **Receipt** (`.snapback/receipts/<ts>.json`, also printed): `{ binary: { version,
 digest }, generation, commands: [...], checks: [{ name, kind: "derived" | "journey",
