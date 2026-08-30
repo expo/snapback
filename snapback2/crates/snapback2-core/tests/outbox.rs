@@ -871,14 +871,20 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
 
     let claimed = runtime
         .store()
-        .outbox_claim_next(100)
+        .outbox_claim_next(100, &["audit".to_owned()])
         .unwrap()
         .expect("queued row");
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
     assert_eq!(claimed.payload, Value::String("payload".to_owned()));
     assert_eq!(claimed.generation, Some(generation.hash));
-    assert!(runtime.store().outbox_claim_next(100).unwrap().is_none());
+    assert!(
+        runtime
+            .store()
+            .outbox_claim_next(100, &["audit".to_owned()])
+            .unwrap()
+            .is_none()
+    );
 
     runtime
         .store()
@@ -890,7 +896,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     assert_eq!(requeued.attempts, 0);
     let claimed = runtime
         .store()
-        .outbox_claim_next(i64::MAX)
+        .outbox_claim_next(i64::MAX, &["audit".to_owned()])
         .unwrap()
         .unwrap();
     assert_eq!(claimed.attempts, 1);
@@ -907,7 +913,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     assert!(
         runtime
             .store()
-            .outbox_claim_next(i64::MAX)
+            .outbox_claim_next(i64::MAX, &["audit".to_owned()])
             .unwrap()
             .is_none()
     );
@@ -969,7 +975,13 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
     }
 
     let mut restarted = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
-    assert!(restarted.store().outbox_then_pending().unwrap().is_empty());
+    assert!(
+        restarted
+            .store()
+            .outbox_then_pending(16)
+            .unwrap()
+            .is_empty()
+    );
     let listed = restarted
         .execute("notifications.list", Context::query("u1", BTreeMap::new()))
         .unwrap();
@@ -1041,11 +1053,114 @@ fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
     );
 }
 
+#[test]
+fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
+    let source = "async () => ({ providerId: 'denied' })";
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        then_generation_with_rule(source, false, RuleExpr::Deny),
+    )
+    .unwrap();
+    leave_then_pending(&mut runtime);
+
+    let execution = runtime
+        .execute_then("notifications.record", then_context(), "outbox-1")
+        .unwrap();
+
+    assert!(matches!(
+        execution.state,
+        ExecutionState::Rejected { ref code, .. } if code == "rule"
+    ));
+    let row = runtime.store().outbox_get("outbox-1").unwrap().unwrap();
+    assert_eq!(row.state, "sent");
+    assert!(
+        row.last_error
+            .as_deref()
+            .is_some_and(|error| error.contains("rule")),
+        "the rejected then must remain visible on its outbox trace row"
+    );
+    let listed = runtime
+        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .unwrap();
+    assert!(listed.result.as_array().unwrap().is_empty());
+}
+
+#[test]
+fn undeclared_effect_is_failed_without_ever_becoming_running() {
+    let generation = Generation::certify(
+        &project(
+            vec![emit_program(ProgramKind::Mutation, "audit")],
+            empty_schema(),
+        ),
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mut context = Context::mutation("u1", BTreeMap::new());
+    context.now = Some(10);
+    context.new_ids = VecDeque::from(["unknown-outbox".to_owned(), "return-id".to_owned()]);
+    runtime.execute("ops.audit", context).unwrap();
+
+    let mut successor = empty_schema();
+    successor.effects = vec!["kept".to_owned()];
+    let successor = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema: successor,
+            programs: vec![emit_program(ProgramKind::Mutation, "kept")],
+            effects: vec![EffectDecl {
+                name: "kept".to_owned(),
+                grants: vec!["network".to_owned()],
+                source: "effects/kept.ts".to_owned(),
+                then: None,
+            }],
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap();
+    runtime.apply_successor(successor).unwrap();
+    let mut context = Context::mutation("u1", BTreeMap::new());
+    context.now = Some(11);
+    context.new_ids = VecDeque::from(["kept-outbox".to_owned(), "kept-return".to_owned()]);
+    runtime.execute("ops.kept", context).unwrap();
+
+    let claimed = runtime
+        .store()
+        .outbox_claim_next(11, &["kept".to_owned()])
+        .unwrap()
+        .expect("the declared row is claimed in the unknown-settlement transaction");
+    assert_eq!(claimed.id, "kept-outbox");
+    assert_eq!(claimed.state, "running");
+    assert_eq!(claimed.attempts, 1);
+    assert!(
+        runtime
+            .store()
+            .outbox_claim_next(11, &["kept".to_owned()])
+            .unwrap()
+            .is_none()
+    );
+    let row = runtime
+        .store()
+        .outbox_get("unknown-outbox")
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.state, "failed");
+    assert_eq!(row.attempts, 0);
+    assert_eq!(row.then_op, None);
+    assert_eq!(row.generation, None);
+    assert_eq!(row.last_error.as_deref(), Some("E_EFFECT_UNKNOWN"));
+}
+
 fn then_generation(source: &str) -> Generation {
     then_generation_with_rejection(source, false)
 }
 
 fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
+    then_generation_with_rule(source, reject, RuleExpr::PrincipalKind("system".to_owned()))
+}
+
+fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -> Generation {
     let notifications = Table {
         columns: BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
@@ -1062,8 +1177,8 @@ fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
             read: RuleExpr::Public {
                 reason: "test observation".to_owned(),
             },
-            insert: RuleExpr::Deny,
-            update: RuleExpr::Deny,
+            insert: write_rule.clone(),
+            update: write_rule,
             delete: RuleExpr::Deny,
         },
         constraints: Vec::new(),
@@ -1149,7 +1264,11 @@ fn leave_then_pending(runtime: &mut Runtime) {
     emit.now = Some(10);
     emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("notifications.emit", emit).unwrap();
-    runtime.store().outbox_claim_next(10).unwrap().unwrap();
+    runtime
+        .store()
+        .outbox_claim_next(10, &["notifications.notify".to_owned()])
+        .unwrap()
+        .unwrap();
     runtime
         .store()
         .outbox_settle(

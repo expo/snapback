@@ -1,7 +1,9 @@
 use crate::{EffectHost, EffectJob, EffectLog, Outcome};
 use serde_json::{Value, json};
 use snapback2_core::EffectDecl;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::any::Any;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::time::Duration;
 use thiserror::Error;
 
 pub const DEFAULT_BUDGET: Duration = Duration::from_secs(30);
@@ -55,7 +57,7 @@ pub enum OutboxSettlement {
 pub struct PendingThen {
     pub id: String,
     pub effect: String,
-    pub result: Value,
+    pub result: Option<Value>,
     pub then_op: Option<String>,
 }
 
@@ -79,10 +81,13 @@ pub enum ThenOutcome {
 // @ref LLP 1002#5-the-owner — only the writer thread owns Runtime and SQLite.
 // @ref LLP 1003#2-the-outbox-lifecycle — claiming, settling, restart honesty, and `then` all cross this seam.
 pub trait OutboxAccess {
-    /// Atomically select the oldest eligible row using the exact predicate
-    /// `state = 'queued' AND next_at <= ?`, transition it to `running`, and
-    /// increment `attempts` before returning it. No other state, especially
-    /// `sent_unknown`, is eligible for an automatic claim.
+    /// The owner's effective clock, including any development offset.
+    fn now(&mut self) -> Result<i64, OutboxError>;
+
+    /// Atomically fail effects absent from the writer's current declarations,
+    /// then select the oldest eligible declared row using `state = 'queued'
+    /// AND next_at <= ?`, transition it to `running`, and increment `attempts`.
+    /// No other state, especially `sent_unknown`, is eligible.
     fn claim_next(&mut self, now: i64) -> Result<Option<EffectJob>, OutboxError>;
 
     /// Resolve the declaration retained for the generation this row bound,
@@ -94,8 +99,8 @@ pub trait OutboxAccess {
     /// recording its error.
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError>;
 
-    /// Return every durable `then_pending` row in stable outbox order.
-    fn pending_then(&mut self) -> Result<Vec<PendingThen>, OutboxError>;
+    /// Return at most `limit` durable `then_pending` rows in stable outbox order.
+    fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError>;
 
     /// Explicitly return a `sent_unknown` or `failed` row to `queued` and
     /// reset attempts for the new operator-authorized run.
@@ -121,6 +126,7 @@ pub trait OutboxAccess {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Drained {
+    pub unknown_at_start: u64,
     pub claimed: u64,
     pub sent: u64,
     pub failed: u64,
@@ -170,25 +176,18 @@ impl<H: EffectHost> Runner<H> {
         self.host.generation_changed();
     }
 
-    pub fn initialize<A: OutboxAccess>(&mut self, access: &mut A) -> Result<u64, OutboxError> {
-        let unknown = access.mark_unknown_running_at_start(unix_millis())?;
-        for pending in access.pending_then()? {
-            if let Some(then) = pending.then_op.clone() {
-                execute_then(access, &then, &pending)?;
-            } else {
-                access.settle(
-                    &pending.id,
-                    OutboxSettlement::Failed {
-                        error: "E_EFFECT_THEN_CHANGED".to_owned(),
-                    },
-                )?;
-            }
-        }
-        Ok(unknown)
+    pub fn initialize<A: OutboxAccess>(&mut self, access: &mut A) -> Result<Drained, OutboxError> {
+        let now = access.now()?;
+        let mut drained = Drained {
+            unknown_at_start: access.mark_unknown_running_at_start(now)?,
+            ..Drained::default()
+        };
+        self.drain_pending(access, DEFAULT_DRAIN_LIMIT, &mut drained)?;
+        Ok(drained)
     }
 
     pub fn drain<A: OutboxAccess>(&mut self, access: &mut A) -> Result<Drained, OutboxError> {
-        self.drain_with_clock(access, DEFAULT_DRAIN_LIMIT, unix_millis)
+        self.drain_inner(access, DEFAULT_DRAIN_LIMIT, |access| access.now())
     }
 
     /// Clock-injected form used by the owner and seam tests. The clock is
@@ -201,7 +200,18 @@ impl<H: EffectHost> Runner<H> {
         limit: usize,
         mut now: F,
     ) -> Result<Drained, OutboxError> {
+        self.drain_inner(access, limit, |_| Ok(now()))
+    }
+
+    fn drain_inner<A: OutboxAccess, F: FnMut(&mut A) -> Result<i64, OutboxError>>(
+        &mut self,
+        access: &mut A,
+        limit: usize,
+        mut now: F,
+    ) -> Result<Drained, OutboxError> {
         let mut drained = Drained::default();
+        let pending = self.drain_pending(access, limit, &mut drained)?;
+        let remaining = limit.saturating_sub(pending);
         if self.host.describe() == "none" {
             access.mark_queued_unavailable("no engine in this build")?;
             drained
@@ -209,162 +219,318 @@ impl<H: EffectHost> Runner<H> {
                 .push("no engine in this build".to_owned());
             return Ok(drained);
         }
-        for _ in 0..limit {
-            let Some(job) = access.claim_next(now())? else {
+        for _ in 0..remaining {
+            let claim_at = now(access)?;
+            let Some(job) = access.claim_next(claim_at)? else {
                 break;
             };
             drained.claimed += 1;
-
-            let resolved = access.effect_declarations(&job)?;
-            let Some(decl) = resolved.bound else {
-                access.settle(
-                    &job.id,
-                    OutboxSettlement::Failed {
-                        error: "E_EFFECT_UNKNOWN".to_owned(),
-                    },
-                )?;
-                drained.failed += 1;
-                continue;
-            };
-
-            if job.generation.as_deref() != Some(resolved.current_generation.as_str()) {
-                let error = match resolved.current {
-                    None => "E_EFFECT_UNKNOWN",
-                    Some(current)
-                        if current.then == decl.then
-                            && snapback2_core::digest(&current.source)
-                                == snapback2_core::digest(&decl.source) =>
-                    {
-                        ""
-                    }
-                    Some(_) => "E_EFFECT_THEN_CHANGED",
-                };
-                if !error.is_empty() {
-                    access.settle(
-                        &job.id,
-                        OutboxSettlement::Failed {
-                            error: error.to_owned(),
-                        },
-                    )?;
-                    drained.failed += 1;
-                    continue;
-                }
-            }
-            if self.generation.as_deref() != job.generation.as_deref() {
-                self.host.generation_changed();
-                self.generation = job.generation.clone();
-            }
-
-            let outcome = self.host.run(&decl, &job, self.budget);
-            drained.logs.extend(self.host.take_logs());
-            match outcome {
-                Outcome::Sent { result, leftover } => {
-                    if leftover {
-                        drained.logs.push(EffectLog {
-                            outbox_id: job.id.clone(),
-                            level: "warn".to_owned(),
-                            message:
-                                "effect resolved with leftover asynchronous work; runtime discarded"
-                                    .to_owned(),
-                        });
-                    }
-                    if let Some(then) = &decl.then {
-                        access.settle(
-                            &job.id,
-                            OutboxSettlement::ThenPending {
-                                result: result.clone(),
-                                then_op: then.clone(),
-                            },
-                        )?;
-                        let pending = PendingThen {
-                            id: job.id,
-                            effect: job.effect,
-                            result,
-                            then_op: Some(then.clone()),
-                        };
-                        match execute_then(access, then, &pending)? {
-                            ThenOutcome::Sent => drained.sent += 1,
-                            ThenOutcome::Rejected(_) => {
-                                drained.sent += 1;
-                                drained.then_failed += 1;
-                            }
-                            ThenOutcome::Failed(_) => {
-                                drained.failed += 1;
-                                drained.then_failed += 1;
-                            }
-                        }
-                    } else {
-                        access.settle(
-                            &job.id,
-                            OutboxSettlement::Sent {
-                                result,
-                                last_error: None,
-                            },
-                        )?;
-                    }
-                    if decl.then.is_none() {
-                        drained.sent += 1;
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                self.run_claimed(access, &job, &mut now)
+            }));
+            match result {
+                Ok(Ok(job_drained)) => {
+                    let unavailable = !job_drained.unavailable.is_empty();
+                    merge_drained(&mut drained, job_drained);
+                    if unavailable {
+                        break;
                     }
                 }
-                Outcome::Failed { error, retry } if retry && job.attempt < MAX_ATTEMPTS => {
-                    let failed_at = now();
-                    access.settle(
-                        &job.id,
-                        OutboxSettlement::Retry {
-                            error,
-                            next_at: failed_at.saturating_add(retry_delay_ms(job.attempt)),
-                        },
-                    )?;
-                    drained.requeued += 1;
+                Ok(Err(error)) => {
+                    self.recover_claimed_job(access, &job, error.0, &mut drained);
                 }
-                Outcome::Failed { error, .. } => {
-                    access.settle(&job.id, OutboxSettlement::Failed { error })?;
-                    drained.failed += 1;
-                }
-                Outcome::Unavailable(message) => {
-                    access.settle(
-                        &job.id,
-                        OutboxSettlement::Unavailable {
-                            error: message.to_owned(),
-                        },
-                    )?;
-                    drained.requeued += 1;
-                    drained.unavailable.push(message.to_owned());
-                    break;
+                Err(payload) => {
+                    self.recover_claimed_job(
+                        access,
+                        &job,
+                        format!("E_EFFECT_RUNNER_PANIC: {}", panic_message(payload)),
+                        &mut drained,
+                    );
                 }
             }
         }
         Ok(drained)
     }
+
+    fn drain_pending<A: OutboxAccess>(
+        &mut self,
+        access: &mut A,
+        limit: usize,
+        drained: &mut Drained,
+    ) -> Result<usize, OutboxError> {
+        let pending = access.pending_then(limit)?;
+        let count = pending.len();
+        for pending in pending {
+            let id = pending.id.clone();
+            let result = catch_unwind(AssertUnwindSafe(|| run_pending_then(access, &pending)));
+            match result {
+                Ok(Ok(outcome)) => record_then(outcome, &id, drained),
+                Ok(Err(error)) => drained.logs.push(EffectLog {
+                    outbox_id: id,
+                    level: "error".to_owned(),
+                    message: error.0,
+                }),
+                Err(payload) => {
+                    let message = format!(
+                        "E_EFFECT_RUNNER_PANIC: pending then panicked: {}",
+                        panic_message(payload)
+                    );
+                    if let Err(error) = access.settle(
+                        &id,
+                        OutboxSettlement::Failed {
+                            error: "E_EFFECT_RUNNER_PANIC".to_owned(),
+                        },
+                    ) {
+                        drained.logs.push(EffectLog {
+                            outbox_id: id.clone(),
+                            level: "error".to_owned(),
+                            message: format!("{message}; settlement failed: {}", error.0),
+                        });
+                    } else {
+                        drained.failed += 1;
+                        drained.then_failed += 1;
+                        drained.logs.push(EffectLog {
+                            outbox_id: id,
+                            level: "error".to_owned(),
+                            message,
+                        });
+                    }
+                }
+            }
+        }
+        Ok(count)
+    }
+
+    fn run_claimed<A: OutboxAccess, F: FnMut(&mut A) -> Result<i64, OutboxError>>(
+        &mut self,
+        access: &mut A,
+        job: &EffectJob,
+        now: &mut F,
+    ) -> Result<Drained, OutboxError> {
+        let mut drained = Drained::default();
+        let resolved = access.effect_declarations(job)?;
+        let Some(decl) = resolved.bound else {
+            access.settle(
+                &job.id,
+                OutboxSettlement::Failed {
+                    error: "E_EFFECT_UNKNOWN".to_owned(),
+                },
+            )?;
+            drained.failed += 1;
+            return Ok(drained);
+        };
+        if job.generation.as_deref() != Some(resolved.current_generation.as_str()) {
+            let error = match resolved.current {
+                None => "E_EFFECT_UNKNOWN",
+                Some(current)
+                    if current.then == decl.then
+                        && snapback2_core::digest(&current.source)
+                            == snapback2_core::digest(&decl.source) =>
+                {
+                    ""
+                }
+                Some(_) => "E_EFFECT_THEN_CHANGED",
+            };
+            if !error.is_empty() {
+                access.settle(
+                    &job.id,
+                    OutboxSettlement::Failed {
+                        error: error.to_owned(),
+                    },
+                )?;
+                drained.failed += 1;
+                return Ok(drained);
+            }
+        }
+        if self.generation.as_deref() != job.generation.as_deref() {
+            self.host.generation_changed();
+            self.generation = job.generation.clone();
+        }
+        let outcome = self.host.run(&decl, job, self.budget);
+        drained.logs.extend(self.host.take_logs());
+        match outcome {
+            Outcome::Sent { result, leftover } => {
+                if leftover {
+                    drained.logs.push(EffectLog {
+                        outbox_id: job.id.clone(),
+                        level: "warn".to_owned(),
+                        message:
+                            "effect resolved with leftover asynchronous work; runtime discarded"
+                                .to_owned(),
+                    });
+                }
+                if let Some(then) = &decl.then {
+                    access.settle(
+                        &job.id,
+                        OutboxSettlement::ThenPending {
+                            result: result.clone(),
+                            then_op: then.clone(),
+                        },
+                    )?;
+                    let pending = PendingThen {
+                        id: job.id.clone(),
+                        effect: job.effect.clone(),
+                        result: Some(result),
+                        then_op: Some(then.clone()),
+                    };
+                    match catch_unwind(AssertUnwindSafe(|| run_pending_then(access, &pending))) {
+                        Ok(Ok(outcome)) => record_then(outcome, &job.id, &mut drained),
+                        Ok(Err(error)) => drained.logs.push(EffectLog {
+                            outbox_id: job.id.clone(),
+                            level: "error".to_owned(),
+                            message: error.0,
+                        }),
+                        Err(payload) => {
+                            let message = format!(
+                                "E_EFFECT_RUNNER_PANIC: pending then panicked: {}",
+                                panic_message(payload)
+                            );
+                            access.settle(
+                                &job.id,
+                                OutboxSettlement::Failed {
+                                    error: "E_EFFECT_RUNNER_PANIC".to_owned(),
+                                },
+                            )?;
+                            drained.failed += 1;
+                            drained.then_failed += 1;
+                            drained.logs.push(EffectLog {
+                                outbox_id: job.id.clone(),
+                                level: "error".to_owned(),
+                                message,
+                            });
+                        }
+                    }
+                } else {
+                    access.settle(
+                        &job.id,
+                        OutboxSettlement::Sent {
+                            result,
+                            last_error: None,
+                        },
+                    )?;
+                    drained.sent += 1;
+                }
+            }
+            Outcome::Failed { error, retry } if retry && job.attempt < MAX_ATTEMPTS => {
+                let failed_at = now(access)?;
+                access.settle(
+                    &job.id,
+                    OutboxSettlement::Retry {
+                        error,
+                        next_at: failed_at.saturating_add(retry_delay_ms(job.attempt)),
+                    },
+                )?;
+                drained.requeued += 1;
+            }
+            Outcome::Failed { error, .. } => {
+                access.settle(&job.id, OutboxSettlement::Failed { error })?;
+                drained.failed += 1;
+            }
+            Outcome::Unavailable(message) => {
+                access.settle(
+                    &job.id,
+                    OutboxSettlement::Unavailable {
+                        error: message.to_owned(),
+                    },
+                )?;
+                drained.requeued += 1;
+                drained.unavailable.push(message.to_owned());
+            }
+        }
+        Ok(drained)
+    }
+
+    fn recover_claimed_job<A: OutboxAccess>(
+        &mut self,
+        access: &mut A,
+        job: &EffectJob,
+        message: String,
+        drained: &mut Drained,
+    ) {
+        let settlement = access.settle(
+            &job.id,
+            OutboxSettlement::Failed {
+                error: message.clone(),
+            },
+        );
+        if settlement.is_ok() {
+            drained.failed += 1;
+        }
+        drained.logs.push(EffectLog {
+            outbox_id: job.id.clone(),
+            level: "error".to_owned(),
+            message: match settlement {
+                Ok(()) => message,
+                Err(error) => format!("{message}; recovery settlement failed: {}", error.0),
+            },
+        });
+    }
 }
 
-fn execute_then<A: OutboxAccess>(
+fn run_pending_then<A: OutboxAccess>(
     access: &mut A,
-    then: &str,
     pending: &PendingThen,
 ) -> Result<ThenOutcome, OutboxError> {
+    let (Some(then), Some(result)) = (pending.then_op.as_deref(), pending.result.as_ref()) else {
+        access.settle(
+            &pending.id,
+            OutboxSettlement::Failed {
+                error: "E_EFFECT_THEN_CHANGED".to_owned(),
+            },
+        )?;
+        return Ok(ThenOutcome::Failed("E_EFFECT_THEN_CHANGED".to_owned()));
+    };
     access.execute_then(
         then,
         json!({
             "outboxId": pending.id,
             "effect": pending.effect,
-            "result": pending.result,
+            "result": result,
         }),
         &pending.id,
     )
 }
 
+fn record_then(outcome: ThenOutcome, outbox_id: &str, drained: &mut Drained) {
+    match outcome {
+        ThenOutcome::Sent => drained.sent += 1,
+        ThenOutcome::Rejected(_) => {
+            drained.sent += 1;
+            drained.then_failed += 1;
+        }
+        ThenOutcome::Failed(error) => {
+            drained.failed += 1;
+            drained.then_failed += 1;
+            drained.logs.push(EffectLog {
+                outbox_id: outbox_id.to_owned(),
+                level: "error".to_owned(),
+                message: error,
+            });
+        }
+    }
+}
+
+fn merge_drained(total: &mut Drained, mut next: Drained) {
+    total.unknown_at_start += next.unknown_at_start;
+    total.sent += next.sent;
+    total.failed += next.failed;
+    total.requeued += next.requeued;
+    total.then_failed += next.then_failed;
+    total.unavailable.append(&mut next.unavailable);
+    total.logs.append(&mut next.logs);
+}
+
+fn panic_message(payload: Box<dyn Any + Send>) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|message| (*message).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "non-string panic payload".to_owned())
+}
+
 fn retry_delay_ms(attempt: u32) -> i64 {
     let exponent = attempt.saturating_sub(1).min(30);
     1_000_i64.saturating_mul(1_i64.checked_shl(exponent).unwrap_or(i64::MAX))
-}
-
-fn unix_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
-        .min(i64::MAX as u128) as i64
 }
 
 #[cfg(test)]
@@ -390,12 +556,14 @@ mod tests {
         system_errors: VecDeque<Option<String>>,
         system_outcomes: VecDeque<ThenOutcome>,
         fail_sent_once: bool,
+        panic_then_once: bool,
         settlements: Vec<&'static str>,
         generations: BTreeMap<String, BTreeMap<String, EffectDecl>>,
         current_generation: String,
         claims: usize,
         switch_before_claim: Option<(usize, String)>,
         switch_after_claim: Option<(usize, String)>,
+        now: i64,
     }
 
     impl MemoryOutbox {
@@ -435,6 +603,10 @@ mod tests {
     }
 
     impl OutboxAccess for MemoryOutbox {
+        fn now(&mut self) -> Result<i64, OutboxError> {
+            Ok(self.now)
+        }
+
         fn claim_next(&mut self, now: i64) -> Result<Option<EffectJob>, OutboxError> {
             let claim = self.claims + 1;
             if self
@@ -544,15 +716,16 @@ mod tests {
             Ok(())
         }
 
-        fn pending_then(&mut self) -> Result<Vec<PendingThen>, OutboxError> {
+        fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError> {
             Ok(self
                 .rows
                 .iter()
                 .filter(|row| row.state == "then_pending")
+                .take(limit)
                 .map(|row| PendingThen {
                     id: row.job.id.clone(),
                     effect: row.job.effect.clone(),
-                    result: row.result.clone().expect("then_pending result"),
+                    result: row.result.clone(),
                     then_op: row.then_op.clone(),
                 })
                 .collect())
@@ -595,6 +768,9 @@ mod tests {
             args: Value,
             outbox_id: &str,
         ) -> Result<ThenOutcome, OutboxError> {
+            if std::mem::take(&mut self.panic_then_once) {
+                panic!("malformed then row panicked the test access");
+            }
             if self.fail_sent_once {
                 self.fail_sent_once = false;
                 return Err(OutboxError(
@@ -635,6 +811,7 @@ mod tests {
         outcomes: VecDeque<Outcome>,
         logs: Vec<EffectLog>,
         calls: Vec<(EffectDecl, EffectJob)>,
+        panic_once: bool,
     }
 
     impl StubHost {
@@ -643,12 +820,16 @@ mod tests {
                 outcomes: outcomes.into_iter().collect(),
                 logs: Vec::new(),
                 calls: Vec::new(),
+                panic_once: false,
             }
         }
     }
 
     impl EffectHost for StubHost {
         fn run(&mut self, decl: &EffectDecl, job: &EffectJob, _budget: Duration) -> Outcome {
+            if std::mem::take(&mut self.panic_once) {
+                panic!("malformed claimed row panicked the host");
+            }
             self.calls.push((decl.clone(), job.clone()));
             self.outcomes.pop_front().expect("stub outcome")
         }
@@ -764,6 +945,26 @@ mod tests {
     }
 
     #[test]
+    fn production_drain_uses_the_owner_clock_for_retry_next_at() {
+        let host = StubHost::new([Outcome::Failed {
+            error: "temporary".to_owned(),
+            retry: true,
+        }]);
+        let mut runner = Runner::new(host);
+        let mut outbox = MemoryOutbox {
+            now: 120_000,
+            ..MemoryOutbox::default()
+        };
+        outbox.push("retry", "notifications.notify", "queued", 0);
+        install(&mut outbox, declaration(None));
+
+        let drained = runner.drain(&mut outbox).unwrap();
+
+        assert_eq!(drained.requeued, 1);
+        assert_eq!(outbox.row("retry").next_at, 121_000);
+    }
+
+    #[test]
     fn unavailable_requeues_with_message_without_spending_an_attempt() {
         let host = StubHost::new([Outcome::Unavailable("provider unavailable")]);
         let mut runner = Runner::new(host);
@@ -864,7 +1065,7 @@ mod tests {
     }
 
     #[test]
-    fn atomic_then_failure_replays_once_after_restart() {
+    fn crash_between_then_pending_and_execute_then_restarts_to_exactly_one_commit() {
         let declarations = declarations(declaration(Some("notifications.recordNotified")));
         let host = StubHost::new([sent(json!({ "providerId": "p1" }))]);
         let mut runner = Runner::new(host);
@@ -875,21 +1076,154 @@ mod tests {
         outbox.push("o1", "notifications.notify", "queued", 0);
         outbox.install("generation-1", declarations.clone());
 
-        let error = runner
-            .drain_with_clock(&mut outbox, 16, || 0)
-            .expect_err("the test double kills the runner before sent");
-        assert!(error.0.contains("atomic then commit"));
+        let drained = runner.drain_with_clock(&mut outbox, 16, || 0).unwrap();
+        assert!(
+            drained
+                .logs
+                .iter()
+                .any(|line| line.outbox_id == "o1" && line.message.contains("atomic then commit"))
+        );
         assert_eq!(outbox.row("o1").state, "then_pending");
         assert_eq!(outbox.system_calls.len(), 0);
         assert_eq!(outbox.settlements, vec!["then_pending"]);
 
         let mut restarted = Runner::new(StubHost::new(Vec::<Outcome>::new()));
-        assert_eq!(restarted.initialize(&mut outbox).unwrap(), 0);
+        assert_eq!(
+            restarted.initialize(&mut outbox).unwrap().unknown_at_start,
+            0
+        );
 
         assert_eq!(outbox.system_calls.len(), 1, "then commits exactly once");
         assert_eq!(outbox.row("o1").state, "sent");
         assert_eq!(outbox.row("o1").last_error, None);
         assert_eq!(outbox.settlements, vec!["then_pending"]);
+    }
+
+    #[test]
+    fn execute_then_error_is_retried_by_the_next_live_drain() {
+        let mut runner = Runner::new(StubHost::new([sent(json!(true))]));
+        let mut outbox = MemoryOutbox {
+            fail_sent_once: true,
+            ..MemoryOutbox::default()
+        };
+        outbox.push("pending", "notifications.notify", "queued", 0);
+        install(
+            &mut outbox,
+            declaration(Some("notifications.recordNotified")),
+        );
+
+        let first = runner.drain_with_clock(&mut outbox, 16, || 0).unwrap();
+        assert_eq!(outbox.row("pending").state, "then_pending");
+        assert!(first.logs.iter().any(|line| line.outbox_id == "pending"));
+
+        let second = runner.drain_with_clock(&mut outbox, 16, || 0).unwrap();
+        assert_eq!(second.sent, 1);
+        assert_eq!(outbox.row("pending").state, "sent");
+        assert_eq!(outbox.system_calls.len(), 1);
+    }
+
+    #[test]
+    fn every_drain_replays_pending_then_before_claiming_new_work() {
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("pending", "notifications.notify", "then_pending", 1);
+        outbox.row_mut("pending").unwrap().result = Some(json!({ "providerId": "p1" }));
+        outbox.row_mut("pending").unwrap().then_op =
+            Some("notifications.recordNotified".to_owned());
+        outbox.push("queued", "notifications.notify", "queued", 0);
+        install(
+            &mut outbox,
+            declaration(Some("notifications.recordNotified")),
+        );
+        let host = StubHost::new([sent(json!({ "providerId": "p2" }))]);
+        let mut runner = Runner::new(host);
+
+        let first = runner.drain_with_clock(&mut outbox, 1, || 0).unwrap();
+        assert_eq!(first.sent, 1);
+        assert_eq!(outbox.row("pending").state, "sent");
+        assert_eq!(outbox.row("queued").state, "queued");
+        assert!(runner.host().calls.is_empty());
+
+        let second = runner.drain_with_clock(&mut outbox, 1, || 0).unwrap();
+        assert_eq!(second.sent, 1);
+        assert_eq!(outbox.row("queued").state, "sent");
+        assert_eq!(runner.host().calls.len(), 1);
+    }
+
+    #[test]
+    fn malformed_pending_then_is_failed_and_cannot_stop_the_next_row() {
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("missing-target", "notifications.notify", "then_pending", 1);
+        outbox.row_mut("missing-target").unwrap().result = Some(json!(true));
+        outbox.push("valid", "notifications.notify", "then_pending", 1);
+        outbox.row_mut("valid").unwrap().result = Some(json!(true));
+        outbox.row_mut("valid").unwrap().then_op = Some("notifications.recordNotified".to_owned());
+        install(
+            &mut outbox,
+            declaration(Some("notifications.recordNotified")),
+        );
+        let mut runner = Runner::new(StubHost::new(Vec::<Outcome>::new()));
+
+        let drained = runner.drain_with_clock(&mut outbox, 2, || 0).unwrap();
+
+        assert_eq!(drained.failed, 1);
+        assert_eq!(drained.sent, 1);
+        assert_eq!(outbox.row("missing-target").state, "failed");
+        assert_eq!(
+            outbox.row("missing-target").last_error.as_deref(),
+            Some("E_EFFECT_THEN_CHANGED")
+        );
+        assert_eq!(outbox.row("valid").state, "sent");
+    }
+
+    #[test]
+    fn panic_in_one_pending_job_is_caught_logged_and_does_not_stop_the_runner() {
+        let mut outbox = MemoryOutbox {
+            panic_then_once: true,
+            ..MemoryOutbox::default()
+        };
+        for id in ["bad", "good"] {
+            outbox.push(id, "notifications.notify", "then_pending", 1);
+            outbox.row_mut(id).unwrap().result = Some(json!(true));
+            outbox.row_mut(id).unwrap().then_op = Some("notifications.recordNotified".to_owned());
+        }
+        install(
+            &mut outbox,
+            declaration(Some("notifications.recordNotified")),
+        );
+        let mut runner = Runner::new(StubHost::new(Vec::<Outcome>::new()));
+
+        let drained = runner.drain_with_clock(&mut outbox, 2, || 0).unwrap();
+
+        assert_eq!(outbox.row("bad").state, "failed");
+        assert_eq!(outbox.row("good").state, "sent");
+        assert!(
+            drained
+                .logs
+                .iter()
+                .any(|line| { line.outbox_id == "bad" && line.message.contains("panicked") })
+        );
+    }
+
+    #[test]
+    fn panic_in_one_claimed_job_is_failed_and_the_next_job_still_runs() {
+        let mut host = StubHost::new([sent(json!(true))]);
+        host.panic_once = true;
+        let mut runner = Runner::new(host);
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("bad", "notifications.notify", "queued", 0);
+        outbox.push("good", "notifications.notify", "queued", 0);
+        install(&mut outbox, declaration(None));
+
+        let drained = runner.drain_with_clock(&mut outbox, 2, || 0).unwrap();
+
+        assert_eq!(outbox.row("bad").state, "failed");
+        assert_eq!(outbox.row("good").state, "sent");
+        assert!(
+            drained
+                .logs
+                .iter()
+                .any(|line| line.outbox_id == "bad" && line.message.contains("panicked"))
+        );
     }
 
     #[test]
@@ -903,9 +1237,13 @@ mod tests {
         };
         outbox.push("o1", "notifications.notify", "queued", 0);
         outbox.install("generation-1", old.clone());
-        runner
-            .drain_with_clock(&mut outbox, 16, || 0)
-            .expect_err("leave then pending");
+        let drained = runner.drain_with_clock(&mut outbox, 16, || 0).unwrap();
+        assert!(
+            drained
+                .logs
+                .iter()
+                .any(|line| line.outbox_id == "o1" && line.message.contains("atomic then commit"))
+        );
 
         outbox
             .system_outcomes
@@ -970,7 +1308,7 @@ mod tests {
         install(&mut outbox, declaration(None));
         let mut runner = Runner::new(crate::NoEngine);
 
-        assert_eq!(runner.initialize(&mut outbox).unwrap(), 1);
+        assert_eq!(runner.initialize(&mut outbox).unwrap().unknown_at_start, 1);
         let drained = runner.drain_with_clock(&mut outbox, 16, || 0).unwrap();
 
         assert_eq!(outbox.row("maybe-sent").state, "sent_unknown");

@@ -175,6 +175,7 @@ pub enum Action {
         effect: String,
         generation: Option<String>,
     },
+    EffectsNow,
     OutboxClaim {
         now: i64,
     },
@@ -185,7 +186,9 @@ pub enum Action {
         last_error: Option<String>,
         next_at: Option<i64>,
     },
-    OutboxThenPending,
+    OutboxThenPending {
+        limit: usize,
+    },
     OutboxMarkUnknown,
     OutboxMarkQueuedUnavailable {
         error: String,
@@ -485,13 +488,11 @@ impl State {
             Action::EffectsResolve { effect, generation } => {
                 self.effect_declarations(&effect, generation.as_deref())
             }
-            Action::OutboxClaim { now } => Ok(serde_json::to_value(
-                self.runtime()
-                    .store()
-                    .outbox_claim_next(now)
-                    .map_err(|error| Refusal::from_runtime(&error))?,
-            )
-            .unwrap_or(Json::Null)),
+            Action::EffectsNow => Ok(json!({ "now": self.now() })),
+            Action::OutboxClaim { now } => {
+                let root = self.root.clone();
+                crate::effects::claim_outbox(self.runtime(), &root, now)
+            }
             Action::OutboxSettle {
                 id,
                 state,
@@ -506,13 +507,17 @@ impl State {
                 last_error.as_deref(),
                 next_at,
             ),
-            Action::OutboxThenPending => Ok(serde_json::to_value(
+            Action::OutboxThenPending { limit } => Ok(serde_json::to_value(
                 self.runtime()
                     .store()
-                    .outbox_then_pending()
+                    .outbox_then_pending(limit.min(500))
                     .map_err(|error| Refusal::from_runtime(&error))?,
             )
-            .unwrap_or_else(|_| Json::Array(Vec::new()))),
+            .map_err(|error| {
+                Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
+                    error.to_string(),
+                ))
+            })?),
             Action::OutboxMarkUnknown => {
                 let changed = self
                     .runtime()
@@ -535,6 +540,32 @@ impl State {
                 outbox_id,
             } => self.execute_then(&op, args, &outbox_id),
             Action::OutboxRequeue { id } => {
+                let row = self
+                    .runtime()
+                    .store()
+                    .outbox_get(&id)
+                    .map_err(|error| Refusal::from_runtime(&error))?
+                    .ok_or_else(|| {
+                        Refusal::new(
+                            "E_EFFECT_NOT_FOUND",
+                            "effect",
+                            format!("outbox row {id} does not exist"),
+                            "requeue an id shown by snapback2 trace",
+                            "effects/requeue",
+                        )
+                    })?;
+                if !matches!(row.state.as_str(), "sent_unknown" | "failed") {
+                    return Err(Refusal::new(
+                        "E_EFFECT_REQUEUE_STATE",
+                        "effect",
+                        format!(
+                            "outbox row {id} is {}, not sent_unknown or failed",
+                            row.state
+                        ),
+                        "requeue only a sent_unknown or failed outbox row",
+                        "effects/requeue",
+                    ));
+                }
                 let requeued = self
                     .runtime()
                     .store()

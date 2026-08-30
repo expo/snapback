@@ -318,7 +318,7 @@ impl Runtime {
     pub fn execute_then(
         &mut self,
         op: &str,
-        mut context: Context,
+        context: Context,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
         if context.viewer != "system" || context.principal_kind != "system" {
@@ -330,10 +330,6 @@ impl Runtime {
             return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
         };
 
-        // Effect completion is an engine-owned write. The system principal is
-        // still visible in the commit, while user table-write rules do not
-        // veto the declared bookkeeping mutation.
-        context.seed_write = true;
         let execution = self
             .engine
             .execute_then(&program, &certificate, context, outbox_id)?;
@@ -754,7 +750,11 @@ mod then_tests {
             emit.now = Some(1);
             emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
             runtime.execute("clock.emit", emit).unwrap();
-            runtime.store().outbox_claim_next(1).unwrap().unwrap();
+            runtime
+                .store()
+                .outbox_claim_next(1, &["clock.effect".to_owned()])
+                .unwrap()
+                .unwrap();
             runtime
                 .store()
                 .outbox_settle(

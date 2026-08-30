@@ -76,8 +76,8 @@ export const notifications = table({
   indexes: { byOutbox: { columns: ["outboxId"], unique: true } },
   rules: {
     read: rule.deny(),
-    insert: rule.deny(),
-    update: rule.deny(),
+    insert: rule.principal("system"),
+    update: rule.principal("system"),
     delete: rule.deny(),
   },
 });

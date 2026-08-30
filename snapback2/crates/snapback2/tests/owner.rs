@@ -73,6 +73,16 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
     let secret = owner_json["secret"].as_str().unwrap().to_owned();
 
+    let missing_requeue = request(
+        port,
+        "POST",
+        "/control/outbox/missing/requeue",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(missing_requeue.status, 404, "{}", missing_requeue.body);
+    assert_eq!(missing_requeue.body["code"], "E_EFFECT_NOT_FOUND");
+
     for email in ["alice@example.com", "bob@example.com"] {
         let response = request(
             port,
@@ -391,6 +401,61 @@ fn default_owner_replays_then_pending_without_an_engine() {
     assert_eq!(trace.body["outbox"]["rows"][0]["lastError"], Value::Null);
 
     stop_owner(port, &secret, &mut owner, "default runner replay complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let schema = root.join("snapback/schema.ts");
+    let source = fs::read_to_string(&schema)
+        .unwrap()
+        .replace("rule.principal(\"system\")", "rule.deny()");
+    fs::write(schema, source).unwrap();
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let seq = seed_effect_row(
+        &root,
+        binary,
+        &compiler,
+        Some(json!({ "providerId": "denied-provider" })),
+    );
+
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    let settled = wait_for(Duration::from_secs(5), || {
+        let status = status(port, &secret);
+        (status["effects"]["sent"] == 1).then_some(status)
+    });
+    assert_eq!(settled["seq"], 1, "rule-rejected then writes no commit");
+    let trace = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={seq}"),
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(trace.body["outbox"]["rows"][0]["state"], "sent");
+    assert!(
+        trace.body["outbox"]["rows"][0]["lastError"]
+            .as_str()
+            .is_some_and(|error| error.contains("rule")),
+        "{}",
+        trace.body
+    );
+
+    stop_owner(port, &secret, &mut owner, "rule-denied then complete");
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -1098,7 +1163,7 @@ fn seed_effect_row(root: &Path, binary: &str, compiler: &Path, result: Option<Va
     if let Some(result) = result {
         runtime
             .store()
-            .outbox_claim_next(1)
+            .outbox_claim_next(1, &["notifications.notify".to_owned()])
             .unwrap()
             .expect("seeded outbox claim");
         runtime

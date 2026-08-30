@@ -37,7 +37,19 @@ pub fn route(
                 ),
             )));
         }
-        return Some(call(Action::OutboxRequeue { id: id.to_owned() }));
+        return Some(
+            context
+                .handle
+                .call(Action::OutboxRequeue { id: id.to_owned() })
+                .map_err(|error| {
+                    let status = if error.code == "E_EFFECT_NOT_FOUND" {
+                        404
+                    } else {
+                        400
+                    };
+                    (status, error)
+                }),
+        );
     }
     let result = match (method, path) {
         ("GET", "/control/status") => call(Action::Status),

@@ -491,6 +491,10 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.programs.length === 3, "chat operation count differs");
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
+  const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
+  assert(canonical(notificationRules?.insert) === canonical({ PrincipalKind: "system" })
+    && canonical(notificationRules?.update) === canonical({ PrincipalKind: "system" }),
+  "chat effect bookkeeping must explicitly admit the system principal");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
   const send = chat.project.programs.find((program) => program.name === "messages.send")!;

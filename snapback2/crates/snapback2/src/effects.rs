@@ -2,15 +2,16 @@
 //! channel; the Hermes host remains owned by this one runner thread.
 // @ref LLP 1003#4-in-the-owner — one runner wakes on emitted commits and a one-second timer.
 
-use crate::protocol::value_to_json;
+use crate::protocol::{Refusal, value_to_json};
 use crate::writer::{Action, OwnerHandle};
 use serde::Deserialize;
 use serde_json::{Value as Json, json};
-use snapback2_core::{EffectDecl, OutboxRow};
+use snapback2_core::{EffectDecl, OutboxRow, Runtime};
 use snapback2_effects::{
     EffectDeclarations, EffectLog, OutboxAccess, OutboxError, OutboxSettlement, PendingThen,
     Runner, ThenOutcome,
 };
+use std::path::Path;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, sync_channel};
 use std::sync::{Arc, atomic};
 use std::thread::{self, JoinHandle};
@@ -21,7 +22,7 @@ struct WriterAccess {
 }
 
 impl WriterAccess {
-    fn logs(&self, logs: Vec<EffectLog>) {
+    fn write_logs(&self, logs: Vec<EffectLog>) {
         if !logs.is_empty() {
             let _ = self.handle.call(Action::EffectsLog {
                 lines: logs
@@ -39,7 +40,26 @@ impl WriterAccess {
     }
 }
 
+trait RunnerAccess: OutboxAccess {
+    fn logs(&mut self, logs: Vec<EffectLog>);
+}
+
+impl RunnerAccess for WriterAccess {
+    fn logs(&mut self, logs: Vec<EffectLog>) {
+        self.write_logs(logs);
+    }
+}
+
 impl OutboxAccess for WriterAccess {
+    fn now(&mut self) -> Result<i64, OutboxError> {
+        self.handle
+            .call(Action::EffectsNow)
+            .map_err(outbox_error)?
+            .get("now")
+            .and_then(Json::as_i64)
+            .ok_or_else(|| OutboxError("writer omitted effects clock".to_owned()))
+    }
+
     fn claim_next(
         &mut self,
         now: i64,
@@ -102,20 +122,17 @@ impl OutboxAccess for WriterAccess {
             .map_err(outbox_error)
     }
 
-    fn pending_then(&mut self) -> Result<Vec<PendingThen>, OutboxError> {
-        let rows: Vec<OutboxRow> = decode(self.handle.call(Action::OutboxThenPending))?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(PendingThen {
-                    id: row.id,
-                    effect: row.effect,
-                    result: row
-                        .result
-                        .ok_or_else(|| OutboxError("then_pending row has no result".to_owned()))?,
-                    then_op: row.then_op,
-                })
+    fn pending_then(&mut self, limit: usize) -> Result<Vec<PendingThen>, OutboxError> {
+        let rows: Vec<OutboxRow> = decode(self.handle.call(Action::OutboxThenPending { limit }))?;
+        Ok(rows
+            .into_iter()
+            .map(|row| PendingThen {
+                id: row.id,
+                effect: row.effect,
+                result: row.result,
+                then_op: row.then_op,
             })
-            .collect()
+            .collect())
     }
 
     fn requeue(&mut self, id: &str, _now: i64) -> Result<(), OutboxError> {
@@ -181,6 +198,64 @@ impl OutboxAccess for WriterAccess {
     }
 }
 
+pub(crate) fn claim_outbox(runtime: &Runtime, root: &Path, now: i64) -> Result<Json, Refusal> {
+    let declared_names = runtime
+        .generation()
+        .effects
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    let claimed = runtime
+        .store()
+        .outbox_claim_next(now, &declared_names)
+        .map_err(|error| Refusal::from_runtime(&error))?;
+    serialize_claimed_outbox(
+        runtime,
+        claimed,
+        |row| serde_json::to_value(row).map_err(|error| error.to_string()),
+        |outbox_id, message| {
+            crate::watch::log(
+                root,
+                json!({
+                    "effect": {
+                        "outboxId": outbox_id,
+                        "level": "error",
+                        "message": message,
+                    }
+                }),
+            );
+        },
+    )
+}
+
+pub(crate) fn serialize_claimed_outbox(
+    runtime: &Runtime,
+    claimed: Option<OutboxRow>,
+    serialize: impl FnOnce(&Option<OutboxRow>) -> Result<Json, String>,
+    mut log: impl FnMut(&str, &str),
+) -> Result<Json, Refusal> {
+    match serialize(&claimed) {
+        Ok(value) => Ok(value),
+        Err(error) => {
+            let message = format!("E_EFFECT_CLAIM_SERIALIZATION: {error}");
+            if let Some(row) = &claimed {
+                runtime
+                    .store()
+                    .outbox_settle(&row.id, "queued", None, Some(&message), None)
+                    .map_err(|settle| Refusal::from_runtime(&settle))?;
+                log(&row.id, &message);
+            }
+            Err(Refusal::new(
+                "E_EFFECT_CLAIM_SERIALIZATION",
+                "effect",
+                message,
+                "inspect the outbox row and retry after correcting its data",
+                "effects/runner",
+            ))
+        }
+    }
+}
+
 pub struct EffectsStatus {
     wake: SyncSender<()>,
     stop: Arc<atomic::AtomicBool>,
@@ -227,23 +302,35 @@ fn run(handle: OwnerHandle, receiver: Receiver<()>, stop: Arc<atomic::AtomicBool
     run_with(runner, WriterAccess { handle }, receiver, stop);
 }
 
-fn run_with<H: snapback2_effects::EffectHost>(
+fn run_with<H: snapback2_effects::EffectHost, A: RunnerAccess>(
     mut runner: Runner<H>,
-    mut access: WriterAccess,
+    mut access: A,
     receiver: Receiver<()>,
     stop: Arc<atomic::AtomicBool>,
 ) {
-    if let Err(error) = runner.initialize(&mut access) {
-        access.logs(vec![EffectLog {
-            outbox_id: "runner".to_owned(),
-            level: "error".to_owned(),
-            message: error.0,
-        }]);
-        return;
-    }
+    let mut initialized = false;
     loop {
         if stop.load(atomic::Ordering::SeqCst) {
             return;
+        }
+        if !initialized {
+            match runner.initialize(&mut access) {
+                Ok(drained) => {
+                    access.logs(drained.logs);
+                    initialized = true;
+                }
+                Err(error) => {
+                    access.logs(vec![EffectLog {
+                        outbox_id: "runner".to_owned(),
+                        level: "error".to_owned(),
+                        message: error.0,
+                    }]);
+                    match receiver.recv_timeout(Duration::from_secs(1)) {
+                        Ok(()) | Err(RecvTimeoutError::Timeout) => continue,
+                        Err(RecvTimeoutError::Disconnected) => return,
+                    }
+                }
+            }
         }
         match runner.drain(&mut access) {
             Ok(drained) => access.logs(drained.logs),
@@ -252,6 +339,9 @@ fn run_with<H: snapback2_effects::EffectHost>(
                 level: "error".to_owned(),
                 message: error.0,
             }]),
+        }
+        if stop.load(atomic::Ordering::SeqCst) {
+            return;
         }
         match receiver.recv_timeout(Duration::from_secs(1)) {
             Ok(()) | Err(RecvTimeoutError::Timeout) => {}
@@ -269,4 +359,103 @@ fn decode<T: serde::de::DeserializeOwned>(
 
 fn outbox_error(error: crate::protocol::Refusal) -> OutboxError {
     OutboxError(format!("{}: {}", error.code, error.message))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use snapback2_effects::EffectJob;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct RetryInitializationAccess {
+        now_calls: Arc<AtomicUsize>,
+        logs: Arc<Mutex<Vec<EffectLog>>>,
+        stop: Arc<atomic::AtomicBool>,
+    }
+
+    impl RunnerAccess for RetryInitializationAccess {
+        fn logs(&mut self, logs: Vec<EffectLog>) {
+            self.logs.lock().unwrap().extend(logs);
+        }
+    }
+
+    impl OutboxAccess for RetryInitializationAccess {
+        fn now(&mut self) -> Result<i64, OutboxError> {
+            let call = self.now_calls.fetch_add(1, Ordering::SeqCst);
+            if call == 0 {
+                Err(OutboxError("simulated initialization error".to_owned()))
+            } else {
+                Ok(42)
+            }
+        }
+
+        fn claim_next(&mut self, _now: i64) -> Result<Option<EffectJob>, OutboxError> {
+            Ok(None)
+        }
+
+        fn effect_declarations(
+            &mut self,
+            _job: &EffectJob,
+        ) -> Result<EffectDeclarations, OutboxError> {
+            unreachable!("no rows are claimed")
+        }
+
+        fn settle(&mut self, _id: &str, _settlement: OutboxSettlement) -> Result<(), OutboxError> {
+            Ok(())
+        }
+
+        fn pending_then(&mut self, _limit: usize) -> Result<Vec<PendingThen>, OutboxError> {
+            Ok(Vec::new())
+        }
+
+        fn requeue(&mut self, _id: &str, _now: i64) -> Result<(), OutboxError> {
+            Ok(())
+        }
+
+        fn mark_unknown_running_at_start(&mut self, _now: i64) -> Result<u64, OutboxError> {
+            self.stop.store(true, atomic::Ordering::SeqCst);
+            Ok(0)
+        }
+
+        fn mark_queued_unavailable(&mut self, _error: &str) -> Result<u64, OutboxError> {
+            Ok(0)
+        }
+
+        fn execute_then(
+            &mut self,
+            _op: &str,
+            _args: Json,
+            _outbox_id: &str,
+        ) -> Result<ThenOutcome, OutboxError> {
+            unreachable!("there are no pending rows")
+        }
+    }
+
+    #[test]
+    fn initialization_error_is_logged_and_retried_on_the_next_wake() {
+        let now_calls = Arc::new(AtomicUsize::new(0));
+        let logs = Arc::new(Mutex::new(Vec::new()));
+        let stop = Arc::new(atomic::AtomicBool::new(false));
+        let (wake, receiver) = sync_channel(2);
+        wake.send(()).unwrap();
+        run_with(
+            Runner::new(snapback2_effects::NoEngine),
+            RetryInitializationAccess {
+                now_calls: now_calls.clone(),
+                logs: logs.clone(),
+                stop: stop.clone(),
+            },
+            receiver,
+            stop,
+        );
+
+        assert_eq!(now_calls.load(Ordering::SeqCst), 2);
+        assert!(
+            logs.lock()
+                .unwrap()
+                .iter()
+                .any(|line| line.message.contains("simulated initialization error"))
+        );
+    }
 }
