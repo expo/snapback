@@ -13,12 +13,12 @@
 **Battery gate:** `cloudflare-local-suite`
 **Failure signature:** `sha256:289f079d4fc2cde2fe364ca93700b82b2e1d9a774bf1a798ac083f1d4ba6bf54`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260830T072833Z.94397bad48fa`
-**Last processed run:** `local.20260830T072833Z.94397bad48fa`
+**Last observed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last processed run:** `local.20260830T160622Z.0fdfadbe8e67`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node targets/cloudflare/test/local-suite.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
