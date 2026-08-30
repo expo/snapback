@@ -493,8 +493,9 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
-  assert(canonical(notificationRules?.insert) === canonical({ PrincipalKind: "system" })
-    && canonical(notificationRules?.update) === canonical({ PrincipalKind: "system" }),
+  const systemRule = { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+  assert(canonical(notificationRules?.insert) === canonical(systemRule)
+    && canonical(notificationRules?.update) === canonical(systemRule),
   "chat effect bookkeeping must explicitly admit the system principal");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
@@ -743,6 +744,21 @@ test("schema lowering refuses malformed constraints and every skipped authored s
     assert(codes.has(code as any), `strict schema diagnostics omitted ${code}`);
   }
   assert(lowered.diagnostics.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0), "schema refusal envelope is incomplete");
+});
+
+test("rule input visibility is derived and cannot be authored into the IR", () => {
+  const source = `import { schema, table, t, rule } from 'snapback2';
+    export const grants = table({ columns: { principal: t.id() },
+      indexes: { byPrincipal: { columns: ['principal'], unique: true } },
+      rules: { read: rule.deny(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
+    export const docs = table({ columns: { title: t.text(20) },
+      rules: { read: rule.exists(grants, 'byPrincipal', [rule.viewer], { hidden: false }), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
+    export default schema({ tables: { grants, docs } });`;
+  const lowered = lowerSchema(source, "snapback/schema.ts");
+  const visibility = lowered.diagnostics.find((item) =>
+    item.code === "E_RULE_INVALID" && item.message.includes("visibility is derived"));
+  assert(visibility, "authored rule-input visibility did not produce a sited refusal");
+  assert(!canonical(lowered.schema).includes("input_visibility"), "authored rule-input visibility reached engine IR");
 });
 
 test("implicit id and byId cannot be overwritten", () => {

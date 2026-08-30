@@ -340,15 +340,15 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
 }
 
 #[test]
-fn rules_use_the_engine_verdict_when_the_synthetic_persona_is_admitted() {
+fn rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
     fs::write(
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";
 export const items = table({
-  columns: { label: t.text(20) },
-  rules: { read: rule.principal("persona"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+  columns: { ownerId: t.id(), label: t.text(20) },
+  rules: { read: rule.viewerIs("ownerId"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
 });
 export default schema({ auth: { password: true, guests: true }, tables: { items } });
 "#,
@@ -365,7 +365,7 @@ export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }))
     fs::write(
         project.path.join("snapback/seed.ts"),
         r#"import { seed } from "snapback2";
-export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label: "one" }] } });
+export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", ownerId: "alice", label: "one" }] } });
 "#,
     )
     .unwrap();

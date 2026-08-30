@@ -450,6 +450,17 @@ test("every HTTP wire state validates its state-specific required fields", async
     value.close();
   }
 
+  const opaque = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ state: "capped", data: [], seq: 1 }),
+  });
+  assert.deepEqual(await opaque.query(api.states.complete, {}), {
+    state: "capped",
+    data: [],
+    seq: 1,
+  });
+  opaque.close();
+
   const mutationCases = [
     [{ state: "committed", seq: 1 }, "data"],
     [{ state: "rejected", family: "op", message: "no" }, "code"],

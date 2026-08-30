@@ -104,7 +104,7 @@ impl Generation {
                     CheckError {
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("rule reads reserved table {reserved}"),
-                        rewrite: "use a principal kind or application-owned relation in rules"
+                        rewrite: "compare viewer with the reserved system principal or use an application-owned relation in rules"
                             .to_owned(),
                     },
                 ));
@@ -329,7 +329,9 @@ impl Runtime {
         context: Context,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
-        if context.viewer != "system" || context.principal_kind != "system" {
+        // @ref LLP 1001#9-schema-additions — system authority
+        // follows the reserved viewer identity, never kind metadata.
+        if context.viewer != "system" {
             return Err(RuntimeError::Input(
                 "effect then must execute as Context::system()".to_owned(),
             ));
@@ -799,6 +801,49 @@ mod then_tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
+    fn execute_then_authorizes_the_reserved_viewer_not_kind_metadata() {
+        let mut admitted = pending_then_runtime("outbox-admitted");
+        let mut system = Context::system();
+        system.principal_kind = "non_authoritative_metadata".to_owned();
+        system.now = Some(15);
+        let execution = admitted
+            .execute_then("clock.then", system, "outbox-admitted")
+            .unwrap();
+        assert!(matches!(execution.state, ExecutionState::Committed { .. }));
+        assert_eq!(
+            admitted
+                .store()
+                .outbox_get("outbox-admitted")
+                .unwrap()
+                .unwrap()
+                .state,
+            "sent"
+        );
+
+        let mut refused = pending_then_runtime("outbox-refused");
+        let mut user = Context::mutation("user", BTreeMap::new());
+        user.principal_kind = "system".to_owned();
+        user.now = Some(15);
+        let error = refused
+            .execute_then("clock.then", user, "outbox-refused")
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("must execute as Context::system")
+        );
+        assert_eq!(
+            refused
+                .store()
+                .outbox_get("outbox-refused")
+                .unwrap()
+                .unwrap()
+                .state,
+            "then_pending"
+        );
+    }
+
+    #[test]
     fn rejected_then_fault_after_commit_cannot_replay_after_time_changes() {
         let path = temp_path();
         let generation = timed_then_generation();
@@ -904,6 +949,30 @@ mod then_tests {
             Ceilings::default(),
         )
         .unwrap()
+    }
+
+    fn pending_then_runtime(outbox_id: &str) -> Runtime {
+        let mut runtime = Runtime::open(Store::memory().unwrap(), timed_then_generation()).unwrap();
+        let mut emit = Context::mutation("user", BTreeMap::new());
+        emit.now = Some(1);
+        emit.new_ids = VecDeque::from([outbox_id.to_owned()]);
+        runtime.execute("clock.emit", emit).unwrap();
+        runtime
+            .store()
+            .outbox_claim_next(1, &["clock.effect".to_owned()])
+            .unwrap()
+            .unwrap();
+        runtime
+            .store()
+            .outbox_settle(
+                outbox_id,
+                "then_pending",
+                Some(&serde_json::Value::Null),
+                None,
+                None,
+            )
+            .unwrap();
+        runtime
     }
 
     fn temp_path() -> PathBuf {

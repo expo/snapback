@@ -1,5 +1,5 @@
 use crate::ir::*;
-use crate::schema::{MaintainKind, RuleExpr, RuleTerm, Schema};
+use crate::schema::{MaintainKind, RuleExpr, Schema};
 use crate::value::digest;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1000,47 +1000,8 @@ impl<'a> Analyzer<'a> {
     }
 
     fn uniform_visibility(&self, scan: &Scan) -> bool {
-        let Some(table) = self.schema.table(&scan.table) else {
-            return false;
-        };
-        if table.rules.read.is_public() {
-            return true;
-        }
-        let Some(index) = table.index(&scan.index) else {
-            return false;
-        };
-        let pinned: BTreeSet<_> = index
-            .columns
-            .iter()
-            .take(scan.prefix.len())
-            .cloned()
-            .collect();
-        fn fields(rule: &RuleExpr, out: &mut BTreeSet<String>) {
-            match rule {
-                RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => {
-                    for term in [a, b] {
-                        if let RuleTerm::Field(name) = term {
-                            out.insert(name.clone());
-                        }
-                    }
-                }
-                RuleExpr::Exists { key, .. } => {
-                    for term in key {
-                        if let RuleTerm::Field(name) = term {
-                            out.insert(name.clone());
-                        }
-                    }
-                }
-                RuleExpr::And(rules) | RuleExpr::Or(rules) => {
-                    rules.iter().for_each(|rule| fields(rule, out));
-                }
-                RuleExpr::Not(rule) => fields(rule, out),
-                _ => {}
-            }
-        }
-        let mut used = BTreeSet::new();
-        fields(&table.rules.read, &mut used);
-        !used.is_empty() && used.is_subset(&pinned)
+        self.schema
+            .read_is_uniform_for_prefix(&scan.table, &scan.index, scan.prefix.len())
     }
 }
 

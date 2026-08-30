@@ -130,14 +130,18 @@ function wireQuery<Result>(value: unknown, surface = "query response"): QueryRes
   switch (stringField(record, "state", surface)) {
     case "complete":
       return { state: "complete", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
-    case "capped":
-      return {
+    case "capped": {
+      const take = optionalNumber(record, "take", surface);
+      const site = has(record, "site") ? stringField(record, "site", surface) : undefined;
+      const capped = {
         state: "capped",
         data: present(record, "data", surface) as Result,
         seq: numberField(record, "seq", surface),
-        take: numberField(record, "take", surface),
-        site: stringField(record, "site", surface),
-      };
+      } as const;
+      if (take === undefined && site === undefined) return capped;
+      if (take !== undefined && site !== undefined) return { ...capped, take, site };
+      throw wireShape(`${surface}.site and .take must appear together`);
+    }
     case "partial": {
       const partial = {
         state: "partial" as const,

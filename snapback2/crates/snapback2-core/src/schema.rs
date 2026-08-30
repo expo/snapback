@@ -1,7 +1,7 @@
 use crate::ir::{ArgType, KeyProvenance};
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
@@ -24,6 +24,99 @@ impl Schema {
 
     pub fn table(&self, name: &str) -> Option<&Table> {
         self.tables.get(name)
+    }
+
+    /// Whether an `exists` probe may expose its row/absence instead of an
+    /// authority verdict. The proof is intentionally structural: public
+    /// targets pass, as do protected targets whose read rule is proven true
+    /// for the exact indexed row being probed (for example a membership row
+    /// guarded by that same `(scope, viewer)` existence check).
+    pub fn rule_input_is_readable(
+        &self,
+        table_name: &str,
+        index_name: &str,
+        key: &[RuleTerm],
+    ) -> bool {
+        let Some(table) = self.table(table_name) else {
+            return false;
+        };
+        if table.rules.read.is_uniformly_readable() {
+            return true;
+        }
+        let Some(index) = table.index(index_name) else {
+            return false;
+        };
+        prove_probe_row_readable(
+            &table.rules.read,
+            table_name,
+            index_name,
+            &index.columns,
+            key,
+        )
+    }
+
+    /// Proves that every row in an indexed prefix receives the same read
+    /// verdict. Every row field consulted by the rule, including fields used
+    /// to form an indexed rule probe, must be fixed by that prefix.
+    pub fn read_is_uniform_for_prefix(
+        &self,
+        table_name: &str,
+        index_name: &str,
+        prefix_len: usize,
+    ) -> bool {
+        let Some(table) = self.table(table_name) else {
+            return false;
+        };
+        let Some(index) = table.index(index_name) else {
+            return false;
+        };
+        let pinned: BTreeSet<_> = index.columns.iter().take(prefix_len).cloned().collect();
+        let mut used = BTreeSet::new();
+        table.rules.read.row_fields(&mut used);
+        used.is_subset(&pinned)
+    }
+}
+
+fn prove_probe_row_readable(
+    rule: &RuleExpr,
+    table: &str,
+    index: &str,
+    index_columns: &[String],
+    probe_key: &[RuleTerm],
+) -> bool {
+    let substitute = |term: &RuleTerm| match term {
+        RuleTerm::Field(field) => index_columns
+            .iter()
+            .position(|column| column == field)
+            .and_then(|position| probe_key.get(position))
+            .cloned(),
+        other => Some(other.clone()),
+    };
+    match rule {
+        RuleExpr::Public { .. } | RuleExpr::Allow => true,
+        RuleExpr::Eq(left, right) => substitute(left)
+            .zip(substitute(right))
+            .is_some_and(|(left, right)| left == right),
+        RuleExpr::And(rules) => {
+            !rules.is_empty()
+                && rules.iter().all(|rule| {
+                    prove_probe_row_readable(rule, table, index, index_columns, probe_key)
+                })
+        }
+        RuleExpr::Or(rules) => rules
+            .iter()
+            .any(|rule| prove_probe_row_readable(rule, table, index, index_columns, probe_key)),
+        RuleExpr::Exists {
+            table: target,
+            index: target_index,
+            key,
+            ..
+        } if target == table && target_index == index => key
+            .iter()
+            .map(substitute)
+            .collect::<Option<Vec<_>>>()
+            .is_some_and(|key| key == probe_key),
+        RuleExpr::Deny | RuleExpr::Ne(_, _) | RuleExpr::Not(_) | RuleExpr::Exists { .. } => false,
     }
 }
 
@@ -119,9 +212,7 @@ pub enum RuleExpr {
         index: String,
         key: Vec<RuleTerm>,
         provenance: KeyProvenance,
-        input_visibility: RuleInputVisibility,
     },
-    PrincipalKind(String),
 }
 
 impl RuleExpr {
@@ -132,6 +223,36 @@ impl RuleExpr {
     pub fn hash(&self) -> String {
         digest(self)
     }
+
+    pub fn is_uniformly_readable(&self) -> bool {
+        matches!(self, Self::Public { .. } | Self::Allow)
+    }
+
+    fn row_fields(&self, out: &mut BTreeSet<String>) {
+        match self {
+            Self::Eq(a, b) | Self::Ne(a, b) => {
+                for term in [a, b] {
+                    if let RuleTerm::Field(name) = term {
+                        out.insert(name.clone());
+                    }
+                }
+            }
+            Self::Exists { key, .. } => {
+                for term in key {
+                    if let RuleTerm::Field(name) = term {
+                        out.insert(name.clone());
+                    }
+                }
+            }
+            Self::And(rules) | Self::Or(rules) => {
+                for rule in rules {
+                    rule.row_fields(out);
+                }
+            }
+            Self::Not(rule) => rule.row_fields(out),
+            Self::Public { .. } | Self::Allow | Self::Deny => {}
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -139,12 +260,6 @@ pub enum RuleTerm {
     Field(String),
     Viewer,
     Literal(Value),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RuleInputVisibility {
-    Readable,
-    Hidden,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

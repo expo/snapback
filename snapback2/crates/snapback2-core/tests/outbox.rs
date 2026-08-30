@@ -120,6 +120,34 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
 }
 
 #[test]
+fn reserved_system_principal_value_not_identity_kind_classifies_commits() {
+    let program = emit_program(ProgramKind::Mutation, "audit");
+    let generation = Generation::certify(
+        &project(vec![program.clone()], empty_schema()),
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let mut spoofed_kind = Context::mutation("u1", BTreeMap::new());
+    spoofed_kind.principal_kind = "system".to_owned();
+    spoofed_kind.new_ids = VecDeque::from(["user-effect".to_owned(), "user-result".to_owned()]);
+    runtime.execute(&program.name, spoofed_kind).unwrap();
+
+    let mut reserved_principal = Context::mutation("system", BTreeMap::new());
+    reserved_principal.principal_kind = "user".to_owned();
+    reserved_principal.new_ids =
+        VecDeque::from(["system-effect".to_owned(), "system-result".to_owned()]);
+    runtime.execute(&program.name, reserved_principal).unwrap();
+
+    let commits = runtime.store().commits_since(0, 2).unwrap();
+    assert_eq!(commits[0].principal, "u1");
+    assert_eq!(commits[0].kind, "mutation");
+    assert_eq!(commits[1].principal, "system");
+    assert_eq!(commits[1].kind, "system");
+}
+
+#[test]
 fn emit_refusals_are_complete_and_schema_defaults_preserve_old_json() {
     let query = emit_program(ProgramKind::Query, "missingQuery");
     let mutation = emit_program(ProgramKind::Mutation, "missingMutation");
@@ -763,7 +791,6 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             index: "byRoomUser".to_owned(),
             key: vec![RuleTerm::Field("room".to_owned()), RuleTerm::Viewer],
             provenance: KeyProvenance::Shape,
-            input_visibility: RuleInputVisibility::Readable,
         },
         ttl_ms: 10_000,
     };
@@ -1157,7 +1184,14 @@ fn then_generation(source: &str) -> Generation {
 }
 
 fn then_generation_with_rejection(source: &str, reject: bool) -> Generation {
-    then_generation_with_rule(source, reject, RuleExpr::PrincipalKind("system".to_owned()))
+    then_generation_with_rule(
+        source,
+        reject,
+        RuleExpr::Eq(
+            RuleTerm::Viewer,
+            RuleTerm::Literal(Value::Id("system".to_owned())),
+        ),
+    )
 }
 
 fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -> Generation {

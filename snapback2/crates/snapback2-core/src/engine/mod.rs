@@ -185,11 +185,25 @@ pub struct Execution {
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum ExecutionState {
     Complete,
-    Capped { site: String, take: u64 },
-    Partial { reason: String },
-    Denied { rule: String },
-    Committed { seq: u64 },
-    Rejected { code: String, message: String },
+    Capped {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        site: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        take: Option<u64>,
+    },
+    Partial {
+        reason: String,
+    },
+    Denied {
+        rule: String,
+    },
+    Committed {
+        seq: u64,
+    },
+    Rejected {
+        code: String,
+        message: String,
+    },
 }
 
 #[derive(Debug, Error)]
@@ -454,7 +468,7 @@ impl Engine {
             ));
         }
         let principal = context.viewer.clone();
-        let principal_kind = context.principal_kind.clone();
+        let is_system = context.viewer == "system";
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let current_seq = self.store.commit_seq()?;
         let seq = if program.kind == ProgramKind::Mutation {
@@ -537,7 +551,7 @@ impl Engine {
         }
         let state = match program.kind {
             ProgramKind::Mutation => ExecutionState::Committed { seq },
-            ProgramKind::Query => query_state(&runner.trace, certificate),
+            ProgramKind::Query => query_state(&runner.trace, certificate, &self.schema),
         };
         let execution = Execution {
             result,
@@ -548,11 +562,7 @@ impl Engine {
         };
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
-            let kind = commit_kind.unwrap_or(if principal_kind == "system" {
-                "system"
-            } else {
-                "mutation"
-            });
+            let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
             let record = CommitRecord {
                 seq,
                 at: commit_at,
@@ -592,7 +602,7 @@ impl Engine {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
         let principal = context.viewer.clone();
-        let principal_kind = context.principal_kind.clone();
+        let is_system = context.viewer == "system";
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let transaction = self.store.conn.transaction()?;
         transaction.execute_batch(
@@ -624,11 +634,7 @@ impl Engine {
             seq,
         };
         // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
-        let kind = commit_kind.unwrap_or(if principal_kind == "system" {
-            "system"
-        } else {
-            "mutation"
-        });
+        let kind = commit_kind.unwrap_or(if is_system { "system" } else { "mutation" });
         append_commit(
             &transaction,
             &CommitRecord {
@@ -753,25 +759,55 @@ pub(crate) fn validate_arg_value(
     }
 }
 
-fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
-    // @ref LLP 1001#3-read-and-write-states-no-silent-states — server state follows the
-    // authoritative trace. Hidden rows consume take, so Limit reveals no extra extent.
-    if let Some(range) = trace
-        .ranges
-        .iter()
-        .find(|range| range.stop == StopReason::Limit)
-    {
-        let take = certificate
+fn query_state(
+    trace: &AuthoritativeTrace,
+    certificate: &Certificate,
+    schema: &Schema,
+) -> ExecutionState {
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — a production state must not
+    // reveal whether a protected range contains hidden rows. A non-uniform policy
+    // therefore yields an opaque cap regardless of the authoritative stop. A policy
+    // proven uniform for the pinned prefix may still expose ordinary page metadata;
+    // when that whole partition is hidden, empty/complete is deliberately identical
+    // to an empty partition.
+    let mut disclosed_cap = None;
+    for range in &trace.ranges {
+        let Some(site) = certificate
             .read_sites
             .iter()
             .find(|site| site.site == range.site)
-            .map_or(0, |site| site.take);
-        return ExecutionState::Capped {
-            site: range.site.clone(),
-            take,
+        else {
+            return ExecutionState::Capped {
+                site: None,
+                take: None,
+            };
         };
+        let uniform_partition =
+            schema.read_is_uniform_for_prefix(&range.table, &range.index, range.prefix.len());
+        if !uniform_partition {
+            return ExecutionState::Capped {
+                site: None,
+                take: None,
+            };
+        }
+        if !range.visible_ids.is_empty() {
+            if range.visible_ids.len() != range.examined_ids.len() {
+                return ExecutionState::Capped {
+                    site: None,
+                    take: None,
+                };
+            }
+        } else {
+            continue;
+        }
+        if range.stop == StopReason::Limit {
+            disclosed_cap.get_or_insert_with(|| ExecutionState::Capped {
+                site: Some(range.site.clone()),
+                take: Some(site.take),
+            });
+        }
     }
-    ExecutionState::Complete
+    disclosed_cap.unwrap_or(ExecutionState::Complete)
 }
 
 pub(crate) fn is_sqlite_constraint(error: &RuntimeError) -> bool {

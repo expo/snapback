@@ -11,7 +11,14 @@ pub fn execution_json(execution: &Execution) -> Json {
             json!({ "state": "complete", "data": value_to_json(&execution.result), "seq": execution.seq })
         }
         ExecutionState::Capped { site, take } => {
-            json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq, "site": site, "take": take })
+            let mut value = json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq });
+            if let Some(site) = site {
+                value["site"] = Json::String(site.clone());
+            }
+            if let Some(take) = take {
+                value["take"] = Json::from(*take);
+            }
+            value
         }
         ExecutionState::Partial { reason } => {
             json!({ "state": "partial", "data": value_to_json(&execution.result), "seq": execution.seq, "reason": reason })
@@ -88,8 +95,8 @@ mod tests {
         for state in [
             ExecutionState::Complete,
             ExecutionState::Capped {
-                site: "items.page".to_owned(),
-                take: 10,
+                site: Some("items.page".to_owned()),
+                take: Some(10),
             },
             ExecutionState::Partial {
                 reason: "coverage".to_owned(),

@@ -443,8 +443,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": "Allow",
@@ -527,8 +526,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": {
@@ -551,8 +549,7 @@
                     },
                     "Viewer"
                   ],
-                  "provenance": "Shape",
-                  "input_visibility": "Readable"
+                  "provenance": "Shape"
                 }
               }
             ]
@@ -647,8 +644,7 @@
               "key": [
                 "Viewer"
               ],
-              "provenance": "Viewer",
-              "input_visibility": "Hidden"
+              "provenance": "Viewer"
             }
           },
           "insert": "Allow",
@@ -1073,7 +1069,8 @@
     "args": {},
     "now": null,
     "new_ids": [],
-    "read_time": null
+    "read_time": null,
+    "seed_write": false
   },
   "receipt": {
     "rows": [

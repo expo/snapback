@@ -438,14 +438,14 @@ impl<'a> Runner<'a> {
                 Ok(false)
             }
             RuleExpr::Not(rule) => Ok(!self.eval_rule(rule, rule_hash, row)?),
-            RuleExpr::PrincipalKind(kind) => Ok(&self.context.principal_kind == kind),
             RuleExpr::Exists {
-                table,
-                index,
-                key,
-                input_visibility,
-                ..
+                table, index, key, ..
             } => {
+                // @ref LLP 1001#9-schema-additions — authors cannot
+                // label authorization inputs readable. The schema proves whether
+                // the exact indexed row is readable; every other protected input
+                // is represented by an authority verdict.
+                let hidden = !self.schema.rule_input_is_readable(table, index, key);
                 let key = key
                     .iter()
                     .map(|term| self.rule_term(term, row))
@@ -455,7 +455,6 @@ impl<'a> Runner<'a> {
                 if let Some(result) = self.rule_memo.get(&memo_key) {
                     return Ok(*result);
                 }
-                let hidden = *input_visibility == RuleInputVisibility::Hidden;
                 if hidden
                     && let Some(verdict) = self.verdicts.iter().find(|verdict| {
                         verdict.rule_hash == rule_hash

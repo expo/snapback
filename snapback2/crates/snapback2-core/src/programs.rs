@@ -14,7 +14,6 @@ pub fn spike_schema() -> Schema {
             RuleTerm::Viewer,
         ],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     tables.insert(
         "memberships".to_owned(),
@@ -52,7 +51,6 @@ pub fn spike_schema() -> Schema {
             RuleTerm::Viewer,
         ],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     tables.insert(
         "messages".to_owned(),
@@ -132,7 +130,6 @@ pub fn spike_schema() -> Schema {
                     index: "byUser".to_owned(),
                     key: vec![RuleTerm::Viewer],
                     provenance: KeyProvenance::Viewer,
-                    input_visibility: RuleInputVisibility::Hidden,
                 },
                 insert: RuleExpr::Allow,
                 update: RuleExpr::Allow,

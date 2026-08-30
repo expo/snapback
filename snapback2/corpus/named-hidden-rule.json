@@ -443,8 +443,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": "Allow",
@@ -527,8 +526,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": {
@@ -551,8 +549,7 @@
                     },
                     "Viewer"
                   ],
-                  "provenance": "Shape",
-                  "input_visibility": "Readable"
+                  "provenance": "Shape"
                 }
               }
             ]
@@ -647,8 +644,7 @@
               "key": [
                 "Viewer"
               ],
-              "provenance": "Viewer",
-              "input_visibility": "Hidden"
+              "provenance": "Viewer"
             }
           },
           "insert": "Allow",
@@ -981,7 +977,8 @@
     },
     "now": null,
     "new_ids": [],
-    "read_time": null
+    "read_time": null,
+    "seed_write": false
   },
   "receipt": {
     "rows": [
@@ -1004,7 +1001,7 @@
     "absences": [],
     "verdicts": [
       {
-        "rule_hash": "b2d8ece04c046758c0f88582677dfeb62d6318798d1aace21d35c6c60d4ba7ea",
+        "rule_hash": "94f904e404f05bf9542ebc587528fecb042f93fc280e27fb06cef2e07dac39dd",
         "pinned_inputs_digest": "072c09ccd2600a00568c6f7fb70f5b1830f0faceb9ebb6dbdcbdb378c5f9c5f8",
         "principal": "u1",
         "auth_epoch": 1,

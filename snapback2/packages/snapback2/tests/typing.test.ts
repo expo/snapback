@@ -20,8 +20,8 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       const isLive: boolean = view.live;
       void isLive;
       if (view.state === "capped") {
-        const take: number = view.take;
-        const site: string = view.site;
+        const take: number | undefined = view.take;
+        const site: string | undefined = view.site;
         void take; void site;
       }
       if (view.state === "stale") {

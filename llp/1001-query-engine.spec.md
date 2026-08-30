@@ -9,7 +9,11 @@
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
-states), LLP 0331 (the authorization and account model this engine's §6/§7 realize — one rule locus, a reserved `system` principal named in table rules; its rulings on the kind term, rule-input visibility, and disclosure are the follow-up `issues/20260830-snapback2-align-rules-with-llp-0331.md`), `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
+states), LLP 0331 §"Failure and disclosure semantics" / §"Amendment to
+ruling 0" (Draft Research that informed the implemented alignment recorded
+here; it is not a governing Snapback2 spec),
+`issues/20260830-snapback2-align-rules-with-llp-0331.md`,
+`spikes/bounded-programs/REPORT.md` ("Known S1 limits")
 
 ## Summary
 
@@ -121,10 +125,23 @@ Nothing in this crate ever constructs a receipt from anything but a trace.
 
 | state | when |
 |---|---|
-| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling — including a range whose examined rows were all hidden: hidden rows are invisible, never a signal (LLP 0329.014.004: results are never functions of invisible-row counts) |
-| `Capped { site, take }` | some *authoritative-trace* range stopped `Limit` (the certificate's `completeness: Page \| Capped`) — regardless of whether the examined rows were visible: hidden rows consume `take` (spike S1 ruling 2), so `Capped` discloses nothing the page size does not, and computing the state from the receipt (which omits the stop reason when hidden rows were examined) would silently drop a later visible row (review ruling 2026-08-30, round 2 M2) |
+| `Complete` | no non-uniform range was scanned, no visible uniform range stopped `Limit`, and no supposedly uniform range mixed visible and hidden rows. For a prefix-uniform range, a physically empty range and an all-hidden range both produce the same empty `Complete` result. |
+| `Capped { site: None, take: None }` | **opaque cap:** any authoritative-trace range has a read policy that is not structurally uniform over its pinned index prefix, regardless of whether that range stopped `Exhausted` or `Limit` and regardless of how many rows were visible. A mixed visible/hidden result under a purported uniform proof also fails closed to this form. One opaque range dominates every otherwise disclosable cap in the query. |
+| `Capped { site: Some(site), take: Some(take) }` | **ordinary visible cap:** every traced range is prefix-uniform and a range containing visible rows stopped `Limit`. The first such site's certificate metadata may be disclosed. `site` and `take` appear together or neither appears. |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
 | `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
+
+Prefix uniformity is a structural proof over the active schema. The index
+prefix must pin every subject-row field consulted by the table's read rule,
+including fields used to form an indexed rule probe; `viewer` and literals
+are fixed for the execution. If the proof cannot establish that all rows in
+the prefix receive one verdict, it is non-uniform. The engine derives state
+from the authoritative trace and this proof, never from the closure receipt.
+The wire's opaque form still carries the ordinary query `data` and `seq`, but
+omits both `site` and `take`, so neither exhaustion nor the location/size of a
+protected scan becomes an existence oracle. This is the implemented
+Snapback2 decision; LLP 0331 supplied research evidence but does not govern
+it.
 
 A query that hits a runtime *value* error (`E_DIV_ZERO`, `E_OVERFLOW`, `E_TYPE`,
 `E_FIELD`) is `Err(RuntimeError)`, not a state — the loop serves the refusal
@@ -190,6 +207,19 @@ admission checks* (`E_SUCCESSOR_UNIQUE`, `E_SUCCESSOR_COLUMN_REQUIRED`) as the
 additive path, in the same transaction, so a refusal rolls the drops back too
 (review ruling 2026-08-30, round 2 G1). Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+
+**Generation fencing.** The served runtime accepts an operation name and
+resolves its program, certificate, and table rules from the one active
+generation at execution time. Applying a successor swaps that set atomically
+and re-executes existing subscriptions against it; a caller cannot submit a
+predecessor `Program` or `Certificate` through the served surface. Any
+durable intent whose target survives beyond one execution must bind the
+generation and, where it names a replaceable authority row, that row's
+immutable identity/incarnation or expected version. A stale predecessor
+policy must not authorize after succession, and deleting then recreating the
+same `(scope, principal)` key must not retarget an old promote/remove intent.
+The named closure proofs are specified in LLP 1002 §7; until both pass, the
+alignment issue remains open and the durable grant-handle part is not claimed.
 
 **Seed writes and maintained-target rows are engine-owned** (rulings
 2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
@@ -320,6 +350,37 @@ an effect is.
 
 ## 9. Schema additions
 
+### Authorization rule alignment
+
+The core rule algebra has only `Field`, `Viewer`, and `Literal` terms.
+`system` is one reserved principal value, not a principal class: the authored
+`rule.system()` convenience in LLP 1002 lowers exactly to
+`Eq(Viewer, Literal(Id("system")))`. There is no `PrincipalKind` rule
+expression. Principal kind may remain protected identity metadata, but rules,
+certificates, traces, and commit classification do not grant authority from
+it.
+
+`RuleExpr::Exists { table, index, key, provenance }` carries no authored
+visibility field. The active target table's read policy determines whether
+the exact indexed input may enter the readable row/absence trace or must
+remain an authority verdict:
+
+1. `Public` and `Allow` targets are readable.
+2. A protected target is readable only when structural substitution proves
+   its read rule for the **same exact indexed row**. Each target-row `Field`
+   term must be an indexed column supplied by the outer probe key. After
+   substitution, `Eq` must be reflexive; every arm of `And` must prove, one
+   arm of `Or` may prove, and a self-`Exists` must name the same table/index
+   and reduce to the identical outer key. This admits the canonical
+   self-readable `(scope, viewer)` membership row without an author flag.
+3. `Deny`, `Ne`, `Not`, a different/cross-table probe, a field outside the
+   indexed key, or any unsupported shape fails closed to hidden.
+
+The server and client evaluator use the same structural test. Hidden inputs
+remain in the authoritative trace for invalidation and OCC, but the client
+receives only an authority verdict. There is no `Readable`/`Hidden` IR enum
+and no author-controlled escape hatch.
+
 `Schema` gains, all `#[serde(default)]`: `channels: BTreeMap<String, Channel>`,
 `auth: Auth { password: bool, guests: bool }`, `effects: Vec<String>` (the
 declared effect names; `Generation::certify` checks an `emit` against the
@@ -356,15 +417,33 @@ the ruling).
 ## 10. What binds, and how it is checked
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
-  in `tests/{store,live,successor,identity,outbox}.rs`.
-- The 75-case corpus and the 7 S1 tests pass unchanged; `export_corpus` output
-  is byte-identical (the evaluator twin is LLP 1002's lane, not this one).
+  in `tests/{store,live,successor,identity,outbox,rbac_adversarial}.rs`.
+- The 76 corpus filenames, case names, and expected semantic results remain
+  unchanged, and the Rust engine/evaluator twin pass all 76. Regeneration is
+  intentionally not byte-identical: it removes the legacy serialized
+  `input_visibility` field now that visibility is structurally derived. The
+  case inventory and outcomes, not obsolete IR bytes, are the frozen parity
+  surface (the evaluator twin is LLP 1002's lane, not this one).
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,
   or rule-input key reruns exactly the overlapping subscriptions; a commit to
   an unrelated prefix reruns none; a rerun with an unchanged result reports
   `changed: false`.
+- Authorization alignment: schema/compiler tests prove `rule.system()` is
+  the literal equality above and no `PrincipalKind`/authored input-visibility
+  shape reaches the IR; engine/evaluator tests cover public, exact
+  self-readable, and fail-closed protected probes.
+- Disclosure: tests distinguish prefix-uniform visible caps from opaque
+  non-uniform caps, prove that empty and all-hidden uniform prefixes are
+  wire-identical `Complete`, prove an opaque range dominates a visible cap in
+  a multi-range query, and validate that `site`/`take` appear as a pair.
+- Security regressions: an authorized membership subscription becomes
+  `Denied` at the revoking commit; a subscriber/request retained across a
+  policy successor cannot execute the predecessor policy; and a stale grant
+  intent cannot affect a remove/recreate successor row. LLP 1002 §7 gives
+  these proofs stable receipt names. The issue may not close while any is
+  absent.
 - Successor: adding a table/index/column/program applies in place with the
   new index populated; dropping a table with rows is refused with a plan
   naming the table and its row count; `apply_migration` with that plan
@@ -381,17 +460,8 @@ per-principal encrypted client stores.
 
 ## Open author decisions
 
-0. **`Capped` over hidden rows discloses cardinality.** The round-2 ruling
-   computes the state from the authoritative trace, so a page cut at `take`
-   among rows the viewer cannot see is `Capped` — which tells the viewer that
-   ≥ `take` entries exist in the range. Both reviewers accepted it for this
-   lane (the page size already leaks the same bit under spike S1 ruling 2, and
-   the alternative — `Complete` over an omitted visible row — is a silent
-   state), but grok notes it is a disclosure LLP 0329.014.004 forbade in
-   principle. The author should confirm, or choose the third form: `Capped`
-   without `site`/`take`, or a hidden-row budget separate from `take`.
-   LLP 0331 §"Failure and disclosure semantics" ("production reads … reveal
-   no hidden row or relationship existence") is evidence for the third form.
-1. The `_commits` retention (10,000 rows) and whether `trace` needs the
+0. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
-2. Whether `Capped` should carry the site name on the wire or only the take.
+1. Whether an ordinary visible `Capped` result should continue carrying both
+   site and take. Opaque caps carry neither; that disclosure decision is
+   settled above.

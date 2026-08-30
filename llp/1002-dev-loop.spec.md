@@ -6,7 +6,12 @@
 **Author:** Claude Fable 5 (orchestrator) — implementers: codex gpt-5.6-sol, lanes B0 (compiler + authoring surface), B1 (owner + server + verbs), B2 (`init`, `test`, `why`, `trace`, `guide`), D (client + React + evaluator)
 **Date:** 2026-08-29
 **Revised:** 2026-08-30
-**Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects), LLP 0329.016 §5 (the design this implements verbatim where it can), LLP 0329.016 §5.11 (the verb table — no verb exists without its row), LLP 0329.016 §8 (gates)
+**Related:** LLP 1000, LLP 1001 (the engine this serves), LLP 1003 (effects),
+LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
+0329.016 §5.11 (the verb table — no verb exists without its row), LLP
+0329.016 §8 (gates), LLP 0331 §"Failure and disclosure semantics" /
+§"Amendment to ruling 0" (Draft Research influence, not a governing
+Snapback2 spec), `issues/20260830-snapback2-align-rules-with-llp-0331.md`
 
 ## Summary
 
@@ -97,14 +102,21 @@ units and is scaled** — `price: 2`, `price: 2.00`, and `price: 2e0` all lower
 to `200` at scale 2 — so an integer literal can never be a silent 100× error;
 minor units are only ever carried by a value already typed `Decimal<S>` (a
 column read, an arg, the wire). The wire carries the integer; the client's
-`decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
-`allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`, `or(…)`, `not(r)`,
-`exists(table, index, key[], { hidden? })`, `principal(kind)`, `viewerIs(field)`
-(= `eq(field(f), viewer)`); terms `field(name)`, `viewer`, `literal(v)`. Each
-lowers 1:1 to LLP 1001's `RuleExpr`/`RuleTerm`/`ColumnType`/`Constraint`/
-`Maintain`/`Channel`. Programs are unchanged from spike S2 except that tables
-are imported from `./schema` and `emit(effectRef, payload)` is a statement
-(LLP 1001 §8). `effect({...})` is LLP 1003 §1.
+`decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`:
+`public(reason)`, `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`,
+`or(…)`, `not(r)`, `exists(table, index, key[])`, `system()`,
+`viewerIs(field)` (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`,
+`literal(v)`. `rule.system()` is convenience syntax only and lowers exactly
+to `Eq(Viewer, Literal(Id("system")))`; there is no `principal(kind)` surface
+or `PrincipalKind` rule term. `rule.exists` takes exactly three arguments.
+Rule-input visibility is derived by LLP 1001 §9 from the referenced table's
+active read policy, including its exact self-readable indexed-row proof; a
+fourth visibility/options argument is a sited `E_RULE_INVALID` refusal and no
+`input_visibility` value enters project JSON. Each admitted form lowers 1:1
+to LLP 1001's `RuleExpr`/`RuleTerm`/`ColumnType`/`Constraint`/`Maintain`/
+`Channel`. Programs are unchanged from spike S2 except that tables are
+imported from `./schema` and `emit(effectRef, payload)` is a statement (LLP
+1001 §8). `effect({...})` is LLP 1003 §1.
 
 ## 3. The compiler worker and the project JSON
 
@@ -162,6 +174,15 @@ required fields in the client's public types as well as in its validator. Authen
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
+
+`capped` has two valid response shapes. An ordinary visible cap includes
+both `site` and `take`; an opaque cap includes neither. The pair is optional
+as a unit—the client rejects a frame carrying only one. LLP 1001 §3 defines
+the prefix-uniformity proof and opaque dominance. In particular, a
+non-uniform protected scan returns the opaque form whether its authoritative
+range exhausted or hit its limit, while an empty and an all-hidden
+prefix-uniform range are identically `complete`. The client does not infer
+hidden extent from the presence or absence of either optional field.
 
 Typed states are 200. Protocol errors are 4xx with the **refusal envelope**,
 which is the only error shape on every surface (HTTP, CLI `--json`, worker):
@@ -266,6 +287,33 @@ read-only in the receipt, never editable):
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
 6. `effects` — every effect declaration has a runner able to run it, or the
    check is `blocked: no engine in this build` (LLP 1003 §4).
+
+**Named authorization proofs.** The canonical chat/alignment qualification
+records the following stable proof names in its test receipt; a lower-level
+unit test may support one but does not replace the served-loop proof:
+
+7. `live-revocation` — subscribe as a currently admitted conversation
+   member, delete that exact membership through a named mutation, and require
+   the next delivery at the mutation's `seq` to be `denied`. An unchanged or
+   empty payload does not suppress the state transition, and no
+   post-revocation row is delivered.
+8. `successor-policy-fence` — retain a subscription/request handle from
+   generation G, apply G+1 with a denying replacement policy, and require the
+   retained handle and a fresh invocation to resolve under G+1. A predecessor
+   program/certificate is rejected or replanned; it never runs against the
+   current store through the served surface.
+9. `grant-incarnation-aba` — capture an intent against one membership row,
+   remove it, recreate the same `(scope, principal)` relation with a new
+   immutable row identity/incarnation or version, replay the captured intent,
+   and require refusal with the successor row unchanged.
+
+The scoped-authority alignment cannot be reported complete unless all three
+pass on that fixture. An unrelated project with no scoped relationship does
+not synthesize them. If a project or qualification declares the canonical
+membership recipe but lacks enough seed/program evidence to run an applicable
+proof safely, that proof is `blocked` with the reason, not silently reported
+as pass. LLP 0331 motivated these cases as research; this implemented spec
+and LLP 1001 own their Snapback2 contract.
 
 **Journeys**: `snapback/tests/*.test.ts` run by `node <test-runner.mjs>`
 (spawned like the worker) against the same owner with the headless client

@@ -887,20 +887,20 @@ class Runner {
         return data.some((child: any) => this.evaluateRule(child, ruleHash, row));
       case "Not":
         return !this.evaluateRule(data, ruleHash, row);
-      case "PrincipalKind":
-        return this.context.principal_kind === data;
       case "Exists": {
         const key = data.key.map((term: any) => this.ruleTerm(term, row));
         const pinnedDigest = sha256(JSON.stringify([data.table, data.index, key]));
         const memoKey = `${ruleHash}:${pinnedDigest}`;
         const memoized = this.ruleMemo.get(memoKey);
         if (memoized !== undefined) return memoized;
-        if (data.input_visibility === "Hidden") {
+        if (!this.ruleInputIsReadable(data)) {
           const verdict = this.store.verdict(ruleHash, pinnedDigest, this.context);
           if (verdict !== null) {
             this.ruleMemo.set(memoKey, verdict);
             return verdict;
           }
+          this.ruleMemo.set(memoKey, false);
+          return false;
         }
         const result = this.store.lookup(data.table, data.index, key) !== null;
         this.ruleMemo.set(memoKey, result);
@@ -909,6 +909,29 @@ class Runner {
       default:
         throw new EvalError("E_OPAQUE", `unsupported rule ${kind}`);
     }
+  }
+
+  private ruleInputIsReadable(probe: any): boolean {
+    const table = this.schema.tables[probe.table];
+    const index = table?.indexes?.[probe.index];
+    if (!table || !index) return false;
+    const prove = (rule: any): boolean => {
+      const [kind, data] = variant(rule);
+      if (kind === "Public" || kind === "Allow") return true;
+      if (kind === "Eq") {
+        const left = substituteRuleTerm(data[0], index.columns, probe.key);
+        const right = substituteRuleTerm(data[1], index.columns, probe.key);
+        return left !== null && right !== null && JSON.stringify(left) === JSON.stringify(right);
+      }
+      if (kind === "And") return data.length > 0 && data.every(prove);
+      if (kind === "Or") return data.some(prove);
+      if (kind === "Exists" && data.table === probe.table && data.index === probe.index) {
+        const key = data.key.map((term: any) => substituteRuleTerm(term, index.columns, probe.key));
+        return key.every((term: any) => term !== null) && JSON.stringify(key) === JSON.stringify(probe.key);
+      }
+      return false;
+    };
+    return prove(table.rules.read);
   }
 
   private ruleTerm(term: any, row: Value): Value {
@@ -924,6 +947,13 @@ class Runner {
     if (value === undefined) throw new EvalError("E_INPUT", `unknown variable ${name}`);
     return value;
   }
+}
+
+function substituteRuleTerm(term: any, columns: string[], probeKey: any[]): any | null {
+  const [kind, data] = variant(term);
+  if (kind !== "Field") return clone(term);
+  const position = columns.indexOf(data);
+  return position < 0 || position >= probeKey.length ? null : clone(probeKey[position]);
 }
 
 export function evaluateCase(testCase: CorpusCase): ActualResult {

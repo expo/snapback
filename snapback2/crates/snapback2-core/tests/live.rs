@@ -175,8 +175,8 @@ fn range_point_and_absence_invalidation_is_exact_and_reruns_coalesce() {
     assert_eq!(
         capped.state,
         ExecutionState::Capped {
-            site: "items.first".to_owned(),
-            take: 1,
+            site: Some("items.first".to_owned()),
+            take: Some(1),
         }
     );
     let deliveries = runtime.rerun(&[range_id, range_id]);
@@ -227,7 +227,6 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         index: "byGroupUser".to_owned(),
         key: vec![RuleTerm::Field("group".to_owned()), RuleTerm::Viewer],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     let schema = Schema {
         tables: BTreeMap::from([
@@ -310,13 +309,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
             ),
         )
         .unwrap();
-    assert_eq!(
-        hidden_limit.state,
-        ExecutionState::Capped {
-            site: "docs.first".to_owned(),
-            take: 1,
-        }
-    );
+    assert_eq!(hidden_limit.state, ExecutionState::Complete);
     assert_eq!(hidden_limit.trace.ranges[0].stop, StopReason::Limit);
     assert!(hidden_limit.receipt.ranges.is_empty());
 
@@ -362,7 +355,6 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         index: "byDocUser".to_owned(),
         key: vec![RuleTerm::Field("id".to_owned()), RuleTerm::Viewer],
         provenance: KeyProvenance::Shape,
-        input_visibility: RuleInputVisibility::Readable,
     };
     let schema = Schema {
         tables: BTreeMap::from([("docs".to_owned(), docs), ("grants".to_owned(), grants)]),
@@ -421,8 +413,8 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
     assert_eq!(
         execution.state,
         ExecutionState::Capped {
-            site: "docs.firstVisible".to_owned(),
-            take: 1,
+            site: None,
+            take: None,
         }
     );
 }

@@ -1,15 +1,95 @@
-# snapback2: align the rule surface with LLP 0331's author rulings (system principal term, derived rule-input visibility, revocation probes)
+# snapback2: align the rule surface with scoped-authority research
 
-**Status:** Open
+**Status:** Open — implementation in progress; named proof closure incomplete
 **Systems:** snapback2, schema, certificate, test
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
 **Date:** 2026-08-30
-**Related:** LLP 0331 (revision 3, author rulings 0 as amended, E-b; §"Failure and disclosure semantics"), LLP 1001 §6/§7/open decision 0, LLP 1002 §2/§7
+**Related:** LLP 1001 §3/§4/§9/§10, LLP 1002 §2/§4/§7; LLP 0331
+§"Failure and disclosure semantics" and §"Amendment to ruling 0" (Draft
+Research influence only; it is not a governing Snapback2 spec)
 
-LLP 0331 landed on main the same day the engine did. What it ratifies, the engine already has: one authorization locus (table rules in the bounded language), a reserved `system` principal that table rules name explicitly, `then`/schedules running as `system` (LLP 1001 ruling: `then` runs under ordinary rules; the chat template says `insert: rule.principal('system')`). Three points differ and should be aligned in a follow-up lane:
+LLP 0331 supplied evidence after the first engine implementation landed. Per
+the Snapback2 fence, its author rulings bind only that research proposal. The
+implemented decisions belong to LLP 1001 and LLP 1002. This issue tracks the
+four deltas needed to make that adoption honest; it is not the full M1–M3
+scoped-authority program.
 
-1. **The system-principal term.** Ruling 0 (amended) says "no kind term in rules": the system principal is an ordinary reserved principal value and a table names it with a `viewer === system` disjunct; "the spike's `PrincipalKind` term can be deleted." The engine keeps `RuleExpr::PrincipalKind` and the surface has `rule.principal('system')`. Replace with a `viewer`-vs-literal comparison (`rule.system()` sugar lowering to `Eq(Viewer, Literal(system-id))`), delete `PrincipalKind` from the IR and the compiler, re-author the chat fixture/template, keep the 76-case corpus identical.
-2. **Rule-input visibility.** LLP 0331: "derived from the referenced table policy, not an author-controlled `readable`/`hidden` escape hatch." `rule.exists(table, index, key, { hidden? })` carries S1's `input_visibility`. Derive it: a probe into a table whose read rule the viewer would not pass is hidden; remove the option.
-3. **Derived checks.** LLP 0331 asks the tests to probe "role change and revocation while a live query is active, a stale program handle after policy replacement, and a stale grant handle after remove/recreate." `snapback2 test`'s `rules`/`invalidation` checks cover allowed/denied principals and delivery/silence; add the revocation-while-live probe (a subscription that turns `denied` when its membership row is deleted — the engine delivers it; the check must assert it) and the stale-handle probe across a successor.
-4. **Disclosure and `Capped`.** LLP 0331's "production reads … reveal no hidden row or relationship existence" is the same objection grok raised to LLP 1001's round-2 ruling that a `Limit` stop among hidden rows is `Capped` (open decision 0). Decide the third form there with this document as evidence.
+## Adopted Snapback2 decisions
+
+1. **The system principal is a value, not a kind term.** The only rule IR is
+   `Eq(Viewer, Literal(Id("system")))`. `rule.system()` is compiler sugar for
+   exactly that expression. `RuleExpr::PrincipalKind` and
+   `rule.principal(kind)` do not exist. Protected identity may retain kind
+   metadata, but it supplies no rule authority. The chat fixture/template
+   names `rule.system()` on each system-written table. The corpus keeps its 76
+   filenames, case names, and expected results; regenerated IR bytes change
+   deliberately to remove the legacy serialized `input_visibility` field.
+2. **Rule-input visibility is structural and derived.**
+   `rule.exists(table, index, key)` has no visibility/options argument and its
+   IR has no `input_visibility`. Public/allow targets are readable. A protected
+   target is readable only when substituting the exact outer indexed key for
+   its row fields proves its read rule for that same row: reflexive `Eq`, all
+   arms of `And`, one arm of `Or`, or a self-`Exists` on the same table/index
+   reducing to the identical key. This deliberately admits the canonical
+   self-readable `(scope, viewer)` membership row. `Deny`, `Ne`, `Not`,
+   cross-table/different-index probes, unpinned fields, and unknown forms fail
+   closed to an authority verdict. A fourth authored argument is a sited
+   `E_RULE_INVALID` refusal, never an escape hatch.
+3. **`Capped` disclosure follows prefix uniformity.** Every read-policy row
+   field, including a field used in an indexed rule-probe key, must be pinned
+   by the scan's index prefix for the range to be uniform. Any non-uniform
+   range makes the whole query opaque `{ state: "capped" }` with neither
+   `site` nor `take`, whether that authoritative range exhausted or hit its
+   limit; opaque dominates a disclosable cap from another range. For a uniform
+   prefix, physical empty and all-hidden are identically `Complete`. An
+   ordinary uniform visible range stopped by `Limit` may return `Capped` with
+   both `site` and `take`. A mixed result under a purported uniform proof
+   fails closed to opaque.
+4. **Revocation and stale authority have named proofs.** LLP 1002 §7 names
+   `live-revocation`, `successor-policy-fence`, and
+   `grant-incarnation-aba`. They respectively prove an admitted live query
+   becomes denied at the membership-deletion commit, a retained G handle
+   cannot execute G's predecessor policy after G+1, and a stale intent cannot
+   hit a membership removed and recreated under the same logical key.
+
+## Working-tree audit (2026-08-30)
+
+- [x] System authority is lowered to the literal viewer equality; the rule
+  kind term and authoring surface are removed, and runtime system checks do
+  not trust kind metadata.
+- [x] Authored input visibility is removed from the compiler, IR, Rust
+  engine, and evaluator; the compiler has a negative fourth-argument test.
+- [x] The engine, wire, and client represent opaque `Capped` without
+  `site`/`take`, and the engine gives non-uniform ranges opaque precedence.
+- [ ] All three named served-loop authority proofs pass, and the structural
+  visibility/Capped edge cases below have direct parity coverage.
+
+## Remaining before resolution
+
+- [x] Direct Rust and evaluator parity cases cover public/readable input,
+  exact self-readable indexed membership, and a protected near miss that
+  fails closed; the compiler negative separately proves authors cannot select
+  visibility.
+- [x] Direct engine/wire cases prove uniform empty and uniform all-hidden are
+  identical `Complete`, empty and occupied non-uniform scans are identically
+  opaque, an opaque later range dominates an earlier visible cap, and the
+  client accepts only paired or fully omitted `site`/`take`.
+- Make `live-revocation` a served `snapback2 test` receipt check. The existing
+  core `complete_to_denied_with_the_same_result_is_a_changed_delivery` test is
+  useful engine evidence but does not satisfy LLP 1002's loop-level proof.
+- [x] Core coverage retains a named handle across an applied successor,
+  resolves it under the active denying policy, and rejects the captured
+  predecessor certificate. The served-loop receipt proof remains above.
+- Supply the immutable grant identity/incarnation or expected-version carrier
+  needed by `grant-incarnation-aba`, then prove remove/recreate cannot retarget
+  the captured operation. No such persistent grant-intent carrier is visible
+  in the current working tree, so this item cannot yet be checked honestly.
+- [x] The corpus is regenerated without legacy `input_visibility`; all 76
+  filenames/case names and expected semantic results remain, and the Rust
+  engine/evaluator twin passes all 76.
+
+Keep this issue open until every checkbox and remaining item is satisfied.
+When that happens, record the exact tests and move it to `issues/closed/` per
+repository policy; do not close it merely because the three surface changes
+compile.

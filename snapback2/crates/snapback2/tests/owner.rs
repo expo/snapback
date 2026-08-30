@@ -537,7 +537,7 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
     let schema = root.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("rule.principal(\"system\")", "rule.deny()");
+        .replace("rule.system()", "rule.deny()");
     fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler();
