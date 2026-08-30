@@ -295,11 +295,19 @@ const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
 
-`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed by the
-`Api` augmentation in `.snapback/build/api.d.ts`. Eight states surface as the
-union `hydrating | live | stale | partial | denied | refused | capped |
-complete` on `useQuery`; `useMutation` returns `{ run, last }` with
-`committed | queued | rejected`.
+`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed *only* by
+the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
+typo is a compile error; channels are members too). Eight states surface as
+the discriminated union `hydrating | live | stale | partial | denied |
+refused | capped | complete` on `useQuery`, each carrying its receipt fields
+(`take`/`site`, `reason`, `rule`, `since`, `seq`); `useMutation` returns
+`{ run, pending, last }` with `last: committed | rejected` — `queued` is
+reserved for the offline outbox (deferred) and never claimed before it exists
+(review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
+is not a query state**: hooks and the provider expose `connection: connected |
+reconnecting | offline` separately, and a network failure leaves a query
+`hydrating` with `connection: reconnecting`, never `refused`.
 
 Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 
