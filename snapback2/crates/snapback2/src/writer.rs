@@ -10,7 +10,7 @@ use serde_json::{Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
     ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
+    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows, Actor,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -652,8 +652,7 @@ impl State {
 
     fn context(&self, principal: Principal, op: &str, args: Json) -> Result<Context, Refusal> {
         let values = operation_args(self.runtime().generation(), op, &args)?;
-        let mut context = Context::query(principal.id, values);
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, values);
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
@@ -671,7 +670,7 @@ impl State {
         let kind = self
             .runtime()
             .generation()
-            .programs
+            .programs()
             .get(op)
             .map(|entry| entry.0.kind)
             .ok_or_else(|| {
@@ -758,8 +757,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         context.now = Some(self.now());
         let verdict = self
             .runtime_mut()
@@ -798,8 +796,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         context.now = Some(self.now());
         let verdict = self
             .runtime_mut()
@@ -999,7 +996,7 @@ impl State {
         if let Some(seed) = seed {
             self.seed = seed;
         }
-        self.owner.generation = self.compiled.generation.hash.clone();
+        self.owner.generation = self.compiled.generation.hash();
         self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
@@ -1050,7 +1047,7 @@ impl State {
         let table = self
             .runtime()
             .generation()
-            .schema
+            .schema()
             .tables
             .get(&table_name)
             .cloned()
@@ -1124,8 +1121,7 @@ impl State {
             }))],
         };
         let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
@@ -1143,8 +1139,7 @@ impl State {
 
     fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let context = Context::query(actor(&principal)?, BTreeMap::new());
         let rows = self
             .runtime_mut()
             .read_rule_verdicts(&table_name, context)
@@ -1157,6 +1152,18 @@ impl State {
     }
 }
 
+fn actor(principal: &Principal) -> Result<Actor, Refusal> {
+    Actor::try_from(principal).map_err(|error| {
+        Refusal::new(
+            "E_AUTH_RESERVED",
+            "auth",
+            error.to_string(),
+            "authenticate as a user, guest, or development persona",
+            "auth/identity",
+        )
+    })
+}
+
 #[cfg(test)]
 #[path = "writer_effects_tests.rs"]
 mod effects_tests;
@@ -1167,7 +1174,7 @@ fn operation_args(
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
     let program = &generation
-        .programs
+        .programs()
         .get(op)
         .ok_or_else(|| {
             Refusal::new(
@@ -1222,7 +1229,7 @@ fn channel_args(
     name: &str,
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
-    let channel = generation.schema.channels.get(name).ok_or_else(|| {
+    let channel = generation.schema().channels.get(name).ok_or_else(|| {
         Refusal::new(
             "E_OP_CHANNEL_UNKNOWN",
             "op",

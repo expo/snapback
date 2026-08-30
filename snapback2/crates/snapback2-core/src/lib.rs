@@ -19,19 +19,22 @@ pub mod value;
 
 pub use certificate::{
     Ceilings, Certificate, CheckError, Checker, Completeness, PredictionMode, ReadSite, WriteKind,
-    WriteSite, declared_serialized_row_max, max_certified_page_rows,
+    WriteSite, declared_serialized_row_max, max_certified_page_rows, RuleCertificate,
 };
 pub use client::{ClientStore, LocalState};
 pub use engine::{
     AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
-    RuntimeError, StopReason,
+    RuntimeError, StopReason, validate_schema,
 };
-pub use identity::{IdentityError, Principal, Session};
+pub use identity::{
+    Actor, ActorError, IR_CONTRACT_JSON, IdentityError, Principal, SYSTEM_PRINCIPAL_ID, Session,
+};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use programs::*;
 pub use registry::{
-    ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, RowRuleVerdict, Runtime,
+    ChannelCertificates, ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson,
+    RowRuleVerdict, Runtime,
 };
 pub use schema::*;
 pub use store::{CommitRecord, OutboxCounts, OutboxRow, Store, TouchedKey};

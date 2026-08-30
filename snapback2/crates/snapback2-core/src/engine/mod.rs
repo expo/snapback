@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
-use crate::certificate::Certificate;
+use crate::certificate::{Certificate, RuleCertificate};
+use crate::identity::{Actor, SYSTEM_PRINCIPAL_ID};
 use crate::ir::*;
 use crate::schema::*;
 use crate::store::{CommitRecord, Store, TouchedKey, unix_millis};
@@ -10,10 +11,10 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Context {
-    pub viewer: String,
-    pub principal_kind: String,
+    viewer: String,
+    principal_kind: String,
     pub auth_epoch: u64,
     pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
@@ -24,10 +25,10 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn query(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
+    pub fn query(actor: Actor, args: BTreeMap<String, Value>) -> Self {
         Self {
-            viewer: viewer.into(),
-            principal_kind: "user".to_owned(),
+            viewer: actor.id().to_owned(),
+            principal_kind: actor.kind().to_owned(),
             auth_epoch: 1,
             args,
             now: None,
@@ -37,16 +38,24 @@ impl Context {
         }
     }
 
-    pub fn mutation(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        let mut context = Self::query(viewer, args);
+    pub fn mutation(actor: Actor, args: BTreeMap<String, Value>) -> Self {
+        let mut context = Self::query(actor, args);
         context.now = Some(0);
         context
     }
 
-    pub fn system() -> Self {
+    pub fn viewer(&self) -> &str {
+        &self.viewer
+    }
+
+    pub fn principal_kind(&self) -> &str {
+        &self.principal_kind
+    }
+
+    fn system() -> Self {
         Self {
-            viewer: "system".to_owned(),
-            principal_kind: "system".to_owned(),
+            viewer: SYSTEM_PRINCIPAL_ID.to_string(),
+            principal_kind: SYSTEM_PRINCIPAL_ID.to_string(),
             auth_epoch: 1,
             args: BTreeMap::new(),
             now: Some(0),
@@ -286,7 +295,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(store: Store, schema: Schema) -> Result<Self, RuntimeError> {
-        validate_schema(&schema)?;
+        validate_schema(&schema).map_err(first_schema_error)?;
         Ok(Self {
             store,
             schema,
@@ -315,7 +324,7 @@ impl Engine {
     }
 
     pub(crate) fn set_schema(&mut self, schema: Schema) -> Result<(), RuntimeError> {
-        validate_schema(&schema)?;
+        validate_schema(&schema).map_err(first_schema_error)?;
         self.schema = schema;
         Ok(())
     }
@@ -372,9 +381,17 @@ impl Engine {
         &mut self,
         program: &Program,
         certificate: &Certificate,
-        context: Context,
+        args: BTreeMap<String, Value>,
+        now: i64,
+        read_time: Option<i64>,
+        new_ids: VecDeque<String>,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
+        let mut context = Context::system();
+        context.args = args;
+        context.now = Some(now);
+        context.read_time = read_time;
+        context.new_ids = new_ids;
         if let Err(error) = validate_inputs(program, &context.args) {
             let Some(code) = mutation_rejection_code(&error) else {
                 return Err(error);
@@ -382,6 +399,33 @@ impl Engine {
             return self.settle_rejected_then(outbox_id, code, &error.to_string());
         }
         self.execute_with_kind_inner(program, certificate, context, None, Some(outbox_id))
+    }
+
+    /// Execute author-declared seed data with engine authority. Keeping this
+    /// constructor in the engine module prevents any caller that can build an
+    /// ordinary Context from obtaining the reserved viewer.
+    pub(crate) fn execute_seed(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        now: i64,
+    ) -> Result<Execution, RuntimeError> {
+        let mut context = Context::system();
+        context.now = Some(now);
+        context.seed_write = true;
+        self.execute_with_kind(program, certificate, context, Some("seed"))
+    }
+
+    pub(crate) fn reset_and_seed(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        now: i64,
+    ) -> Result<Execution, RuntimeError> {
+        let mut context = Context::system();
+        context.now = Some(now);
+        context.seed_write = true;
+        self.reset_and_execute(program, certificate, context, Some("seed"))
     }
 
     pub(crate) fn settle_rejected_then(
@@ -548,7 +592,7 @@ impl Engine {
         };
         if program.kind == ProgramKind::Mutation {
             // @ref LLP 1001#2-what-a-commit-records — data, outbox, and commit record are atomic.
-            let kind = commit_kind.unwrap_or(if principal_kind == "system" {
+            let kind = commit_kind.unwrap_or(if principal_kind == SYSTEM_PRINCIPAL_ID.as_str() {
                 "system"
             } else {
                 "mutation"
@@ -624,7 +668,7 @@ impl Engine {
             seq,
         };
         // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
-        let kind = commit_kind.unwrap_or(if principal_kind == "system" {
+        let kind = commit_kind.unwrap_or(if principal_kind == SYSTEM_PRINCIPAL_ID.as_str() {
             "system"
         } else {
             "mutation"
@@ -651,11 +695,30 @@ impl Engine {
         rule: &RuleExpr,
         row: &Value,
         context: Context,
+        certificate: Option<&RuleCertificate>,
     ) -> Result<(bool, AuthoritativeTrace), RuntimeError> {
+        if let Some(certificate) = certificate {
+            if certificate.schema_hash != self.schema.hash() {
+                return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
+            }
+            if certificate.rule_hash != self.schema.rule_hash(rule) {
+                return Err(RuntimeError::TraceSubset("rule hash mismatch".to_owned()));
+            }
+        }
         let seq = self.store.commit_seq()?;
         let transaction = self.store.conn.transaction()?;
-        let mut runner = Runner::probe(&transaction, &self.schema, context, &self.verdicts, seq);
-        let result = runner.eval_rule(rule, &rule.hash(), row)?;
+        let mut runner = Runner::probe(
+            &transaction,
+            &self.schema,
+            context,
+            &self.verdicts,
+            seq,
+            certificate,
+        );
+        let result = runner.eval_rule(rule, &self.schema.rule_hash(rule), row)?;
+        if certificate.is_some() {
+            runner.assert_rule_bounds()?;
+        }
         let trace = runner.trace;
         transaction.commit()?;
         Ok((result, trace))
@@ -668,7 +731,7 @@ pub(crate) fn write_aggregate_backfill<'a>(
     target: &str,
     rows: Vec<Value>,
 ) -> Result<(), RuntimeError> {
-    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0);
+    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0, None);
     for row in rows {
         runner.write_aggregate_row(target, row)?;
     }
@@ -693,6 +756,13 @@ pub(crate) fn validate_arg_value(
     value: &Value,
     label: &str,
 ) -> Result<(), RuntimeError> {
+    // @ref LLP 1001#6-identity-identityrs — caller arguments cannot carry
+    // the reserved identity even when their declared shape is generic.
+    if value_contains_reserved_principal(value) {
+        return Err(RuntimeError::Input(format!(
+            "{label} cannot carry the reserved system principal"
+        )));
+    }
     match kind {
         ArgType::Optional(_) if *value == Value::Null => Ok(()),
         ArgType::Optional(inner) => validate_arg_value(inner, value, label),
@@ -750,6 +820,17 @@ pub(crate) fn validate_arg_value(
             ))),
         },
         ArgType::Scalar => Ok(()),
+    }
+}
+
+pub(crate) fn value_contains_reserved_principal(value: &Value) -> bool {
+    match value {
+        Value::Id(value) => value == SYSTEM_PRINCIPAL_ID.as_str(),
+        Value::Row(values) | Value::Map(values) => {
+            values.values().any(value_contains_reserved_principal)
+        }
+        Value::Array(values) => values.iter().any(value_contains_reserved_principal),
+        _ => false,
     }
 }
 
@@ -830,19 +911,30 @@ pub(crate) fn append_commit(
     Ok(())
 }
 
-pub(crate) fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
-    if let Some(name) = schema.tables.keys().find(|name| name.starts_with('_')) {
-        return Err(RuntimeError::SchemaReserved(name.clone()));
+pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
+    let mut errors = Vec::new();
+    for name in schema.tables.keys().filter(|name| name.starts_with('_')) {
+        errors.push(RuntimeError::SchemaReserved(name.clone()));
     }
     for (table_name, table) in &schema.tables {
+        if table.columns.get("id") != Some(&ColumnType::Id) {
+            errors.push(RuntimeError::Schema(format!(
+                "table {table_name} must declare the implicit id column as Id"
+            )));
+        }
         for (index_name, index) in &table.indexes {
             for column in &index.columns {
+                if !table.columns.contains_key(column) {
+                    errors.push(RuntimeError::Schema(format!(
+                        "index {table_name}.{index_name} names undeclared column {column}"
+                    )));
+                }
                 if table
                     .columns
                     .get(column)
                     .is_some_and(ColumnType::contains_list)
                 {
-                    return Err(RuntimeError::SchemaIndexColumn {
+                    errors.push(RuntimeError::SchemaIndexColumn {
                         table: table_name.clone(),
                         index: index_name.clone(),
                         column: column.clone(),
@@ -851,7 +943,18 @@ pub(crate) fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
             }
         }
     }
-    Ok(())
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
+    errors
+        .into_iter()
+        .next()
+        .expect("schema validation refusal contains at least one diagnostic")
 }
 
 mod index;
@@ -862,7 +965,8 @@ mod runner_ops;
 use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_indexed};
 #[allow(unused_imports)]
 pub(crate) use index::{
-    fetch_table_connection, index_values, materialize_optional_fields, reindex_row, validate_row,
+    fetch_table_connection, index_values, materialize_optional_fields, reindex_row,
+    validate_column_value, validate_row,
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};

@@ -44,6 +44,33 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .is_some_and(|count| count > 0),
         "the chat receipt did not exercise an invalidation silence probe: {invalidation}"
     );
+    assert_eq!(
+        invalidation["detail"]["revocationWhileLive"]["status"], "pass",
+        "the chat receipt did not prove live membership revocation: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["subscriptionReplan"]["status"], "pass",
+        "the chat receipt did not prove successor replanning of a live subscription: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["subscriptionReplan"]["certificateDisposition"],
+        "successorReplanned",
+        "the subscription was not replanned against the successor certificate: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["subscriptionReplan"]["successorVerdict"], "blank",
+        "the successor rule did not blank the replanned subscription: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["subscriptionReplan"]["successorResult"],
+        serde_json::json!({ "Array": [] }),
+        "the successor rerun returned predecessor rows: {invalidation}"
+    );
+    assert_ne!(
+        invalidation["detail"]["subscriptionReplan"]["predecessorObservedAtSubscribeSchemaHash"],
+        invalidation["detail"]["subscriptionReplan"]["successorRerunSchemaHash"],
+        "the policy replacement did not replace the certificate hash: {invalidation}"
+    );
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
     assert_eq!(executions.len(), 2, "{bounds}");
@@ -55,7 +82,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": 1, "ceiling": 1 })
+            serde_json::json!({ "actual": 2, "ceiling": 2 })
         );
         assert_eq!(
             execution["steps"],
@@ -347,8 +374,8 @@ fn rules_use_the_engine_verdict_when_the_synthetic_persona_is_admitted() {
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";
 export const items = table({
-  columns: { label: t.text(20) },
-  rules: { read: rule.principal("persona"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+  columns: { label: t.text(20), ownerId: t.id() },
+  rules: { read: rule.viewerIs("ownerId"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
 });
 export default schema({ auth: { password: true, guests: true }, tables: { items } });
 "#,
@@ -365,7 +392,7 @@ export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }))
     fs::write(
         project.path.join("snapback/seed.ts"),
         r#"import { seed } from "snapback2";
-export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label: "one" }] } });
+export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label: "one", ownerId: "dev:alice" }] } });
 "#,
     )
     .unwrap();

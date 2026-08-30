@@ -476,6 +476,15 @@ remaining non-enumerating to an attacker:
   handle after policy replacement, and a stale grant handle after
   remove/recreate.
 
+**Snapback 2 amendment (author-authorized 2026-08-30).** The stale-program
+property is enforced and unit-proven at the engine boundary: presenting a
+predecessor certificate under a successor schema returns `E_TRACE_SUBSET` on
+the certificate/schema mismatch. The developer-facing derived check proves
+successor-bound replanning through public subscriptions instead: it subscribes
+under the predecessor, installs the successor, reruns by subscription id, and
+records both the schema hash observed at subscribe and the successor
+certificate's schema hash at rerun.
+
 That is the part of Snapback 1's private-roster posture worth keeping. The
 host-private duplicate roster and its projection/cursor operation surface are
 not.

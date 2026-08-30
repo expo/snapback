@@ -37,7 +37,6 @@ impl Store {
     pub fn open(path: &Path) -> Result<Store, RuntimeError>;   // WAL, busy_timeout 5 s, foreign keys off
     pub fn memory() -> Result<Store, RuntimeError>;            // what Engine::memory used
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
-    pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     pub fn commit_seq(&self) -> Result<u64, RuntimeError>;     // last committed seq, 0 when empty
     pub fn commits_since(&self, seq: u64, limit: usize) -> Result<Vec<CommitRecord>, RuntimeError>;
     pub fn snapshot_to(&self, path: &Path) -> Result<(), RuntimeError>;  // `fork`: rusqlite backup API
@@ -148,26 +147,50 @@ into a generation:
 ```rust
 pub struct EffectDecl { pub name: String, pub grants: Vec<String>, pub source: String, pub then: Option<String> }
 pub struct Generation {
-    pub hash: String,                                   // digest of the project JSON
-    pub schema: Schema,
-    pub programs: BTreeMap<String, (Program, Certificate)>,   // key = "module.export"
-    pub effects: BTreeMap<String, EffectDecl>,
+    schema: Schema,
+    programs: BTreeMap<String, (Program, Certificate)>,   // key = "module.export"
+    channel_certificates: BTreeMap<String, ChannelCertificates>,
+    effects: BTreeMap<String, EffectDecl>,
 }
 impl Generation {
     /// Certify every program; report EVERY refusal, never the first (rules/RULES.md):
     /// `Checker::check_all` returns every structural refusal of a program and every ceiling overrun (all bounds are computed first, then compared).
     pub fn certify(project: &ProjectJson, ceilings: Ceilings) -> Result<Generation, Vec<(String, CheckError)>>;
+    pub fn hash(&self) -> String; // computed from the certified schema; never stored or settable
+    pub fn schema(&self) -> &Schema;
+    pub fn programs(&self) -> &BTreeMap<String, (Program, Certificate)>;
+    pub fn effects_hash(&self) -> String; // separately derived from private effect declarations
 }
 pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
 impl Runtime {
-    pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // applies gen to an empty or same-hash store; else runs the successor check
+    pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // recomputes the handed schema hash; mismatch always runs the successor check
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError>; // E_OP_UNKNOWN when op is not in the generation
+    pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
+    pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>; // resolves op + certificate from the active generation
     pub fn apply_successor(&mut self, next: Generation) -> Result<SuccessorReport, SuccessorRefusal>;
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError>;  // one commit, kind "seed"
     pub fn generation(&self) -> &Generation;
     pub fn store(&self) -> &Store;
 }
 ```
+
+`Generation` has no public fields, public mutators, stored hash, or
+deserialization constructor: certification is its only construction path.
+The hash persisted by `Runtime` and compared on reopen is recomputed from the
+private certified schema, so caller state cannot opt a changed schema out of
+successor admission. Restart-safe effect delivery uses a separate digest
+derived from the private certified effect declarations; that token binds
+retained effect source and is never consulted to skip successor validation.
+
+**Subscription replan amendment (author-authorized 2026-08-30).** `Runtime`
+has no public handle-execution or caller-supplied certificate surface. The
+derived policy-successor check subscribes under generation N, installs the
+successor, and reruns the subscription by id; its test receipt records the
+schema hash observed at subscribe and the successor certificate's schema hash
+at rerun, and requires the successor denial/blank result rather than the
+predecessor rows. The engine-level certificate invariant remains separate:
+the core unit test presents a predecessor certificate to `Engine` under the
+successor schema and requires `E_TRACE_SUBSET`.
 
 **Successors.** A successor is *additive* when every existing table keeps its
 columns and their types, every existing index keeps its columns, and nothing
@@ -188,14 +211,23 @@ impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &Migrat
 column's values) and then applies the successor as additive — *with the same
 admission checks* (`E_SUCCESSOR_UNIQUE`, `E_SUCCESSOR_COLUMN_REQUIRED`) as the
 additive path, in the same transaction, so a refusal rolls the drops back too
-(review ruling 2026-08-30, round 2 G1). Never a prompt,
+(review ruling 2026-08-30, round 2 G1). The admission comparison retains the
+predecessor type until retyped stored values have been dropped and validated
+against the successor type, including the reserved-principal walk. A required
+retyped column therefore refuses rather than installing an absent value; an
+optional retyped column may install as `Null`. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
 **Seed writes and maintained-target rows are engine-owned** (rulings
-2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
+2026-08-30). `Runtime::seed` uses a purpose-specific engine entry point whose
+system context cannot be constructed by an ordinary caller, and is exempt
 from the tables' user rules (never from constraints, unique indexes, or
 column validation) — a seed is data the author declared, not a client
-intent. Likewise:
+intent. Every table schema must declare the compiler-implicit `id: Id` column,
+and every write rejects fields outside the table declaration. Seed and
+caller-controlled values may not carry the reserved `system` token in the row
+id or any nested value, including optional/list/JSON values that could later
+be projected into an actor-bearing slot. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
@@ -215,6 +247,16 @@ Three rulings from the 2026-08-30 review (M3, M4, M8):
   successor is refused with `E_SUCCESSOR_COLUMN_REQUIRED` (rewrite:
   `t.optional(...)`, or add it while the table is empty). Existing rows keep
   their JSON; an absent optional column reads as `Null`.
+
+**Stored-row admission amendment (author-authorized 2026-08-30).** Row
+validation runs only while installing a successor, never while reopening an
+already installed generation; there is no validation watermark in `_meta`.
+For existing rows it validates only newly declared columns and columns newly
+interpreted as `Id`/`Ref` (including nested optional/list forms), applying
+both field validation and the reserved-principal walk. An unrelated legacy
+undeclared field therefore cannot block a clean additive successor, but a
+successor that declares that field refuses with `E_SUCCESSOR_ROW_INVALID`
+naming the offending row.
 
 ## 5. Live subscriptions (`live.rs`)
 
@@ -281,10 +323,17 @@ Password hashing is salted and iterated (argon2id preferred; PBKDF2-HMAC-SHA256
 with ≥ 100k iterations acceptable) through one small crate; the hash format is
 versioned in the string. Tokens are 32 random bytes, base64url. The principal
 id is the `viewer` every program sees; `principal_kind` is the row's kind
-(`user`, `guest`, `persona`, `system`), which rules test with
-`principal.kind`. The `system` principal exists from `Store::open` and has no
-session; `Context::system()` constructs its context for schedules, `then`
-mutations (LLP 1003), and seeds.
+(`user`, `guest`, `persona`, `system`) and remains identity metadata, not a
+rule term. Ordinary contexts require the nominal `Actor` type; its private
+fields and checked constructors reject the reserved id and kind. The `system`
+principal exists from `Store::open` under the one core-owned reserved id and
+has no session; the system-context constructor is private to the engine, and
+only purpose-specific schedule/effect-`then`/seed machinery can reach it. The
+reserved wire token lives in `snapback2-core/ir-contract.json`; both core and
+the compiler consume that contract. In authored rules, `rule.system()` lowers
+to `Eq(Viewer, Literal(Id(system)))`; there is no `PrincipalKind` rule
+expression (authorization amendment, 2026-08-30, LLP 0331 ruling 0 as
+amended).
 
 ## 7. Channels (`schema.channels`)
 
@@ -297,12 +346,32 @@ impl Runtime {
 }
 ```
 
-One rule probe per admission, evaluated over the args as the row (`RuleTerm::Field`
+The admission rule is evaluated over the args as the row (`RuleTerm::Field`
 reads an arg), and the verdict *carries its trace* (review ruling 2026-08-30,
 M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
+Every lookup performed while deriving a referenced row's visibility is also
+an authoritative rule probe. Generation certification emits separate
+publish/subscribe rule certificates with transitive probe and step ceilings;
+channel admission presents the selected certificate to the runner, which
+enforces both ceilings.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
+
+**Authorization amendment (2026-08-30).** `RuleExpr::Exists` has no authored
+`input_visibility` field, and `rule.exists` has no `hidden` option.
+Certification binds each scoped verdict to the complete schema hash plus its
+enclosing rule, so any referenced policy replacement changes the verdict and
+certificate hashes, including through cyclic rule graphs. Evaluation derives
+disclosure for the running viewer: a found probe
+row is readable only when that viewer passes the referenced table's `read`
+rule, while a denied/private probe is represented by a scoped verdict. Public
+absences remain readable; private absences remain non-enumerating. A referenced
+read rule's `Exists` lookups are traced and metered; visibility mode does not
+recursively derive disclosure for those nested inputs, which gives cycles a
+finite one-level bound while preserving short-circuit `And`/`Or` ceilings.
+Both outcomes are deterministic and covered by exact-ceiling core tests and
+client-twin successor tests (LLP 0331 §"Failure and disclosure semantics").
 
 ## 8. `emit` and the outbox
 
@@ -357,8 +426,12 @@ the ruling).
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,identity,outbox}.rs`.
-- The 75-case corpus and the 7 S1 tests pass unchanged; `export_corpus` output
-  is byte-identical (the evaluator twin is LLP 1002's lane, not this one).
+- The 76-case corpus is regenerated by `export_corpus` whenever the current
+  serialization changes; the Rust engine and TypeScript evaluator must agree
+  on all 76 cases. The 2026-08-30 authorization regeneration removes the stale
+  authored `input_visibility` projection. The complete deterministic
+  `check --ir --json` response for the manifest's 76 programs is 71,497 bytes,
+  SHA-256 `3f211a85d3f887b9cb0bbe07b8724242ace1054af3d1306a386c31741ff57875`.
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,

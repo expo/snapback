@@ -443,8 +443,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": "Allow",
@@ -527,8 +526,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": {
@@ -551,8 +549,7 @@
                     },
                     "Viewer"
                   ],
-                  "provenance": "Shape",
-                  "input_visibility": "Readable"
+                  "provenance": "Shape"
                 }
               }
             ]
@@ -647,8 +644,7 @@
               "key": [
                 "Viewer"
               ],
-              "provenance": "Viewer",
-              "input_visibility": "Hidden"
+              "provenance": "Viewer"
             }
           },
           "insert": "Allow",
@@ -1108,7 +1104,8 @@
     },
     "now": null,
     "new_ids": [],
-    "read_time": null
+    "read_time": null,
+    "seed_write": false
   },
   "receipt": {
     "rows": [
@@ -1389,7 +1386,8 @@
         "new_ids": [
           "local-send"
         ],
-        "read_time": null
+        "read_time": null,
+        "seed_write": false
       },
       "expectedState": "predicted"
     },
@@ -1423,7 +1421,8 @@
         },
         "now": 0,
         "new_ids": [],
-        "read_time": null
+        "read_time": null,
+        "seed_write": false
       },
       "expectedState": "predicted"
     }

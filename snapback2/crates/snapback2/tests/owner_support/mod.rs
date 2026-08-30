@@ -147,7 +147,10 @@ pub(super) fn seed_effect_row(
         generation,
     )
     .unwrap();
-    let mut context = CoreContext::mutation("dev:test", BTreeMap::new());
+    let mut context = CoreContext::mutation(
+        snapback2_core::Actor::persona("test").unwrap(),
+        BTreeMap::new(),
+    );
     context.now = Some(1);
     context.new_ids = VecDeque::from(["seeded-outbox".to_owned()]);
     let execution = runtime.execute("__test.emitEffect", context).unwrap();

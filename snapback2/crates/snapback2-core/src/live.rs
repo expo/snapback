@@ -118,7 +118,7 @@ impl Runtime {
     ) -> Result<(SubscriptionId, Execution), RuntimeError> {
         let program = self
             .generation
-            .programs
+            .programs()
             .get(op)
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         if program.0.kind != ProgramKind::Query {
@@ -226,7 +226,7 @@ impl Runtime {
             .map(|(id, subscription)| SubscriptionInfo {
                 id: *id,
                 op: subscription.op.clone(),
-                principal: subscription.context.viewer.clone(),
+                principal: subscription.context.viewer().to_owned(),
                 last_result_digest: subscription.last_result_digest.clone(),
                 last_seq: subscription.last_seq,
             })
@@ -242,6 +242,7 @@ impl Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Actor;
     use crate::certificate::Ceilings;
     use crate::engine::ConstraintTrace;
     use crate::registry::{Generation, ProjectJson};
@@ -292,7 +293,7 @@ mod tests {
             1,
             Subscription {
                 op: "probe".to_owned(),
-                context: Context::query("u1", BTreeMap::new()),
+                context: Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
                 last_result_digest: String::new(),
                 last_seq: 0,
                 trace: AuthoritativeTrace {

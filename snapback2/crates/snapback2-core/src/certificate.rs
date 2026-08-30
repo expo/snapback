@@ -73,6 +73,14 @@ pub struct Certificate {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RuleCertificate {
+    pub schema_hash: String,
+    pub rule_hash: String,
+    pub max_rule_probes: u64,
+    pub max_steps: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReadSite {
     pub site: String,
     pub table: String,
@@ -156,6 +164,38 @@ impl<'a> Checker<'a> {
                 errors.append(&mut analysis_errors);
                 Err(errors)
             }
+        }
+    }
+
+    // @ref LLP 1001#7-channels-schemachannels — channel admission is a
+    // certified rule site with transitive visibility-probe and step bounds.
+    pub fn check_rule(&self, rule: &RuleExpr) -> Result<RuleCertificate, Vec<CheckError>> {
+        let analyzer = Analyzer::new(self.schema);
+        let max_rule_probes = analyzer.rule_probe_bound(rule);
+        let max_steps = analyzer.rule_step_bound(rule);
+        let summary = Summary {
+            rule_probes: max_rule_probes,
+            steps: max_steps,
+            ..Summary::default()
+        };
+        let mut errors = Vec::new();
+        for (name, actual, ceiling) in [
+            ("rule probes", max_rule_probes, self.ceilings.rule_probes),
+            ("steps", max_steps, self.ceilings.steps),
+        ] {
+            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary) {
+                errors.push(error);
+            }
+        }
+        if errors.is_empty() {
+            Ok(RuleCertificate {
+                schema_hash: self.schema.hash(),
+                rule_hash: self.schema.rule_hash(rule),
+                max_rule_probes,
+                max_steps,
+            })
+        } else {
+            Err(errors)
         }
     }
 
@@ -246,9 +286,12 @@ impl<'a> Checker<'a> {
         let mut rule_hashes: BTreeMap<_, _> = read_sites
             .iter()
             .filter_map(|site| {
-                self.schema
-                    .table(&site.table)
-                    .map(|table| (format!("{}.read", site.table), table.rules.read.hash()))
+                self.schema.table(&site.table).map(|table| {
+                    (
+                        format!("{}.read", site.table),
+                        self.schema.rule_hash(&table.rules.read),
+                    )
+                })
             })
             .collect();
         for write in &summary.writes {
@@ -266,7 +309,10 @@ impl<'a> Checker<'a> {
                 WriteKind::Emit => Vec::new(),
             };
             for (effect, rule) in effects {
-                rule_hashes.insert(format!("{}.{effect}", write.table), rule.hash());
+                rule_hashes.insert(
+                    format!("{}.{effect}", write.table),
+                    self.schema.rule_hash(rule),
+                );
             }
         }
         let mut checked_tables: BTreeSet<String> = summary
@@ -1278,9 +1324,7 @@ impl<'a> Analyzer<'a> {
         );
         summary.examined = calls;
         summary.index_entries = calls;
-        if self.rule_has_probe(&read.table) {
-            summary.rule_probes = calls;
-        }
+        summary.rule_probes = calls.saturating_mul(self.table_read_rule_probe_bound(&read.table));
         summary.steps = calls.saturating_mul(4);
         set_product(&mut summary, factors, (&read.site, 1));
         Ok(summary)
@@ -1295,11 +1339,12 @@ impl<'a> Analyzer<'a> {
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
         let hoist = self.rule_hoists(scan);
-        let rule_probes = if self.rule_has_probe(&scan.table) {
+        let probe_bound = self.table_read_rule_probe_bound(&scan.table);
+        let rule_probes = if probe_bound > 0 {
             if hoist {
-                calls
+                calls.saturating_mul(probe_bound)
             } else {
-                calls.saturating_mul(reserve)
+                calls.saturating_mul(reserve).saturating_mul(probe_bound)
             }
         } else {
             0
@@ -1325,18 +1370,94 @@ impl<'a> Analyzer<'a> {
         Ok(summary)
     }
 
-    fn rule_has_probe(&self, table: &str) -> bool {
-        fn has(rule: &RuleExpr) -> bool {
-            match rule {
-                RuleExpr::Exists { .. } => true,
-                RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().any(has),
-                RuleExpr::Not(rule) => has(rule),
-                _ => false,
-            }
+    fn direct_visibility_probe_bound(rule: &RuleExpr) -> u64 {
+        // @ref LLP 1001#7-channels-schemachannels — visibility lookups are
+        // authoritative probes and therefore consume the certificate meter.
+        match rule {
+            RuleExpr::Exists { .. } => 1,
+            // And/Or short-circuit at runtime, but either can be forced to
+            // evaluate every child. Their certificate ceiling is therefore
+            // the saturating sum, not the largest branch.
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(Self::direct_visibility_probe_bound)
+                .fold(0_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => Self::direct_visibility_probe_bound(rule),
+            _ => 0,
         }
+    }
+
+    fn rule_probe_bound(&self, rule: &RuleExpr) -> u64 {
+        match rule {
+            RuleExpr::Exists { table, .. } => {
+                let visibility = self
+                    .schema
+                    .table(table)
+                    .map(|table| Self::direct_visibility_probe_bound(&table.rules.read))
+                    .unwrap_or(0);
+                1_u64.saturating_add(visibility)
+            }
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(|rule| self.rule_probe_bound(rule))
+                .fold(0_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => self.rule_probe_bound(rule),
+            _ => 0,
+        }
+    }
+
+    fn direct_rule_step_bound(rule: &RuleExpr) -> u64 {
+        match rule {
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(Self::direct_rule_step_bound)
+                .fold(1_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => 1_u64.saturating_add(Self::direct_rule_step_bound(rule)),
+            _ => 1,
+        }
+    }
+
+    fn rule_step_bound(&self, rule: &RuleExpr) -> u64 {
+        match rule {
+            RuleExpr::Exists { table, .. } => 1_u64.saturating_add(
+                self.schema
+                    .table(table)
+                    .map(|table| Self::direct_rule_step_bound(&table.rules.read))
+                    .unwrap_or(0),
+            ),
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
+                .iter()
+                .map(|rule| self.rule_step_bound(rule))
+                .fold(1_u64, u64::saturating_add),
+            RuleExpr::Not(rule) => 1_u64.saturating_add(self.rule_step_bound(rule)),
+            _ => 1,
+        }
+    }
+
+    fn table_read_rule_probe_bound(&self, table: &str) -> u64 {
         self.schema
             .table(table)
-            .is_some_and(|table| has(&table.rules.read))
+            .map(|table| self.rule_probe_bound(&table.rules.read))
+            .unwrap_or(0)
+    }
+
+    fn rule_has_probe(&self, table: &str) -> bool {
+        self.table_read_rule_probe_bound(table) > 0
+    }
+
+    fn write_rule_probe_bound(&self, table: &str, kind: WriteKind) -> u64 {
+        self.schema.table(table).map_or(0, |table| {
+            let bound = |rule: &RuleExpr| self.rule_probe_bound(rule);
+            match kind {
+                WriteKind::Insert => bound(&table.rules.insert),
+                WriteKind::Update => 2_u64.saturating_mul(bound(&table.rules.update)),
+                WriteKind::Delete => bound(&table.rules.delete),
+                WriteKind::Upsert => {
+                    bound(&table.rules.insert).max(2_u64.saturating_mul(bound(&table.rules.update)))
+                }
+                WriteKind::Emit => 0,
+            }
+        })
     }
 
     fn write(
@@ -1347,25 +1468,7 @@ impl<'a> Analyzer<'a> {
         factors: &[(String, u64)],
     ) -> Summary {
         let mut summary = write_summary(table, kind, calls, factors);
-        let probe_multiplier = self.schema.table(table).map_or(0, |table| {
-            fn has(rule: &RuleExpr) -> bool {
-                match rule {
-                    RuleExpr::Exists { .. } => true,
-                    RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().any(has),
-                    RuleExpr::Not(rule) => has(rule),
-                    _ => false,
-                }
-            }
-            match kind {
-                WriteKind::Insert => u64::from(has(&table.rules.insert)),
-                WriteKind::Update => 2 * u64::from(has(&table.rules.update)),
-                WriteKind::Delete => u64::from(has(&table.rules.delete)),
-                WriteKind::Upsert => {
-                    u64::from(has(&table.rules.insert)).max(2 * u64::from(has(&table.rules.update)))
-                }
-                WriteKind::Emit => 0,
-            }
-        });
+        let probe_multiplier = self.write_rule_probe_bound(table, kind);
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
         summary
     }

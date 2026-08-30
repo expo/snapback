@@ -2,8 +2,8 @@ use super::writer_effects::settle_outbox;
 use crate::effects::serialize_claimed_outbox;
 use serde_json::json;
 use snapback2_core::{
-    Auth, Ceilings, Context, EffectDecl, Expr, Generation, Program, ProgramKind, ProjectJson,
-    Runtime, Schema, Stmt, Store, Value,
+    Actor, Auth, Ceilings, Context, EffectDecl, Expr, Generation, Program, ProgramKind,
+    ProjectJson, Runtime, Schema, Stmt, Store, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 
@@ -42,7 +42,7 @@ fn fractional_json_result_settles_running_before_then_conversion() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("user", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
     context.now = Some(1);
     context.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("effects.emit", context).unwrap();
@@ -102,7 +102,7 @@ fn claim_serialization_failure_requeues_and_logs_the_claimed_row() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("user", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
     context.now = Some(1);
     context.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("effects.emit", context).unwrap();

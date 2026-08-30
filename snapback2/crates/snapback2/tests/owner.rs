@@ -394,9 +394,14 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     fs::write(&messages, source).unwrap();
     let applied = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
-        (value["generation"].as_str() != Some(&old_generation)).then_some(value)
+        let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
+        manifest.body["ops"]
+            .get("messages.hotAdded")
+            .is_some()
+            .then_some(value)
     });
     assert_eq!(applied["status"], "ready");
+    assert_eq!(applied["generation"], old_generation);
 
     let source = fs::read_to_string(&messages).unwrap();
     let source = source
@@ -542,7 +547,7 @@ fn rule_denied_then_settles_sent_with_the_rejection_visible_in_trace() {
     let schema = root.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema)
         .unwrap()
-        .replace("rule.principal(\"system\")", "rule.deny()");
+        .replace("rule.system()", "rule.deny()");
     fs::write(schema, source).unwrap();
     let binary = env!("CARGO_BIN_EXE_snapback2");
     let compiler = compiler(&root);
@@ -887,6 +892,42 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     assert!(machine.status.success());
     let machine: Value = serde_json::from_slice(&machine.stdout).unwrap();
     assert_eq!(machine["results"][0]["program"], "health");
+
+    let missing_id_ir = json!({
+        "schema": {
+            "tables": {
+                "messages": {
+                    "columns": {},
+                    "indexes": { "byId": { "columns": ["id"], "unique": true } },
+                    "rules": {
+                        "read": "Allow",
+                        "insert": "Allow",
+                        "update": "Allow",
+                        "delete": "Allow"
+                    },
+                    "constraints": []
+                }
+            },
+            "maintains": []
+        },
+        "programs": [{
+            "name": "messages.health",
+            "kind": "Query",
+            "args": {},
+            "read_time_granularity_ms": null,
+            "body": [{ "Return": { "Literal": "Null" } }]
+        }]
+    });
+    let missing_id = run_with_stdin(binary, &["check", "--ir", "--json"], &missing_id_ir);
+    assert_eq!(missing_id.status.code(), Some(1));
+    let missing_id: Value = serde_json::from_slice(&missing_id.stdout).unwrap();
+    assert_eq!(missing_id["results"][0]["error"]["code"], "E_SCHEMA");
+    assert!(
+        missing_id["results"][0]["error"]["message"]
+            .as_str()
+            .is_some_and(|message| message.contains("implicit id column")),
+        "{missing_id}"
+    );
 
     let missing_ir = Command::new(binary)
         .args(["check", "--ir"])

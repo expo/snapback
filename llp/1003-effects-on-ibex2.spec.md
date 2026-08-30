@@ -92,7 +92,7 @@ row still moves to `sent` — the effect happened; the bookkeeping did not.
 `then` is a bounded data program like any other: it runs as the `system`
 principal under the ordinary table rules (no seed-style exemption — that
 exists for declared data), so a bookkeeping table admits it with
-`insert: rule.principal('system')` (review ruling 2026-08-30). The runner
+`insert: rule.system()` (review ruling 2026-08-30). The runner
 thread never panics on row data and never stops on one bad row; a row for an
 effect the generation does not declare is settled `failed` at claim time,
 never `running`.
@@ -106,8 +106,10 @@ never `running`.
   idempotency key can make the retry safe; the runner never retries a
   `sent_unknown` row on its own — `snapback2 trace` shows it, and a human or
   an agent re-queues it (`POST /control/outbox/<id>/requeue`, this wave).
-- `then` runs from `then_pending` as `Context::system()` through
-  `Runtime::execute_then`, which settles the row in the same transaction —
+- `then` runs from `then_pending` through the purpose-specific
+  `Runtime::execute_then` capability; only its durable generation/op/outbox
+  binding can cause the engine-private system context to be constructed. It
+  settles the row in the same transaction —
   including when the mutation is `Rejected` (`last_error` set, `state = 'sent'`:
   the effect happened; the bookkeeping did not) — so no crash window separates
   the mutation from its settlement; visible in `trace`, never silent.

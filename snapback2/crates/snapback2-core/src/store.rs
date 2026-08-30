@@ -2,6 +2,7 @@
 // @ref LLP 1001#1-store-storers — the store owns SQLite setup, system tables, and snapshots.
 
 use crate::engine::RuntimeError;
+use crate::identity::SYSTEM_PRINCIPAL_ID;
 use crate::registry::EffectDecl;
 use crate::value::Value;
 use rusqlite::backup::Backup;
@@ -196,8 +197,8 @@ impl Store {
         )?;
         connection.execute(
             "INSERT OR IGNORE INTO _principals(id, kind, name, created_at)
-             VALUES ('system', 'system', 'system', ?1)",
-            [now],
+             VALUES (?1, ?1, ?1, ?2)",
+            params![SYSTEM_PRINCIPAL_ID.as_str(), now],
         )?;
         Ok(())
     }
@@ -209,15 +210,6 @@ impl Store {
             })
             .optional()
             .map_err(Into::into)
-    }
-
-    pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> {
-        self.conn.execute(
-            "INSERT INTO _meta(key, value) VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![key, value],
-        )?;
-        Ok(())
     }
 
     pub fn commit_seq(&self) -> Result<u64, RuntimeError> {
@@ -369,7 +361,7 @@ impl Store {
         let then_op = declaration.then.as_deref();
         let generation = transaction
             .query_row(
-                "SELECT value FROM _meta WHERE key = 'generation'",
+                "SELECT value FROM _meta WHERE key = 'effects_generation'",
                 [],
                 |row| row.get::<_, String>(0),
             )

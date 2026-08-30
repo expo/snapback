@@ -22,6 +22,16 @@ fn schema() -> Schema {
                 BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
                     ("name".to_owned(), ColumnType::Text { max: 64 }),
+                    (
+                        "ownerId".to_owned(),
+                        ColumnType::Optional(Box::new(ColumnType::Ref {
+                            table: "items".to_owned(),
+                        })),
+                    ),
+                    (
+                        "payload".to_owned(),
+                        ColumnType::Optional(Box::new(ColumnType::Json { max_bytes: 1024 })),
+                    ),
                 ]),
                 BTreeMap::from([
                     (
@@ -139,7 +149,7 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
             .signup("owner@example.com", "correct horse", 100)
             .unwrap();
         let mut context = Context::mutation(
-            session.principal.id.clone(),
+            Actor::try_from(&session.principal).unwrap(),
             BTreeMap::from([
                 ("id".to_owned(), Value::Id("item-1".to_owned())),
                 ("name".to_owned(), Value::String("durable".to_owned())),
@@ -154,7 +164,7 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
             .execute(
                 "items.rename",
                 Context::mutation(
-                    session.principal.id.clone(),
+                    Actor::try_from(&session.principal).unwrap(),
                     BTreeMap::from([
                         ("id".to_owned(), Value::Id("item-1".to_owned())),
                         ("name".to_owned(), Value::String("renamed".to_owned())),
@@ -177,8 +187,15 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
         runtime.authenticate(&session.token, 101).unwrap(),
         session.principal
     );
+    assert!(Actor::new("system", "user").is_err());
     let execution = runtime
-        .execute("items.list", Context::query("system", BTreeMap::new()))
+        .execute(
+            "items.list",
+            Context::query(
+                Actor::try_from(&session.principal).unwrap(),
+                BTreeMap::new(),
+            ),
+        )
         .unwrap();
     assert_eq!(execution.result.as_array().unwrap().len(), 1);
     let commits = runtime.store().commits_since(0, 10).unwrap();
@@ -218,7 +235,7 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
     table.constraints.push(Constraint::Unique {
         index: "byName".to_owned(),
     });
-    let generation = Generation::certify(
+    let denied_generation = Generation::certify(
         &ProjectJson {
             version: 1,
             schema: denied,
@@ -229,7 +246,7 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
         Ceilings::default(),
     )
     .unwrap();
-    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), denied_generation).unwrap();
 
     runtime
         .seed(&[(
@@ -275,24 +292,82 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
     )]);
     assert!(matches!(invalid, Err(RuntimeError::Input(_))));
     assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let reserved_ref = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-4".to_owned())),
+            ("name", Value::String("reserved relation".to_owned())),
+            ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+        ]),
+    )]);
+    assert!(matches!(reserved_ref, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let undeclared = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-5".to_owned())),
+            ("name", Value::String("unknown field".to_owned())),
+            ("notInSchema", Value::String("refuse me".to_owned())),
+        ]),
+    )]);
+    assert!(
+        matches!(undeclared, Err(RuntimeError::Input(ref message)) if message.contains("undeclared field notInSchema")),
+        "{undeclared:?}"
+    );
+
+    let reserved_json = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-6".to_owned())),
+            ("name", Value::String("reserved JSON".to_owned())),
+            (
+                "payload",
+                Value::Map(BTreeMap::from([(
+                    "actor".to_owned(),
+                    Value::Id(SYSTEM_PRINCIPAL_ID.to_string()),
+                )])),
+            ),
+        ]),
+    )]);
+    assert!(matches!(reserved_json, Err(RuntimeError::Input(_))));
+
+    let reserved_row_id = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+            ("name", Value::String("reserved id".to_owned())),
+        ]),
+    )]);
+    assert!(matches!(reserved_row_id, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let mut caller_runtime =
+        Runtime::open(Store::memory().unwrap(), generation()).expect("caller generation");
+    let mut caller = Context::mutation(
+        Actor::user("u1").unwrap(),
+        BTreeMap::from([
+            ("id".to_owned(), Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+            ("name".to_owned(), Value::String("reserved arg".to_owned())),
+        ]),
+    );
+    caller.new_ids = VecDeque::from(["unused".to_owned()]);
+    let execution = caller_runtime.execute("items.create", caller).unwrap();
+    assert!(matches!(
+        execution.state,
+        ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+    ));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
 }
 
 #[test]
 fn store_snapshot_reset_and_reserved_names_obey_the_contract() {
     let snapshot = temp_store("snapshot");
     let mut store = Store::memory().unwrap();
-    store.set_meta("custom", "kept").unwrap();
     store.snapshot_to(&snapshot).unwrap();
-    assert_eq!(
-        Store::open(&snapshot)
-            .unwrap()
-            .meta("custom")
-            .unwrap()
-            .as_deref(),
-        Some("kept")
-    );
+    Store::open(&snapshot).unwrap();
     store.reset_data().unwrap();
-    assert_eq!(store.meta("custom").unwrap().as_deref(), Some("kept"));
     assert_eq!(store.commit_seq().unwrap(), 0);
 
     let mut invalid = schema();
@@ -310,8 +385,7 @@ fn store_snapshot_reset_and_reserved_names_obey_the_contract() {
 fn durable_store_has_one_owner_and_owner_can_snapshot() {
     let path = temp_store("owner");
     let snapshot = temp_store("owner-snapshot");
-    let mut first = Store::open(&path).unwrap();
-    first.set_meta("snapshot_marker", "present").unwrap();
+    let first = Store::open(&path).unwrap();
     let holder = first.meta("owner").unwrap().unwrap();
     assert!(holder.starts_with(&format!("{}@", std::process::id())));
     assert_eq!(holder.matches(':').count(), 1);
@@ -329,10 +403,6 @@ fn durable_store_has_one_owner_and_owner_can_snapshot() {
 
     first.snapshot_to(&snapshot).unwrap();
     let snapshot_store = Store::open(&snapshot).unwrap();
-    assert_eq!(
-        snapshot_store.meta("snapshot_marker").unwrap().as_deref(),
-        Some("present")
-    );
     drop(snapshot_store);
     drop(first);
 
@@ -360,7 +430,7 @@ fn commit_log_retains_exactly_the_latest_ten_thousand_mutations() {
             .execute(
                 "items.rename",
                 Context::mutation(
-                    "system",
+                    Actor::user("u1").unwrap(),
                     BTreeMap::from([
                         ("id".to_owned(), Value::Id("item-1".to_owned())),
                         ("name".to_owned(), Value::String("same".to_owned())),

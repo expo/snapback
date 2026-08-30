@@ -3,6 +3,7 @@ import manifest from "../../../corpus/manifest.json";
 import {
   compareExpected,
   hydrateCase,
+  scopedRuleHash,
   sha256,
   type CorpusCase,
 } from "./evaluator";
@@ -35,6 +36,31 @@ assert(mismatch.planState === "replay-mismatch", "corrupted receipt did not trip
 assert(
   JSON.stringify(mismatch.servedResult) === JSON.stringify(original.expected.localResult),
   "replay mismatch did not serve the shipped result",
+);
+
+const hidden = cases.find((testCase) => testCase.name === "named-hidden-rule");
+assert(hidden !== undefined, "named-hidden-rule is absent from the corpus");
+const predecessor = JSON.parse(JSON.stringify(hidden)) as CorpusCase;
+predecessor.schema.tables.entitlements.rules.read = {
+  Eq: [{ Field: "userId" }, { Literal: { Id: "u2" } }],
+};
+const outerRule = predecessor.schema.tables.secretDocs.rules.read;
+const predecessorHash = scopedRuleHash(predecessor.schema, outerRule);
+for (const verdict of predecessor.receipt.verdicts) verdict.rule_hash = predecessorHash;
+const predecessorReplay = hydrateCase(predecessor);
+assert(predecessorReplay.planState === "ready", predecessorReplay.diagnostic ?? "predecessor replay");
+
+const successor = JSON.parse(JSON.stringify(predecessor)) as CorpusCase;
+successor.schema.tables.entitlements.rules.read = {
+  Eq: [{ Field: "userId" }, "Viewer"],
+};
+const successorHash = scopedRuleHash(successor.schema, successor.schema.tables.secretDocs.rules.read);
+assert(successorHash !== predecessorHash, "referenced read-policy replacement did not change the enclosing rule hash");
+const carriedVerdict = hydrateCase(successor);
+assert(carriedVerdict.planState === "replay-mismatch", "successor accepted a predecessor scoped verdict");
+assert(
+  carriedVerdict.actual.localResult === "Null",
+  "successor did not recompute after refusing the predecessor scoped verdict",
 );
 
 console.log(

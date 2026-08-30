@@ -42,8 +42,9 @@ Implementers and date: codex gpt-5.6-sol (xhigh), lanes B0/B1/B2/D,
    in `schema.ts`; a program is `export const list = query(…)` in `todos.ts`
    and is the op `todos.list`. There is no `name:` field anywhere.
 4. **Seed is data, not code.** `seed.ts` exports `{ personas: string[],
-   rows: Record<table, Row[]> }`; it is applied as one `seed` commit by the
-   system principal; `reset` re-applies it.
+   rows: Record<table, Row[]> }`; it is applied as one engine-owned `seed`
+   commit; `reset` re-applies it. Personas are prefix-minted, and no seed row
+   may carry the core-reserved system token in an `Id` or `Ref`.
 5. **`stop` lives inside `dev`** (`snapback2 dev --stop`) so the verb table
    stays at fifteen rows.
 6. **Personas never reach production.** The owner has a `mode` (`dev` |
@@ -99,7 +100,7 @@ minor units are only ever carried by a value already typed `Decimal<S>` (a
 column read, an arg, the wire). The wire carries the integer; the client's
 `decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
 `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`, `or(…)`, `not(r)`,
-`exists(table, index, key[], { hidden? })`, `principal(kind)`, `viewerIs(field)`
+`exists(table, index, key[])`, `system()`, `viewerIs(field)`
 (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`, `literal(v)`. Each
 lowers 1:1 to LLP 1001's `RuleExpr`/`RuleTerm`/`ColumnType`/`Constraint`/
 `Maintain`/`Channel`. Programs are unchanged from spike S2 except that tables
@@ -119,7 +120,9 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 ```
 
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
-(`todos.list`), `schema.effects` listing the effect names, and
+(`todos.list`) and `schema.effects` listing the effect names. The compiler's
+`rule.system()` lowering consumes the core-owned
+`snapback2-core/ir-contract.json` token rather than spelling a second copy.
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
 envelope. Diagnostics are collected per operation and per project up to a
 bound (20 per operation, 50 per project); when a bound truncates, the last
@@ -261,7 +264,11 @@ read-only in the receipt, never editable):
 4. `invalidation` — for every query and every seed mutation whose write sites
    intersect the query's read sites: subscribe, run the mutation as its seed
    persona, assert a delivery arrives with the new `seq`; for a mutation whose
-   write sites are disjoint, assert silence.
+   write sites are disjoint, assert silence. The revocation-while-live policy
+   probe intentionally uses `Runtime::subscribe` in-process: it deletes only
+   from a direct application-owned grant table, observes engine re-admission,
+   and keeps trying candidates when a deletion does not transition the query.
+   Separate wire tests own SSE framing and transport behavior.
 5. `replay` — every seed mutation, run twice against two forks of the seeded
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
 6. `effects` — every effect declaration has a runner able to run it, or the
@@ -368,7 +375,7 @@ Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 - **Evaluator per arm** (LLP 0329.018 F1): web and Expo host a JS runtime
   and run the 7.8 KB TypeScript twin; the Contract-native (Exact 2) arm hosts
   none and links `snapback2-core`'s interpreter — the same `ClientStore` the
-  corpus already proves byte-identical. Two implementations, assigned by
+  regenerated 76-case corpus proves conformant. Two implementations, assigned by
   runtime, never a third.
 - **Coverage is client-issuable; absence and authorization are not**
   (LLP 0329.021 P5): the twin never manufactures an absence or a verdict; a

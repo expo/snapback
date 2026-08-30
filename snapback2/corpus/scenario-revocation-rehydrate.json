@@ -443,8 +443,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": "Allow",
@@ -527,8 +526,7 @@
                 },
                 "Viewer"
               ],
-              "provenance": "Shape",
-              "input_visibility": "Readable"
+              "provenance": "Shape"
             }
           },
           "insert": {
@@ -551,8 +549,7 @@
                     },
                     "Viewer"
                   ],
-                  "provenance": "Shape",
-                  "input_visibility": "Readable"
+                  "provenance": "Shape"
                 }
               }
             ]
@@ -647,8 +644,7 @@
               "key": [
                 "Viewer"
               ],
-              "provenance": "Viewer",
-              "input_visibility": "Hidden"
+              "provenance": "Viewer"
             }
           },
           "insert": "Allow",
@@ -1108,7 +1104,8 @@
     },
     "now": null,
     "new_ids": [],
-    "read_time": null
+    "read_time": null,
+    "seed_write": false
   },
   "receipt": {
     "rows": [
@@ -1389,7 +1386,8 @@
         "new_ids": [
           "local-mention"
         ],
-        "read_time": null
+        "read_time": null,
+        "seed_write": false
       },
       "expectedState": "predicted"
     }
@@ -1397,21 +1395,16 @@
   "replacementReceipt": {
     "rows": [],
     "ranges": [],
-    "absences": [
-      [
-        "memberships",
-        "byConvUser",
-        [
-          {
-            "Id": "c1"
-          },
-          {
-            "Id": "u1"
-          }
-        ]
-      ]
-    ],
-    "verdicts": []
+    "absences": [],
+    "verdicts": [
+      {
+        "rule_hash": "dc561e10e601af93441d152d27d3a80d7dd2ebea25a2754780b38c0a4b233b6c",
+        "pinned_inputs_digest": "31bb485cf8429aaeb8999a48a9ba67890d1e6dbb9e59b41389ae94b28007609a",
+        "principal": "u1",
+        "auth_epoch": 1,
+        "result": false
+      }
+    ]
   },
   "expected": {
     "localResult": {

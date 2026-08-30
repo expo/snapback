@@ -23,14 +23,14 @@ fn map(entries: impl IntoIterator<Item = (&'static str, Value)>) -> BTreeMap<Str
 }
 
 fn query_context(entries: impl IntoIterator<Item = (&'static str, Value)>) -> Context {
-    Context::query("u1", map(entries))
+    Context::query(Actor::user("u1").unwrap(), map(entries))
 }
 
 fn mutation_context(
     entries: impl IntoIterator<Item = (&'static str, Value)>,
     new_ids: impl IntoIterator<Item = impl Into<String>>,
 ) -> Context {
-    let mut context = Context::mutation("u1", map(entries));
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), map(entries));
     context.new_ids = new_ids.into_iter().map(Into::into).collect::<VecDeque<_>>();
     context
 }
@@ -270,7 +270,7 @@ fn ten_thousand_messages_stay_below_certificate_and_membership_hoists() {
         .unwrap();
     assert!(message_site.hoist);
 
-    let mut engine = Engine::memory(schema).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
     seed_identity(&mut engine);
     seed_messages(&mut engine, 10_000);
     let execution = engine
@@ -285,9 +285,10 @@ fn ten_thousand_messages_stay_below_certificate_and_membership_hoists() {
         execution.trace.examined, certificate.max_examined, execution.trace.rule_probes
     );
     assert!(execution.trace.examined <= certificate.max_examined);
+    assert_eq!(certificate.max_rule_probes, 2);
     assert_eq!(
-        execution.trace.rule_probes, 1,
-        "membership probe is memoized and hoisted"
+        execution.trace.rule_probes, 2,
+        "outer membership lookup and its self-protected visibility lookup are both metered once"
     );
     let range = execution
         .trace
@@ -304,7 +305,7 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
     let schema = spike_schema();
     let program = hidden_rule_program();
     let certificate = checker(&schema).check(&program).unwrap();
-    let mut engine = Engine::memory(schema).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
     engine
         .seed("users", row([("id", id("u1")), ("handle", text("alice"))]))
         .unwrap();
@@ -339,7 +340,395 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
             .iter()
             .all(|range| range.table != "entitlements")
     );
-    assert!(execution.trace.rule_inputs.iter().any(|input| input.hidden));
+    let rule_hash = schema.rule_hash(&schema.tables["secretDocs"].rules.read);
+    assert!(
+        execution
+            .trace
+            .rule_inputs
+            .iter()
+            .any(|input| input.rule_hash == rule_hash && input.hidden)
+    );
+}
+
+#[test]
+fn readable_rule_input_is_derived_from_the_target_table_policy() {
+    let schema = spike_schema();
+    let program = thread_program(3);
+    let certificate = checker(&schema).check(&program).unwrap();
+    let mut engine = Engine::memory(schema.clone()).unwrap();
+    seed_identity(&mut engine);
+    seed_messages(&mut engine, 1);
+
+    let execution = engine
+        .execute(
+            &program,
+            &certificate,
+            query_context([("conversationId", id("c1"))]),
+        )
+        .unwrap();
+    let rule_hash = schema.rule_hash(&schema.tables["messages"].rules.read);
+    let input = execution
+        .trace
+        .rule_inputs
+        .iter()
+        .find(|input| input.rule_hash == rule_hash && !input.hidden)
+        .expect("message rule must probe memberships");
+    assert_eq!(input.table, "memberships");
+    assert!(
+        execution
+            .receipt
+            .rows
+            .iter()
+            .any(|row| { row.table == "memberships" && row.id == "m1" })
+    );
+}
+
+#[test]
+fn scoped_verdict_and_certificate_refuse_a_predecessor_policy() {
+    let mut predecessor = spike_schema();
+    predecessor
+        .tables
+        .get_mut("entitlements")
+        .unwrap()
+        .rules
+        .read = RuleExpr::Eq(
+        RuleTerm::Field("userId".to_owned()),
+        RuleTerm::Literal(id("u2")),
+    );
+    let program = hidden_rule_program();
+    let predecessor_certificate = checker(&predecessor).check(&program).unwrap();
+    let predecessor_rule_hash = predecessor.rule_hash(&predecessor.tables["secretDocs"].rules.read);
+    let mut engine = Engine::memory(predecessor.clone()).unwrap();
+    engine
+        .seed(
+            "entitlements",
+            row([("id", id("ent1")), ("userId", id("u1"))]),
+        )
+        .unwrap();
+    engine
+        .seed(
+            "secretDocs",
+            row([("id", id("doc1")), ("title", text("Private"))]),
+        )
+        .unwrap();
+    let served = engine
+        .execute(
+            &program,
+            &predecessor_certificate,
+            query_context([("id", id("doc1"))]),
+        )
+        .unwrap();
+    assert_eq!(served.receipt.verdicts.len(), 1);
+    assert_eq!(served.receipt.verdicts[0].rule_hash, predecessor_rule_hash);
+
+    let mut successor = predecessor.clone();
+    successor.tables.get_mut("entitlements").unwrap().rules.read =
+        RuleExpr::Eq(RuleTerm::Field("userId".to_owned()), RuleTerm::Viewer);
+    let successor_certificate = checker(&successor).check(&program).unwrap();
+    assert_ne!(predecessor.hash(), successor.hash());
+    assert_ne!(
+        predecessor_rule_hash,
+        successor.rule_hash(&successor.tables["secretDocs"].rules.read),
+        "an enclosing probe hash binds the referenced read policy"
+    );
+
+    let stale_error = Engine::memory(successor.clone())
+        .unwrap()
+        .execute(
+            &program,
+            &predecessor_certificate,
+            query_context([("id", id("doc1"))]),
+        )
+        .unwrap_err();
+    assert_eq!(stale_error.code(), "E_TRACE_SUBSET");
+
+    let mut client = ClientStore::hydrate(successor, &served.receipt).unwrap();
+    let (_, replayed) = client
+        .reexecute(
+            &program,
+            &successor_certificate,
+            query_context([("id", id("doc1"))]),
+        )
+        .unwrap();
+    assert_eq!(
+        replayed.result,
+        Value::Null,
+        "the successor evaluator must not accept the carried predecessor verdict"
+    );
+}
+
+#[test]
+fn visibility_probe_ceiling_covers_public_deny_system_subject_and_nested_rules() {
+    let cases = [
+        ("allow", RuleExpr::Allow, true, false, 1, 1),
+        ("deny", RuleExpr::Deny, true, true, 1, 1),
+        (
+            "system",
+            RuleExpr::Eq(
+                RuleTerm::Viewer,
+                RuleTerm::Literal(Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+            ),
+            true,
+            true,
+            1,
+            1,
+        ),
+        (
+            "subject-match",
+            RuleExpr::Eq(RuleTerm::Field("ownerId".to_owned()), RuleTerm::Viewer),
+            true,
+            false,
+            1,
+            1,
+        ),
+        (
+            "subject-miss",
+            RuleExpr::Eq(
+                RuleTerm::Field("ownerId".to_owned()),
+                RuleTerm::Literal(id("u2")),
+            ),
+            true,
+            true,
+            1,
+            1,
+        ),
+        (
+            "nested-self-exists",
+            RuleExpr::Exists {
+                table: "relationships".to_owned(),
+                index: "byDocViewer".to_owned(),
+                key: vec![RuleTerm::Field("documentId".to_owned()), RuleTerm::Viewer],
+                provenance: KeyProvenance::Shape,
+            },
+            true,
+            false,
+            2,
+            2,
+        ),
+        (
+            "and-two-exists",
+            RuleExpr::And(vec![
+                RuleExpr::Exists {
+                    table: "relationships".to_owned(),
+                    index: "byDocViewer".to_owned(),
+                    key: vec![RuleTerm::Field("documentId".to_owned()), RuleTerm::Viewer],
+                    provenance: KeyProvenance::Shape,
+                },
+                RuleExpr::Exists {
+                    table: "relationships".to_owned(),
+                    index: "byDocViewer".to_owned(),
+                    key: vec![
+                        RuleTerm::Field("documentId".to_owned()),
+                        RuleTerm::Literal(id("u2")),
+                    ],
+                    provenance: KeyProvenance::Shape,
+                },
+            ]),
+            true,
+            true,
+            3,
+            3,
+        ),
+        (
+            "or-short-circuit",
+            RuleExpr::Or(vec![
+                RuleExpr::Exists {
+                    table: "relationships".to_owned(),
+                    index: "byDocViewer".to_owned(),
+                    key: vec![RuleTerm::Field("documentId".to_owned()), RuleTerm::Viewer],
+                    provenance: KeyProvenance::Shape,
+                },
+                RuleExpr::Exists {
+                    table: "relationships".to_owned(),
+                    index: "byDocViewer".to_owned(),
+                    key: vec![
+                        RuleTerm::Field("documentId".to_owned()),
+                        RuleTerm::Literal(id("u2")),
+                    ],
+                    provenance: KeyProvenance::Shape,
+                },
+            ]),
+            true,
+            false,
+            3,
+            2,
+        ),
+        (
+            "public-absence",
+            RuleExpr::Public {
+                reason: "relationship absence is public".to_owned(),
+            },
+            false,
+            false,
+            1,
+            1,
+        ),
+        (
+            "subject-absence",
+            RuleExpr::Eq(RuleTerm::Field("ownerId".to_owned()), RuleTerm::Viewer),
+            false,
+            true,
+            1,
+            1,
+        ),
+    ];
+
+    for (name, relationship_read, seed_relationship, hidden, certificate_probes, runtime_probes) in
+        cases
+    {
+        let (certificate, execution) = visibility_probe_case(relationship_read, seed_relationship);
+        assert_eq!(
+            certificate.max_rule_probes, certificate_probes,
+            "{name} certificate"
+        );
+        assert_eq!(
+            execution.trace.rule_probes, runtime_probes,
+            "{name} runtime"
+        );
+        let outer = execution
+            .trace
+            .rule_inputs
+            .iter()
+            .rev()
+            .find(|input| input.table == "relationships")
+            .unwrap_or_else(|| panic!("{name} outer relationship probe"));
+        assert_eq!(outer.hidden, hidden, "{name} disclosure");
+        if name == "nested-self-exists" {
+            assert_eq!(
+                execution
+                    .trace
+                    .rule_inputs
+                    .iter()
+                    .filter(|input| input.table == "relationships")
+                    .count(),
+                2,
+                "the self-cycle terminates after the visibility-mode lookup"
+            );
+        }
+        if name == "public-absence" {
+            assert!(
+                execution
+                    .receipt
+                    .absences
+                    .iter()
+                    .any(|(table, _, _)| table == "relationships")
+            );
+        }
+        if name == "subject-absence" {
+            assert!(
+                execution
+                    .receipt
+                    .verdicts
+                    .iter()
+                    .any(|verdict| !verdict.result)
+            );
+        }
+    }
+}
+
+fn visibility_probe_case(
+    relationship_read: RuleExpr,
+    seed_relationship: bool,
+) -> (Certificate, Execution) {
+    let public = RuleExpr::Public {
+        reason: "fixture".to_owned(),
+    };
+    let documents = Table {
+        columns: BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+        indexes: BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+        rules: Rules {
+            read: RuleExpr::Exists {
+                table: "relationships".to_owned(),
+                index: "byDocViewer".to_owned(),
+                key: vec![RuleTerm::Field("id".to_owned()), RuleTerm::Viewer],
+                provenance: KeyProvenance::Shape,
+            },
+            insert: public.clone(),
+            update: public.clone(),
+            delete: public.clone(),
+        },
+        constraints: Vec::new(),
+    };
+    let relationships = Table {
+        columns: BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("documentId".to_owned(), ColumnType::Id),
+            ("viewerId".to_owned(), ColumnType::Id),
+            ("ownerId".to_owned(), ColumnType::Id),
+        ]),
+        indexes: BTreeMap::from([
+            (
+                "byId".to_owned(),
+                Index {
+                    columns: vec!["id".to_owned()],
+                    unique: true,
+                },
+            ),
+            (
+                "byDocViewer".to_owned(),
+                Index {
+                    columns: vec!["documentId".to_owned(), "viewerId".to_owned()],
+                    unique: true,
+                },
+            ),
+        ]),
+        rules: Rules {
+            read: relationship_read,
+            insert: public.clone(),
+            update: public.clone(),
+            delete: public,
+        },
+        constraints: Vec::new(),
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([
+            ("documents".to_owned(), documents),
+            ("relationships".to_owned(), relationships),
+        ]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let program = Program {
+        name: "documents.get".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("id".to_owned(), ArgType::Id)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Get(Read {
+            site: "documents.get".to_owned(),
+            table: "documents".to_owned(),
+            index: "byId".to_owned(),
+            key: vec![var("id")],
+            provenance: KeyProvenance::Arg,
+        }))],
+    };
+    let certificate = checker(&schema).check(&program).unwrap();
+    let mut engine = Engine::memory(schema).unwrap();
+    engine.seed("documents", row([("id", id("doc1"))])).unwrap();
+    if seed_relationship {
+        engine
+            .seed(
+                "relationships",
+                row([
+                    ("id", id("relationship1")),
+                    ("documentId", id("doc1")),
+                    ("viewerId", id("u1")),
+                    ("ownerId", id("u1")),
+                ]),
+            )
+            .unwrap();
+    }
+    let execution = engine
+        .execute(&program, &certificate, query_context([("id", id("doc1"))]))
+        .unwrap();
+    (certificate, execution)
 }
 
 #[test]

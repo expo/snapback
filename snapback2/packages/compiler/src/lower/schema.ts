@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { authoredTypeFromColumn } from "../authored-types";
 import { diagnostic } from "../diagnostics";
-import type { FrontendDiagnostic, SchemaJson, Value } from "../ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
 import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
@@ -289,8 +289,8 @@ function lowerRule(
   }
   if (name === "allow" && call.arguments.length === 0) return "Allow";
   if (name === "deny" && call.arguments.length === 0) return "Deny";
-  if (name === "principal" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
-    return { PrincipalKind: stringValue(call.arguments[0])! };
+  if (name === "system" && call.arguments.length === 0) {
+    return { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
   }
   if (name === "viewerIs" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };
@@ -312,7 +312,7 @@ function lowerRule(
     const value = lowerRule(module, call.arguments[0], tables, diagnostics);
     return value === undefined ? undefined : { Not: value };
   }
-  if (name === "exists" && call.arguments.length >= 3 && call.arguments.length <= 4) {
+  if (name === "exists" && call.arguments.length === 3) {
     const target = call.arguments[0];
     const tableName = target && ts.isIdentifier(unwrapExpression(target)) ? (unwrapExpression(target) as ts.Identifier).text : undefined;
     if (!tableName || !tables.has(tableName)) {
@@ -326,25 +326,12 @@ function lowerRule(
       return undefined;
     }
     const key = keyNode.elements.map((item) => lowerTerm(module, item, diagnostics)).filter((item) => item !== undefined);
-    const options = objectOf(call.arguments[3]);
-    if (call.arguments[3] && !options) {
-      diagnostics.push(ruleDiagnostic(module, call.arguments[3], "rule.exists options must be { hidden?: boolean }"));
-      return undefined;
-    }
-    if (options) validateKnownKeys(module, options, ["hidden"], "rule.exists options", "E_RULE_INVALID", diagnostics);
-    const hiddenNode = options && property(options, "hidden");
-    if (hiddenNode && booleanValue(hiddenNode) === undefined) {
-      diagnostics.push(ruleDiagnostic(module, hiddenNode, "rule.exists hidden must be boolean"));
-      return undefined;
-    }
-    const hidden = booleanValue(hiddenNode) ?? false;
     return {
       Exists: {
         table: tables.get(tableName)!.name,
         index,
         key,
         provenance: ruleProvenance(key),
-        input_visibility: hidden ? "Hidden" : "Readable",
       },
     };
   }

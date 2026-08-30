@@ -22,6 +22,15 @@ impl Schema {
         digest(self)
     }
 
+    pub fn rule_hash(&self, rule: &RuleExpr) -> String {
+        // @ref LLP 1001#7-channels-schemachannels — a scoped verdict binds
+        // the complete referenced policy graph, not a disclosure projection.
+        // Scoped verdicts are reusable authority. Bind them to the complete
+        // schema policy so a successor cannot carry a verdict across any
+        // referenced read-rule replacement, including cyclic rule graphs.
+        digest(&(self.hash(), rule))
+    }
+
     pub fn table(&self, name: &str) -> Option<&Table> {
         self.tables.get(name)
     }
@@ -119,18 +128,12 @@ pub enum RuleExpr {
         index: String,
         key: Vec<RuleTerm>,
         provenance: KeyProvenance,
-        input_visibility: RuleInputVisibility,
     },
-    PrincipalKind(String),
 }
 
 impl RuleExpr {
     pub fn is_public(&self) -> bool {
         matches!(self, Self::Public { .. })
-    }
-
-    pub fn hash(&self) -> String {
-        digest(self)
     }
 }
 
@@ -139,12 +142,6 @@ pub enum RuleTerm {
     Field(String),
     Viewer,
     Literal(Value),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RuleInputVisibility {
-    Readable,
-    Hidden,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
