@@ -18,9 +18,9 @@ await sub.until((delivery) => delivery.state === "live");
 sub.close();
 ```
 
-The generated `.snapback/build/api.d.ts` augments `api`, so operation arguments and
-results flow through `query`, `mutation`, and the React hooks without committed
-generated code.
+The generated `.snapback/build/api.d.ts` is the only source of `api` members, so
+operation and channel arguments flow through the headless client and React hooks
+without committed generated code. Typos and extra arguments are compile errors.
 
 ```tsx
 import { SnapbackProvider, useMutation, useQuery } from "snapback2/react";
@@ -30,7 +30,7 @@ function Messages() {
   const messages = useQuery(api.messages.thread, { conversationId: "general" });
   const send = useMutation(api.messages.send);
   if (messages.state === "hydrating") return <>Loading…</>;
-  return <button onClick={() => send.run({ conversationId: "general", recipientId: "bob", body: "Hi" })}>
+  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "general", recipientId: "bob", body: "Hi" })}>
     {messages.state}
   </button>;
 }
@@ -41,5 +41,11 @@ export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" as="alice
 ```
 
 Reads surface exactly eight states: `hydrating`, `live`, `stale`, `partial`,
-`denied`, `refused`, `capped`, and `complete`. Writes surface `committed`,
-`queued`, or `rejected`; a rejected mutation is a value, not an exception.
+`denied`, `refused`, `capped`, and `complete`. Transport status is a separate
+`connection: "connected" | "reconnecting" | "offline"` field; it never becomes a
+query state. `useQuery` subscribes by default; pass `{ live: false }` for a one-shot
+query, which remains `hydrating` and retries while its connection is reconnecting.
+
+`useMutation` returns `{ run, pending, last }`. `pending` covers the in-flight
+interval, and `last` is the most recent `committed` or `rejected` value. `queued`
+is reserved for the deferred offline outbox and is not a v1 mutation state.

@@ -1,7 +1,7 @@
 import type { Subscription } from "./types.js";
 
 interface ParsedEvent { id?: string; data: string }
-interface ErrorDecision<Event> { event?: Event; retry: boolean }
+interface ErrorDecision<Event> { event?: Event; failure?: Error; retry: boolean }
 export interface ReconnectingSseOptions<Event> {
   open(lastEventId: string | undefined, signal: AbortSignal): Promise<Response>;
   decode(event: ParsedEvent): Event;
@@ -92,6 +92,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
   private readonly waiters = new Set<Waiter<Event>>();
   private last: Event | undefined;
   private lastEventId: string | undefined;
+  private terminalFailure: Error | undefined;
   private closed = false;
 
   constructor(private readonly options: ReconnectingSseOptions<Event>) {
@@ -110,6 +111,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
   }
 
   until(predicate: (event: Event) => boolean, timeoutMs = 30_000): Promise<Event> {
+    if (this.terminalFailure) return Promise.reject(this.terminalFailure);
     if (this.last !== undefined && predicate(this.last)) return Promise.resolve(this.last);
     if (this.closed) return Promise.reject(abortError());
     return new Promise<Event>((resolve, reject) => {
@@ -126,13 +128,14 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     });
   }
 
-  private deliver(event: Event): void {
+  private deliver(event: Event, settleWaiters = true): void {
     this.last = event;
     try {
       this.options.onEvent?.(event);
     } catch {
       // A consumer callback must not tear down the transport.
     }
+    if (!settleWaiters) return;
     for (const waiter of [...this.waiters]) {
       let matches = false;
       try {
@@ -148,6 +151,15 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
       this.waiters.delete(waiter);
       waiter.resolve(event);
     }
+  }
+
+  private fail(error: Error): void {
+    this.terminalFailure = error;
+    for (const waiter of this.waiters) {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+    }
+    this.waiters.clear();
   }
 
   private async run(): Promise<void> {
@@ -168,7 +180,7 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           backoff = 250;
         }
         if (this.closed) return;
-        if (hadDelivery && !lossReported) {
+        if (!lossReported) {
           const loss = this.options.onLoss(this.last);
           if (loss !== undefined) this.deliver(loss);
           lossReported = true;
@@ -176,9 +188,10 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
       } catch (error) {
         if (this.closed || this.controller.signal.aborted) return;
         const decision = await this.options.onError(error, hadDelivery);
-        if (decision.event !== undefined) this.deliver(decision.event);
+        if (decision.event !== undefined) this.deliver(decision.event, decision.failure === undefined);
+        if (decision.failure !== undefined) this.fail(decision.failure);
         if (!decision.retry) return;
-        if (hadDelivery && !lossReported) {
+        if (!lossReported) {
           const loss = this.options.onLoss(this.last);
           if (loss !== undefined) this.deliver(loss);
           lossReported = true;

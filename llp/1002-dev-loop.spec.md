@@ -129,8 +129,20 @@ the client's `Api` interface with every op's arg and result types, inferred
 from the authored modules by the `typescript` checker:
 
 ```ts
-declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: number }, Todo[]>; add: Op<{ title: string }, { id: string }> } } }
+declare module 'snapback2/client' { interface Api {
+  todos: { list: Op<{ take?: number }, Todo[]>; add: Op<{ title: string }, { id: string }> }
+  channels: { typing: Channel<{ conversationId: string }, unknown> }
+  typing: Channel<{ conversationId: string }, unknown>
+} }
 ```
+
+The `channels` member catalogs every schema channel. Its references normalize
+the catalog's synthetic prefix before making the wire request, so
+`api.channels.typing` addresses the `typing` route. An unambiguous channel also
+gets the root shorthand `api.typing`; the compiler omits that shorthand when
+the name collides with an operation namespace or with the proxy's `channels`,
+`op`, `then`, or `toJSON` properties. Without this augmentation, `api` is `{}`
+— there is no string index signature or typo-permitting fallback.
 
 ## 4. The wire
 
@@ -164,6 +176,13 @@ which is the only error shape on every surface (HTTP, CLI `--json`, worker):
 Families (this wave): `bound`, `opaque`, `schema`, `rule`, `auth`, `args`,
 `op`, `successor`, `effect`, `input`, `owner`. A code without a family, a
 site (where one exists), and a `guide` slug is a bug.
+
+The client validates the state-specific shape of every HTTP body and SSE frame
+before exposing it. A missing or wrongly typed required field becomes
+`E_WIRE_SHAPE` in family `op`, with a message naming the surface and field.
+`query()` and `mutation()` throw every 4xx refusal envelope uniformly; only
+subscription surfaces convert a terminal transport refusal into a delivered
+`refused` state.
 
 Control routes (loopback only, `X-Snapback-Control: <secret>` from
 `owner.json`): `GET /control/status`, `POST /control/apply { project }`,
@@ -291,11 +310,25 @@ const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
 
-`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed by the
-`Api` augmentation in `.snapback/build/api.d.ts`. Eight states surface as the
-union `hydrating | live | stale | partial | denied | refused | capped |
-complete` on `useQuery`; `useMutation` returns `{ run, last }` with
-`committed | queued | rejected`.
+`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed only by the
+`Api` augmentation in `.snapback/build/api.d.ts`. `QueryView` is the
+discriminated union `hydrating {}` | `live { data, seq }` | `stale { data?,
+seq, since }` | `partial { data?, seq, reason }` | `denied { rule, seq }` |
+`refused { refusal }` | `capped { data, seq, take, site }` | `complete {
+data, seq }`; a reducer reuses its object only when the entire view is
+deep-equal. `useMutation` returns `{ run, pending, last }`: `pending` is true
+while one or more calls are in flight, and `last` is `committed | rejected`.
+`queued` is reserved for the deferred offline outbox and does not exist in v1.
+
+Transport is orthogonal to query state. `SnapbackProvider`, `useConnection`,
+`useQuery`, and `useSubscription` expose `connection: connected |
+reconnecting | offline` separately. A live stream loss keeps the last
+server-issued `(seq, data?)` receipt together and reports `stale(seq, since)`;
+a `refused` receipt replaces that pair and carries no earlier data. A non-live
+`useQuery(ref, args, { live: false })` stays `hydrating` across `E_NETWORK`,
+reports `reconnecting` (or `offline` when the platform does), and retries with
+backoff. Headless `query()` still throws `E_NETWORK` as a retryable
+`SnapbackRefusal`.
 
 Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 

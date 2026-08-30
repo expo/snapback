@@ -1,15 +1,16 @@
-import { api, type Api, type ApiProxy, type Op } from "./api.js";
+import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { ReconnectingSse } from "./sse.js";
 import type {
   AuthSession,
-  Channel,
+  AuthMe,
+  ChannelDelivery,
   ChannelEvent,
+  ChannelHandle,
   ChannelPublishResult,
   ClientSnapshot,
   CreateClientOptions,
   Manifest,
   MutationResult,
-  QueryRefused,
   QueryResult,
   RefusalEnvelope,
   RefusedDelivery,
@@ -19,17 +20,11 @@ import type {
 } from "./types.js";
 
 export { api };
-export type { Api, ApiProxy, Op };
+export type { Api, ApiProxy, ChannelRef as Channel, Op };
 export * from "./types.js";
 
 function fallbackRefusal(code: string, message: string): RefusalEnvelope {
   return { code, family: "owner", message, guide: "owner/connect" };
-}
-
-function isRefusal(value: unknown): value is RefusalEnvelope {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Record<string, unknown>;
-  return typeof item.code === "string" && typeof item.family === "string" && typeof item.message === "string";
 }
 
 export class SnapbackRefusal extends Error {
@@ -44,32 +39,226 @@ export class SnapbackRefusal extends Error {
   }
 }
 
+// @ref LLP 1002#4-the-wire — validate every state-specific body before exposing owner data to callers.
+function wireShape(message: string): SnapbackRefusal {
+  return new SnapbackRefusal({ code: "E_WIRE_SHAPE", family: "op", message, guide: "op/wire-shape" });
+}
+
+function wireObject(value: unknown, surface: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw wireShape(`${surface} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function has(record: Record<string, unknown>, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, field);
+}
+
+function present(record: Record<string, unknown>, field: string, surface: string): unknown {
+  if (!has(record, field)) throw wireShape(`${surface} is missing ${field}`);
+  return record[field];
+}
+
+function stringField(record: Record<string, unknown>, field: string, surface: string): string {
+  const value = present(record, field, surface);
+  if (typeof value !== "string" || value.length === 0) throw wireShape(`${surface}.${field} must be a non-empty string`);
+  return value;
+}
+
+function numberField(record: Record<string, unknown>, field: string, surface: string): number {
+  const value = present(record, field, surface);
+  if (typeof value !== "number" || !Number.isFinite(value)) throw wireShape(`${surface}.${field} must be a number`);
+  return value;
+}
+
+function optionalString(record: Record<string, unknown>, field: string, surface: string): string | undefined {
+  if (!has(record, field)) return undefined;
+  const value = record[field];
+  if (typeof value !== "string") throw wireShape(`${surface}.${field} must be a string`);
+  return value;
+}
+
+function optionalNumber(record: Record<string, unknown>, field: string, surface: string): number | undefined {
+  if (!has(record, field)) return undefined;
+  const value = record[field];
+  if (typeof value !== "number" || !Number.isFinite(value)) throw wireShape(`${surface}.${field} must be a number`);
+  return value;
+}
+
+function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
+  const record = wireObject(value, surface);
+  const envelope: RefusalEnvelope = {
+    code: stringField(record, "code", surface),
+    family: stringField(record, "family", surface),
+    message: stringField(record, "message", surface),
+  };
+  for (const field of ["site", "rule", "rewrite", "guide"] as const) {
+    const item = optionalString(record, field, surface);
+    if (item !== undefined) envelope[field] = item;
+  }
+  return envelope;
+}
+
+function wireQuery<Result>(value: unknown): QueryResult<Result> {
+  const surface = "query response";
+  const record = wireObject(value, surface);
+  switch (stringField(record, "state", surface)) {
+    case "complete":
+      return { state: "complete", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
+    case "capped":
+      return {
+        state: "capped",
+        data: present(record, "data", surface) as Result,
+        seq: numberField(record, "seq", surface),
+        take: numberField(record, "take", surface),
+        site: stringField(record, "site", surface),
+      };
+    case "partial": {
+      const partial = {
+        state: "partial" as const,
+        seq: numberField(record, "seq", surface),
+        reason: stringField(record, "reason", surface),
+      };
+      return has(record, "data") ? { ...partial, data: record.data as Result } : partial;
+    }
+    case "denied":
+      return { state: "denied", seq: numberField(record, "seq", surface), rule: stringField(record, "rule", surface) };
+    default:
+      throw wireShape(`${surface}.state must be complete, capped, partial, or denied`);
+  }
+}
+
+function wireMutation<Result>(value: unknown): MutationResult<Result> {
+  const surface = "mutation response";
+  const record = wireObject(value, surface);
+  switch (stringField(record, "state", surface)) {
+    case "committed":
+      return { state: "committed", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
+    case "rejected":
+      return { state: "rejected", ...wireRefusalEnvelope(record, "mutation rejected response") };
+    default:
+      throw wireShape(`${surface}.state must be committed or rejected`);
+  }
+}
+
+function wireSubscription<Result>(data: string): SubscriptionDelivery<Result> {
+  const surface = "subscription delivery";
+  const record = sseObject(data, surface);
+  switch (stringField(record, "state", surface)) {
+    case "live":
+      return { state: "live", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
+    case "partial": {
+      const partial = {
+        state: "partial" as const,
+        seq: numberField(record, "seq", surface),
+        reason: stringField(record, "reason", surface),
+      };
+      const take = optionalNumber(record, "take", surface);
+      const site = optionalString(record, "site", surface);
+      return {
+        ...partial,
+        ...(has(record, "data") ? { data: record.data as Result } : {}),
+        ...(take === undefined ? {} : { take }),
+        ...(site === undefined ? {} : { site }),
+      };
+    }
+    case "stale":
+      return {
+        state: "stale",
+        seq: numberField(record, "seq", surface),
+        since: numberField(record, "since", surface),
+        ...(has(record, "data") ? { data: record.data as Result } : {}),
+      };
+    case "refused": {
+      const refusal: RefusedDelivery = { state: "refused", code: stringField(record, "code", surface) };
+      for (const field of ["family", "message", "site", "rule", "rewrite", "guide"] as const) {
+        const item = optionalString(record, field, surface);
+        if (item !== undefined) refusal[field] = item;
+      }
+      const seq = optionalNumber(record, "seq", surface);
+      if (seq !== undefined) refusal.seq = seq;
+      return refusal;
+    }
+    default:
+      throw wireShape(`${surface}.state must be live, partial, stale, or refused`);
+  }
+}
+
+function wireChannelDelivery<Payload>(data: string): ChannelEvent<Payload> {
+  const surface = "channel delivery";
+  const record = sseObject(data, surface);
+  return {
+    from: stringField(record, "from", surface),
+    payload: present(record, "payload", surface) as Payload,
+    at: numberField(record, "at", surface),
+  };
+}
+
+function wireChannelPublish(value: unknown): ChannelPublishResult {
+  const surface = "channel publish response";
+  const record = wireObject(value, surface);
+  if (record.ok === true) return { ok: true };
+  if (record.state !== "refused") throw wireShape(`${surface} must contain ok: true or state: refused`);
+  const refusal: ChannelPublishResult = { state: "refused", code: stringField(record, "code", surface) };
+  for (const field of ["family", "message", "site", "rule", "rewrite", "guide"] as const) {
+    const item = optionalString(record, field, surface);
+    if (item !== undefined) refusal[field] = item;
+  }
+  return refusal;
+}
+
+function wireAuthSession(value: unknown, surface: string): AuthSession {
+  const record = wireObject(value, surface);
+  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) };
+}
+
+function wireAuthMe(value: unknown): AuthMe {
+  const surface = "auth me response";
+  const record = wireObject(value, surface);
+  return { viewer: stringField(record, "viewer", surface), kind: stringField(record, "kind", surface) };
+}
+
+function wireLogout(value: unknown): { ok: boolean } {
+  const surface = "auth logout response";
+  const record = wireObject(value, surface);
+  if (typeof present(record, "ok", surface) !== "boolean") throw wireShape(`${surface}.ok must be a boolean`);
+  return { ok: record.ok as boolean };
+}
+
+function wireManifest(value: unknown): Manifest {
+  const surface = "manifest response";
+  const record = wireObject(value, surface);
+  const ops = wireObject(present(record, "ops", surface), `${surface}.ops`);
+  for (const [name, operation] of Object.entries(ops)) {
+    const item = wireObject(operation, `${surface}.ops.${name}`);
+    stringField(item, "kind", `${surface}.ops.${name}`);
+    present(item, "args", `${surface}.ops.${name}`);
+  }
+  return {
+    generation: numberField(record, "generation", surface),
+    ops: ops as unknown as Manifest["ops"],
+    channels: wireObject(present(record, "channels", surface), `${surface}.channels`),
+    auth: wireObject(present(record, "auth", surface), `${surface}.auth`),
+  };
+}
+
 async function responseRefusal(response: Response): Promise<SnapbackRefusal> {
   let value: unknown;
   try {
     value = await response.json();
   } catch {
-    value = undefined;
+    throw wireShape(`HTTP ${response.status} refusal must contain valid JSON`);
   }
-  const envelope = isRefusal(value)
-    ? value
-    : fallbackRefusal("E_HTTP", `Snapback owner returned HTTP ${response.status}`);
-  return new SnapbackRefusal(envelope);
-}
-
-function assertObject(value: unknown, surface: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_JSON", `${surface} returned a non-object JSON body`));
-  }
-  return value as Record<string, unknown>;
+  return new SnapbackRefusal(wireRefusalEnvelope(value, `HTTP ${response.status} refusal`));
 }
 
 function sseObject(data: string, surface: string): Record<string, unknown> {
   try {
-    return assertObject(JSON.parse(data), surface);
+    return wireObject(JSON.parse(data), surface);
   } catch (error) {
     if (error instanceof SnapbackRefusal) throw error;
-    throw new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_SSE", `${surface} returned invalid JSON`));
+    throw wireShape(`${surface} must contain valid JSON`);
   }
 }
 
@@ -96,18 +285,18 @@ class Client implements SnapbackClient {
     this.currentSnapshot = {
       token: options.token,
       persona: options.as,
-      connection: "connecting",
+      connection: "reconnecting",
     };
     this.auth = {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
       guest: () => this.session("/api/auth/guest", {}),
       logout: async () => {
-        const result = await this.json("/api/auth/logout", { method: "POST" }) as { ok: boolean };
+        const result = wireLogout(await this.json("/api/auth/logout", { method: "POST" }));
         await this.setToken(undefined);
         return result;
       },
-      me: () => this.json("/api/auth/me") as Promise<{ viewer: string; kind: string }>,
+      me: async () => wireAuthMe(await this.json("/api/auth/me")),
     };
   }
 
@@ -116,32 +305,17 @@ class Client implements SnapbackClient {
   }
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
-    try {
-      const value = assertObject(await this.json("/api/query", {
-        method: "POST",
-        body: JSON.stringify({ op: ref.op, args }),
-      }), "query");
-      if (!["complete", "capped", "partial", "denied"].includes(String(value.state))) {
-        throw new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_STATE", `query returned state ${String(value.state)}`));
-      }
-      return value as QueryResult<Result>;
-    } catch (error) {
-      if (error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV") {
-        return { state: "refused", ...error.envelope } as QueryRefused;
-      }
-      throw error;
-    }
+    return wireQuery<Result>(await this.json("/api/query", {
+      method: "POST",
+      body: JSON.stringify({ op: referenceName(ref), args }),
+    }));
   }
 
   async mutation<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<MutationResult<Result>> {
-    const value = assertObject(await this.json("/api/mutation", {
+    return wireMutation<Result>(await this.json("/api/mutation", {
       method: "POST",
-      body: JSON.stringify({ op: ref.op, args }),
-    }), "mutation");
-    if (value.state !== "committed" && value.state !== "rejected") {
-      throw new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_STATE", `mutation returned state ${String(value.state)}`));
-    }
-    return value as MutationResult<Result>;
+      body: JSON.stringify({ op: referenceName(ref), args }),
+    }));
   }
 
   subscribe<Args, Result>(
@@ -149,20 +323,19 @@ class Client implements SnapbackClient {
     args: Args,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
   ): Subscription<SubscriptionDelivery<Result>> {
-    const path = `/api/subscribe?op=${encodeURIComponent(ref.op)}&args=${encodeURIComponent(JSON.stringify(args))}`;
-    let lastData: Result | undefined;
-    let lastSeq: number | undefined;
+    const path = `/api/subscribe?op=${encodeURIComponent(referenceName(ref))}&args=${encodeURIComponent(JSON.stringify(args))}`;
+    let lastPair: { seq: number; data?: Result } | undefined;
     const subscription = new ReconnectingSse<SubscriptionDelivery<Result>>({
       open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
       decode: ({ data }) => {
-        const value = sseObject(data, "subscription delivery") as SubscriptionDelivery<Result>;
-        if (!["live", "stale", "refused", "partial"].includes(value.state)) {
-          throw new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_STATE", `subscription returned state ${String(value.state)}`));
+        const value = wireSubscription<Result>(data);
+        if (value.state === "refused") {
+          lastPair = value.seq === undefined ? undefined : { seq: value.seq };
+        } else {
+          lastPair = "data" in value ? { seq: value.seq, data: value.data } : { seq: value.seq };
         }
-        if ("data" in value && value.data !== undefined) lastData = value.data;
-        if (value.seq !== undefined) lastSeq = value.seq;
         this.patchSnapshot({
-          connection: value.state === "refused" ? "refused" : value.state === "stale" ? "stale" : "live",
+          connection: "connected",
           lastRefusal: value.state === "refused"
             ? {
                 code: value.code,
@@ -177,42 +350,43 @@ class Client implements SnapbackClient {
         });
         return value;
       },
-      onError: (error) => this.subscriptionError(error),
+      onError: (error) => {
+        const { retry, event } = this.subscriptionError(error);
+        return { retry, event };
+      },
       onLoss: () => {
-        this.patchSnapshot({ connection: "stale" });
-        return { state: "stale", since: Date.now(), data: lastData, seq: lastSeq };
+        this.patchSnapshot({ connection: this.transportFailureState() });
+        if (!lastPair) return undefined;
+        return "data" in lastPair
+          ? { state: "stale", since: Date.now(), seq: lastPair.seq, data: lastPair.data }
+          : { state: "stale", since: Date.now(), seq: lastPair.seq };
       },
       onEvent: callback,
     });
     return this.track(subscription);
   }
 
-  channel<Payload = unknown>(ref: { op: string }, args: unknown): Channel<Payload> {
-    const name = encodeURIComponent(ref.op);
+  channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: Args): ChannelHandle<Payload> {
+    const path = referenceName(ref);
+    const name = encodeURIComponent(path.startsWith("channels.") ? path.slice("channels.".length) : path);
     return {
-      publish: async (payload: Payload) => {
-        try {
-          return await this.json(`/api/channel/${name}/publish`, {
-            method: "POST",
-            body: JSON.stringify({ args, payload }),
-          }) as ChannelPublishResult;
-        } catch (error) {
-          if (error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV") {
-            return { state: "refused", ...error.envelope };
-          }
-          throw error;
-        }
-      },
-      subscribe: (callback: (event: ChannelEvent<Payload>) => void) => {
+      publish: async (payload: Payload) => wireChannelPublish(await this.json(`/api/channel/${name}/publish`, {
+        method: "POST",
+        body: JSON.stringify({ args, payload }),
+      })),
+      subscribe: (callback: (event: ChannelDelivery<Payload>) => void) => {
         const path = `/api/channel/${name}/subscribe?args=${encodeURIComponent(JSON.stringify(args))}`;
-        const subscription = new ReconnectingSse<ChannelEvent<Payload>>({
+        const subscription = new ReconnectingSse<ChannelDelivery<Payload>>({
           open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
-          decode: ({ data }) => sseObject(data, "channel delivery") as unknown as ChannelEvent<Payload>,
-          onError: async (error) => {
-            const decision = await this.subscriptionError(error);
-            return { retry: decision.retry };
+          decode: ({ data }) => wireChannelDelivery<Payload>(data),
+          onError: (error) => {
+            const decision = this.subscriptionError(error);
+            return { retry: decision.retry, event: decision.event, failure: decision.refusal };
           },
-          onLoss: () => undefined,
+          onLoss: () => {
+            this.patchSnapshot({ connection: this.transportFailureState() });
+            return undefined;
+          },
           onEvent: callback,
         });
         return this.track(subscription);
@@ -221,7 +395,7 @@ class Client implements SnapbackClient {
   }
 
   async manifest(): Promise<Manifest> {
-    const value = assertObject(await this.json("/api/manifest"), "manifest") as unknown as Manifest;
+    const value = wireManifest(await this.json("/api/manifest"));
     this.patchSnapshot({ generation: value.generation });
     return value;
   }
@@ -237,7 +411,7 @@ class Client implements SnapbackClient {
     this.closed = true;
     for (const subscription of this.subscriptions) subscription.close();
     this.subscriptions.clear();
-    this.patchSnapshot({ connection: "closed" });
+    this.patchSnapshot({ connection: "offline" });
   }
 
   private track<Event>(subscription: Subscription<Event>): Subscription<Event> {
@@ -251,7 +425,10 @@ class Client implements SnapbackClient {
   }
 
   private async session(path: string, input: unknown): Promise<AuthSession> {
-    const session = await this.json(path, { method: "POST", body: JSON.stringify(input) }) as AuthSession;
+    const session = wireAuthSession(
+      await this.json(path, { method: "POST", body: JSON.stringify(input) }),
+      `${path.slice("/api/".length)} response`,
+    );
     await this.setToken(session.token);
     return session;
   }
@@ -280,18 +457,24 @@ class Client implements SnapbackClient {
         fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
         true,
       );
-      this.recordRefusal(refusal.envelope);
+      this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
+    this.patchSnapshot({ connection: "connected" });
     if (!response.ok) {
-      const refusal = await responseRefusal(response);
+      let refusal: SnapbackRefusal;
+      try {
+        refusal = await responseRefusal(response);
+      } catch (error) {
+        refusal = error instanceof SnapbackRefusal ? error : wireShape(`${path} returned a malformed refusal`);
+      }
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
     try {
       return await response.json();
     } catch {
-      const refusal = new SnapbackRefusal(fallbackRefusal("E_PROTOCOL_JSON", `${path} returned invalid JSON`));
+      const refusal = wireShape(`${path} must contain valid JSON`);
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
@@ -302,7 +485,14 @@ class Client implements SnapbackClient {
     if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
     try {
       const response = await this.fetchImpl(`${this.url}${path}`, { headers, signal });
-      if (!response.ok) throw await responseRefusal(response);
+      this.patchSnapshot({ connection: "connected" });
+      if (!response.ok) {
+        try {
+          throw await responseRefusal(response);
+        } catch (error) {
+          throw error instanceof SnapbackRefusal ? error : wireShape(`${path} returned a malformed refusal`);
+        }
+      }
       return response;
     } catch (error) {
       if (error instanceof SnapbackRefusal) {
@@ -314,33 +504,41 @@ class Client implements SnapbackClient {
         fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
         true,
       );
-      this.recordRefusal(refusal.envelope);
+      this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
   }
 
-  private subscriptionError(error: unknown): { event?: RefusedDelivery; retry: boolean } {
+  private subscriptionError(error: unknown): { event?: RefusedDelivery; retry: boolean; refusal?: SnapbackRefusal } {
     const refusal = error instanceof SnapbackRefusal
       ? error
       : new SnapbackRefusal(
           fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
           true,
         );
-    this.recordRefusal(refusal.envelope);
-    if (refusal.retryable) return { retry: true };
-    this.patchSnapshot({ connection: "refused", lastRefusal: refusal.envelope });
-    return { retry: false, event: { state: "refused", ...refusal.envelope } };
+    if (refusal.retryable) {
+      this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
+      return { retry: true };
+    }
+    this.patchSnapshot({ connection: "connected", lastRefusal: refusal.envelope });
+    return { retry: false, refusal, event: { state: "refused", ...refusal.envelope } };
   }
 
   private recordRefusal(envelope: RefusalEnvelope): void {
     this.patchSnapshot({ lastRefusal: envelope });
   }
 
-  private patchSnapshot(patch: Partial<ClientSnapshot>): void {
+  private transportFailureState(): "reconnecting" | "offline" {
+    return typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "reconnecting";
+  }
+
+  private patchSnapshot(patch: Partial<ClientSnapshot>): ClientSnapshot {
     const next = { ...this.currentSnapshot, ...patch };
     if (patch.token === undefined && "token" in patch) delete next.token;
+    if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
     this.currentSnapshot = next;
     for (const listener of this.statusListeners) listener(next);
+    return next;
   }
 }
 

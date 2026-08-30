@@ -9,16 +9,18 @@ import React, {
   type ReactNode,
 } from "react";
 import { createClient, SnapbackRefusal } from "./client.js";
-import type { Op } from "./api.js";
+import { referenceName, type Channel as ChannelRef, type Op } from "./api.js";
 import {
   initialQueryState,
   reduceQueryState,
   stableSerialize,
   type AuthMe,
   type AuthSession,
-  type Channel,
+  type ChannelHandle,
   type ClientSnapshot,
-  type MutationView,
+  type ConnectionState,
+  type MutationResult,
+  type QueryHookResult,
   type QueryMachineEvent,
   type QueryView,
   type RefusalEnvelope,
@@ -39,12 +41,13 @@ export interface SnapbackProviderProps {
   url: string;
   as?: string;
   token?: string;
+  fetch?: typeof globalThis.fetch;
   children: ReactNode;
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
-export function SnapbackProvider({ url, as, token, children }: SnapbackProviderProps): React.ReactElement {
-  const client = useMemo(() => createClient({ url, as, token }), [url, as, token]);
+export function SnapbackProvider({ url, as, token, fetch, children }: SnapbackProviderProps): React.ReactElement {
+  const client = useMemo(() => createClient({ url, as, token, fetch }), [url, as, token, fetch]);
   const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);
 
   useEffect(() => {
@@ -65,12 +68,20 @@ function provider(): ProviderValue {
   return value;
 }
 
+export function useConnection(): ConnectionState {
+  return provider().snapshot.connection;
+}
+
+/**
+ * Reads a receipt-backed query. It subscribes by default; pass `{ live: false }`
+ * for a one-shot read. Transport status is returned separately as `connection`.
+ */
 export function useQuery<Args, Result>(
   ref: Op<Args, Result>,
-  args: Args,
-  options: { live?: boolean } = {},
-): QueryView<Result> {
-  const { client } = provider();
+  args: NoInfer<Args>,
+  options: { live?: false } = {},
+): QueryHookResult<Result> {
+  const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
   const stableArgs = useMemo(() => args, [argsKey]);
   const [state, dispatch] = useReducer(
@@ -79,7 +90,7 @@ export function useQuery<Args, Result>(
     undefined,
     initialQueryState<Result>,
   );
-  const live = options.live ?? true;
+  const live = options.live !== false;
 
   useEffect(() => {
     let active = true;
@@ -93,37 +104,66 @@ export function useQuery<Args, Result>(
         subscription.close();
       };
     }
-    void client.query(ref, stableArgs).then((result) => {
-      if (active) dispatch(result);
-    }).catch((error) => {
-      if (!active) return;
-      const envelope = error instanceof SnapbackRefusal
-        ? error.envelope
-        : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
-      dispatch({ state: "refused", ...envelope });
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    void (async () => {
+      let backoff = 250;
+      while (active) {
+        try {
+          const result = await client.query(ref, stableArgs);
+          if (active) dispatch(result);
+          return;
+        } catch (error) {
+          if (!active) return;
+          if (error instanceof SnapbackRefusal && error.code === "E_NETWORK") {
+            await new Promise<void>((resolve) => { timer = setTimeout(resolve, backoff); });
+            backoff = Math.min(backoff * 2, 5_000);
+            continue;
+          }
+          const envelope = error instanceof SnapbackRefusal
+            ? error.envelope
+            : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
+          dispatch({ state: "refused", ...envelope });
+          return;
+        }
+      }
+    })();
     return () => {
       active = false;
+      if (timer !== undefined) clearTimeout(timer);
     };
-  }, [client, ref.op, argsKey, live, stableArgs]);
+  }, [client, referenceName(ref), argsKey, live, stableArgs]);
 
-  return state;
+  return useMemo(() => ({ ...state, connection: snapshot.connection }), [state, snapshot.connection]);
+}
+
+export function useSubscription<Args, Result>(
+  ref: Op<Args, Result>,
+  args: NoInfer<Args>,
+): QueryHookResult<Result> {
+  return useQuery(ref, args);
 }
 
 export interface UseMutationResult<Args, Result> {
-  run(args: Args): Promise<MutationView<Result>>;
-  last: MutationView<Result> | undefined;
+  run(args: Args): Promise<MutationResult<Result>>;
+  pending: boolean;
+  last: MutationResult<Result> | undefined;
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
   const { client } = provider();
-  const [last, setLast] = useState<MutationView<Result>>();
+  const [last, setLast] = useState<MutationResult<Result>>();
+  const [pendingCount, setPendingCount] = useState(0);
   const run = useCallback(async (args: Args) => {
-    const result = await client.mutation(ref, args);
-    setLast(result);
-    return result;
-  }, [client, ref.op]);
-  return useMemo(() => ({ run, last }), [run, last]);
+    setPendingCount((value) => value + 1);
+    try {
+      const result = await client.mutation(ref, args);
+      setLast(result);
+      return result;
+    } finally {
+      setPendingCount((value) => value - 1);
+    }
+  }, [client, referenceName(ref)]);
+  return useMemo(() => ({ run, pending: pendingCount > 0, last }), [run, pendingCount, last]);
 }
 
 export type AuthHookState = "hydrating" | "authenticated" | "anonymous" | "refused";
@@ -187,10 +227,10 @@ export function useAuth(): UseAuthResult {
   };
 }
 
-export function useChannel<Payload = unknown>(ref: { op: string }, args: unknown): Channel<Payload> {
+export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload> {
   const { client } = provider();
   const argsKey = stableSerialize(args);
-  return useMemo(() => client.channel<Payload>(ref, args), [client, ref.op, argsKey]);
+  return useMemo(() => client.channel<Args, Payload>(ref, args), [client, referenceName(ref), argsKey]);
 }
 
 export function DevOverlay(): React.ReactElement {

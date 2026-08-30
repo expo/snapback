@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { once } from "node:events";
 import { test, before, after } from "node:test";
+import React from "react";
+import TestRenderer, { act } from "react-test-renderer";
 import {
   SnapbackRefusal,
   api,
@@ -9,7 +11,15 @@ import {
   stableSerialize,
   type SnapbackClient,
 } from "../dist/client.mjs";
-import { initialQueryState, reduceQueryState } from "../dist/react.mjs";
+import {
+  SnapbackProvider,
+  initialQueryState,
+  reduceQueryState,
+  useMutation,
+  useQuery,
+} from "../dist/react.mjs";
+
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Session = { viewer: string; kind: string };
 type QueryStream = { response: ServerResponse; op: string; args: unknown };
@@ -34,6 +44,32 @@ function json(response: ServerResponse, status: number, value: unknown): void {
     "Content-Type": "application/json",
   });
   response.end(JSON.stringify(value));
+}
+
+function fetchJson(value: unknown, status = 200): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function fetchSse(...values: unknown[]): Response {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream({
+    start(controller) {
+      for (const [index, value] of values.entries()) {
+        controller.enqueue(encoder.encode(`id: ${index + 1}\ndata: ${JSON.stringify(value)}\n\n`));
+      }
+      controller.close();
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+function isWireShape(error: unknown, missing: string): boolean {
+  return error instanceof SnapbackRefusal
+    && error.code === "E_WIRE_SHAPE"
+    && error.envelope.family === "op"
+    && error.message.includes(missing);
 }
 
 function channelKey(name: string, args: unknown): string {
@@ -290,7 +326,27 @@ after(async () => {
 
 test("api proxy produces inert qualified operation references", () => {
   assert.equal(api.messages.thread.op, "messages.thread");
+  assert.equal(api.channels.typing.op, "channels.typing");
+  assert.equal(api.channels.op.op, "channels.op");
+  assert.equal(api.channels.then.op, "channels.then");
+  assert.equal(api.channels.toJSON.op, "channels.toJSON");
   assert.deepEqual(JSON.parse(JSON.stringify(api.messages.thread)), { op: "messages.thread" });
+});
+
+test("api proxy preserves operations named like proxy metadata", async () => {
+  const seen: string[] = [];
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async (_input, init) => {
+      seen.push(JSON.parse(String(init?.body)).op);
+      return fetchJson({ state: "complete", seq: seen.length, data: true });
+    },
+  });
+  for (const ref of [api.messages.op, api.messages.then, api.messages.toJSON, api.op.list, api.then.list, api.toJSON.list]) {
+    assert.equal((await value.query(ref, {})).state, "complete");
+  }
+  assert.deepEqual(seen, ["messages.op", "messages.then", "messages.toJSON", "op.list", "then.list", "toJSON.list"]);
+  value.close();
 });
 
 test("guest, signup, login, logout, me, token memory, and persistence", async () => {
@@ -339,6 +395,119 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
   await assert.rejects(() => offline.query(api.states.complete, {}), (error: unknown) =>
     error instanceof SnapbackRefusal && error.envelope.code === "E_NETWORK");
   offline.close();
+});
+
+test("every HTTP wire state validates its state-specific required fields", async () => {
+  const queryCases = [
+    [{ state: "complete", seq: 1 }, "data"],
+    [{ state: "capped", data: [], seq: 1, take: 1 }, "site"],
+    [{ state: "partial", seq: 1 }, "reason"],
+    [{ state: "denied", seq: 1 }, "rule"],
+  ] as const;
+  for (const [wire, missing] of queryCases) {
+    const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
+    await assert.rejects(() => value.query(api.states.complete, {}), (error: unknown) => isWireShape(error, missing));
+    value.close();
+  }
+
+  const mutationCases = [
+    [{ state: "committed", seq: 1 }, "data"],
+    [{ state: "rejected", family: "op", message: "no" }, "code"],
+  ] as const;
+  for (const [wire, missing] of mutationCases) {
+    const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
+    await assert.rejects(() => value.mutation(api.messages.send, {}), (error: unknown) => isWireShape(error, missing));
+    value.close();
+  }
+
+  const malformed4xx = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ family: "op", message: "missing code" }, 400),
+  });
+  await assert.rejects(
+    () => malformed4xx.query(api.states.complete, {}),
+    (error: unknown) => isWireShape(error, "code"),
+  );
+  malformed4xx.close();
+
+  const authCases: Array<[(value: SnapbackClient) => Promise<unknown>, unknown, string]> = [
+    [(value) => value.auth.guest(), { token: "token" }, "viewer"],
+    [(value) => value.auth.logout(), {}, "ok"],
+    [(value) => value.auth.me(), { viewer: "viewer" }, "kind"],
+  ];
+  for (const [run, wire, missing] of authCases) {
+    const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
+    await assert.rejects(() => run(value), (error: unknown) => isWireShape(error, missing));
+    value.close();
+  }
+
+  const manifest = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ generation: 1, ops: {}, auth: {} }),
+  });
+  await assert.rejects(() => manifest.manifest(), (error: unknown) => isWireShape(error, "channels"));
+  manifest.close();
+
+  const publishing = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ state: "refused" }),
+  });
+  await assert.rejects(
+    () => publishing.channel(api.typing, {}).publish({ typing: true }),
+    (error: unknown) => isWireShape(error, "code"),
+  );
+  publishing.close();
+});
+
+test("a no-op snapshot patch preserves object identity and does not notify", async () => {
+  const value = client();
+  await value.manifest();
+  const snapshot = value.snapshot;
+  let notifications = 0;
+  const unsubscribe = value.subscribeStatus(() => { notifications += 1; });
+  await value.manifest();
+  assert.strictEqual(value.snapshot, snapshot);
+  assert.equal(notifications, 1, "subscribeStatus should only make its initial delivery");
+  unsubscribe();
+});
+
+test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (context) => {
+  const queryCases = [
+    [{ state: "live", seq: 1 }, "data"],
+    [{ state: "partial", seq: 2 }, "reason"],
+    [{ state: "stale", seq: 3 }, "since"],
+    [{ state: "refused", seq: 4 }, "code"],
+  ] as const;
+  for (const [wire, missing] of queryCases) {
+    const queryClient = createClient({
+      url: "http://wire.test",
+      fetch: async () => fetchSse(wire),
+    });
+    const querySub = queryClient.subscribe(api.messages.thread, {}, () => undefined);
+    context.after(() => { querySub.close(); queryClient.close(); });
+    const refused = await querySub.until((delivery) => delivery.state === "refused", 500);
+    assert.equal(refused.code, "E_WIRE_SHAPE");
+    assert.equal(refused.family, "op");
+    assert.match(refused.message ?? "", new RegExp(missing));
+    querySub.close();
+    queryClient.close();
+  }
+
+  let channelDelivery: any;
+  const channelClient = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchSse({ from: "alice", at: 1 }),
+  });
+  const channelSub = channelClient.channel(api.typing, {}).subscribe((event) => { channelDelivery = event; });
+  context.after(() => { channelSub.close(); channelClient.close(); });
+  await assert.rejects(
+    () => channelSub.until(() => false, 500),
+    (error: unknown) => isWireShape(error, "payload"),
+  );
+  assert.equal(channelDelivery.state, "refused");
+  assert.equal(channelDelivery.code, "E_WIRE_SHAPE");
+  channelSub.close();
+  channelClient.close();
 });
 
 test("mutation returns committed and rejected without throwing rejected", async () => {
@@ -403,13 +572,35 @@ test("subscription reconnect reports stale, resumes with Last-Event-ID, then rep
   sub.close();
 });
 
+test("subscription loss never combines data and seq from different deliveries", async (context) => {
+  const rows = [{ id: "message-1" }];
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchSse(
+      { state: "live", seq: 3, data: rows },
+      { state: "refused", seq: 4, code: "E_AUTH_REQUIRED", family: "auth", message: "login" },
+    ),
+  });
+  const deliveries: any[] = [];
+  const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+  context.after(() => { sub.close(); value.close(); });
+  const stale = await sub.until((delivery) => delivery.state === "stale", 500);
+  assert.equal(stale.seq, 4);
+  assert.equal("data" in stale, false);
+  assert.equal(typeof stale.since, "number");
+  assert.equal(deliveries[0]?.seq, 3);
+  assert.equal(deliveries[1]?.state, "refused");
+  sub.close();
+  value.close();
+});
+
 test("channel publish and subscribe carry ephemeral payloads", async () => {
   const reader = client(externalUrl ? { as: "alice" } : {});
   const writer = client(externalUrl ? { as: "bob" } : {});
   if (!externalUrl) await Promise.all([reader.auth.guest(), writer.auth.guest()]);
   const args = { conversationId: externalUrl ? "conversation-1" : "general" };
-  const receiving = reader.channel<{ typing: boolean }>(api.typing, args);
-  const publishing = writer.channel<{ typing: boolean }>(api.typing, args);
+  const receiving = reader.channel<typeof args, { typing: boolean }>(api.typing, args);
+  const publishing = writer.channel<typeof args, { typing: boolean }>(api.channels.typing, args);
   const sub = receiving.subscribe(() => undefined);
   await new Promise((resolve) => setTimeout(resolve, 25));
   const next = sub.until((event) => event.payload.typing === true, 2_000);
@@ -420,37 +611,196 @@ test("channel publish and subscribe carry ephemeral payloads", async () => {
   sub.close();
 });
 
-test("serve mode turns X-Snapback-As into a refused state", async () => {
+test("terminal channel refusals reach callbacks and reject until immediately", async () => {
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson(refusal("E_AUTH_REQUIRED", "a session is required"), 401),
+  });
+  let delivered: any;
+  const sub = value.channel(api.typing, { conversationId: "general" }).subscribe((event) => { delivered = event; });
+  const started = Date.now();
+  await assert.rejects(
+    () => sub.until(() => false, 2_000),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED",
+  );
+  assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
+  assert.equal(delivered.state, "refused");
+  assert.equal(delivered.code, "E_AUTH_REQUIRED");
+  sub.close();
+  value.close();
+});
+
+test("query and mutation throw every 4xx refusal while subscriptions deliver refused", async () => {
   const serve = new MockOwner("serve");
   await serve.start();
   const value = createClient({ url: serve.url, as: "alice" });
-  const result = await value.query(api.messages.thread, { conversationId: "general" });
-  assert.equal(result.state, "refused");
-  if (result.state === "refused") assert.equal(result.code, "E_AUTH_PERSONA_NOT_DEV");
+  await assert.rejects(
+    () => value.query(api.messages.thread, { conversationId: "general" }),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+  );
+  await assert.rejects(
+    () => value.mutation(api.messages.send, { conversationId: "general", body: "hello" }),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+  );
+  const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, () => undefined);
+  const refused = await sub.until((delivery) => delivery.state === "refused", 500);
+  assert.equal(refused.code, "E_AUTH_PERSONA_NOT_DEV");
+  sub.close();
   value.close();
   await serve.stop();
 });
 
-test("React query reducer exposes eight states and preserves data identity", () => {
+test("React query reducer preserves every discriminant field and only reuses a deep-equal whole view", () => {
   const hydrating = initialQueryState<Array<{ id: string }>>();
-  assert.equal(hydrating.state, "hydrating");
+  assert.deepEqual(hydrating, { state: "hydrating" });
   const data = [{ id: "one" }];
   const live = reduceQueryState(hydrating, { state: "live", data, seq: 1 });
   const equivalent = reduceQueryState(live, { state: "live", data: [{ id: "one" }], seq: 1 });
   assert.strictEqual(equivalent, live);
   assert.strictEqual(equivalent.data, data);
-  const stale = reduceQueryState(live, { state: "stale", since: Date.now(), seq: 1 });
+
+  const stale = reduceQueryState(live, { state: "stale", since: 99, data, seq: 1 });
   assert.strictEqual(stale.data, data);
-  assert.equal(reduceQueryState(stale, { state: "partial", data, seq: 2 }).state, "partial");
-  assert.equal(reduceQueryState(stale, { state: "denied", data: [], seq: 2 }).state, "denied");
-  assert.equal(reduceQueryState(stale, {
+  assert.equal(stale.since, 99);
+
+  const partial = reduceQueryState(stale, { state: "partial", seq: 2, reason: "coverage" });
+  assert.deepEqual(partial, { state: "partial", seq: 2, reason: "coverage" });
+  const denied = reduceQueryState(stale, { state: "denied", seq: 2, rule: "members only" });
+  assert.deepEqual(denied, { state: "denied", seq: 2, rule: "members only" });
+  const refused = reduceQueryState(stale, {
     state: "refused",
     code: "E_AUTH",
     family: "auth",
     message: "no",
     guide: "auth/session",
-  }).state, "refused");
-  assert.equal(reduceQueryState(stale, { state: "capped", data, seq: 2, take: 1 }).state, "capped");
-  assert.equal(reduceQueryState(stale, { state: "complete", data, seq: 2 }).state, "complete");
+  });
+  assert.deepEqual(refused, {
+    state: "refused",
+    refusal: { code: "E_AUTH", family: "auth", message: "no", guide: "auth/session" },
+  });
+
+  const capped = reduceQueryState(stale, { state: "capped", data, seq: 2, take: 1, site: "messages.scan" });
+  const cappedEquivalent = reduceQueryState(capped, {
+    state: "capped", data: [{ id: "one" }], seq: 2, take: 1, site: "messages.scan",
+  });
+  assert.strictEqual(cappedEquivalent, capped);
+  const differentTake = reduceQueryState(capped, { state: "capped", data, seq: 2, take: 2, site: "messages.scan" });
+  const differentSite = reduceQueryState(capped, { state: "capped", data, seq: 2, take: 1, site: "messages.other" });
+  assert.notStrictEqual(differentTake, capped);
+  assert.notStrictEqual(differentSite, capped);
+  assert.equal(differentTake.take, 2);
+  assert.equal(differentSite.site, "messages.other");
+
+  assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2 }), {
+    state: "complete", data, seq: 2,
+  });
   assert.equal(stableSerialize({ b: 2, a: [1] }), stableSerialize({ a: [1], b: 2 }));
+});
+
+test("useMutation exposes pending for exactly the in-flight interval", async () => {
+  let release: ((response: Response) => void) | undefined;
+  let current: any;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") {
+      return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+    }
+    return await new Promise<Response>((resolve) => { release = resolve; });
+  };
+  function Harness() {
+    current = useMutation(api.messages.send);
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { url: "http://wire.test", fetch },
+      React.createElement(Harness),
+    ));
+  });
+  assert.equal(current.pending, false);
+  assert.equal(current.last, undefined);
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = current.run({ conversationId: "general", body: "hello" });
+    await Promise.resolve();
+  });
+  assert.equal(current.pending, true);
+  assert.equal(current.last, undefined);
+  await act(async () => {
+    release!(fetchJson({ state: "committed", seq: 1, data: { id: "message-1" } }));
+    await running;
+  });
+  assert.equal(current.pending, false);
+  assert.equal(current.last.state, "committed");
+  await act(async () => { renderer!.unmount(); });
+});
+
+test("non-live useQuery keeps hydrating across a network failure, reports connection, and retries", async () => {
+  let queryAttempts = 0;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") {
+      return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+    }
+    if (path === "/api/query") {
+      queryAttempts += 1;
+      if (queryAttempts === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        throw new Error("offline once");
+      }
+      return fetchJson({ state: "complete", seq: 7, data: [{ id: "message-1" }] });
+    }
+    throw new Error(`unexpected route ${path}`);
+  };
+  const views: any[] = [];
+  function Harness() {
+    const view = useQuery(api.messages.thread, { conversationId: "general" }, { live: false });
+    views.push(view);
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { url: "http://wire.test", fetch },
+      React.createElement(Harness),
+    ));
+  });
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 350)); });
+  assert.equal(queryAttempts, 2);
+  assert.ok(views.some((view) => view.state === "hydrating" && view.connection === "reconnecting"));
+  const final = views.at(-1);
+  assert.equal(final.state, "complete");
+  assert.equal(final.connection, "connected");
+  assert.ok(!views.some((view) => view.state === "refused" && view.refusal?.code === "E_NETWORK"));
+  await act(async () => { renderer!.unmount(); });
+});
+
+test("separately bundled client and React entry points share generated API references", async () => {
+  const bundledClient: any = await import("../dist/client.mjs");
+  const bundledReact: any = await import("../dist/react.mjs");
+  let operation: string | undefined;
+  const fetch = async (input: string | URL | Request, init?: RequestInit) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+    operation = JSON.parse(String(init?.body)).op;
+    return fetchJson({ state: "complete", seq: 1, data: [] });
+  };
+  function Harness() {
+    bundledReact.useQuery(bundledClient.api.messages.thread, {}, { live: false });
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      bundledReact.SnapbackProvider,
+      { url: "http://wire.test", fetch },
+      React.createElement(Harness),
+    ));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  assert.equal(operation, "messages.thread");
+  await act(async () => { renderer!.unmount(); });
 });

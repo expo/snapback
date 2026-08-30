@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import ts from "typescript";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
 import { assessGauntlet } from "./gauntlet";
 import type { Program, ProjectJson } from "./ir";
@@ -295,9 +296,9 @@ test("project type diagnostics choose schema, args, opaque, and effect families 
 });
 
 test("client and React surfaces import while the journey runner remains an explicit placeholder", () => {
-  assert(clientSurface.api.messages.thread.op === "messages.thread", "client API proxy did not qualify an operation");
+  assert((clientSurface.api as any).messages.thread.op === "messages.thread", "client API proxy did not qualify an operation");
   assert(typeof clientSurface.createClient === "function", "headless client is absent");
-  for (const name of ["SnapbackProvider", "DevOverlay", "useQuery", "useMutation", "useAuth", "useChannel"]) {
+  for (const name of ["SnapbackProvider", "DevOverlay", "useQuery", "useSubscription", "useConnection", "useMutation", "useAuth", "useChannel"]) {
     assert(typeof reactSurface[name as keyof typeof reactSurface] === "function", `React ${name} is absent`);
   }
   for (const [name, value] of Object.entries(journeyStub)) {
@@ -342,6 +343,8 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
+  assert(chat.apiDts.includes("channels: { typing: Channel<{ conversationId: string }, unknown> }")
+    && chat.apiDts.includes("typing: Channel<{ conversationId: string }, unknown>"), "chat API declaration omitted the typed typing channel");
   const send = chat.project.programs.find((program) => program.name === "messages.send")!;
   assert(canonical(send).includes('"Emit"'), "emit did not lower into the mutation IR");
   assert(chat.apiDts.includes("messages") && chat.apiDts.includes("Op<{ conversationId: string"), "chat API declaration missing inferred types");
@@ -356,6 +359,80 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(seed.ok && seed.seed.personas.length === 2 && seed.seed.rows.profiles?.length === 2, "chat seed did not lower");
   const journeys = await listJourneys(`${frontend}fixtures/chat`);
   assert(canonical(journeys) === canonical(["snapback/tests/chat.test.ts"]), "chat journey list differs");
+});
+
+test("API channel declarations preserve operation namespaces and proxy-reserved channel names", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { channel, rule, schema, t } from "snapback2";
+      export const messages = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export const channels = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export const op = channel({ args: { c: t.int() }, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export const then = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export const toJSON = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export default schema({ tables: {}, channels: { messages, channels, op, then, toJSON } });`,
+    "snapback/messages.ts": `import { query } from "snapback2";
+      export const list = query({}, () => 1);
+      export const op = query({}, () => 1);
+      export const then = query({}, () => 1);
+      export const toJSON = query({}, () => 1);`,
+    "snapback/channels.ts": `import { query, t } from "snapback2";
+      export const inspect = query({}, () => 1);
+      export const op = query({ q: t.text(20) }, () => 1);`,
+    "snapback/op.ts": `import { query } from "snapback2"; export const list = query({}, () => 1);`,
+    "snapback/then.ts": `import { query } from "snapback2"; export const list = query({}, () => 1);`,
+    "snapback/toJSON.ts": `import { query } from "snapback2"; export const list = query({}, () => 1);`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `channel collision fixture refused: ${project.ok ? "" : project.diagnostics.map((item) => item.message).join("; ")}`);
+    const declaration = project.apiDts;
+    assert((declaration.match(/^    readonly messages:/gm) ?? []).length === 1,
+      "channel alias overwrote the messages operation namespace");
+    assert((declaration.match(/^    (?:readonly )?channels:/gm) ?? []).length === 1,
+      "channels operation namespace and channel catalog were emitted as duplicate Api members");
+    for (const name of ["messages", "channels", "then", "toJSON"]) {
+      assert(declaration.includes(`${name}: Channel<{}, unknown>`), `channels catalog omitted ${name}`);
+    }
+    assert(declaration.includes("readonly op: Op<{ q: string }, number> & Channel<{ c: number }, unknown>"),
+      "a channel colliding inside the channels operation namespace was not represented as both reference types");
+    for (const name of ["messages", "channels", "op", "then", "toJSON"]) {
+      assert(!new RegExp(`^    readonly ${name}: Channel<\\{\\}, unknown>`, "m").test(declaration),
+        `ambiguous root alias was emitted for ${name}`);
+    }
+    assert(declaration.includes("readonly inspect: Op<{}, number>"), "channels operation namespace was lost while merging the catalog");
+
+    const sample = join(root, "sample.ts");
+    const apiDts = join(root, "api.d.ts");
+    await writeFile(sample, `import { api, createClient } from "snapback2/client";
+      const client = createClient({ url: "http://wire.test" });
+      client.query(api.channels.op, { q: "query" });
+      client.channel(api.channels.op, { c: 1 });
+      client.query(api.messages.op, {});
+      client.query(api.messages.then, {});
+      client.query(api.messages.toJSON, {});
+      client.query(api.op.list, {});
+      client.query(api.then.list, {});
+      client.query(api.toJSON.list, {});`);
+    await writeFile(apiDts, declaration);
+    const typed = ts.createProgram({
+      rootNames: [sample, apiDts],
+      options: {
+        baseUrl: root,
+        lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        noEmit: true,
+        paths: {
+          snapback2: [resolve(frontend, "../snapback2/src/index.ts")],
+          "snapback2/client": [resolve(frontend, "../snapback2/src/client.ts")],
+        },
+        skipLibCheck: true,
+        strict: true,
+        target: ts.ScriptTarget.ES2022,
+      },
+    });
+    const diagnostics = ts.getPreEmitDiagnostics(typed).filter((item) => item.file?.fileName === sample);
+    assert(diagnostics.length === 0, diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("; "));
+  });
 });
 
 test("Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values", async () => {

@@ -1,4 +1,4 @@
-import type { AnyOp, Op } from "./api.js";
+import type { Channel as ChannelRef, Op } from "./api.js";
 
 export interface RefusalEnvelope {
   code: string;
@@ -15,31 +15,25 @@ export type QueryCapped<Result> = {
   state: "capped";
   data: Result;
   seq: number;
-  take?: number;
-  site?: string;
+  take: number;
+  site: string;
 };
 export type QueryPartial<Result> = {
   state: "partial";
-  data: Result;
+  data?: Result;
   seq: number;
-  take?: number;
-  site?: string;
-  reason?: string;
+  reason: string;
 };
-export type QueryDenied<Result> = {
+export type QueryDenied = {
   state: "denied";
-  data: Result;
   seq: number;
-  rule?: string;
-  reason?: string;
+  rule: string;
 };
-export type QueryRefused = RefusalEnvelope & { state: "refused"; seq?: number; data?: never };
 export type QueryResult<Result> =
   | QueryComplete<Result>
   | QueryCapped<Result>
   | QueryPartial<Result>
-  | QueryDenied<Result>
-  | QueryRefused;
+  | QueryDenied;
 
 export type MutationCommitted<Result> = { state: "committed"; seq: number; data: Result };
 export type MutationRejected = {
@@ -52,24 +46,22 @@ export type MutationRejected = {
   rule?: string;
   guide?: string;
 };
-export type MutationQueued = { state: "queued"; reason: string; position: number };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected;
-export type MutationView<Result> = MutationResult<Result> | MutationQueued;
 
 export type LiveDelivery<Result> = { state: "live"; data: Result; seq: number };
 export type PartialDelivery<Result> = {
   state: "partial";
-  data: Result;
+  data?: Result;
   seq: number;
   take?: number;
   site?: string;
-  reason?: string;
+  reason: string;
 };
 export type StaleDelivery<Result> = {
   state: "stale";
   since: number;
   data?: Result;
-  seq?: number;
+  seq: number;
 };
 export type RefusedDelivery = {
   state: "refused";
@@ -104,23 +96,24 @@ export interface AuthApi {
 }
 
 export interface ChannelEvent<Payload = unknown> { from: string; payload: Payload; at: number }
+export type ChannelDelivery<Payload = unknown> = ChannelEvent<Payload> | RefusedDelivery;
 export type ChannelPublishResult =
   | { ok: true }
   | ({ state: "refused" } & Partial<RefusalEnvelope> & { code: string });
-export interface Channel<Payload = unknown> {
+export interface ChannelHandle<Payload = unknown> {
   publish(payload: Payload): Promise<ChannelPublishResult>;
-  subscribe(callback: (event: ChannelEvent<Payload>) => void): Subscription<ChannelEvent<Payload>>;
+  subscribe(callback: (event: ChannelDelivery<Payload>) => void): Subscription<ChannelDelivery<Payload>>;
 }
 
 export interface ManifestOperation { kind: string; args: unknown }
 export interface Manifest {
   generation: number;
   ops: Record<string, ManifestOperation>;
-  channels: unknown;
-  auth: unknown;
+  channels: Record<string, unknown>;
+  auth: Record<string, unknown>;
 }
 
-export type ConnectionState = "connecting" | "live" | "stale" | "refused" | "closed";
+export type ConnectionState = "connected" | "reconnecting" | "offline";
 export interface ClientSnapshot {
   token?: string;
   persona?: string;
@@ -141,38 +134,34 @@ export interface CreateClientOptions {
 export interface SnapbackClient {
   readonly auth: AuthApi;
   readonly snapshot: ClientSnapshot;
-  query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>>;
-  mutation<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<MutationResult<Result>>;
+  query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
+  mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<MutationResult<Result>>;
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
-    args: Args,
+    args: NoInfer<Args>,
     callback: (delivery: SubscriptionDelivery<Result>) => void,
   ): Subscription<SubscriptionDelivery<Result>>;
-  channel<Payload = unknown>(ref: AnyOp, args: unknown): Channel<Payload>;
+  channel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload>;
   manifest(): Promise<Manifest>;
   subscribeStatus(callback: (snapshot: ClientSnapshot) => void): () => void;
   close(): void;
 }
 
-export type QueryViewState =
-  | "hydrating"
-  | "live"
-  | "stale"
-  | "partial"
-  | "denied"
-  | "refused"
-  | "capped"
-  | "complete";
-export interface QueryView<Result> {
-  state: QueryViewState;
-  data: Result | undefined;
-  seq: number | undefined;
-  refusal: RefusalEnvelope | undefined;
-}
+export type QueryView<Result> =
+  | { state: "complete"; data: Result; seq: number }
+  | { state: "capped"; data: Result; seq: number; take: number; site: string }
+  | { state: "partial"; data?: Result; seq: number; reason: string }
+  | { state: "denied"; rule: string; seq: number }
+  | { state: "refused"; refusal: RefusalEnvelope }
+  | { state: "stale"; data?: Result; seq: number; since: number }
+  | { state: "live"; data: Result; seq: number }
+  | { state: "hydrating" };
+export type QueryViewState = QueryView<unknown>["state"];
+export type QueryHookResult<Result> = QueryView<Result> & { connection: ConnectionState };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
 
 export function initialQueryState<Result>(): QueryView<Result> {
-  return { state: "hydrating", data: undefined, seq: undefined, refusal: undefined };
+  return { state: "hydrating" };
 }
 
 function canonical(value: unknown): string {
@@ -194,23 +183,46 @@ export function reduceQueryState<Result>(
   current: QueryView<Result>,
   event: QueryMachineEvent<Result>,
 ): QueryView<Result> {
-  const nextData = "data" in event && event.data !== undefined ? event.data : current.data;
-  const data = canonical(nextData) === canonical(current.data) ? current.data : nextData;
-  const refusal = event.state === "refused"
-    ? {
+  const eventData = "data" in event ? event.data : undefined;
+  const currentData = "data" in current ? current.data : undefined;
+  const data = canonical(eventData) === canonical(currentData) ? currentData : eventData;
+  let next: QueryView<Result>;
+  switch (event.state) {
+    case "complete":
+      next = { state: "complete", data: data as Result, seq: event.seq };
+      break;
+    case "capped":
+      next = { state: "capped", data: data as Result, seq: event.seq, take: event.take, site: event.site };
+      break;
+    case "partial":
+      next = data === undefined
+        ? { state: "partial", seq: event.seq, reason: event.reason }
+        : { state: "partial", data: data as Result, seq: event.seq, reason: event.reason };
+      break;
+    case "denied":
+      next = { state: "denied", rule: event.rule, seq: event.seq };
+      break;
+    case "refused": {
+      const refusal: RefusalEnvelope = {
         code: event.code,
         family: event.family ?? "owner",
         message: event.message ?? event.code,
-        site: event.site,
-        rule: event.rule,
-        rewrite: event.rewrite,
-        guide: event.guide,
-      }
-    : undefined;
-  const seq = "seq" in event && event.seq !== undefined ? event.seq : current.seq;
-  const next: QueryView<Result> = { state: event.state, data, seq, refusal };
-  return current.state === next.state && current.data === next.data && current.seq === next.seq
-    && canonical(current.refusal) === canonical(next.refusal)
-    ? current
-    : next;
+      };
+      if (event.site !== undefined) refusal.site = event.site;
+      if (event.rule !== undefined) refusal.rule = event.rule;
+      if (event.rewrite !== undefined) refusal.rewrite = event.rewrite;
+      if (event.guide !== undefined) refusal.guide = event.guide;
+      next = { state: "refused", refusal };
+      break;
+    }
+    case "stale":
+      next = data === undefined
+        ? { state: "stale", seq: event.seq, since: event.since }
+        : { state: "stale", data: data as Result, seq: event.seq, since: event.since };
+      break;
+    case "live":
+      next = { state: "live", data: data as Result, seq: event.seq };
+      break;
+  }
+  return canonical(current) === canonical(next) ? current : next;
 }
