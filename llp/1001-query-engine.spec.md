@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-08-29
+**Revised:** 2026-08-30
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -62,6 +62,18 @@ Tables whose names begin with `_` are engine-owned: the schema may not declare
 them (`E_SCHEMA_RESERVED`), programs may not read or write them, and `data`
 reads them only through the dedicated verbs.
 
+**Exclusive write ownership** (LLP 0329.021 P2, LLP 0329.022 R1 — folded
+2026-08-30). The Snapback 2 owner is the *only* writer of its store. An
+external writer advances no commit `seq`, joins no read-set validation, and
+applies no maintained-aggregate delta, so a receipt minted over a database
+someone else writes is unsound in the silent direction (`Fresh` over rows
+that moved). `Store::open` therefore takes the file exclusively
+(`PRAGMA locking_mode = EXCLUSIVE` in WAL mode) and stamps `_meta.owner` with
+the opening process; a second opener fails with `E_STORE_OWNED` naming the
+holder. "Snapback in front of a database another system writes" is not an
+integration this engine supports; the honest forms are that system writing
+*through* named mutations, or being read-only.
+
 `Engine` keeps its shape (`execute(program, certificate, context)`), but is
 constructed over a `Store`: `Engine::new(store, schema)`; `Engine::memory(schema)`
 remains as `Engine::new(Store::memory()?, schema)` so the receipt-only client
@@ -91,21 +103,33 @@ pub struct CommitRecord { pub seq: u64, pub at: i64, pub program: String, pub pr
 Queries record nothing. `seq` is the store's version: every result, receipt,
 and delivery carries the `seq` it was computed at.
 
+**The receipt factors three ways** (LLP 0329.021 P4/P5, folded 2026-08-30),
+by who may issue each part: `rows` — "I hold these" — is client-issuable;
+`absences` and *complete* `ranges` — "no row exists there / this range is
+whole" — and `verdicts` — "this principal may see this" — are authority-only.
+The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
+*asserted*, not merely true by construction: `assert_bounds` checks
+`receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
+negative test (`issues/20260829-bounded-programs-receipt-absences-unvalidated.md`).
+Nothing in this crate ever constructs a receipt from anything but a trace.
+
 ## 3. Read and write states (no silent states)
 
 `Execution` gains a typed state. A query's state is derived, never guessed:
 
 | state | when |
 |---|---|
-| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling |
+| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling — including a range whose examined rows were all hidden: hidden rows are invisible, never a signal (LLP 0329.014.004: results are never functions of invisible-row counts) |
 | `Capped { site, take }` | some traced range stopped `Limit` (the certificate's `completeness: Page \| Capped`) |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
-| `Denied { rule }` | `RuntimeError::Rule` on a read site |
+| `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
 
 A mutation's outcome is `Committed { seq }` or `Rejected { code, message }`
-(`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`); bound
-overruns (`Steps`, `Fanout`, `TraceSubset`) are `Rejected` with the family
-`bound`. The state is a field on `Execution`, and the JSON the loop serves is
+(`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`, and every
+SQLite constraint failure — duplicate row id, duplicate outbox id, unique
+index — as `E_CONSTRAINT`; a program execution never surfaces a raw SQL
+error except for I/O or corruption); bound overruns (`Steps`, `Fanout`,
+`TraceSubset`) are `Rejected` with the family `bound`. The state is a field on `Execution`, and the JSON the loop serves is
 the serde form of that field (LLP 1002 §4).
 
 ## 4. Generation and runtime (`registry.rs`, `successor.rs`)
@@ -154,6 +178,21 @@ impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &Migrat
 `apply_migration` performs exactly the listed drops (type changes drop the
 column's values) and then applies the successor as additive. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+
+Three rulings from the 2026-08-30 review (M3, M4, M8):
+
+- **Atomic.** `apply_successor` and `apply_migration` run in one transaction
+  — drops, index population, aggregate backfill, `_meta` — and any failure
+  leaves the old generation active and its data intact.
+- **A new unique index is checked.** Populating it over existing rows that
+  collide refuses the whole successor with `E_SUCCESSOR_UNIQUE` (table,
+  index, up to 10 conflicting keys; rewrite: make it non-unique or fix the
+  rows). `SuccessorRefusal` therefore carries `code` and either `plan`
+  (destructive) or `conflicts` (unique).
+- **A new column on a table with rows must be `Optional`.** Otherwise the
+  successor is refused with `E_SUCCESSOR_COLUMN_REQUIRED` (rewrite:
+  `t.optional(...)`, or add it while the table is empty). Existing rows keep
+  their JSON; an absent optional column reads as `Null`.
 
 ## 5. Live subscriptions (`live.rs`)
 
@@ -225,12 +264,17 @@ mutations (LLP 1003), and seeds.
 
 ```rust
 pub struct Channel { pub args: BTreeMap<String, ArgType>, pub publish: RuleExpr, pub subscribe: RuleExpr, pub ttl_ms: u32 }
-impl Runtime { pub fn channel_admit(&mut self, name: &str, side: ChannelSide, args: &BTreeMap<String, Value>, context: &Context) -> Result<bool, RuntimeError>; }
+pub struct ChannelVerdict { pub admitted: bool, pub rule_inputs: Vec<RuleInputTrace>, pub points: Vec<PointTrace> }
+impl Runtime {
+    pub fn channel_admit(&mut self, name: &str, side: ChannelSide, args: &BTreeMap<String, Value>, context: &Context) -> Result<ChannelVerdict, RuntimeError>;
+    pub fn channel_touched(&self, commit: &CommitRecord, verdict: &ChannelVerdict) -> bool;   // does this commit overlap the verdict's traced keys
+}
 ```
 
 One rule probe per admission, evaluated over the args as the row (`RuleTerm::Field`
-reads an arg), traced like any rule input so a membership change can drop a
-subscriber (the loop re-admits on the commit that touched the probe's key).
+reads an arg), and the verdict *carries its trace* (review ruling 2026-08-30,
+M7) so the loop indexes each subscriber by the probe's keys and re-admits on
+the commit that touches them — a deleted membership drops the subscriber.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
 
@@ -252,8 +296,36 @@ an effect is.
 
 `Schema` gains, all `#[serde(default)]`: `channels: BTreeMap<String, Channel>`,
 `auth: Auth { password: bool, guests: bool }`, `effects: Vec<String>` (the
-declared effect names, so `E_EFFECT_UNKNOWN` is a schema fact). Existing
-corpus JSON stays valid.
+declared effect names; `Generation::certify` checks an `emit` against the
+*declarations* in `ProjectJson.effects` — `E_EFFECT_UNKNOWN` — and refuses a
+schema name with no declaration — `E_EFFECT_UNDECLARED`; review ruling M5).
+`ColumnType` gains `Optional(Box<ColumnType>)` (`{"Optional": <type>}`; absent
+or `Null` is valid) and `List { of: Box<ColumnType>, max: u32 }`
+(`{"List": {"of": <type>, "max": n}}`; an array of ≤ `max` elements); a `List`
+may not be an index column (`E_SCHEMA_INDEX_COLUMN`). Existing corpus JSON
+stays valid.
+
+Two more, from the column-type survey
+(`issues/20260829-bounded-programs-column-type-survey.md`, folded 2026-08-30),
+both representable in today's value model so nothing about storage,
+arithmetic, ordering, or the evaluator twin changes:
+
+- `Enum { variants: Vec<String> }` (`{"Enum": {"variants": ["dm","group"]}}`)
+  — a `Value::String` constrained to the closed list; any other string is
+  `E_INPUT` at write time. Indexable.
+- `Decimal { scale: u8 }` (`{"Decimal": {"scale": 2}}`) — a `Value::Int` of
+  minor units, i53 underneath; the *scale lives on the type*. The engine
+  stores, compares, and adds it as an integer; it is the compiler's job (LLP
+  1002 §2) to scale source literals and to refuse mixed-scale arithmetic.
+  Indexable, orderable, exact. `Money { currency, scale }` is the same with a
+  currency tag for the compiler to check; the engine treats it as `Decimal`.
+
+Deferred, recorded so they are not re-derived: `Bytes { max }` (needs a value
+variant and a canonical encoding shared with the twin — a value-model version
+bump), `Interval { of }` (four archetypes need it, but it interacts with
+visibility, retention, and the deferred `exclusion` constraint), `Duration`,
+`Set { of, max }`. Floats stay out (the survey's "why no floats" section is
+the ruling).
 
 ## 10. What binds, and how it is checked
 

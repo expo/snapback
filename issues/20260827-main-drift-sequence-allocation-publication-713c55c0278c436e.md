@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:713c55c0278c436e328d25c5da5eccda35be387879be2f0bbcb909b2bd1f2217`
 **Causal landing:** `912145dac676fd06605c57d35ebf21a863381183` (fix(auth): bound settlement test observers)
 **Detected at:** `9292bb876ee0281d745933b4181bdd782dcc2511`
-**Last observed:** `5b457bc6015db6b02876cfdf92bcadd5c10b090c`
+**Last observed:** `1ff91131796a238e38345af33c75ae8b2994d44b`
 **Attribution:** `first-parent-signature-epoch`
 **Related:** LLP 0175 §D2.1
 
