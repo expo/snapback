@@ -709,14 +709,14 @@ test("mutation returns committed and rejected without throwing rejected", async 
   if (!externalUrl) await value.auth.guest();
   const committed = await value.mutation(api.messages.send, {
     conversationId: externalUrl ? "conversation-1" : "general",
-    recipientId: externalUrl ? "dev:bob" : undefined,
+    recipientId: externalUrl ? "profile-bob" : undefined,
     body: `first-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");
   const rejected = externalUrl
     ? await value.mutation(api.messages.send, {
         conversationId: "conversation-1",
-        recipientId: "dev:missing",
+        recipientId: "profile-missing",
         body: "reject",
       })
     : await value.mutation(api.messages.reject, { body: "reject" });
@@ -738,7 +738,7 @@ test("subscription observes another client's mutation and until resolves", async
   const body = `from-writer-${Date.now()}`;
   const committed = await writer.mutation(api.messages.send, {
     conversationId,
-    recipientId: externalUrl ? "dev:alice" : undefined,
+    recipientId: externalUrl ? "profile-alice" : undefined,
     body,
   });
   assert.equal(committed.state, "committed");

@@ -4,8 +4,8 @@ export default seed({
   personas: ["alice", "bob"],
   rows: {
     profiles: [
-      { id: "dev:alice", handle: "alice", name: "Alice", email: "alice@example.com" },
-      { id: "dev:bob", handle: "bob", name: "Bob", email: "bob@example.com" },
+      { id: "profile-alice", principal: "dev:alice", handle: "alice", name: "Alice", email: "alice@example.com" },
+      { id: "profile-bob", principal: "dev:bob", handle: "bob", name: "Bob", email: "bob@example.com" },
     ],
     conversations: [
       { id: "conversation-1", title: "General", creatorId: "dev:alice" },

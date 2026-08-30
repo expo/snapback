@@ -37,10 +37,24 @@ fn mutation_context(
 
 fn seed_identity(engine: &mut Engine) {
     engine
-        .seed("users", row([("id", id("u1")), ("handle", text("alice"))]))
+        .seed(
+            "users",
+            row([
+                ("id", id("u1")),
+                ("principal", id("u1")),
+                ("handle", text("alice")),
+            ]),
+        )
         .unwrap();
     engine
-        .seed("users", row([("id", id("u2")), ("handle", text("bob"))]))
+        .seed(
+            "users",
+            row([
+                ("id", id("u2")),
+                ("principal", id("u2")),
+                ("handle", text("bob")),
+            ]),
+        )
         .unwrap();
     engine
         .seed(
@@ -306,7 +320,14 @@ fn hidden_rule_input_becomes_only_a_scoped_verdict() {
     let certificate = checker(&schema).check(&program).unwrap();
     let mut engine = Engine::memory(schema).unwrap();
     engine
-        .seed("users", row([("id", id("u1")), ("handle", text("alice"))]))
+        .seed(
+            "users",
+            row([
+                ("id", id("u1")),
+                ("principal", id("u1")),
+                ("handle", text("alice")),
+            ]),
+        )
         .unwrap();
     engine
         .seed(
@@ -717,7 +738,14 @@ fn maintained_unread_256_member_fanout_records_p95() {
     for number in 0..255 {
         let user = format!("fan-{number:03}");
         engine
-            .seed("users", row([("id", id(&user)), ("handle", text(&user))]))
+            .seed(
+                "users",
+                row([
+                    ("id", id(&user)),
+                    ("principal", id(&user)),
+                    ("handle", text(&user)),
+                ]),
+            )
             .unwrap();
         engine
             .seed(
@@ -733,7 +761,14 @@ fn maintained_unread_256_member_fanout_records_p95() {
             .unwrap();
     }
     engine
-        .seed("users", row([("id", id("u1")), ("handle", text("sender"))]))
+        .seed(
+            "users",
+            row([
+                ("id", id("u1")),
+                ("principal", id("u1")),
+                ("handle", text("sender")),
+            ]),
+        )
         .unwrap();
     engine
         .seed(

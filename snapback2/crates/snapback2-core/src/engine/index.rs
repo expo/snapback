@@ -290,7 +290,9 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
                     .iter()
                     .all(|value| valid_column_value(of, Some(value)))
         }
-        (ColumnType::Id | ColumnType::Ref { .. }, Some(Value::Id(_))) => true,
+        (ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. }, Some(Value::Id(_))) => {
+            true
+        }
         (ColumnType::Text { max }, Some(Value::String(text))) => {
             text.chars().count() <= *max as usize
         }

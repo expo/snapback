@@ -111,12 +111,12 @@ function mentionScanUsers(db: Db, handle: any) {
 export const thread = query({ conversationId: t.id() }, ({ db, args }) => {
   let result: any[] = [];
   for (const message of db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 3 })) {
-    let author = db.get(users, message.authorId);
+    let author = db.get(users.byPrincipal, message.authorId);
     let mentions: any[] = [];
     for (const handle of mentionTokens(message.body)) {
       mentions.push(threadMentionUser(db, handle));
     }
-    result.push({ message, author, mentions });
+    result.push({ message, author: { id: author!.id, handle: author!.handle }, mentions });
   }
   return result;
 });
@@ -199,7 +199,7 @@ export const inboxMaintained = query({}, ({ db, ctx }) => {
   return result;
 });
 
-export const startDm = mutation({ lo: t.id(), hi: t.id() }, ({ db, ctx, args }) => {
+export const startDm = mutation({ lo: t.principal(), hi: t.principal() }, ({ db, ctx, args }) => {
   let existing = startDmUnique(db, args.lo, args.hi);
   if (existing === null) {
     let conversationId = ctx.newId();
@@ -249,7 +249,7 @@ export const ledger = query({ groupId: t.id() }, ({ db, args }) =>
 );
 
 export const addExpense = mutation(
-  { groupId: t.id(), amount: t.int(), recipients: t.list(t.ref(users), { max: 50 }) },
+  { groupId: t.id(), amount: t.int(), recipients: t.list(t.principal(), { max: 50 }) },
   ({ db, ctx, args }) => {
     let expenseId = ctx.newId();
     db.insert(expenses, {
@@ -284,9 +284,13 @@ export const ancestors = query({ accountId: t.id() }, ({ db, args }) => {
   return result;
 });
 
-export const mentionScan = query({ handle: t.text(32) }, ({ db, args }) =>
-  mentionScanUsers(db, args.handle),
-);
+export const mentionScan = query({ handle: t.text(32) }, ({ db, args }) => {
+  let result: any[] = [];
+  for (const profile of mentionScanUsers(db, args.handle)) {
+    result.push({ id: profile.id, handle: profile.handle });
+  }
+  return result;
+});
 
 export const helperWrappedScan = query({ columnId: t.id() }, ({ db, args }) =>
   helperCards(db, args.columnId),

@@ -1,5 +1,7 @@
 declare module "snapback2" {
   export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+  /** Server-minted authority subject; deliberately distinct from application row IDs. */
+  export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
   export type Decimal<S extends number> = number & {
     readonly __decimalScale: S;
     readonly __decimalBrand: unique symbol;
@@ -44,7 +46,7 @@ declare module "snapback2" {
     { [K in keyof A as A[K] extends Arg<any, true> ? never : K]: A[K] extends Arg<infer T, any> ? T : never }
     & { [K in keyof A as A[K] extends Arg<any, true> ? K : never]?: A[K] extends Arg<infer T, any> ? T : never };
   export type Page<T> = Array<T> & { hasMore: boolean };
-  export type WriteValue<T> = T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
+  export type WriteValue<T> = T extends Principal ? Principal : T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
   export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
   export type Db = {
     get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
@@ -59,7 +61,7 @@ declare module "snapback2" {
   };
   export type Context<A extends Record<string, any> = Record<string, any>> = {
     db: Db;
-    ctx: { viewer: string; now(): number; newId(): string; readonly readTime: number; readonly commitTime: number; [name: string]: any };
+    ctx: { viewer: Principal; now(): number; newId(): string; readonly readTime: number; readonly commitTime: number; [name: string]: any };
     args: A;
   };
 
@@ -72,6 +74,7 @@ declare module "snapback2" {
   }): Table<RowOfColumns<C>>;
   export const t: {
     id(): Column<string>;
+    principal(): Column<Principal>;
     text(max: number): Column<string>;
     int(): Column<number>;
     bool(): Column<boolean>;

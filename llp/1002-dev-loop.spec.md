@@ -65,19 +65,21 @@ module's declaration; the compiler accepts and strips the import):
 import { schema, table, t, rule, channel, query, mutation, effect, emit, seed } from 'snapback2'
 
 export const profiles = table({
-  columns: { handle: t.text(32), name: t.text(80) },              // `id: t.id()` and index `byId` are implicit
-  indexes: { byHandle: { columns: ['handle'], unique: true } },
-  rules: { read: rule.public('profiles are public'), insert: rule.viewerIs('id'),
-           update: rule.viewerIs('id'), delete: rule.deny() },
+  columns: { principal: t.principal(), handle: t.text(32), name: t.text(80) }, // application `id` and `byId` are implicit
+  indexes: { byPrincipal: { columns: ['principal'], unique: true },
+             byHandle: { columns: ['handle'], unique: true } },
+  rules: { read: rule.public('profiles are public'), insert: rule.viewerIs('principal'),
+           update: rule.viewerIs('principal'), delete: rule.deny() },
+  constraints: [{ unique: 'byPrincipal' }, { immutable: ['principal'] }],
 })
 export const memberships = table({
-  columns: { conversationId: t.ref(conversations), userId: t.ref(profiles), lastReadAt: t.time() },   // refs name the exported table, not a string
+  columns: { conversationId: t.ref(conversations), userId: t.principal(), lastReadAt: t.time() },
   indexes: { byConvUser: { columns: ['conversationId', 'userId'], unique: true }, byUser: { columns: ['userId'] } },
   rules: { read: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
            insert: rule.allow(), update: rule.viewerIs('userId'), delete: rule.viewerIs('userId') },
   constraints: [{ unique: 'byConvUser' }],
 })
-export const typing = channel({ args: { conversationId: t.id() },
+export const typing = channel({ args: { conversationId: t.ref(conversations) },
   publish: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
   subscribe: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]), ttlMs: 4000 })
 export default schema({
@@ -88,10 +90,13 @@ export default schema({
 })
 ```
 
-`t`: `id()`, `text(max)`, `int()`, `bool()`, `time()`, `ref(table)`,
+`t`: `id()`, `principal()`, `text(max)`, `int()`, `bool()`, `time()`, `ref(table)`,
 `json(maxBytes)`, `optional(x)`, `list(x, { max })`, and (folded 2026-08-30
 from the column-type survey) `enum(['dm', 'group'])` and `decimal(scale)` /
-`money(currency, scale = 2)`. A `Decimal` column or arg is typed
+`money(currency, scale = 2)`. `principal()` is the nominal authority scalar:
+generated types use branded `Principal`, `ctx.viewer` has that type, and a
+`Ref<table>` is rejected where `Principal` is required even though the current
+wire encodes both as ID-shaped strings. A `Decimal` column or arg is typed
 `Decimal<S>` — a branded `number` of minor units — in `api.d.ts`; inside a
 program the compiler scales a decimal literal written against a `Decimal<S>`
 target (`price: 9.99` → `999` when `price` is `t.decimal(2)`), admits `+`, `-`,
@@ -109,6 +114,11 @@ column read, an arg, the wire). The wire carries the integer; the client's
 `literal(v)`. `rule.system()` is convenience syntax only and lowers exactly
 to `Eq(Viewer, Literal(Id("system")))`; there is no `principal(kind)` surface
 or `PrincipalKind` rule term. `rule.exists` takes exactly three arguments.
+The compiler resolves every rule field and index, checks compatible operands
+for `eq`/`ne`, requires exact `exists` key arity, and checks every key term
+against its indexed column. In particular, `viewer` can inhabit only a
+Principal position. The engine repeats those checks while certifying raw
+project JSON, so handcrafted IR has no less strict lane.
 Rule-input visibility is derived by LLP 1001 §9 from the referenced table's
 active read policy, including its exact self-readable indexed-row proof; a
 fourth visibility/options argument is a sited `E_RULE_INVALID` refusal and no

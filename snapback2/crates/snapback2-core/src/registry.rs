@@ -78,6 +78,8 @@ impl Generation {
         let mut schema = project.schema.clone();
         schema.auth = project.auth.clone();
 
+        errors.extend(crate::rule_types::check(&schema));
+
         for table in schema.tables.keys().filter(|table| table.starts_with('_')) {
             errors.push((
                 "schema".to_owned(),
@@ -331,7 +333,7 @@ impl Runtime {
     ) -> Result<Execution, RuntimeError> {
         // @ref LLP 1001#9-schema-additions — system authority
         // follows the reserved viewer identity, never kind metadata.
-        if context.viewer != "system" {
+        if !context.viewer.is_system() {
             return Err(RuntimeError::Input(
                 "effect then must execute as Context::system()".to_owned(),
             ));
@@ -1060,7 +1062,7 @@ mod tests {
                 Table {
                     columns: BTreeMap::from([
                         ("id".to_owned(), ColumnType::Id),
-                        ("ownerId".to_owned(), ColumnType::Id),
+                        ("ownerId".to_owned(), ColumnType::Principal),
                     ]),
                     indexes: BTreeMap::from([(
                         "byId".to_owned(),

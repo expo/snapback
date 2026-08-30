@@ -335,7 +335,7 @@ impl<'a> Runner<'a> {
 
     pub(super) fn input(&mut self, input: Input) -> Result<Value, RuntimeError> {
         match input {
-            Input::Viewer => Ok(Value::Id(self.context.viewer.clone())),
+            Input::Viewer => Ok(Value::Id(self.context.viewer.to_string())),
             Input::Now => self
                 .context
                 .now

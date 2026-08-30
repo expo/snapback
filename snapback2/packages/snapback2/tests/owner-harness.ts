@@ -23,7 +23,7 @@ function command(args: string[], options: { env?: NodeJS.ProcessEnv; timeout?: n
 
 async function addIntegrationOperations(root: string): Promise<void> {
   await writeFile(join(root, "snapback/integration.ts"), `
-import { mutation, query, t } from "snapback2";
+import { query, t } from "snapback2";
 import { memberships, profiles } from "./schema";
 
 export const capped = query({}, ({ db }) =>
@@ -35,10 +35,6 @@ export const denied = query({ conversationId: t.id() }, ({ db, ctx, args }) => {
   return true;
 });
 
-export const leave = mutation({ membershipId: t.id() }, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
 `);
 }
 

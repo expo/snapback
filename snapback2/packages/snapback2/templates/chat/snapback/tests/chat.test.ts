@@ -7,7 +7,7 @@ journey("alice sends bob a message", async ({ as }) => {
   if (!("data" in before) || !Array.isArray(before.data)) throw new Error("thread did not return rows");
   const sent = await alice.mutation(api.messages.send, {
     conversationId: "conversation-1",
-    recipientId: "dev:bob",
+    recipientId: "profile-bob",
     body: "hello bob",
   });
   if (sent.state !== "committed") throw new Error(`send was ${sent.state}`);
@@ -27,7 +27,7 @@ journey("bob replies and alice's live thread updates", async ({ as }) => {
     await thread.until((delivery) => delivery.state === "complete");
     const sent = await bob.mutation(api.messages.send, {
       conversationId: "conversation-1",
-      recipientId: "dev:alice",
+      recipientId: "profile-alice",
       body: "hello alice",
     });
     if (sent.state !== "committed") throw new Error(`reply was ${sent.state}`);

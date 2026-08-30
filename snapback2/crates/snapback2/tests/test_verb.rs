@@ -32,10 +32,51 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 3);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
     assert_eq!(rules["detail"]["actualBy"], "data");
-    for name in ["certify", "rules", "bounds", "invalidation", "replay"] {
+    for name in [
+        "certify",
+        "rules",
+        "bounds",
+        "invalidation",
+        "replay",
+        "live-revocation",
+        "successor-policy-fence",
+    ] {
         let derived = check(&receipt, name);
         assert_eq!(derived["verdict"], "pass", "{name}: {derived}");
     }
+
+    let revocation = check(&receipt, "live-revocation");
+    assert_eq!(revocation["detail"]["as"], "bob", "{revocation}");
+    assert_eq!(
+        revocation["detail"]["mutation"], "messages.leave",
+        "{revocation}"
+    );
+    assert_eq!(revocation["detail"]["initialState"], "complete");
+    assert_eq!(revocation["detail"]["deliveryState"], "denied");
+    assert_eq!(
+        revocation["detail"]["deliverySeq"],
+        revocation["detail"]["mutationSeq"]
+    );
+    assert_eq!(revocation["detail"]["postDenialRows"], 0);
+
+    let fence = check(&receipt, "successor-policy-fence");
+    assert_ne!(
+        fence["detail"]["generationG"], fence["detail"]["generationG1"],
+        "{fence}"
+    );
+    let successor_rule = format!(
+        "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:{}",
+        fence["detail"]["generationG"].as_str().unwrap()
+    );
+    assert_eq!(fence["detail"]["successorDenialRule"], successor_rule);
+    assert_eq!(fence["detail"]["retainedHandleState"], "denied");
+    assert_eq!(fence["detail"]["retainedHandleRule"], successor_rule);
+    assert_eq!(fence["detail"]["freshInvocationState"], "denied");
+    assert_eq!(fence["detail"]["freshInvocationRule"], successor_rule);
+    assert_eq!(
+        fence["detail"]["activeManifestGeneration"],
+        fence["detail"]["generationG1"]
+    );
 
     let invalidation = check(&receipt, "invalidation");
     assert!(
@@ -51,21 +92,27 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         assert_eq!(execution["op"], "messages.thread", "{execution}");
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": 1, "ceiling": 52 })
+            serde_json::json!({ "actual": 2, "ceiling": 53 })
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": 1, "ceiling": 1 })
+            serde_json::json!({ "actual": 1, "ceiling": 2 })
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": 3, "ceiling": 262 })
+            serde_json::json!({ "actual": 7, "ceiling": 268 })
         );
+        assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(
             execution["readSites"][0]["calls"],
             serde_json::json!({ "actual": 1, "ceiling": 1 })
         );
-        assert_eq!(execution["readSites"][0]["take"], 50);
+        assert_eq!(execution["readSites"][0]["take"], 1);
+        assert_eq!(
+            execution["readSites"][1]["calls"],
+            serde_json::json!({ "actual": 1, "ceiling": 1 })
+        );
+        assert_eq!(execution["readSites"][1]["take"], 50);
     }
     assert_eq!(
         checks
@@ -155,6 +202,159 @@ fn todos_template_passes_without_an_effects_check() {
             .iter()
             .any(|check| check["name"] == "effects")
     );
+    assert!(
+        !receipt["checks"].as_array().unwrap().iter().any(|check| {
+            matches!(
+                check["name"].as_str(),
+                Some("live-revocation" | "successor-policy-fence")
+            )
+        }),
+        "unrelated todos synthesized scoped-authorization proofs: {receipt}"
+    );
+}
+
+#[test]
+fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let messages = project.path.join("snapback/messages.ts");
+    let source = fs::read_to_string(&messages).unwrap();
+    let mut without_leave = source.replace(
+        r#"export const leave = mutation({ membershipId: t.ref(memberships) }, ({ db, args }) => {
+  db.delete(memberships, args.membershipId);
+  return null;
+});
+
+"#,
+        "",
+    );
+    assert_ne!(
+        source, without_leave,
+        "chat fixture had no self-leave surface"
+    );
+    without_leave.push_str(
+        r#"
+export const aaaUnprobeableLeave = mutation({
+  orphanId: t.id(),
+  membershipId: t.ref(memberships),
+}, ({ db, args }) => {
+  db.delete(memberships, args.membershipId);
+  return null;
+});
+
+export const aabUnprobeableLeave = mutation({
+  missingId: t.id(),
+  membershipId: t.ref(memberships),
+}, ({ db, args }) => {
+  db.delete(memberships, args.membershipId);
+  return null;
+});
+"#,
+    );
+    fs::write(messages, without_leave).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let receipt = json_stdout(&output);
+    let revocation = check(&receipt, "live-revocation");
+    assert_eq!(revocation["verdict"], "blocked", "{revocation}");
+    assert!(
+        revocation["detail"]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("no named mutation")),
+        "{revocation}"
+    );
+    let candidates = revocation["detail"]["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 2, "{revocation}");
+    assert!(
+        candidates[0]
+            .as_str()
+            .is_some_and(|reason| reason.contains("messages.aaaUnprobeableLeave")),
+        "{revocation}"
+    );
+    assert!(
+        candidates[1]
+            .as_str()
+            .is_some_and(|reason| reason.contains("messages.aabUnprobeableLeave")),
+        "{revocation}"
+    );
+    let fence = check(&receipt, "successor-policy-fence");
+    assert_eq!(fence["verdict"], "pass", "{fence}");
+}
+
+#[test]
+fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let schema = project.path.join("snapback/schema.ts");
+    let source = fs::read_to_string(&schema).unwrap();
+    let ref_based = source.replace("userId: t.principal(),", "userId: t.ref(profiles),");
+    assert_ne!(
+        source, ref_based,
+        "chat fixture did not declare a nominal Principal membership"
+    );
+    fs::write(schema, ref_based).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert_eq!(
+        checked.status.code(),
+        Some(1),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr),
+    );
+    let output = String::from_utf8_lossy(&checked.stdout);
+    assert!(
+        output.contains("\"code\":\"E_RULE_INVALID\"")
+            && output.contains("table memberships.userId is Ref<profiles>")
+            && output.contains("must be Principal")
+            && output.contains("\"rewrite\":"),
+        "ref-based pseudo-membership was not refused with the nominal-axis diagnostic: {output}"
+    );
+}
+
+#[test]
+fn authority_proofs_skip_earlier_unprobeable_candidates() {
+    let project = Project::new();
+    assert!(project.init("chat", "none").status.success());
+    let messages = project.path.join("snapback/messages.ts");
+    let mut source = fs::read_to_string(&messages).unwrap();
+    source.push_str(
+        r#"
+export const aaaUnprobeable = query({
+  orphanId: t.id(),
+  conversationId: t.ref(conversations),
+}, ({ db, args }) =>
+  db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 }),
+);
+
+export const aaaUnprobeableLeave = mutation({
+  orphanId: t.id(),
+  membershipId: t.ref(memberships),
+}, ({ db, args }) => {
+  db.delete(memberships, args.membershipId);
+  return null;
+});
+"#,
+    );
+    fs::write(messages, source).unwrap();
+    let checked = project.run(&["check", "--json"]);
+    assert!(
+        checked.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&checked.stdout),
+        String::from_utf8_lossy(&checked.stderr)
+    );
+
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    let receipt = json_stdout(&output);
+    let revocation = check(&receipt, "live-revocation");
+    assert_eq!(revocation["verdict"], "pass", "{revocation}");
+    assert_eq!(revocation["detail"]["query"], "messages.thread");
+    assert_eq!(revocation["detail"]["mutation"], "messages.leave");
+    let fence = check(&receipt, "successor-policy-fence");
+    assert_eq!(fence["verdict"], "pass", "{fence}");
+    assert_eq!(fence["detail"]["query"], "messages.thread");
 }
 
 #[test]
@@ -347,7 +547,7 @@ fn rules_use_the_engine_verdict_when_one_synthetic_principal_is_admitted() {
         project.path.join("snapback/schema.ts"),
         r#"import { rule, schema, table, t } from "snapback2";
 export const items = table({
-  columns: { ownerId: t.id(), label: t.text(20) },
+  columns: { ownerId: t.principal(), label: t.text(20) },
   rules: { read: rule.viewerIs("ownerId"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
 });
 export default schema({ auth: { password: true, guests: true }, tables: { items } });
@@ -365,7 +565,7 @@ export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }))
     fs::write(
         project.path.join("snapback/seed.ts"),
         r#"import { seed } from "snapback2";
-export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", ownerId: "alice", label: "one" }] } });
+export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", ownerId: "dev:alice", label: "one" }] } });
 "#,
     )
     .unwrap();

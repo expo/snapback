@@ -20,6 +20,7 @@ import {
   type ClientSnapshot,
   type ConnectionState,
   type MutationResult,
+  type Principal,
   type QueryHookResult,
   type QueryMachineEvent,
   type QueryView,
@@ -188,7 +189,7 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
 export type AuthHookState = "hydrating" | "authenticated" | "anonymous" | "refused";
 export interface UseAuthResult {
   state: AuthHookState;
-  viewer?: string;
+  viewer?: Principal;
   kind?: string;
   token?: string;
   refusal?: RefusalEnvelope;

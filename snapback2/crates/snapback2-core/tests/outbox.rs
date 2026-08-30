@@ -771,7 +771,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("room".to_owned(), ColumnType::Id),
-            ("user".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([(
             "byRoomUser".to_owned(),
@@ -782,7 +782,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         )]),
     );
     let channel = Channel {
-        args: BTreeMap::from([("room".to_owned(), ArgType::Scalar)]),
+        args: BTreeMap::from([("room".to_owned(), ArgType::Id)]),
         publish: RuleExpr::Public {
             reason: "typing is public to members".to_owned(),
         },

@@ -54,7 +54,7 @@ test("a real rejected mutation carries the complete refusal envelope", async (co
       op: "messages.send",
       args: {
         conversationId: "conversation-1",
-        recipientId: "dev:alice",
+        recipientId: "profile-alice",
         body: "not a member",
       },
     }),
@@ -118,7 +118,7 @@ test("React-free hook driver reduces eight real-owner transitions including live
   const first = await live.until((delivery) => delivery.state === "complete", 2_000);
   const committed = await writer.mutation(api.messages.send, {
     conversationId: "conversation-1",
-    recipientId: "dev:alice",
+    recipientId: "profile-alice",
     body: `hook-driver-${Date.now()}`,
   });
   assert.equal(committed.state, "committed");
@@ -179,7 +179,7 @@ test("real channel membership revocation ends the subscriber with a refusal", as
     () => undefined,
     (error: unknown) => error,
   );
-  const removed = await bob.mutation(api.integration.leave, { membershipId: "membership-2" });
+  const removed = await bob.mutation(api.messages.leave, { membershipId: "membership-2" });
   assert.equal(removed.state, "committed");
   const terminalError = await terminal;
   assert.ok(terminalError instanceof SnapbackRefusal);

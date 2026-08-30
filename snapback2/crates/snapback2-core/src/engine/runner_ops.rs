@@ -459,7 +459,7 @@ impl<'a> Runner<'a> {
                     && let Some(verdict) = self.verdicts.iter().find(|verdict| {
                         verdict.rule_hash == rule_hash
                             && verdict.pinned_inputs_digest == pinned_inputs_digest
-                            && verdict.principal == self.context.viewer
+                            && verdict.principal == self.context.viewer.as_str()
                             && verdict.auth_epoch == self.context.auth_epoch
                     })
                 {
@@ -482,7 +482,7 @@ impl<'a> Runner<'a> {
                     self.receipt.verdicts.push(Verdict {
                         rule_hash: rule_hash.to_owned(),
                         pinned_inputs_digest,
-                        principal: self.context.viewer.clone(),
+                        principal: self.context.viewer.to_string(),
                         auth_epoch: self.context.auth_epoch,
                         result,
                     });
@@ -503,7 +503,7 @@ impl<'a> Runner<'a> {
     pub(super) fn rule_term(&self, term: &RuleTerm, row: &Value) -> Result<Value, RuntimeError> {
         match term {
             RuleTerm::Field(name) => Ok(row.field(name)?.clone()),
-            RuleTerm::Viewer => Ok(Value::Id(self.context.viewer.clone())),
+            RuleTerm::Viewer => Ok(Value::Id(self.context.viewer.to_string())),
             RuleTerm::Literal(value) => Ok(value.clone()),
         }
     }

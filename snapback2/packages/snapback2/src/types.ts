@@ -1,5 +1,8 @@
 import type { Channel as ChannelRef, Op } from "./api.js";
 
+/** Server-minted authority subject; structurally compatible with `snapback2.Principal`. */
+export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
+
 export interface RefusalEnvelope {
   code: string;
   family: string;
@@ -80,8 +83,8 @@ export interface Subscription<Event> {
   until(predicate: (event: Event) => boolean, timeoutMs?: number): Promise<Event>;
 }
 
-export interface AuthSession { token: string; viewer: string }
-export interface AuthMe { viewer: string; kind: string }
+export interface AuthSession { token: string; viewer: Principal }
+export interface AuthMe { viewer: Principal; kind: string }
 export interface AuthApi {
   signup(input: { email: string; password: string }): Promise<AuthSession>;
   login(input: { email: string; password: string }): Promise<AuthSession>;
@@ -90,7 +93,7 @@ export interface AuthApi {
   me(): Promise<AuthMe>;
 }
 
-export interface ChannelEvent<Payload = unknown> { from: string; payload: Payload; at: number }
+export interface ChannelEvent<Payload = unknown> { from: Principal; payload: Payload; at: number }
 export type ChannelDelivery<Payload = unknown> = ChannelEvent<Payload> | RefusedDelivery;
 export type ChannelPublishResult =
   | { ok: true }

@@ -505,7 +505,7 @@ function generateApiDts(
     return [catalog, ...aliases].join("\n");
   })();
   const members = [modulesText, channelsText].filter(Boolean).join("\n");
-  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+  return `import type { Decimal, Json, Money, Page, Principal } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
 }
 
 function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
@@ -567,6 +567,7 @@ function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker
 
 function descriptorType(call: ts.CallExpression, checker: ts.TypeChecker): string {
   const name = callLeaf(call);
+  if (name === "principal") return "Principal";
   if (name === "id" || name === "text" || name === "ref") return "string";
   if (name === "int" || name === "time") return "number";
   if (name === "bool") return "boolean";
@@ -706,6 +707,7 @@ function apiExpressionType(
 function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "int") return "number";
   if (value.kind === "string") return "string";
+  if (value.kind === "principal") return "Principal";
   if (value.kind === "bool") return "boolean";
   if (value.kind === "json") return "Json";
   if (value.kind === "decimal") {
@@ -768,7 +770,7 @@ function validateSeedRow(
 }
 
 function seedValueMismatch(value: unknown, type: unknown, path: string): string | undefined {
-  if (type === "Id" || (type && typeof type === "object" && "Ref" in type)) {
+  if (type === "Id" || type === "Principal" || (type && typeof type === "object" && "Ref" in type)) {
     return typeof value === "string" && value.length > 0 ? undefined : `${path} must be a non-empty string`;
   }
   if (type === "Int" || type === "Time") {

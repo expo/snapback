@@ -1244,7 +1244,7 @@ fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
     match kind {
         ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
         ArgType::Optional(inner) => json_as_arg(value, inner),
-        ArgType::Id | ArgType::Ref { .. } => value
+        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))
             .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),
@@ -1284,7 +1284,7 @@ fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
                 json_as_kind(value, inner)
             }
         }
-        ColumnType::Id | ColumnType::Ref { .. } => value
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))
             .ok_or_else(|| Refusal::input("id index values must be strings", "pass a string id")),

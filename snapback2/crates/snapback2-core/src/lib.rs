@@ -6,8 +6,10 @@ pub mod engine;
 pub mod identity;
 pub mod ir;
 pub mod live;
+pub mod principal;
 pub mod programs;
 pub mod registry;
+mod rule_types;
 pub mod schema;
 pub mod store;
 pub mod successor;
@@ -25,6 +27,7 @@ pub use engine::{
 pub use identity::{IdentityError, Principal, Session};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
+pub use principal::PrincipalId;
 pub use programs::*;
 pub use registry::{
     ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, RowRuleVerdict, Runtime,

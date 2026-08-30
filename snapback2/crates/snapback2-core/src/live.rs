@@ -226,7 +226,7 @@ impl Runtime {
             .map(|(id, subscription)| SubscriptionInfo {
                 id: *id,
                 op: subscription.op.clone(),
-                principal: subscription.context.viewer.clone(),
+                principal: subscription.context.viewer.to_string(),
                 last_result_digest: subscription.last_result_digest.clone(),
                 last_seq: subscription.last_seq,
             })

@@ -384,6 +384,7 @@ function descriptorType(node: ts.Expression): AuthoredType {
     : ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined);
   if (!call) return unknownType;
   if (name === "int" || name === "time") return { kind: "int" };
+  if (name === "principal") return { kind: "principal" };
   if (name === "id" || name === "ref") return { kind: "string" };
   if (name === "text") {
     const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);

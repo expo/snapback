@@ -1,8 +1,11 @@
 import { rule, schema, table, t } from "snapback2";
 
 export const users = table({
-  columns: { handle: t.text(32) },
-  indexes: { byHandle: { columns: ["handle"], unique: true } },
+  columns: { principal: t.principal(), handle: t.text(32) },
+  indexes: {
+    byPrincipal: { columns: ["principal"], unique: true },
+    byHandle: { columns: ["handle"], unique: true },
+  },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
 });
 
@@ -12,7 +15,7 @@ export const conversations = table({
 });
 
 export const memberships = table({
-  columns: { conversationId: t.ref(conversations), userId: t.ref(users), lastReadAt: t.time(), activity: t.time() },
+  columns: { conversationId: t.ref(conversations), userId: t.principal(), lastReadAt: t.time(), activity: t.time() },
   indexes: {
     byConvUser: { columns: ["conversationId", "userId"], unique: true },
     byUserActivity: { columns: ["userId", "activity"] },
@@ -26,7 +29,7 @@ export const memberships = table({
 });
 
 export const messages = table({
-  columns: { conversationId: t.ref(conversations), authorId: t.ref(users), body: t.text(256), at: t.time() },
+  columns: { conversationId: t.ref(conversations), authorId: t.principal(), body: t.text(256), at: t.time() },
   indexes: { byConvTime: { columns: ["conversationId", "at", "id"] }, byToken: { columns: ["body", "id"] } },
   rules: {
     read: rule.exists(memberships, "byConvUser", [rule.field("conversationId"), rule.viewer]),
@@ -36,13 +39,13 @@ export const messages = table({
 });
 
 export const unreads = table({
-  columns: { conversationId: t.ref(conversations), userId: t.ref(users), value: t.int() },
+  columns: { conversationId: t.ref(conversations), userId: t.principal(), value: t.int() },
   indexes: { byConvUser: { columns: ["conversationId", "userId"], unique: true } },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
 });
 
 export const dmKeys = table({
-  columns: { lo: t.ref(users), hi: t.ref(users), conversationId: t.ref(conversations) },
+  columns: { lo: t.principal(), hi: t.principal(), conversationId: t.ref(conversations) },
   indexes: { byPair: { columns: ["lo", "hi"], unique: true } },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
   constraints: [{ unique: "byPair" }],
@@ -67,19 +70,19 @@ export const cardCounts = table({
 });
 
 export const expenses = table({
-  columns: { groupId: t.id(), amount: t.int(), payerId: t.ref(users) },
+  columns: { groupId: t.id(), amount: t.int(), payerId: t.principal() },
   indexes: { byGroup: { columns: ["groupId", "id"] } },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
 });
 
 export const shares = table({
-  columns: { expenseId: t.ref(expenses), groupId: t.id(), userId: t.ref(users), amount: t.int() },
+  columns: { expenseId: t.ref(expenses), groupId: t.id(), userId: t.principal(), amount: t.int() },
   indexes: { byExpense: { columns: ["expenseId", "id"] }, byGroupUser: { columns: ["groupId", "userId", "id"] } },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
 });
 
 export const owed = table({
-  columns: { groupId: t.id(), userId: t.id(), value: t.int() },
+  columns: { groupId: t.id(), userId: t.principal(), value: t.int() },
   indexes: { byGroup: { columns: ["groupId", "userId"], unique: true } },
   rules: { read: rule.public("spike fixture"), insert: rule.public("spike fixture"), update: rule.public("spike fixture"), delete: rule.public("spike fixture") },
 });
@@ -91,7 +94,7 @@ export const accounts = table({
 });
 
 export const waitlist = table({
-  columns: { resourceId: t.id(), ownerId: t.ref(users) },
+  columns: { resourceId: t.id(), ownerId: t.principal() },
   indexes: { byResource: { columns: ["resourceId", "id"] } },
   rules: { read: rule.viewerIs("ownerId"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
 });
@@ -103,7 +106,7 @@ export const waitCounts = table({
 });
 
 export const entitlements = table({
-  columns: { userId: t.ref(users) },
+  columns: { userId: t.principal() },
   indexes: { byUser: { columns: ["userId"], unique: true } },
   rules: { read: rule.deny(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
 });

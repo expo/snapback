@@ -1,18 +1,22 @@
 import { channel, rule, schema, table, t } from "snapback2";
 
 export const profiles = table({
-  columns: { handle: t.text(32), name: t.text(80), email: t.text(200) },
-  indexes: { byHandle: { columns: ["handle"], unique: true } },
+  columns: { principal: t.principal(), handle: t.text(32), name: t.text(80), email: t.text(200) },
+  indexes: {
+    byPrincipal: { columns: ["principal"], unique: true },
+    byHandle: { columns: ["handle"], unique: true },
+  },
   rules: {
     read: rule.public("profiles are public"),
-    insert: rule.viewerIs("id"),
-    update: rule.viewerIs("id"),
+    insert: rule.viewerIs("principal"),
+    update: rule.viewerIs("principal"),
     delete: rule.deny(),
   },
+  constraints: [{ unique: "byPrincipal" }, { immutable: ["principal"] }],
 });
 
 export const conversations = table({
-  columns: { title: t.text(120), creatorId: t.ref(profiles) },
+  columns: { title: t.text(120), creatorId: t.principal() },
   indexes: { byCreator: { columns: ["creatorId"] } },
   rules: {
     read: rule.public("conversation shells are public"),
@@ -25,7 +29,7 @@ export const conversations = table({
 export const memberships = table({
   columns: {
     conversationId: t.ref(conversations),
-    userId: t.ref(profiles),
+    userId: t.principal(),
     lastReadAt: t.time(),
   },
   indexes: {
@@ -44,7 +48,7 @@ export const memberships = table({
 export const messages = table({
   columns: {
     conversationId: t.ref(conversations),
-    authorId: t.ref(profiles),
+    authorId: t.principal(),
     body: t.text(4000),
     at: t.time(),
   },
@@ -84,7 +88,7 @@ export const notifications = table({
 });
 
 export const typing = channel({
-  args: { conversationId: t.id() },
+  args: { conversationId: t.ref(conversations) },
   publish: rule.exists(memberships, "byConvUser", [rule.field("conversationId"), rule.viewer]),
   subscribe: rule.exists(memberships, "byConvUser", [rule.field("conversationId"), rule.viewer]),
   ttlMs: 4000,

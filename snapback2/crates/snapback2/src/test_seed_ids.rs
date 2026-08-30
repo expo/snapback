@@ -5,7 +5,7 @@ use super::{ArgType, Json, SeedData, json};
 
 pub(super) fn arg_is_id(kind: &ArgType) -> bool {
     match kind {
-        ArgType::Id | ArgType::Ref { .. } => true,
+        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => true,
         ArgType::Optional(inner) => arg_is_id(inner),
         _ => false,
     }

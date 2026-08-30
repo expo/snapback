@@ -211,7 +211,7 @@ fn exhausted_hidden_range_is_complete_and_membership_addition_redelivers_it() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("group".to_owned(), ColumnType::Id),
-            ("user".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([(
             "byGroupUser".to_owned(),
@@ -339,7 +339,7 @@ fn hidden_rows_before_a_visible_row_still_produce_capped_from_trace() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("doc".to_owned(), ColumnType::Id),
-            ("user".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([(
             "byDocUser".to_owned(),
@@ -425,7 +425,7 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("group".to_owned(), ColumnType::Id),
-            ("user".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([(
             "byGroupUser".to_owned(),
@@ -503,7 +503,7 @@ fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("group".to_owned(), ColumnType::Id),
-            ("user".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([(
             "byGroupUser".to_owned(),

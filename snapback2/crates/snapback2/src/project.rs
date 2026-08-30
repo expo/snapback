@@ -442,6 +442,15 @@ fn json_for_column(value: &Json, kind: &snapback2_core::ColumnType) -> Result<Va
         return json_for_column(value, inner);
     }
     match kind {
+        ColumnType::Principal => value
+            .as_str()
+            .map(|value| Value::Id(value.to_owned()))
+            .ok_or_else(|| {
+                Refusal::input(
+                    "principal seed values must be strings",
+                    "use a principal id",
+                )
+            }),
         ColumnType::Id | ColumnType::Ref { .. } => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))

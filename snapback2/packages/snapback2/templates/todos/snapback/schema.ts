@@ -1,7 +1,7 @@
 import { rule, schema, table, t } from "snapback2";
 
 export const todos = table({
-  columns: { title: t.text(200), done: t.bool(), ownerId: t.id() },
+  columns: { title: t.text(200), done: t.bool(), ownerId: t.principal() },
   indexes: { byOwner: { columns: ["ownerId"] } },
   rules: {
     read: rule.viewerIs("ownerId"),

@@ -21,6 +21,7 @@ pub enum ProgramKind {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ArgType {
     Id,
+    Principal,
     Ref {
         table: String,
     },

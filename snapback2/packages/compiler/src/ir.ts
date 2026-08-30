@@ -84,6 +84,7 @@ export type Stmt =
 
 export type ArgType =
   | "Id"
+  | "Principal"
   | { Ref: { table: string } }
   | "Int"
   | "Bool"

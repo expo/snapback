@@ -8,7 +8,10 @@ import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
+import type { Principal } from "../../snapback2/src/index";
+import type { Op } from "../../snapback2/src/api";
 import * as clientSurface from "../../snapback2/src/client";
+import type { SnapbackClient } from "../../snapback2/src/types";
 import * as reactSurface from "../../snapback2/src/react";
 import * as testSurface from "../../snapback2/src/test";
 import ts from "typescript";
@@ -34,6 +37,21 @@ function canonical(value: unknown): string {
       ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, normalize(item[key])]))
       : item;
   return JSON.stringify(normalize(value));
+}
+
+async function proveAuthenticatedViewerFitsGeneratedPrincipalArg(
+  client: SnapbackClient,
+  assign: Op<{ target: Principal; profileId: string }, null>,
+  profileRef: string,
+): Promise<void> {
+  const me = await client.auth.me();
+  await client.mutation(assign, { target: me.viewer, profileId: profileRef });
+  const session = await client.auth.login({ email: "alice@example.com", password: "secret" });
+  await client.mutation(assign, { target: session.viewer, profileId: profileRef });
+  // @ts-expect-error A plain string cannot fabricate a generated Principal argument.
+  await client.mutation(assign, { target: "dev:alice", profileId: profileRef });
+  // @ts-expect-error An application profile Ref is still an ordinary string, not a Principal.
+  await client.mutation(assign, { target: profileRef, profileId: profileRef });
 }
 
 function dequalify(value: unknown): any {
@@ -463,6 +481,11 @@ test("client, React, and test modules expose their real callable surfaces", () =
   }
 });
 
+test("authenticated client viewers inhabit generated Principal arguments", () => {
+  assert(typeof proveAuthenticatedViewerFitsGeneratedPrincipalArg === "function",
+    "consumer Principal compatibility proof was not typechecked");
+});
+
 test("schema and effect refusals rewrite only the failing declaration", async () => {
   const schemaSource = `import { schema, table, t } from "snapback2";
     export const unrelated = table({ columns: { value: t.text(20) } });
@@ -489,7 +512,7 @@ test("schema and effect refusals rewrite only the failing declaration", async ()
 test("chat and todos lower schema, channels, effects, emit, API types, seed, and journeys", async () => {
   const chat = await lowerProject(`${frontend}fixtures/chat`);
   assert(chat.ok, `chat refused: ${chat.ok ? "" : chat.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
-  assert(chat.project.programs.length === 3, "chat operation count differs");
+  assert(chat.project.programs.length === 4, "chat operation count differs");
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
@@ -497,20 +520,41 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(canonical(notificationRules?.insert) === canonical(systemRule)
     && canonical(notificationRules?.update) === canonical(systemRule),
   "chat effect bookkeeping must explicitly admit the system principal");
+  const profileShape = chat.project.schema.tables.profiles as any;
+  const membershipShape = chat.project.schema.tables.memberships as any;
+  assert(profileShape?.columns?.principal === "Principal"
+    && canonical(profileShape?.indexes?.byPrincipal) === canonical({ columns: ["principal"], unique: true })
+    && canonical(profileShape?.constraints).includes(canonical({ Unique: { index: "byPrincipal" } }))
+    && canonical(profileShape?.constraints).includes(canonical({ Immutable: { fields: ["principal"] } })),
+  "chat profiles must join their application row ids to one unique Principal");
+  assert(membershipShape?.columns?.userId === "Principal",
+    "chat membership authority must remain a nominal Principal");
+  assert((chat.project.schema.tables.conversations as any)?.columns?.creatorId === "Principal"
+    && (chat.project.schema.tables.messages as any)?.columns?.authorId === "Principal",
+  "chat creator and author authority axes must remain nominal Principals");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
   const send = chat.project.programs.find((program) => program.name === "messages.send")!;
   assert(canonical(send).includes('"Emit"'), "emit did not lower into the mutation IR");
+  const leave = chat.project.programs.find((program) => program.name === "messages.leave")!;
+  const leaveDelete = (leave.body.find((statement) =>
+    typeof statement === "object" && statement !== null && "Delete" in statement) as any)?.Delete;
+  assert(canonical(leave.args.membershipId) === canonical({ Ref: { table: "memberships" } })
+    && leaveDelete?.table === "memberships",
+  "chat self-leave did not retain its membership ref/delete intent");
   assert(chat.apiDts.includes("messages") && chat.apiDts.includes("Op<{ conversationId: string"), "chat API declaration missing inferred types");
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page, Principal } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
   const seed = await lowerSeed(`${frontend}fixtures/chat`);
   assert(seed.ok && seed.seed.personas.length === 2 && seed.seed.rows.profiles?.length === 2, "chat seed did not lower");
+  assert(seed.ok && (seed.seed.rows.profiles?.[0] as any)?.id === "profile-alice"
+    && (seed.seed.rows.profiles?.[0] as any)?.principal === "dev:alice",
+  "chat seed collapsed the profile row id into its authority Principal");
   const journeys = await listJourneys(`${frontend}fixtures/chat`);
   assert(canonical(journeys) === canonical(["snapback/tests/chat.test.ts"]), "chat journey list differs");
 });
@@ -530,6 +574,70 @@ test("ref operation arguments retain their schema table in the engine IR", async
       canonical(project.project.programs[0]?.args.todoId) === canonical({ Ref: { table: "todos" } }),
       `ref arg lost its table: ${canonical(project.project.programs[0]?.args.todoId)}`,
     );
+  });
+});
+
+test("Principal columns and arguments stay nominal across lowering and generated APIs", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const profiles = table({ columns: { name: t.text(100) } });
+      export const grants = table({ columns: { principal: t.principal(), profileId: t.ref(profiles) } });
+      export default schema({ tables: { profiles, grants } });`,
+    "snapback/grants.ts": `import { mutation, t } from "snapback2";
+      import { grants, profiles } from "./schema";
+      export const assign = mutation({ target: t.principal(), profileId: t.ref(profiles) }, ({ db, ctx, args }) => {
+        const id = ctx.newId();
+        db.insert(grants, { id, principal: ctx.viewer, profileId: args.profileId });
+        db.update(grants, id, { principal: args.target });
+        return { actor: ctx.viewer, target: args.target };
+      });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: ["alice"], rows: {
+        profiles: [{ id: "p1", name: "Alice" }],
+        grants: [{ id: "g1", principal: "dev:alice", profileId: "p1" }],
+      } });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `Principal project refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    const columns = (project.project.schema.tables.grants as any).columns;
+    const assign = project.project.programs.find((item) => item.name === "grants.assign")!;
+    assert(columns.principal === "Principal", `Principal column lowered as ${canonical(columns.principal)}`);
+    assert(assign.args.target === "Principal", `Principal argument lowered as ${canonical(assign.args.target)}`);
+    assert(canonical(assign.args.profileId) === canonical({ Ref: { table: "profiles" } }), "Ref argument lost its table beside Principal");
+    assert(project.apiDts.includes("principal: Principal") && project.apiDts.includes("target: Principal")
+      && project.apiDts.includes("profileId: string"), "generated declarations did not distinguish Principal from table IDs");
+    assert(canonical(assign).includes('"Viewer"') && canonical(assign).includes('"Variable":"target"'),
+      "ctx.viewer or the Principal argument did not reach the operation IR");
+    const seed = await lowerSeed(root);
+    assert(seed.ok && (seed.seed.rows.grants?.[0] as any)?.principal === "dev:alice",
+      "schema-directed persona seed did not preserve its Principal wire value");
+  });
+});
+
+test("ordinary strings and table refs cannot fill Principal insert, update, or argument values", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const profiles = table({ columns: { name: t.text(100) } });
+      export const grants = table({ columns: { principal: t.principal() } });
+      export default schema({ tables: { profiles, grants } });`,
+    "snapback/grants.ts": `import { mutation, t } from "snapback2";
+      import { grants, profiles } from "./schema";
+      export const insertRef = mutation({ profileId: t.ref(profiles) }, ({ db, ctx, args }) =>
+        db.insert(grants, { id: ctx.newId(), principal: args.profileId }));
+      export const insertString = mutation({}, ({ db, ctx }) =>
+        db.insert(grants, { id: ctx.newId(), principal: "forged" }));
+      export const updateRef = mutation({ grantId: t.ref(grants), profileId: t.ref(profiles) }, ({ db, args }) =>
+        db.update(grants, args.grantId, { principal: args.profileId }));
+      export const forgeArg = mutation({ target: t.principal() }, ({ args }) => {
+        const forged: typeof args.target = "forged";
+        return forged;
+      });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(!project.ok, "ordinary string/table Ref values unexpectedly inhabited Principal");
+    const nominal = project.diagnostics.filter((item) =>
+      item.message.includes("not assignable") && item.message.includes("Principal"));
+    assert(nominal.length >= 4, `Principal negative paths were not all rejected: ${project.diagnostics.map((item) => item.message).join("; ")}`);
   });
 });
 
@@ -759,6 +867,86 @@ test("rule input visibility is derived and cannot be authored into the IR", () =
     item.code === "E_RULE_INVALID" && item.message.includes("visibility is derived"));
   assert(visibility, "authored rule-input visibility did not produce a sited refusal");
   assert(!canonical(lowered.schema).includes("input_visibility"), "authored rule-input visibility reached engine IR");
+});
+
+test("rule terms and exists keys are checked against nominal schema types", () => {
+  const valid = `import { schema, table, t, rule } from "snapback2";
+    export const profiles = table({ columns: { name: t.text(40) } });
+    export const grants = table({ columns: { principal: t.principal() },
+      indexes: { byPrincipal: { columns: ["principal"], unique: true } },
+      rules: { read: rule.deny(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
+    export const docs = table({ columns: { owner: t.principal(), backup: t.principal(), profileId: t.ref(profiles) },
+      rules: {
+        read: rule.viewerIs("owner"),
+        insert: rule.eq(rule.field("owner"), rule.viewer),
+        update: rule.and(
+          rule.ne(rule.field("backup"), rule.viewer),
+          rule.exists(grants, "byPrincipal", [rule.viewer]),
+          rule.exists(profiles, "byId", [rule.field("profileId")]),
+        ),
+        delete: rule.system(),
+      } });
+    export default schema({ tables: { profiles, grants, docs } });`;
+  const accepted = lowerSchema(valid, "snapback/schema.ts");
+  assert(accepted.diagnostics.length === 0,
+    `valid Principal rules refused: ${accepted.diagnostics.map((item) => item.message).join("; ")}`);
+  assert(canonical((accepted.schema.tables.docs as any)?.rules?.delete)
+    === canonical({ Eq: ["Viewer", { Literal: { Id: "system" } }] }),
+  "rule.system lost its reserved Principal lowering");
+
+  const invalid = `import { schema, table, t, rule } from "snapback2";
+    export const profiles = table({ columns: { name: t.text(40) } });
+    export const legacy = table({
+      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), principal: t.principal(), label: t.text(40) },
+      indexes: {
+        byOwnerRef: { columns: ["ownerRef"] }, byOwnerId: { columns: ["ownerId"] },
+        byPrincipal: { columns: ["principal"] }, byLabel: { columns: ["label"] },
+      },
+      rules: { read: rule.allow(), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+    });
+    export const docs = table({
+      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), principal: t.principal(), label: t.text(40) },
+      rules: {
+        read: rule.viewerIs("ownerRef"),
+        insert: rule.eq(rule.field("ownerId"), rule.viewer),
+        update: rule.ne(rule.viewer, rule.field("label")),
+        delete: rule.exists(legacy, "byOwnerRef", [rule.viewer]),
+      },
+    });
+    export const malformed = table({
+      columns: { ownerRef: t.ref(profiles), ownerId: t.id(), label: t.text(40) },
+      rules: {
+        read: rule.exists(legacy, "byPrincipal", [rule.field("ownerRef")]),
+        insert: rule.exists(legacy, "byPrincipal", []),
+        update: rule.exists(legacy, "missing", [rule.viewer]),
+        delete: rule.and(
+          rule.eq(rule.field("label"), rule.field("ownerId")),
+          rule.exists(legacy, "byOwnerId", [rule.field("ownerRef")]),
+        ),
+      },
+    });
+    export const unresolved = table({ columns: { principal: t.principal() },
+      rules: { read: rule.exists(missing, "byPrincipal", [rule.viewer]), insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
+    export default schema({ tables: { profiles, legacy, docs, malformed, unresolved } });`;
+  const refused = lowerSchema(invalid, "snapback/schema.ts");
+  const messages = refused.diagnostics.filter((item) => item.code === "E_RULE_INVALID");
+  for (const expected of [
+    "fields compared with rule.viewer must be Principal",
+    "rule.eq compares Id with Principal",
+    "rule.ne compares Principal with Text",
+    "is Principal; expected Ref<profiles>",
+    "is Ref<profiles>; expected Principal",
+    "has 0 terms; expected 1",
+    "unresolved index legacy.missing",
+    "rule.eq compares Text with Id",
+    "is Ref<profiles>; expected Id",
+    "unresolved table missing",
+  ]) {
+    assert(messages.some((item) => item.message.includes(expected)),
+      `typed rule refusals omitted ${expected}: ${messages.map((item) => item.message).join("; ")}`);
+  }
+  assert(messages.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0),
+    "typed rule refusal lost its authored site or mechanical rewrite");
 });
 
 test("implicit id and byId cannot be overwritten", () => {

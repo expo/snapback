@@ -4,7 +4,7 @@ export const todos = table({
   columns: {
     title: t.text(200),
     done: t.bool(),
-    ownerId: t.id(),
+    ownerId: t.principal(),
     price: t.decimal(2),
     status: t.enum(["open", "done"]),
     budget: t.optional(t.money("USD")),

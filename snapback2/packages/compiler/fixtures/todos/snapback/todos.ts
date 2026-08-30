@@ -42,12 +42,12 @@ export const argDefaults = query({
 export const reprice = mutation({ id: t.id() }, ({ db, args }) =>
   db.update(todos, args.id, { price: 1.25, status: "done" }));
 
-export const upsertLiteral = mutation({ id: t.id(), title: t.text(200), ownerId: t.id() }, ({ db, args }) =>
+export const upsertLiteral = mutation({ id: t.id(), title: t.text(200) }, ({ db, ctx, args }) =>
   db.upsert(todos, args.id, {
     id: args.id,
     title: args.title,
     done: false,
-    ownerId: args.ownerId,
+    ownerId: ctx.viewer,
     price: 2.5,
     status: "open",
   }));

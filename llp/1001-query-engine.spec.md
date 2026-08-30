@@ -294,7 +294,8 @@ Authentication is always on (LLP 1000; LLP 0329.016 §5.5). The engine owns
 the primitives; the loop owns the routes.
 
 ```rust
-pub struct Principal { pub id: String, pub kind: String, pub name: Option<String> }
+pub struct PrincipalId(String); // opaque nominal authority subject
+pub struct Principal { pub id: PrincipalId, pub kind: String, pub name: Option<String> }
 pub struct Session { pub token: String, pub principal: Principal, pub expires_at: i64 }
 impl Runtime {
     pub fn signup(&mut self, email: &str, password: &str, now: i64) -> Result<Session, IdentityError>;  // E_AUTH_EMAIL_TAKEN, E_AUTH_PASSWORD_WEAK (< 8 chars)
@@ -309,12 +310,39 @@ impl Runtime {
 
 Password hashing is salted and iterated (argon2id preferred; PBKDF2-HMAC-SHA256
 with ≥ 100k iterations acceptable) through one small crate; the hash format is
-versioned in the string. Tokens are 32 random bytes, base64url. The principal
-id is the `viewer` every program sees; `principal_kind` is the row's kind
-(`user`, `guest`, `persona`, `system`), which rules test with
-`principal.kind`. The `system` principal exists from `Store::open` and has no
+versioned in the string. Tokens are 32 random bytes, base64url. `PrincipalId`
+is the nominal authority scalar used by `Context::viewer`; the schema/compiler
+surface exposes the same distinction as `t.principal()` / branded
+`Principal`. A principal currently serializes through the `Value::Id` wire and
+storage representation, but it is not an alias for `Id<profiles>`,
+`Id<users>`, or any other application row reference. The type checker rejects
+those row-reference values where a principal is required. A program may accept
+a target principal argument, while its acting viewer is always supplied by the
+verified session rather than caller input.
+
+`principal_kind` remains protected identity metadata (`user`, `guest`,
+`persona`, `system`) for diagnostics and compatibility; it grants no rule or
+commit authority. The `system` principal exists from `Store::open` and has no
 session; `Context::system()` constructs its context for schedules, `then`
-mutations (LLP 1003), and seeds.
+mutations (LLP 1003), and seeds. The concrete `Value::Id` encoding is an
+implementation choice, not a frozen public wire representation.
+
+Rule typing restores that nominal distinction at both trust boundaries. The
+compiler resolves `Field` against the outer table or channel arguments and
+checks compatible operands for every `Eq`/`Ne`. For `Exists`, it resolves the
+target table and index, requires exact key arity, and checks every key term
+against the indexed column. `Viewer` is always `Principal`; only a Principal
+field or the reserved `system` principal literal may meet it. A `Ref<T>` may
+meet the implicit `T.id` position and no other `Id` or `Principal` axis.
+`Generation::certify` repeats the same structural checks over raw
+`ProjectJson`, so bypassing the authored compiler cannot erase the boundary;
+violations are sited `E_RULE_INVALID` refusals.
+
+`PrincipalId::new`/string conversion are trusted host, persistence, and test
+representation constructors, not authentication evidence. Untrusted served
+requests acquire their acting `Context::viewer` only through session
+authentication (or the development-only persona boundary); accepting a
+Principal-typed target program argument never changes the acting viewer.
 
 ## 7. Channels (`schema.channels`)
 

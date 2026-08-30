@@ -4,6 +4,7 @@ export type AuthoredType =
   | { kind: "decimal"; scale: number; currency?: string }
   | { kind: "enum"; variants: string[] }
   | { kind: "string"; max?: number }
+  | { kind: "principal" }
   | { kind: "bool" }
   | { kind: "json" }
   | { kind: "row"; table: string }
@@ -24,6 +25,7 @@ export function authoredTypeFromColumn(value: unknown): AuthoredType {
   if (value === "Int" || value === "Time") return intType;
   if (value === "Bool") return { kind: "bool" };
   if (value === "Id") return { kind: "string" };
+  if (value === "Principal") return { kind: "principal" };
   if (!value || typeof value !== "object" || Array.isArray(value)) return unknownType;
   const descriptor = value as Record<string, any>;
   if (descriptor.Text) return { kind: "string", max: descriptor.Text.max };

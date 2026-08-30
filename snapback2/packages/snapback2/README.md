@@ -30,7 +30,7 @@ function Messages() {
   const messages = useQuery(api.messages.thread, { conversationId: "general" });
   const send = useMutation(api.messages.send);
   if (messages.state === "hydrating") return <>Loading…</>;
-  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "general", recipientId: "bob", body: "Hi" })}>
+  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "general", recipientId: "profile-bob", body: "Hi" })}>
     {messages.state}
   </button>;
 }

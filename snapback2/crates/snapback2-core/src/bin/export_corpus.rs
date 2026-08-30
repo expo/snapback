@@ -932,8 +932,22 @@ fn binary(op: BinaryOp, left: Value, right: Value) -> Expr {
 
 fn fixture_rows() -> Vec<(&'static str, Value)> {
     let mut rows = vec![
-        ("users", row([("id", id("u1")), ("handle", text("alice"))])),
-        ("users", row([("id", id("u2")), ("handle", text("bob"))])),
+        (
+            "users",
+            row([
+                ("id", id("u1")),
+                ("principal", id("u1")),
+                ("handle", text("alice")),
+            ]),
+        ),
+        (
+            "users",
+            row([
+                ("id", id("u2")),
+                ("principal", id("u2")),
+                ("handle", text("bob")),
+            ]),
+        ),
         (
             "conversations",
             row([("id", id("c1")), ("title", text("General"))]),

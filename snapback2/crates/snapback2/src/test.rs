@@ -2,6 +2,7 @@
 // @ref LLP 1002#7-test-and-the-receipt — derived probes and journeys share one receipt-backed owner.
 
 use self::test_bounds::engine_failure;
+use self::test_invalidation::certificate_site_intersection;
 use self::test_seed_ids::{arg_is_id, named_id_table, seed_id_arg};
 use self::test_sse::SseProbe;
 use crate::client;
@@ -12,8 +13,7 @@ use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Certificate, Context, ExecutionState, Generation, Program, ProgramKind, Runtime,
-    Store, Value,
+    ArgType, Context, ExecutionState, Generation, Program, ProgramKind, Runtime, Store, Value,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -23,8 +23,12 @@ use std::process::{Child, Command, ExitCode, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[path = "test_authority.rs"]
+mod test_authority;
 #[path = "test_bounds.rs"]
 mod test_bounds;
+#[path = "test_invalidation.rs"]
+mod test_invalidation;
 #[path = "test_seed_ids.rs"]
 mod test_seed_ids;
 #[path = "test_sse.rs"]
@@ -160,6 +164,7 @@ pub fn run(args: &[String]) -> ExitCode {
         checks.push(check_bounds(&isolated.info, &compiled, &seed));
         checks.push(check_invalidation(&isolated.info, &compiled, &seed));
         checks.push(check_replay(&isolated.info, &compiled, &seed));
+        checks.extend(test_authority::checks(&isolated.info, &compiled, &seed));
         if let Some(effects) = check_effects(&isolated.info, &compiled) {
             checks.push(effects);
         }
@@ -805,37 +810,6 @@ fn check_invalidation(
     }
 }
 
-fn certificate_site_intersection(
-    query: &Certificate,
-    mutation: &Certificate,
-    generation: &Generation,
-) -> BTreeSet<(String, String)> {
-    let reads = query
-        .read_sites
-        .iter()
-        .map(|site| (site.table.clone(), site.index.clone()))
-        .collect::<BTreeSet<_>>();
-    let writes = mutation
-        .write_sites
-        .iter()
-        .flat_map(|site| {
-            generation
-                .schema
-                .tables
-                .get(&site.table)
-                .into_iter()
-                .flat_map(move |table| {
-                    table
-                        .indexes
-                        .keys()
-                        .cloned()
-                        .map(move |index| (site.table.clone(), index))
-                })
-        })
-        .collect::<BTreeSet<_>>();
-    reads.intersection(&writes).cloned().collect()
-}
-
 fn probe_args_align(query: &Json, mutation: &Json) -> bool {
     let Some(query) = query.as_object() else {
         return true;
@@ -1249,6 +1223,10 @@ fn generated_arg(
 ) -> Result<Json, String> {
     let value = match kind {
         ArgType::Id => seed_id_arg(op, name, named_id_table(name, seed), seed, sample)?,
+        ArgType::Principal => json!(format!(
+            "dev:{}",
+            seed.personas.first().map_or("alice", String::as_str)
+        )),
         ArgType::Ref { table } => seed_id_arg(op, name, Some(table.as_str()), seed, sample)?,
         ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name),
         ArgType::Text { .. } => {

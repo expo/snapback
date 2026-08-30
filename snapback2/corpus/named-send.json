@@ -249,17 +249,9 @@
               "table": "conversations"
             }
           },
-          "hi": {
-            "Ref": {
-              "table": "users"
-            }
-          },
+          "hi": "Principal",
           "id": "Id",
-          "lo": {
-            "Ref": {
-              "table": "users"
-            }
-          }
+          "lo": "Principal"
         },
         "indexes": {
           "byId": {
@@ -309,11 +301,7 @@
       "entitlements": {
         "columns": {
           "id": "Id",
-          "userId": {
-            "Ref": {
-              "table": "users"
-            }
-          }
+          "userId": "Principal"
         },
         "indexes": {
           "byId": {
@@ -342,11 +330,7 @@
           "amount": "Int",
           "groupId": "Id",
           "id": "Id",
-          "payerId": {
-            "Ref": {
-              "table": "users"
-            }
-          }
+          "payerId": "Principal"
         },
         "indexes": {
           "byGroup": {
@@ -397,11 +381,7 @@
           },
           "id": "Id",
           "lastReadAt": "Time",
-          "userId": {
-            "Ref": {
-              "table": "users"
-            }
-          }
+          "userId": "Principal"
         },
         "indexes": {
           "byConvUser": {
@@ -475,11 +455,7 @@
       "messages": {
         "columns": {
           "at": "Time",
-          "authorId": {
-            "Ref": {
-              "table": "users"
-            }
-          },
+          "authorId": "Principal",
           "body": {
             "Text": {
               "max": 256
@@ -577,7 +553,7 @@
         "columns": {
           "groupId": "Id",
           "id": "Id",
-          "userId": "Id",
+          "userId": "Principal",
           "value": "Int"
         },
         "indexes": {
@@ -663,11 +639,7 @@
           },
           "groupId": "Id",
           "id": "Id",
-          "userId": {
-            "Ref": {
-              "table": "users"
-            }
-          }
+          "userId": "Principal"
         },
         "indexes": {
           "byExpense": {
@@ -724,11 +696,7 @@
             }
           },
           "id": "Id",
-          "userId": {
-            "Ref": {
-              "table": "users"
-            }
-          },
+          "userId": "Principal",
           "value": "Int"
         },
         "indexes": {
@@ -777,7 +745,8 @@
               "max": 32
             }
           },
-          "id": "Id"
+          "id": "Id",
+          "principal": "Principal"
         },
         "indexes": {
           "byHandle": {
@@ -789,6 +758,12 @@
           "byId": {
             "columns": [
               "id"
+            ],
+            "unique": true
+          },
+          "byPrincipal": {
+            "columns": [
+              "principal"
             ],
             "unique": true
           }
@@ -864,11 +839,7 @@
       "waitlist": {
         "columns": {
           "id": "Id",
-          "ownerId": {
-            "Ref": {
-              "table": "users"
-            }
-          },
+          "ownerId": "Principal",
           "resourceId": "Id"
         },
         "indexes": {
@@ -1391,6 +1362,9 @@
             },
             "id": {
               "Id": "u1"
+            },
+            "principal": {
+              "Id": "u1"
             }
           }
         }
@@ -1404,6 +1378,9 @@
               "String": "bob"
             },
             "id": {
+              "Id": "u2"
+            },
+            "principal": {
               "Id": "u2"
             }
           }

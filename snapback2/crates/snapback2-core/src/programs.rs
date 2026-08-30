@@ -21,7 +21,7 @@ pub fn spike_schema() -> Schema {
             columns: columns([
                 ("id", ColumnType::Id),
                 ("conversationId", reference("conversations")),
-                ("userId", reference("users")),
+                ("userId", ColumnType::Principal),
                 ("lastReadAt", ColumnType::Time),
                 ("activity", ColumnType::Time),
             ]),
@@ -58,7 +58,7 @@ pub fn spike_schema() -> Schema {
             columns: columns([
                 ("id", ColumnType::Id),
                 ("conversationId", reference("conversations")),
-                ("authorId", reference("users")),
+                ("authorId", ColumnType::Principal),
                 ("body", ColumnType::Text { max: 256 }),
                 ("at", ColumnType::Time),
             ]),
@@ -86,7 +86,7 @@ pub fn spike_schema() -> Schema {
             columns: columns([
                 ("id", ColumnType::Id),
                 ("resourceId", ColumnType::Id),
-                ("ownerId", reference("users")),
+                ("ownerId", ColumnType::Principal),
             ]),
             indexes: indexes([
                 ("byId", &["id"], true),
@@ -105,7 +105,7 @@ pub fn spike_schema() -> Schema {
     tables.insert(
         "entitlements".to_owned(),
         Table {
-            columns: columns([("id", ColumnType::Id), ("userId", reference("users"))]),
+            columns: columns([("id", ColumnType::Id), ("userId", ColumnType::Principal)]),
             indexes: indexes([("byId", &["id"], true), ("byUser", &["userId"], true)]),
             rules: Rules {
                 read: RuleExpr::Deny,
@@ -155,9 +155,21 @@ pub fn spike_schema() -> Schema {
         ("shares", shares_table()),
         ("unreads", unreads_table()),
         ("dmKeys", dm_keys_table()),
-        ("cardCounts", aggregate_table(&["columnId"])),
-        ("owed", aggregate_table(&["groupId", "userId"])),
-        ("waitCounts", aggregate_table(&["resourceId"])),
+        (
+            "cardCounts",
+            aggregate_table(&[("columnId", ColumnType::Id)]),
+        ),
+        (
+            "owed",
+            aggregate_table(&[
+                ("groupId", ColumnType::Id),
+                ("userId", ColumnType::Principal),
+            ]),
+        ),
+        (
+            "waitCounts",
+            aggregate_table(&[("resourceId", ColumnType::Id)]),
+        ),
     ] {
         tables.insert(name.to_owned(), table);
     }
@@ -241,7 +253,7 @@ pub fn thread_program(take: u32) -> Program {
                         value: Expr::Get(Read {
                             site: "thread.author".to_owned(),
                             table: "users".to_owned(),
-                            index: "byId".to_owned(),
+                            index: "byPrincipal".to_owned(),
                             key: vec![field(var("message"), "authorId")],
                             provenance: KeyProvenance::Shape,
                         }),
@@ -270,7 +282,13 @@ pub fn thread_program(take: u32) -> Program {
                         target: "result".to_owned(),
                         value: obj([
                             ("message", var("message")),
-                            ("author", var("author")),
+                            (
+                                "author",
+                                obj([
+                                    ("id", field(var("author"), "id")),
+                                    ("handle", field(var("author"), "handle")),
+                                ]),
+                            ),
                             ("mentions", var("mentions")),
                         ]),
                     },
@@ -504,8 +522,8 @@ pub fn start_dm_program() -> Program {
         name: "startDm".to_owned(),
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([
-            ("lo".to_owned(), ArgType::Scalar),
-            ("hi".to_owned(), ArgType::Scalar),
+            ("lo".to_owned(), ArgType::Principal),
+            ("hi".to_owned(), ArgType::Principal),
         ]),
         read_time_granularity_ms: None,
         body: vec![
@@ -769,18 +787,35 @@ pub fn mention_scan_program() -> Program {
         kind: ProgramKind::Query,
         args: BTreeMap::from([("handle".to_owned(), ArgType::Scalar)]),
         read_time_granularity_ms: None,
-        body: vec![Stmt::Return(Expr::Scan(Scan {
-            site: "mentionScan.users".to_owned(),
-            table: "users".to_owned(),
-            index: "byHandle".to_owned(),
-            prefix: vec![var("handle")],
-            order: Order::Asc,
-            take: Bound::Literal(20),
-            after: None,
-            before: None,
-            range: None,
-            provenance: KeyProvenance::Computed,
-        }))],
+        body: vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "profile".to_owned(),
+                domain: LoopDomain::Page(Scan {
+                    site: "mentionScan.users".to_owned(),
+                    table: "users".to_owned(),
+                    index: "byHandle".to_owned(),
+                    prefix: vec![var("handle")],
+                    order: Order::Asc,
+                    take: Bound::Literal(20),
+                    after: None,
+                    before: None,
+                    range: None,
+                    provenance: KeyProvenance::Computed,
+                }),
+                body: vec![Stmt::Push {
+                    target: "result".to_owned(),
+                    value: obj([
+                        ("id", field(var("profile"), "id")),
+                        ("handle", field(var("profile"), "handle")),
+                    ]),
+                }],
+            },
+            Stmt::Return(var("result")),
+        ],
     }
 }
 
@@ -949,12 +984,18 @@ fn simple_table(columns: BTreeMap<String, ColumnType>) -> Table {
 }
 
 fn users_table() -> Table {
+    // @ref LLP 1001#6-identity-identityrs — profile row identity and acting authority remain separate nominal axes.
     public_table(
         columns([
             ("id", ColumnType::Id),
+            ("principal", ColumnType::Principal),
             ("handle", ColumnType::Text { max: 32 }),
         ]),
-        indexes([("byId", &["id"], true), ("byHandle", &["handle"], true)]),
+        indexes([
+            ("byId", &["id"], true),
+            ("byPrincipal", &["principal"], true),
+            ("byHandle", &["handle"], true),
+        ]),
     )
 }
 
@@ -994,7 +1035,7 @@ fn expenses_table() -> Table {
             ("id", ColumnType::Id),
             ("groupId", ColumnType::Id),
             ("amount", ColumnType::Int),
-            ("payerId", reference("users")),
+            ("payerId", ColumnType::Principal),
         ]),
         indexes([
             ("byId", &["id"], true),
@@ -1009,7 +1050,7 @@ fn shares_table() -> Table {
             ("id", ColumnType::Id),
             ("expenseId", reference("expenses")),
             ("groupId", ColumnType::Id),
-            ("userId", reference("users")),
+            ("userId", ColumnType::Principal),
             ("amount", ColumnType::Int),
         ]),
         indexes([
@@ -1025,7 +1066,7 @@ fn unreads_table() -> Table {
         columns([
             ("id", ColumnType::Id),
             ("conversationId", reference("conversations")),
-            ("userId", reference("users")),
+            ("userId", ColumnType::Principal),
             ("value", ColumnType::Int),
         ]),
         indexes([
@@ -1039,8 +1080,8 @@ fn dm_keys_table() -> Table {
     let mut table = public_table(
         columns([
             ("id", ColumnType::Id),
-            ("lo", reference("users")),
-            ("hi", reference("users")),
+            ("lo", ColumnType::Principal),
+            ("hi", ColumnType::Principal),
             ("conversationId", reference("conversations")),
         ]),
         indexes([("byId", &["id"], true), ("byPair", &["lo", "hi"], true)]),
@@ -1051,15 +1092,18 @@ fn dm_keys_table() -> Table {
     table
 }
 
-fn aggregate_table(groups: &[&str]) -> Table {
+fn aggregate_table(groups: &[(&str, ColumnType)]) -> Table {
     let mut column_map = BTreeMap::from([
         ("id".to_owned(), ColumnType::Id),
         ("value".to_owned(), ColumnType::Int),
     ]);
-    for group in groups {
-        column_map.insert((*group).to_owned(), ColumnType::Id);
+    for (group, kind) in groups {
+        column_map.insert((*group).to_owned(), kind.clone());
     }
-    let mut group_columns: Vec<_> = groups.iter().map(|group| (*group).to_owned()).collect();
+    let mut group_columns: Vec<_> = groups
+        .iter()
+        .map(|(group, _)| (*group).to_owned())
+        .collect();
     let indexes = BTreeMap::from([
         (
             "byId".to_owned(),

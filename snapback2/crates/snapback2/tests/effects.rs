@@ -51,7 +51,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
             "op": "messages.send",
             "args": {
                 "conversationId": "conversation-1",
-                "recipientId": "dev:bob",
+                "recipientId": "profile-bob",
                 "body": "hello from the owner runner"
             }
         }),

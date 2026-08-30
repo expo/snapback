@@ -32,7 +32,7 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
             .principals(Some("system"))
             .unwrap()
             .iter()
-            .any(|principal| principal.id == "system")
+            .any(|principal| principal.id.as_str() == "system")
     );
     assert_eq!(Context::system().principal_kind, "system");
 
@@ -79,7 +79,7 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
     assert!(matches!(runtime.guest(25), Err(IdentityError::GuestsOff)));
 
     let persona = runtime.persona("alice", 30).unwrap();
-    assert_eq!(persona.principal.id, "dev:alice");
+    assert_eq!(persona.principal.id.as_str(), "dev:alice");
     assert_eq!(runtime.persona("alice", 31).unwrap().token, persona.token);
 
     runtime.apply_successor(generation(true, true)).unwrap();
@@ -90,7 +90,7 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
             .principals(Some("persona"))
             .unwrap()
             .iter()
-            .any(|principal| principal.id == "dev:alice")
+            .any(|principal| principal.id.as_str() == "dev:alice")
     );
 
     let snapshot = temp_path();

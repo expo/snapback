@@ -292,3 +292,104 @@ fn out_of_list_enum_write_is_rejected_as_input() {
         .unwrap_err();
     assert!(matches!(error, RuntimeError::Input(_)));
 }
+
+#[test]
+fn principal_schema_and_argument_types_keep_the_id_scalar_wire_encoding() {
+    assert_eq!(
+        serde_json::to_value(ColumnType::Principal).unwrap(),
+        serde_json::json!("Principal")
+    );
+    assert_eq!(
+        serde_json::to_value(ArgType::Principal).unwrap(),
+        serde_json::json!("Principal")
+    );
+    let context = Context::query(PrincipalId::new("dev:alice"), BTreeMap::new());
+    let encoded = serde_json::to_value(&context).unwrap();
+    assert_eq!(encoded["viewer"], serde_json::json!("dev:alice"));
+    let decoded: Context = serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded.viewer.as_str(), "dev:alice");
+
+    let schema = Schema {
+        tables: BTreeMap::from([(
+            "grants".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("principal".to_owned(), ColumnType::Principal),
+                ]),
+                BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let program = Program {
+        name: "grants.echoPrincipal".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("target".to_owned(), ArgType::Principal)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(var("target"))],
+    };
+    let generation = Generation::certify(
+        &ProjectJson {
+            version: 1,
+            schema,
+            programs: vec![program],
+            effects: Vec::new(),
+            auth: Auth::default(),
+        },
+        Ceilings::default(),
+    )
+    .unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let execution = runtime
+        .execute(
+            "grants.echoPrincipal",
+            Context::query(
+                PrincipalId::new("dev:alice"),
+                BTreeMap::from([("target".to_owned(), Value::Id("dev:bob".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(execution.result, Value::Id("dev:bob".to_owned()));
+
+    let refusal = runtime
+        .execute(
+            "grants.echoPrincipal",
+            Context::query(
+                PrincipalId::new("dev:alice"),
+                BTreeMap::from([("target".to_owned(), Value::String("dev:bob".to_owned()))]),
+            ),
+        )
+        .unwrap_err();
+    assert!(matches!(refusal, RuntimeError::Input(_)));
+
+    runtime
+        .seed(&[(
+            "grants".to_owned(),
+            object([
+                ("id", Value::Id("g1".to_owned())),
+                ("principal", Value::Id("dev:bob".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    let refusal = runtime
+        .seed(&[(
+            "grants".to_owned(),
+            object([
+                ("id", Value::Id("g2".to_owned())),
+                ("principal", Value::String("dev:bob".to_owned())),
+            ]),
+        )])
+        .unwrap_err();
+    assert!(matches!(refusal, RuntimeError::Input(_)));
+}

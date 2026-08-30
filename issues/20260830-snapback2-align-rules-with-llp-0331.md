@@ -12,7 +12,7 @@ Research influence only; it is not a governing Snapback2 spec)
 LLP 0331 supplied evidence after the first engine implementation landed. Per
 the Snapback2 fence, its author rulings bind only that research proposal. The
 implemented decisions belong to LLP 1001 and LLP 1002. This issue tracks the
-four deltas needed to make that adoption honest; it is not the full M1–M3
+five deltas needed to make that adoption honest; it is not the full M1–M3
 scoped-authority program.
 
 ## Adopted Snapback2 decisions
@@ -52,6 +52,13 @@ scoped-authority program.
    becomes denied at the membership-deletion commit, a retained G handle
    cannot execute G's predecessor policy after G+1, and a stale intent cannot
    hit a membership removed and recreated under the same logical key.
+5. **The authority subject is nominal.** `Principal`/`t.principal()` is
+   distinct from every application row id and `Ref<T>`, even while the v1 wire
+   encodes all three as ID-shaped values. Compiler rule typing and raw
+   `Generation::certify` typing resolve every comparison and indexed probe;
+   `Viewer` can meet only a Principal axis (or the reserved `system` literal).
+   The canonical chat fixture keeps separate profile row ids and Principal
+   creator/member/author axes.
 
 ## Working-tree audit (2026-08-30)
 
@@ -62,8 +69,13 @@ scoped-authority program.
   engine, and evaluator; the compiler has a negative fourth-argument test.
 - [x] The engine, wire, and client represent opaque `Capped` without
   `site`/`take`, and the engine gives non-uniform ranges opaque precedence.
+- [x] Principal is nominal across schema, program args, generated/client
+  types, rule checking, raw project certification, and the canonical fixtures;
+  type-negative tests reject string/row-ref values and pseudo-memberships.
 - [ ] All three named served-loop authority proofs pass, and the structural
-  visibility/Capped edge cases below have direct parity coverage.
+  visibility/Capped edge cases below have direct parity coverage. The served
+  `live-revocation` and `successor-policy-fence` checks now pass; the durable
+  `grant-incarnation-aba` carrier remains.
 
 ## Remaining before resolution
 
@@ -75,12 +87,17 @@ scoped-authority program.
   identical `Complete`, empty and occupied non-uniform scans are identically
   opaque, an opaque later range dominates an earlier visible cap, and the
   client accepts only paired or fully omitted `site`/`take`.
-- Make `live-revocation` a served `snapback2 test` receipt check. The existing
+- [x] Make `live-revocation` a served `snapback2 test` receipt check. The existing
   core `complete_to_denied_with_the_same_result_is_a_changed_delivery` test is
-  useful engine evidence but does not satisfy LLP 1002's loop-level proof.
+  useful engine evidence but does not satisfy LLP 1002's loop-level proof by
+  itself. The canonical chat receipt now opens Bob's thread, commits the named
+  `messages.leave` mutation, and observes `Complete -> Denied` at the exact
+  mutation sequence with no delivered rows.
 - [x] Core coverage retains a named handle across an applied successor,
   resolves it under the active denying policy, and rejects the captured
-  predecessor certificate. The served-loop receipt proof remains above.
+  predecessor certificate. The served-loop `successor-policy-fence` check now
+  also retains a G subscription across control-plane application of G+1 and
+  proves both that handle and a fresh request resolve under G+1's deny policy.
 - Supply the immutable grant identity/incarnation or expected-version carrier
   needed by `grant-incarnation-aba`, then prove remove/recreate cannot retarget
   the captured operation. No such persistent grant-intent carrier is visible

@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use crate::certificate::Certificate;
 use crate::ir::*;
+use crate::principal::PrincipalId;
 use crate::schema::*;
 use crate::store::{CommitRecord, Store, TouchedKey, unix_millis};
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, canonical_json, digest, object};
@@ -11,8 +12,12 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use thiserror::Error;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// Trusted execution context assembled by the host after authentication.
+///
+/// The constructors intentionally remain usable by embedders and tests; they
+/// do not verify identity and must not be called with an untrusted claim.
 pub struct Context {
-    pub viewer: String,
+    pub viewer: PrincipalId,
     pub principal_kind: String,
     pub auth_epoch: u64,
     pub args: BTreeMap<String, Value>,
@@ -24,7 +29,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn query(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
+    pub fn query(viewer: impl Into<PrincipalId>, args: BTreeMap<String, Value>) -> Self {
         Self {
             viewer: viewer.into(),
             principal_kind: "user".to_owned(),
@@ -37,7 +42,7 @@ impl Context {
         }
     }
 
-    pub fn mutation(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
+    pub fn mutation(viewer: impl Into<PrincipalId>, args: BTreeMap<String, Value>) -> Self {
         let mut context = Self::query(viewer, args);
         context.now = Some(0);
         context
@@ -45,7 +50,7 @@ impl Context {
 
     pub fn system() -> Self {
         Self {
-            viewer: "system".to_owned(),
+            viewer: PrincipalId::system(),
             principal_kind: "system".to_owned(),
             auth_epoch: 1,
             args: BTreeMap::new(),
@@ -468,7 +473,7 @@ impl Engine {
             ));
         }
         let principal = context.viewer.clone();
-        let is_system = context.viewer == "system";
+        let is_system = context.viewer.is_system();
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let current_seq = self.store.commit_seq()?;
         let seq = if program.kind == ProgramKind::Mutation {
@@ -567,7 +572,7 @@ impl Engine {
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
-                principal,
+                principal: principal.into_inner(),
                 kind: kind.to_owned(),
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
@@ -602,7 +607,7 @@ impl Engine {
             return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
         }
         let principal = context.viewer.clone();
-        let is_system = context.viewer == "system";
+        let is_system = context.viewer.is_system();
         let commit_at = context.now.unwrap_or_else(unix_millis);
         let transaction = self.store.conn.transaction()?;
         transaction.execute_batch(
@@ -641,7 +646,7 @@ impl Engine {
                 seq,
                 at: commit_at,
                 program: program.name.clone(),
-                principal,
+                principal: principal.into_inner(),
                 kind: kind.to_owned(),
                 touched: execution.trace.touched.clone(),
                 writes: execution.trace.writes.clone(),
@@ -702,7 +707,7 @@ pub(crate) fn validate_arg_value(
     match kind {
         ArgType::Optional(_) if *value == Value::Null => Ok(()),
         ArgType::Optional(inner) => validate_arg_value(inner, value, label),
-        ArgType::Id | ArgType::Ref { .. } => match value {
+        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => match value {
             Value::Id(_) => Ok(()),
             _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
         },

@@ -12,10 +12,8 @@ pub fn execution_json(execution: &Execution) -> Json {
         }
         ExecutionState::Capped { site, take } => {
             let mut value = json!({ "state": "capped", "data": value_to_json(&execution.result), "seq": execution.seq });
-            if let Some(site) = site {
+            if let (Some(site), Some(take)) = (site, take) {
                 value["site"] = Json::String(site.clone());
-            }
-            if let Some(take) = take {
                 value["take"] = Json::from(*take);
             }
             value
@@ -163,6 +161,35 @@ mod tests {
                     .as_str()
                     .is_some_and(|value| !value.is_empty())
             );
+        }
+    }
+
+    #[test]
+    fn capped_page_metadata_is_disclosed_only_as_a_complete_pair() {
+        let detailed = execution_json(&execution(ExecutionState::Capped {
+            site: Some("items.page".to_owned()),
+            take: Some(10),
+        }));
+        assert_eq!(detailed["site"], "items.page");
+        assert_eq!(detailed["take"], 10);
+
+        for state in [
+            ExecutionState::Capped {
+                site: Some("items.page".to_owned()),
+                take: None,
+            },
+            ExecutionState::Capped {
+                site: None,
+                take: Some(10),
+            },
+            ExecutionState::Capped {
+                site: None,
+                take: None,
+            },
+        ] {
+            let opaque = execution_json(&execution(state));
+            assert!(opaque.get("site").is_none());
+            assert!(opaque.get("take").is_none());
         }
     }
 }

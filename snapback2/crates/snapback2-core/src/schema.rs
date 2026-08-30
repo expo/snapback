@@ -138,6 +138,8 @@ impl Table {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColumnType {
     Id,
+    // @ref LLP 1001#6-identity-identityrs — Schema principals stay nominal while v1 encodes them as Value::Id.
+    Principal,
     Text { max: u32 },
     Int,
     // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.

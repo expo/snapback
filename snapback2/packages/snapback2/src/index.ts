@@ -1,4 +1,6 @@
 type Descriptor = Readonly<Record<string, unknown>>;
+/** Server-minted authority subject; deliberately distinct from application row IDs. */
+export type Principal = string & { readonly __snapbackPrincipal: "Principal" };
 export type Decimal<S extends number> = number & {
   readonly __decimalScale: S;
   readonly __decimalBrand: unique symbol;
@@ -24,6 +26,7 @@ export function table(value: Record<string, unknown>): Descriptor {
 
 export const t = Object.freeze({
   id: () => inert("id"),
+  principal: () => inert("principal"),
   text: (max: number) => inert("text", { max }),
   int: () => inert("int"),
   bool: () => inert("bool"),

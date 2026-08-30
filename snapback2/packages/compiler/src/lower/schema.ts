@@ -15,6 +15,7 @@ import {
   stringArray,
   stringValue,
 } from "./static";
+import { validateMaintainRuleTypes, validateRuleTypes } from "./rule-types";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — schema descriptors lower by exported name; id/byId are implicit.
 
@@ -78,6 +79,8 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
     if (lowered) channelJson[name] = lowered;
   }
 
+  validateRuleTypes(module, tableCalls, channelCalls, tableJson, channelJson, diagnostics);
+
   const root = defaultCall ? objectOf(defaultCall.arguments[0]) : undefined;
   if (defaultCall && !root) {
     diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_DEFAULT_EXPORT", defaultCall, "schema() requires one object literal"));
@@ -89,6 +92,7 @@ export function lowerSchema(source: string, fileName: string): LoweredSchema {
   }
 
   const maintains = root ? lowerMaintains(module, property(root, "maintains"), tables, diagnostics) : [];
+  if (root) validateMaintainRuleTypes(module, property(root, "maintains"), tableJson, diagnostics);
   for (const item of maintains) {
     const value = item as { source: string; target: string };
     const info = tables.get(value.target);
@@ -218,6 +222,7 @@ function lowerColumn(
     return undefined;
   }
   if (name === "id" && call.arguments.length === 0) return "Id";
+  if (name === "principal" && call.arguments.length === 0) return "Principal";
   if (name === "int" && call.arguments.length === 0) return "Int";
   if (name === "bool" && call.arguments.length === 0) return "Bool";
   if (name === "time" && call.arguments.length === 0) return "Time";
@@ -581,6 +586,7 @@ export function lowerArgDescriptor(
   if (!call || !validArgDescriptor(node)) return undefined;
   switch (callLeaf(call)) {
     case "id": return "Id";
+    case "principal": return "Principal";
     case "ref": {
       if (!tables) return "Id";
       const path = call.arguments[0] && staticMemberPath(call.arguments[0]);
@@ -608,7 +614,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
   const call = unwrapCall(node);
   const name = call && callLeaf(call);
   if (!call || !name) return false;
-  if (["id", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
+  if (["id", "principal", "int", "bool", "time"].includes(name)) return call.arguments.length === 0;
   if (name === "text" || name === "json") return call.arguments.length === 1 && validPositiveInteger(numberValue(call.arguments[0]));
   if (name === "ref") return call.arguments.length === 1;
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);

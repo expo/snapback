@@ -3,9 +3,11 @@
 Layout: `snapback/schema.ts`, named programs in `snapback/*.ts`, optional
 `seed.ts`, and journeys in `snapback/tests/*.test.ts`.
 
-Schema: `schema`, `table`, `channel`; types `t.id/text/int/bool/time/ref/json/
-optional/list/enum/decimal/money`; rules `public/allow/deny/eq/ne/and/or/not/
-exists/principal/viewerIs`.
+Schema: `schema`, `table`, `channel`; types `t.id/principal/text/int/bool/time/
+ref/json/optional/list/enum/decimal/money`; rules `public/allow/deny/eq/ne/and/
+or/not/exists/system/viewerIs`. `Principal` is the nominal type of
+`ctx.viewer`; it is not an application-row `ref` even though both currently
+use an ID-shaped wire value.
 
 Programs: `query(args, ({ db, ctx, args }) => value)` and
 `mutation(args, (...) => value)`. Reads are `get`, `exists`, and bounded

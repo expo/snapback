@@ -1,6 +1,7 @@
 //! Persistent principals, credentials, and sessions.
 // @ref LLP 1001#6-identity-identityrs — authentication is always backed by stored principals.
 
+use crate::principal::PrincipalId;
 use crate::registry::Runtime;
 use argon2::Argon2;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
@@ -29,7 +30,7 @@ pub fn password_verification_calls() -> u64 {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Principal {
-    pub id: String,
+    pub id: PrincipalId,
     pub kind: String,
     pub name: Option<String>,
 }
@@ -83,7 +84,7 @@ impl Runtime {
             return Err(IdentityError::EmailTaken);
         }
         let principal = Principal {
-            id: format!("user:{}", random_base64url(16)?),
+            id: PrincipalId::new(format!("user:{}", random_base64url(16)?)),
             kind: "user".to_owned(),
             name: Some(email.clone()),
         };
@@ -91,11 +92,11 @@ impl Runtime {
         let transaction = self.engine.store_mut().conn.transaction()?;
         transaction.execute(
             "INSERT INTO _principals(id, kind, name, created_at) VALUES (?1, 'user', ?2, ?3)",
-            params![principal.id, email, now],
+            params![principal.id.as_str(), email, now],
         )?;
         transaction.execute(
             "INSERT INTO _credentials(principal, email, hash) VALUES (?1, ?2, ?3)",
-            params![principal.id, email, hash],
+            params![principal.id.as_str(), email, hash],
         )?;
         let session = create_session(&transaction, principal, "auth", now, expires(now))?;
         transaction.commit()?;
@@ -148,14 +149,14 @@ impl Runtime {
             return Err(IdentityError::GuestsOff);
         }
         let principal = Principal {
-            id: format!("guest:{}", random_base64url(16)?),
+            id: PrincipalId::new(format!("guest:{}", random_base64url(16)?)),
             kind: "guest".to_owned(),
             name: None,
         };
         let transaction = self.engine.store_mut().conn.transaction()?;
         transaction.execute(
             "INSERT INTO _principals(id, kind, name, created_at) VALUES (?1, 'guest', NULL, ?2)",
-            params![principal.id, now],
+            params![principal.id.as_str(), now],
         )?;
         let session = create_session(&transaction, principal, "guest", now, expires(now))?;
         transaction.commit()?;
@@ -167,14 +168,14 @@ impl Runtime {
             return Err(IdentityError::Invalid);
         }
         let principal = Principal {
-            id: format!("dev:{name}"),
+            id: PrincipalId::new(format!("dev:{name}")),
             kind: "persona".to_owned(),
             name: Some(name.to_owned()),
         };
         self.engine.store().conn.execute(
             "INSERT OR IGNORE INTO _principals(id, kind, name, created_at)
              VALUES (?1, 'persona', ?2, ?3)",
-            params![principal.id, name, now],
+            params![principal.id.as_str(), name, now],
         )?;
         let existing: Option<(String, i64)> = self
             .engine
@@ -183,7 +184,7 @@ impl Runtime {
             .query_row(
                 "SELECT token, expires_at FROM _sessions
                  WHERE principal = ?1 AND kind = 'persona' ORDER BY created_at LIMIT 1",
-                [&principal.id],
+                [principal.id.as_str()],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
@@ -260,7 +261,7 @@ fn create_session(
     transaction.execute(
         "INSERT INTO _sessions(token, principal, kind, created_at, expires_at)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![token, principal.id, kind, now, expires_at],
+        params![token, principal.id.as_str(), kind, now, expires_at],
     )?;
     Ok(Session {
         token,
@@ -285,7 +286,7 @@ fn load_principal(
 
 fn principal_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Principal> {
     Ok(Principal {
-        id: row.get(0)?,
+        id: PrincipalId::new(row.get::<_, String>(0)?),
         kind: row.get(1)?,
         name: row.get(2)?,
     })

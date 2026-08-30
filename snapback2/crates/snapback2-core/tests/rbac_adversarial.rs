@@ -30,7 +30,7 @@ fn documents(read: RuleExpr) -> Table {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("group".to_owned(), ColumnType::Id),
-            ("owner".to_owned(), ColumnType::Id),
+            ("owner".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([
             (
@@ -62,7 +62,7 @@ fn rule_input_table(read: RuleExpr) -> Table {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("scope".to_owned(), ColumnType::Id),
-            ("principal".to_owned(), ColumnType::Id),
+            ("principal".to_owned(), ColumnType::Principal),
         ]),
         BTreeMap::from([
             (
@@ -439,7 +439,7 @@ fn grant_table() -> Table {
         BTreeMap::from([
             ("id".to_owned(), ColumnType::Id),
             ("scope".to_owned(), ColumnType::Id),
-            ("principal".to_owned(), ColumnType::Id),
+            ("principal".to_owned(), ColumnType::Principal),
             (
                 "role".to_owned(),
                 ColumnType::Enum {
@@ -481,7 +481,7 @@ fn create_grant_program() -> Program {
         kind: ProgramKind::Mutation,
         args: BTreeMap::from([
             ("scope".to_owned(), ArgType::Id),
-            ("principal".to_owned(), ArgType::Id),
+            ("principal".to_owned(), ArgType::Principal),
         ]),
         read_time_granularity_ms: None,
         body: vec![

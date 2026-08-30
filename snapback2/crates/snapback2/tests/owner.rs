@@ -34,11 +34,6 @@ fn chat_owner_wire_sse_channels_and_successors() {
         "import { conversations, memberships, messageCounts, messages, profiles } from \"./schema\";",
     ) + r#"
 
-export const leave = mutation({ membershipId: t.id() }, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
-
 export const forceCount = mutation({ conversationId: t.id() }, ({ db, ctx, args }) => {
   db.insert(messageCounts, { id: ctx.newId(), conversationId: args.conversationId, value: 999 });
   return null;
@@ -240,7 +235,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         &[("X-Snapback-As", "alice")],
         json!({
             "op": "messages.send",
-            "args": { "conversationId": "conversation-1", "recipientId": "dev:bob", "body": "hello" },
+            "args": { "conversationId": "conversation-1", "recipientId": "profile-bob", "body": "hello" },
         }),
     );
     assert_eq!(mutation.body["state"], "committed", "{}", mutation.body);
@@ -272,7 +267,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-other%22%7D",
         "bob",
     );
-    assert_eq!(other_args.event()["state"], "complete");
+    assert_eq!(other_args.event()["state"], "denied");
     let trace_after_subscribe = request(
         port,
         "GET",

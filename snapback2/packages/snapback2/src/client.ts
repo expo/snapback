@@ -11,6 +11,7 @@ import type {
   Manifest,
   LiveQueryDelivery,
   MutationResult,
+  Principal,
   QueryRefusedDelivery,
   QueryResult,
   RefusalEnvelope,
@@ -193,7 +194,7 @@ function wireChannelDelivery<Payload>(data: string): ChannelDelivery<Payload> {
     return { state: "refused", ...wireRefusalEnvelope(record, `${surface} refusal`) } as RefusedDelivery;
   }
   return {
-    from: stringField(record, "from", surface),
+    from: stringField(record, "from", surface) as Principal,
     payload: present(record, "payload", surface) as Payload,
     at: numberField(record, "at", surface),
   };
@@ -209,13 +210,13 @@ function wireChannelPublish(value: unknown): ChannelPublishResult {
 
 function wireAuthSession(value: unknown, surface: string): AuthSession {
   const record = wireObject(value, surface);
-  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) };
+  return { token: stringField(record, "token", surface), viewer: stringField(record, "viewer", surface) as Principal };
 }
 
 function wireAuthMe(value: unknown): AuthMe {
   const surface = "auth me response";
   const record = wireObject(value, surface);
-  return { viewer: stringField(record, "viewer", surface), kind: stringField(record, "kind", surface) };
+  return { viewer: stringField(record, "viewer", surface) as Principal, kind: stringField(record, "kind", surface) };
 }
 
 function wireLogout(value: unknown): { ok: boolean } {

@@ -40,7 +40,7 @@ export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
     let mutation = project.run(&[
         "run",
         "messages.send",
-        r#"{"conversationId":"conversation-1","recipientId":"dev:bob","body":"trace test"}"#,
+        r#"{"conversationId":"conversation-1","recipientId":"profile-bob","body":"trace test"}"#,
         "--as",
         "alice",
         "--json",
