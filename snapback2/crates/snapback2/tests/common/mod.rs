@@ -71,6 +71,28 @@ impl Project {
             .expect("parse receipt")
     }
 
+    pub fn package_snapshot_root(&self) -> &Path {
+        &self.package
+    }
+
+    pub fn package_consumer_paths(&self) -> Vec<(&'static str, PathBuf)> {
+        package_consumer_paths(&self.package)
+    }
+
+    pub fn package_dist_file_sets(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
+        let root = workspace();
+        let _lock = PackageLock::acquire(&root);
+        let shared = snapshot(&root.join("packages/snapback2/dist"))
+            .into_iter()
+            .map(|(path, _)| path)
+            .collect();
+        let private = snapshot(&self.package.join("dist"))
+            .into_iter()
+            .map(|(path, _)| path)
+            .collect();
+        (shared, private)
+    }
+
     fn command(&self) -> Command {
         package_command(&self.package)
     }
@@ -142,14 +164,28 @@ pub fn snapshot(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
 }
 
 fn package_command(package: &Path) -> Command {
-    let dist = package.join("dist");
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback2"));
+    for (name, path) in package_consumer_paths(package) {
+        command.env(name, path);
+    }
     command
-        .env("SNAPBACK2_COMPILER", dist.join("compiler.mjs"))
-        .env("SNAPBACK2_GUIDE", dist.join("guide"))
-        .env("SNAPBACK2_TEMPLATES", dist.join("templates"))
-        .env("SNAPBACK2_TEST_RUNNER", dist.join("test-runner.mjs"));
-    command
+}
+
+fn package_consumer_paths(package: &Path) -> Vec<(&'static str, PathBuf)> {
+    let dist = package.join("dist");
+    vec![
+        ("SNAPBACK2_COMPILER", dist.join("compiler.mjs")),
+        ("SNAPBACK2_GUIDE", dist.join("guide")),
+        ("SNAPBACK2_TEMPLATES", dist.join("templates")),
+        ("SNAPBACK2_TEST_RUNNER", dist.join("test-runner.mjs")),
+    ]
+}
+
+pub fn shared_package_dist() -> PathBuf {
+    workspace()
+        .canonicalize()
+        .expect("canonicalize workspace")
+        .join("packages/snapback2/dist")
 }
 
 fn ensure_package() {

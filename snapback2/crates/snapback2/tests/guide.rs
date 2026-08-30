@@ -4,6 +4,34 @@ use common::{Project, json_stdout};
 use std::fs;
 
 #[test]
+fn package_consumers_use_a_complete_private_snapshot() {
+    let project = Project::new();
+    let snapshot_root = project.package_snapshot_root();
+    let shared_dist = common::shared_package_dist();
+    let consumers = project.package_consumer_paths();
+
+    assert_eq!(consumers.len(), 4, "package fixture consumer set changed");
+    for (name, path) in consumers {
+        assert!(
+            path.starts_with(snapshot_root),
+            "{name} escaped private package snapshot: {}",
+            path.display()
+        );
+        assert!(
+            !path.starts_with(&shared_dist),
+            "{name} still consumes shared dist: {}",
+            path.display()
+        );
+    }
+
+    let (shared_files, private_files) = project.package_dist_file_sets();
+    assert_eq!(
+        private_files, shared_files,
+        "private package snapshot does not contain the complete shared dist file set"
+    );
+}
+
+#[test]
 fn refusal_code_guide_prints_the_wrong_and_right_pair() {
     let project = Project::new();
     let output = project.run(&["guide", "E_BOUND_TAKE_REQUIRED", "--json"]);

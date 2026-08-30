@@ -864,7 +864,6 @@ test("worker survives a refused compile and serves the next request under Node",
 
 test("npm pack from a clean dist builds every exported module and declaration", async () => {
   const packageRoot = `${crate}packages/snapback2`;
-  await rm(`${packageRoot}/dist`, { recursive: true, force: true });
   const packed = Bun.spawnSync({ cmd: ["npm", "pack", "--dry-run", "--json"], cwd: packageRoot, stdout: "pipe", stderr: "pipe" });
   assert(packed.exitCode === 0, `npm pack --dry-run failed: ${new TextDecoder().decode(packed.stderr)}`);
   const report = JSON.parse(new TextDecoder().decode(packed.stdout));
