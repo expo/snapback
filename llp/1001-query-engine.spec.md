@@ -88,6 +88,8 @@ write, for every index of the table:
 
 ```rust
 pub struct TouchedKey { pub table: String, pub index: String, pub key: Vec<Value>, pub row_id: String }
+// A write to a table with no index still emits one TouchedKey { index: "", key: [] } — the
+// table-level sentinel `constraint_inputs` overlap matches on (ruling 2026-08-30).
 // AuthoritativeTrace gains: pub touched: Vec<TouchedKey>, pub emits: Vec<EmitRecord>
 ```
 
@@ -153,7 +155,7 @@ pub struct Generation {
 }
 impl Generation {
     /// Certify every program; report EVERY refusal, never the first (rules/RULES.md):
-    /// `Checker::check_all` returns every structural refusal of a program plus the first bound error.
+    /// `Checker::check_all` returns every structural refusal of a program and every ceiling overrun (all bounds are computed first, then compared).
     pub fn certify(project: &ProjectJson, ceilings: Ceilings) -> Result<Generation, Vec<(String, CheckError)>>;
 }
 pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
@@ -188,6 +190,16 @@ admission checks* (`E_SUCCESSOR_UNIQUE`, `E_SUCCESSOR_COLUMN_REQUIRED`) as the
 additive path, in the same transaction, so a refusal rolls the drops back too
 (review ruling 2026-08-30, round 2 G1). Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+
+**Seed writes and maintained-target rows are engine-owned** (rulings
+2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
+from the tables' user rules (never from constraints, unique indexes, or
+column validation) — a seed is data the author declared, not a client
+intent. Likewise:
+The target table's `insert`/`update`/`delete` rules bind only non-engine
+writers — templates set them to `deny` — and the engine's aggregate writes
+are exempt from those rules and never from constraints or unique indexes.
+A user mutation writing a maintained target is `Rejected` by its rule.
 
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
@@ -369,6 +381,15 @@ per-principal encrypted client stores.
 
 ## Open author decisions
 
+0. **`Capped` over hidden rows discloses cardinality.** The round-2 ruling
+   computes the state from the authoritative trace, so a page cut at `take`
+   among rows the viewer cannot see is `Capped` — which tells the viewer that
+   ≥ `take` entries exist in the range. Both reviewers accepted it for this
+   lane (the page size already leaks the same bit under spike S1 ruling 2, and
+   the alternative — `Complete` over an omitted visible row — is a silent
+   state), but grok notes it is a disclosure LLP 0329.014.004 forbade in
+   principle. The author should confirm, or choose the third form: `Capped`
+   without `site`/`take`, or a hidden-row budget separate from `take`.
 1. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
 2. Whether `Capped` should carry the site name on the wire or only the take.

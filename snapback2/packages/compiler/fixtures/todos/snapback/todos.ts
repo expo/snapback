@@ -8,17 +8,18 @@ export const list = query({}, ({ db, ctx }) =>
 export const add = mutation({
   title: t.text(200),
   price: t.decimal(2),
+  budget: t.money("USD"),
   status: t.enum(["open", "done"]),
 }, ({ db, ctx, args }) => {
   const id = ctx.newId();
-  db.insert(todos, { id, title: args.title, done: false, ownerId: ctx.viewer, price: args.price, status: args.status });
+  db.insert(todos, { id, title: args.title, done: false, ownerId: ctx.viewer, price: args.price, budget: args.budget, status: args.status });
   return { id };
 });
 
 export const addLiteral = mutation({ title: t.text(200) }, ({ db, ctx, args }) => {
   const id = ctx.newId();
   db.insert(todos, { id, title: args.title, done: false, ownerId: ctx.viewer, price: 9.99, status: "open" });
-  return { id, price: 9.99, status: "open" };
+  return { id, price: decimal(9.99, 2), status: "open" };
 });
 
 export const echo = query({

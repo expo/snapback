@@ -223,12 +223,8 @@ pub enum RuntimeError {
     OpUnknown(String),
     #[error("E_MIGRATION_PLAN: {0}")]
     MigrationPlan(String),
-    #[error("{code}: {message}; rewrite: {rewrite}")]
-    Successor {
-        code: String,
-        message: String,
-        rewrite: String,
-    },
+    #[error(transparent)]
+    Successor(#[from] Box<crate::successor::SuccessorRefusal>),
 }
 
 impl RuntimeError {
@@ -256,7 +252,7 @@ impl RuntimeError {
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
             Self::OpUnknown(_) => "E_OP_UNKNOWN",
             Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
-            Self::Successor { code, .. } => code,
+            Self::Successor(refusal) => &refusal.code,
         }
     }
 }

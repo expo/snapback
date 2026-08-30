@@ -92,8 +92,12 @@ program the compiler scales a decimal literal written against a `Decimal<S>`
 target (`price: 9.99` → `999` when `price` is `t.decimal(2)`), admits `+`, `-`,
 comparisons, and `min`/`max` between operands of the same scale and `*` by an
 `int`, and refuses everything else with `E_DECIMAL_SCALE` and a rewrite naming
-the scales. The wire carries the integer; the client's `decimal(9.99, 2)`
-helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
+the scales. **Every numeric literal written against a `Decimal<S>` target is in whole
+units and is scaled** — `price: 2`, `price: 2.00`, and `price: 2e0` all lower
+to `200` at scale 2 — so an integer literal can never be a silent 100× error;
+minor units are only ever carried by a value already typed `Decimal<S>` (a
+column read, an arg, the wire). The wire carries the integer; the client's
+`decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`: `public(reason)`,
 `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`, `or(…)`, `not(r)`,
 `exists(table, index, key[], { hidden? })`, `principal(kind)`, `viewerIs(field)`
 (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`, `literal(v)`. Each
@@ -117,7 +121,10 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
 (`todos.list`), `schema.effects` listing the effect names, and
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
-envelope. The one-shot form `node compiler.mjs --project <root>` prints the
+envelope. Diagnostics are collected per operation and per project up to a
+bound (20 per operation, 50 per project); when a bound truncates, the last
+entry is `E_DIAG_TRUNCATED` ("…and N more") — never a silent slice (review
+ruling 2026-08-30). The one-shot form `node compiler.mjs --project <root>` prints the
 same response and exits 0/1, so `check` works without the binary and the
 compiler's own tests need no spawn. The binary's IR-file form is
 `snapback2 check --ir <project.json>` (stdin when omitted) — `--project` on
@@ -148,7 +155,7 @@ mode. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 | `GET /api/auth/me` | → `{ viewer, kind }` |
 | `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, take?, site?, rule?, reason? }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
-| `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; `data: { state: "live" \| "stale" \| "refused" \| "partial", seq, data, take?, code? }`; a `: heartbeat` comment every 15 s |
+| `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
@@ -291,11 +298,24 @@ const sub = client.subscribe(api.todos.list, args, (r) => …)   // SSE; { state
 client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 ```
 
-`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed by the
-`Api` augmentation in `.snapback/build/api.d.ts`. Eight states surface as the
-union `hydrating | live | stale | partial | denied | refused | capped |
-complete` on `useQuery`; `useMutation` returns `{ run, last }` with
-`committed | queued | rejected`.
+`api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed *only* by
+the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
+typo is a compile error; channels are members too). The view on `useQuery`
+is the discriminated union `hydrating | complete | capped | partial | denied
+| refused | stale`, each carrying its receipt fields (`take`/`site`, `reason`,
+`rule`, `since`, `seq`), plus two orthogonal facts: `live: boolean` (a
+subscription is connected and this view is its latest delivery — the RFC's
+"live" state is this flag, so a capped page on a live query is `capped` with
+`live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
+stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
+backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
+`{ run, pending, last }` with `last: committed | rejected` — `queued` is
+reserved for the offline outbox (deferred) and never claimed before it exists
+(review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
+is not a query state**: hooks and the provider expose `connection: connected |
+reconnecting | offline` separately, and a network failure leaves a query
+`hydrating` with `connection: reconnecting`, never `refused`.
 
 Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 
