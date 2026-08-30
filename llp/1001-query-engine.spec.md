@@ -377,6 +377,15 @@ per-principal encrypted client stores.
 
 ## Open author decisions
 
+0. **`Capped` over hidden rows discloses cardinality.** The round-2 ruling
+   computes the state from the authoritative trace, so a page cut at `take`
+   among rows the viewer cannot see is `Capped` — which tells the viewer that
+   ≥ `take` entries exist in the range. Both reviewers accepted it for this
+   lane (the page size already leaks the same bit under spike S1 ruling 2, and
+   the alternative — `Complete` over an omitted visible row — is a silent
+   state), but grok notes it is a disclosure LLP 0329.014.004 forbade in
+   principle. The author should confirm, or choose the third form: `Capped`
+   without `site`/`take`, or a hidden-row budget separate from `take`.
 1. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
 2. Whether `Capped` should carry the site name on the wire or only the take.
