@@ -22,13 +22,17 @@ pub fn execution_json(execution: &Execution) -> Json {
         ExecutionState::Committed { seq } => {
             json!({ "state": "committed", "seq": seq, "data": value_to_json(&execution.result) })
         }
-        ExecutionState::Rejected { code, message } => json!({
-            "state": "rejected",
-            "code": code,
-            "family": rejection_family(code),
-            "message": message,
-            "rewrite": "fix the rejected mutation input and retry",
-        }),
+        ExecutionState::Rejected { code, message } => {
+            let family = rejection_family(code);
+            json!({
+                "state": "rejected",
+                "code": code,
+                "family": family,
+                "message": message,
+                "rewrite": "fix the rejected mutation input and retry",
+                "guide": format!("{family}/runtime"),
+            })
+        }
     }
 }
 
@@ -115,5 +119,43 @@ mod tests {
         assert_eq!(frame["code"], "E_DIV_ZERO");
         assert_eq!(frame["family"], "input");
         assert_eq!(frame["message"], "division by zero");
+        assert_eq!(frame["guide"], "input/arithmetic");
+    }
+
+    #[test]
+    fn rejected_mutations_and_channel_refusals_carry_complete_envelopes() {
+        let rejected = execution_json(&execution(ExecutionState::Rejected {
+            code: "E_REQUIRE:DENIED".to_owned(),
+            message: "denied".to_owned(),
+        }));
+        assert_eq!(rejected["state"], "rejected");
+        for field in ["code", "family", "message", "guide"] {
+            assert!(
+                rejected[field]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+        }
+
+        let (refused, terminal) = refusal_frame(
+            Refusal::new(
+                "E_RULE_CHANNEL_SUBSCRIBE",
+                "rule",
+                "membership was revoked",
+                "join the channel before subscribing",
+                "rule/channels",
+            ),
+            42,
+        );
+        assert!(terminal);
+        assert_eq!(refused["seq"], 42);
+        assert_eq!(refused["state"], "refused");
+        for field in ["code", "family", "message", "guide"] {
+            assert!(
+                refused[field]
+                    .as_str()
+                    .is_some_and(|value| !value.is_empty())
+            );
+        }
     }
 }

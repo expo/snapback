@@ -145,6 +145,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     })?;
     let mut compiler = CompilerWorker::spawn()?;
     let compiled = compiler.compile(&root).map_err(first)?;
+    let _ = compiler.journeys(&root).map_err(first)?;
     let seed = compiler.seed(&root).map_err(first)?;
     write_build_cache(&root, &compiled)?;
     let rows = seed_rows(&seed, &compiled)?;
@@ -193,6 +194,10 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         stop.clone(),
         info.clone(),
     )?;
+    #[cfg(feature = "effects")]
+    let _effects = crate::effects::spawn(handle.clone());
+    #[cfg(not(feature = "effects"))]
+    handle.call(Action::OutboxMarkUnknown)?;
     handle.call(Action::PublishOwner)?;
     print_url(&info, options.json);
     if let Err(error) = std::io::stdout().flush() {

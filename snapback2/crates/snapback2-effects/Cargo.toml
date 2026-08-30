@@ -7,6 +7,8 @@ publish = false
 description = "The effect seam. The only crate that may link a JS engine (Ibex 2), and only with the `hermes` feature."
 
 [dependencies]
+serde_json = "1"
+snapback2-core = { path = "../snapback2-core" }
 thiserror = "2"
 # Ibex 2 (LLP 0057/0058 in expo/ibex): a Rust standard library with JS bindings
 # over vanilla, pinned Hermes. `default-features = false` = no Oxc loader, no

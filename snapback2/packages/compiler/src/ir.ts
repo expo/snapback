@@ -125,6 +125,7 @@ export type DiagnosticCode =
   | "E_ARGS_TYPE"
   | "E_OP_INVALID"
   | "E_OP_NONE"
+  | "E_OP_RESERVED"
   | "E_DIAG_TRUNCATED"
   | "E_SCHEMA_RESERVED"
   | "E_SCHEMA_ID_RESERVED"

@@ -142,7 +142,10 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 ## 4. The wire
 
 HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
-mode. Authentication: `Authorization: Bearer <token>`; in `dev` mode
+mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
+`GET`). Every refusal on every route — including a rejected mutation and a
+channel refusal — carries the full envelope below; `guide` and `family` are
+required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 `X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
 
 | route | body → response |
@@ -261,7 +264,27 @@ read-only in the receipt, never editable):
 (spawned like the worker) against the same owner with the headless client
 (§9): `journey(name, async ({ as, tick, url }) => …)`; `as('alice')` returns a
 client bound to that persona; `tick(ms)` advances the owner's clock for
-`ctx.now()` (`POST /control/clock`); each journey ≤ 5 s.
+`ctx.now()` (`POST /control/clock`); each journey ≤ 5 s. A rerun re-samples
+`now` from the owner's clock at rerun time, and a clock advance reruns every
+subscription — a tick is a synthetic commit — so time-dependent live queries
+advance (review ruling 2026-08-30). In a *query*, `ctx.now()` lowers to the
+bucketed `ReadTime` input (LLP 0329.014.004: read time is a declared-
+granularity clock); the compiler currently pins the granularity at 1 ms —
+declaring it on the surface (`query({…}, { readTime: '1m' }, …)`) is deferred.
+
+**Blocked is not pass** (review ruling 2026-08-30): the receipt verdict is
+`blocked` (exit 1) when any check is blocked, naming which; `pass` needs every
+check to pass. The `effects` check exists only for a project that declares
+effects, so a project without effects passes on an engine-less build, and a
+project with effects is honestly `blocked` there and passes on the published
+(engine) build. Journeys are optional; a run with derived checks and no
+journeys can pass; zero checks cannot.
+
+**Journeys are built by `check`** (review ruling 2026-08-30): `check`
+compiles and typechecks `snapback/tests/*.test.ts` into
+`.snapback/build/tests/`, refusing type errors like any module; the runner
+loads the built files and the shipped `snapback2/client` — nothing is
+transpiled at test time.
 
 **Receipt** (`.snapback/receipts/<ts>.json`, also printed): `{ binary: { version,
 digest }, generation, commands: [...], checks: [{ name, kind: "derived" | "journey",
@@ -277,9 +300,11 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   subscription for that op+args exists, its last delivery `seq` and whether
   the latest commit touched it.
 - `trace <seq>`: the commit record (program, principal, writes, touched
-  keys), the outbox rows it emitted and their states, and the subscriptions
-  it invalidated with their delivery seqs — intent → commit → invalidation →
-  delivery.
+  keys), the outbox rows it emitted and their real states, and the
+  subscriptions it invalidated with their delivery seqs — intent → commit →
+  invalidation → delivery — read from the owner's bounded per-commit ledger
+  (last 1,000 commits) and the store's `_outbox`, never reconstructed from
+  program syntax or the current subscription set (review ruling 2026-08-30).
 - `guide`: `grammar` (one screen, hand-written, in the package), `app`
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
@@ -309,9 +334,13 @@ subscription is connected and this view is its latest delivery — the RFC's
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
 stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
-`{ run, pending, last }` with `last: committed | rejected` — `queued` is
-reserved for the offline outbox (deferred) and never claimed before it exists
-(review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+`{ run, pending, last, transport }` with `last: committed | rejected` — only
+ever the server's receipt; a transport failure (network, 5xx) leaves `last`
+untouched, sets `transport` (a `SnapbackRefusal`, `retryable: true`, cleared
+on the next successful run) and rejects `run()` — a 503 after a commit must
+never look like a rejection, since a retry could duplicate the write.
+`queued` is reserved for the offline outbox (deferred) and never claimed
+before it exists (review rulings 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
 throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query

@@ -26,8 +26,10 @@ pub use identity::{IdentityError, Principal, Session};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use programs::*;
-pub use registry::{ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, Runtime};
+pub use registry::{
+    ChannelSide, ChannelVerdict, EffectDecl, Generation, ProjectJson, RowRuleVerdict, Runtime,
+};
 pub use schema::*;
-pub use store::{CommitRecord, OutboxCounts, Store, TouchedKey};
+pub use store::{CommitRecord, OutboxCounts, OutboxRow, Store, TouchedKey};
 pub use successor::{Drop, MigrationPlan, SuccessorRefusal, SuccessorReport, UniqueConflict};
 pub use value::*;

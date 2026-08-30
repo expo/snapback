@@ -1,0 +1,68 @@
+[
+  {
+    "family": "bound",
+    "code": "E_BOUND_TAKE_REQUIRED",
+    "wrong": "db.scan(todos.byOwner, [ctx.viewer])",
+    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
+  },
+  {
+    "family": "opaque",
+    "code": "E_OPAQUE_CALL",
+    "wrong": "helper(db.scan(todos.byOwner, [ctx.viewer], { take: 50 }))",
+    "right": "db.scan(todos.byOwner, [ctx.viewer], { take: 50 })"
+  },
+  {
+    "family": "schema",
+    "code": "E_SCHEMA_TABLE_UNKNOWN",
+    "wrong": "db.get(missing, args.id)",
+    "right": "db.get(todos, args.id)"
+  },
+  {
+    "family": "rule",
+    "code": "E_RULE_DENIED",
+    "wrong": "insert: rule.deny()",
+    "right": "insert: rule.viewerIs(\"ownerId\")"
+  },
+  {
+    "family": "auth",
+    "code": "E_AUTH_REQUIRED",
+    "wrong": "client.query(api.todos.list, {})",
+    "right": "createClient({ url, as: \"alice\" }).query(api.todos.list, {})"
+  },
+  {
+    "family": "args",
+    "code": "E_ARGS_TYPE",
+    "wrong": "client.query(api.messages.thread, { conversationId: 1 })",
+    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\" })"
+  },
+  {
+    "family": "op",
+    "code": "E_OP_UNKNOWN",
+    "wrong": "client.query(api.messages.threads, {})",
+    "right": "client.query(api.messages.thread, { conversationId: \"conversation-1\" })"
+  },
+  {
+    "family": "successor",
+    "code": "E_SUCCESSOR_DESTRUCTIVE",
+    "wrong": "remove a populated column and save",
+    "right": "apply the emitted .snapback/migration-<generation>.json plan"
+  },
+  {
+    "family": "effect",
+    "code": "E_EFFECT_GRANT",
+    "wrong": "grants: [] // then fetch an external origin",
+    "right": "grants: [\"https://api.example.com\"]"
+  },
+  {
+    "family": "input",
+    "code": "E_INPUT_TRACE_UNKNOWN",
+    "wrong": "snapback2 trace 999999",
+    "right": "snapback2 trace latest"
+  },
+  {
+    "family": "owner",
+    "code": "E_OWNER_NOT_RUNNING",
+    "wrong": "snapback2 why todos.list --as alice",
+    "right": "snapback2 dev && snapback2 why todos.list --as alice"
+  }
+]

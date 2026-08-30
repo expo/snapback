@@ -103,7 +103,17 @@ function main() {
 
   const bin = resolve(root, "target/release/snapback2");
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
-  const compilerEnv = { ...process.env, SNAPBACK2_COMPILER: compiler };
+  recordStep(record, failedSteps, "package_build_s",
+    () => run("node", ["build.mjs"], { cwd: resolve(root, "packages/snapback2") }), 3,
+    (result) => `package build failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  const packageDist = resolve(root, "packages/snapback2/dist");
+  const compilerEnv = {
+    ...process.env,
+    SNAPBACK2_COMPILER: compiler,
+    SNAPBACK2_GUIDE: resolve(packageDist, "guide"),
+    SNAPBACK2_TEMPLATES: resolve(packageDist, "templates"),
+    SNAPBACK2_TEST_RUNNER: resolve(packageDist, "test-runner.mjs"),
+  };
   // Measure before the incremental relink and the CPU-heavy core tests. Both
   // adjacent samples still have to pass; unrelated teardown cannot hide one.
   const doctor = recordStep(record, failedSteps, "boot_s", () => {
@@ -138,7 +148,7 @@ function main() {
     return run("cargo", buildArgs);
   }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
 
-  const test = recordStep(record, failedSteps, "test_s",
+  const coreTest = recordStep(record, failedSteps, "core_test_s",
     () => run("cargo", ["test", "-q", "-p", "snapback2-core"]), 2,
     (result) => `core tests failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
 
@@ -171,6 +181,43 @@ function main() {
     record.release_binary_bytes = statSync(bin).size;
     return { status: 0 };
   }, 3, () => "cannot stat debug binary");
+
+  let initRoot;
+  const initToDev = recordStep(record, failedSteps, "init_to_dev_s", () => {
+    initRoot = mkdtempSync(resolve(tmpdir(), "snapback2-init-measure-"));
+    const started = performance.now();
+    const initialized = run(bin, ["init", initRoot, "--template", "chat", "--client", "none", "--json"], { env: compilerEnv });
+    const initializedDev = run(bin, ["dev", "--project", initRoot], { env: compilerEnv });
+    if (initializedDev.status === 0 && !initializedDev.stdout.includes("SNAPBACK_URL=")) initializedDev.status = 1;
+    return {
+      seconds: (performance.now() - started) / 1000,
+      status: initialized.status === 0 && initializedDev.status === 0 ? 0 : 1,
+      stdout: `${initialized.stdout}\n${initializedDev.stdout}`,
+      stderr: `${initialized.stderr}\n${initializedDev.stderr}`,
+    };
+  }, 3, (result) => `init to dev failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  recordStep(record, failedSteps, "init_dev_stop_s", () => {
+    if (!initRoot) throw new Error("init root setup failed");
+    return run(bin, ["dev", "--project", initRoot, "--stop", "--json"]);
+  }, 3, (result) => `initialized owner stop failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  recordStep(record, failedSteps, "init_cleanup_s", () => {
+    if (initRoot) rmSync(initRoot, { recursive: true, force: true });
+    return { status: 0 };
+  }, 3, () => "initialized owner cleanup failed");
+
+  let productTestRoot;
+  recordStep(record, failedSteps, "test_init_s", () => {
+    productTestRoot = mkdtempSync(resolve(tmpdir(), "snapback2-test-measure-"));
+    return run(bin, ["init", productTestRoot, "--template", "todos", "--client", "none", "--json"], { env: compilerEnv });
+  }, 3, (result) => `todos init failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  const productTest = recordStep(record, failedSteps, "test_s", () => {
+    if (!productTestRoot) throw new Error("product test root setup failed");
+    return run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
+  }, 3, (result) => `todos template test failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  recordStep(record, failedSteps, "test_cleanup_s", () => {
+    if (productTestRoot) rmSync(productTestRoot, { recursive: true, force: true });
+    return { status: 0 };
+  }, 3, () => "todos template cleanup failed");
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
   try {
@@ -199,10 +246,14 @@ function main() {
     };
     scoreChecks([
       ["Incremental rebuild", incremental.step],
-      ["Test what you just changed", test.step],
+      ["Test what you just changed", coreTest.step],
       ["`snapback2 check`", projectCheck.step],
       ["`snapback2 doctor`", doctor.step],
     ], budget, failedSteps);
+    scoreChecks([
+      ["init → dev", initToDev.step],
+      ["snapback2 test", productTest.step],
+    ], (label) => label === "init → dev" ? 10 : 30, failedSteps);
   }
 
   if (failedSteps.size > 0) console.error(`measure: ${failedSummary(failedSteps)}`);

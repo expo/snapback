@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { Program } from "./ir";
 
 export type RustCheckResult = {
@@ -11,8 +12,14 @@ export function rustCheck(
   schemaMode: "spike" | "synthetic" = "spike",
 ): RustCheckResult[] {
   const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
+  // Prefer the prebuilt debug binary: `cargo run` per check costs seconds of lock/probe
+  // overhead and rebuilds whenever a differently-featured build last touched target/.
+  const prebuilt = `${crate}target/debug/snapback2`;
+  const cmd = existsSync(prebuilt)
+    ? [prebuilt, "check", "--ir", "--json"]
+    : ["cargo", "run", "--quiet", "-p", "snapback2", "--", "check", "--ir", "--json"];
   const process = Bun.spawnSync({
-    cmd: ["cargo", "run", "--quiet", "-p", "snapback2", "--", "check", "--json", "--ir"],
+    cmd,
     cwd: crate,
     stdin: new TextEncoder().encode(JSON.stringify({ programs, schemaMode })),
     stdout: "pipe",

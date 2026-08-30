@@ -160,12 +160,12 @@ impl CompilerWorker {
         })
     }
 
-    /// Doctor's liveness probe uses the worker's lightweight journey listing:
-    /// starting the bundled worker and receiving a valid answer proves custody
-    /// without putting a full TypeScript project compile on boot-to-ready.
+    /// Doctor's liveness probe uses the worker's seed request: a structured
+    /// acceptance or refusal proves protocol custody without requiring the
+    /// probe root itself to be a valid application.
     pub fn answers(&mut self, root: &Path) -> Result<(), Vec<Refusal>> {
-        let response = self.request("journeys", root)?;
-        if response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
+        let response = self.request("seed", root)?;
+        if response.get("ok").and_then(Json::as_bool).is_some() {
             Ok(())
         } else {
             Err(vec![Refusal::owner(
@@ -198,6 +198,21 @@ impl CompilerWorker {
             )
             .unwrap_or_default(),
         })
+    }
+
+    pub fn journeys(&mut self, root: &Path) -> Result<Vec<PathBuf>, Vec<Refusal>> {
+        let response = self.request("journeys", root)?;
+        if !response.get("ok").and_then(Json::as_bool).unwrap_or(false) {
+            return Err(response_refusals(&response));
+        }
+        Ok(response
+            .get("files")
+            .and_then(Json::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Json::as_str)
+            .map(|path| root.join(path))
+            .collect())
     }
 
     fn request(&mut self, op: &str, root: &Path) -> Result<Json, Vec<Refusal>> {
@@ -339,6 +354,7 @@ pub fn write_build_cache(root: &Path, compiled: &CompiledProject) -> Result<(), 
 pub fn compile_once(root: &Path) -> Result<CompiledProject, Vec<Refusal>> {
     let mut worker = CompilerWorker::spawn().map_err(|error| vec![error])?;
     let compiled = worker.compile(root)?;
+    let _ = worker.journeys(root)?;
     write_build_cache(root, &compiled).map_err(|error| vec![error])?;
     Ok(compiled)
 }

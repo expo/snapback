@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
@@ -67,6 +67,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot));
 
   const operations = collectOperations(modules);
+  diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
   const loweredEffects = lowerEffects(catalog, operations);
   diagnostics.push(...loweredEffects.diagnostics);
@@ -193,6 +194,92 @@ export async function listJourneys(root: string): Promise<string[]> {
     .sort();
 }
 
+export async function compileJourneys(
+  root: string,
+  apiDts: string,
+): Promise<
+  | { ok: true; files: string[] }
+  | { ok: false; diagnostics: FrontendDiagnostic[] }
+> {
+  const projectRoot = resolve(root);
+  const sourceFiles = (await listJourneys(projectRoot)).map((file) => join(projectRoot, file));
+  const buildRoot = join(projectRoot, ".snapback", "build");
+  const outputRoot = join(buildRoot, "tests");
+  await rm(outputRoot, { recursive: true, force: true });
+  await mkdir(outputRoot, { recursive: true });
+  if (sourceFiles.length === 0) return { ok: true, files: [] };
+
+  const packageDist = compilerPackageDist();
+  const clientDts = join(packageDist, "client.d.ts");
+  const testDts = join(packageDist, "test.d.ts");
+  const apiPath = join(buildRoot, "api.d.ts");
+  await writeFile(apiPath, apiDts);
+  const options: ts.CompilerOptions = {
+    baseUrl: projectRoot,
+    jsx: ts.JsxEmit.ReactJSX,
+    lib: ["lib.es2022.d.ts", "lib.dom.d.ts", "lib.dom.iterable.d.ts"],
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    noEmit: true,
+    paths: {
+      "snapback2/client": [clientDts],
+      "snapback2/test": [testDts],
+    },
+    skipLibCheck: true,
+    strict: true,
+    target: ts.ScriptTarget.ES2022,
+    types: [],
+  };
+  const program = ts.createProgram({ rootNames: [...sourceFiles, apiPath], options });
+  const sourceSet = new Set(sourceFiles.map((file) => resolve(file)));
+  const diagnostics = ts.getPreEmitDiagnostics(program).flatMap((item) => {
+    if (!item.file || !sourceSet.has(resolve(item.file.fileName))) return [];
+    const position = item.start === undefined
+      ? { line: 0, character: 0 }
+      : item.file.getLineAndCharacterOfPosition(item.start);
+    return [typeDiagnostic(
+      "E_OP_INVALID",
+      "op",
+      relativeSite(projectRoot, item.file.fileName),
+      position.line + 1,
+      position.character + 1,
+      ts.flattenDiagnosticMessageText(item.messageText, "\n"),
+      "fix the journey TypeScript error and rerun snapback2 check",
+      "testing/journeys",
+    )];
+  });
+  if (diagnostics.length > 0) {
+    return { ok: false, diagnostics: boundedDiagnostics(diagnostics, 50, "journey refusals") };
+  }
+
+  const clientModule = pathToFileURL(join(packageDist, "client.mjs")).href;
+  const testModule = pathToFileURL(join(packageDist, "test.mjs")).href;
+  const files: string[] = [];
+  for (const sourcePath of sourceFiles) {
+    const source = await readFile(sourcePath, "utf8");
+    const transpiled = ts.transpileModule(source, {
+      fileName: sourcePath,
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText
+      .replace(/(["'])snapback2\/client\1/g, JSON.stringify(clientModule))
+      .replace(/(["'])snapback2\/test\1/g, JSON.stringify(testModule));
+    const sourceName = basename(sourcePath);
+    const outputName = `${sourceName.slice(0, -".test.ts".length)}.mjs`;
+    const outputPath = join(outputRoot, outputName);
+    await writeFile(outputPath, transpiled);
+    files.push(relativeSite(projectRoot, outputPath));
+  }
+  return { ok: true, files };
+}
+
+function compilerPackageDist(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  return basename(here) === "dist" ? here : resolve(here, "../../snapback2/dist");
+}
+
 function createProjectProgram(
   schemaPath: string,
   schemaSource: string,
@@ -265,6 +352,53 @@ function collectOperations(modules: SourceModule[]): Map<string, OperationDecl &
     }
   }
   return operations;
+}
+
+function reservedApiPathDiagnostics(
+  operations: Map<string, OperationDecl & { module: SourceModule }>,
+  schemaSource: string,
+  schemaFileName: string,
+): FrontendDiagnostic[] {
+  const diagnostics: FrontendDiagnostic[] = [];
+  for (const operation of operations.values()) {
+    if (operation.moduleName === "then") {
+      diagnostics.push(diagnostic(
+        operation.module,
+        "E_OP_RESERVED",
+        operation.call,
+        `operation ${operation.name} uses reserved API path segment then`,
+        `rename snapback/then.ts to snapback/${operation.exportName === "then" ? "operations" : operation.exportName}.ts`,
+      ));
+    }
+    if (operation.exportName === "then") {
+      diagnostics.push(diagnostic(
+        operation.module,
+        "E_OP_RESERVED",
+        operation.call,
+        `operation ${operation.name} uses reserved API property then`,
+        operation.module.source.replace(/\bthen\b/, "thenOperation"),
+      ));
+    }
+  }
+
+  const sourceFile = ts.createSourceFile(schemaFileName, schemaSource, ts.ScriptTarget.ES2022, true);
+  const schemaModule = { sourceFile, source: schemaSource, fileName: schemaFileName };
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "then" || !declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || callLeaf(call) !== "channel") continue;
+      diagnostics.push(diagnostic(
+        schemaModule,
+        "E_OP_RESERVED",
+        declaration.name,
+        "channel then uses a reserved API property",
+        schemaSource.replace(/\bthen\b/g, "thenChannel"),
+      ));
+    }
+  }
+  return diagnostics;
 }
 
 function boundProjectOperationDiagnostics(
@@ -343,9 +477,53 @@ function generateApiDts(
     .sort((left, right) => left.name.localeCompare(right.name))
     .map(apiRowType)
     .join("\n");
-  const modulesText = [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([name, items]) =>
-    `    readonly ${quoteProperty(name)}: {\n${items.join("\n")}\n    };`).join("\n");
-  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${modulesText}\n  }\n}\n\nexport {};\n`;
+  const channels = apiChannels(program, checker);
+  const modulesText = [...grouped].sort(([left], [right]) => left.localeCompare(right))
+    .filter(([name]) => name !== "channels" || channels.length === 0)
+    .map(([name, items]) => `    readonly ${quoteProperty(name)}: {\n${items.join("\n")}\n    };`)
+    .join("\n");
+  const channelsText = channels.length === 0 ? "" : (() => {
+    const channelByName = new Map(channels.map((item) => [item.name, item]));
+    const channelOperations = [...operations.values()]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .filter((operation) => operation.moduleName === "channels");
+    const operationItems = (grouped.get("channels") ?? []).map((item, index) => {
+      const channel = channelByName.get(channelOperations[index]!.exportName);
+      return channel ? item.replace(/;$/, ` & Channel<${channel.args}, unknown>;`) : item;
+    });
+    const operationNames = new Set(channelOperations.map((operation) => operation.exportName));
+    const channelItems = channels
+      .filter((item) => !operationNames.has(item.name))
+      .map((item) => `${quoteProperty(item.name)}: Channel<${item.args}, unknown>`);
+    const catalog = operationItems.length === 0
+      ? `    readonly channels: { ${channelItems.join("; ")} };`
+      : `    readonly channels: {\n${operationItems.join("\n")}\n${channelItems.map((item) => `      readonly ${item};`).join("\n")}\n    };`;
+    const occupiedRoots = new Set([...grouped.keys(), "channels", "op", "then", "toJSON"]);
+    const aliases = channels
+      .filter((item) => !occupiedRoots.has(item.name))
+      .map((item) => `    readonly ${quoteProperty(item.name)}: Channel<${item.args}, unknown>;`);
+    return [catalog, ...aliases].join("\n");
+  })();
+  const members = [modulesText, channelsText].filter(Boolean).join("\n");
+  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+}
+
+function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
+  const schema = program.getSourceFiles().find((item) => /[/\\]snapback[/\\]schema\.ts$/.test(item.fileName));
+  if (!schema) return [];
+  const channels: Array<{ name: string; args: string }> = [];
+  for (const statement of schema.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || callLeaf(call) !== "channel") continue;
+      const config = objectOf(call.arguments[0]);
+      const args = config && objectOf(property(config, "args"));
+      channels.push({ name: declaration.name.text, args: args ? apiArgsType(args, checker) : "{}" });
+    }
+  }
+  return channels.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function apiRowType(table: TableInfo): string {

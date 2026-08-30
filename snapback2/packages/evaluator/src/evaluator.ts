@@ -406,6 +406,12 @@ class Runner {
         case "Delete":
           this.delete(data.table, asString(this.expr(data.key)));
           break;
+        // @ref LLP 1001#8-emit-and-the-outbox — the twin does not run effects, but it must consume the authoritative outbox id.
+        case "Emit":
+          this.expr(data.payload);
+          if (this.context.new_ids.shift() === undefined)
+            throw new EvalError("E_INPUT", "newId envelope exhausted");
+          break;
         case "Return":
           flow = { kind: "return", value: this.expr(data) };
           break;

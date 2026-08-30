@@ -2,7 +2,8 @@
 // @ref LLP 1001#1-store-storers — the store owns SQLite setup, system tables, and snapshots.
 
 use crate::engine::RuntimeError;
-use crate::value::Value;
+use crate::registry::EffectDecl;
+use crate::value::{Value, canonical_json};
 use rusqlite::backup::Backup;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -47,6 +48,26 @@ pub struct OutboxCounts {
     pub sent: u64,
     pub failed: u64,
     pub sent_unknown: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxRow {
+    pub id: String,
+    pub seq: u64,
+    pub effect: String,
+    pub payload: Value,
+    pub state: String,
+    pub attempts: u32,
+    pub next_at: i64,
+    pub last_error: Option<String>,
+    pub result: Option<Value>,
+    pub then_op: Option<String>,
+    /// Project generation active when this row was claimed. The retained
+    /// declaration metadata for that generation binds restart replay.
+    pub generation: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 pub struct Store {
@@ -136,6 +157,8 @@ impl Store {
                 next_at INTEGER NOT NULL,
                 last_error TEXT,
                 result TEXT,
+                then_op TEXT,
+                generation TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
              );
@@ -160,6 +183,8 @@ impl Store {
                 expires_at INTEGER NOT NULL
              );",
         )?;
+        ensure_column(connection, "_outbox", "then_op", "TEXT")?;
+        ensure_column(connection, "_outbox", "generation", "TEXT")?;
         let now = unix_millis();
         connection.execute(
             "INSERT OR IGNORE INTO _meta(key, value) VALUES ('created_at', ?1)",
@@ -262,6 +287,160 @@ impl Store {
         Ok(counts)
     }
 
+    /// Claim the oldest ready row and bind it to the current effect
+    /// declaration. Selection, `running`, the attempt increment, and the
+    /// binding are committed together before the row leaves the writer.
+    // @ref LLP 1003#2-the-outbox-lifecycle — a claim is atomic and binds restart replay to its declaration.
+    pub fn outbox_claim_next(&self, now: i64) -> Result<Option<OutboxRow>, RuntimeError> {
+        let transaction = self.conn.unchecked_transaction()?;
+        let candidate = transaction
+            .query_row(
+                "SELECT id, effect FROM _outbox
+                 WHERE state = 'queued' AND next_at <= ?1
+                 ORDER BY next_at ASC, created_at ASC, id ASC LIMIT 1",
+                [now],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()?;
+        let Some((id, effect)) = candidate else {
+            transaction.commit()?;
+            return Ok(None);
+        };
+        let effects = transaction
+            .query_row(
+                "SELECT value FROM _meta WHERE key = 'effects_json'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .map(|json| {
+                serde_json::from_str::<BTreeMap<String, EffectDecl>>(&json)
+                    .map_err(|error| RuntimeError::Serialization(error.to_string()))
+            })
+            .transpose()?
+            .unwrap_or_default();
+        let declaration = effects.get(&effect);
+        let then_op = declaration.and_then(|declaration| declaration.then.as_deref());
+        let generation = if declaration.is_some() {
+            transaction
+                .query_row(
+                    "SELECT value FROM _meta WHERE key = 'generation'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+        } else {
+            None
+        };
+        let changed = transaction.execute(
+            "UPDATE _outbox
+             SET state = 'running', attempts = attempts + 1,
+                 then_op = ?1, generation = ?2, updated_at = ?3
+             WHERE id = ?4 AND state = 'queued' AND next_at <= ?3",
+            params![then_op, generation, now, id],
+        )?;
+        if changed != 1 {
+            transaction.commit()?;
+            return Ok(None);
+        }
+        let claimed = outbox_get_connection(&transaction, &id)?;
+        transaction.commit()?;
+        Ok(claimed)
+    }
+
+    pub fn outbox_settle(
+        &self,
+        id: &str,
+        state: &str,
+        result: Option<&Value>,
+        last_error: Option<&str>,
+        next_at: Option<i64>,
+    ) -> Result<(), RuntimeError> {
+        if !matches!(state, "queued" | "then_pending" | "sent" | "failed") {
+            return Err(RuntimeError::Input(format!(
+                "invalid outbox settlement state {state}"
+            )));
+        }
+        let now = unix_millis();
+        let result = result.map(canonical_json);
+        let changed = self.conn.execute(
+            "UPDATE _outbox SET
+                state = ?1,
+                result = ?2,
+                last_error = ?3,
+                next_at = COALESCE(?4, next_at),
+                attempts = CASE
+                    WHEN ?1 = 'queued' AND ?4 IS NULL THEN MAX(attempts - 1, 0)
+                    ELSE attempts
+                END,
+                then_op = CASE WHEN ?1 = 'queued' THEN NULL ELSE then_op END,
+                generation = CASE WHEN ?1 = 'queued' THEN NULL ELSE generation END,
+                updated_at = ?5
+             WHERE id = ?6 AND (
+                state = 'running' OR (?1 = 'failed' AND state = 'then_pending')
+             )",
+            params![state, result, last_error, next_at, now, id],
+        )?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(RuntimeError::Input(format!(
+                "outbox row {id} is not running"
+            )))
+        }
+    }
+
+    pub fn outbox_get(&self, id: &str) -> Result<Option<OutboxRow>, RuntimeError> {
+        outbox_get_connection(&self.conn, id)
+    }
+
+    pub fn outbox_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at
+             FROM _outbox WHERE seq = ?1 ORDER BY created_at ASC, id ASC",
+        )?;
+        let rows = statement.query_map([seq as i64], raw_outbox_row)?;
+        rows.map(|row| decode_outbox_row(row?)).collect()
+    }
+
+    // @ref LLP 1002#8-why-trace-guide — trace reads the durable rows emitted by this commit, never program syntax.
+    pub fn outbox_rows_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
+        self.outbox_for_seq(seq)
+    }
+
+    pub fn outbox_mark_unknown_running(&self) -> Result<u64, RuntimeError> {
+        let changed = self.conn.execute(
+            "UPDATE _outbox SET state = 'sent_unknown', updated_at = ?1
+             WHERE state = 'running'",
+            [unix_millis()],
+        )?;
+        Ok(changed as u64)
+    }
+
+    pub fn outbox_then_pending(&self) -> Result<Vec<OutboxRow>, RuntimeError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at
+             FROM _outbox WHERE state = 'then_pending'
+             ORDER BY created_at ASC, id ASC",
+        )?;
+        let rows = statement.query_map([], raw_outbox_row)?;
+        rows.map(|row| decode_outbox_row(row?)).collect()
+    }
+
+    pub fn outbox_requeue(&self, id: &str) -> Result<bool, RuntimeError> {
+        let now = unix_millis();
+        let changed = self.conn.execute(
+            "UPDATE _outbox SET state = 'queued', attempts = 0, next_at = ?1,
+                    last_error = NULL, result = NULL, then_op = NULL,
+                    generation = NULL, updated_at = ?1
+             WHERE id = ?2 AND state IN ('sent_unknown', 'failed')",
+            params![now, id],
+        )?;
+        Ok(changed == 1)
+    }
+
     pub fn snapshot_to(&self, path: &Path) -> Result<(), RuntimeError> {
         let mut destination = Connection::open(path)?;
         let backup = Backup::new(&self.conn, &mut destination)?;
@@ -280,6 +459,114 @@ impl Store {
         transaction.commit()?;
         Ok(())
     }
+}
+
+type RawOutboxRow = (
+    String,
+    i64,
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    i64,
+    i64,
+);
+
+fn raw_outbox_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawOutboxRow> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+    ))
+}
+
+fn decode_outbox_row(raw: RawOutboxRow) -> Result<OutboxRow, RuntimeError> {
+    let (
+        id,
+        seq,
+        effect,
+        payload,
+        state,
+        attempts,
+        next_at,
+        last_error,
+        result,
+        then_op,
+        generation,
+        created_at,
+        updated_at,
+    ) = raw;
+    Ok(OutboxRow {
+        id,
+        seq: seq.max(0) as u64,
+        effect,
+        payload: serde_json::from_str(&payload)
+            .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
+        state,
+        attempts: attempts.max(0) as u32,
+        next_at,
+        last_error,
+        result: result
+            .map(|value| {
+                serde_json::from_str(&value)
+                    .map_err(|error| RuntimeError::Serialization(error.to_string()))
+            })
+            .transpose()?,
+        then_op,
+        generation,
+        created_at,
+        updated_at,
+    })
+}
+
+fn outbox_get_connection(
+    connection: &Connection,
+    id: &str,
+) -> Result<Option<OutboxRow>, RuntimeError> {
+    connection
+        .query_row(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, then_op, generation, created_at, updated_at
+             FROM _outbox WHERE id = ?1",
+            [id],
+            raw_outbox_row,
+        )
+        .optional()?
+        .map(decode_outbox_row)
+        .transpose()
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    declaration: &str,
+) -> rusqlite::Result<()> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if !columns.iter().any(|existing| existing == column) {
+        connection.execute_batch(&format!(
+            "ALTER TABLE {table} ADD COLUMN {column} {declaration}"
+        ))?;
+    }
+    Ok(())
 }
 
 pub(crate) fn unix_millis() -> i64 {
@@ -394,6 +681,57 @@ mod tests {
                 sent_unknown: 1,
             }
         );
+    }
+
+    #[test]
+    fn outbox_rows_for_seq_returns_only_real_rows_with_durable_states() {
+        let store = Store::memory().unwrap();
+        for (id, seq, state) in [
+            ("queued", 7_i64, "queued"),
+            ("running", 7_i64, "running"),
+            ("then-pending", 7_i64, "then_pending"),
+            ("sent", 7_i64, "sent"),
+            ("failed", 7_i64, "failed"),
+            ("sent-unknown", 7_i64, "sent_unknown"),
+            ("other-commit", 8_i64, "failed"),
+        ] {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO _outbox(
+                        id, seq, effect, payload, state, attempts, next_at,
+                        last_error, result, created_at, updated_at
+                     ) VALUES (?1, ?2, 'notify', ?3, ?4, 2, 10, 'detail', ?5, 6, 9)",
+                    params![
+                        id,
+                        seq,
+                        serde_json::to_string(&Value::String(id.to_owned())).unwrap(),
+                        state,
+                        serde_json::to_string(&Value::Bool(true)).unwrap(),
+                    ],
+                )
+                .unwrap();
+        }
+
+        let rows = store.outbox_rows_for_seq(7).unwrap();
+        let states = rows
+            .iter()
+            .map(|row| (row.id.as_str(), row.state.as_str()))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            states,
+            BTreeMap::from([
+                ("failed", "failed"),
+                ("queued", "queued"),
+                ("running", "running"),
+                ("sent", "sent"),
+                ("sent-unknown", "sent_unknown"),
+                ("then-pending", "then_pending"),
+            ])
+        );
+        let queued = rows.iter().find(|row| row.id == "queued").unwrap();
+        assert_eq!(queued.payload, Value::String("queued".to_owned()));
+        assert_eq!(queued.result, Some(Value::Bool(true)));
     }
 }
 

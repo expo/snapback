@@ -81,10 +81,21 @@ queued ──(runner claims)──▶ running ──(run resolves; effect has `t
 ```
 
 `then_pending` (review ruling 2026-08-30) makes the lifecycle restart-honest: the
-effect's result is durable before `then` runs, and a restart re-runs `then` for
-every `then_pending` row. `then` is idempotent by construction — it receives
-`outboxId`, so a duplicate write on a unique index is a `Rejected` the runner
-records as `last_error` while still moving the row to `sent`.
+effect's result is durable before `then` runs; `then` and the `then_pending →
+sent` settlement are **one store transaction** (`Runtime::execute_then`), so a
+restart re-runs `then` only for rows still `then_pending` and never twice; the
+row binds its target (`then_op`, `generation`) at claim time, and a successor
+that changed the declaration fails the row loudly (`E_EFFECT_THEN_CHANGED`)
+instead of running the new mutation against the old result. A `then` that is
+`Rejected` (e.g. a duplicate on a unique index) records `last_error` while the
+row still moves to `sent` — the effect happened; the bookkeeping did not.
+`then` is a bounded data program like any other: it runs as the `system`
+principal under the ordinary table rules (no seed-style exemption — that
+exists for declared data), so a bookkeeping table admits it with
+`insert: rule.principal('system')` (review ruling 2026-08-30). The runner
+thread never panics on row data and never stops on one bad row; a row for an
+effect the generation does not declare is settled `failed` at claim time,
+never `running`.
 
 - The runner claims with `UPDATE _outbox SET state='running', attempts=attempts+1,
   updated_at=? WHERE id=? AND state='queued'` — one row at a time, oldest
@@ -95,10 +106,11 @@ records as `last_error` while still moving the row to `sent`.
   idempotency key can make the retry safe; the runner never retries a
   `sent_unknown` row on its own — `snapback2 trace` shows it, and a human or
   an agent re-queues it (`POST /control/outbox/<id>/requeue`, this wave).
-- `then` runs after `sent` as `Context::system()` through
-  `Runtime::execute`; a rejected `then` sets `last_error` and leaves
-  `state = 'sent'` (the effect happened; the bookkeeping did not) — visible in
-  `trace`, never silent.
+- `then` runs from `then_pending` as `Context::system()` through
+  `Runtime::execute_then`, which settles the row in the same transaction —
+  including when the mutation is `Rejected` (`last_error` set, `state = 'sent'`:
+  the effect happened; the bookkeeping did not) — so no crash window separates
+  the mutation from its settlement; visible in `trace`, never silent.
 - Generation change: jobs of an effect the new generation no longer declares
   become `failed` with `last_error = 'E_EFFECT_UNKNOWN'`; a changed `source`
   drops that effect's runtime so the next job builds a fresh one.
@@ -142,7 +154,14 @@ Hermes heaps are cheap, leaks are not.
 
 A JS exception is `Failed { retry: true }`; a grant denial (`denied:
 net.fetch`) is `Failed { retry: false }` — retrying a refused origin is
-pointless and the message says which origin to declare.
+pointless and the message names the denied hop's origin. A result JSON cannot
+carry — `undefined` (a forgotten `return`), a function, a symbol, a BigInt, a
+cycle, a non-finite number — is `Failed { retry: false, error:
+"E_EFFECT_RESULT" }`: loud, never `sent` as `null`, never retried (ruling
+2026-08-30). Effect source is evaluated as its own top-level script over the
+hardened global — nothing in the prelude's closure is lexically visible to it —
+embedded constants are deep-frozen, and the engine's timer hook accepts one
+invocation per host pump.
 
 ## 4. In the owner
 
@@ -150,7 +169,12 @@ pointless and the message says which origin to declare.
   commit whose `emits > 0` and every 1 s otherwise, drains up to 16 jobs,
   and hands each `then` back to the writer thread.
 - `/control/status.effects` = `{ engine: "ibex2 + vanilla hermes" | "none",
-  queued, running, sent, failed, sentUnknown }`; `doctor` prints the engine
+  queued, running, thenPending, sent, failed, sentUnknown }` from the store's
+  real `_outbox` counts in every build; the runner thread runs in every build
+  (`NoEngine` keeps rows `queued` with `last_error`, still marks `running` rows
+  `sent_unknown` at start and replays `then_pending`, which needs no engine);
+  `doctor` counts from the owner when one runs, else by opening the store
+  itself; requeue resets `attempts` (an operator-authorized new budget); `doctor` prints the engine
   and, when there is none, `effects: no engine in this build — N queued` in
   red-equivalent text (never omitted).
 - **Default build = seam only.** `cargo build` links no engine (LLP 1000

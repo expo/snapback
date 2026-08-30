@@ -3,7 +3,7 @@
 
 use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, seed_rows};
-use crate::protocol::{Refusal, json_to_value};
+use crate::protocol::{Refusal, json_to_value, value_to_json};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Map, Value as Json, json};
@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use std::thread;
 
 #[derive(Clone, Debug)]
@@ -24,8 +24,6 @@ pub enum Identity {
     Bearer(String),
     Persona(String),
     Anonymous,
-    #[allow(dead_code)] // Lane C uses this through `OwnerHandle::execute_system`.
-    System,
 }
 
 #[derive(Clone, Debug)]
@@ -79,37 +77,11 @@ impl OwnerHandle {
     pub fn unsubscribe(&self, id: u64) {
         let _ = self.call(Action::Unsubscribe { id });
     }
-
-    /// Lane C's runner uses this to return an effect result through a named mutation.
-    #[allow(dead_code)] // public seam for lane C's feature-gated effects module
-    pub fn execute_system(&self, op: String, args: Json) -> Result<Json, Refusal> {
-        self.call(Action::Execute {
-            op,
-            args,
-            identity: Identity::System,
-            expected: Some(ProgramKind::Mutation),
-        })
-    }
-
-    /// Outbox visibility stays on the writer thread; lane C adds claim/settle
-    /// actions beside this count without introducing a second store owner.
-    #[allow(dead_code)] // public seam for lane C's feature-gated effects module
-    pub fn outbox_queued(&self) -> Result<u64, Refusal> {
-        self.call(Action::OutboxQueued)?
-            .get("queued")
-            .and_then(Json::as_u64)
-            .ok_or_else(|| {
-                Refusal::owner(
-                    "E_OWNER_PROTOCOL",
-                    "owner omitted outbox count",
-                    "restart snapback2 dev",
-                )
-            })
-    }
 }
 
 // Apply carries a whole certified successor so the writer remains the sole Runtime owner.
 #[allow(clippy::large_enum_variant)]
+#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 pub enum Action {
     Status,
     Manifest,
@@ -186,6 +158,7 @@ pub enum Action {
         limit: u32,
         identity: Identity,
     },
+    RuleVerdicts(String, Identity),
     Why {
         op: String,
         args: Json,
@@ -202,8 +175,33 @@ pub enum Action {
     Clock {
         advance_ms: i64,
     },
-    #[allow(dead_code)] // feature-gated lane C action
-    OutboxQueued,
+    EffectsGeneration,
+    OutboxClaim {
+        now: i64,
+    },
+    OutboxSettle {
+        id: String,
+        state: String,
+        result: Option<Json>,
+        last_error: Option<String>,
+        next_at: Option<i64>,
+    },
+    OutboxThenPending,
+    OutboxMarkUnknown,
+    OutboxExecuteThen {
+        op: String,
+        args: Json,
+        outbox_id: String,
+    },
+    OutboxRequeue {
+        id: String,
+    },
+    InstallEffectsWake {
+        wake: SyncSender<()>,
+    },
+    EffectsLog {
+        lines: Vec<Json>,
+    },
     Stop {
         cause: String,
     },
@@ -232,6 +230,21 @@ struct ChannelClient {
     events: Sender<SseEvent>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LedgerDelivery {
+    id: u64,
+    seq: u64,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitLedger {
+    seq: u64,
+    invalidated: Vec<u64>,
+    deliveries: Vec<LedgerDelivery>,
+}
+
 struct State {
     runtime: Option<Runtime>,
     compiled: CompiledProject,
@@ -241,11 +254,13 @@ struct State {
     phase: Json,
     live: BTreeMap<u64, LiveClient>,
     channels: BTreeMap<u64, ChannelClient>,
+    ledger: VecDeque<CommitLedger>,
     next_channel: u64,
     clock_offset_ms: i64,
     stop: Arc<AtomicBool>,
     owner: OwnerInfo,
     exited: bool,
+    effects_wake: Option<SyncSender<()>>,
 }
 
 pub fn spawn_writer(
@@ -272,11 +287,13 @@ pub fn spawn_writer(
                     phase: Json::String("ready".to_owned()),
                     live: BTreeMap::new(),
                     channels: BTreeMap::new(),
+                    ledger: VecDeque::new(),
                     next_channel: 0,
                     clock_offset_ms: 0,
                     stop,
                     owner,
                     exited: false,
+                    effects_wake: None,
                 },
                 rx,
             )
@@ -457,6 +474,7 @@ impl State {
                 limit,
                 identity,
             } => self.data(table, index, prefix, limit, identity),
+            Action::RuleVerdicts(table, identity) => self.rule_verdicts(table, identity),
             Action::Why { op, args, identity } => self.why(op, args, identity),
             Action::Trace { seq } => self.trace(seq),
             Action::Commits { since, limit } => Ok(serde_json::to_value(
@@ -480,10 +498,82 @@ impl State {
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
-                self.rerun_live(&subscriptions, false);
+                let _ = self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
             }
-            Action::OutboxQueued => Ok(json!({ "queued": self.outbox_queued()? })),
+            Action::EffectsGeneration => Ok(json!({
+                "generation": self.runtime().generation().hash,
+                "effects": self.runtime().generation().effects,
+            })),
+            Action::OutboxClaim { now } => Ok(serde_json::to_value(
+                self.runtime()
+                    .store()
+                    .outbox_claim_next(now)
+                    .map_err(|error| Refusal::from_runtime(&error))?,
+            )
+            .unwrap_or(Json::Null)),
+            Action::OutboxSettle {
+                id,
+                state,
+                result,
+                last_error,
+                next_at,
+            } => {
+                let result = result.as_ref().map(json_to_value).transpose()?;
+                self.runtime()
+                    .store()
+                    .outbox_settle(&id, &state, result.as_ref(), last_error.as_deref(), next_at)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "ok": true }))
+            }
+            Action::OutboxThenPending => Ok(serde_json::to_value(
+                self.runtime()
+                    .store()
+                    .outbox_then_pending()
+                    .map_err(|error| Refusal::from_runtime(&error))?,
+            )
+            .unwrap_or_else(|_| Json::Array(Vec::new()))),
+            Action::OutboxMarkUnknown => {
+                let changed = self
+                    .runtime()
+                    .store()
+                    .outbox_mark_unknown_running()
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "changed": changed }))
+            }
+            Action::OutboxExecuteThen {
+                op,
+                args,
+                outbox_id,
+            } => self.execute_then(&op, args, &outbox_id),
+            Action::OutboxRequeue { id } => {
+                let requeued = self
+                    .runtime()
+                    .store()
+                    .outbox_requeue(&id)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                if !requeued {
+                    return Err(Refusal::new(
+                        "E_EFFECT_REQUEUE_STATE",
+                        "effect",
+                        format!("outbox row {id} is neither sent_unknown nor failed"),
+                        "requeue only a sent_unknown or failed outbox row",
+                        "effects/requeue",
+                    ));
+                }
+                self.wake_effects();
+                Ok(json!({ "ok": true, "id": id, "state": "queued" }))
+            }
+            Action::InstallEffectsWake { wake } => {
+                self.effects_wake = Some(wake);
+                Ok(json!({ "ok": true }))
+            }
+            Action::EffectsLog { lines } => {
+                for line in lines {
+                    crate::watch::log(&self.root, json!({ "effect": line }));
+                }
+                Ok(json!({ "ok": true }))
+            }
             Action::Stop { cause } => {
                 self.exited = true;
                 self.phase = json!({ "state": "exited", "cause": cause });
@@ -510,11 +600,6 @@ impl State {
                     .map(|session| session.principal)
                     .map_err(|error| Refusal::from_identity(&error))
             }
-            Identity::System => Ok(Principal {
-                id: "system".to_owned(),
-                kind: "system".to_owned(),
-                name: Some("system".to_owned()),
-            }),
             Identity::Anonymous => Err(Refusal::new(
                 "E_AUTH_REQUIRED",
                 "auth",
@@ -602,6 +687,24 @@ impl State {
             self.after_commit(execution.seq)?;
         }
         Ok(execution)
+    }
+
+    fn execute_then(&mut self, op: &str, args: Json, outbox_id: &str) -> Result<Json, Refusal> {
+        let values = operation_args(self.runtime().generation(), op, &args)?;
+        let now = self.now();
+        let mut context = Context::system();
+        context.args = values;
+        context.now = Some(now);
+        context.read_time = Some(now);
+        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        let execution = self
+            .runtime_mut()
+            .execute_then(op, context, outbox_id)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if matches!(execution.state, ExecutionState::Committed { .. }) {
+            self.after_commit(execution.seq)?;
+        }
+        Ok(execution_json(&execution))
     }
 
     fn subscribe(
@@ -695,10 +798,22 @@ impl State {
             .channel_admit(&name, ChannelSide::Publish, &args, &context)
             .map_err(|error| Refusal::from_runtime(&error))?;
         if !verdict.admitted {
-            return Ok(json!({
-                "state": "refused",
-                "code": "E_RULE_CHANNEL_PUBLISH",
-            }));
+            let seq = self
+                .runtime()
+                .store()
+                .commit_seq()
+                .map_err(|error| Refusal::from_runtime(&error))?;
+            return Ok(refusal_frame(
+                Refusal::new(
+                    "E_RULE_CHANNEL_PUBLISH",
+                    "rule",
+                    format!("principal is not admitted to publish on channel {name}"),
+                    "use channel arguments and a principal admitted by the publish rule",
+                    "rule/channels",
+                ),
+                seq,
+            )
+            .0);
         }
         let at = self.now();
         let seq = self
@@ -742,12 +857,24 @@ impl State {
             .iter()
             .filter_map(|(id, client)| invalidated.contains(&client.runtime_id).then_some(*id))
             .collect::<Vec<_>>();
-        self.rerun_live(&clients, false);
+        let deliveries = self.rerun_live(&clients, false);
+        self.ledger.push_back(CommitLedger {
+            seq,
+            invalidated: clients,
+            deliveries,
+        });
+        while self.ledger.len() > 1_000 {
+            self.ledger.pop_front();
+        }
         self.readmit_channels(&commit);
+        if commit.emits > 0 {
+            self.wake_effects();
+        }
         Ok(())
     }
 
-    fn rerun_live(&mut self, ids: &[u64], force: bool) {
+    fn rerun_live(&mut self, ids: &[u64], force: bool) -> Vec<LedgerDelivery> {
+        let mut deliveries = Vec::new();
         for id in ids {
             let Some(mut client) = self.live.get(id).cloned() else {
                 continue;
@@ -771,6 +898,10 @@ impl State {
                             data: frame,
                             terminal,
                         });
+                        deliveries.push(LedgerDelivery {
+                            id: *id,
+                            seq: execution.seq,
+                        });
                     }
                     self.live.insert(*id, client);
                 }
@@ -782,10 +913,12 @@ impl State {
                         data: frame,
                         terminal,
                     });
+                    deliveries.push(LedgerDelivery { id: *id, seq });
                     self.live.remove(id);
                 }
             }
         }
+        deliveries
     }
 
     fn readmit_channels(&mut self, commit: &snapback2_core::CommitRecord) {
@@ -812,16 +945,21 @@ impl State {
                     }
                 }
                 result => {
-                    let refusal = match result {
-                        Err(error) => Refusal::from_runtime(&error),
-                        Ok(_) => Refusal::new(
-                            "E_RULE_CHANNEL_SUBSCRIBE",
-                            "rule",
-                            format!("principal is no longer admitted to channel {}", client.name),
-                            "use channel arguments and a principal admitted by the subscribe rule",
-                            "rule/channels",
-                        ),
-                    };
+                    let refusal = result
+                        .err()
+                        .map(|error| Refusal::from_runtime(&error))
+                        .unwrap_or_else(|| {
+                            Refusal::new(
+                                "E_RULE_CHANNEL_SUBSCRIBE",
+                                "rule",
+                                format!(
+                                    "principal is no longer admitted to channel {}",
+                                    client.name
+                                ),
+                                "restore channel membership or use arguments admitted by the subscribe rule",
+                                "rule/channels",
+                            )
+                        });
                     let (data, terminal) = refusal_frame(refusal, commit.seq);
                     let _ = client.events.send(SseEvent {
                         seq: Some(commit.seq),
@@ -857,7 +995,8 @@ impl State {
         self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
-        self.rerun_live(&clients, true);
+        let _ = self.rerun_live(&clients, true);
+        self.wake_effects();
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -881,6 +1020,8 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?;
         self.live.clear();
         self.channels.clear();
+        self.ledger.clear();
+        self.wake_effects();
         Ok(json!({ "ok": true, "seq": seq }))
     }
 
@@ -969,21 +1110,62 @@ impl State {
             .runtime_mut()
             .execute_adhoc(&program, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        Ok(execution_json(&execution))
+        let mut response = execution_json(&execution);
+        if let Some(object) = response.as_object_mut() {
+            object.insert("trace".to_owned(), json!(execution.trace));
+        }
+        Ok(response)
+    }
+
+    fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
+        let principal = self.principal(identity)?;
+        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
+        context.principal_kind = principal.kind;
+        let rows = self
+            .runtime_mut()
+            .read_rule_verdicts(&table_name, context)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(json!({ "table": table_name, "as": principal.id, "rows": rows }))
     }
 
     fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let context = self.context(principal, &op, args)?;
+        let requested_args = context.args.clone();
+        let requested_principal = context.viewer.clone();
         let execution = self
             .runtime_mut()
             .execute(&op, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let runtime_subscriptions = self.runtime().subscriptions();
+        let subscriptions = self
+            .live
+            .iter()
+            .filter(|(_, client)| {
+                client.op == op
+                    && client.context.args == requested_args
+                    && client.context.viewer == requested_principal
+            })
+            .filter_map(|(id, client)| {
+                runtime_subscriptions
+                    .iter()
+                    .find(|subscription| subscription.id == client.runtime_id)
+                    .map(|subscription| {
+                        json!({
+                            "id": id,
+                            "op": client.op,
+                            "principal": subscription.principal,
+                            "lastResultDigest": subscription.last_result_digest,
+                            "lastSeq": subscription.last_seq,
+                        })
+                    })
+            })
+            .collect::<Vec<_>>();
         Ok(json!({
             "op": op,
             "result": execution_json(&execution),
             "trace": execution.trace,
-            "subscriptions": self.runtime().subscriptions().into_iter().filter(|subscription| subscription.op == op).collect::<Vec<_>>(),
+            "subscriptions": subscriptions,
         }))
     }
 
@@ -1010,11 +1192,48 @@ impl State {
                     "input/trace",
                 )
             })?;
-        let invalidated = self.runtime().invalidated(&commit);
+        let outbox_rows = self
+            .runtime()
+            .store()
+            .outbox_rows_for_seq(wanted)
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .into_iter()
+            .map(|row| {
+                json!({
+                    "id": row.id,
+                    "seq": row.seq,
+                    "effect": row.effect,
+                    "payload": value_to_json(&row.payload),
+                    "state": row.state,
+                    "attempts": row.attempts,
+                    "nextAt": row.next_at,
+                    "lastError": row.last_error,
+                    "result": row.result.as_ref().map(value_to_json),
+                    "createdAt": row.created_at,
+                    "updatedAt": row.updated_at,
+                })
+            })
+            .collect::<Vec<_>>();
+        let ledger = self
+            .ledger
+            .iter()
+            .find(|entry| entry.seq == wanted)
+            .cloned()
+            .unwrap_or(CommitLedger {
+                seq: wanted,
+                invalidated: Vec::new(),
+                deliveries: Vec::new(),
+            });
         Ok(json!({
             "commit": commit,
-            "outbox": { "emits": commit.emits, "engine": effects_engine() },
-            "invalidated": invalidated,
+            "outbox": {
+                "emits": commit.emits,
+                "engine": effects_engine(),
+                "rows": outbox_rows.clone(),
+            },
+            "outboxRows": outbox_rows,
+            "invalidated": ledger.invalidated,
+            "deliveries": ledger.deliveries,
         }))
     }
 
@@ -1067,12 +1286,7 @@ impl State {
             "ops": ops,
             "channels": self.runtime().generation().schema.channels,
             "auth": self.runtime().generation().schema.auth,
-            "tables": self.runtime().generation().schema.tables.keys().collect::<Vec<_>>(),
         })
-    }
-
-    fn outbox_queued(&self) -> Result<u64, Refusal> {
-        Ok(self.outbox_counts()?.queued)
     }
 
     fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
@@ -1084,6 +1298,12 @@ impl State {
 
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
+    }
+
+    fn wake_effects(&self) {
+        if let Some(wake) = &self.effects_wake {
+            let _ = wake.try_send(());
+        }
     }
 }
 

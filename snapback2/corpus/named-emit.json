@@ -1,0 +1,175 @@
+{
+  "corpusVersion": 1,
+  "name": "named-emit",
+  "category": "named",
+  "randomSeed": null,
+  "schema": {
+    "tables": {
+      "events": {
+        "columns": {
+          "body": {
+            "Text": {
+              "max": 64
+            }
+          },
+          "id": "Id"
+        },
+        "indexes": {
+          "byId": {
+            "columns": [
+              "id"
+            ],
+            "unique": true
+          }
+        },
+        "rules": {
+          "read": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "insert": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "update": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          },
+          "delete": {
+            "Public": {
+              "reason": "emit corpus fixture"
+            }
+          }
+        },
+        "constraints": []
+      }
+    },
+    "maintains": [],
+    "effects": [
+      "notifications.notify"
+    ]
+  },
+  "program": {
+    "name": "emitAfterInsert",
+    "kind": "Mutation",
+    "args": {
+      "body": "Scalar"
+    },
+    "read_time_granularity_ms": null,
+    "body": [
+      {
+        "Const": {
+          "name": "firstId",
+          "value": {
+            "Input": "NewId"
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Object": {
+              "body": {
+                "Variable": "body"
+              },
+              "id": {
+                "Variable": "firstId"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Emit": {
+          "effect": "notifications.notify",
+          "payload": {
+            "Variable": "firstId"
+          }
+        }
+      },
+      {
+        "Const": {
+          "name": "secondId",
+          "value": {
+            "Input": "NewId"
+          }
+        }
+      },
+      {
+        "Insert": {
+          "table": "events",
+          "row": {
+            "Object": {
+              "body": {
+                "Variable": "body"
+              },
+              "id": {
+                "Variable": "secondId"
+              }
+            }
+          }
+        }
+      },
+      {
+        "Return": {
+          "Array": [
+            {
+              "Variable": "firstId"
+            },
+            {
+              "Variable": "secondId"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "context": {
+    "viewer": "u1",
+    "principal_kind": "user",
+    "auth_epoch": 1,
+    "args": {
+      "body": {
+        "String": "hello with effect"
+      }
+    },
+    "now": 0,
+    "new_ids": [
+      "named-emit-message",
+      "named-emit-outbox",
+      "named-emit-followup"
+    ],
+    "read_time": null
+  },
+  "receipt": {
+    "rows": [],
+    "ranges": [],
+    "absences": [],
+    "verdicts": []
+  },
+  "prelude": [],
+  "replacementReceipt": null,
+  "expected": {
+    "localResult": {
+      "Array": [
+        {
+          "Id": "named-emit-message"
+        },
+        {
+          "Id": "named-emit-followup"
+        }
+      ]
+    },
+    "errorCode": null,
+    "localState": "predicted",
+    "partialSites": [],
+    "canonicalResult": "{\"Array\":[{\"Id\":\"named-emit-message\"},{\"Id\":\"named-emit-followup\"}]}",
+    "digest": "1996346372f129d467d9984275d51582c8bc86fca5ce566a6f3e47b4b2962ec7",
+    "rangeStops": {},
+    "evictedRows": null
+  }
+}

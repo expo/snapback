@@ -8,9 +8,10 @@ import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
-import * as clientStub from "../../snapback2/src/client";
-import * as reactStub from "../../snapback2/src/react";
-import * as journeyStub from "../../snapback2/src/test";
+import * as clientSurface from "../../snapback2/src/client";
+import * as reactSurface from "../../snapback2/src/react";
+import * as testSurface from "../../snapback2/src/test";
+import ts from "typescript";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -324,6 +325,24 @@ test("snapback2 constructors resolve through named aliases and namespace imports
   });
 });
 
+test("the thenable property name is reserved at every generated API path", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { channel, rule, schema } from "snapback2";
+      export const then = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export default schema({ tables: {}, channels: { then } });`,
+    "snapback/then.ts": `import { query } from "snapback2";
+      export const list = query({}, () => []);`,
+    "snapback/ops.ts": `import { query } from "snapback2";
+      export const then = query({}, () => []);`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(!project.ok, "then-bearing API paths unexpectedly compiled");
+    const reserved = project.diagnostics.filter((item) => item.code === "E_OP_RESERVED");
+    assert(reserved.length === 3, `expected three reserved then diagnostics, got ${reserved.length}`);
+    assert(reserved.every((item) => item.family === "op" && item.guide === "programs/operations"), "reserved then diagnostics used the wrong envelope");
+  });
+});
+
 test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
   await withProject({
     "snapback/schema.ts": `import { schema, table, t } from "snapback2";
@@ -432,19 +451,14 @@ test("placeholder declarations export every not-built client, React, and journey
   assert((declarations.match(/=> never/g) ?? []).length === 8, "placeholder exports are not typed as never-returning callables");
 });
 
-test("client, React, and test placeholders import safely and refuse only when called", () => {
-  for (const [surface, module] of [["client", clientStub], ["react", reactStub], ["test", journeyStub]] as const) {
-    const exports = Object.entries(module);
-    assert(exports.length > 0, `${surface} placeholder has no callable exports`);
-    for (const [name, value] of exports) {
-      assert(typeof value === "function", `${surface}.${name} is not a callable placeholder`);
-      let code: unknown;
-      try {
-        value();
-      } catch (error) {
-        code = (error as { code?: unknown }).code;
-      }
-      assert(code === "E_NOT_BUILT", `${surface}.${name} did not refuse with E_NOT_BUILT when called`);
+test("client, React, and test modules expose their real callable surfaces", () => {
+  for (const [surface, module, names] of [
+    ["client", clientSurface, ["createClient", "SnapbackRefusal"]],
+    ["react", reactSurface, ["SnapbackProvider", "useQuery", "useMutation", "useAuth", "useChannel", "DevOverlay"]],
+    ["test", testSurface, ["journey"]],
+  ] as const) {
+    for (const name of names) {
+      assert(typeof module[name as keyof typeof module] === "function", `${surface}.${name} is not callable`);
     }
   }
 });
@@ -835,8 +849,50 @@ test("npm pack from a clean dist builds every exported module and declaration", 
   const files = new Set((report[0]?.files ?? []).map((item: { path: string }) => item.path));
   for (const path of [
     "dist/compiler.mjs", "dist/index.mjs", "dist/client.mjs", "dist/react.mjs", "dist/test.mjs",
-    "dist/index.d.ts", "dist/client.d.ts", "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
+    "dist/test-runner.mjs", "dist/index.d.ts", "dist/client.d.ts", "dist/react.d.ts", "dist/test.d.ts",
+    "dist/placeholder.d.ts", "dist/compiler-lib.d.ts",
   ]) assert(files.has(path), `npm pack omitted ${path}`);
+});
+
+test("the React template typechecks against the built snapback2/react package", () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  const app = resolve(packageRoot, "templates/react/src/App.tsx");
+  const program = ts.createProgram({
+    rootNames: [app],
+    options: {
+      baseUrl: packageRoot,
+      jsx: ts.JsxEmit.ReactJSX,
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      noEmit: true,
+      paths: {
+        "snapback2/react": [resolve(packageRoot, "dist/react.d.ts")],
+      },
+      skipLibCheck: true,
+      strict: true,
+      target: ts.ScriptTarget.ES2022,
+      types: ["react"],
+    },
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === app);
+  assert(
+    diagnostics.length === 0,
+    `React template did not typecheck against dist/react.d.ts:\n${diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n")).join("\n")}`,
+  );
+});
+
+test("guide validation reports every failing page before it fails", () => {
+  const packageRoot = resolve(crate, "packages/snapback2");
+  const checked = Bun.spawnSync({
+    cmd: ["node", "build.mjs", "--self-test"],
+    cwd: packageRoot,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
+  assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
+  assert(output.includes("guide/oversized.md") && output.includes("guide/stale.md"), `guide validator failed fast: ${output}`);
 });
 
 test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {
