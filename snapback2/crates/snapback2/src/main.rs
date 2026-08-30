@@ -27,10 +27,26 @@ fn main() -> ExitCode {
     let json = verbs::has(&args, "--json");
     match args.first().map(String::as_str) {
         Some("version") | Some("-V") => {
+            if let Err(code) = verbs::validate_options(&args, &[], &["--json"]) {
+                return code;
+            }
+            if args.len() != 1 + usize::from(json) {
+                eprintln!("usage: snapback2 version [--json]");
+                return ExitCode::from(2);
+            }
             println!("snapback2 {VERSION}");
             ExitCode::SUCCESS
         }
-        Some("doctor") => doctor::run(json),
+        Some("doctor") => {
+            if let Err(code) = verbs::validate_options(&args, &[], &["--json"]) {
+                return code;
+            }
+            if args.len() != 1 + usize::from(json) {
+                eprintln!("usage: snapback2 doctor [--json]");
+                return ExitCode::from(2);
+            }
+            doctor::run(json)
+        }
         Some("check") => run_check(&args, json),
         Some("dev") => verbs::dev(&args),
         Some("run") => verbs::run(&args),
@@ -53,7 +69,7 @@ fn main() -> ExitCode {
 
 fn run_check(args: &[String], json: bool) -> ExitCode {
     match parse_check(args) {
-        Ok(CheckTarget::Ir(path)) => check::run(path.as_deref()),
+        Ok(CheckTarget::Ir(path)) => check::run(path.as_deref(), json),
         Ok(CheckTarget::Project(explicit)) => {
             if let Some(path) = explicit.as_deref().filter(|path| path.is_file()) {
                 eprintln!(

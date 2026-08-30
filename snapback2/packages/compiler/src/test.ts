@@ -848,7 +848,7 @@ test("binary check certifies every compiler program and reads IR only from stdin
   await mkdir(buildDir, { recursive: true });
   const projectPath = `${buildDir}/project.json`;
   await Bun.write(projectPath, JSON.stringify(chat.project));
-  const checked = runBinaryCheck(["--ir", projectPath]);
+  const checked = runBinaryCheck(["--json", "--ir", projectPath]);
   const checkedRefusals = checked.results.filter((item: any) => item.error);
   assert(checked.exitCode === 0 && checkedRefusals.length === 0, `chat compiler output was refused: ${checked.stderr}`);
   assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
@@ -857,7 +857,7 @@ test("binary check certifies every compiler program and reads IR only from stdin
   for (const fixture of ["todos", "s1"]) {
     const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
     assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
-    const result = runBinaryCheck(["--ir"], lowered.project);
+    const result = runBinaryCheck(["--json", "--ir"], lowered.project);
     const refusals = result.results.filter((item: any) => item.error);
     assert(result.exitCode === 0 && refusals.length === 0, `${fixture} compiler output had ${refusals.length} binary refusals: ${result.stderr}`);
     assert(result.results.length === lowered.project.programs.length, `${fixture} binary check omitted programs`);
@@ -865,14 +865,14 @@ test("binary check certifies every compiler program and reads IR only from stdin
   const collided = runBinaryCheck(["--project", projectPath]);
   assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
 
-  const unsupportedProgram = runBinaryCheck(["--ir"], {
+  const unsupportedProgram = runBinaryCheck(["--json", "--ir"], {
     schemaMode: "synthetic",
     programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
   });
   assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
   assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
 
-  const explicit = runBinaryCheck(["--ir"], {
+  const explicit = runBinaryCheck(["--json", "--ir"], {
     schema: {
       tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
       maintains: [],

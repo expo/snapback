@@ -1,6 +1,7 @@
 //! The one thread that owns `Runtime` and every store operation.
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
+use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
@@ -9,7 +10,7 @@ use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
     Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Store, Value,
+    ProgramKind, Runtime, Scan, Stmt, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -166,6 +167,7 @@ pub enum Action {
         migration: Option<MigrationPlan>,
         seed: Option<SeedData>,
     },
+    PublishOwner,
     Applying {
         generation: String,
     },
@@ -234,7 +236,6 @@ struct State {
     runtime: Option<Runtime>,
     compiled: CompiledProject,
     seed: SeedData,
-    store_path: PathBuf,
     root: PathBuf,
     mode: String,
     phase: Json,
@@ -243,16 +244,18 @@ struct State {
     next_channel: u64,
     clock_offset_ms: i64,
     stop: Arc<AtomicBool>,
+    owner: OwnerInfo,
+    exited: bool,
 }
 
 pub fn spawn_writer(
     runtime: Runtime,
     compiled: CompiledProject,
     seed: SeedData,
-    store_path: PathBuf,
     root: PathBuf,
     mode: String,
     stop: Arc<AtomicBool>,
+    owner: OwnerInfo,
 ) -> Result<OwnerHandle, Refusal> {
     let (tx, rx) = mpsc::channel();
     let handle = OwnerHandle { tx };
@@ -264,7 +267,6 @@ pub fn spawn_writer(
                     runtime: Some(runtime),
                     compiled,
                     seed,
-                    store_path,
                     root,
                     mode,
                     phase: Json::String("ready".to_owned()),
@@ -273,6 +275,8 @@ pub fn spawn_writer(
                     next_channel: 0,
                     clock_offset_ms: 0,
                     stop,
+                    owner,
+                    exited: false,
                 },
                 rx,
             )
@@ -428,6 +432,7 @@ impl State {
                 migration,
                 seed,
             } => self.apply(compiled, migration, seed),
+            Action::PublishOwner => self.publish_owner(),
             Action::Fork { path } => {
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent).map_err(|error| {
@@ -480,27 +485,10 @@ impl State {
             }
             Action::OutboxQueued => Ok(json!({ "queued": self.outbox_queued()? })),
             Action::Stop { cause } => {
+                self.exited = true;
                 self.phase = json!({ "state": "exited", "cause": cause });
                 crate::watch::log(&self.root, json!({ "exited": cause }));
-                let owner_path = self.root.join(".snapback/owner.json");
-                let removed = std::fs::remove_file(&owner_path).or_else(|error| {
-                    if error.kind() == std::io::ErrorKind::NotFound {
-                        Ok(())
-                    } else {
-                        Err(error)
-                    }
-                });
                 self.stop.store(true, AtomicOrdering::SeqCst);
-                removed.map_err(|error| {
-                    Refusal::owner(
-                        "E_OWNER_STATE",
-                        format!(
-                            "cannot remove {} while stopping: {error}",
-                            owner_path.display()
-                        ),
-                        "make .snapback writable and retry snapback2 dev --stop",
-                    )
-                })?;
                 Ok(json!({ "ok": true, "exited": cause }))
             }
         }
@@ -858,51 +846,35 @@ impl State {
         if let Some(seed) = seed {
             self.seed = seed;
         }
+        self.owner.generation = self.compiled.generation.hash.clone();
+        self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
         self.rerun_live(&clients, true);
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
+    fn publish_owner(&self) -> Result<Json, Refusal> {
+        crate::owner::write_owner_if_active(&self.root, &self.owner, self.exited)?;
+        Ok(json!({ "ok": true, "exited": self.exited }))
+    }
+
     fn reset(&mut self) -> Result<Json, Refusal> {
-        let generation = self.compiled.generation.clone();
         let seed = self.seed.clone();
-        self.runtime.take();
-        let rebuilt = (|| {
-            let mut store =
-                Store::open(&self.store_path).map_err(|error| Refusal::from_runtime(&error))?;
-            store
-                .reset_data()
-                .map_err(|error| Refusal::from_runtime(&error))?;
-            let mut runtime = Runtime::open(store, generation)
-                .map_err(|error| Refusal::from_successor(&error))?;
-            let now = self.now();
-            for persona in &seed.personas {
-                runtime
-                    .persona(persona, now)
-                    .map_err(|error| Refusal::from_identity(&error))?;
-            }
-            let rows = seed_rows(&seed, &self.compiled)?;
-            if !rows.is_empty() {
-                apply_seed(&mut runtime, &rows)?;
-            }
-            Ok(runtime)
-        })();
-        let runtime = match rebuilt {
-            Ok(runtime) => runtime,
-            Err(error) => {
-                crate::watch::log(
-                    &self.root,
-                    json!({ "exited": "fatal reset", "refusal": error }),
-                );
-                self.stop.store(true, AtomicOrdering::SeqCst);
-                return Err(error);
-            }
-        };
-        self.runtime = Some(runtime);
+        let rows = seed_rows(&seed, &self.compiled)?;
+        let now = self.now();
+        for persona in &seed.personas {
+            self.runtime_mut()
+                .persona(persona, now)
+                .map_err(|error| Refusal::from_identity(&error))?;
+        }
+        let seq = self
+            .runtime_mut()
+            .reset_and_seed(&rows)
+            .map_err(|error| Refusal::from_runtime(&error))?;
         self.live.clear();
         self.channels.clear();
-        Ok(json!({ "ok": true, "seq": self.runtime().store().commit_seq().unwrap_or(0) }))
+        Ok(json!({ "ok": true, "seq": seq }))
     }
 
     fn data(

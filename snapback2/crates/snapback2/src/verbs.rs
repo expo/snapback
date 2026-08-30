@@ -10,6 +10,25 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 pub fn dev(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(
+        args,
+        &["--port", "--project", "--apply-migration"],
+        &[
+            "--foreground",
+            "--owner-child",
+            "--serve",
+            "--stop",
+            "--status",
+            "--json",
+        ],
+    ) {
+        return code;
+    }
+    if positionals(args, &["--port", "--project", "--apply-migration"]).len() != 1 {
+        return usage(
+            "usage: snapback2 dev [--port N] [--foreground] [--stop] [--status] [--apply-migration file] [--serve] [--project dir] [--json]",
+        );
+    }
     let port = match flag(args, "--port") {
         Some(value) => match value.parse() {
             Ok(port) => port,
@@ -35,6 +54,9 @@ pub fn dev(args: &[String]) -> ExitCode {
 }
 
 pub fn run(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(args, &["--project", "--as"], &["--json"]) {
+        return code;
+    }
     let positional = positionals(args, &["--project", "--as"]);
     if positional.len() < 2 || positional.len() > 3 {
         return usage("usage: snapback2 run <op> [args-json] --as <persona> [--json]");
@@ -106,6 +128,13 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 pub fn data(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(
+        args,
+        &["--project", "--as", "--index", "--prefix", "--limit"],
+        &["--json"],
+    ) {
+        return code;
+    }
     let positional = positionals(
         args,
         &["--project", "--as", "--index", "--prefix", "--limit"],
@@ -132,8 +161,8 @@ pub fn data(args: &[String]) -> ExitCode {
         },
         None => json!([]),
     };
-    let limit = match numeric_flag(args, "--limit") {
-        Ok(value) => value.unwrap_or(50),
+    let limit = match data_limit(args) {
+        Ok(value) => value,
         Err(code) => return code,
     };
     control(
@@ -151,6 +180,12 @@ pub fn data(args: &[String]) -> ExitCode {
 }
 
 pub fn logs(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(args, &["--project", "--since", "--limit"], &["--json"]) {
+        return code;
+    }
+    if positionals(args, &["--project", "--since", "--limit"]).len() != 1 {
+        return usage("usage: snapback2 logs [--since seq] [--limit 100] [--json]");
+    }
     let since = match numeric_flag(args, "--since") {
         Ok(value) => value.unwrap_or(0),
         Err(code) => return code,
@@ -168,6 +203,9 @@ pub fn logs(args: &[String]) -> ExitCode {
 }
 
 pub fn persona(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(args, &["--project"], &["--json"]) {
+        return code;
+    }
     let positional = positionals(args, &["--project"]);
     match positional.get(1).map(String::as_str) {
         Some("list") if positional.len() == 2 => {
@@ -184,6 +222,9 @@ pub fn persona(args: &[String]) -> ExitCode {
 }
 
 pub fn fork(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(args, &["--project"], &["--json"]) {
+        return code;
+    }
     let positional = positionals(args, &["--project"]);
     if positional.len() != 2 {
         return usage("usage: snapback2 fork <name> [--json]");
@@ -197,6 +238,9 @@ pub fn fork(args: &[String]) -> ExitCode {
 }
 
 pub fn reset(args: &[String]) -> ExitCode {
+    if let Err(code) = validate_options(args, &["--project"], &["--json"]) {
+        return code;
+    }
     if positionals(args, &["--project"]).len() != 1 {
         return usage("usage: snapback2 reset [--json]");
     }
@@ -261,6 +305,54 @@ fn numeric_flag(args: &[String], name: &str) -> Result<Option<u64>, ExitCode> {
         .parse()
         .map(Some)
         .map_err(|_| usage(&format!("invalid numeric value for {name}: {value}")))
+}
+
+fn data_limit(args: &[String]) -> Result<u64, ExitCode> {
+    let Some(value) = flag(args, "--limit") else {
+        return Ok(50);
+    };
+    let parsed = value.parse::<i128>();
+    if !matches!(parsed, Ok(1..=500)) {
+        return Err(refused(
+            Refusal::new(
+                "E_ARGS_LIMIT",
+                "args",
+                format!("data limit must be between 1 and 500, got {value}"),
+                "pass --limit 1..500",
+                "args/data-limit",
+            ),
+            has(args, "--json"),
+            2,
+        ));
+    }
+    Ok(parsed.unwrap() as u64)
+}
+
+pub(crate) fn validate_options(
+    args: &[String],
+    value_flags: &[&str],
+    boolean_flags: &[&str],
+) -> Result<(), ExitCode> {
+    let mut index = 1;
+    while index < args.len() {
+        let arg = args[index].as_str();
+        if value_flags.contains(&arg) {
+            let Some(value) = args.get(index + 1) else {
+                return Err(usage(&format!("{arg} requires a value")));
+            };
+            if value.starts_with("--") {
+                return Err(usage(&format!("{arg} requires a value, not {value}")));
+            }
+            index += 2;
+            continue;
+        }
+        if boolean_flags.contains(&arg) || !arg.starts_with('-') {
+            index += 1;
+            continue;
+        }
+        return Err(usage(&format!("unknown option {arg}")));
+    }
+    Ok(())
 }
 
 pub fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {

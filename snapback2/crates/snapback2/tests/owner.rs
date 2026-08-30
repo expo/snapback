@@ -330,6 +330,91 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
 }
 
 #[test]
+fn reset_seed_refusal_is_atomic_and_keeps_the_owner_running() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    let before = request(
+        port,
+        "POST",
+        "/control/data",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "table": "profiles",
+            "index": "byId",
+            "prefix": [],
+            "limit": 10,
+            "as": "alice",
+        }),
+    );
+    assert_eq!(before.status, 200, "{}", before.body);
+    let log_path = root.join(".snapback/log.jsonl");
+    let log_start = fs::metadata(&log_path).unwrap().len();
+    let seed_path = root.join("snapback/seed.ts");
+    let seed = fs::read_to_string(&seed_path)
+        .unwrap()
+        .replace("handle: \"bob\"", "handle: \"alice\"");
+    fs::write(&seed_path, seed).unwrap();
+    wait_for(Duration::from_secs(6), || {
+        let mut file = fs::File::open(&log_path).ok()?;
+        use std::io::{Seek, SeekFrom};
+        file.seek(SeekFrom::Start(log_start)).ok()?;
+        let mut tail = String::new();
+        file.read_to_string(&mut tail).ok()?;
+        tail.contains("\"successor\":\"applied\"").then_some(())
+    });
+
+    let reset = request(
+        port,
+        "POST",
+        "/control/reset",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    );
+    assert_eq!(reset.status, 400, "{}", reset.body);
+    assert_eq!(reset.body["code"], "E_CONSTRAINT", "{}", reset.body);
+    assert_eq!(status(port, &secret)["status"], "ready");
+    let after = request(
+        port,
+        "POST",
+        "/control/data",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "table": "profiles",
+            "index": "byId",
+            "prefix": [],
+            "limit": 10,
+            "as": "alice",
+        }),
+    );
+    assert_eq!(after.status, 200, "{}", after.body);
+    assert_eq!(after.body, before.body, "failed reset changed durable rows");
+
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", &secret)],
+        json!({ "cause": "atomic reset test" }),
+    );
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    owner.wait();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn serve_refuses_personas_before_every_route_dispatch() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
@@ -408,6 +493,37 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         .unwrap();
     assert_eq!(missing_project.status.code(), Some(2));
 
+    let valid_ir = json!({
+        "schemaMode": "spike",
+        "programs": [{
+            "name": "health",
+            "kind": "Query",
+            "args": {},
+            "read_time_granularity_ms": null,
+            "body": [{ "Return": { "Literal": "Null" } }],
+        }],
+    });
+    let human = run_with_stdin(binary, &["check", "--ir"], &valid_ir);
+    assert!(human.status.success());
+    assert_eq!(String::from_utf8_lossy(&human.stdout), "ok health\n");
+    let machine = run_with_stdin(binary, &["check", "--ir", "--json"], &valid_ir);
+    assert!(machine.status.success());
+    let machine: Value = serde_json::from_slice(&machine.stdout).unwrap();
+    assert_eq!(machine["results"][0]["program"], "health");
+
+    let missing_ir = Command::new(binary)
+        .args(["check", "--ir"])
+        .arg(root.join("missing-project.json"))
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert_eq!(missing_ir.status.code(), Some(2));
+    let missing_envelope: Value = serde_json::from_slice(&missing_ir.stdout).unwrap();
+    assert_eq!(
+        missing_envelope["results"][0]["error"]["code"],
+        "E_CHECK_INPUT"
+    );
+
     let mut explicit_project = Command::new(binary)
         .args(["check", "--project"])
         .arg(&root)
@@ -450,7 +566,7 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         ]
     });
     let mut aggregate = Command::new(binary)
-        .args(["check", "--ir"])
+        .args(["check", "--ir", "--json"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
@@ -481,6 +597,92 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert!(String::from_utf8_lossy(&output.stderr).contains("nope"));
     }
+
+    for limit in ["0", "-1", "501", "4294967297"] {
+        let output = Command::new(binary)
+            .args(["data", "items", "--as", "alice", "--limit", limit, "--json"])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2), "limit {limit}");
+        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(refusal["code"], "E_ARGS_LIMIT", "{refusal}");
+    }
+
+    for args in [
+        vec!["version", "unexpected"],
+        vec!["doctor", "unexpected"],
+        vec!["check", "--unknown"],
+        vec!["dev", "unexpected"],
+        vec!["run", "op", "--as", "alice", "--unknown"],
+        vec!["data", "items", "--as", "alice", "--unknown"],
+        vec!["logs", "unexpected"],
+        vec!["persona", "list", "--unknown"],
+        vec!["fork", "name", "--unknown"],
+        vec!["reset", "--unknown"],
+    ] {
+        let output = Command::new(binary).args(&args).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn concurrent_detached_dev_attaches_without_replacing_the_winner() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let launch = || {
+        let mut command = Command::new(binary);
+        command
+            .args(["dev", "--project"])
+            .arg(&root)
+            .env("SNAPBACK2_COMPILER", &compiler)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        command.spawn().unwrap()
+    };
+    let first = launch();
+    let second = launch();
+    let first = first.wait_with_output().unwrap();
+    let second = second.wait_with_output().unwrap();
+    assert!(
+        first.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&first.stdout),
+        String::from_utf8_lossy(&first.stderr)
+    );
+    assert!(
+        second.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&second.stdout),
+        String::from_utf8_lossy(&second.stderr)
+    );
+    let first_url = String::from_utf8_lossy(&first.stdout).trim().to_owned();
+    let second_url = String::from_utf8_lossy(&second.stdout).trim().to_owned();
+    assert!(first_url.starts_with("SNAPBACK_URL="), "{first_url}");
+    assert_eq!(first_url, second_url);
+    let owner_path = root.join(".snapback/owner.json");
+    let owner: Value = serde_json::from_slice(&fs::read(&owner_path).unwrap()).unwrap();
+    let pid = owner["pid"].as_u64().unwrap() as u32;
+    let mut guard = DetachedOwnerGuard { pid };
+
+    let stopped = Command::new(binary)
+        .args(["dev", "--project"])
+        .arg(&root)
+        .args(["--stop", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        stopped.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(!owner_path.exists());
+    assert!(!process_alive(pid));
+    guard.pid = 0;
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -533,7 +735,168 @@ fn detached_stop_removes_owner_state_and_waits_for_the_pid() {
 
 #[cfg(unix)]
 #[test]
-fn status_removes_dead_and_unreachable_owner_files_with_an_explicit_refusal() {
+fn stop_during_generation_update_is_bounded_and_cannot_recreate_owner_state() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let checked = Command::new(binary)
+        .args(["check", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(
+        checked.status.success(),
+        "{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    let project = root.join(".snapback/build/project.json");
+    let slow_worker = write_worker(
+        &root,
+        "slow-watch-compiler.mjs",
+        &format!(
+            r#"import {{ readFileSync }} from "node:fs";
+import {{ createInterface }} from "node:readline";
+const project = JSON.parse(readFileSync({}, "utf8"));
+let compiles = 0;
+for await (const line of createInterface({{ input: process.stdin, crlfDelay: Infinity }})) {{
+  const request = JSON.parse(line);
+  if (request.op === "compile" && compiles++ > 0) await new Promise((resolve) => setTimeout(resolve, 3000));
+  const response = request.op === "compile"
+    ? {{ id: request.id, ok: true, project, sources: {{}}, apiDts: "", ms: 0 }}
+    : {{ id: request.id, ok: true, seed: {{ personas: [], rows: {{}} }} }};
+  process.stdout.write(JSON.stringify(response) + "\n");
+}}
+"#,
+            serde_json::to_string(&project).unwrap()
+        ),
+    );
+    let mut owner = ChildGuard::spawn(binary, &slow_worker, &root);
+    owner.ready_line();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let pid = owner_json["pid"].as_u64().unwrap() as u32;
+    let port = owner_json["port"].as_u64().unwrap() as u16;
+    let secret = owner_json["secret"].as_str().unwrap().to_owned();
+    // Let the watcher establish its initial fingerprint before changing the source.
+    thread::sleep(Duration::from_millis(300));
+    let messages = root.join("snapback/messages.ts");
+    let mut source = fs::read_to_string(&messages).unwrap();
+    source.push_str("\n");
+    fs::write(messages, source).unwrap();
+    wait_for(Duration::from_secs(3), || {
+        let current = status(port, &secret);
+        (current["status"]["state"] == "applying").then_some(())
+    });
+
+    let started = Instant::now();
+    let stopped = Command::new(binary)
+        .args(["dev", "--project"])
+        .arg(&root)
+        .args(["--stop", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        stopped.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(started.elapsed() < Duration::from_secs(2));
+    owner.wait();
+    assert!(!process_alive(pid));
+    assert!(!root.join(".snapback/owner.json").exists());
+    thread::sleep(Duration::from_millis(3100));
+    assert!(!root.join(".snapback/owner.json").exists());
+    assert!(
+        fs::read_to_string(root.join(".snapback/log.jsonl"))
+            .unwrap()
+            .contains("source watcher stop timeout")
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn stop_refuses_when_the_recorded_pid_survives_the_deadline() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    fs::create_dir_all(root.join(".snapback")).unwrap();
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server_root = root.canonicalize().unwrap();
+    let server = thread::spawn(move || {
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            stream.read_to_end(&mut request).unwrap();
+            let request = String::from_utf8_lossy(&request);
+            let body = if request.starts_with("GET /control/status ") {
+                json!({ "project": server_root })
+            } else {
+                json!({ "ok": true, "exited": "fake owner stays alive" })
+            };
+            let body = serde_json::to_vec(&body).unwrap();
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(&body).unwrap();
+        }
+    });
+    let owner_path = root.join(".snapback/owner.json");
+    fs::write(
+        &owner_path,
+        serde_json::to_vec(&json!({
+            "pid": std::process::id(),
+            "port": port,
+            "url": format!("http://127.0.0.1:{port}"),
+            "secret": "fake-owner-secret",
+            "generation": "fake",
+            "startedAt": 0,
+            "mode": "dev",
+            "project": root.canonicalize().unwrap(),
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+
+    let started = Instant::now();
+    let stopped = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["dev", "--project"])
+        .arg(&root)
+        .args(["--stop", "--json"])
+        .output()
+        .unwrap();
+    assert_eq!(stopped.status.code(), Some(1));
+    assert!(
+        started.elapsed() >= Duration::from_secs(2),
+        "stop returned after {:?}: {} {}",
+        started.elapsed(),
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(started.elapsed() < Duration::from_secs(4));
+    let refusal: Value = serde_json::from_slice(&stopped.stdout).unwrap();
+    assert_eq!(refusal["code"], "E_OWNER_STOP_TIMEOUT");
+    assert_eq!(refusal["pid"], std::process::id());
+    assert!(
+        refusal["message"]
+            .as_str()
+            .unwrap()
+            .contains(&std::process::id().to_string())
+    );
+    assert!(owner_path.exists());
+    server.join().unwrap();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn status_never_removes_another_process_owner_file() {
     let root = temp_root();
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     fs::create_dir_all(root.join(".snapback")).unwrap();
@@ -542,25 +905,22 @@ fn status_removes_dead_and_unreachable_owner_files_with_an_explicit_refusal() {
     let unreachable_port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    for (pid, port) in [
-        (2_000_000_000_u32, 9_u16),
-        (std::process::id(), unreachable_port),
+    for (pid, port, expected_code) in [
+        (2_000_000_000_u32, 9_u16, "E_OWNER_NOT_RUNNING"),
+        (std::process::id(), unreachable_port, "E_OWNER_RUNNING"),
     ] {
-        fs::write(
-            root.join(".snapback/owner.json"),
-            serde_json::to_vec(&json!({
-                "pid": pid,
-                "port": port,
-                "url": format!("http://127.0.0.1:{port}"),
-                "secret": "stale",
-                "generation": "stale",
-                "startedAt": 0,
-                "mode": "dev",
-                "project": root,
-            }))
-            .unwrap(),
-        )
+        let bytes = serde_json::to_vec(&json!({
+            "pid": pid,
+            "port": port,
+            "url": format!("http://127.0.0.1:{port}"),
+            "secret": "winner-secret",
+            "generation": "winner-generation",
+            "startedAt": 0,
+            "mode": "dev",
+            "project": root.canonicalize().unwrap(),
+        }))
         .unwrap();
+        fs::write(root.join(".snapback/owner.json"), &bytes).unwrap();
         let output = Command::new(binary)
             .args(["dev", "--project"])
             .arg(&root)
@@ -569,15 +929,22 @@ fn status_removes_dead_and_unreachable_owner_files_with_an_explicit_refusal() {
             .unwrap();
         assert_eq!(output.status.code(), Some(1));
         let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(refusal["code"], "E_OWNER_NOT_RUNNING");
-        assert!(
-            refusal["message"]
-                .as_str()
-                .unwrap_or_default()
-                .contains("stale owner.json removed"),
-            "{refusal}"
-        );
-        assert!(!root.join(".snapback/owner.json").exists());
+        assert_eq!(refusal["code"], expected_code);
+        assert_eq!(fs::read(root.join(".snapback/owner.json")).unwrap(), bytes);
+
+        if pid == std::process::id() {
+            let attach = Command::new(binary)
+                .args(["dev", "--project"])
+                .arg(&root)
+                .arg("--json")
+                .output()
+                .unwrap();
+            assert!(attach.status.success());
+            let attached: Value = serde_json::from_slice(&attach.stdout).unwrap();
+            assert_eq!(attached["code"], "E_OWNER_RUNNING");
+            assert_eq!(attached["url"], format!("http://127.0.0.1:{port}"));
+            assert_eq!(fs::read(root.join(".snapback/owner.json")).unwrap(), bytes);
+        }
     }
     fs::remove_dir_all(root).unwrap();
 }
@@ -703,6 +1070,22 @@ fn measure_regression_self_test_covers_failed_step_scoring_and_summary() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("measure self-test ok"));
+}
+
+fn run_with_stdin(binary: &str, args: &[&str], input: &Value) -> std::process::Output {
+    let mut child = Command::new(binary)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(serde_json::to_string(input).unwrap().as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }
 
 struct Response {
