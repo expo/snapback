@@ -191,6 +191,12 @@ additive path, in the same transaction, so a refusal rolls the drops back too
 (review ruling 2026-08-30, round 2 G1). Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
+**Maintained-target rows are engine-owned** (ruling 2026-08-30, round 3 M3).
+The target table's `insert`/`update`/`delete` rules bind only non-engine
+writers — templates set them to `deny` — and the engine's aggregate writes
+are exempt from those rules and never from constraints or unique indexes.
+A user mutation writing a maintained target is `Rejected` by its rule.
+
 Three rulings from the 2026-08-30 review (M3, M4, M8):
 
 - **Atomic.** `apply_successor` and `apply_migration` run in one transaction
@@ -293,12 +299,6 @@ M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
-
-**Maintained-target rows are engine-owned** (ruling 2026-08-30, round 3 M3).
-The target table's `insert`/`update`/`delete` rules bind only non-engine
-writers — templates set them to `deny` — and the engine's aggregate writes
-are exempt from those rules and never from constraints or unique indexes.
-A user mutation writing a maintained target is `Rejected` by its rule.
 
 ## 8. `emit` and the outbox
 
