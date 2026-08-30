@@ -121,7 +121,10 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 `ProjectJson` is LLP 1001 §4's serde shape, with `programs[].name` qualified
 (`todos.list`), `schema.effects` listing the effect names, and
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
-envelope. The one-shot form `node compiler.mjs --project <root>` prints the
+envelope. Diagnostics are collected per operation and per project up to a
+bound (20 per operation, 50 per project); when a bound truncates, the last
+entry is `E_DIAG_TRUNCATED` ("…and N more") — never a silent slice (review
+ruling 2026-08-30). The one-shot form `node compiler.mjs --project <root>` prints the
 same response and exits 0/1, so `check` works without the binary and the
 compiler's own tests need no spawn. The binary's IR-file form is
 `snapback2 check --ir <project.json>` (stdin when omitted) — `--project` on
