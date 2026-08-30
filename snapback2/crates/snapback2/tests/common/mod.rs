@@ -13,6 +13,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub struct Project {
     pub path: PathBuf,
+    package: PathBuf,
 }
 
 impl Project {
@@ -22,17 +23,23 @@ impl Project {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!(
+        let base = std::env::temp_dir().join(format!(
             "snapback2-b2-test-{}-{stamp}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed),
         ));
+        let path = base.join("project");
+        let package = base.join("package");
         fs::create_dir_all(&path).expect("create temporary project");
-        Self { path }
+        copy_package_fixture(&package);
+        let package = package
+            .canonicalize()
+            .expect("canonicalize isolated package fixture");
+        Self { path, package }
     }
 
     pub fn init(&self, template: &str, client: &str) -> Output {
-        command()
+        self.command()
             .args([
                 "init",
                 self.path.to_str().unwrap(),
@@ -47,7 +54,7 @@ impl Project {
     }
 
     pub fn run(&self, args: &[&str]) -> Output {
-        let mut command = command();
+        let mut command = self.command();
         command.args(args).arg("--project").arg(&self.path);
         command.output().expect("run snapback2")
     }
@@ -63,11 +70,17 @@ impl Project {
         serde_json::from_slice(&fs::read(receipts.last().expect("receipt")).expect("read receipt"))
             .expect("parse receipt")
     }
+
+    fn command(&self) -> Command {
+        package_command(&self.package)
+    }
 }
 
 impl Drop for Project {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
+        if let Some(base) = self.path.parent() {
+            let _ = fs::remove_dir_all(base);
+        }
     }
 }
 
@@ -128,10 +141,8 @@ pub fn snapshot(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
     output
 }
 
-fn command() -> Command {
-    ensure_package();
-    let root = workspace();
-    let dist = root.join("packages/snapback2/dist");
+fn package_command(package: &Path) -> Command {
+    let dist = package.join("dist");
     let mut command = Command::new(env!("CARGO_BIN_EXE_snapback2"));
     command
         .env("SNAPBACK2_COMPILER", dist.join("compiler.mjs"))
@@ -146,10 +157,19 @@ fn ensure_package() {
     let target = root.join("target");
     fs::create_dir_all(&target).expect("target directory");
     let marker = target.join("b2-package-build.marker");
-    let lock = target.join("b2-package-build.lock");
     let fingerprint = package_fingerprint(&root);
     let ready = || {
         fs::read_to_string(&marker).ok().as_deref() == Some(&fingerprint)
+            && root.join("packages/snapback2/dist/compiler.mjs").is_file()
+            && root
+                .join("packages/snapback2/dist/compiler-lib.d.ts")
+                .is_file()
+            && root.join("packages/snapback2/dist/index.d.ts").is_file()
+            && root.join("packages/snapback2/dist/client.d.ts").is_file()
+            && root.join("packages/snapback2/dist/test.d.ts").is_file()
+            && root
+                .join("packages/snapback2/dist/guide/grammar.md")
+                .is_file()
             && root
                 .join("packages/snapback2/dist/test-runner.mjs")
                 .is_file()
@@ -160,40 +180,107 @@ fn ensure_package() {
     if ready() {
         return;
     }
-    let started = Instant::now();
-    loop {
-        match OpenOptions::new().write(true).create_new(true).open(&lock) {
-            Ok(mut file) => {
-                let _ = writeln!(file, "{}", std::process::id());
-                if !ready() {
-                    let output = Command::new("node")
-                        .arg("build.mjs")
-                        .current_dir(root.join("packages/snapback2"))
-                        .output()
-                        .expect("build package");
-                    assert!(
-                        output.status.success(),
-                        "package build failed: {}{}",
-                        String::from_utf8_lossy(&output.stdout),
-                        String::from_utf8_lossy(&output.stderr)
-                    );
-                    fs::write(&marker, &fingerprint).expect("write package marker");
-                }
-                let _ = fs::remove_file(&lock);
-                return;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                assert!(
-                    started.elapsed() < Duration::from_secs(30),
-                    "timed out waiting for package build lock"
-                );
-                thread::sleep(Duration::from_millis(25));
-                if ready() {
-                    return;
-                }
-            }
-            Err(error) => panic!("cannot create package build lock: {error}"),
+    let output = Command::new("node")
+        .arg("build.mjs")
+        .current_dir(root.join("packages/snapback2"))
+        .output()
+        .expect("build package");
+    assert!(
+        output.status.success(),
+        "package build failed: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let _lock = PackageLock::acquire(&root);
+    fs::write(&marker, &fingerprint).expect("write package marker");
+    assert!(
+        ready(),
+        "package build did not produce the complete test fixture"
+    );
+}
+
+pub fn isolated_compiler(target: &Path) -> PathBuf {
+    ensure_package();
+    let root = workspace();
+    let _lock = PackageLock::acquire(&root);
+    let dist = root.join("packages/snapback2/dist");
+    let isolated_dist = target.join("dist");
+    // Declarations and runners resolve sibling dist leaves, so the package is one fixture unit.
+    copy_tree(&dist, &isolated_dist);
+    link_typescript(target, &root);
+    isolated_dist.join("compiler.mjs")
+}
+
+fn copy_package_fixture(target: &Path) {
+    ensure_package();
+    let root = workspace();
+    let _lock = PackageLock::acquire(&root);
+    let dist = root.join("packages/snapback2/dist");
+    let isolated_dist = target.join("dist");
+    // Snapshot while the publisher is excluded; commands never read the mutable shared dist.
+    copy_tree(&dist, &isolated_dist);
+    link_typescript(target, &root);
+}
+
+fn link_typescript(target: &Path, root: &Path) {
+    let modules = target.join("node_modules");
+    fs::create_dir_all(&modules).expect("create isolated package node_modules");
+    let source = root.join("packages/snapback2/node_modules/typescript");
+    let destination = modules.join("typescript");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(source, destination).expect("link isolated TypeScript dependency");
+    #[cfg(windows)]
+    std::os::windows::fs::symlink_dir(source, destination)
+        .expect("link isolated TypeScript dependency");
+}
+
+fn copy_tree(source: &Path, target: &Path) {
+    fs::create_dir_all(target).expect("create isolated package directory");
+    let mut entries = fs::read_dir(source)
+        .expect("read package fixture directory")
+        .collect::<Result<Vec<_>, _>>()
+        .expect("read package fixture entry");
+    entries.sort_by_key(|entry| entry.file_name());
+    for entry in entries {
+        let destination = target.join(entry.file_name());
+        if entry.path().is_dir() {
+            copy_tree(&entry.path(), &destination);
+        } else {
+            fs::copy(entry.path(), destination).expect("copy package fixture file");
         }
+    }
+}
+
+struct PackageLock {
+    path: PathBuf,
+}
+
+impl PackageLock {
+    fn acquire(root: &Path) -> Self {
+        let path = root.join("target/b2-package-build.lock");
+        let started = Instant::now();
+        loop {
+            match OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(mut file) => {
+                    let _ = writeln!(file, "{}", std::process::id());
+                    return Self { path };
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    assert!(
+                        started.elapsed() < Duration::from_secs(30),
+                        "timed out waiting for package build lock"
+                    );
+                    thread::sleep(Duration::from_millis(25));
+                }
+                Err(error) => panic!("cannot create package build lock: {error}"),
+            }
+        }
+    }
+}
+
+impl Drop for PackageLock {
+    fn drop(&mut self) {
+        fs::remove_file(&self.path).expect("remove package build lock");
     }
 }
 

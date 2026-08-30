@@ -17,7 +17,13 @@ fn refusal_code_guide_prints_the_wrong_and_right_pair() {
 #[test]
 fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     let project = Project::new();
-    assert!(project.init("todos", "none").status.success());
+    let initialized = project.init("todos", "none");
+    assert!(
+        initialized.status.success(),
+        "init failed: {}{}",
+        String::from_utf8_lossy(&initialized.stdout),
+        String::from_utf8_lossy(&initialized.stderr)
+    );
     fs::remove_file(project.path.join(".snapback/build/certificates.json")).unwrap();
     let missing = project.run(&["guide", "app", "--json"]);
     assert_eq!(missing.status.code(), Some(1));

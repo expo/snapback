@@ -182,8 +182,8 @@ pub(super) fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/compiler/fixtures/chat")
 }
 
-pub(super) fn compiler() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/dist/compiler.mjs")
+pub(super) fn compiler(root: &Path) -> PathBuf {
+    super::common::isolated_compiler(&root.join(".test-package"))
 }
 
 pub(super) fn write_worker(root: &Path, name: &str, source: &str) -> PathBuf {
