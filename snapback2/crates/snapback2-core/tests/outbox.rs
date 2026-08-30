@@ -386,6 +386,72 @@ fn checker_and_generation_report_all_refusals_per_program() {
 }
 
 #[test]
+fn checker_reports_recurse_read_refusals_with_other_errors() {
+    let items = public_table(
+        BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+        BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([("items".to_owned(), items)]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let recurse = |site: &str, table: &str, index: &str| Stmt::For {
+        binding: "row".to_owned(),
+        domain: LoopDomain::Recurse(Recurse {
+            site: site.to_owned(),
+            table: table.to_owned(),
+            index: index.to_owned(),
+            seed: Box::new(Expr::Literal(Value::Id("seed".to_owned()))),
+            next_field: "parent".to_owned(),
+            depth: 0,
+            fanout: 1,
+            provenance: KeyProvenance::Const,
+        }),
+        body: Vec::new(),
+    };
+    let program = Program {
+        name: "items.invalidRecurse".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "ambient".to_owned(),
+                value: Expr::Input(Input::Now),
+            },
+            recurse("missing.table", "missing", "byId"),
+            recurse("missing.index", "items", "missing"),
+            recurse("reserved.table", "_commits", "byId"),
+        ],
+    };
+
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    assert_eq!(
+        errors
+            .iter()
+            .map(|error| error.code.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "E_AMBIENT_TIME",
+            "E_UNBOUND_SCAN",
+            "E_UNBOUND_SCAN",
+            "E_SCHEMA_RESERVED",
+        ]
+    );
+}
+
+#[test]
 fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
     fn operation(name: &str, kind: ProgramKind, expression: Expr) -> Program {
         Program {

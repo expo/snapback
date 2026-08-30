@@ -135,6 +135,12 @@ impl<'a> Runner<'a> {
         source: &Value,
         direction: i64,
     ) -> Result<(), RuntimeError> {
+        let table = self
+            .schema
+            .table(&maintain.source)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {}", maintain.source)))?;
+        let mut source = source.clone();
+        materialize_optional_fields(&mut source, table);
         let group: Vec<_> = maintain
             .by
             .iter()

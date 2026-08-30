@@ -1093,7 +1093,13 @@ fn walk_statement_exprs(statements: &[Stmt], visit: &mut impl FnMut(&Expr)) {
                 match domain {
                     LoopDomain::Page(scan) => visit(&Expr::Scan(scan.clone())),
                     LoopDomain::DerivedArray { value, .. } => visit(value),
-                    LoopDomain::Recurse(recurse) => visit(&recurse.seed),
+                    LoopDomain::Recurse(recurse) => visit(&Expr::Get(Read {
+                        site: recurse.site.clone(),
+                        table: recurse.table.clone(),
+                        index: recurse.index.clone(),
+                        key: vec![*recurse.seed.clone()],
+                        provenance: recurse.provenance,
+                    })),
                     _ => {}
                 }
                 walk_statement_exprs(body, visit);
