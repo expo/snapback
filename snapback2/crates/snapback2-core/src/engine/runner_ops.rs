@@ -183,12 +183,8 @@ impl<'a> Runner<'a> {
         } else {
             Effect::Insert
         };
-        if !self.check_rule(target, effect, &row)? {
-            return Err(RuntimeError::Rule {
-                table: target.to_owned(),
-                effect,
-            });
-        }
+        // LLP 1001 §7 ruling: maintained targets are engine-owned, so aggregate
+        // writes bypass user insert/update/delete rules but never constraints or unique indexes.
         self.check_constraints(target, existing.as_ref(), &row, effect)?;
         if let Some(existing) = &existing {
             self.touch_row(target, existing)?;

@@ -418,11 +418,7 @@ impl Runtime {
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
-            return Err(RuntimeError::Successor {
-                code: refusal.code,
-                message: refusal.message,
-                rewrite: refusal.rewrite,
-            });
+            return Err(RuntimeError::Successor(Box::new(refusal)));
         }
         let report = apply_additive(
             &transaction,
