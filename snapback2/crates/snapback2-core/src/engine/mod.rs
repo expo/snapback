@@ -225,6 +225,49 @@ pub enum RuntimeError {
     MigrationPlan(String),
 }
 
+impl RuntimeError {
+    pub fn code(&self) -> &str {
+        match self {
+            Self::Sql(_) if is_sqlite_constraint(self) => "E_CONSTRAINT",
+            Self::Sql(_) => "E_SQL",
+            Self::Value(error) => match error {
+                ValueError::Overflow(_) => "E_OVERFLOW",
+                ValueError::Type { .. } => "E_TYPE",
+                ValueError::MissingField(_) => "E_FIELD",
+                ValueError::DivideByZero => "E_DIV_ZERO",
+            },
+            Self::Schema(_) => "E_SCHEMA",
+            Self::SchemaReserved(_) => "E_SCHEMA_RESERVED",
+            Self::SchemaIndexColumn { .. } => "E_SCHEMA_INDEX_COLUMN",
+            Self::Serialization(_) => "E_SERIALIZATION",
+            Self::Require { code } => code,
+            Self::Rule { .. } => "E_RULE",
+            Self::Constraint(_) => "E_CONSTRAINT",
+            Self::Fanout => "E_FANOUT",
+            Self::Steps(_) => "E_STEPS",
+            Self::Input(_) => "E_INPUT",
+            Self::StoreOwned { .. } => "E_STORE_OWNED",
+            Self::TraceSubset(_) => "E_TRACE_SUBSET",
+            Self::OpUnknown(_) => "E_OP_UNKNOWN",
+            Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
+        }
+    }
+}
+
+impl Serialize for RuntimeError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let mut error = serializer.serialize_struct("RuntimeError", 2)?;
+        error.serialize_field("code", self.code())?;
+        error.serialize_field("message", &self.to_string())?;
+        error.end()
+    }
+}
+
 pub struct Engine {
     store: Store,
     schema: Schema,
@@ -279,7 +322,15 @@ impl Engine {
     }
 
     pub fn rows(&self, table: &str) -> Result<Vec<Value>, RuntimeError> {
-        fetch_table_connection(&self.store.conn, table)
+        let table_schema = self
+            .schema
+            .table(table)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let mut rows = fetch_table_connection(&self.store.conn, table)?;
+        for row in &mut rows {
+            materialize_optional_fields(row, table_schema);
+        }
+        Ok(rows)
     }
 
     pub fn execute(
@@ -291,14 +342,6 @@ impl Engine {
         validate_inputs(program, &context.args)?;
         match self.execute_with_kind(program, certificate, context, None) {
             Ok(execution) => Ok(execution),
-            Err(error) if program.kind == ProgramKind::Query => {
-                let rule = match &error {
-                    RuntimeError::Rule { table, effect } => format!("{table}.{effect:?}"),
-                    RuntimeError::Require { code } => code.clone(),
-                    _ => return Err(error),
-                };
-                Ok(self.empty_execution(ExecutionState::Denied { rule })?)
-            }
             Err(error) if program.kind == ProgramKind::Mutation && is_sqlite_constraint(&error) => {
                 Ok(self.empty_execution(ExecutionState::Rejected {
                     code: "E_CONSTRAINT".to_owned(),
@@ -357,7 +400,27 @@ impl Engine {
             &self.verdicts,
             seq,
         );
-        let flow = runner.statements(&program.body)?;
+        let flow = match runner.statements(&program.body) {
+            Ok(flow) => flow,
+            Err(error) if program.kind == ProgramKind::Query => {
+                let rule = match error {
+                    RuntimeError::Rule { table, effect } => format!("{table}.{effect:?}"),
+                    RuntimeError::Require { code } => code,
+                    error => return Err(error),
+                };
+                runner.assert_bounds()?;
+                let execution = Execution {
+                    result: Value::Null,
+                    trace: runner.trace,
+                    receipt: runner.receipt,
+                    state: ExecutionState::Denied { rule },
+                    seq,
+                };
+                transaction.commit()?;
+                return Ok(execution);
+            }
+            Err(error) => return Err(error),
+        };
         let result = match flow {
             Flow::Return(value) => value,
             _ => Value::Null,
@@ -365,7 +428,7 @@ impl Engine {
         runner.assert_bounds()?;
         let state = match program.kind {
             ProgramKind::Mutation => ExecutionState::Committed { seq },
-            ProgramKind::Query => query_state(&runner.receipt, certificate),
+            ProgramKind::Query => query_state(&runner.trace, certificate),
         };
         let execution = Execution {
             result,
@@ -413,6 +476,19 @@ impl Engine {
     }
 }
 
+pub(crate) fn write_aggregate_backfill<'a>(
+    transaction: &'a Transaction<'a>,
+    schema: &'a Schema,
+    target: &str,
+    rows: Vec<Value>,
+) -> Result<(), RuntimeError> {
+    let mut runner = Runner::probe(transaction, schema, Context::system(), &[], 0);
+    for row in rows {
+        runner.write_aggregate_row(target, row)?;
+    }
+    Ok(())
+}
+
 fn validate_inputs(
     program: &Program,
     inputs: &BTreeMap<String, Value>,
@@ -454,13 +530,10 @@ fn validate_inputs(
     Ok(())
 }
 
-fn query_state(receipt: &ClosureReceipt, certificate: &Certificate) -> ExecutionState {
-    // @ref LLP 0329.014.004#5-policy — invisible rows never become a cardinality oracle.
-    // Exhausting a range of hidden rows is an honest complete empty page;
-    // Denied is reserved for an explicit Rule or query Require error. Capped
-    // likewise comes only from a disclosure-safe closure extent, never the
-    // authoritative hidden-row trace.
-    if let Some(range) = receipt
+fn query_state(trace: &AuthoritativeTrace, certificate: &Certificate) -> ExecutionState {
+    // @ref LLP 1001#3-read-and-write-states-no-silent-states — server state follows the
+    // authoritative trace. Hidden rows consume take, so Limit reveals no extra extent.
+    if let Some(range) = trace
         .ranges
         .iter()
         .find(|range| range.stop == StopReason::Limit)
@@ -545,6 +618,8 @@ mod runner_ops;
 #[allow(unused_imports)]
 use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_indexed};
 #[allow(unused_imports)]
-pub(crate) use index::{fetch_table_connection, index_values, reindex_row, validate_row};
+pub(crate) use index::{
+    fetch_table_connection, index_values, materialize_optional_fields, reindex_row, validate_row,
+};
 #[allow(unused_imports)]
 use runner::{Flow, Runner};

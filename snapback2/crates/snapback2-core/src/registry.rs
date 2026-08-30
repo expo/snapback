@@ -14,7 +14,7 @@ use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, apply_additive, apply_migration_drops, plan,
     successor_refusal,
 };
-use crate::value::{I53_MAX, I53_MIN, Value, digest};
+use crate::value::{I53_MAX, I53_MIN, Value, ValueError, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -190,12 +190,16 @@ impl Generation {
                     },
                 ));
             }
-            match Checker::new(&schema, ceilings.clone()).check(program) {
+            match Checker::new(&schema, ceilings.clone()).check_all(program) {
                 Ok(certificate) if first_declaration => {
                     programs.insert(program.name.clone(), (program.clone(), certificate));
                 }
                 Ok(_) => {}
-                Err(error) => errors.push((program.name.clone(), error)),
+                Err(program_errors) => errors.extend(
+                    program_errors
+                        .into_iter()
+                        .map(|error| (program.name.clone(), error)),
+                ),
             }
             let mut emitted = Vec::new();
             collect_emits(&program.body, &mut emitted);
@@ -315,22 +319,6 @@ impl Runtime {
                     Err(error)
                 }
             }
-            Err(RuntimeError::Require { code }) => Ok(Execution {
-                result: Value::Null,
-                trace: AuthoritativeTrace::default(),
-                receipt: ClosureReceipt::default(),
-                state: ExecutionState::Denied { rule: code },
-                seq: self.engine.store().commit_seq()?,
-            }),
-            Err(RuntimeError::Rule { table, effect }) => Ok(Execution {
-                result: Value::Null,
-                trace: AuthoritativeTrace::default(),
-                receipt: ClosureReceipt::default(),
-                state: ExecutionState::Denied {
-                    rule: format!("{table}.{effect:?}"),
-                },
-                seq: self.engine.store().commit_seq()?,
-            }),
             Err(error) => Err(error),
         }
     }
@@ -575,6 +563,12 @@ fn rejection_code(error: &RuntimeError) -> Option<&str> {
         RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
         RuntimeError::Input(_) => Some("E_INPUT"),
+        RuntimeError::Value(error) => Some(match error {
+            ValueError::DivideByZero => "E_DIV_ZERO",
+            ValueError::Overflow(_) => "E_OVERFLOW",
+            ValueError::Type { .. } => "E_TYPE",
+            ValueError::MissingField(_) => "E_FIELD",
+        }),
         RuntimeError::Steps(_) | RuntimeError::Fanout | RuntimeError::TraceSubset(_) => {
             Some("bound")
         }

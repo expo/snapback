@@ -127,7 +127,27 @@ impl<'a> Checker<'a> {
     }
 
     pub fn check(&self, program: &Program) -> Result<Certificate, CheckError> {
-        self.validate_inputs(program)?;
+        self.check_all(program).map_err(|errors| {
+            errors
+                .into_iter()
+                .next()
+                .expect("checker returned no errors")
+        })
+    }
+
+    pub fn check_all(&self, program: &Program) -> Result<Certificate, Vec<CheckError>> {
+        let mut errors = self.structural_errors(program);
+        match self.analyze(program) {
+            Ok(certificate) if errors.is_empty() => Ok(certificate),
+            Ok(_) => Err(errors),
+            Err(error) => {
+                errors.push(error);
+                Err(errors)
+            }
+        }
+    }
+
+    fn analyze(&self, program: &Program) -> Result<Certificate, CheckError> {
         let mut analyzer = Analyzer::new(self.schema);
         let summary = analyzer.statements(&program.body, 1, &[])?;
         let maintained_amplification = summary
@@ -343,8 +363,13 @@ impl<'a> Checker<'a> {
         Ok(certificate)
     }
 
-    fn validate_inputs(&self, program: &Program) -> Result<(), CheckError> {
-        fn validate_statements(statements: &[Stmt], kind: ProgramKind) -> Result<(), CheckError> {
+    fn structural_errors(&self, program: &Program) -> Vec<CheckError> {
+        fn statement_errors(
+            checker: &Checker<'_>,
+            statements: &[Stmt],
+            kind: ProgramKind,
+            errors: &mut Vec<CheckError>,
+        ) {
             for statement in statements {
                 match statement {
                     Stmt::Insert { table, .. }
@@ -353,7 +378,7 @@ impl<'a> Checker<'a> {
                     | Stmt::Delete { table, .. }
                         if table.starts_with('_') =>
                     {
-                        return Err(CheckError {
+                        errors.push(CheckError {
                             code: "E_SCHEMA_RESERVED".to_owned(),
                             message: format!("program names reserved table {table}"),
                             rewrite: "use an application table name that does not begin with '_'"
@@ -366,14 +391,14 @@ impl<'a> Checker<'a> {
                     | Stmt::Delete { .. }
                         if kind == ProgramKind::Query =>
                     {
-                        return Err(CheckError {
+                        errors.push(CheckError {
                             code: "E_WRITE_IN_QUERY".to_owned(),
                             message: "a query cannot write durable data".to_owned(),
                             rewrite: "move the write into a mutation".to_owned(),
                         });
                     }
                     Stmt::Emit { .. } if kind == ProgramKind::Query => {
-                        return Err(CheckError {
+                        errors.push(CheckError {
                             code: "E_EMIT_IN_QUERY".to_owned(),
                             message: "a query cannot emit an effect".to_owned(),
                             rewrite: "move emit into a mutation".to_owned(),
@@ -384,61 +409,186 @@ impl<'a> Checker<'a> {
                         else_body,
                         ..
                     } => {
-                        validate_statements(then_body, kind)?;
-                        validate_statements(else_body, kind)?;
+                        statement_errors(checker, then_body, kind, errors);
+                        statement_errors(checker, else_body, kind, errors);
                     }
-                    Stmt::For { body, .. } => validate_statements(body, kind)?,
+                    Stmt::For { body, .. } => statement_errors(checker, body, kind, errors),
                     _ => {}
                 }
+                let table = match statement {
+                    Stmt::Insert { table, .. }
+                    | Stmt::Update { table, .. }
+                    | Stmt::Upsert { table, .. }
+                    | Stmt::Delete { table, .. } => Some(table),
+                    _ => None,
+                };
+                if let Some(table) = table {
+                    if table.starts_with('_') && kind == ProgramKind::Query {
+                        errors.push(CheckError {
+                            code: "E_WRITE_IN_QUERY".to_owned(),
+                            message: "a query cannot write durable data".to_owned(),
+                            rewrite: "move the write into a mutation".to_owned(),
+                        });
+                    }
+                    if !table.starts_with('_') && checker.schema.table(table).is_none() {
+                        errors.push(CheckError {
+                            code: "E_UNBOUND_SCAN".to_owned(),
+                            message: format!("write requires missing table {table}"),
+                            rewrite: "declare the table in the schema".to_owned(),
+                        });
+                    }
+                }
             }
-            Ok(())
         }
 
-        validate_statements(&program.body, program.kind)?;
-        fn visit(expr: &Expr, inputs: &mut Vec<Input>) {
+        fn read_error(checker: &Checker<'_>, table: &str, index: &str) -> Option<CheckError> {
+            if table.starts_with('_') {
+                return Some(CheckError {
+                    code: "E_SCHEMA_RESERVED".to_owned(),
+                    message: format!("program reads reserved table {table}"),
+                    rewrite: "use the dedicated runtime verb for engine-owned data".to_owned(),
+                });
+            }
+            if checker
+                .schema
+                .table(table)
+                .and_then(|table| table.index(index))
+                .is_none()
+            {
+                return Some(CheckError {
+                    code: "E_UNBOUND_SCAN".to_owned(),
+                    message: format!("read requires missing index {table}.{index}"),
+                    rewrite: "declare the composite index in the schema".to_owned(),
+                });
+            }
+            None
+        }
+
+        fn visit(
+            checker: &Checker<'_>,
+            program: &Program,
+            expr: &Expr,
+            errors: &mut Vec<CheckError>,
+        ) {
             match expr {
-                Expr::Input(input) => inputs.push(*input),
-                Expr::Field { base, .. } | Expr::Unary { value: base, .. } => visit(base, inputs),
+                Expr::Input(input) => {
+                    let invalid = match input {
+                        Input::Viewer => false,
+                        Input::Now | Input::NewId => program.kind != ProgramKind::Mutation,
+                        Input::ReadTime => {
+                            program.kind != ProgramKind::Query
+                                || program.read_time_granularity_ms.is_none()
+                        }
+                    };
+                    if invalid {
+                        errors.push(CheckError {
+                            code: "E_AMBIENT_TIME".to_owned(),
+                            message: format!(
+                                "modeled input {input:?} is not declared for this program kind"
+                            ),
+                            rewrite: "bind now/newId in a mutation intent or declare query readTime granularity".to_owned(),
+                        });
+                    }
+                }
+                Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
+                    visit(checker, program, base, errors)
+                }
                 Expr::Binary { left, right, .. } => {
-                    visit(left, inputs);
-                    visit(right, inputs);
+                    visit(checker, program, left, errors);
+                    visit(checker, program, right, errors);
                 }
-                Expr::Array(values) | Expr::Builtin { args: values, .. } => {
-                    values.iter().for_each(|value| visit(value, inputs));
+                Expr::Array(values) => {
+                    for value in values {
+                        visit(checker, program, value, errors);
+                    }
                 }
-                Expr::Object(values) => values.values().for_each(|value| visit(value, inputs)),
+                Expr::Builtin { builtin, args } => {
+                    if matches!(
+                        builtin,
+                        Builtin::Count | Builtin::Sum | Builtin::CountCapped
+                    ) && let Some(Expr::Scan(scan)) = args.first()
+                        && checker
+                            .schema
+                            .table(&scan.table)
+                            .and_then(|table| table.index(&scan.index))
+                            .is_some()
+                        && !Analyzer::new(checker.schema).uniform_visibility(scan)
+                    {
+                        errors.push(CheckError {
+                            code: "E_STRUCTURAL_COUNT".to_owned(),
+                            message: format!(
+                                "{} counts rows whose read rule is not uniform over the scan prefix",
+                                scan.site
+                            ),
+                            rewrite: format!(
+                                "declare maintain.count({}, {{ by: [...], as: ..., readable: ... }})",
+                                scan.table
+                            ),
+                        });
+                    }
+                    for value in args {
+                        visit(checker, program, value, errors);
+                    }
+                }
+                Expr::Object(values) => {
+                    for value in values.values() {
+                        visit(checker, program, value, errors);
+                    }
+                }
                 Expr::Get(read) | Expr::Exists(read) => {
-                    read.key.iter().for_each(|value| visit(value, inputs));
+                    if let Some(error) = read_error(checker, &read.table, &read.index) {
+                        errors.push(error);
+                    }
+                    for value in &read.key {
+                        visit(checker, program, value, errors);
+                    }
                 }
                 Expr::Scan(scan) => {
-                    scan.prefix.iter().for_each(|value| visit(value, inputs));
+                    if let Some(error) = read_error(checker, &scan.table, &scan.index) {
+                        errors.push(error);
+                    }
+                    if let Bound::Arg { name, .. } = &scan.take
+                        && !program.args.contains_key(name)
+                    {
+                        errors.push(CheckError {
+                            code: "E_UNBOUND_SCAN".to_owned(),
+                            message: format!("scan {} take arg {name} is not declared", scan.site),
+                            rewrite: "declare the bounded take argument on the program".to_owned(),
+                        });
+                    }
+                    for value in &scan.prefix {
+                        visit(checker, program, value, errors);
+                    }
+                    for value in [scan.after.as_deref(), scan.before.as_deref()]
+                        .into_iter()
+                        .flatten()
+                    {
+                        visit(checker, program, value, errors);
+                    }
+                    if let Some(range) = &scan.range {
+                        for value in [
+                            range.gt.as_deref(),
+                            range.gte.as_deref(),
+                            range.lt.as_deref(),
+                            range.lte.as_deref(),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        {
+                            visit(checker, program, value, errors);
+                        }
+                    }
                 }
                 Expr::Literal(_) | Expr::Variable(_) => {}
             }
         }
-        let mut inputs = Vec::new();
-        walk_statement_exprs(&program.body, &mut |expr| visit(expr, &mut inputs));
-        for input in inputs {
-            let invalid = match input {
-                Input::Viewer => false,
-                Input::Now | Input::NewId => program.kind != ProgramKind::Mutation,
-                Input::ReadTime => {
-                    program.kind != ProgramKind::Query || program.read_time_granularity_ms.is_none()
-                }
-            };
-            if invalid {
-                return Err(CheckError {
-                    code: "E_AMBIENT_TIME".to_owned(),
-                    message: format!(
-                        "modeled input {input:?} is not declared for this program kind"
-                    ),
-                    rewrite:
-                        "bind now/newId in a mutation intent or declare query readTime granularity"
-                            .to_owned(),
-                });
-            }
-        }
-        Ok(())
+
+        let mut errors = Vec::new();
+        statement_errors(self, &program.body, program.kind, &mut errors);
+        walk_statement_exprs(&program.body, &mut |expr| {
+            visit(self, program, expr, &mut errors)
+        });
+        errors
     }
 
     fn check_ceiling(
@@ -698,27 +848,8 @@ impl<'a> Analyzer<'a> {
                 }
             }
             Expr::Builtin { builtin, args } => {
-                if matches!(
-                    builtin,
-                    Builtin::Count | Builtin::Sum | Builtin::CountCapped
-                ) && let Some(Expr::Scan(scan)) = args.first()
-                {
-                    if !self.uniform_visibility(scan) {
-                        return Err(CheckError {
-                            code: "E_STRUCTURAL_COUNT".to_owned(),
-                            message: format!(
-                                "{} counts rows whose read rule is not uniform over the scan prefix",
-                                scan.site
-                            ),
-                            rewrite: format!(
-                                "declare maintain.count({}, {{ by: [...], as: ..., readable: ... }})",
-                                scan.table
-                            ),
-                        });
-                    }
-                    if matches!(builtin, Builtin::CountCapped) {
-                        self.completeness = Completeness::Capped;
-                    }
+                if matches!(builtin, Builtin::CountCapped) {
+                    self.completeness = Completeness::Capped;
                 }
                 for value in args {
                     summary = summary.add(self.expr(value, calls, factors)?);
@@ -742,7 +873,6 @@ impl<'a> Analyzer<'a> {
         calls: u64,
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
-        self.require_index(&read.table, &read.index)?;
         let mut summary = Summary::default();
         summary.reads.insert(
             read.site.clone(),
@@ -772,7 +902,6 @@ impl<'a> Analyzer<'a> {
         calls: u64,
         factors: &[(String, u64)],
     ) -> Result<Summary, CheckError> {
-        self.require_index(&scan.table, &scan.index)?;
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
         let hoist = self.rule_hoists(scan);
@@ -780,7 +909,7 @@ impl<'a> Analyzer<'a> {
             if hoist {
                 calls
             } else {
-                calls.saturating_mul(take)
+                calls.saturating_mul(reserve)
             }
         } else {
             0
@@ -804,30 +933,6 @@ impl<'a> Analyzer<'a> {
         summary.steps = summary.examined.saturating_mul(5);
         set_product(&mut summary, factors, (&scan.site, take));
         Ok(summary)
-    }
-
-    fn require_index(&self, table: &str, index: &str) -> Result<(), CheckError> {
-        if table.starts_with('_') {
-            return Err(CheckError {
-                code: "E_SCHEMA_RESERVED".to_owned(),
-                message: format!("program reads reserved table {table}"),
-                rewrite: "use the dedicated runtime verb for engine-owned data".to_owned(),
-            });
-        }
-        let exists = self
-            .schema
-            .table(table)
-            .and_then(|table| table.index(index))
-            .is_some();
-        if exists {
-            Ok(())
-        } else {
-            Err(CheckError {
-                code: "E_UNBOUND_SCAN".to_owned(),
-                message: format!("read requires missing index {table}.{index}"),
-                rewrite: "declare the composite index in the schema".to_owned(),
-            })
-        }
     }
 
     fn rule_has_probe(&self, table: &str) -> bool {

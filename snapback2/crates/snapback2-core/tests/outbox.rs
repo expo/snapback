@@ -245,6 +245,205 @@ fn duplicate_program_is_still_checked_and_reports_all_its_own_refusals() {
 }
 
 #[test]
+fn checker_and_generation_report_all_refusals_per_program() {
+    let items = public_table(
+        BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+        BTreeMap::from([(
+            "byId".to_owned(),
+            Index {
+                columns: vec!["id".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([("items".to_owned(), items)]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: vec!["audit".to_owned()],
+    };
+    let program = Program {
+        name: "items.invalidQuery".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Insert {
+                table: "items".to_owned(),
+                row: Expr::Literal(object([("id", Value::Id("i1".to_owned()))])),
+            },
+            Stmt::Emit {
+                effect: "missing".to_owned(),
+                payload: Expr::Literal(Value::Null),
+            },
+            Stmt::Let {
+                name: "time".to_owned(),
+                value: Expr::Input(Input::Now),
+            },
+            Stmt::Return(Expr::Get(Read {
+                site: "missing.read".to_owned(),
+                table: "missing".to_owned(),
+                index: "byId".to_owned(),
+                key: vec![Expr::Literal(Value::Id("i1".to_owned()))],
+                provenance: KeyProvenance::Const,
+            })),
+        ],
+    };
+    let checker = Checker::new(&schema, Ceilings::default());
+    let errors = checker.check_all(&program).unwrap_err();
+    let codes: Vec<_> = errors.iter().map(|error| error.code.as_str()).collect();
+    assert!(codes.contains(&"E_WRITE_IN_QUERY"));
+    assert!(codes.contains(&"E_EMIT_IN_QUERY"));
+    assert!(codes.contains(&"E_AMBIENT_TIME"));
+    assert!(codes.contains(&"E_UNBOUND_SCAN"));
+    assert_eq!(
+        checker.check(&program).unwrap_err().code,
+        "E_WRITE_IN_QUERY"
+    );
+
+    let errors_with_bound = Checker::new(
+        &schema,
+        Ceilings {
+            examined: 0,
+            ..Ceilings::default()
+        },
+    )
+    .check_all(&program)
+    .unwrap_err();
+    assert_eq!(errors_with_bound.last().unwrap().code, "E_BOUND");
+    assert_eq!(
+        errors_with_bound
+            .iter()
+            .filter(|error| error.code == "E_BOUND" || error.code == "E_STEPS")
+            .count(),
+        1,
+        "only the first bound-analysis refusal follows the structural refusals"
+    );
+
+    let errors = Generation::certify(&project(vec![program], schema.clone()), Ceilings::default())
+        .unwrap_err();
+    let codes: Vec<_> = errors
+        .iter()
+        .map(|(_, error)| error.code.as_str())
+        .collect();
+    for expected in [
+        "E_WRITE_IN_QUERY",
+        "E_EMIT_IN_QUERY",
+        "E_AMBIENT_TIME",
+        "E_UNBOUND_SCAN",
+        "E_EFFECT_UNKNOWN",
+    ] {
+        assert!(
+            codes.contains(&expected),
+            "missing {expected} from {codes:?}"
+        );
+    }
+
+    let bounded = Program {
+        name: "items.bounded".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(Expr::Scan(Scan {
+            site: "items.bounded".to_owned(),
+            table: "items".to_owned(),
+            index: "byId".to_owned(),
+            prefix: Vec::new(),
+            order: Order::Asc,
+            take: Bound::Literal(10),
+            after: None,
+            before: None,
+            range: None,
+            provenance: KeyProvenance::Const,
+        }))],
+    };
+    let bound_errors = Checker::new(
+        &schema,
+        Ceilings {
+            examined: 1,
+            ..Ceilings::default()
+        },
+    );
+    let errors = bound_errors.check_all(&bounded).unwrap_err();
+    assert_eq!(
+        errors.len(),
+        1,
+        "only the first bound-analysis refusal is returned"
+    );
+    assert_eq!(errors[0].code, "E_BOUND");
+}
+
+#[test]
+fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
+    fn operation(name: &str, kind: ProgramKind, expression: Expr) -> Program {
+        Program {
+            name: name.to_owned(),
+            kind,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(expression)],
+        }
+    }
+    fn div_zero() -> Expr {
+        Expr::Builtin {
+            builtin: Builtin::Divmod {
+                remainder_sink: "stable".to_owned(),
+            },
+            args: vec![Expr::Literal(Value::Int(1)), Expr::Literal(Value::Int(0))],
+        }
+    }
+    let mutations = vec![
+        operation("ops.divZero", ProgramKind::Mutation, div_zero()),
+        operation(
+            "ops.overflow",
+            ProgramKind::Mutation,
+            Expr::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(Expr::Literal(Value::Int(I53_MAX))),
+                right: Box::new(Expr::Literal(Value::Int(1))),
+            },
+        ),
+        operation(
+            "ops.type",
+            ProgramKind::Mutation,
+            Expr::Binary {
+                op: BinaryOp::Add,
+                left: Box::new(Expr::Literal(Value::String("one".to_owned()))),
+                right: Box::new(Expr::Literal(Value::Int(1))),
+            },
+        ),
+        operation(
+            "ops.field",
+            ProgramKind::Mutation,
+            field(Expr::Literal(Value::Row(BTreeMap::new())), "missing"),
+        ),
+        operation("ops.queryDivZero", ProgramKind::Query, div_zero()),
+    ];
+    let generation =
+        Generation::certify(&project(mutations, empty_schema()), Ceilings::default()).unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    for (operation, expected) in [
+        ("ops.divZero", "E_DIV_ZERO"),
+        ("ops.overflow", "E_OVERFLOW"),
+        ("ops.type", "E_TYPE"),
+        ("ops.field", "E_FIELD"),
+    ] {
+        let execution = runtime
+            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .unwrap();
+        assert!(matches!(
+            execution.state,
+            ExecutionState::Rejected { ref code, .. } if code == expected
+        ));
+    }
+    assert!(matches!(
+        runtime.execute("ops.queryDivZero", Context::query("u1", BTreeMap::new())),
+        Err(RuntimeError::Value(ValueError::DivideByZero))
+    ));
+}
+
+#[test]
 fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
     let program = Program {
         name: "ops.reject".to_owned(),

@@ -158,6 +158,73 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
 }
 
 #[test]
+fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([("id", Value::Id("preexisting".to_owned()))]),
+        )])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "note".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+    );
+    next_items.indexes.insert(
+        "byNote".to_owned(),
+        Index {
+            columns: vec!["note".to_owned()],
+            unique: false,
+        },
+    );
+    next_items.rules.read = RuleExpr::Eq(
+        RuleTerm::Field("note".to_owned()),
+        RuleTerm::Literal(Value::Null),
+    );
+    let read_note = Program {
+        name: "items.note".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Return(field(
+            Expr::Get(Read {
+                site: "items.note".to_owned(),
+                table: "items".to_owned(),
+                index: "byNote".to_owned(),
+                key: vec![Expr::Literal(Value::Null)],
+                provenance: KeyProvenance::Const,
+            }),
+            "note",
+        ))],
+    };
+    runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), next_items)]),
+                Vec::new(),
+            ),
+            vec![read_note],
+        ))
+        .unwrap();
+
+    let execution = runtime
+        .execute("items.note", Context::query("u1", BTreeMap::new()))
+        .unwrap();
+    assert_eq!(execution.result, Value::Null);
+    assert!(execution.trace.points[0].visible);
+}
+
+#[test]
 fn new_maintained_aggregate_is_backfilled_from_existing_rows() {
     let cards = table(
         &[("id", ColumnType::Id), ("group", ColumnType::Id)],
@@ -375,6 +442,188 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
     );
     assert!(refusal.rewrite.contains("non-unique"));
     assert_eq!(runtime.generation().hash, original_hash);
+}
+
+#[test]
+fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
+    let cards = table(
+        &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+        &[("byId", &["id"])],
+    );
+    let mut counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"]), ("byValue", &["value"])],
+    );
+    counts.indexes.get_mut("byValue").unwrap().unique = true;
+    let tables = BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]);
+    let base = generation(
+        schema(tables.clone(), Vec::new()),
+        vec![get_program("counts.get", "counts", "byGroup", "group")],
+    );
+    let original_hash = base.hash.clone();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c1".to_owned())),
+                    ("group", Value::Id("g1".to_owned())),
+                ]),
+            ),
+            (
+                "cards".to_owned(),
+                object([
+                    ("id", Value::Id("c2".to_owned())),
+                    ("group", Value::Id("g2".to_owned())),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let next = generation(
+        schema(
+            tables,
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "cards".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        Vec::new(),
+    );
+
+    let refusal = runtime.apply_successor(next).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_UNIQUE");
+    assert_eq!(
+        refusal.conflicts,
+        vec![UniqueConflict {
+            table: "counts".to_owned(),
+            index: "byValue".to_owned(),
+            key: vec![Value::Int(1)],
+        }]
+    );
+    assert_eq!(runtime.generation().hash, original_hash);
+    let counts = runtime
+        .execute(
+            "counts.get",
+            Context::query(
+                "u1",
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(counts.result, Value::Null);
+}
+
+#[test]
+fn maintained_backfill_enforces_target_rules_and_constraints() {
+    fn setup(counts: Table) -> (Runtime, BTreeMap<String, Table>) {
+        let cards = table(
+            &[("id", ColumnType::Id), ("group", ColumnType::Id)],
+            &[("byId", &["id"])],
+        );
+        let tables = BTreeMap::from([("cards".to_owned(), cards), ("counts".to_owned(), counts)]);
+        let base = generation(
+            schema(tables.clone(), Vec::new()),
+            vec![get_program("counts.get", "counts", "byGroup", "group")],
+        );
+        let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+        runtime
+            .seed(&[
+                (
+                    "cards".to_owned(),
+                    object([
+                        ("id", Value::Id("c1".to_owned())),
+                        ("group", Value::Id("g1".to_owned())),
+                    ]),
+                ),
+                (
+                    "cards".to_owned(),
+                    object([
+                        ("id", Value::Id("c2".to_owned())),
+                        ("group", Value::Id("g2".to_owned())),
+                    ]),
+                ),
+            ])
+            .unwrap();
+        (runtime, tables)
+    }
+
+    fn successor(tables: BTreeMap<String, Table>) -> Generation {
+        generation(
+            schema(
+                tables,
+                vec![Maintain {
+                    kind: MaintainKind::Count,
+                    source: "cards".to_owned(),
+                    by: vec!["group".to_owned()],
+                    target: "counts".to_owned(),
+                    readable: None,
+                }],
+            ),
+            vec![get_program("counts.get", "counts", "byGroup", "group")],
+        )
+    }
+
+    fn assert_empty(runtime: &mut Runtime) {
+        let execution = runtime
+            .execute(
+                "counts.get",
+                Context::query(
+                    "u1",
+                    BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+                ),
+            )
+            .unwrap();
+        assert_eq!(execution.result, Value::Null);
+    }
+
+    let mut denied_counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    denied_counts.rules.insert = RuleExpr::Deny;
+    let (mut denied, denied_tables) = setup(denied_counts);
+    let denied_hash = denied.generation().hash.clone();
+    let refusal = denied
+        .apply_successor(successor(denied_tables))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_STORE");
+    assert!(refusal.message.contains("E_RULE"));
+    assert_eq!(denied.generation().hash, denied_hash);
+    assert_empty(&mut denied);
+
+    let mut capped_counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", ColumnType::Id),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    capped_counts.constraints.push(Constraint::Cap {
+        by: Vec::new(),
+        max: 1,
+    });
+    let (mut capped, capped_tables) = setup(capped_counts);
+    let capped_hash = capped.generation().hash.clone();
+    let refusal = capped
+        .apply_successor(successor(capped_tables))
+        .unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_STORE");
+    assert!(refusal.message.contains("E_CONSTRAINT"));
+    assert_eq!(capped.generation().hash, capped_hash);
+    assert_empty(&mut capped);
 }
 
 #[test]

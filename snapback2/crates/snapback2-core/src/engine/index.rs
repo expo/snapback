@@ -237,6 +237,18 @@ pub(crate) fn index_values(row: &Value, index: &Index) -> Vec<Value> {
         .collect()
 }
 
+pub(crate) fn materialize_optional_fields(row: &mut Value, table: &Table) {
+    let fields = match row {
+        Value::Row(fields) | Value::Map(fields) => fields,
+        _ => return,
+    };
+    for (name, kind) in &table.columns {
+        if matches!(kind, ColumnType::Optional(_)) {
+            fields.entry(name.clone()).or_insert(Value::Null);
+        }
+    }
+}
+
 pub(super) fn row_ids(rows: &[Value]) -> Result<Vec<String>, RuntimeError> {
     rows.iter()
         .map(|row| {

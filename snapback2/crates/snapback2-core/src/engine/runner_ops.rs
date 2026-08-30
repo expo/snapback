@@ -167,42 +167,43 @@ impl<'a> Runner<'a> {
         for (field, value) in maintain.by.iter().zip(group) {
             row.insert(field.clone(), value);
         }
-        validate_row(
-            self.schema.table(&maintain.target),
-            &maintain.target,
-            &Value::Row(row.clone()),
-        )?;
+        self.write_aggregate_row(&maintain.target, Value::Row(row))
+    }
+
+    pub(super) fn write_aggregate_row(
+        &mut self,
+        target: &str,
+        row: Value,
+    ) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        let existing = self.fetch_id(target, &id)?;
+        validate_row(self.schema.table(target), target, &row)?;
         let effect = if existing.is_some() {
             Effect::Update
         } else {
             Effect::Insert
         };
-        if !self.check_rule(&maintain.target, effect, &Value::Row(row.clone()))? {
+        if !self.check_rule(target, effect, &row)? {
             return Err(RuntimeError::Rule {
-                table: maintain.target.clone(),
+                table: target.to_owned(),
                 effect,
             });
         }
-        self.check_constraints(
-            &maintain.target,
-            existing.as_ref(),
-            &Value::Row(row.clone()),
-            effect,
-        )?;
+        self.check_constraints(target, existing.as_ref(), &row, effect)?;
         if let Some(existing) = &existing {
-            self.touch_row(&maintain.target, existing)?;
+            self.touch_row(target, existing)?;
         }
         self.tx.execute(
             "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)
              ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
-            params![maintain.target, id, canonical_json(&Value::Row(row))],
+            params![target, id, canonical_json(&row)],
         )?;
         let aggregate = self
-            .fetch_id(&maintain.target, &id)?
+            .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
-        reindex_row(self.tx, self.schema, &maintain.target, &aggregate)?;
-        self.touch_row(&maintain.target, &aggregate)?;
-        self.bump_write(&maintain.target);
+        reindex_row(self.tx, self.schema, target, &aggregate)?;
+        self.touch_row(target, &aggregate)?;
+        self.bump_write(target);
         Ok(())
     }
 
@@ -379,15 +380,15 @@ impl<'a> Runner<'a> {
         effect: Effect,
         row: &Value,
     ) -> Result<bool, RuntimeError> {
-        let rule = self
+        let table = self
             .schema
             .table(table)
-            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?
-            .rules
-            .for_effect(effect)
-            .clone();
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let rule = table.rules.for_effect(effect).clone();
+        let mut row = row.clone();
+        materialize_optional_fields(&mut row, table);
         let rule_hash = rule.hash();
-        self.eval_rule(&rule, &rule_hash, row)
+        self.eval_rule(&rule, &rule_hash, &row)
     }
 
     pub(super) fn eval_rule(
@@ -506,7 +507,11 @@ impl<'a> Runner<'a> {
         let index_schema = table_schema
             .index(index)
             .ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
-        lookup_indexed(self.tx, table, index, index_schema, key)
+        let mut found = lookup_indexed(self.tx, table, index, index_schema, key)?;
+        if let Some(row) = &mut found {
+            materialize_optional_fields(row, table_schema);
+        }
+        Ok(found)
     }
 
     pub(super) fn fetch_id(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
@@ -518,10 +523,19 @@ impl<'a> Runner<'a> {
                 |row| row.get(0),
             )
             .optional()?;
-        data.map(|data| {
-            serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
-        })
-        .transpose()
+        let mut row = data
+            .map(|data| {
+                serde_json::from_str(&data).map_err(|error| RuntimeError::Schema(error.to_string()))
+            })
+            .transpose()?;
+        if let Some(row) = &mut row {
+            let table = self
+                .schema
+                .table(table)
+                .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+            materialize_optional_fields(row, table);
+        }
+        Ok(row)
     }
 
     pub(super) fn record_row(&mut self, table: &str, id: &str, row: &Value, client: bool) {

@@ -626,7 +626,7 @@ impl<'a> Runner<'a> {
                 value as usize
             }
         };
-        let rows = scan_indexed(
+        let mut rows = scan_indexed(
             self.tx,
             &scan.table,
             &scan.index,
@@ -638,6 +638,9 @@ impl<'a> Runner<'a> {
             scan.order,
             take.saturating_add(2),
         )?;
+        for row in &mut rows {
+            materialize_optional_fields(row, table);
+        }
         let stop = if rows.len() > take {
             StopReason::Limit
         } else {

@@ -1,9 +1,7 @@
 //! In-memory live-query subscriptions indexed by authoritative trace keys.
 // @ref LLP 1001#5-live-subscriptions-livers — authoritative keys drive conservative reruns.
 
-use crate::engine::{
-    AuthoritativeTrace, ClosureReceipt, Context, Execution, ExecutionState, RuntimeError,
-};
+use crate::engine::{AuthoritativeTrace, Context, Execution, RuntimeError};
 use crate::ir::ProgramKind;
 use crate::registry::Runtime;
 use crate::store::CommitRecord;
@@ -16,12 +14,12 @@ type TraceIndex = (String, String);
 type ExactTraceKey = (String, String, String);
 type RangeSubscription = (Vec<Value>, SubscriptionId);
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Delivery {
     pub id: SubscriptionId,
     pub seq: u64,
-    pub execution: Execution,
+    pub execution: Result<Execution, RuntimeError>,
     pub changed: bool,
 }
 
@@ -181,34 +179,31 @@ impl Runtime {
             let Some(subscription) = self.subs.entries.get(&id).cloned() else {
                 continue;
             };
-            let execution = match self.execute(&subscription.op, subscription.context.clone()) {
-                Ok(execution) => execution,
-                Err(error) => Execution {
-                    result: Value::Null,
-                    trace: AuthoritativeTrace::default(),
-                    receipt: ClosureReceipt::default(),
-                    state: ExecutionState::Rejected {
-                        code: error
-                            .to_string()
-                            .split(':')
-                            .next()
-                            .unwrap_or("E_RUNTIME")
-                            .to_owned(),
-                        message: error.to_string(),
-                    },
-                    seq: self.store().commit_seq().unwrap_or(subscription.last_seq),
-                },
-            };
-            let fresh_digest = digest(&execution.result);
-            let changed = fresh_digest != subscription.last_result_digest;
-            if let Some(entry) = self.subs.entries.get_mut(&id) {
-                entry.last_result_digest = fresh_digest;
-                entry.last_seq = execution.seq;
-                entry.trace = execution.trace.clone();
-            }
+            let (seq, execution, changed) =
+                match self.execute(&subscription.op, subscription.context.clone()) {
+                    Ok(execution) => {
+                        let fresh_digest = digest(&execution.result);
+                        let changed = fresh_digest != subscription.last_result_digest;
+                        if let Some(entry) = self.subs.entries.get_mut(&id) {
+                            entry.last_result_digest = fresh_digest;
+                            entry.last_seq = execution.seq;
+                            entry.trace = execution.trace.clone();
+                        }
+                        (execution.seq, Ok(execution), changed)
+                    }
+                    Err(error) => {
+                        let seq = self.store().commit_seq().unwrap_or(subscription.last_seq);
+                        if let Some(entry) = self.subs.entries.get_mut(&id) {
+                            entry.last_seq = seq;
+                        }
+                        // No fresh authoritative trace exists on a runtime error. Keep the
+                        // previous indexes so a later overlapping commit can retry the query.
+                        (seq, Err(error), true)
+                    }
+                };
             deliveries.push(Delivery {
                 id,
-                seq: execution.seq,
+                seq,
                 execution,
                 changed,
             });

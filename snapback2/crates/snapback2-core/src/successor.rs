@@ -1,7 +1,7 @@
 //! Additive generation succession and explicit destructive migration plans.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
-use crate::engine::{RuntimeError, reindex_row, validate_row};
+use crate::engine::{RuntimeError, reindex_row, write_aggregate_backfill};
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
@@ -251,6 +251,67 @@ pub(crate) fn additive_refusal(
             }
         }
     }
+    let new_maintains: Vec<_> = next
+        .maintains
+        .iter()
+        .filter(|maintain| !current.maintains.contains(maintain))
+        .collect();
+    let mut future_targets = BTreeMap::<String, BTreeMap<String, Value>>::new();
+    for maintain in new_maintains {
+        let rows = if let Some(rows) = future_targets.get_mut(&maintain.target) {
+            rows
+        } else {
+            let existing = fetch_rows(&store.conn, &maintain.target)?
+                .into_iter()
+                .map(|row| {
+                    let id = row.field("id")?.as_str()?.to_owned();
+                    Ok((id, row))
+                })
+                .collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+            future_targets.insert(maintain.target.clone(), existing);
+            future_targets
+                .get_mut(&maintain.target)
+                .expect("target was just inserted")
+        };
+        for row in projected_backfill_rows(&store.conn, maintain)? {
+            let id = row.field("id")?.as_str()?.to_owned();
+            rows.insert(id, row);
+        }
+    }
+    for (table_name, rows) in future_targets {
+        let table = next
+            .table(&table_name)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+        for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
+            let mut counts = BTreeMap::<String, (Vec<Value>, usize)>::new();
+            for row in rows.values() {
+                let key = index
+                    .columns
+                    .iter()
+                    .map(|column| row.field(column).cloned().unwrap_or(Value::Null))
+                    .collect::<Vec<_>>();
+                counts
+                    .entry(canonical_json(&key))
+                    .and_modify(|(_, count)| *count += 1)
+                    .or_insert((key, 1));
+            }
+            for (_, (key, count)) in counts {
+                if count > 1 {
+                    let conflict = UniqueConflict {
+                        table: table_name.clone(),
+                        index: index_name.clone(),
+                        key,
+                    };
+                    if !conflicts.contains(&conflict) {
+                        conflicts.push(conflict);
+                    }
+                    if conflicts.len() == 10 {
+                        return Ok(Some(SuccessorRefusal::unique(conflicts)));
+                    }
+                }
+            }
+        }
+    }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
 }
 
@@ -415,8 +476,16 @@ fn backfill(
     schema: &Schema,
     maintain: &Maintain,
 ) -> Result<(), RuntimeError> {
+    let rows = projected_backfill_rows(transaction, maintain)?;
+    write_aggregate_backfill(transaction, schema, &maintain.target, rows)
+}
+
+fn projected_backfill_rows(
+    connection: &Connection,
+    maintain: &Maintain,
+) -> Result<Vec<Value>, RuntimeError> {
     let mut groups = BTreeMap::<String, (Vec<Value>, i128)>::new();
-    for row in fetch_rows(transaction, &maintain.source)? {
+    for row in fetch_rows(connection, &maintain.source)? {
         let group = maintain
             .by
             .iter()
@@ -432,28 +501,23 @@ fn backfill(
             .and_modify(|(_, value)| *value += amount)
             .or_insert((group, amount));
     }
-    for (id, (group, value)) in groups {
-        if !(I53_MIN as i128..=I53_MAX as i128).contains(&value) {
-            return Err(RuntimeError::Constraint(format!(
-                "aggregate backfill overflow for {}",
-                maintain.target
-            )));
-        }
-        let mut fields = BTreeMap::from([
-            ("id".to_owned(), Value::Id(id.clone())),
-            ("value".to_owned(), Value::Int(value as i64)),
-        ]);
-        for (name, value) in maintain.by.iter().zip(group) {
-            fields.insert(name.clone(), value);
-        }
-        let row = Value::Row(fields);
-        validate_row(schema.table(&maintain.target), &maintain.target, &row)?;
-        transaction.execute(
-            "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)
-             ON CONFLICT(table_name, row_id) DO UPDATE SET data = excluded.data",
-            params![maintain.target, id, canonical_json(&row)],
-        )?;
-        reindex_row(transaction, schema, &maintain.target, &row)?;
-    }
-    Ok(())
+    groups
+        .into_iter()
+        .map(|(id, (group, value))| {
+            if !(I53_MIN as i128..=I53_MAX as i128).contains(&value) {
+                return Err(RuntimeError::Constraint(format!(
+                    "aggregate backfill overflow for {}",
+                    maintain.target
+                )));
+            }
+            let mut fields = BTreeMap::from([
+                ("id".to_owned(), Value::Id(id.clone())),
+                ("value".to_owned(), Value::Int(value as i64)),
+            ]);
+            for (name, value) in maintain.by.iter().zip(group) {
+                fields.insert(name.clone(), value);
+            }
+            Ok(Value::Row(fields))
+        })
+        .collect()
 }
