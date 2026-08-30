@@ -177,43 +177,10 @@ pub fn route(
                 .and_then(Json::as_str)
                 .unwrap_or_default()
                 .to_owned();
-            let rows = body
-                .get("rows")
-                .and_then(Json::as_array)
-                .cloned()
-                .unwrap_or_default();
-            let limit = rows.len().max(1).min(500) as u32;
-            match call(Action::Data {
-                table: table.clone(),
-                index: "byId".to_owned(),
-                prefix: json!([]),
-                limit,
-                identity: Identity::Persona(persona.clone()),
-            }) {
-                Ok(execution) => {
-                    let visible = execution
-                        .get("data")
-                        .and_then(Json::as_array)
-                        .into_iter()
-                        .flatten()
-                        .filter_map(|row| row.get("id").and_then(Json::as_str))
-                        .collect::<std::collections::BTreeSet<_>>();
-                    let verdicts = rows
-                        .iter()
-                        .filter_map(|row| row.get("id").and_then(Json::as_str))
-                        .map(|id| json!({ "id": id, "verdict": if visible.contains(id) { "allow" } else { "deny" } }))
-                        .collect::<Vec<_>>();
-                    let trace = execution.get("trace").cloned().unwrap_or(Json::Null);
-                    Ok(json!({
-                        "table": table,
-                        "as": persona,
-                        "rows": verdicts,
-                        "ruleInputs": trace.get("rule_inputs").cloned().unwrap_or_else(|| json!([])),
-                        "trace": trace,
-                    }))
-                }
-                Err(error) => Err(error),
-            }
+            call(Action::RuleVerdicts(
+                table,
+                Identity::Persona(persona.clone()),
+            ))
         }
         ("POST", "/control/stop") => call(Action::Stop {
             cause: body

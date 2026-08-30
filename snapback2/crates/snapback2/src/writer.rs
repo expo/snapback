@@ -156,6 +156,7 @@ pub enum Action {
         limit: u32,
         identity: Identity,
     },
+    RuleVerdicts(String, Identity),
     Why {
         op: String,
         args: Json,
@@ -468,6 +469,7 @@ impl State {
                 limit,
                 identity,
             } => self.data(table, index, prefix, limit, identity),
+            Action::RuleVerdicts(table, identity) => self.rule_verdicts(table, identity),
             Action::Why { op, args, identity } => self.why(op, args, identity),
             Action::Trace { seq } => self.trace(seq),
             Action::Commits { since, limit } => Ok(serde_json::to_value(
@@ -1131,6 +1133,17 @@ impl State {
             object.insert("trace".to_owned(), json!(execution.trace));
         }
         Ok(response)
+    }
+
+    fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
+        let principal = self.principal(identity)?;
+        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
+        context.principal_kind = principal.kind;
+        let rows = self
+            .runtime_mut()
+            .read_rule_verdicts(&table_name, context)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(json!({ "table": table_name, "as": principal.id, "rows": rows }))
     }
 
     fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {

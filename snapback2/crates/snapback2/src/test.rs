@@ -4,12 +4,13 @@
 use crate::client;
 use crate::owner::{self, OwnerInfo};
 use crate::project::{CompiledProject, CompilerWorker, SeedData, locate_root};
-use crate::protocol::{Refusal, json_to_value, value_to_json};
+use crate::protocol::{Refusal, json_to_value};
 use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Context, Generation, Program, ProgramKind, RuleExpr, RuleTerm, Runtime, Store, Value,
+    ArgType, Certificate, Context, ExecutionState, Generation, Program, ProgramKind, Runtime,
+    Store, Value,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -22,6 +23,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub fn run(args: &[String]) -> ExitCode {
     let json_output = verbs::has(args, "--json");
+    if verbs::has(args, "--blocked") && verbs::flag(args, "--blocked").is_none() {
+        return usage();
+    }
     let root = match locate_root(verbs::flag(args, "--project").map(Path::new)) {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
@@ -292,144 +296,151 @@ impl Drop for IsolatedOwner {
 fn check_rules(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
+    let mut blocked = Vec::new();
     let mut probes = 0_u64;
-    let mut personas = seed.personas.clone();
-    personas.push("__snapback2_unlisted".to_owned());
+    let mut tables = Map::new();
     for (table_name, table) in &compiled.generation.schema.tables {
         if table.rules.read.is_public() {
             continue;
         }
         let rows = seed.rows.get(table_name).cloned().unwrap_or_default();
+        if rows.is_empty() {
+            blocked.push(json!({
+                "table": table_name,
+                "reason": format!("no seed rows for {table_name}"),
+            }));
+            tables.insert(
+                table_name.clone(),
+                json!({ "seedRows": 0, "personas": 0, "probes": 0 }),
+            );
+            continue;
+        }
+        let mut personas = seed.personas.clone();
+        let unlisted = format!("__snapback2_unlisted_{table_name}");
+        personas.push(unlisted.clone());
+        let mut table_probes = 0_u64;
         for persona in &personas {
-            probes += rows.len() as u64;
-            let response = client::control(
+            let actual_response = client::control(
                 owner,
                 "POST",
-                "/control/verdicts",
-                json!({ "table": table_name, "rows": rows, "as": persona }),
+                "/control/data",
+                json!({
+                    "table": table_name,
+                    "index": "byId",
+                    "prefix": [],
+                    "limit": 500,
+                    "as": persona,
+                }),
             );
-            let body = match response {
+            let actual_body = match actual_response {
                 Ok(response) if response.status < 400 => response.body,
                 Ok(response) => {
-                    failures.push(
-                        json!({ "table": table_name, "as": persona, "response": response.body }),
-                    );
+                    failures.push(json!({
+                        "table": table_name,
+                        "as": persona,
+                        "source": "data",
+                        "response": response.body,
+                    }));
                     continue;
                 }
                 Err(error) => {
-                    failures.push(json!({ "table": table_name, "as": persona, "error": error }));
+                    failures.push(json!({ "table": table_name, "as": persona, "source": "data", "error": error }));
                     continue;
                 }
             };
-            let actual = body
-                .get("rows")
+            let expected_response = client::control(
+                owner,
+                "POST",
+                "/control/verdicts",
+                json!({ "table": table_name, "as": persona }),
+            );
+            let expected_body = match expected_response {
+                Ok(response) if response.status < 400 => response.body,
+                Ok(response) => {
+                    failures.push(json!({
+                        "table": table_name,
+                        "as": persona,
+                        "source": "engine",
+                        "response": response.body,
+                    }));
+                    continue;
+                }
+                Err(error) => {
+                    failures.push(json!({ "table": table_name, "as": persona, "source": "engine", "error": error }));
+                    continue;
+                }
+            };
+            let actual = actual_body
+                .get("data")
                 .and_then(Json::as_array)
                 .into_iter()
                 .flatten()
-                .filter(|row| row.get("verdict").and_then(Json::as_str) == Some("allow"))
-                .filter_map(|row| row.get("id").and_then(Json::as_str))
+                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned))
                 .collect::<BTreeSet<_>>();
-            let expected = rows
+            let verdicts = expected_body
+                .get("rows")
+                .and_then(Json::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let expected = verdicts
                 .iter()
-                .filter(|row| {
-                    eval_rule(
-                        &table.rules.read,
-                        row,
-                        &format!("dev:{persona}"),
-                        &compiled.generation,
-                        seed,
-                    )
-                })
-                .filter_map(|row| row.get("id").and_then(Json::as_str))
+                .filter(|row| row.get("admitted").and_then(Json::as_bool) == Some(true))
+                .filter_map(|row| row.get("id").and_then(Json::as_str).map(ToOwned::to_owned))
                 .collect::<BTreeSet<_>>();
-            if actual != expected {
+            table_probes += verdicts.len() as u64;
+            probes += verdicts.len() as u64;
+            if !rule_id_sets_match(&actual, &expected) {
                 failures.push(json!({ "table": table_name, "as": persona, "expected": expected, "actual": actual }));
             }
+            if persona == &unlisted && !actual.is_empty() {
+                failures.push(json!({
+                    "table": table_name,
+                    "as": persona,
+                    "expected": [],
+                    "actual": actual,
+                    "reason": "persona named in no seed row must see zero rows",
+                }));
+            }
         }
+        tables.insert(
+            table_name.clone(),
+            json!({
+                "seedRows": rows.len(),
+                "personas": personas.len(),
+                "probes": table_probes,
+            }),
+        );
     }
-    let restored_generation = client::control(owner, "GET", "/control/status", json!({}))
-        .ok()
-        .and_then(|response| {
-            response
-                .body
-                .get("generation")
-                .and_then(Json::as_str)
-                .map(ToOwned::to_owned)
-        });
-    if restored_generation.as_deref() != Some(compiled.generation.hash.as_str()) {
-        failures.push(json!({
-            "error": "verdict probes did not restore the certified generation",
-            "expected": compiled.generation.hash,
-            "actual": restored_generation,
-        }));
-    }
-    result_check(
-        "rules",
-        started,
-        failures,
-        json!({ "probes": probes, "serverRoute": "/control/verdicts" }),
-    )
-}
-
-fn eval_rule(
-    rule: &RuleExpr,
-    row: &Json,
-    viewer: &str,
-    generation: &Generation,
-    seed: &SeedData,
-) -> bool {
-    match rule {
-        RuleExpr::Public { .. } | RuleExpr::Allow => true,
-        RuleExpr::Deny => false,
-        RuleExpr::Eq(left, right) => term(left, row, viewer) == term(right, row, viewer),
-        RuleExpr::Ne(left, right) => term(left, row, viewer) != term(right, row, viewer),
-        RuleExpr::And(rules) => rules
-            .iter()
-            .all(|rule| eval_rule(rule, row, viewer, generation, seed)),
-        RuleExpr::Or(rules) => rules
-            .iter()
-            .any(|rule| eval_rule(rule, row, viewer, generation, seed)),
-        RuleExpr::Not(rule) => !eval_rule(rule, row, viewer, generation, seed),
-        RuleExpr::PrincipalKind(kind) => kind == "persona",
-        RuleExpr::Exists {
-            table, index, key, ..
-        } => {
-            let Some(columns) = generation
-                .schema
-                .tables
-                .get(table)
-                .and_then(|table| table.indexes.get(index))
-                .map(|index| &index.columns)
-            else {
-                return false;
-            };
-            let wanted: Vec<_> = key
-                .iter()
-                .map(|rule_term| term(rule_term, row, viewer))
-                .collect();
-            seed.rows.get(table).into_iter().flatten().any(|candidate| {
-                columns
-                    .iter()
-                    .map(|column| candidate.get(column).cloned().unwrap_or(Json::Null))
-                    .eq(wanted.iter().cloned())
-            })
-        }
+    let detail = json!({
+        "probes": probes,
+        "tables": tables,
+        "expectedBy": "engine",
+        "actualBy": "data",
+        "blocked": blocked,
+    });
+    if !failures.is_empty() {
+        CheckReceipt::fail(
+            "rules",
+            "derived",
+            elapsed_ms(started),
+            json!({ "failures": failures, "summary": detail }),
+        )
+    } else if !blocked.is_empty() {
+        CheckReceipt::blocked("rules", "derived", elapsed_ms(started), detail)
+    } else {
+        CheckReceipt::pass("rules", "derived", elapsed_ms(started), detail)
     }
 }
 
-fn term(term: &RuleTerm, row: &Json, viewer: &str) -> Json {
-    match term {
-        RuleTerm::Field(name) => row.get(name).cloned().unwrap_or(Json::Null),
-        RuleTerm::Viewer => Json::String(viewer.to_owned()),
-        RuleTerm::Literal(value) => value_to_json(value),
-    }
+fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) -> bool {
+    actual == expected
 }
 
 fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
     let mut probes = 0_u64;
-    for (name, (program, certificate)) in &compiled.generation.programs {
+    for (name, (program, _certificate)) in &compiled.generation.programs {
         if program.kind != ProgramKind::Query {
             continue;
         }
@@ -441,55 +452,22 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
                 "/control/why",
                 json!({ "op": name, "args": generated_args(program, seed), "as": persona }),
             );
-            let body = match response {
-                Ok(response) if response.status < 400 => response.body,
+            match response {
+                Ok(response) if response.status < 400 => {}
                 Ok(response) => {
-                    failures.push(json!({ "op": name, "as": persona, "response": response.body }));
-                    continue;
+                    failures.push(json!({
+                        "op": name,
+                        "as": persona,
+                        "source": "engine",
+                        "code": response.body.get("code").cloned().unwrap_or(Json::Null),
+                        "response": response.body,
+                    }));
                 }
                 Err(error) => {
-                    failures.push(json!({ "op": name, "as": persona, "error": error }));
-                    continue;
+                    failures.push(
+                        json!({ "op": name, "as": persona, "source": "engine", "error": error }),
+                    );
                 }
-            };
-            let trace = body.get("trace").cloned().unwrap_or_else(|| json!({}));
-            let examined = trace.get("examined").and_then(Json::as_u64).unwrap_or(0);
-            let steps = trace.get("steps").and_then(Json::as_u64).unwrap_or(0);
-            let rule_probes = trace
-                .get("rule_probes")
-                .or_else(|| trace.get("ruleProbes"))
-                .and_then(Json::as_u64)
-                .unwrap_or(0);
-            let sites = certificate
-                .read_sites
-                .iter()
-                .map(|site| site.site.as_str())
-                .collect::<BTreeSet<_>>();
-            let traced_sites = trace
-                .get("ranges")
-                .and_then(Json::as_array)
-                .into_iter()
-                .flatten()
-                .chain(
-                    trace
-                        .get("points")
-                        .and_then(Json::as_array)
-                        .into_iter()
-                        .flatten(),
-                )
-                .filter_map(|site| site.get("site").and_then(Json::as_str));
-            if examined > certificate.max_examined
-                || steps > certificate.max_steps
-                || rule_probes > certificate.max_rule_probes
-                || traced_sites.into_iter().any(|site| !sites.contains(site))
-            {
-                failures.push(json!({
-                    "code": "E_TRACE_SUBSET",
-                    "op": name,
-                    "as": persona,
-                    "trace": trace,
-                    "certificate": certificate,
-                }));
             }
         }
     }
@@ -497,7 +475,11 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         "bounds",
         started,
         failures,
-        json!({ "probes": probes, "failureCode": "E_TRACE_SUBSET" }),
+        json!({
+            "probes": probes,
+            "failureCode": "E_TRACE_SUBSET",
+            "enforcedBy": "engine",
+        }),
     )
 }
 
@@ -510,91 +492,126 @@ fn check_invalidation(
     let mut failures = Vec::new();
     let mut blocked = Vec::new();
     let mut probes = 0_u64;
-    let personas = if seed.personas.is_empty() {
-        vec!["alice".to_owned()]
-    } else {
-        seed.personas.clone()
-    };
+    let mut attempts = 0_u64;
+    let mut silence_probes = 0_u64;
+    let mut intersections = Vec::new();
     for (query_name, (query, query_certificate)) in &compiled.generation.programs {
         if query.kind != ProgramKind::Query {
             continue;
         }
-        let _ = client::control(owner, "POST", "/control/reset", json!({}));
-        let read_tables = query_certificate
-            .read_sites
-            .iter()
-            .map(|site| site.table.as_str())
-            .collect::<BTreeSet<_>>();
-        // Pure argument/constant queries have no invalidation intersection to prove.
-        let mut has_intersecting_candidate = false;
-        let mut committed_intersection = false;
+        let query_args = generated_args_at(query, seed, 0);
         for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
             }
-            let intersects = mutation_certificate
-                .write_sites
+            let shared_sites = certificate_site_intersection(
+                query_certificate,
+                mutation_certificate,
+                &compiled.generation,
+            );
+            let candidates = probe_candidates(mutation, seed);
+            if shared_sites.is_empty() {
+                for (persona, mutation_args) in &candidates {
+                    attempts += 1;
+                    let (committed, failure) = invalidation_attempt(
+                        owner,
+                        query_name,
+                        &query_args,
+                        mutation_name,
+                        mutation_args,
+                        persona,
+                        false,
+                    );
+                    if let Some(failure) = failure {
+                        failures.push(failure);
+                    }
+                    if committed {
+                        probes += 1;
+                        silence_probes += 1;
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            intersections.push(json!({
+                "query": query_name,
+                "mutation": mutation_name,
+                "sites": shared_sites.iter().map(|(table, index)| json!({
+                    "table": table,
+                    "index": index,
+                })).collect::<Vec<_>>(),
+            }));
+            let mut committed_intersection = false;
+            for (persona, mutation_args) in candidates
                 .iter()
-                .any(|site| read_tables.contains(site.table.as_str()));
-            has_intersecting_candidate |= intersects;
-            for persona in &personas {
-                let mut stream = match SseProbe::connect(
+                .filter(|(_, args)| probe_args_align(&query_args, args))
+            {
+                attempts += 1;
+                let (committed, failure) = invalidation_attempt(
                     owner,
                     query_name,
-                    generated_args(query, seed),
+                    &query_args,
+                    mutation_name,
+                    mutation_args,
                     persona,
-                ) {
-                    Ok(stream) => stream,
-                    Err(error) => {
-                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": error }));
-                        continue;
-                    }
-                };
-                if stream.event(Duration::from_secs(2)).is_err() {
-                    failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": "initial SSE delivery missing" }));
-                    continue;
+                    true,
+                );
+                if let Some(failure) = failure {
+                    failures.push(failure);
                 }
-                let body = match client::api(
-                    owner,
-                    "POST",
-                    "/api/mutation",
-                    &[("X-Snapback-As", persona)],
-                    json!({ "op": mutation_name, "args": generated_args(mutation, seed) }),
-                ) {
-                    Ok(response) => response.body,
-                    Err(error) => {
-                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": error }));
-                        continue;
-                    }
-                };
-                if body.get("state").and_then(Json::as_str) != Some("committed") {
-                    continue;
-                }
-                probes += 1;
-                if intersects {
+                if committed {
                     committed_intersection = true;
-                    let delivery = stream.event(Duration::from_secs(2));
-                    let expected_seq = body.get("seq").and_then(Json::as_u64);
-                    if delivery
-                        .as_ref()
-                        .ok()
-                        .and_then(|value| value.get("seq"))
-                        .and_then(Json::as_u64)
-                        != expected_seq
-                    {
-                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "expectedSeq": expected_seq, "delivery": delivery.ok() }));
-                    }
-                } else if stream.event(Duration::from_millis(250)).is_ok() {
-                    failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": "disjoint committed mutation delivered" }));
+                    probes += 1;
+                    break;
                 }
-                break;
+            }
+            if !committed_intersection {
+                blocked.push(json!({
+                    "query": query_name,
+                    "mutation": mutation_name,
+                    "reason": "no committing probe",
+                }));
+                continue;
+            }
+
+            // A second seed key for the same table/index is the strongest
+            // silence probe: the write site overlaps statically but its
+            // concrete touched key is outside this subscription's prefix.
+            for (persona, mutation_args) in candidates
+                .iter()
+                .filter(|(_, args)| probe_args_diverge(&query_args, args))
+            {
+                attempts += 1;
+                let (committed, failure) = invalidation_attempt(
+                    owner,
+                    query_name,
+                    &query_args,
+                    mutation_name,
+                    mutation_args,
+                    persona,
+                    false,
+                );
+                if let Some(failure) = failure {
+                    failures.push(failure);
+                }
+                if committed {
+                    probes += 1;
+                    silence_probes += 1;
+                    break;
+                }
             }
         }
-        if has_intersecting_candidate && !committed_intersection {
-            blocked.push(json!({ "query": query_name, "reason": "no committing probe" }));
-        }
     }
-    let detail = json!({ "probes": probes, "transport": "SSE", "blocked": blocked });
+    let detail = json!({
+        "probes": probes,
+        "attempts": attempts,
+        "silenceProbes": silence_probes,
+        "transport": "SSE",
+        "intersectionLevel": "table+index",
+        "intersections": intersections,
+        "blocked": blocked,
+    });
     if !failures.is_empty() {
         CheckReceipt::fail(
             "invalidation",
@@ -609,72 +626,271 @@ fn check_invalidation(
     }
 }
 
+fn certificate_site_intersection(
+    query: &Certificate,
+    mutation: &Certificate,
+    generation: &Generation,
+) -> BTreeSet<(String, String)> {
+    let reads = query
+        .read_sites
+        .iter()
+        .map(|site| (site.table.clone(), site.index.clone()))
+        .collect::<BTreeSet<_>>();
+    let writes = mutation
+        .write_sites
+        .iter()
+        .flat_map(|site| {
+            generation
+                .schema
+                .tables
+                .get(&site.table)
+                .into_iter()
+                .flat_map(move |table| {
+                    table
+                        .indexes
+                        .keys()
+                        .cloned()
+                        .map(move |index| (site.table.clone(), index))
+                })
+        })
+        .collect::<BTreeSet<_>>();
+    reads.intersection(&writes).cloned().collect()
+}
+
+fn probe_args_align(query: &Json, mutation: &Json) -> bool {
+    let Some(query) = query.as_object() else {
+        return true;
+    };
+    let Some(mutation) = mutation.as_object() else {
+        return true;
+    };
+    query
+        .iter()
+        .filter_map(|(name, value)| mutation.get(name).map(|other| (value, other)))
+        .all(|(left, right)| left == right)
+}
+
+fn probe_args_diverge(query: &Json, mutation: &Json) -> bool {
+    let Some(query) = query.as_object() else {
+        return false;
+    };
+    let Some(mutation) = mutation.as_object() else {
+        return false;
+    };
+    query
+        .iter()
+        .any(|(name, value)| mutation.get(name).is_some_and(|other| other != value))
+}
+
+fn invalidation_attempt(
+    owner: &OwnerInfo,
+    query: &str,
+    query_args: &Json,
+    mutation: &str,
+    mutation_args: &Json,
+    persona: &str,
+    expect_delivery: bool,
+) -> (bool, Option<Json>) {
+    if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
+        return (
+            false,
+            Some(json!({ "query": query, "mutation": mutation, "as": persona, "error": error })),
+        );
+    }
+    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), persona) {
+        Ok(stream) => stream,
+        Err(error) => {
+            return (
+                false,
+                Some(
+                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                ),
+            );
+        }
+    };
+    if let Err(error) = stream.event(Duration::from_secs(2)) {
+        return (
+            false,
+            Some(json!({
+                "query": query,
+                "mutation": mutation,
+                "as": persona,
+                "error": format!("initial SSE delivery missing: {error}"),
+            })),
+        );
+    }
+    let body = match client::api(
+        owner,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", persona)],
+        json!({ "op": mutation, "args": mutation_args }),
+    ) {
+        Ok(response) => response.body,
+        Err(error) => {
+            return (
+                false,
+                Some(
+                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                ),
+            );
+        }
+    };
+    if body.get("state").and_then(Json::as_str) != Some("committed") {
+        return (false, None);
+    }
+    let expected_seq = body.get("seq").and_then(Json::as_u64);
+    if expect_delivery {
+        match stream.event(Duration::from_secs(2)) {
+            Ok(delivery) if delivery.get("seq").and_then(Json::as_u64) == expected_seq => {
+                (true, None)
+            }
+            delivery => (
+                true,
+                Some(json!({
+                    "query": query,
+                    "mutation": mutation,
+                    "as": persona,
+                    "expectedSeq": expected_seq,
+                    "delivery": delivery.ok(),
+                })),
+            ),
+        }
+    } else {
+        match stream.event(Duration::from_millis(250)) {
+            Ok(delivery) => (
+                true,
+                Some(json!({
+                    "query": query,
+                    "mutation": mutation,
+                    "as": persona,
+                    "error": "non-intersecting committed mutation delivered",
+                    "delivery": delivery,
+                })),
+            ),
+            Err(_) => (true, None),
+        }
+    }
+}
+
 fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
+    let mut blocked = Vec::new();
     let mut probes = 0_u64;
-    let persona = seed.personas.first().map(String::as_str).unwrap_or("alice");
+    let mut attempts = 0_u64;
+    let mut forks_count = 0_u64;
     for (index, (name, (program, _))) in compiled.generation.programs.iter().enumerate() {
         if program.kind != ProgramKind::Mutation {
             continue;
         }
-        probes += 1;
-        let _ = client::control(owner, "POST", "/control/reset", json!({}));
-        let mut forks = Vec::new();
-        for side in ["a", "b"] {
-            let response = client::control(
-                owner,
-                "POST",
-                "/control/fork",
-                json!({ "name": format!("replay-{index}-{side}") }),
-            );
-            match response {
-                Ok(response) if response.status < 400 => {
-                    forks.push(
-                        owner
-                            .project
-                            .join(".snapback/forks")
-                            .join(format!("replay-{index}-{side}.sqlite")),
-                    );
+        let mut committed_probe = false;
+        for (candidate_index, (persona, args)) in
+            probe_candidates(program, seed).into_iter().enumerate()
+        {
+            attempts += 1;
+            if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
+                failures.push(json!({ "op": name, "as": persona, "error": error }));
+                break;
+            }
+            let mut forks = Vec::new();
+            for side in ["a", "b"] {
+                let fork_name = format!("replay-{index}-{candidate_index}-{side}");
+                let response =
+                    client::control(owner, "POST", "/control/fork", json!({ "name": fork_name }));
+                match response {
+                    Ok(response) if response.status < 400 => {
+                        forks_count += 1;
+                        forks.push(
+                            owner
+                                .project
+                                .join(".snapback/forks")
+                                .join(format!("replay-{index}-{candidate_index}-{side}.sqlite")),
+                        );
+                    }
+                    Ok(response) => failures.push(
+                        json!({ "op": name, "as": persona, "side": side, "response": response.body }),
+                    ),
+                    Err(error) => failures.push(
+                        json!({ "op": name, "as": persona, "side": side, "error": error }),
+                    ),
                 }
-                Ok(response) => {
-                    failures.push(json!({ "op": name, "side": side, "response": response.body }))
+            }
+            if forks.len() != 2 {
+                break;
+            }
+            let runs = forks
+                .iter()
+                .map(|path| {
+                    replay_fork(path, &compiled.generation, program, &args, &persona, index)
+                })
+                .collect::<Result<Vec<_>, _>>();
+            match runs {
+                Ok(runs) if runs.iter().all(|(_, committed)| *committed) => {
+                    committed_probe = true;
+                    probes += 1;
+                    if runs[0].0 != runs[1].0 {
+                        failures.push(json!({ "op": name, "as": persona, "left": runs[0].0, "right": runs[1].0 }));
+                    }
+                    break;
                 }
-                Err(error) => failures.push(json!({ "op": name, "side": side, "error": error })),
+                Ok(runs) if runs.iter().any(|(_, committed)| *committed) => {
+                    failures.push(json!({
+                        "op": name,
+                        "as": persona,
+                        "error": "identical replay forks disagreed on commit state",
+                        "runs": runs.into_iter().map(|(run, _)| run).collect::<Vec<_>>(),
+                    }));
+                    break;
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    failures.push(json!({ "op": name, "as": persona, "error": error }));
+                    break;
+                }
             }
         }
-        let runs = forks
-            .iter()
-            .map(|path| replay_fork(path, &compiled.generation, program, seed, persona, index))
-            .collect::<Result<Vec<_>, _>>();
-        match runs {
-            Ok(runs) if runs.len() == 2 && runs[0] != runs[1] => {
-                failures.push(json!({ "op": name, "left": runs[0], "right": runs[1] }));
-            }
-            Ok(_) => {}
-            Err(error) => failures.push(json!({ "op": name, "error": error })),
+        if !committed_probe {
+            blocked.push(json!({
+                "op": name,
+                "reason": format!("no committing probe for {name}"),
+            }));
         }
     }
-    result_check(
-        "replay",
-        started,
-        failures,
-        json!({ "probes": probes, "forks": probes * 2, "clock": "1700000000000 + mutation index", "newIds": "replay-<mutation>-<ordinal>", "comparison": "byte-identical execution + authoritative trace" }),
-    )
+    let detail = json!({
+        "probes": probes,
+        "attempts": attempts,
+        "forks": forks_count,
+        "blocked": blocked,
+        "clock": "1700000000000 + mutation index",
+        "newIds": "replay-<mutation>-<ordinal>",
+        "comparison": "byte-identical committed execution + authoritative trace",
+    });
+    if !failures.is_empty() {
+        CheckReceipt::fail(
+            "replay",
+            "derived",
+            elapsed_ms(started),
+            json!({ "failures": failures, "summary": detail }),
+        )
+    } else if !blocked.is_empty() {
+        CheckReceipt::blocked("replay", "derived", elapsed_ms(started), detail)
+    } else {
+        CheckReceipt::pass("replay", "derived", elapsed_ms(started), detail)
+    }
 }
 
 fn replay_fork(
     path: &Path,
     generation: &Generation,
     program: &Program,
-    seed: &SeedData,
+    generated: &Json,
     persona: &str,
     index: usize,
-) -> Result<Json, Refusal> {
+) -> Result<(Json, bool), Refusal> {
     let store = Store::open(path).map_err(|error| Refusal::from_runtime(&error))?;
     let mut runtime = Runtime::open(store, generation.clone())
         .map_err(|error| Refusal::from_successor(&error))?;
-    let generated = generated_args(program, seed);
     let mut args = BTreeMap::new();
     for name in program.args.keys() {
         let value = generated.get(name).cloned().unwrap_or(Json::Null);
@@ -694,13 +910,16 @@ fn replay_fork(
     let execution = runtime
         .execute(&program.name, context)
         .map_err(|error| Refusal::from_runtime(&error))?;
-    serde_json::to_value(execution).map_err(|error| {
-        Refusal::owner(
-            "E_OWNER_TEST_REPLAY",
-            format!("cannot serialize replay execution: {error}"),
-            "rerun snapback2 test",
-        )
-    })
+    let committed = matches!(execution.state, ExecutionState::Committed { .. });
+    serde_json::to_value(execution)
+        .map(|execution| (execution, committed))
+        .map_err(|error| {
+            Refusal::owner(
+                "E_OWNER_TEST_REPLAY",
+                format!("cannot serialize replay execution: {error}"),
+                "rerun snapback2 test",
+            )
+        })
 }
 
 fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckReceipt> {
@@ -802,19 +1021,23 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
 }
 
 fn generated_args(program: &Program, seed: &SeedData) -> Json {
+    generated_args_at(program, seed, 0)
+}
+
+fn generated_args_at(program: &Program, seed: &SeedData, sample: usize) -> Json {
     let mut args = Map::new();
     for (name, kind) in &program.args {
-        let value = generated_arg(name, kind, seed);
+        let value = generated_arg(name, kind, seed, sample);
         args.insert(name.clone(), value);
     }
     Json::Object(args)
 }
 
-fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData) -> Json {
+fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData, sample: usize) -> Json {
     match kind {
-        ArgType::Id | ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name, seed),
+        ArgType::Id | ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name, seed, sample),
         ArgType::Text { .. } => {
-            let candidate = scalar_arg(name, seed);
+            let candidate = scalar_arg(name, seed, sample);
             candidate
                 .as_str()
                 .map(|value| json!(value))
@@ -822,7 +1045,7 @@ fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData) -> Json {
         }
         ArgType::Int | ArgType::Time => json!(1),
         ArgType::Bool => json!(false),
-        ArgType::Optional(inner) => generated_arg(name, inner, seed),
+        ArgType::Optional(inner) => generated_arg(name, inner, seed, sample),
         ArgType::List { .. } => json!([]),
         ArgType::Enum { variants } => variants
             .first()
@@ -833,7 +1056,7 @@ fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData) -> Json {
     }
 }
 
-fn scalar_arg(name: &str, seed: &SeedData) -> Json {
+fn scalar_arg(name: &str, seed: &SeedData, sample: usize) -> Json {
     if name == "result" {
         return json!({ "providerId": "provider-test" });
     }
@@ -841,7 +1064,9 @@ fn scalar_arg(name: &str, seed: &SeedData) -> Json {
         return json!("notify");
     }
     if name == "conversationId" {
-        return seed_id(seed, "conversations", 0).unwrap_or_else(|| json!("conversation-1"));
+        return seed_id(seed, "conversations", sample)
+            .or_else(|| seed_id(seed, "conversations", 0))
+            .unwrap_or_else(|| json!("conversation-1"));
     }
     if name == "recipientId" {
         return seed_id(seed, "profiles", 1).unwrap_or_else(|| json!("dev:bob"));
@@ -859,6 +1084,38 @@ fn scalar_arg(name: &str, seed: &SeedData) -> Json {
         return json!(false);
     }
     json!(1)
+}
+
+fn probe_candidates(program: &Program, seed: &SeedData) -> Vec<(String, Json)> {
+    let personas = if seed.personas.is_empty() {
+        vec!["alice".to_owned()]
+    } else {
+        seed.personas.clone()
+    };
+    let samples = if program.args.contains_key("conversationId") {
+        seed.rows
+            .get("conversations")
+            .map(Vec::len)
+            .unwrap_or(1)
+            .max(1)
+    } else {
+        1
+    };
+    let mut seen = BTreeSet::new();
+    let mut candidates = Vec::new();
+    for sample in 0..samples {
+        let args = generated_args_at(program, seed, sample);
+        for persona in &personas {
+            let identity = format!(
+                "{persona}:{}",
+                serde_json::to_string(&args).unwrap_or_default()
+            );
+            if seen.insert(identity) {
+                candidates.push((persona.clone(), args.clone()));
+            }
+        }
+    }
+    candidates
 }
 
 fn seed_id(seed: &SeedData, table: &str, index: usize) -> Option<Json> {
@@ -1113,8 +1370,9 @@ fn usage() -> ExitCode {
 }
 
 #[cfg(test)]
-mod cleanup_tests {
+mod derived_tests {
     use super::*;
+    use snapback2_core::{Ceilings, Checker, Engine, RuntimeError};
 
     #[test]
     fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
@@ -1143,5 +1401,93 @@ mod cleanup_tests {
         assert!(!scratch.exists());
         assert!(!store.exists());
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn generated_args_exercises_every_arg_type_variant() {
+        let program = Program {
+            name: "all.args".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::from([
+                ("id".to_owned(), ArgType::Id),
+                ("text".to_owned(), ArgType::Text { max: 20 }),
+                ("int".to_owned(), ArgType::Int),
+                ("bool".to_owned(), ArgType::Bool),
+                ("time".to_owned(), ArgType::Time),
+                ("json".to_owned(), ArgType::Json { max_bytes: 100 }),
+                (
+                    "optional".to_owned(),
+                    ArgType::Optional(Box::new(ArgType::Text { max: 20 })),
+                ),
+                (
+                    "list".to_owned(),
+                    ArgType::List {
+                        of: Some(Box::new(ArgType::Int)),
+                        max: 4,
+                    },
+                ),
+                (
+                    "enum".to_owned(),
+                    ArgType::Enum {
+                        variants: vec!["first".to_owned(), "second".to_owned()],
+                    },
+                ),
+                ("decimal".to_owned(), ArgType::Decimal { scale: 2 }),
+                (
+                    "money".to_owned(),
+                    ArgType::Money {
+                        currency: "USD".to_owned(),
+                        scale: 2,
+                    },
+                ),
+                ("scalar".to_owned(), ArgType::Scalar),
+            ]),
+            read_time_granularity_ms: None,
+            body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
+                Value::Null,
+            ))],
+        };
+
+        let args = generated_args(&program, &SeedData::default());
+
+        assert_eq!(args.as_object().unwrap().len(), 12);
+        assert_eq!(args["enum"], "first");
+        assert_eq!(args["list"], json!([]));
+        assert_eq!(args["decimal"], 100);
+        assert_eq!(args["money"], 100);
+    }
+
+    #[test]
+    fn rules_equality_rejects_extra_and_missing_visible_rows() {
+        let expected = BTreeSet::from(["seed".to_owned()]);
+        assert!(!rule_id_sets_match(
+            &BTreeSet::from(["ghost".to_owned(), "seed".to_owned()]),
+            &expected,
+        ));
+        assert!(!rule_id_sets_match(&BTreeSet::new(), &expected));
+    }
+
+    #[test]
+    fn bounds_failure_fixture_gets_e_trace_subset_from_the_engine() {
+        let schema = snapback2_core::spike_schema();
+        let program = snapback2_core::thread_program(10);
+        let mut certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        certificate.read_sites.clear();
+        let mut engine = Engine::memory(schema).unwrap();
+        let mut context = Context::query(
+            "dev:alice",
+            BTreeMap::from([(
+                "conversationId".to_owned(),
+                Value::Id("conversation-1".to_owned()),
+            )]),
+        );
+        context.principal_kind = "persona".to_owned();
+
+        let error = engine.execute(&program, &certificate, context).unwrap_err();
+
+        assert_eq!(error.code(), "E_TRACE_SUBSET");
+        assert!(matches!(error, RuntimeError::TraceSubset(_)));
     }
 }
