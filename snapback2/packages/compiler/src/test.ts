@@ -519,6 +519,63 @@ test("Decimal, Money, and Enum descriptors type APIs and lower fractional litera
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
 });
 
+test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
+  const cases = [
+    { descriptor: "t.decimal(19)", rewrite: "t.decimal(12)" },
+    { descriptor: 't.money("usd")', rewrite: 't.money("USD")' },
+    { descriptor: 't.enum(["open", "open"])', rewrite: 't.enum(["open"])' },
+    { descriptor: "t.enum([])", rewrite: 't.enum(["value"])' },
+  ];
+  for (const [index, item] of cases.entries()) {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      export const bad = query({ value: ${item.descriptor} }, () => ${index});`, `invalid-arg-${index}.ts`);
+    const refusal = lowered.ok ? undefined : lowered.diagnostics.find((diagnostic) => diagnostic.code === "E_ARGS_DESCRIPTOR");
+    assert(refusal?.family === "args" && refusal.site.startsWith(`invalid-arg-${index}.ts:`), `${item.descriptor} did not produce a sited args descriptor refusal`);
+    assert(refusal.rewrite === item.rewrite, `${item.descriptor} rewrite differs: ${refusal.rewrite}`);
+  }
+
+  const schema = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const rows = table({ columns: {
+      decimal: t.decimal(19), money: t.money("usd"), duplicate: t.enum(["open", "open"]), empty: t.enum([]), blank: t.enum([""])
+    } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  const refusals = schema.diagnostics.filter((diagnostic) => diagnostic.code === "E_SCHEMA_COLUMN");
+  assert(refusals.length === 5 && refusals.every((diagnostic) => diagnostic.family === "schema"
+    && diagnostic.site.startsWith("snapback/schema.ts:")), "invalid schema descriptors did not each produce a sited column refusal");
+  for (const rewrite of ['t.decimal(12)', 't.money("USD")', 't.enum(["open"])', 't.enum(["value"])']) {
+    assert(refusals.some((diagnostic) => diagnostic.rewrite === rewrite), `schema descriptor rewrite omitted ${rewrite}`);
+  }
+});
+
+test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
+  const tables = new Map<string, TableInfo>([["products", {
+    name: "products", private: false, columns: { price: { kind: "decimal", scale: 2 } },
+  }]]);
+  const valid = lowerSource(`import { mutation, t } from "snapback2";
+    export const byLiteral = mutation({ price: t.decimal(2) }, ({ db, ctx, args }) =>
+      db.insert(products, { id: ctx.newId(), price: args.price * 2 }));
+    export const byArgument = mutation({ price: t.decimal(2), multiplier: t.int() }, ({ db, ctx, args }) =>
+      db.insert(products, { id: ctx.newId(), price: args.price * args.multiplier }));`, "decimal-multiply.ts", undefined, { tables });
+  assert(valid.ok, `Decimal by Int insert refused: ${valid.ok ? "" : valid.diagnostics.map((item) => item.message).join("; ")}`);
+  const insertedPrice = (name: string) => {
+    const program = valid.programs.find((item) => item.name === name)!;
+    const insert = program.body.find((statement): statement is Extract<typeof statement, { Insert: unknown }> => typeof statement === "object" && "Insert" in statement);
+    assert(insert && "Object" in insert.Insert.row, `${name} did not lower an inserted row object`);
+    return insert.Insert.row.Object.price;
+  };
+  assert(canonical(insertedPrice("byLiteral")) === canonical({ Binary: {
+    op: "Mul", left: { Variable: "price" }, right: { Literal: { Int: 2 } },
+  } }), "Decimal × literal did not lower to Mul(price, 2)");
+  assert(canonical(insertedPrice("byArgument")) === canonical({ Binary: {
+    op: "Mul", left: { Variable: "price" }, right: { Variable: "multiplier" },
+  } }), "Decimal × int arg did not lower to Mul(price, multiplier)");
+
+  const invalid = lowerSource(`import { query, t } from "snapback2";
+    export const bad = query({ left: t.decimal(2), right: t.decimal(2) }, ({ args }) => args.left * args.right);`, "decimal-by-decimal.ts");
+  const refusal = invalid.ok ? undefined : invalid.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
+  assert(refusal?.message.includes("Decimal<2> and Decimal<2>"), "Decimal × Decimal no longer refuses with both scales");
+});
+
 test("Decimal scaling requires a verified target and exponential literals classify by numeric value", () => {
   const tables = new Map<string, TableInfo>([["products", {
     name: "products", private: false, columns: { price: { kind: "decimal", scale: 2 } },

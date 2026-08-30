@@ -203,8 +203,15 @@ class Analyzer {
     const operator = node.operatorToken.kind;
     let left = this.expression(node.left, env, undefined, true);
     let right = this.expression(node.right, env, undefined, true);
-    if (operator !== ts.SyntaxKind.AsteriskToken && left.kind === "decimal") right = this.expression(node.right, env, left);
-    else if (operator !== ts.SyntaxKind.AsteriskToken && right.kind === "decimal") left = this.expression(node.left, env, right);
+    if (operator === ts.SyntaxKind.AsteriskToken) {
+      if (left.kind === "decimal") right = this.expression(node.right, env);
+      else if (right.kind === "decimal") left = this.expression(node.left, env);
+      else {
+        left = this.expression(node.left, env);
+        right = this.expression(node.right, env);
+      }
+    } else if (left.kind === "decimal") right = this.expression(node.right, env, left);
+    else if (right.kind === "decimal") left = this.expression(node.left, env, right);
     else if (left.kind === "enum") right = this.expression(node.right, env, left);
     else if (right.kind === "enum") left = this.expression(node.left, env, right);
     else {
