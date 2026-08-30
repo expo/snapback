@@ -11,8 +11,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-// @ref LLP 1003#4-in-the-owner — this proves the owner wake, durable runner,
-// atomic `then`, subscription fanout, sent_unknown honesty, and explicit requeue.
+// @ref LLP 1003#4-in-the-owner — this proves the commit wake, durable runner,
+// subscription fanout, sent_unknown honesty, and explicit requeue.
 #[test]
 fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     let provider = Provider::start();
@@ -41,6 +41,7 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         status(port, &secret)["effects"]["engine"],
         "ibex2 + vanilla hermes"
     );
+    let committed_at = Instant::now();
     let mutation = request(
         port,
         "POST",
@@ -63,6 +64,11 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
     wait_for(Duration::from_secs(8), || {
         (provider.hits() == 1).then_some(())
     });
+    assert!(
+        committed_at.elapsed() < Duration::from_millis(750),
+        "effect delivery used the one-second poll instead of the commit wake: {:?}",
+        committed_at.elapsed()
+    );
     let running_trace = trace(port, &secret, seq);
     let outbox_id = running_trace["outbox"]["rows"][0]["id"]
         .as_str()
@@ -94,7 +100,10 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         "/api/subscribe?op=notifications.list&args=%7B%7D",
         "alice",
     );
-    assert_eq!(notifications.event()["data"], json!([]));
+    let seeded = notifications.event();
+    assert_eq!(seeded["state"], "complete", "{seeded}");
+    assert_eq!(seeded["data"].as_array().unwrap().len(), 1);
+    assert_eq!(seeded["data"][0]["outboxId"], "seed-outbox");
     let requeued = request(
         port,
         "POST",
@@ -107,9 +116,14 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
 
     let delivery = notifications.event();
     assert_eq!(delivery["state"], "complete", "{delivery}");
-    assert_eq!(delivery["data"].as_array().unwrap().len(), 1);
-    assert_eq!(delivery["data"][0]["outboxId"], outbox_id);
-    assert_eq!(delivery["data"][0]["providerId"], "provider-2");
+    assert_eq!(delivery["data"].as_array().unwrap().len(), 2);
+    let delivered = delivery["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["outboxId"] == outbox_id)
+        .expect("the effect delivery row must be present beside seed data");
+    assert_eq!(delivered["providerId"], "provider-2");
     assert_eq!(provider.hits(), 2);
     let final_status = wait_for(Duration::from_secs(5), || {
         let status = status(port, &secret);
@@ -155,8 +169,8 @@ export const list = query({}, ({ db }) =>
     .unwrap();
     let schema = root.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema).unwrap().replace(
-        "read: rule.deny(),\n    insert: rule.deny(),\n    update: rule.deny(),\n    delete: rule.deny(),",
-        "read: rule.public(\"test observes effect completion\"),\n    insert: rule.deny(),\n    update: rule.deny(),\n    delete: rule.deny(),",
+        "read: rule.deny(),\n    insert: rule.principal(\"system\"),",
+        "read: rule.public(\"test observes effect completion\"),\n    insert: rule.principal(\"system\"),",
     );
     fs::write(schema, source).unwrap();
 }

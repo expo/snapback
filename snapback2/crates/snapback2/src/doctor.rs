@@ -4,11 +4,10 @@
 use crate::client;
 use crate::owner;
 use crate::project::CompilerWorker;
-use snapback2_core::{Ceilings, Checker, spike_schema};
-use std::fs;
+use snapback2_core::{Ceilings, Checker, Store, spike_schema};
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
 pub fn run(json: bool) -> ExitCode {
     let started = Instant::now();
@@ -45,11 +44,20 @@ pub fn run(json: bool) -> ExitCode {
         Err(error) => (None, Some(error)),
     };
     let owner = owner_state();
-    let queued = owner
+    let live_queued = owner
         .as_ref()
         .and_then(|owner| owner.pointer("/effects/queued"))
-        .and_then(serde_json::Value::as_u64)
-        .unwrap_or(0);
+        .and_then(serde_json::Value::as_u64);
+    let queued = match live_queued {
+        Some(queued) => queued,
+        None => match persisted_queued() {
+            Ok(queued) => queued,
+            Err(error) => {
+                refused.push(format!("effects store: {error}"));
+                0
+            }
+        },
+    };
     let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
     let ok = refused.is_empty() && compiler_ok;
     if json {
@@ -108,36 +116,17 @@ pub fn run(json: bool) -> ExitCode {
 }
 
 fn compiler_proof() -> Result<PathBuf, String> {
-    let root = std::env::temp_dir().join(format!(
-        "snapback2-doctor-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    let authored = root.join("snapback");
-    fs::create_dir_all(&authored).map_err(|error| error.to_string())?;
-    fs::write(
-        authored.join("schema.ts"),
-        "import { schema } from 'snapback2'; export default schema({ auth: { password: true, guests: false }, tables: {} });\n",
-    )
-    .map_err(|error| error.to_string())?;
-    let result = (|| {
-        let mut worker = CompilerWorker::spawn()
-            .map_err(|error| format!("{}: {}", error.code, error.message))?;
-        let path = worker.path.clone();
-        worker.answers_compile(&root).map_err(|errors| {
-            errors
-                .into_iter()
-                .map(|error| format!("{}: {}", error.code, error.message))
-                .collect::<Vec<_>>()
-                .join("; ")
-        })?;
-        Ok(path)
-    })();
-    let _ = fs::remove_dir_all(root);
-    result
+    let mut worker =
+        CompilerWorker::spawn().map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let path = worker.path.clone();
+    worker.answers(&std::env::temp_dir()).map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|error| format!("{}: {}", error.code, error.message))
+            .collect::<Vec<_>>()
+            .join("; ")
+    })?;
+    Ok(path)
 }
 
 fn owner_state() -> Option<serde_json::Value> {
@@ -147,12 +136,24 @@ fn owner_state() -> Option<serde_json::Value> {
     (response.status == 200).then_some(response.body)
 }
 
-#[cfg(feature = "effects")]
-fn effects_description() -> &'static str {
-    snapback2_effects::describe()
+fn persisted_queued() -> Result<u64, String> {
+    let Ok(root) = crate::project::locate_root(None) else {
+        return Ok(0);
+    };
+    let path = root.join(".snapback/store.sqlite");
+    if !path.is_file() {
+        return Ok(0);
+    }
+    let queued = {
+        let store = Store::open(&path).map_err(|error| error.to_string())?;
+        store
+            .outbox_counts()
+            .map_err(|error| error.to_string())?
+            .queued
+    };
+    Ok(queued)
 }
 
-#[cfg(not(feature = "effects"))]
 fn effects_description() -> &'static str {
-    "none"
+    snapback2_effects::describe()
 }

@@ -85,6 +85,7 @@ struct EffectRuntime {
 pub struct Ibex2Host {
     runtimes: BTreeMap<RuntimeKey, EffectRuntime>,
     logs: Vec<EffectLog>,
+    available: bool,
 }
 
 impl Ibex2Host {
@@ -92,6 +93,7 @@ impl Ibex2Host {
         Ok(Self {
             runtimes: BTreeMap::new(),
             logs: Vec::new(),
+            available: engine_available(),
         })
     }
 
@@ -155,7 +157,11 @@ impl EffectHost for Ibex2Host {
     }
 
     fn describe(&self) -> &'static str {
-        "ibex2 + vanilla hermes"
+        if self.available {
+            "ibex2 + vanilla hermes"
+        } else {
+            "none"
+        }
     }
 
     fn generation_changed(&mut self) {
@@ -681,6 +687,15 @@ mod tests {
     use std::net::TcpListener;
     use std::sync::{Arc, Mutex};
 
+    #[test]
+    fn host_description_matches_the_engine_probe_captured_at_construction() {
+        let mut host = Ibex2Host::new().unwrap();
+        host.available = false;
+        assert_eq!(host.describe(), "none");
+        host.available = true;
+        assert_eq!(host.describe(), "ibex2 + vanilla hermes");
+    }
+
     struct TestServer {
         port: u16,
         hits: Arc<Mutex<Vec<String>>>,
@@ -761,6 +776,7 @@ mod tests {
             effect: "notifications.notify".to_owned(),
             payload,
             attempt: 1,
+            generation: Some("generation-1".to_owned()),
         }
     }
 

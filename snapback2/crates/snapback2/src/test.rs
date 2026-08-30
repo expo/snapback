@@ -25,21 +25,37 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 mod test_sse;
 
 pub fn run(args: &[String]) -> ExitCode {
-    let json_output = verbs::has(args, "--json");
-    if verbs::has(args, "--blocked") && verbs::flag(args, "--blocked").is_none() {
+    if args.iter().enumerate().any(|(index, arg)| {
+        arg == "--blocked"
+            && args
+                .get(index + 1)
+                .is_none_or(|value| value.starts_with("--"))
+    }) {
         return usage();
     }
-    let root = match locate_root(verbs::flag(args, "--project").map(Path::new)) {
+    let options = match verbs::parse_options(
+        args,
+        &["--blocked", "--project"],
+        &["--journeys-only", "--derived-only", "--json"],
+    ) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    if options.positionals().len() != 1 {
+        return usage();
+    }
+    let json_output = options.has("--json");
+    let root = match locate_root(options.value("--project").map(Path::new)) {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
     let stamp = timestamp();
-    if let Some(reason) = verbs::flag(args, "--blocked") {
+    if let Some(reason) = options.value("--blocked") {
         let receipt = TestReceipt::explicitly_blocked(reason);
         return finish(&root, stamp, receipt, json_output);
     }
-    let journeys_only = verbs::has(args, "--journeys-only");
-    let derived_only = verbs::has(args, "--derived-only");
+    let journeys_only = options.has("--journeys-only");
+    let derived_only = options.has("--derived-only");
     if journeys_only && derived_only {
         return usage();
     }
@@ -1405,4 +1421,8 @@ fn usage() -> ExitCode {
 
 #[cfg(test)]
 #[path = "test_unit.rs"]
+mod unit_tests;
+
+#[cfg(test)]
+#[path = "test_derived.rs"]
 mod derived_tests;

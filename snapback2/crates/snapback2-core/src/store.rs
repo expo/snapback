@@ -3,9 +3,9 @@
 
 use crate::engine::RuntimeError;
 use crate::registry::EffectDecl;
-use crate::value::{Value, canonical_json};
+use crate::value::Value;
 use rusqlite::backup::Backup;
-use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 #[cfg(unix)]
@@ -61,7 +61,7 @@ pub struct OutboxRow {
     pub attempts: u32,
     pub next_at: i64,
     pub last_error: Option<String>,
-    pub result: Option<Value>,
+    pub result: Option<serde_json::Value>,
     pub then_op: Option<String>,
     /// Project generation active when this row was claimed. The retained
     /// declaration metadata for that generation binds restart replay.
@@ -287,18 +287,60 @@ impl Store {
         Ok(counts)
     }
 
-    /// Claim the oldest ready row and bind it to the current effect
-    /// declaration. Selection, `running`, the attempt increment, and the
-    /// binding are committed together before the row leaves the writer.
+    /// Fail queued rows outside `declared_names`, then claim the oldest ready
+    /// declared row and bind it to the current effect declaration. Unknown
+    /// settlement, selection, `running`, the attempt increment, and the binding
+    /// are committed together before any row leaves the writer.
     // @ref LLP 1003#2-the-outbox-lifecycle — a claim is atomic and binds restart replay to its declaration.
-    pub fn outbox_claim_next(&self, now: i64) -> Result<Option<OutboxRow>, RuntimeError> {
+    pub fn outbox_claim_next(
+        &self,
+        now: i64,
+        declared_names: &[String],
+    ) -> Result<Option<OutboxRow>, RuntimeError> {
         let transaction = self.conn.unchecked_transaction()?;
+        let placeholders = (0..declared_names.len())
+            .map(|index| format!("?{}", index + 2))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let unknown_predicate = if declared_names.is_empty() {
+            String::new()
+        } else {
+            format!(" AND effect NOT IN ({placeholders})")
+        };
+        let unknown_sql = format!(
+            "UPDATE _outbox
+             SET state = 'failed', last_error = 'E_EFFECT_UNKNOWN', updated_at = ?1
+             WHERE state = 'queued'{unknown_predicate}"
+        );
+        transaction.execute(
+            &unknown_sql,
+            params_from_iter(
+                std::iter::once(&now as &dyn rusqlite::ToSql).chain(
+                    declared_names
+                        .iter()
+                        .map(|name| name as &dyn rusqlite::ToSql),
+                ),
+            ),
+        )?;
+        if declared_names.is_empty() {
+            transaction.commit()?;
+            return Ok(None);
+        }
+        let candidate_sql = format!(
+            "SELECT id, effect FROM _outbox
+             WHERE state = 'queued' AND next_at <= ?1 AND effect IN ({placeholders})
+             ORDER BY next_at ASC, created_at ASC, id ASC LIMIT 1"
+        );
         let candidate = transaction
             .query_row(
-                "SELECT id, effect FROM _outbox
-                 WHERE state = 'queued' AND next_at <= ?1
-                 ORDER BY next_at ASC, created_at ASC, id ASC LIMIT 1",
-                [now],
+                &candidate_sql,
+                params_from_iter(
+                    std::iter::once(&now as &dyn rusqlite::ToSql).chain(
+                        declared_names
+                            .iter()
+                            .map(|name| name as &dyn rusqlite::ToSql),
+                    ),
+                ),
                 |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
             )
             .optional()?;
@@ -319,19 +361,19 @@ impl Store {
             })
             .transpose()?
             .unwrap_or_default();
-        let declaration = effects.get(&effect);
-        let then_op = declaration.and_then(|declaration| declaration.then.as_deref());
-        let generation = if declaration.is_some() {
-            transaction
-                .query_row(
-                    "SELECT value FROM _meta WHERE key = 'generation'",
-                    [],
-                    |row| row.get::<_, String>(0),
-                )
-                .optional()?
-        } else {
-            None
-        };
+        let declaration = effects.get(&effect).ok_or_else(|| {
+            RuntimeError::Serialization(format!(
+                "declared effect {effect} is missing from current store metadata"
+            ))
+        })?;
+        let then_op = declaration.then.as_deref();
+        let generation = transaction
+            .query_row(
+                "SELECT value FROM _meta WHERE key = 'generation'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
         let changed = transaction.execute(
             "UPDATE _outbox
              SET state = 'running', attempts = attempts + 1,
@@ -352,7 +394,7 @@ impl Store {
         &self,
         id: &str,
         state: &str,
-        result: Option<&Value>,
+        result: Option<&serde_json::Value>,
         last_error: Option<&str>,
         next_at: Option<i64>,
     ) -> Result<(), RuntimeError> {
@@ -362,7 +404,10 @@ impl Store {
             )));
         }
         let now = unix_millis();
-        let result = result.map(canonical_json);
+        let result = result
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
         let changed = self.conn.execute(
             "UPDATE _outbox SET
                 state = ?1,
@@ -388,6 +433,35 @@ impl Store {
                 "outbox row {id} is not running"
             )))
         }
+    }
+
+    pub(crate) fn settle_then_transaction(
+        transaction: &rusqlite::Transaction<'_>,
+        id: &str,
+        last_error: Option<&str>,
+        updated_at: i64,
+    ) -> Result<(), RuntimeError> {
+        let changed = transaction.execute(
+            "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2
+             WHERE id = ?3 AND state = 'then_pending'",
+            params![last_error, updated_at, id],
+        )?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(RuntimeError::Input(format!(
+                "outbox row {id} is not then_pending"
+            )))
+        }
+    }
+
+    pub fn outbox_mark_queued_error(&self, error: &str) -> Result<u64, RuntimeError> {
+        let changed = self.conn.execute(
+            "UPDATE _outbox SET last_error = ?1, updated_at = ?2
+             WHERE state = 'queued' AND last_error IS NOT ?1",
+            params![error, unix_millis()],
+        )?;
+        Ok(changed as u64)
     }
 
     pub fn outbox_get(&self, id: &str) -> Result<Option<OutboxRow>, RuntimeError> {
@@ -418,14 +492,15 @@ impl Store {
         Ok(changed as u64)
     }
 
-    pub fn outbox_then_pending(&self) -> Result<Vec<OutboxRow>, RuntimeError> {
+    pub fn outbox_then_pending(&self, limit: usize) -> Result<Vec<OutboxRow>, RuntimeError> {
         let mut statement = self.conn.prepare(
             "SELECT id, seq, effect, payload, state, attempts, next_at,
                     last_error, result, then_op, generation, created_at, updated_at
              FROM _outbox WHERE state = 'then_pending'
-             ORDER BY created_at ASC, id ASC",
+             ORDER BY created_at ASC, id ASC LIMIT ?1",
         )?;
-        let rows = statement.query_map([], raw_outbox_row)?;
+        let rows =
+            statement.query_map([i64::try_from(limit).unwrap_or(i64::MAX)], raw_outbox_row)?;
         rows.map(|row| decode_outbox_row(row?)).collect()
     }
 
@@ -707,7 +782,7 @@ mod tests {
                         seq,
                         serde_json::to_string(&Value::String(id.to_owned())).unwrap(),
                         state,
-                        serde_json::to_string(&Value::Bool(true)).unwrap(),
+                        serde_json::to_string(&serde_json::json!(true)).unwrap(),
                     ],
                 )
                 .unwrap();
@@ -731,7 +806,7 @@ mod tests {
         );
         let queued = rows.iter().find(|row| row.id == "queued").unwrap();
         assert_eq!(queued.payload, Value::String("queued".to_owned()));
-        assert_eq!(queued.result, Some(Value::Bool(true)));
+        assert_eq!(queued.result, Some(serde_json::json!(true)));
     }
 }
 

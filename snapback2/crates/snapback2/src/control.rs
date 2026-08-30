@@ -37,25 +37,30 @@ pub fn route(
                 ),
             )));
         }
-        return Some(call(Action::OutboxRequeue { id: id.to_owned() }));
+        return Some(
+            context
+                .handle
+                .call(Action::OutboxRequeue { id: id.to_owned() })
+                .map_err(|error| {
+                    let status = if error.code == "E_EFFECT_NOT_FOUND" {
+                        404
+                    } else {
+                        400
+                    };
+                    (status, error)
+                }),
+        );
     }
     let result = match (method, path) {
         ("GET", "/control/status") => call(Action::Status),
         ("POST", "/control/apply") => {
             let project = body.get("project").cloned().unwrap_or(Json::Null);
             match certify_project_value(project) {
-                Ok(compiled) => {
-                    let generation = compiled.generation.hash.clone();
-                    let result = call(Action::Apply {
-                        compiled,
-                        migration: None,
-                        seed: None,
-                    });
-                    if result.is_ok() {
-                        crate::watch::update_owner_generation(&context.root, &generation);
-                    }
-                    result
-                }
+                Ok(compiled) => call(Action::Apply {
+                    compiled,
+                    migration: None,
+                    seed: None,
+                }),
                 Err(errors) => Err((400, first(errors))),
             }
         }
@@ -64,18 +69,11 @@ pub fn route(
             let plan: Result<MigrationPlan, _> =
                 serde_json::from_value(body.get("plan").cloned().unwrap_or(Json::Null));
             match (certify_project_value(project), plan) {
-                (Ok(compiled), Ok(plan)) => {
-                    let generation = compiled.generation.hash.clone();
-                    let result = call(Action::Apply {
-                        compiled,
-                        migration: Some(plan),
-                        seed: None,
-                    });
-                    if result.is_ok() {
-                        crate::watch::update_owner_generation(&context.root, &generation);
-                    }
-                    result
-                }
+                (Ok(compiled), Ok(plan)) => call(Action::Apply {
+                    compiled,
+                    migration: Some(plan),
+                    seed: None,
+                }),
                 (Err(errors), _) => Err((400, first(errors))),
                 (_, Err(error)) => Err((
                     400,
@@ -146,26 +144,42 @@ pub fn route(
         ("POST", "/control/clock") => call(Action::Clock {
             advance_ms: body.get("advanceMs").and_then(Json::as_i64).unwrap_or(0),
         }),
-        ("POST", "/control/data") => call(Action::Data {
-            table: body
-                .get("table")
-                .and_then(Json::as_str)
-                .unwrap_or_default()
-                .to_owned(),
-            index: body
-                .get("index")
-                .and_then(Json::as_str)
-                .unwrap_or("byId")
-                .to_owned(),
-            prefix: body.get("prefix").cloned().unwrap_or_else(|| json!([])),
-            limit: body.get("limit").and_then(Json::as_u64).unwrap_or(50) as u32,
-            identity: Identity::Persona(
-                body.get("as")
-                    .and_then(Json::as_str)
-                    .unwrap_or_default()
-                    .to_owned(),
-            ),
-        }),
+        ("POST", "/control/data") => {
+            let limit = body.get("limit").and_then(Json::as_u64).unwrap_or(50);
+            if !(1..=500).contains(&limit) {
+                Err((
+                    400,
+                    Refusal::new(
+                        "E_ARGS_LIMIT",
+                        "args",
+                        format!("data limit must be between 1 and 500, got {limit}"),
+                        "pass --limit 1..500",
+                        "args/data-limit",
+                    ),
+                ))
+            } else {
+                call(Action::Data {
+                    table: body
+                        .get("table")
+                        .and_then(Json::as_str)
+                        .unwrap_or_default()
+                        .to_owned(),
+                    index: body
+                        .get("index")
+                        .and_then(Json::as_str)
+                        .unwrap_or("byId")
+                        .to_owned(),
+                    prefix: body.get("prefix").cloned().unwrap_or_else(|| json!([])),
+                    limit: limit as u32,
+                    identity: Identity::Persona(
+                        body.get("as")
+                            .and_then(Json::as_str)
+                            .unwrap_or_default()
+                            .to_owned(),
+                    ),
+                })
+            }
+        }
         ("POST", "/control/verdicts") => {
             let table = body
                 .get("table")
@@ -177,10 +191,7 @@ pub fn route(
                 .and_then(Json::as_str)
                 .unwrap_or_default()
                 .to_owned();
-            call(Action::RuleVerdicts(
-                table,
-                Identity::Persona(persona.clone()),
-            ))
+            call(Action::RuleVerdicts(table, Identity::Persona(persona)))
         }
         ("POST", "/control/stop") => call(Action::Stop {
             cause: body

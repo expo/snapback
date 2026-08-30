@@ -78,7 +78,7 @@ export const notifications = table({
     read: rule.deny(),
     // @ref LLP 1003#2-the-outbox-lifecycle — effect continuations re-enter as system.
     insert: rule.principal("system"),
-    update: rule.deny(),
+    update: rule.principal("system"),
     delete: rule.deny(),
   },
 });

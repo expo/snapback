@@ -181,8 +181,8 @@ Control routes (loopback only, `X-Snapback-Control: <secret>` from
 `POST /control/fork { name }`, `GET /control/logs?since=<seq>&limit=`,
 `GET /control/personas`, `POST /control/persona { name }`,
 `POST /control/why { op, args, as }`, `GET /control/trace?seq=`,
-`GET /control/subscriptions`, `POST /control/verdicts { table, rows, as }`
-(the engine's per-row rule verdict under a persona — an ad-hoc certified read
+`GET /control/subscriptions`, `POST /control/verdicts { table, as }`
+(the engine's read-rule verdict for EVERY stored row of the table under a persona — an ad-hoc certified read
 that never touches the served generation; `test`'s rules check uses it),
 `POST /control/outbox/<id>/requeue`, `POST /control/clock { advanceMs }`,
 `POST /control/stop { cause }`.

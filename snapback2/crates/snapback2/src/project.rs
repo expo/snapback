@@ -160,16 +160,17 @@ impl CompilerWorker {
         })
     }
 
-    /// Doctor's liveness probe: an empty project may be refused by authored
-    /// policy, but a valid worker response proves the compile protocol answers.
-    pub fn answers_compile(&mut self, root: &Path) -> Result<(), Vec<Refusal>> {
-        let response = self.request("compile", root)?;
+    /// Doctor's liveness probe uses the worker's seed request: a structured
+    /// acceptance or refusal proves protocol custody without requiring the
+    /// probe root itself to be a valid application.
+    pub fn answers(&mut self, root: &Path) -> Result<(), Vec<Refusal>> {
+        let response = self.request("seed", root)?;
         if response.get("ok").and_then(Json::as_bool).is_some() {
             Ok(())
         } else {
             Err(vec![Refusal::owner(
                 "E_OWNER_COMPILER_PROTOCOL",
-                "compiler probe response omitted ok",
+                "compiler liveness probe was refused or omitted ok",
                 "reinstall snapback2 so the binary and compiler bundle match",
             )])
         }

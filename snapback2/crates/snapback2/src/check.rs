@@ -113,29 +113,37 @@ impl SerializableError {
 /// The explicit-schema request and ProjectJson share `{ schema, programs }`;
 /// additive project fields are intentionally ignored by serde.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — ProjectJson certification reports a result for every program.
-pub fn run(path: Option<&str>) -> ExitCode {
+pub fn run(path: Option<&str>, json: bool) -> ExitCode {
     let mut input = String::new();
     match path {
         Some(p) if p != "-" => {
             input = match std::fs::read_to_string(p) {
                 Ok(s) => s,
                 Err(e) => {
-                    return print_response(vec![refused_item(
-                        "<input>",
-                        SerializableError::input(p, format!("cannot read check input: {e}")),
-                    )]);
+                    return print_response_with_code(
+                        vec![refused_item(
+                            "<input>",
+                            SerializableError::input(p, format!("cannot read check input: {e}")),
+                        )],
+                        json,
+                        2,
+                    );
                 }
             }
         }
         _ => {
             if let Err(error) = io::stdin().read_to_string(&mut input) {
-                return print_response(vec![refused_item(
-                    "<input>",
-                    SerializableError::input(
-                        "<stdin>:1:1",
-                        format!("cannot read check input: {error}"),
-                    ),
-                )]);
+                return print_response_with_code(
+                    vec![refused_item(
+                        "<input>",
+                        SerializableError::input(
+                            "<stdin>:1:1",
+                            format!("cannot read check input: {error}"),
+                        ),
+                    )],
+                    json,
+                    2,
+                );
             }
         }
     }
@@ -145,23 +153,29 @@ pub fn run(path: Option<&str>) -> ExitCode {
                 "<input>",
                 SerializableError::input("<stdin>:1:1", "check --ir received empty input"),
             )],
+            json,
             2,
         );
     }
-    run_input(input)
+    run_input(input, json)
 }
 
-pub fn run_input(input: String) -> ExitCode {
+pub fn run_input(input: String, json: bool) -> ExitCode {
     let request: Request = match serde_json::from_str(&input) {
         Ok(request) => request,
         Err(error) => {
-            return print_response(vec![refused_item(
-                "<request>",
-                SerializableError::unsupported(
-                    "<request>:1:1",
-                    format!("check request JSON is not supported by this engine build: {error}"),
-                ),
-            )]);
+            return print_response(
+                vec![refused_item(
+                    "<request>",
+                    SerializableError::unsupported(
+                        "<request>:1:1",
+                        format!(
+                            "check request JSON is not supported by this engine build: {error}"
+                        ),
+                    ),
+                )],
+                json,
+            );
         }
     };
     let programs: Vec<(String, Result<Program, String>)> = request
@@ -205,7 +219,7 @@ pub fn run_input(input: String) -> ExitCode {
                     };
                     refused_item(&name, error)
                 }));
-                return print_response(results);
+                return print_response(results, json);
             }
         },
         None => match request.schema_mode {
@@ -239,7 +253,7 @@ pub fn run_input(input: String) -> ExitCode {
             },
         })
         .collect();
-    print_response(results)
+    print_response(results, json)
 }
 
 /// Compile and certify an authored project, then refresh its uncommitted build cache.
@@ -280,12 +294,9 @@ fn refused_item(program: &str, error: SerializableError) -> ResultItem {
     }
 }
 
-fn print_response(results: Vec<ResultItem>) -> ExitCode {
+fn print_response(results: Vec<ResultItem>, json: bool) -> ExitCode {
     let refused = results.iter().any(|item| item.error.is_some());
-    println!(
-        "{}",
-        serde_json::to_string(&Response { results }).expect("serialize check response")
-    );
+    print_results(results, json);
     if refused {
         ExitCode::from(1)
     } else {
@@ -293,12 +304,29 @@ fn print_response(results: Vec<ResultItem>) -> ExitCode {
     }
 }
 
-fn print_response_with_code(results: Vec<ResultItem>, code: u8) -> ExitCode {
-    println!(
-        "{}",
-        serde_json::to_string(&Response { results }).expect("serialize check response")
-    );
+fn print_response_with_code(results: Vec<ResultItem>, json: bool, code: u8) -> ExitCode {
+    print_results(results, json);
     ExitCode::from(code)
+}
+
+fn print_results(results: Vec<ResultItem>, json: bool) {
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string(&Response { results }).expect("serialize check response")
+        );
+        return;
+    }
+    for result in results {
+        if let Some(error) = result.error {
+            println!(
+                "refused {} {} — {}",
+                result.program, error.code, error.message
+            );
+        } else {
+            println!("ok {}", result.program);
+        }
+    }
 }
 
 fn synthetic_schema(programs: &[Program]) -> Schema {

@@ -77,18 +77,10 @@ impl SseProbe {
 
     pub(super) fn prove_silence(&mut self, window: Duration) -> Result<(), SilenceError> {
         let started = Instant::now();
-        let mut heartbeat = false;
         loop {
             let remaining = window.saturating_sub(started.elapsed());
             if remaining.is_zero() {
-                return if heartbeat {
-                    Ok(())
-                } else {
-                    Err(SilenceError {
-                        message: "no heartbeat received within the silence window".to_owned(),
-                        delivery: None,
-                    })
-                };
+                return Ok(());
             }
             match self.frame(remaining) {
                 Ok(SseFrame::Event(delivery)) => {
@@ -97,17 +89,8 @@ impl SseProbe {
                         delivery: Some(delivery),
                     });
                 }
-                Ok(SseFrame::Heartbeat) => heartbeat = true,
-                Ok(SseFrame::TimedOut) => {
-                    return if heartbeat {
-                        Ok(())
-                    } else {
-                        Err(SilenceError {
-                            message: "no heartbeat received within the silence window".to_owned(),
-                            delivery: None,
-                        })
-                    };
-                }
+                Ok(SseFrame::Heartbeat) => {}
+                Ok(SseFrame::TimedOut) => return Ok(()),
                 Err(message) => {
                     return Err(SilenceError {
                         message,

@@ -11,8 +11,8 @@ mod runner;
 
 pub use host::{EffectHost, EffectJob, EffectLog, NoEngine, Outcome, describe};
 pub use runner::{
-    DEFAULT_BUDGET, DEFAULT_DRAIN_LIMIT, Drained, OutboxAccess, OutboxError, OutboxSettlement,
-    PendingThen, Runner,
+    DEFAULT_BUDGET, DEFAULT_DRAIN_LIMIT, Drained, EffectDeclarations, OutboxAccess, OutboxError,
+    OutboxSettlement, PendingThen, Runner, ThenOutcome,
 };
 
 #[cfg(feature = "hermes")]
