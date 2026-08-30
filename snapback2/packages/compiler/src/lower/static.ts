@@ -1,10 +1,12 @@
 import ts from "typescript";
-import { expressionProperty, propertyName, unwrapCall, unwrapExpression } from "../syntax";
+import { expressionProperty, propertyName, snapbackCallName, unwrapCall, unwrapExpression } from "../syntax";
 
 export function callLeaf(node: ts.Expression | undefined): string | undefined {
   if (!node) return undefined;
   const call = unwrapCall(node);
   if (!call) return undefined;
+  const snapback = snapbackCallName(call);
+  if (snapback) return snapback;
   if (ts.isIdentifier(call.expression)) return call.expression.text;
   return ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
 }

@@ -674,17 +674,42 @@ function schemaDiagnostic(
   message: string,
 ): FrontendDiagnostic {
   const rewrite = code === "E_SCHEMA_ID_RESERVED"
-    ? "remove the authored id column/byId index; both are implicit"
+    ? "columns: {}"
     : code === "E_SCHEMA_CONSTRAINT"
-      ? "use { unique: 'byIndex' }, { cap: { by: ['field'], max: 2 } }, { appendOnly: true }, or { immutable: ['field'] }"
+      ? "{ appendOnly: true }"
       : code === "E_SCHEMA_INDEX_OPTION"
-        ? "use only { columns: ['field'], unique?: boolean }"
+        ? "indexes: {}"
         : code === "E_SCHEMA_MAINTAIN"
-          ? "use { count: 'source', by: ['field'], into: 'target' } or { sum: { source: 'source', of: 'amount' }, by: ['field'], into: 'target' }"
-          : module.source;
+          ? "maintains: []"
+          : schemaDeclarationRewrite(node);
   return diagnostic(module, code, node, message, rewrite);
 }
 
 function ruleDiagnostic(module: SchemaModule, node: ts.Node, message: string): FrontendDiagnostic {
-  return diagnostic(module, "E_RULE_INVALID", node, message, module.source);
+  return diagnostic(module, "E_RULE_INVALID", node, message, "rule.allow()");
+}
+
+function schemaDeclarationRewrite(node: ts.Node): string {
+  let current: ts.Node | undefined = node;
+  while (current) {
+    if (ts.isVariableDeclaration(current) && ts.isIdentifier(current.name)) {
+      const call = current.initializer && unwrapCall(current.initializer);
+      const kind = call && callLeaf(call);
+      const callee = call?.expression.getText() ?? kind;
+      if (kind === "channel") {
+        const prefix = callee?.endsWith(".channel") ? callee.slice(0, -"channel".length) : "";
+        return `export const ${current.name.text} = ${callee}({ args: {}, publish: ${prefix}rule.allow(), subscribe: ${prefix}rule.allow(), ttlMs: 4000 });`;
+      }
+      if (kind === "table") {
+        const name = current.name.text.startsWith("_") ? "rows" : current.name.text;
+        return `export const ${name} = ${callee}({ columns: {} });`;
+      }
+    }
+    if (ts.isExportAssignment(current)) {
+      const call = unwrapCall(current.expression);
+      return `export default ${call?.expression.getText() ?? "schema"}({ tables: {} });`;
+    }
+    current = current.parent;
+  }
+  return "export default schema({ tables: {} });";
 }

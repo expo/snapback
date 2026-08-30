@@ -1,6 +1,40 @@
 import ts from "typescript";
 import type { Expr, Value } from "./ir";
 
+export type SnapbackSymbol = "query" | "mutation" | "effect" | "channel" | "table" | "schema" | "seed" | "emit";
+
+const snapbackSymbols = new Set<SnapbackSymbol>([
+  "query", "mutation", "effect", "channel", "table", "schema", "seed", "emit",
+]);
+
+export function snapbackCallName(call: ts.CallExpression, sourceFile = call.getSourceFile()): SnapbackSymbol | undefined {
+  const named = new Map<string, SnapbackSymbol>();
+  const namespaces = new Set<string>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
+      || statement.moduleSpecifier.text !== "snapback2") continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const item of bindings.elements) {
+        const imported = item.propertyName?.text ?? item.name.text;
+        if (snapbackSymbols.has(imported as SnapbackSymbol)) named.set(item.name.text, imported as SnapbackSymbol);
+      }
+    } else if (bindings && ts.isNamespaceImport(bindings)) {
+      namespaces.add(bindings.name.text);
+    }
+  }
+  if (ts.isIdentifier(call.expression)) {
+    return named.get(call.expression.text)
+      ?? (snapbackSymbols.has(call.expression.text as SnapbackSymbol) ? call.expression.text as SnapbackSymbol : undefined);
+  }
+  if (ts.isPropertyAccessExpression(call.expression) && ts.isIdentifier(call.expression.expression)
+    && namespaces.has(call.expression.expression.text)
+    && snapbackSymbols.has(call.expression.name.text as SnapbackSymbol)) {
+    return call.expression.name.text as SnapbackSymbol;
+  }
+  return undefined;
+}
+
 export function findAncestor<T extends ts.Node>(node: ts.Node, predicate: (node: ts.Node) => node is T): T | undefined {
   let parent = node.parent;
   while (parent) {
@@ -96,8 +130,7 @@ export function isFunctionLike(node: ts.Node): node is ts.ArrowFunction | ts.Fun
 export function isEffectFunction(node: ts.Node): boolean {
   let current: ts.Node | undefined = node.parent;
   while (current && !ts.isSourceFile(current)) {
-    if (ts.isCallExpression(current) && ts.isIdentifier(current.expression)
-      && current.expression.text === "effect") return true;
+    if (ts.isCallExpression(current) && snapbackCallName(current) === "effect") return true;
     if (ts.isVariableStatement(current)) return false;
     current = current.parent;
   }

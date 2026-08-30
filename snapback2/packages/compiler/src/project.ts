@@ -46,6 +46,18 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   const schemaFileName = relativeSite(projectRoot, schemaPath);
   const schema = lowerSchema(schemaSource, schemaFileName);
   const diagnostics = [...schema.diagnostics];
+  if (modules.length === 0) {
+    diagnostics.push(typeDiagnostic(
+      "E_OP_NONE",
+      "op",
+      schemaFileName,
+      1,
+      1,
+      "module exports no query/mutation/effect",
+      "export const operation = query({}, ({ args }) => args);",
+      "programs/operations",
+    ));
+  }
 
   const libText = loadCompilerLib();
   const checked = createProjectProgram(schemaPath, schemaSource, moduleSources, libText);
@@ -213,17 +225,38 @@ function projectTypeDiagnostics(program: ts.Program, projectRoot: string): Front
     const message = ts.flattenDiagnosticMessageText(item.messageText, "\n");
     const node = item.start === undefined ? item.file : findNarrowestNode(item.file, item.start);
     const effectThen = ancestorProperty(node, "then");
+    const siteKind = effectThen ? undefined : typeDiagnosticSite(node, file);
     return [typeDiagnostic(
-      effectThen ? "E_EFFECT_THEN_ARGS" : "E_ARGS_TYPE",
-      effectThen ? "effect" : "args",
+      effectThen ? "E_EFFECT_THEN_ARGS" : siteKind!.code,
+      effectThen ? "effect" : siteKind!.family,
       file,
       position.line + 1,
       position.character + 1,
       message,
       item.file.text,
-      effectThen ? "effects/authoring" : "programs/args",
+      effectThen ? "effects/authoring" : siteKind!.guide,
     )];
   });
+}
+
+function typeDiagnosticSite(
+  node: ts.Node,
+  file: string,
+): { code: "E_SCHEMA_INVALID" | "E_EFFECT_TYPE" | "E_ARGS_TYPE" | "E_OPAQUE"; family: FrontendDiagnostic["family"]; guide: string } {
+  if (file === "snapback/schema.ts" || file.endsWith("/schema.ts")) {
+    return { code: "E_SCHEMA_INVALID", family: "schema", guide: "schema/project" };
+  }
+  const declaration = ancestor(node, ts.isVariableDeclaration);
+  const call = declaration?.initializer && unwrapCall(declaration.initializer);
+  const kind = call && callLeaf(call);
+  if (kind === "effect") return { code: "E_EFFECT_TYPE", family: "effect", guide: "effects/authoring" };
+  if (call && (kind === "query" || kind === "mutation")) {
+    const args = call.arguments[0];
+    if (args && node.getStart() >= args.getStart() && node.getEnd() <= args.getEnd()) {
+      return { code: "E_ARGS_TYPE", family: "args", guide: "programs/args" };
+    }
+  }
+  return { code: "E_OPAQUE", family: "opaque", guide: "opaque/subset" };
 }
 
 function collectOperations(modules: SourceModule[]): Map<string, OperationDecl & { module: SourceModule }> {
@@ -294,9 +327,29 @@ function generateApiDts(
     items.push(`      readonly ${quoteProperty(operation.exportName)}: Op<${argsText}, ${resultText}>;`);
     grouped.set(operation.moduleName, items);
   }
+  const rowTypes = [...tables.values()]
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map(apiRowType)
+    .join("\n");
   const modulesText = [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([name, items]) =>
     `    readonly ${quoteProperty(name)}: {\n${items.join("\n")}\n    };`).join("\n");
-  return `import type { Decimal, Money } from 'snapback2';\nimport type { Op } from 'snapback2/client';\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${modulesText}\n  }\n}\n\nexport {};\n`;
+  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${modulesText}\n  }\n}\n\nexport {};\n`;
+}
+
+function apiRowType(table: TableInfo): string {
+  const fields = Object.entries(table.columns ?? {}).map(([name, type]) => {
+    const optional = type.kind === "optional";
+    return `  ${quoteProperty(name)}${optional ? "?" : ""}: ${apiAuthoredType(optional ? type.of : type)};`;
+  });
+  if (!fields.some((field) => /^  id[?:]/.test(field))) fields.unshift("  id: string;");
+  return `type ${apiRowName(table.name)} = {\n${fields.join("\n")}\n};`;
+}
+
+function apiRowName(table: string): string {
+  const pascal = table.split(/[^A-Za-z0-9]+/).filter(Boolean)
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join("");
+  return `${pascal || "Table"}Row`;
 }
 
 function checkedOperationCall(program: ts.Program, operation: OperationDecl): ts.CallExpression | undefined {
@@ -434,6 +487,15 @@ function apiExpressionType(
   }
   if (ts.isCallExpression(value)) {
     const name = callLeaf(value);
+    if ((name === "scan" || name === "get") && value.arguments[0]) {
+      const table = apiTable(value.arguments[0], tables);
+      if (table) {
+        return {
+          text: name === "scan" ? `Page<${apiRowName(table.name)}>` : `${apiRowName(table.name)} | null`,
+          special: true,
+        };
+      }
+    }
     if (name === "decimal") {
       return { text: `Decimal<${numberValue(value.arguments[1]) ?? "number"}>`, special: true };
     }
@@ -459,11 +521,25 @@ function uniqueColumnType(name: string, tables: Map<string, TableInfo>): Authore
 }
 
 function apiAuthoredType(value: AuthoredType): string {
+  if (value.kind === "int") return "number";
+  if (value.kind === "string") return "string";
+  if (value.kind === "bool") return "boolean";
+  if (value.kind === "json") return "Json";
   if (value.kind === "decimal") {
     return value.currency ? `Money<${JSON.stringify(value.currency)}, ${value.scale}>` : `Decimal<${value.scale}>`;
   }
   if (value.kind === "enum") return value.variants.map((item) => JSON.stringify(item)).join(" | ") || "never";
+  if (value.kind === "list") return `${apiAuthoredType(value.of)}[]`;
+  if (value.kind === "optional") return apiAuthoredType(value.of);
+  if (value.kind === "row") return apiRowName(value.table);
   return "unknown";
+}
+
+function apiTable(node: ts.Expression, tables: Map<string, TableInfo>): TableInfo | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) return tables.get(value.text);
+  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) return tables.get(value.expression.text);
+  return undefined;
 }
 
 function staticSeedValue(object: ts.ObjectLiteralExpression): unknown {

@@ -1,12 +1,16 @@
-import { mkdir, readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { lowerSource, typecheckSource } from "./compiler";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
 import { assessGauntlet } from "./gauntlet";
 import type { Program, ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
+import * as clientStub from "../../snapback2/src/client";
+import * as reactStub from "../../snapback2/src/react";
+import * as journeyStub from "../../snapback2/src/test";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -37,6 +41,20 @@ function dequalify(value: unknown): any {
     return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, dequalify(item)]));
   }
   return typeof value === "string" && value.startsWith("programs.") ? value.slice("programs.".length) : value;
+}
+
+async function withProject<T>(files: Record<string, string>, run: (root: string) => Promise<T>): Promise<T> {
+  const root = await mkdtemp(join(tmpdir(), "snapback2-compiler-"));
+  try {
+    for (const [path, source] of Object.entries(files)) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, source);
+    }
+    return await run(root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
 
 const corpusFiles = [
@@ -146,6 +164,176 @@ test("bound and collection callback fixtures still certify", async () => {
   assert(rustCheck(subset.programs, "synthetic").every((result) => result.error === null), "collection/write-callback surface did not certify");
 });
 
+test("object and array spreads lower only from static shapes and preserve override order", () => {
+  const tables = new Map<string, TableInfo>([["todos", {
+    name: "todos",
+    private: false,
+    columns: {
+      id: { kind: "string" }, title: { kind: "string" }, note: { kind: "string" },
+      ownerId: { kind: "string" }, done: { kind: "bool" },
+    },
+  }]]);
+  const objectSource = `import { mutation, t } from "snapback2";
+    export const add = mutation({ id: t.id(), title: t.text(100) }, ({ db, ctx, args }) => {
+      const defaults = { title: "default", done: true };
+      const current = db.get(todos, args.id);
+      return db.insert(todos, { ...defaults, ...current, ...args, id: ctx.newId(), ownerId: ctx.viewer, done: false });
+    });`;
+  const object = lowerSource(objectSource, "spread-object.ts", undefined, { tables });
+  assert(object.ok, `static object spreads refused: ${object.ok ? "" : object.diagnostics[0]?.message}`);
+  const encoded = canonical(object.programs[0]);
+  assert(encoded.includes('"title":{"Variable":"title"}'), "later args spread did not override earlier title fields");
+  assert(encoded.includes('"note":{"Field":{"base":{"Variable":"current"},"name":"note"}}'), "row-read spread did not expand its schema fields");
+  assert(encoded.includes('"done":{"Literal":{"Bool":false}}'), "later explicit field did not override spread fields");
+
+  const arraySource = `import { query, t } from "snapback2";
+    export const list = query({ values: t.list(t.text(20), { max: 3 }) }, ({ args }) => {
+      const prefix = ["first"];
+      return [...prefix, ...args.values, "last"];
+    });`;
+  const array = lowerSource(arraySource, "spread-array.ts");
+  assert(array.ok && canonical(array.programs[0]).includes('"Concat"'), "bounded array spreads did not lower in order");
+
+  const opaqueObject = lowerSource(`import { mutation, t } from "snapback2";
+    export const bad = mutation({ title: t.text(20) }, ({ db, args }) => {
+      const value = args.title;
+      return db.insert(todos, { ...value });
+    });`, "opaque-object-spread.ts", undefined, { tables });
+  assert(!opaqueObject.ok && opaqueObject.diagnostics[0]?.code === "E_OPAQUE"
+    && opaqueObject.diagnostics[0].rewrite.includes("value.field"), "opaque object spread was not refused with an explicit-field rewrite");
+
+  const opaqueArray = lowerSource(`import { query, t } from "snapback2";
+    export const bad = query({ value: t.text(20) }, ({ args }) => [...args.value]);`, "opaque-array-spread.ts");
+  assert(!opaqueArray.ok && opaqueArray.diagnostics[0]?.code === "E_OPAQUE"
+    && opaqueArray.diagnostics[0].rewrite.includes("args.value[0]"), "opaque array spread was not refused with an explicit-element rewrite");
+});
+
+test("snapback2 constructors resolve through named aliases and namespace imports, while empty modules refuse", async () => {
+  await withProject({
+    "snapback/schema.ts": `import * as sb from "snapback2";
+      export const todos = sb.table({ columns: { value: sb.t.text(100) } });
+      export const typing = sb.channel({ args: {}, publish: sb.rule.allow(), subscribe: sb.rule.allow(), ttlMs: 4000 });
+      export default sb.schema({ tables: { todos }, channels: { typing } });`,
+    "snapback/ops.ts": `import * as sb from "snapback2";
+      import { mutation as mutate, effect as fx, emit as send } from "snapback2";
+      import { todos } from "./schema";
+      export const list = sb.query({}, ({ db }) => db.scan(todos.byId, [], { take: 5 }));
+      export const notify = fx({ grants: ["https://api.example.com"], run: async (payload: { value: string }) => payload });
+      export const add = mutate({ value: sb.t.text(100) }, ({ db, ctx, args }) => {
+        db.insert(todos, { id: ctx.newId(), value: args.value });
+        send(notify, { value: args.value });
+        return true;
+      });`,
+    "snapback/seed.ts": `import * as sb from "snapback2";
+      export default sb.seed({ personas: ["alice"], rows: { todos: [] } });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `aliased project refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    assert(project.project.programs.length === 2 && project.project.effects[0]?.name === "ops.notify", "aliased/namespace operation or effect was omitted");
+    assert(canonical(project.project.programs).includes('"effect":"ops.notify"'), "aliased emit did not resolve the qualified effect");
+    assert("typing" in project.project.schema.channels, "namespace channel/schema/table constructors were not recognized");
+    const seed = await lowerSeed(root);
+    assert(seed.ok && seed.seed.personas[0] === "alice", "namespace seed constructor was not recognized");
+  });
+
+  const empty = lowerSource("export const helper = 1;", "empty.ts");
+  assert(!empty.ok && empty.diagnostics[0]?.code === "E_OP_NONE"
+    && empty.diagnostics[0]?.message === "module exports no query/mutation/effect", "empty program module silently succeeded");
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+  }, async (root) => {
+    const emptyProject = await lowerProject(root);
+    assert(!emptyProject.ok && emptyProject.diagnostics.some((item) => item.code === "E_OP_NONE"), "schema-only project silently succeeded");
+  });
+});
+
+test("effect globals are available with the one-parameter run form", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/notify.ts": `import { effect } from "snapback2";
+      export const notify = effect({ grants: ["https://api.example.com"], run: async (payload: { value: string }) => {
+        const response = await fetch("https://api.example.com/send");
+        console.log(JSON.stringify(payload), Math.max(1, 2), Date.now(), new URL("https://api.example.com").origin,
+          new TextEncoder().encode(payload.value), new TextDecoder().decode(), btoa("x"), atob("eA=="),
+          Promise.resolve(1), new Error("x").message, crypto.randomUUID());
+        setTimeout(() => {}, 0);
+        return { ok: response.ok, id: meta.id };
+      } });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `one-parameter effect globals refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    assert(project.project.effects.length === 1, "one-parameter effect did not lower");
+  });
+});
+
+test("compiler lowering is split below the one-thousand-line source budget", async () => {
+  const compilerLines = (await readFile(`${frontend}src/compiler.ts`, "utf8")).split("\n").length - 1;
+  const expressionLines = (await readFile(`${frontend}src/lower/expr.ts`, "utf8")).split("\n").length - 1;
+  assert(compilerLines <= 1000 && expressionLines <= 1000, `compiler split regressed: compiler=${compilerLines}, expr=${expressionLines}`);
+});
+
+test("project type diagnostics choose schema, args, opaque, and effect families by site", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const rows = table({ columns: { parentId: t.ref("rows") } });
+      export default schema({ tables: { rows } });`,
+    "snapback/ops.ts": `import { query, t } from "snapback2";
+      export const badArgs = query({ value: t.int(1) }, () => 0);
+      export const badBody = query({}, () => missingValue);`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      export const badEffect = effect({ grants: [123], run: async (_payload: null) => null });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(!project.ok, "type-family fixture unexpectedly compiled");
+    const has = (file: string, code: string, family: string) => project.diagnostics.some((item) =>
+      item.site.startsWith(`snapback/${file}:`) && item.code === code && item.family === family);
+    assert(has("schema.ts", "E_SCHEMA_INVALID", "schema"), "schema type error did not use the schema family");
+    assert(has("ops.ts", "E_ARGS_TYPE", "args"), "operation argument error did not use the args family");
+    assert(has("ops.ts", "E_OPAQUE", "opaque"), "program body type error did not use the opaque family");
+    assert(has("effects.ts", "E_EFFECT_TYPE", "effect"), "effect declaration type error did not use the effect family");
+  });
+});
+
+test("client, React, and test placeholders import safely and refuse only when called", () => {
+  for (const [surface, module] of [["client", clientStub], ["react", reactStub], ["test", journeyStub]] as const) {
+    const exports = Object.entries(module);
+    assert(exports.length > 0, `${surface} placeholder has no callable exports`);
+    for (const [name, value] of exports) {
+      assert(typeof value === "function", `${surface}.${name} is not a callable placeholder`);
+      let code: unknown;
+      try {
+        value();
+      } catch (error) {
+        code = (error as { code?: unknown }).code;
+      }
+      assert(code === "E_NOT_BUILT", `${surface}.${name} did not refuse with E_NOT_BUILT when called`);
+    }
+  }
+});
+
+test("schema and effect refusals rewrite only the failing declaration", async () => {
+  const schemaSource = `import { schema, table, t } from "snapback2";
+    export const unrelated = table({ columns: { value: t.text(20) } });
+    export const broken = table({ columns: { value: t.text(20) }, constraints: [{ mystery: true }] });
+    export default schema({ tables: { unrelated, broken } });`;
+  const schema = lowerSchema(schemaSource, "snapback/schema.ts");
+  const schemaRefusal = schema.diagnostics.find((item) => item.code === "E_SCHEMA_CONSTRAINT");
+  assert(schemaRefusal && schemaRefusal.rewrite !== schemaSource && !schemaRefusal.rewrite.includes("unrelated"), "schema rewrite included the whole file");
+
+  await withProject({
+    "snapback/schema.ts": `import { schema } from "snapback2"; export default schema({ tables: {} });`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      export const unrelated = effect({ grants: ["https://api.example.com"], run: async (_payload: null) => null });
+      export const broken = effect({ grants: [], run: async (_payload: null) => null });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(!project.ok, "invalid effect fixture unexpectedly compiled");
+    const effectRefusal = project.diagnostics.find((item) => item.code === "E_EFFECT_GRANT");
+    assert(effectRefusal && effectRefusal.rewrite.includes("export const broken = effect")
+      && !effectRefusal.rewrite.includes("unrelated"), "effect rewrite included the whole file");
+  });
+});
+
 test("chat and todos lower schema, channels, effects, emit, API types, seed, and journeys", async () => {
   const chat = await lowerProject(`${frontend}fixtures/chat`);
   assert(chat.ok, `chat refused: ${chat.ok ? "" : chat.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
@@ -153,14 +341,16 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
+  assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
   const send = chat.project.programs.find((program) => program.name === "messages.send")!;
   assert(canonical(send).includes('"Emit"'), "emit did not lower into the mutation IR");
   assert(chat.apiDts.includes("messages") && chat.apiDts.includes("Op<{ conversationId: string"), "chat API declaration missing inferred types");
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Decimal, Money } from 'snapback2'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Decimal, Json, Money, Page } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
+  assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
   const seed = await lowerSeed(`${frontend}fixtures/chat`);
   assert(seed.ok && seed.seed.personas.length === 2 && seed.seed.rows.profiles?.length === 2, "chat seed did not lower");
@@ -316,7 +506,7 @@ test("worker survives a refused compile and serves the next request under Node",
     && responses[2]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
 });
 
-test("binary check accepts explicit schema requests and ProjectJson files", async () => {
+test("binary check reads IR only from stdin or --ir, never --project", async () => {
   const built = Bun.spawnSync({ cmd: ["cargo", "build", "-p", "snapback2"], cwd: crate, stdout: "pipe", stderr: "pipe" });
   assert(built.exitCode === 0, `cargo build failed: ${new TextDecoder().decode(built.stderr)}`);
   const chat = await lowerProject(`${frontend}fixtures/chat`);
@@ -325,12 +515,14 @@ test("binary check accepts explicit schema requests and ProjectJson files", asyn
   await mkdir(buildDir, { recursive: true });
   const projectPath = `${buildDir}/project.json`;
   await Bun.write(projectPath, JSON.stringify(chat.project));
-  const checked = runBinaryCheck(["--project", projectPath]);
+  const checked = runBinaryCheck(["--ir", projectPath]);
   const checkedRefusals = checked.results.filter((item: any) => item.error);
   assert(checked.exitCode === (checkedRefusals.length > 0 ? 1 : 0), `project check exit did not match its refusals: ${checked.stderr}`);
   assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
   assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
   assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
+  const collided = runBinaryCheck(["--project", projectPath]);
+  assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
 
   const unsupportedProgram = runBinaryCheck([], {
     schemaMode: "synthetic",

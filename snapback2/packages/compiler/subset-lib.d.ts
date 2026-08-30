@@ -59,6 +59,7 @@ declare function btoa(value: string): string;
 declare function atob(value: string): string;
 declare function setTimeout(callback: () => void, ms: number): number;
 declare function fetch(input: string, init?: unknown): Promise<{ ok: boolean; status: number; json(): Promise<any>; text(): Promise<string> }>;
+declare const meta: { readonly id: string; readonly effect?: string; readonly attempt?: number };
 declare function eval(source: string): unknown;
 declare const crypto: { randomUUID(): string };
 declare class Error { constructor(message?: string); readonly message: string; }

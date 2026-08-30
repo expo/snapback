@@ -106,7 +106,7 @@ impl SerializableError {
     }
 }
 
-/// `snapback2 check [request.json]` or `snapback2 check --project project.json`.
+/// `snapback2 check` over stdin or `snapback2 check --ir project.json`.
 /// The explicit-schema request and ProjectJson share `{ schema, programs }`;
 /// additive project fields are intentionally ignored by serde.
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — ProjectJson certification reports a result for every program.

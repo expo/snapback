@@ -23,15 +23,23 @@ fn main() -> ExitCode {
         }
         Some("doctor") => doctor::run(json),
         Some("check") => {
-            let project = args
+            let ir = args
                 .windows(2)
-                .find(|pair| pair[0] == "--project")
+                .find(|pair| pair[0] == "--ir")
                 .map(|pair| pair[1].as_str());
-            check::run(project.or_else(|| positional.get(1).copied()))
+            if args.iter().any(|arg| arg == "--project")
+                || (args.iter().any(|arg| arg == "--ir") && ir.is_none())
+                || (!args.iter().any(|arg| arg == "--ir") && positional.len() > 1)
+            {
+                eprintln!("usage: snapback2 check [--ir project.json] [--json]");
+                ExitCode::from(2)
+            } else {
+                check::run(ir)
+            }
         }
         _ => {
             eprintln!(
-                "usage: snapback2 <version | doctor | check [request.json] | check --project project.json> [--json]"
+                "usage: snapback2 <version | doctor | check [--ir project.json]> [--json]"
             );
             ExitCode::from(2)
         }

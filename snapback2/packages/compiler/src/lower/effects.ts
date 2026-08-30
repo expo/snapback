@@ -151,8 +151,8 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   const constants = moduleJsonConstants(module.sourceFile);
   const allowed = new Set([
     ...constants.keys(),
-    "console", "JSON", "Math", "Date", "URL", "TextEncoder", "TextDecoder", "btoa", "atob",
-    "setTimeout", "Promise", "crypto", "Error", "undefined", "NaN", "Infinity",
+    "fetch", "meta", "console", "JSON", "Math", "Date", "URL", "TextEncoder", "TextDecoder",
+    "btoa", "atob", "setTimeout", "Promise", "Error", "crypto", "undefined", "NaN", "Infinity",
   ]);
   let escaped: ts.Identifier | undefined;
   walk(run.body, (node) => {
@@ -260,5 +260,15 @@ function effectDiagnostic(
   node: ts.Node,
   message: string,
 ): FrontendDiagnostic {
-  return diagnostic(module, code, node, message, module.source);
+  let current: ts.Node | undefined = node;
+  while (current && !ts.isVariableDeclaration(current)) current = current.parent;
+  const name = current && ts.isVariableDeclaration(current) && ts.isIdentifier(current.name)
+    ? current.name.text
+    : "effectName";
+  const call = current && ts.isVariableDeclaration(current) && current.initializer
+    ? unwrapCall(current.initializer)
+    : undefined;
+  const callee = call?.expression.getText(module.sourceFile) ?? "effect";
+  const rewrite = `export const ${name} = ${callee}({ grants: ["https://api.example.com"], run: async (_payload: null) => null });`;
+  return diagnostic(module, code, node, message, rewrite);
 }
