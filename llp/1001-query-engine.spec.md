@@ -191,7 +191,11 @@ additive path, in the same transaction, so a refusal rolls the drops back too
 (review ruling 2026-08-30, round 2 G1). Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
-**Maintained-target rows are engine-owned** (ruling 2026-08-30, round 3 M3).
+**Seed writes and maintained-target rows are engine-owned** (rulings
+2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
+from the tables' user rules (never from constraints, unique indexes, or
+column validation) — a seed is data the author declared, not a client
+intent. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
