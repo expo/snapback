@@ -8,8 +8,8 @@ import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
 import { decimal } from "../../snapback2/src/index";
-import * as clientStub from "../../snapback2/src/client";
-import * as reactStub from "../../snapback2/src/react";
+import * as clientSurface from "../../snapback2/src/client";
+import * as reactSurface from "../../snapback2/src/react";
 import * as journeyStub from "../../snapback2/src/test";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
@@ -294,20 +294,20 @@ test("project type diagnostics choose schema, args, opaque, and effect families 
   });
 });
 
-test("client, React, and test placeholders import safely and refuse only when called", () => {
-  for (const [surface, module] of [["client", clientStub], ["react", reactStub], ["test", journeyStub]] as const) {
-    const exports = Object.entries(module);
-    assert(exports.length > 0, `${surface} placeholder has no callable exports`);
-    for (const [name, value] of exports) {
-      assert(typeof value === "function", `${surface}.${name} is not a callable placeholder`);
-      let code: unknown;
-      try {
-        value();
-      } catch (error) {
-        code = (error as { code?: unknown }).code;
-      }
-      assert(code === "E_NOT_BUILT", `${surface}.${name} did not refuse with E_NOT_BUILT when called`);
+test("client and React surfaces import while the journey runner remains an explicit placeholder", () => {
+  assert(clientSurface.api.messages.thread.op === "messages.thread", "client API proxy did not qualify an operation");
+  assert(typeof clientSurface.createClient === "function", "headless client is absent");
+  for (const name of ["SnapbackProvider", "DevOverlay", "useQuery", "useMutation", "useAuth", "useChannel"]) {
+    assert(typeof reactSurface[name as keyof typeof reactSurface] === "function", `React ${name} is absent`);
+  }
+  for (const [name, value] of Object.entries(journeyStub)) {
+    let code: unknown;
+    try {
+      value();
+    } catch (error) {
+      code = (error as { code?: unknown }).code;
     }
+    assert(code === "E_NOT_BUILT", `test.${name} did not refuse with E_NOT_BUILT when called`);
   }
 });
 

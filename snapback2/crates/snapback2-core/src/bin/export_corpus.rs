@@ -240,6 +240,106 @@ fn add_named_cases(cases: &mut Vec<CorpusCase>) {
     ] {
         cases.push(mutation_case(name, "named", program, context));
     }
+    cases.push(named_emit_case());
+}
+
+// @ref LLP 1001#8-emit-and-the-outbox — the frozen twin case pins the no-op/one-id replay contract after a durable insert.
+fn named_emit_case() -> CorpusCase {
+    let public = RuleExpr::Public {
+        reason: "emit corpus fixture".to_owned(),
+    };
+    let schema = Schema {
+        tables: BTreeMap::from([(
+            "events".to_owned(),
+            Table {
+                columns: BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("body".to_owned(), ColumnType::Text { max: 64 }),
+                ]),
+                indexes: BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+                rules: Rules {
+                    read: public.clone(),
+                    insert: public.clone(),
+                    update: public.clone(),
+                    delete: public,
+                },
+                constraints: Vec::new(),
+            },
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: vec!["notifications.notify".to_owned()],
+    };
+    let event = |id: &str| {
+        Expr::Object(BTreeMap::from([
+            ("id".to_owned(), Expr::Variable(id.to_owned())),
+            ("body".to_owned(), Expr::Variable("body".to_owned())),
+        ]))
+    };
+    let program = Program {
+        name: "emitAfterInsert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("body".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Const {
+                name: "firstId".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Insert {
+                table: "events".to_owned(),
+                row: event("firstId"),
+            },
+            Stmt::Emit {
+                effect: "notifications.notify".to_owned(),
+                payload: Expr::Variable("firstId".to_owned()),
+            },
+            Stmt::Const {
+                name: "secondId".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Insert {
+                table: "events".to_owned(),
+                row: event("secondId"),
+            },
+            Stmt::Return(Expr::Array(vec![
+                Expr::Variable("firstId".to_owned()),
+                Expr::Variable("secondId".to_owned()),
+            ])),
+        ],
+    };
+    let context = mutation_context(
+        [("body", text("hello with effect"))],
+        [
+            "named-emit-message",
+            "named-emit-outbox",
+            "named-emit-followup",
+        ],
+    );
+    let mut server = Engine::memory(schema.clone()).expect("emit fixture engine");
+    let execution = authoritative(&mut server, &schema, &program, context.clone());
+    assert_eq!(execution.trace.emits.len(), 1);
+    assert_eq!(execution.trace.emits[0].id, "named-emit-outbox");
+    let case = case_from_parts(
+        "named-emit",
+        "named",
+        schema,
+        program,
+        context,
+        ClosureReceipt::default(),
+        Vec::new(),
+        None,
+        None,
+    );
+    assert_eq!(case.expected.local_result.as_ref(), Some(&execution.result));
+    case
 }
 
 fn add_client_scenarios(cases: &mut Vec<CorpusCase>) {
