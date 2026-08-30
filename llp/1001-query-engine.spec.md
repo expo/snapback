@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-core` (`store`, `registry`, `live`, `identity`, `successor`, the engine, the IR)
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane A
 **Date:** 2026-08-29
-**Revised:** 2026-08-29
+**Revised:** 2026-08-30
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
@@ -97,15 +97,17 @@ and delivery carries the `seq` it was computed at.
 
 | state | when |
 |---|---|
-| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling |
+| `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling — including a range whose examined rows were all hidden: hidden rows are invisible, never a signal (LLP 0329.014.004: results are never functions of invisible-row counts) |
 | `Capped { site, take }` | some traced range stopped `Limit` (the certificate's `completeness: Page \| Capped`) |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
-| `Denied { rule }` | `RuntimeError::Rule` on a read site |
+| `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
 
 A mutation's outcome is `Committed { seq }` or `Rejected { code, message }`
-(`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`); bound
-overruns (`Steps`, `Fanout`, `TraceSubset`) are `Rejected` with the family
-`bound`. The state is a field on `Execution`, and the JSON the loop serves is
+(`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`, and every
+SQLite constraint failure — duplicate row id, duplicate outbox id, unique
+index — as `E_CONSTRAINT`; a program execution never surfaces a raw SQL
+error except for I/O or corruption); bound overruns (`Steps`, `Fanout`,
+`TraceSubset`) are `Rejected` with the family `bound`. The state is a field on `Execution`, and the JSON the loop serves is
 the serde form of that field (LLP 1002 §4).
 
 ## 4. Generation and runtime (`registry.rs`, `successor.rs`)
@@ -154,6 +156,21 @@ impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &Migrat
 `apply_migration` performs exactly the listed drops (type changes drop the
 column's values) and then applies the successor as additive. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
+
+Three rulings from the 2026-08-30 review (M3, M4, M8):
+
+- **Atomic.** `apply_successor` and `apply_migration` run in one transaction
+  — drops, index population, aggregate backfill, `_meta` — and any failure
+  leaves the old generation active and its data intact.
+- **A new unique index is checked.** Populating it over existing rows that
+  collide refuses the whole successor with `E_SUCCESSOR_UNIQUE` (table,
+  index, up to 10 conflicting keys; rewrite: make it non-unique or fix the
+  rows). `SuccessorRefusal` therefore carries `code` and either `plan`
+  (destructive) or `conflicts` (unique).
+- **A new column on a table with rows must be `Optional`.** Otherwise the
+  successor is refused with `E_SUCCESSOR_COLUMN_REQUIRED` (rewrite:
+  `t.optional(...)`, or add it while the table is empty). Existing rows keep
+  their JSON; an absent optional column reads as `Null`.
 
 ## 5. Live subscriptions (`live.rs`)
 
@@ -225,12 +242,17 @@ mutations (LLP 1003), and seeds.
 
 ```rust
 pub struct Channel { pub args: BTreeMap<String, ArgType>, pub publish: RuleExpr, pub subscribe: RuleExpr, pub ttl_ms: u32 }
-impl Runtime { pub fn channel_admit(&mut self, name: &str, side: ChannelSide, args: &BTreeMap<String, Value>, context: &Context) -> Result<bool, RuntimeError>; }
+pub struct ChannelVerdict { pub admitted: bool, pub rule_inputs: Vec<RuleInputTrace>, pub points: Vec<PointTrace> }
+impl Runtime {
+    pub fn channel_admit(&mut self, name: &str, side: ChannelSide, args: &BTreeMap<String, Value>, context: &Context) -> Result<ChannelVerdict, RuntimeError>;
+    pub fn channel_touched(&self, commit: &CommitRecord, verdict: &ChannelVerdict) -> bool;   // does this commit overlap the verdict's traced keys
+}
 ```
 
 One rule probe per admission, evaluated over the args as the row (`RuleTerm::Field`
-reads an arg), traced like any rule input so a membership change can drop a
-subscriber (the loop re-admits on the commit that touched the probe's key).
+reads an arg), and the verdict *carries its trace* (review ruling 2026-08-30,
+M7) so the loop indexes each subscriber by the probe's keys and re-admits on
+the commit that touches them — a deleted membership drops the subscriber.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
 
@@ -252,8 +274,14 @@ an effect is.
 
 `Schema` gains, all `#[serde(default)]`: `channels: BTreeMap<String, Channel>`,
 `auth: Auth { password: bool, guests: bool }`, `effects: Vec<String>` (the
-declared effect names, so `E_EFFECT_UNKNOWN` is a schema fact). Existing
-corpus JSON stays valid.
+declared effect names; `Generation::certify` checks an `emit` against the
+*declarations* in `ProjectJson.effects` — `E_EFFECT_UNKNOWN` — and refuses a
+schema name with no declaration — `E_EFFECT_UNDECLARED`; review ruling M5).
+`ColumnType` gains `Optional(Box<ColumnType>)` (`{"Optional": <type>}`; absent
+or `Null` is valid) and `List { of: Box<ColumnType>, max: u32 }`
+(`{"List": {"of": <type>, "max": n}}`; an array of ≤ `max` elements); a `List`
+may not be an index column (`E_SCHEMA_INDEX_COLUMN`). Existing corpus JSON
+stays valid.
 
 ## 10. What binds, and how it is checked
 
