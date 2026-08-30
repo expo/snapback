@@ -361,7 +361,7 @@ impl Store {
         let then_op = declaration.then.as_deref();
         let generation = transaction
             .query_row(
-                "SELECT value FROM _meta WHERE key = 'generation'",
+                "SELECT value FROM _meta WHERE key = 'effects_generation'",
                 [],
                 |row| row.get::<_, String>(0),
             )

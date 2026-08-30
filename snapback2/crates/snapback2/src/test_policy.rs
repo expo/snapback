@@ -16,7 +16,7 @@ pub(super) fn check_rules(
     let mut blocked = Vec::new();
     let mut probes = 0_u64;
     let mut tables = Map::new();
-    for (table_name, table) in &compiled.generation.schema.tables {
+    for (table_name, table) in &compiled.generation.schema().tables {
         if table.rules.read.is_public() {
             continue;
         }
@@ -156,7 +156,7 @@ pub(super) fn check_invalidation(
     let mut attempts = 0_u64;
     let mut silence_probes = 0_u64;
     let mut intersections = Vec::new();
-    for (query_name, (query, query_certificate)) in &compiled.generation.programs {
+    for (query_name, (query, query_certificate)) in compiled.generation.programs() {
         if query.kind != ProgramKind::Query {
             continue;
         }
@@ -173,7 +173,7 @@ pub(super) fn check_invalidation(
             .cloned()
             .unwrap_or_else(|| "alice".to_owned());
         let mut query_has_silence = false;
-        for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
+        for (mutation_name, (mutation, mutation_certificate)) in compiled.generation.programs() {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
             }
@@ -287,7 +287,7 @@ pub(super) fn check_invalidation(
         }
         if !query_has_silence {
             let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
-            for (mutation_name, (mutation, _)) in &compiled.generation.programs {
+            for (mutation_name, (mutation, _)) in compiled.generation.programs() {
                 if mutation.kind != ProgramKind::Mutation {
                     continue;
                 }
@@ -387,7 +387,7 @@ fn revocation_while_live(
     } else {
         seed.personas.clone()
     };
-    for (query_name, (query, certificate)) in &compiled.generation.programs {
+    for (query_name, (query, certificate)) in compiled.generation.programs() {
         if query.kind != ProgramKind::Query {
             continue;
         }
@@ -556,7 +556,7 @@ fn direct_rule_input_tables(
 
     let mut tables = BTreeSet::new();
     for site in &certificate.read_sites {
-        if let Some(table) = generation.schema.tables.get(&site.table) {
+        if let Some(table) = generation.schema().tables.get(&site.table) {
             collect(&table.rules.read, &mut tables);
         }
     }
@@ -583,7 +583,7 @@ fn subscription_replan(
         seed.personas.clone()
     };
     let mut candidates = 0_u64;
-    for (query_name, (query, certificate)) in &compiled.generation.programs {
+    for (query_name, (query, certificate)) in compiled.generation.programs() {
         if query.kind != ProgramKind::Query {
             continue;
         }
@@ -621,7 +621,7 @@ fn subscription_replan(
                 if !initial.trace.rows.iter().any(|row| row.table == site.table) {
                     continue;
                 }
-                let predecessor_schema_hash = runtime.generation().programs[query_name]
+                let predecessor_schema_hash = runtime.generation().programs()[query_name]
                     .1
                     .schema_hash
                     .clone();
@@ -635,12 +635,12 @@ fn subscription_replan(
                     Ok(next) => next,
                     Err(_) => continue,
                 };
-                let from = runtime.generation().hash.clone();
-                let to = next.hash.clone();
+                let from = runtime.generation().hash();
+                let to = next.hash();
                 if runtime.apply_successor(next).is_err() {
                     continue;
                 }
-                let successor_schema_hash = runtime.generation().programs[query_name]
+                let successor_schema_hash = runtime.generation().programs()[query_name]
                     .1
                     .schema_hash
                     .clone();
@@ -722,7 +722,7 @@ fn row_for_rule_input<'a>(
     rows: &'a [(String, Value)],
     input: &snapback2_core::RuleInputTrace,
 ) -> Option<&'a Value> {
-    let table = generation.schema.tables.get(&input.table)?;
+    let table = generation.schema().tables.get(&input.table)?;
     let index = table.indexes.get(&input.index)?;
     rows.iter()
         .filter(|(table, _)| table == &input.table)
@@ -783,7 +783,7 @@ fn certificate_site_intersection(
         .iter()
         .flat_map(|site| {
             generation
-                .schema
+                .schema()
                 .tables
                 .get(&site.table)
                 .into_iter()

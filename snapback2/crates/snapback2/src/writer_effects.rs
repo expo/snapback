@@ -20,8 +20,8 @@ impl State {
         effect: &str,
         generation: Option<&str>,
     ) -> Result<Json, Refusal> {
-        let current_generation = self.runtime().generation().hash.clone();
-        let current = self.runtime().generation().effects.get(effect).cloned();
+        let current_generation = self.runtime().generation().effects_hash();
+        let current = self.runtime().generation().effects().get(effect).cloned();
         let bound = generation
             .map(|generation| format!("effects_json:{generation}"))
             .map(|key| self.runtime().store().meta(&key))

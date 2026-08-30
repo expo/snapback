@@ -64,6 +64,34 @@ fn get_program(name: &str, table: &str, index: &str, key: &str) -> Program {
     }
 }
 
+fn text_owner_runtime() -> (Runtime, Table) {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("ownerId", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("i1".to_owned())),
+                ("ownerId", Value::String("alice".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    (runtime, items)
+}
+
 #[test]
 fn additive_successor_adds_table_column_index_and_program_in_place() {
     let base_items = table(
@@ -486,7 +514,7 @@ fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
         }]
     );
     runtime.apply_migration(next, &refusal.plan).unwrap();
-    assert!(runtime.generation().schema.tables.is_empty());
+    assert!(runtime.generation().schema().tables.is_empty());
 }
 
 #[test]
@@ -588,6 +616,112 @@ fn successor_ignores_unrelated_legacy_fields_but_validates_the_field_when_declar
 }
 
 #[test]
+fn reopening_changed_schema_cannot_forge_hash_past_stored_row_validation() {
+    let path = temp_store_path("generation-hash-forge");
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
+    let connection = rusqlite::Connection::open(&path).unwrap();
+    let row = object([
+        ("id", Value::Id("legacy".to_owned())),
+        ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_owned())),
+    ]);
+    connection
+        .execute(
+            "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
+            rusqlite::params!["items", "legacy", canonical_json(&row)],
+        )
+        .unwrap();
+    drop(connection);
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    assert_ne!(next.hash(), base.hash());
+    assert!(serde_json::to_value(&next).unwrap().get("hash").is_none());
+    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+        Ok(_) => panic!("changed schema must take the successor path"),
+        Err(refusal) => refusal,
+    };
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert!(refusal.message.contains("reserved system principal"));
+    assert_eq!(
+        Store::open(&path).unwrap().meta("generation").unwrap(),
+        Some(base.hash())
+    );
+    cleanup_store(&path);
+}
+
+#[test]
+fn required_text_to_id_migration_refuses_without_installing_missing_value() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    let original_hash = runtime.generation().hash();
+    items.columns.insert("ownerId".to_owned(), ColumnType::Id);
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    let error = runtime.apply_migration(next, &plan).unwrap_err();
+
+    assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
+    assert_eq!(runtime.generation().hash(), original_hash);
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        row.result.field("ownerId").unwrap(),
+        &Value::String("alice".to_owned())
+    );
+}
+
+#[test]
+fn optional_text_to_id_migration_drops_the_old_value_and_installs_null() {
+    let (mut runtime, mut items) = text_owner_runtime();
+    items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(BTreeMap::from([("items".to_owned(), items)]), Vec::new()),
+        vec![get_program("items.get", "items", "byId", "id")],
+    );
+    let plan = runtime.apply_successor(next.clone()).unwrap_err().plan;
+    runtime.apply_migration(next, &plan).unwrap();
+    let row = runtime
+        .execute(
+            "items.get",
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("id".to_owned(), Value::Id("i1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(row.result.field("ownerId").unwrap(), &Value::Null);
+}
+
+#[test]
 fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
     let items = table(
         &[
@@ -603,7 +737,7 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
         ),
         Vec::new(),
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -650,7 +784,7 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
         }]
     );
     assert!(refusal.rewrite.contains("non-unique"));
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
 }
 
 #[test]
@@ -673,7 +807,7 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
         ),
         vec![get_program("scratch.get", "scratch", "byId", "id")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -729,7 +863,7 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
             key: vec![Value::String("same".to_owned())],
         }]
     );
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     let scratch = runtime
         .execute(
             "scratch.get",
@@ -824,7 +958,7 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
         schema(tables.clone(), Vec::new()),
         vec![get_program("counts.get", "counts", "byGroup", "group")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -868,7 +1002,7 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
             key: vec![Value::Int(1)],
         }]
     );
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     let counts = runtime
         .execute(
             "counts.get",
@@ -982,13 +1116,13 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
         max: 1,
     });
     let (mut capped, capped_tables) = setup(capped_counts);
-    let capped_hash = capped.generation().hash.clone();
+    let capped_hash = capped.generation().hash();
     let refusal = capped
         .apply_successor(successor(capped_tables))
         .unwrap_err();
     assert_eq!(refusal.code, "E_SUCCESSOR_STORE");
     assert!(refusal.message.contains("E_CONSTRAINT"));
-    assert_eq!(capped.generation().hash, capped_hash);
+    assert_eq!(capped.generation().hash(), capped_hash);
     assert_empty(&mut capped);
 }
 
@@ -1132,7 +1266,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
         ),
         vec![get_program("archive.get", "archive", "byId", "id")],
     );
-    let original_hash = base.hash.clone();
+    let original_hash = base.hash();
     let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
     runtime
         .seed(&[
@@ -1180,7 +1314,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
     assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
     let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
     assert!(matches!(error, RuntimeError::Constraint(message) if message.contains("overflow")));
-    assert_eq!(runtime.generation().hash, original_hash);
+    assert_eq!(runtime.generation().hash(), original_hash);
     assert_eq!(
         runtime.store().meta("generation").unwrap().as_deref(),
         Some(original_hash.as_str())

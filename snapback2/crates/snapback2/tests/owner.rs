@@ -389,9 +389,14 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     fs::write(&messages, source).unwrap();
     let applied = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
-        (value["generation"].as_str() != Some(&old_generation)).then_some(value)
+        let manifest = request(port, "GET", "/api/manifest", &[], json!({}));
+        manifest.body["ops"]
+            .get("messages.hotAdded")
+            .is_some()
+            .then_some(value)
     });
     assert_eq!(applied["status"], "ready");
+    assert_eq!(applied["generation"], old_generation);
 
     let source = fs::read_to_string(&messages).unwrap();
     let source = source

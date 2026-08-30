@@ -295,19 +295,20 @@ fn uncertified_program_results(
 pub fn run_project(root: &Path, json: bool) -> ExitCode {
     match project::compile_once(root) {
         Ok(compiled) => {
-            let short = &compiled.generation.hash[..compiled.generation.hash.len().min(8)];
+            let generation = compiled.generation.hash();
+            let short = &generation[..generation.len().min(8)];
             if json {
                 println!(
                     "{}",
                     serde_json::json!({
                         "ok": true,
-                        "generation": compiled.generation.hash,
-                        "operations": compiled.generation.programs.len(),
+                        "generation": generation,
+                        "operations": compiled.generation.programs().len(),
                         "compilerMs": compiled.compiler_ms,
                     })
                 );
             } else {
-                println!("ok {short} {} ops", compiled.generation.programs.len());
+                println!("ok {short} {} ops", compiled.generation.programs().len());
             }
             ExitCode::SUCCESS
         }

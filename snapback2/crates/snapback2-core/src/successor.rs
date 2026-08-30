@@ -87,7 +87,7 @@ impl SuccessorRefusal {
         Self {
             code: "E_SUCCESSOR_COLUMN_REQUIRED".to_owned(),
             message: format!(
-                "successor adds required column {table}.{column} to a table that has rows"
+                "successor leaves required column {table}.{column} absent on stored rows"
             ),
             rewrite: format!(
                 "wrap {table}.{column} in t.optional(...) or add it to an empty table"
@@ -207,10 +207,14 @@ pub(crate) fn additive_refusal(
         let Some(next_table) = next.tables.get(table_name) else {
             continue;
         };
-        let added_required = next_table.columns.iter().find(|(column, kind)| {
-            !current_table.columns.contains_key(*column) && !matches!(kind, ColumnType::Optional(_))
+        let absent_required = next_table.columns.iter().find(|(column, kind)| {
+            current_table
+                .columns
+                .get(*column)
+                .is_none_or(|current_kind| current_kind != *kind)
+                && !matches!(kind, ColumnType::Optional(_))
         });
-        if let Some((column, _)) = added_required {
+        if let Some((column, _)) = absent_required {
             let rows: i64 = connection.query_row(
                 "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
                 [table_name],
@@ -512,11 +516,12 @@ pub(crate) fn apply_migration_drops(
                     table.indexes.remove(name);
                 }
             }
-            Drop::TypeChange {
-                table, column, to, ..
-            } => {
+            Drop::TypeChange { table, .. } => {
                 if let Some(table) = current.tables.get_mut(table) {
-                    table.columns.insert(column.clone(), to.clone());
+                    // Keep predecessor column types in the comparison schema.
+                    // The values were dropped above, so successor admission
+                    // must still see the retype and validate the resulting
+                    // absence against the successor type.
                     table.indexes.clear();
                 }
             }

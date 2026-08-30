@@ -37,14 +37,13 @@ pub struct ProjectJson {
     pub auth: Auth,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generation {
-    pub hash: String,
-    pub schema: Schema,
-    pub programs: BTreeMap<String, (Program, Certificate)>,
-    pub channel_certificates: BTreeMap<String, ChannelCertificates>,
-    pub effects: BTreeMap<String, EffectDecl>,
+    schema: Schema,
+    programs: BTreeMap<String, (Program, Certificate)>,
+    channel_certificates: BTreeMap<String, ChannelCertificates>,
+    effects: BTreeMap<String, EffectDecl>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -78,6 +77,31 @@ pub struct RowRuleVerdict {
 }
 
 impl Generation {
+    /// The generation identity is always derived from its certified schema.
+    pub fn hash(&self) -> String {
+        self.schema.hash()
+    }
+
+    pub fn schema(&self) -> &Schema {
+        &self.schema
+    }
+
+    pub fn programs(&self) -> &BTreeMap<String, (Program, Certificate)> {
+        &self.programs
+    }
+
+    pub fn channel_certificates(&self) -> &BTreeMap<String, ChannelCertificates> {
+        &self.channel_certificates
+    }
+
+    pub fn effects(&self) -> &BTreeMap<String, EffectDecl> {
+        &self.effects
+    }
+
+    pub fn effects_hash(&self) -> String {
+        digest(&self.effects)
+    }
+
     pub fn certify(
         project: &ProjectJson,
         ceilings: Ceilings,
@@ -292,7 +316,6 @@ impl Generation {
 
         if errors.is_empty() {
             Ok(Self {
-                hash: digest(project),
                 schema,
                 programs,
                 channel_certificates,
@@ -316,6 +339,7 @@ impl Runtime {
     pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
         crate::engine::validate_schema(&generation.schema)
             .map_err(|errors| store_refusal(first_schema_error(errors)))?;
+        let generation_hash = generation.hash();
         let installed = store.meta("generation").map_err(store_refusal)?;
         match installed {
             None => {
@@ -328,7 +352,7 @@ impl Runtime {
                 }
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
             }
-            Some(hash) if hash == generation.hash => {
+            Some(hash) if hash == generation_hash => {
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
@@ -355,7 +379,7 @@ impl Runtime {
                     &current,
                     &generation.schema,
                     hash,
-                    generation.hash.clone(),
+                    generation_hash,
                 )
                 .map_err(store_refusal)?;
                 persist_generation_transaction(&transaction, &generation).map_err(store_refusal)?;
@@ -591,21 +615,15 @@ impl Runtime {
             return Err(refusal);
         }
         let current = self.generation.schema.clone();
-        let from = self.generation.hash.clone();
+        let from = self.generation.hash();
         let transaction = self
             .engine
             .store_mut()
             .conn
             .transaction()
             .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
-        let report = apply_additive(
-            &transaction,
-            &current,
-            &next.schema,
-            from,
-            next.hash.clone(),
-        )
-        .map_err(store_refusal)?;
+        let report = apply_additive(&transaction, &current, &next.schema, from, next.hash())
+            .map_err(store_refusal)?;
         persist_generation_transaction(&transaction, &next).map_err(store_refusal)?;
         transaction
             .commit()
@@ -632,19 +650,13 @@ impl Runtime {
             )));
         }
         let mut reduced = self.generation.schema.clone();
-        let from = self.generation.hash.clone();
+        let from = self.generation.hash();
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
         if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
             return Err(RuntimeError::Successor(Box::new(refusal)));
         }
-        let report = apply_additive(
-            &transaction,
-            &reduced,
-            &next.schema,
-            from,
-            next.hash.clone(),
-        )?;
+        let report = apply_additive(&transaction, &reduced, &next.schema, from, next.hash())?;
         persist_generation_transaction(&transaction, &next)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
@@ -813,11 +825,13 @@ fn persist_generation_transaction(
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     let effects_json = serde_json::to_string(&generation.effects)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
+    let effects_hash = generation.effects_hash();
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
-        ("generation", generation.hash.clone()),
+        ("generation", generation.hash()),
         ("schema_json", schema_json),
         ("effects_json", effects_json),
+        ("effects_generation", effects_hash.clone()),
     ] {
         transaction.execute(
             "INSERT INTO _meta(key, value) VALUES (?1, ?2)
@@ -829,7 +843,7 @@ fn persist_generation_transaction(
         "INSERT INTO _meta(key, value) VALUES (?1, ?2)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         rusqlite::params![
-            format!("effects_json:{}", generation.hash),
+            format!("effects_json:{effects_hash}"),
             serde_json::to_string(&generation.effects)
                 .map_err(|error| RuntimeError::Serialization(error.to_string()))?
         ],
@@ -1074,7 +1088,7 @@ mod tests {
         assert_eq!(runtime.generation(), &before);
         assert_eq!(
             runtime.store().meta("generation").unwrap(),
-            Some(before.hash)
+            Some(before.hash())
         );
     }
 

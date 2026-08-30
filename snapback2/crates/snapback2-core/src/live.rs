@@ -118,7 +118,7 @@ impl Runtime {
     ) -> Result<(SubscriptionId, Execution), RuntimeError> {
         let program = self
             .generation
-            .programs
+            .programs()
             .get(op)
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         if program.0.kind != ProgramKind::Query {

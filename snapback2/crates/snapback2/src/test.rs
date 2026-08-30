@@ -124,7 +124,7 @@ pub fn run(args: &[String]) -> ExitCode {
             "certify",
             "derived",
             elapsed_ms(compile_started),
-            json!({ "operations": compiled.generation.programs.len() }),
+            json!({ "operations": compiled.generation.programs().len() }),
         ));
     }
 
@@ -141,7 +141,7 @@ pub fn run(args: &[String]) -> ExitCode {
                 &root,
                 stamp,
                 TestReceipt::new(
-                    compiled.generation.hash,
+                    compiled.generation.hash(),
                     vec!["snapback2 dev --foreground".to_owned()],
                     checks,
                 ),
@@ -177,7 +177,7 @@ pub fn run(args: &[String]) -> ExitCode {
     finish(
         &root,
         stamp,
-        TestReceipt::new(compiled.generation.hash, commands, checks),
+        TestReceipt::new(compiled.generation.hash(), commands, checks),
         json_output,
     )
 }
@@ -364,7 +364,7 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     let mut blocked = Vec::new();
     let mut executions = Vec::new();
     let mut probes = 0_u64;
-    for (name, (program, certificate)) in &compiled.generation.programs {
+    for (name, (program, certificate)) in compiled.generation.programs() {
         if program.kind != ProgramKind::Query {
             continue;
         }
@@ -471,13 +471,13 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     let mut probes = 0_u64;
     let mut attempts = 0_u64;
     let mut forks_count = 0_u64;
-    for (index, (name, (program, _))) in compiled.generation.programs.iter().enumerate() {
+    for (index, (name, (program, _))) in compiled.generation.programs().iter().enumerate() {
         if program.kind != ProgramKind::Mutation {
             continue;
         }
         if compiled
             .generation
-            .effects
+            .effects()
             .values()
             .any(|effect| effect.then.as_deref() == Some(name.as_str()))
         {
@@ -636,21 +636,21 @@ fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckR
         .and_then(|effects| effects.get("engine"))
         .and_then(Json::as_str)
         .unwrap_or("none");
-    if compiled.generation.effects.is_empty() {
+    if compiled.generation.effects().is_empty() {
         None
     } else if engine == "none" {
         Some(CheckReceipt::blocked(
             "effects",
             "derived",
             elapsed_ms(started),
-            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
+            json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
         ))
     } else {
         Some(CheckReceipt::pass(
             "effects",
             "derived",
             elapsed_ms(started),
-            json!({ "engine": engine, "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
+            json!({ "engine": engine, "declarations": compiled.generation.effects().keys().collect::<Vec<_>>() }),
         ))
     }
 }

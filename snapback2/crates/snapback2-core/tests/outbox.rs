@@ -66,7 +66,7 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
         Ceilings::default(),
     )
     .unwrap();
-    let certificate = &generation.programs[&program.name].1;
+    let certificate = &generation.programs()[&program.name].1;
     assert_eq!(
         certificate.write_sites,
         vec![WriteSite {
@@ -182,8 +182,8 @@ fn project_effect_declarations_are_authoritative_and_compiler_json_shape_certifi
     });
     let project: ProjectJson = serde_json::from_value(fixture).unwrap();
     let generation = Generation::certify(&project, Ceilings::default()).unwrap();
-    assert!(generation.effects.contains_key("notifications.notify"));
-    assert!(generation.programs.contains_key("notifications.send"));
+    assert!(generation.effects().contains_key("notifications.notify"));
+    assert!(generation.programs().contains_key("notifications.send"));
 
     let mut declaration_only = project.clone();
     declaration_only.schema.effects.clear();
@@ -629,7 +629,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         Ceilings::default(),
     )
     .unwrap();
-    let certificate = generation.programs[&duplicate_primary_key.name].1.clone();
+    let certificate = generation.programs()[&duplicate_primary_key.name].1.clone();
     let mut engine = Engine::memory(schema).unwrap();
     let direct = engine
         .execute(
@@ -796,7 +796,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
         Ceilings::default(),
     )
     .unwrap();
-    let subscribe_certificate = &generation.channel_certificates["typing"].subscribe;
+    let subscribe_certificate = &generation.channel_certificates()["typing"].subscribe;
     assert_eq!(subscribe_certificate.max_rule_probes, 1);
     assert_eq!(subscribe_certificate.max_steps, 2);
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
@@ -964,7 +964,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     assert_eq!(claimed.state, "running");
     assert_eq!(claimed.attempts, 1);
     assert_eq!(claimed.payload, Value::String("payload".to_owned()));
-    assert_eq!(claimed.generation, Some(generation.hash));
+    assert_eq!(claimed.generation, Some(generation.effects_hash()));
     assert!(
         runtime
             .store()

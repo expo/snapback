@@ -147,7 +147,7 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
                 "rerun snapback2 check",
             )
         })?
-        .hash;
+        .hash();
     let mut worker = CompilerWorker::spawn().map_err(|error| {
         guide_stale(format!(
             "cannot start compiler for seed facts: {}",

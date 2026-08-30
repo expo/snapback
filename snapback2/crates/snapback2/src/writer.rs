@@ -670,7 +670,7 @@ impl State {
         let kind = self
             .runtime()
             .generation()
-            .programs
+            .programs()
             .get(op)
             .map(|entry| entry.0.kind)
             .ok_or_else(|| {
@@ -996,7 +996,7 @@ impl State {
         if let Some(seed) = seed {
             self.seed = seed;
         }
-        self.owner.generation = self.compiled.generation.hash.clone();
+        self.owner.generation = self.compiled.generation.hash();
         self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
@@ -1047,7 +1047,7 @@ impl State {
         let table = self
             .runtime()
             .generation()
-            .schema
+            .schema()
             .tables
             .get(&table_name)
             .cloned()
@@ -1158,7 +1158,7 @@ fn operation_args(
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
     let program = &generation
-        .programs
+        .programs()
         .get(op)
         .ok_or_else(|| {
             Refusal::new(
@@ -1213,7 +1213,7 @@ fn channel_args(
     name: &str,
     args: &Json,
 ) -> Result<BTreeMap<String, Value>, Refusal> {
-    let channel = generation.schema.channels.get(name).ok_or_else(|| {
+    let channel = generation.schema().channels.get(name).ok_or_else(|| {
         Refusal::new(
             "E_OP_CHANNEL_UNKNOWN",
             "op",

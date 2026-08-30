@@ -201,7 +201,7 @@ impl OutboxAccess for WriterAccess {
 pub(crate) fn claim_outbox(runtime: &Runtime, root: &Path, now: i64) -> Result<Json, Refusal> {
     let declared_names = runtime
         .generation()
-        .effects
+        .effects()
         .keys()
         .cloned()
         .collect::<Vec<_>>();

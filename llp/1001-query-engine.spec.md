@@ -147,20 +147,23 @@ into a generation:
 ```rust
 pub struct EffectDecl { pub name: String, pub grants: Vec<String>, pub source: String, pub then: Option<String> }
 pub struct Generation {
-    pub hash: String,                                   // digest of the project JSON
-    pub schema: Schema,
-    pub programs: BTreeMap<String, (Program, Certificate)>,   // key = "module.export"
-    pub channel_certificates: BTreeMap<String, ChannelCertificates>,
-    pub effects: BTreeMap<String, EffectDecl>,
+    schema: Schema,
+    programs: BTreeMap<String, (Program, Certificate)>,   // key = "module.export"
+    channel_certificates: BTreeMap<String, ChannelCertificates>,
+    effects: BTreeMap<String, EffectDecl>,
 }
 impl Generation {
     /// Certify every program; report EVERY refusal, never the first (rules/RULES.md):
     /// `Checker::check_all` returns every structural refusal of a program and every ceiling overrun (all bounds are computed first, then compared).
     pub fn certify(project: &ProjectJson, ceilings: Ceilings) -> Result<Generation, Vec<(String, CheckError)>>;
+    pub fn hash(&self) -> String; // computed from the certified schema; never stored or settable
+    pub fn schema(&self) -> &Schema;
+    pub fn programs(&self) -> &BTreeMap<String, (Program, Certificate)>;
+    pub fn effects_hash(&self) -> String; // separately derived from private effect declarations
 }
 pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
 impl Runtime {
-    pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // applies gen to an empty or same-hash store; else runs the successor check
+    pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // recomputes the handed schema hash; mismatch always runs the successor check
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError>; // E_OP_UNKNOWN when op is not in the generation
     pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
     pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>; // resolves op + certificate from the active generation
@@ -170,6 +173,14 @@ impl Runtime {
     pub fn store(&self) -> &Store;
 }
 ```
+
+`Generation` has no public fields, public mutators, stored hash, or
+deserialization constructor: certification is its only construction path.
+The hash persisted by `Runtime` and compared on reopen is recomputed from the
+private certified schema, so caller state cannot opt a changed schema out of
+successor admission. Restart-safe effect delivery uses a separate digest
+derived from the private certified effect declarations; that token binds
+retained effect source and is never consulted to skip successor validation.
 
 **Subscription replan amendment (author-authorized 2026-08-30).** `Runtime`
 has no public handle-execution or caller-supplied certificate surface. The
@@ -200,7 +211,11 @@ impl Runtime { pub fn apply_migration(&mut self, next: Generation, plan: &Migrat
 column's values) and then applies the successor as additive — *with the same
 admission checks* (`E_SUCCESSOR_UNIQUE`, `E_SUCCESSOR_COLUMN_REQUIRED`) as the
 additive path, in the same transaction, so a refusal rolls the drops back too
-(review ruling 2026-08-30, round 2 G1). Never a prompt,
+(review ruling 2026-08-30, round 2 G1). The admission comparison retains the
+predecessor type until retyped stored values have been dropped and validated
+against the successor type, including the reserved-principal walk. A required
+retyped column therefore refuses rather than installing an absent value; an
+optional retyped column may install as `Null`. Never a prompt,
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
 **Seed writes and maintained-target rows are engine-owned** (rulings

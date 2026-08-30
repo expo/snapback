@@ -138,7 +138,7 @@ impl Runtime {
         if password.chars().count() < 8 {
             return Err(IdentityError::PasswordWeak);
         }
-        if !self.generation.schema.auth.password {
+        if !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
@@ -176,7 +176,7 @@ impl Runtime {
         password: &str,
         now: i64,
     ) -> Result<Session, IdentityError> {
-        if !self.generation.schema.auth.password {
+        if !self.generation.schema().auth.password {
             return Err(IdentityError::Invalid);
         }
         let email = normalize_email(email);
@@ -212,7 +212,7 @@ impl Runtime {
     }
 
     pub fn guest(&mut self, now: i64) -> Result<Session, IdentityError> {
-        if !self.generation.schema.auth.guests {
+        if !self.generation.schema().auth.guests {
             return Err(IdentityError::GuestsOff);
         }
         let principal = Principal {
