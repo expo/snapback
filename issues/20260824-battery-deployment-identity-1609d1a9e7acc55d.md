@@ -13,12 +13,12 @@
 **Battery gate:** `deployment-identity`
 **Failure signature:** `sha256:1609d1a9e7acc55d6f260f6303aa8b5e12658f578164ac593341e4085889658e`
 **First observed run:** `local.20260824T075727Z.59ae1a00e1c4`
-**Last observed run:** `local.20260830T072833Z.94397bad48fa`
-**Last processed run:** `local.20260830T072833Z.94397bad48fa`
+**Last observed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last processed run:** `local.20260830T160622Z.0fdfadbe8e67`
 **Detected at revision:** `59ae1a00e1c4cd2323b959586fcadb8395814686`
-**Last observed revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node targets/cloudflare/scripts/generate-deployment-identity.mjs --check
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

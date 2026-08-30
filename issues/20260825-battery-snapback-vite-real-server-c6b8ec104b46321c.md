@@ -10,11 +10,11 @@
 **Battery gate:** `snapback-vite-real-server`
 **Failure signature:** `sha256:c6b8ec104b46321c5144cd7bf05eca10823adc5fdb99ff69d737c85500fbdbcc`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260830T072833Z.94397bad48fa`
-**Last processed run:** `local.20260830T072833Z.94397bad48fa`
+**Last observed run:** `local.20260830T160622Z.0fdfadbe8e67`
+**Last processed run:** `local.20260830T160622Z.0fdfadbe8e67`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `94397bad48fae267548eb0547316a8267dcd1f66`
-**Consecutive red runs:** `13`
+**Last observed revision:** `0fdfadbe8e67a5c930d282e5efe91a633aa76e35`
+**Consecutive red runs:** `14`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
