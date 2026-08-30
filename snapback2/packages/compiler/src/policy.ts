@@ -19,6 +19,7 @@ import {
   numericLiteral,
   previousStatement,
   replaceNode,
+  staticMemberPath,
   unwrapExpression,
   walk,
 } from "./syntax";
@@ -290,12 +291,14 @@ function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {
 }
 
 function tableReference(node: ts.Expression, tables: Map<string, TableInfo>): { table: string; index: string } {
-  const value = unwrapExpression(node);
-  if (ts.isIdentifier(value)) return { table: tables.get(value.text)?.name ?? value.text, index: "byId" };
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) {
-    return { table: tables.get(value.expression.text)?.name ?? value.expression.text, index: value.name.text };
-  }
-  return { table: value.getText(), index: "byId" };
+  const path = staticMemberPath(node);
+  const direct = path && tables.get(path);
+  if (direct) return { table: direct.name, index: direct.maintainedFrom ? "byGroup" : "byId" };
+  const separator = path?.lastIndexOf(".") ?? -1;
+  const owner = separator > 0 ? tables.get(path!.slice(0, separator)) : undefined;
+  return owner
+    ? { table: owner.name, index: path!.slice(separator + 1) }
+    : { table: path ?? unwrapExpression(node).getText(), index: "byId" };
 }
 
 function scanTake(call: ts.CallExpression): number | "arg" | undefined {

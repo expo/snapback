@@ -1,6 +1,7 @@
 import ts from "typescript";
 import type { TableInfo } from "./authored-types";
-import { diagnostic, refuse, Refusal } from "./diagnostics";
+import { argumentSpreadRewrite, expandArgumentObject } from "./args";
+import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   cloneEnvironment,
   collectionMutationCounts,
@@ -13,6 +14,8 @@ import {
   lowerExpr,
   lowerKey,
   lowerPatch,
+  nullableReadSpread,
+  nullableSpreadRefusal,
   provenance,
   staticBound,
   tableReference,
@@ -20,23 +23,27 @@ import {
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
+import { typeDiagnosticSite } from "./type-diagnostic-site";
+import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
+import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
   binaryOperator,
   collectionConstructor,
-  descriptorName,
   findNarrowestNode,
   hasExport,
   isDb,
   isDbInsertCall,
+  isNullableDbGet,
   isDbWriteCall,
   isFunctionLike,
   literal,
   memberName,
-  numberProperty,
+  nonNullIdentifier,
   propertyName,
   replaceNode,
   singular,
   snapbackCallName,
+  staticMemberPath,
   stringArgument,
   syntheticIdentifier,
   temporary,
@@ -51,7 +58,6 @@ import type {
   Provenance,
   Stmt,
 } from "./ir";
-
 export type { TableInfo } from "./authored-types";
 export type VariableInfo = {
   provenance: Provenance;
@@ -59,6 +65,7 @@ export type VariableInfo = {
   boundSource?: string;
   collection?: "Map" | "Set";
   objectFields?: string[];
+  nullableRead?: boolean;
 };
 export type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression;
 
@@ -71,34 +78,32 @@ type ModuleInfo = {
   helpers: Map<string, FunctionLike>;
   exports: Set<string>;
 };
-
 export type LowerSourceOptions = {
   tables?: Map<string, TableInfo>;
   effects?: Map<string, string>;
   operationPrefix?: string;
 };
-
 export type Environment = ModuleInfo & {
   programName: string;
   kind: "Query" | "Mutation";
-  args: Record<string, "Scalar" | { List: { max: number } }>;
+  args: Program["args"];
   variables: Map<string, VariableInfo>;
   substitutions: Map<string, ts.Expression>;
   helperStack: string[];
   temp: { value: number };
   literalValues: Map<number, number>;
+  diagnostics: FrontendDiagnostic[];
 };
-
 export type LoweredValue = { statements: Stmt[]; expression: Expr };
-
 export { typecheckSource } from "./typecheck";
-
 export { mechanicalBoundRewrite } from "./policy";
-
 export async function lowerProject(root: string) {
   return (await import("./project")).lowerProject(root);
 }
-
+function captureRefusal(diagnostics: FrontendDiagnostic[], error: unknown): void {
+  if (error instanceof Refusal) diagnostics.push(error.diagnostic);
+  else throw error;
+}
 export function lowerSource(
   source: string,
   fileName = "input.ts",
@@ -107,20 +112,22 @@ export function lowerSource(
 ): LowerResult {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
   const module = inspectModule(sourceFile, source, fileName, options);
-  const diagnostics = findPolicyRefusals(module, 50);
+  const diagnostics = findPolicyRefusals(module, Number.MAX_SAFE_INTEGER);
+  const operationSpans: Array<{ name: string; call: ts.CallExpression }> = [];
 
   if (libText !== undefined) {
     const typed = typecheckSource(source, fileName, libText);
-    for (const item of typed.slice(0, 50 - diagnostics.length)) {
+    for (const item of typed) {
       const node = item.file && item.start !== undefined
         ? findNarrowestNode(item.file, item.start)
         : sourceFile;
+      const siteKind = typeDiagnosticSite(node, fileName);
       const schemaLabelRewrite = source.replace(/\bschema\s+\([^\n:]+\):/g, "schema:");
-      diagnostics.push(diagnostic(module, "E_OPAQUE", node, formatTypeDiagnostic(item), schemaLabelRewrite));
+      diagnostics.push(diagnostic(module, siteKind.code, node, formatTypeDiagnostic(item), schemaLabelRewrite));
     }
   }
-  const typePlans = new Map<number, TypePlan>();
   let recognizableExports = 0;
+  const programs: Program[] = [];
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
     for (const declaration of statement.declarationList.declarations) {
@@ -133,46 +140,35 @@ export function lowerSource(
       }
       if (!call || (kind !== "query" && kind !== "mutation")) continue;
       recognizableExports += 1;
+      const name = options.operationPrefix
+        ? `${options.operationPrefix}.${ts.isIdentifier(declaration.name) ? declaration.name.text : "operation"}`
+        : ts.isIdentifier(declaration.name) ? declaration.name.text : "operation";
+      operationSpans.push({ name, call });
       const plan = analyzeOperationTypes(module, call);
-      typePlans.set(call.getStart(sourceFile), plan);
-      diagnostics.push(...plan.diagnostics.slice(0, 50 - diagnostics.length));
+      diagnostics.push(...plan.diagnostics);
+      if (!ts.isIdentifier(declaration.name)) continue;
+      try {
+        programs.push(lowerOperation(module, name, kind, call, plan, diagnostics));
+      } catch (error) {
+        captureRefusal(diagnostics, error);
+      }
     }
   }
-  if (recognizableExports === 0 && diagnostics.length < 50) {
+  if (recognizableExports === 0) {
+    const shadow = localConstructorShadow(sourceFile);
     diagnostics.push(diagnostic(
       module,
       "E_OP_NONE",
-      sourceFile,
-      "module exports no query/mutation/effect",
+      shadow?.node ?? sourceFile,
+      shadow
+        ? `module exports no query/mutation/effect; local declaration ${shadow.name} shadows the Snapback constructor`
+        : "module exports no query/mutation/effect",
       "export const operation = query({}, ({ args }) => args);",
     ));
   }
-  if (diagnostics.length > 0) return { ok: false, diagnostics };
-
-  const programs: Program[] = [];
-  for (const statement of sourceFile.statements) {
-    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
-    for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-      const call = unwrapCall(declaration.initializer);
-      const kind = call && snapbackCallName(call, sourceFile);
-      if (!call || (kind !== "query" && kind !== "mutation")) continue;
-      const name = options.operationPrefix
-        ? `${options.operationPrefix}.${declaration.name.text}`
-        : declaration.name.text;
-      try {
-        programs.push(lowerOperation(module, name, kind, call, typePlans.get(call.getStart(sourceFile))));
-      } catch (error) {
-        if (error instanceof Refusal) diagnostics.push(error.diagnostic);
-        else throw error;
-      }
-      if (diagnostics.length >= 50) break;
-    }
-    if (diagnostics.length >= 50) break;
-  }
-  return diagnostics.length > 0 ? { ok: false, diagnostics } : { ok: true, programs };
+  const bounded = boundOperationDiagnostics(diagnostics, operationSpans, module);
+  return bounded.length > 0 ? { ok: false, diagnostics: boundedDiagnostics(bounded, 50, "refusals in this module") } : { ok: true, programs };
 }
-
 function inspectModule(
   sourceFile: ts.SourceFile,
   source: string,
@@ -194,8 +190,11 @@ function inspectModule(
       const name = declaration.name.text;
       if (hasExport(statement)) exports.add(name);
       const call = unwrapCall(declaration.initializer);
-      const callee = call && (snapbackCallName(call, sourceFile)
-        ?? (ts.isIdentifier(call.expression) ? call.expression.text : undefined));
+      const imported = call && snapbackCallName(call, sourceFile);
+      const localHelper = call && ts.isIdentifier(call.expression) && ["privateTable", "maintained"].includes(call.expression.text)
+        ? call.expression.text
+        : undefined;
+      const callee = imported ?? localHelper;
       if (!call || !callee) {
         if (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) {
           helpers.set(name, declaration.initializer);
@@ -217,13 +216,13 @@ function inspectModule(
   }
   return { sourceFile, source, fileName, tables, effects, helpers, exports };
 }
-
 function lowerOperation(
   module: ModuleInfo,
   name: string,
   kindName: "query" | "mutation",
   call: ts.CallExpression,
   typePlan?: TypePlan,
+  diagnostics: FrontendDiagnostic[] = [],
 ): Program {
   const argObject = call.arguments[0];
   const handler = call.arguments[1];
@@ -231,26 +230,27 @@ function lowerOperation(
     refuse(module, "E_OPAQUE", call, "query/mutation requires an argument object and inline handler");
   }
   const args: Program["args"] = {};
-  for (const property of argObject.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
-    const argName = propertyName(property.name);
-    if (!argName) refuse(module, "E_OPAQUE", property, "computed argument names are not supported");
-    const descriptor = unwrapCall(property.initializer);
-    if (descriptor && descriptorName(descriptor) === "list") {
-      const options = descriptor.arguments[1];
-      const max = options && ts.isObjectLiteralExpression(options) ? numberProperty(options, "max") : undefined;
-      if (max === undefined) refuse(module, "E_UNBOUND_LOOP", property, `list argument ${argName} needs max`);
-      args[argName] = { List: { max } };
-    } else {
-      args[argName] = "Scalar";
-    }
+  const expandedArgs = expandArgumentObject(argObject);
+  if (expandedArgs.invalidSpread) {
+    refuse(module, "E_ARGS_SPREAD", expandedArgs.invalidSpread, "argument object spread is not a module-level constant object; spell out every argument field",
+      argumentSpreadRewrite(module.source, expandedArgs.invalidSpread));
+  }
+  if (expandedArgs.invalidProperty) refuse(module, "E_ARGS_TYPE", expandedArgs.invalidProperty, "argument members must use name: descriptor syntax");
+  for (const property of expandedArgs.entries) {
+    const argName = property.name;
+    const loweredDescriptor = lowerArgDescriptor(property.value);
+    const invalid = loweredDescriptor === undefined ? invalidNativeDescriptorRefusal(property.value) : undefined;
+    if (invalid) refuse(module, "E_ARGS_DESCRIPTOR", invalid.node, `invalid argument descriptor ${argName}; ${invalid.message}`, invalid.rewrite);
+    const lowered = (loweredDescriptor ?? lowerLegacyArgDescriptor(property.value)) as Program["args"][string] | undefined;
+    if (!lowered) refuse(module, "E_ARGS_TYPE", property.node, `invalid argument descriptor ${argName}`);
+    args[argName] = lowered;
   }
   const variables = new Map<string, VariableInfo>();
   for (const [argName, type] of Object.entries(args)) {
     variables.set(argName, {
       provenance: "Arg",
-      max: typeof type === "string" ? undefined : type.List.max,
-      boundSource: typeof type === "string" ? undefined : `arg ${argName} max`,
+      max: typeof type !== "string" && "List" in type ? type.List.max : undefined,
+      boundSource: typeof type !== "string" && "List" in type ? `arg ${argName} max` : undefined,
     });
   }
   const environment: Environment = {
@@ -263,6 +263,7 @@ function lowerOperation(
     helperStack: [],
     temp: { value: 0 },
     literalValues: typePlan?.literalValues ?? new Map(),
+    diagnostics,
   };
   let body: Stmt[];
   if (ts.isBlock(handler.body)) {
@@ -281,13 +282,17 @@ function lowerOperation(
     body,
   };
 }
-
 function lowerStatements(nodes: ts.NodeArray<ts.Statement> | readonly ts.Statement[], env: Environment): Stmt[] {
   const result: Stmt[] = [];
-  for (const statement of nodes) result.push(...lowerStatement(statement, env));
+  for (const statement of nodes) {
+    try {
+      result.push(...lowerStatement(statement, env));
+    } catch (error) {
+      captureRefusal(env.diagnostics, error);
+    }
+  }
   return result;
 }
-
 function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   if (ts.isVariableStatement(statement)) {
     const out: Stmt[] = [];
@@ -323,6 +328,7 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
         ...derivedBound(declaration.initializer, env),
         ...(collection ? { collection } : {}),
         ...(objectFields ? { objectFields } : {}),
+        ...(isNullableDbGet(declaration.initializer) ? { nullableRead: true } : {}),
       });
       out.push(...lowered.statements);
       out.push(isConst
@@ -339,10 +345,13 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   }
   if (ts.isIfStatement(statement)) {
     const condition = lowerValue(statement.expression, env);
+    const thenEnv = cloneEnvironment(env);
+    const narrowed = nonNullIdentifier(statement.expression);
+    if (narrowed && thenEnv.variables.has(narrowed)) thenEnv.variables.get(narrowed)!.nullableRead = false;
     return [...condition.statements, {
       If: {
         condition: condition.expression,
-        then_body: lowerControlled(statement.thenStatement, cloneEnvironment(env)),
+        then_body: lowerControlled(statement.thenStatement, thenEnv),
         else_body: statement.elseStatement
           ? lowerControlled(statement.elseStatement, cloneEnvironment(env))
           : [],
@@ -378,11 +387,9 @@ function lowerStatement(statement: ts.Statement, env: Environment): Stmt[] {
   if (ts.isEmptyStatement(statement)) return [];
   refuse(env, "E_OPAQUE", statement, `statement ${ts.SyntaxKind[statement.kind]} is outside the subset`);
 }
-
 function lowerControlled(statement: ts.Statement, env: Environment): Stmt[] {
   return ts.isBlock(statement) ? lowerStatements(statement.statements, env) : lowerStatement(statement, env);
 }
-
 function lowerExpressionStatement(expression: ts.Expression, env: Environment): Stmt[] {
   if (ts.isCallExpression(expression)) {
     if (snapbackCallName(expression, env.sourceFile) === "emit") {
@@ -392,12 +399,13 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
       }
       const effectNode = expression.arguments[0];
       const payloadNode = expression.arguments[1];
-      if (!effectNode || !ts.isIdentifier(effectNode) || !payloadNode) {
+      if (!effectNode || !payloadNode) {
         refuse(env, "E_EFFECT_UNKNOWN", expression, "emit requires an imported effect and a JSON payload");
       }
-      const effect = env.effects.get(effectNode.text);
+      const effectPath = staticMemberPath(effectNode);
+      const effect = effectPath && env.effects.get(effectPath);
       if (!effect) {
-        refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.text} is not declared in this project`);
+        refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.getText(env.sourceFile)} is not declared in this project`);
       }
       const payload = lowerValue(payloadNode, env, `${env.programName}.emit`);
       return [...payload.statements, { Emit: { effect, payload: payload.expression } }];
@@ -485,6 +493,11 @@ function lowerDbStatement(method: string, call: ts.CallExpression, env: Environm
     const condition = call.arguments[0];
     if (!condition) refuse(env, "E_OPAQUE", call, `${method} requires a condition`);
     const lowered = lowerValue(condition, env);
+    const narrowed = nonNullIdentifier(condition);
+    if (narrowed) {
+      const info = env.variables.get(narrowed);
+      if (info) info.nullableRead = false;
+    }
     return [...lowered.statements, { Require: {
       condition: lowered.expression,
       code: stringArgument(call.arguments[1]) ?? (method === "assert" ? "ASSERTION_FAILED" : "REQUIRE_FAILED"),
@@ -650,47 +663,48 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
     const statements: Stmt[] = [];
     const object: Record<string, Expr> = {};
     for (const property of value.properties) {
-      if (ts.isSpreadAssignment(property)) {
-        const fields = knownObjectFields(property.expression, env);
-        if (!fields) {
-          const spread = property.expression.getText(env.sourceFile);
-          refuse(
-            env,
-            "E_OPAQUE",
-            property,
-            "object spread requires a statically known object shape; spell its fields explicitly",
-            replaceNode(env.source, property, `field: ${spread}.field`),
-          );
-        }
-        if (ts.isIdentifier(property.expression) && property.expression.text === "args") {
-          for (const field of fields) object[field] = { Variable: field };
+      try {
+        if (ts.isSpreadAssignment(property)) {
+          const nullable = nullableReadSpread(property.expression, env);
+          if (nullable) nullableSpreadRefusal(property, env, nullable);
+          const fields = knownObjectFields(property.expression, env);
+          if (!fields) {
+            const spread = property.expression.getText(env.sourceFile);
+            refuse(env, "E_OPAQUE", property, "object spread requires a statically known object shape; spell its fields explicitly",
+              replaceNode(env.source, property, `field: ${spread}.field`));
+          }
+          if (ts.isIdentifier(property.expression) && property.expression.text === "args") {
+            for (const field of fields) object[field] = { Variable: field };
+            continue;
+          }
+          const lowered = lowerValue(property.expression, env, hint);
+          statements.push(...lowered.statements);
+          if ("Object" in lowered.expression) {
+            for (const [field, expression] of Object.entries(lowered.expression.Object)) object[field] = expression;
+            continue;
+          }
+          let base = lowered.expression;
+          if (fields.length > 1 && !("Variable" in base)) {
+            const name = temporary(env, "spread");
+            statements.push({ Let: { name, value: base } });
+            base = { Variable: name };
+          }
+          for (const field of fields) object[field] = { Field: { base, name: field } };
           continue;
         }
-        const lowered = lowerValue(property.expression, env, hint);
+        if (ts.isShorthandPropertyAssignment(property)) {
+          object[property.name.text] = lowerExpr(property.name, env);
+          continue;
+        }
+        if (!ts.isPropertyAssignment(property)) refuse(env, "E_OPAQUE", property, "object member is outside the subset");
+        const name = propertyName(property.name);
+        if (!name) refuse(env, "E_OPAQUE", property.name, "computed object keys are unsupported");
+        const lowered = lowerValue(property.initializer, env, hint ? `${hint}.${name}` : name);
         statements.push(...lowered.statements);
-        if ("Object" in lowered.expression) {
-          for (const [field, expression] of Object.entries(lowered.expression.Object)) object[field] = expression;
-          continue;
-        }
-        let base = lowered.expression;
-        if (fields.length > 1 && !("Variable" in base)) {
-          const name = temporary(env, "spread");
-          statements.push({ Let: { name, value: base } });
-          base = { Variable: name };
-        }
-        for (const field of fields) object[field] = { Field: { base, name: field } };
-        continue;
+        object[name] = lowered.expression;
+      } catch (error) {
+        captureRefusal(env.diagnostics, error);
       }
-      if (ts.isShorthandPropertyAssignment(property)) {
-        object[property.name.text] = lowerExpr(property.name, env);
-        continue;
-      }
-      if (!ts.isPropertyAssignment(property)) refuse(env, "E_OPAQUE", property, "object member is outside the subset");
-      const name = propertyName(property.name);
-      if (!name) refuse(env, "E_OPAQUE", property.name, "computed object keys are unsupported");
-      const lowered = lowerValue(property.initializer, env, hint ? `${hint}.${name}` : name);
-      statements.push(...lowered.statements);
-      object[name] = lowered.expression;
     }
     return { statements, expression: { Object: object } };
   }
@@ -703,25 +717,24 @@ function lowerValue(node: ts.Expression, env: Environment, hint?: string): Lower
       plain = [];
     };
     for (const element of value.elements) {
-      if (ts.isSpreadElement(element)) {
-        if (staticBound(element.expression, env) === undefined) {
-          const spread = element.expression.getText(env.sourceFile);
-          refuse(
-            env,
-            "E_OPAQUE",
-            element,
-            "array spread requires a statically bounded array; spell its elements explicitly",
-            replaceNode(env.source, element, `${spread}[0], ${spread}[1]`),
-          );
+      try {
+        if (ts.isSpreadElement(element)) {
+          if (staticBound(element.expression, env) === undefined) {
+            const spread = element.expression.getText(env.sourceFile);
+            refuse(env, "E_OPAQUE", element, "array spread requires a statically bounded array; spell its elements explicitly",
+              replaceNode(env.source, element, `${spread}[0], ${spread}[1]`));
+          }
+          flush();
+          const lowered = lowerValue(element.expression, env, hint);
+          statements.push(...lowered.statements);
+          segments.push(lowered.expression);
+        } else {
+          const lowered = lowerValue(element, env, hint);
+          statements.push(...lowered.statements);
+          plain.push(lowered.expression);
         }
-        flush();
-        const lowered = lowerValue(element.expression, env, hint);
-        statements.push(...lowered.statements);
-        segments.push(lowered.expression);
-      } else {
-        const lowered = lowerValue(element, env, hint);
-        statements.push(...lowered.statements);
-        plain.push(lowered.expression);
+      } catch (error) {
+        captureRefusal(env.diagnostics, error);
       }
     }
     flush();

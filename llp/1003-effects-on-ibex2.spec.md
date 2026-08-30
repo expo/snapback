@@ -5,7 +5,7 @@
 **Systems:** `snapback2/crates/snapback2-effects` (the host and runner), `snapback2/crates/snapback2` (the runner thread in the owner; `doctor`), `snapback2/packages/compiler` (lowering `effect()` and `emit()`), `snapback2/scripts/{hermes,publish.mjs}`
 **Author:** Claude Fable 5 (orchestrator) — implementer: codex gpt-5.6-sol, lane C (compiler lowering: lane B0)
 **Date:** 2026-08-29
-**Revised:** 2026-08-29
+**Revised:** 2026-08-30
 **Related:** LLP 1000 decision 3 (Ibex 2 embedded now, effects only), LLP 1001 §8 (the outbox), LLP 1002 §5 (the owner that hosts the runner), LLP 0329.014.004 §6 (`effect` kind: "JavaScript with I/O outside the data plane; reads only through named queries as a service principal; writes only through named mutations; transactional outbox"), LLP 0329.016 §9 decision 7, expo/ibex LLP 0057/0058/0067/0068 (the engine, its bindings, and its grant model)
 
 ## Summary
@@ -73,12 +73,18 @@ names (LLP 1001 §9).
 `_outbox` (LLP 1001 §1) rows move through:
 
 ```
-queued ──(runner claims)──▶ running ──(run resolves)──▶ sent ──(then committed)──▶ sent
-                               │                          
-                               ├─(run throws, attempts < 5)─▶ queued (next_at = now + 1s·2^attempts)
+queued ──(runner claims)──▶ running ──(run resolves; effect has `then`)──▶ then_pending ──(then executed)──▶ sent
+                               │        └──(run resolves; no `then`)────────────────────────────────────▶ sent
+                               ├─(run throws, attempts < 5)─▶ queued (next_at = failure time + 1s·2^attempts)
                                ├─(run throws, attempts = 5)─▶ failed (last_error)
                                └─(process restarts while running)─▶ sent_unknown
 ```
+
+`then_pending` (review ruling 2026-08-30) makes the lifecycle restart-honest: the
+effect's result is durable before `then` runs, and a restart re-runs `then` for
+every `then_pending` row. `then` is idempotent by construction — it receives
+`outboxId`, so a duplicate write on a unique index is a `Rejected` the runner
+records as `last_error` while still moving the row to `sent`.
 
 - The runner claims with `UPDATE _outbox SET state='running', attempts=attempts+1,
   updated_at=? WHERE id=? AND state='queued'` — one row at a time, oldest
@@ -122,7 +128,15 @@ which returns a promise; the host then `pump`s to quiescence under the
 budget (30 s default; `E_EFFECT_TIMEOUT` → `Failed { retry: true }`), reads
 `__snapback.result` / `__snapback.error`, and drains `console` records into
 the owner's log with the outbox id. Nothing from one job survives into the
-next: the prelude keeps no state, and the global object is frozen. The
+next: the prelude keeps no state, the global object is frozen, the per-job
+`{ fetch, meta }` tools are fresh and frozen each job, payload and meta enter
+as JSON *strings* parsed inside the prelude (never interpolated as literals),
+and a job whose promise resolved but whose runtime did not reach quiescence
+(a stray timer, an unawaited fetch) is `Sent` with the runtime *dropped*.
+The effect's source is compiled once per runtime, not per job. Grant denials
+are classified by a tag the prelude's fetch wrapper sets
+(`error.code = "E_EFFECT_GRANT"`), never by message text (review rulings
+2026-08-30). The
 runtime is dropped after 50 jobs or on generation change, whichever first —
 Hermes heaps are cheap, leaks are not.
 
@@ -151,8 +165,10 @@ pointless and the message says which origin to declare.
 
 ## 5. What binds, and how it is checked
 
-- `cargo test -p snapback2-effects` (seam) and `scripts/hermes test -p
-  snapback2-effects` (engine): a job that `fetch`es a loopback HTTP server
+- `cargo test -p snapback2-effects` (seam) runs in the blocking script;
+  `scripts/hermes test -p snapback2-effects` (engine) is the engine proof and
+  is **never** part of the five blocking checks — a cold Hermes link takes
+  minutes (review ruling 2026-08-30). Engine tests: a job that `fetch`es a loopback HTTP server
   started by the test (as ibex2's own tests do) and returns its body; a job
   to an undeclared origin fails without retry; a job that throws retries; a
   job that never resolves times out; console output is captured; two jobs of

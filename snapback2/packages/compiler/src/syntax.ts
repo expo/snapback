@@ -24,8 +24,7 @@ export function snapbackCallName(call: ts.CallExpression, sourceFile = call.getS
     }
   }
   if (ts.isIdentifier(call.expression)) {
-    return named.get(call.expression.text)
-      ?? (snapbackSymbols.has(call.expression.text as SnapbackSymbol) ? call.expression.text as SnapbackSymbol : undefined);
+    return named.get(call.expression.text);
   }
   if (ts.isPropertyAccessExpression(call.expression) && ts.isIdentifier(call.expression.expression)
     && namespaces.has(call.expression.expression.text)
@@ -148,6 +147,14 @@ export function unwrapExpression(node: ts.Expression): ts.Expression {
   return value;
 }
 
+export function staticMemberPath(node: ts.Expression): string | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) return value.text;
+  if (!ts.isPropertyAccessExpression(value)) return undefined;
+  const base = staticMemberPath(value.expression);
+  return base ? `${base}.${value.name.text}` : undefined;
+}
+
 export function callName(call: ts.CallExpression): string {
   return call.expression.getText();
 }
@@ -187,6 +194,22 @@ export function isDbInsertCall(node: ts.Expression): boolean {
     && call.expression.name.text === "insert";
 }
 
+export function isNullableDbGet(node: ts.Expression): boolean {
+  const call = unwrapCall(node);
+  return !!call && ts.isPropertyAccessExpression(call.expression)
+    && isDb(call.expression.expression) && call.expression.name.text === "get";
+}
+
+export function nonNullIdentifier(node: ts.Expression): string | undefined {
+  const value = unwrapExpression(node);
+  if (!ts.isBinaryExpression(value) || ![
+    ts.SyntaxKind.ExclamationEqualsToken,
+    ts.SyntaxKind.ExclamationEqualsEqualsToken,
+  ].includes(value.operatorToken.kind)) return undefined;
+  if (ts.isIdentifier(value.left) && value.right.kind === ts.SyntaxKind.NullKeyword) return value.left.text;
+  return ts.isIdentifier(value.right) && value.left.kind === ts.SyntaxKind.NullKeyword ? value.right.text : undefined;
+}
+
 export function temporary(holder: { temp: { value: number } } | { value: number }, label: string): string {
   const temp = "temp" in holder ? holder.temp : holder;
   const value = temp.value++;
@@ -213,6 +236,21 @@ export function numberProperty(object: ts.ObjectLiteralExpression, name: string)
 
 export function numericLiteral(node: ts.Expression | undefined): number | undefined {
   return node && ts.isNumericLiteral(unwrapExpression(node)) ? Number((unwrapExpression(node) as ts.NumericLiteral).text) : undefined;
+}
+
+export function expandedNumericLiteral(text: string): { whole: string; fraction: string } | undefined {
+  const match = text.replaceAll("_", "").match(/^(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:e([+-]?\d+))?$/i);
+  if (!match) return undefined;
+  const integer = match[1] ?? "0";
+  const authoredFraction = match[2] ?? match[3] ?? "";
+  const exponent = Number(match[4] ?? 0);
+  const digits = `${integer}${authoredFraction}`;
+  const point = integer.length + exponent;
+  const whole = (point <= 0 ? "0" : point >= digits.length ? digits.padEnd(point, "0") : digits.slice(0, point))
+    .replace(/^0+(?=\d)/, "");
+  const fraction = (point <= 0 ? `${"0".repeat(-point)}${digits}` : point >= digits.length ? "" : digits.slice(point))
+    .replace(/0+$/, "");
+  return { whole: whole || "0", fraction };
 }
 
 export function stringLiteral(node: ts.Expression | undefined): string | undefined {

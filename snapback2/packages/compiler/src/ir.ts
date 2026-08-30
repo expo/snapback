@@ -85,7 +85,12 @@ export type Stmt =
 export type Program = {
   name: string;
   kind: ProgramKind;
-  args: Record<string, "Scalar" | { List: { max: number } }>;
+  args: Record<string,
+    | "Scalar"
+    | { List: { max: number } }
+    | { Enum: { variants: string[] } }
+    | { Decimal: { scale: number } }
+    | { Money: { currency: string; scale: number } }>;
   read_time_granularity_ms: number | null;
   body: Stmt[];
 };
@@ -106,9 +111,12 @@ export type DiagnosticCode =
   | "E_AMBIENT_TIME"
   | "E_OPAQUE"
   | "E_BOUND"
+  | "E_ARGS_SPREAD"
+  | "E_ARGS_DESCRIPTOR"
   | "E_ARGS_TYPE"
   | "E_OP_INVALID"
   | "E_OP_NONE"
+  | "E_DIAG_TRUNCATED"
   | "E_SCHEMA_RESERVED"
   | "E_SCHEMA_ID_RESERVED"
   | "E_SCHEMA_UNKNOWN_TABLE"
@@ -117,6 +125,7 @@ export type DiagnosticCode =
   | "E_SCHEMA_CONSTRAINT"
   | "E_SCHEMA_MAINTAIN"
   | "E_SCHEMA_DEFAULT_EXPORT"
+  | "E_SCHEMA_COLUMN"
   | "E_SCHEMA_INVALID"
   | "E_RULE_INVALID"
   | "E_DECIMAL_SCALE"
@@ -125,6 +134,7 @@ export type DiagnosticCode =
   | "E_SEED_PERSONA"
   | "E_SEED_TABLE"
   | "E_SEED_ROW"
+  | "E_SEED_SHAPE"
   | "E_SEED_VALUE"
   | "E_EFFECT_CLOSURE"
   | "E_EFFECT_TYPE"

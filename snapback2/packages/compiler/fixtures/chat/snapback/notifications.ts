@@ -1,7 +1,11 @@
 import { effect, mutation, t } from "snapback2";
 import { notifications } from "./schema";
 
-const requestDefaults = { method: "POST", headers: { "content-type": "application/json" } };
+const baseHeaders = { accept: "application/json" };
+const requestDefaults = {
+  method: "POST",
+  headers: { ...baseHeaders, "content-type": "application/json" },
+};
 
 export const recordNotified = mutation({
   outboxId: t.id(),
@@ -20,7 +24,9 @@ export const recordNotified = mutation({
 export const notify = effect({
   grants: ["https://api.example.com"],
   run: async (payload: { to: string; body: string }, { fetch, meta }) => {
-    const body = [payload.body].map((value) => value)[0];
+    function identity(value: string) { return value; }
+    const formatter = { format(value: string) { return identity(value); } };
+    const body = [payload.body].map(function keep(value) { return formatter.format(value); })[0];
     try {
       const response = await fetch("https://api.example.com/send", {
         method: requestDefaults.method,

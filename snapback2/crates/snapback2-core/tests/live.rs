@@ -682,8 +682,22 @@ fn rerun_runtime_value_error_is_delivered_as_error() {
     let commit = runtime.store().commits_since(seq - 1, 1).unwrap().remove(0);
     assert_eq!(runtime.invalidated(&commit), vec![id]);
     let delivery = runtime.rerun(&[id]).remove(0);
+    assert!(delivery.changed);
     assert!(matches!(
         delivery.execution,
         Err(RuntimeError::Value(ValueError::DivideByZero))
     ));
+
+    runtime
+        .seed(&[(
+            "counters".to_owned(),
+            object([
+                ("id", Value::Id("only".to_owned())),
+                ("divisor", Value::Int(1)),
+            ]),
+        )])
+        .unwrap();
+    let recovery = runtime.rerun(&[id]).remove(0);
+    assert!(recovery.changed, "recovery from an error must be delivered");
+    assert_eq!(recovery.execution.unwrap().result, initial.result);
 }

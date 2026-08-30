@@ -213,7 +213,8 @@ function lowerColumn(
   const call = unwrapCall(node);
   const name = call && callLeaf(call);
   if (!call || !name) {
-    diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", node, "column type must be a t.* descriptor"));
+    const detail = invalidDescriptorRefusal(node);
+    diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_COLUMN", detail.node, detail.message, detail.rewrite));
     return undefined;
   }
   if (name === "id" && call.arguments.length === 0) return "Id";
@@ -222,7 +223,7 @@ function lowerColumn(
   if (name === "time" && call.arguments.length === 0) return "Time";
   if (name === "enum" && call.arguments.length === 1) {
     const variants = stringArray(call.arguments[0]);
-    if (variants && variants.length > 0 && new Set(variants).size === variants.length) {
+    if (validEnumVariants(variants)) {
       return { Enum: { variants } };
     }
   }
@@ -260,12 +261,14 @@ function lowerColumn(
   }
   if (name === "list" && call.arguments.length === 2 && call.arguments[0]) {
     const inner = lowerColumn(module, call.arguments[0], tables, diagnostics);
+    if (inner === undefined) return undefined;
     const options = objectOf(call.arguments[1]);
     const max = options && numberValue(property(options, "max"));
     if (options) validateKnownKeys(module, options, ["max"], "list options", "E_SCHEMA_INVALID", diagnostics);
     if (inner !== undefined && validPositiveInteger(max)) return { List: { of: inner, max } };
   }
-  diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", node, `invalid t.${name} column descriptor`));
+  const detail = invalidDescriptorRefusal(node);
+  diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_COLUMN", detail.node, detail.message, detail.rewrite));
   return undefined;
 }
 
@@ -555,7 +558,33 @@ export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
       ? { List: { max } }
       : undefined;
   }
+  if (call && callLeaf(call) === "optional" && call.arguments[0]) return lowerArgDescriptor(call.arguments[0]);
+  if (call && callLeaf(call) === "enum") {
+    const variants = stringArray(call.arguments[0]);
+    return call.arguments.length === 1 && validEnumVariants(variants)
+      ? { Enum: { variants } }
+      : undefined;
+  }
+  if (call && callLeaf(call) === "decimal") {
+    const scale = numberValue(call.arguments[0]);
+    return call.arguments.length === 1 && validScale(scale) ? { Decimal: { scale } } : undefined;
+  }
+  if (call && callLeaf(call) === "money") {
+    const currency = stringValue(call.arguments[0]);
+    const scale = call.arguments[1] ? numberValue(call.arguments[1]) : 2;
+    return (call.arguments.length === 1 || call.arguments.length === 2) && currency && /^[A-Z]{3}$/.test(currency) && validScale(scale)
+      ? { Money: { currency, scale } }
+      : undefined;
+  }
   return validArgDescriptor(node) ? "Scalar" : undefined;
+}
+
+export function lowerLegacyArgDescriptor(node: ts.Expression): unknown | undefined {
+  const call = unwrapCall(node);
+  if (!call) return undefined;
+  const options = callLeaf(call) === "list" && objectOf(call.arguments[1]);
+  const max = options && numberValue(property(options, "max"));
+  return typeof max === "number" ? { List: { max } } : "Scalar";
 }
 
 function validArgDescriptor(node: ts.Expression): boolean {
@@ -568,7 +597,7 @@ function validArgDescriptor(node: ts.Expression): boolean {
   if (name === "optional") return call.arguments.length === 1 && !!call.arguments[0] && validArgDescriptor(call.arguments[0]);
   if (name === "enum") {
     const variants = stringArray(call.arguments[0]);
-    return call.arguments.length === 1 && !!variants?.length && new Set(variants).size === variants.length;
+    return call.arguments.length === 1 && validEnumVariants(variants);
   }
   if (name === "decimal") return call.arguments.length === 1 && validScale(numberValue(call.arguments[0]));
   if (name === "money") {
@@ -630,7 +659,85 @@ function isPublicRule(value: unknown): boolean {
 }
 
 function validScale(value: number | undefined): value is number {
-  return value !== undefined && Number.isInteger(value) && value >= 0 && value <= 18;
+  return value !== undefined && Number.isInteger(value) && value >= 0 && value <= 12;
+}
+
+function validEnumVariants(value: string[] | undefined): value is string[] {
+  return !!value?.length && value.every((variant) => variant.length > 0) && new Set(value).size === value.length;
+}
+
+export function invalidDescriptorRefusal(node: ts.Expression): { node: ts.Expression; message: string; rewrite: string } {
+  const call = unwrapCall(node);
+  const name = call && callLeaf(call);
+  if (call && (name === "optional" || name === "list") && call.arguments[0]
+    && lowerArgDescriptor(call.arguments[0]) === undefined) {
+    return invalidDescriptorRefusal(call.arguments[0]);
+  }
+  const callee = call?.expression.getText() ?? "t.text";
+  const sibling = (descriptor: string) => {
+    const dot = callee.lastIndexOf(".");
+    return `${dot >= 0 ? callee.slice(0, dot + 1) : "t."}${descriptor}`;
+  };
+  if (name === "decimal") {
+    const scale = correctedScale(numberValue(call!.arguments[0]));
+    return { node, message: "t.decimal(scale) requires an integer scale from 0 through 12", rewrite: `${callee}(${scale})` };
+  }
+  if (name === "money") {
+    const authored = stringValue(call!.arguments[0]);
+    const currency = authored && /^[A-Za-z]{3}$/.test(authored) ? authored.toUpperCase() : "USD";
+    const scale = call!.arguments[1] ? `, ${correctedScale(numberValue(call!.arguments[1]))}` : "";
+    return {
+      node,
+      message: "t.money(currency, scale?) requires an uppercase ISO-4217-shaped three-letter currency and a scale from 0 through 12",
+      rewrite: `${callee}(${JSON.stringify(currency)}${scale})`,
+    };
+  }
+  if (name === "enum") {
+    const variants = [...new Set((stringArray(call!.arguments[0]) ?? []).filter((variant) => variant.length > 0))];
+    if (variants.length === 0) variants.push("value");
+    return {
+      node,
+      message: "t.enum(variants) requires at least one unique, non-empty string variant",
+      rewrite: `${callee}(${JSON.stringify(variants)})`,
+    };
+  }
+  const rewrites: Record<string, string> = {
+    id: `${callee}()`, int: `${callee}()`, bool: `${callee}()`, time: `${callee}()`,
+    text: `${callee}(100)`, json: `${callee}(1000)`, ref: `${callee}(table)`,
+    optional: `${callee}(${sibling("text")}(100))`,
+    list: `${callee}(${sibling("text")}(100), { max: 10 })`,
+  };
+  return {
+    node,
+    message: name ? `t.${name} arguments do not form a valid descriptor` : "column type must be a t.* descriptor",
+    rewrite: rewrites[name ?? ""] ?? `${sibling("text")}(100)`,
+  };
+}
+
+export function invalidNativeDescriptorRefusal(node: ts.Expression): ReturnType<typeof invalidDescriptorRefusal> | undefined {
+  const call = unwrapCall(node);
+  if (!call || !nativeDescriptorName(call)) return undefined;
+  return invalidDescriptorRefusal(node);
+}
+
+function nativeDescriptorName(call: ts.CallExpression): string | undefined {
+  const name = callLeaf(call);
+  if (!name || !["id", "text", "int", "bool", "time", "ref", "json", "optional", "list", "enum", "decimal", "money"].includes(name)
+    || !ts.isPropertyAccessExpression(call.expression)) return undefined;
+  const owner = call.expression.expression.getText();
+  if (owner === "t" || owner.endsWith(".t")) return name;
+  for (const statement of call.getSourceFile().statements) {
+    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
+      || statement.moduleSpecifier.text !== "snapback2") continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings && ts.isNamedImports(bindings) && bindings.elements.some((item) =>
+      (item.propertyName?.text ?? item.name.text) === "t" && item.name.text === owner)) return name;
+  }
+  return undefined;
+}
+
+function correctedScale(value: number | undefined): number {
+  return value === undefined || !Number.isFinite(value) ? 2 : Math.max(0, Math.min(12, Math.trunc(value)));
 }
 
 function validPositiveInteger(value: number | undefined): value is number {
@@ -669,11 +776,12 @@ function schemaDiagnostic(
   module: SchemaModule,
   code: "E_SCHEMA_RESERVED" | "E_SCHEMA_ID_RESERVED" | "E_SCHEMA_UNKNOWN_TABLE" | "E_SCHEMA_INDEX_COLUMN"
     | "E_SCHEMA_INDEX_OPTION" | "E_SCHEMA_CONSTRAINT" | "E_SCHEMA_MAINTAIN" | "E_SCHEMA_DEFAULT_EXPORT"
-    | "E_SCHEMA_INVALID" | "E_RULE_INVALID",
+    | "E_SCHEMA_COLUMN" | "E_SCHEMA_INVALID" | "E_RULE_INVALID",
   node: ts.Node,
   message: string,
+  replacement?: string,
 ): FrontendDiagnostic {
-  const rewrite = code === "E_SCHEMA_ID_RESERVED"
+  const rewrite = replacement ?? (code === "E_SCHEMA_ID_RESERVED"
     ? "columns: {}"
     : code === "E_SCHEMA_CONSTRAINT"
       ? "{ appendOnly: true }"
@@ -681,7 +789,7 @@ function schemaDiagnostic(
         ? "indexes: {}"
         : code === "E_SCHEMA_MAINTAIN"
           ? "maintains: []"
-          : schemaDeclarationRewrite(node);
+          : schemaDeclarationRewrite(node));
   return diagnostic(module, code, node, message, rewrite);
 }
 

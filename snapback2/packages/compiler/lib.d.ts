@@ -77,7 +77,9 @@ declare module "snapback2" {
     bool(): Column<boolean>;
     time(): Column<number>;
     enum<const V extends readonly [string, ...string[]]>(variants: V): Column<V[number]>;
+    /** `t.decimal(scale)` declares a Decimal column; numeric literals assigned to it are whole units and are scaled by 10^scale. */
     decimal<const S extends number>(scale: S): Column<Decimal<S>>;
+    /** `t.money(currency, scale)` declares a Money column; numeric literals assigned to it are whole units and are scaled by 10^scale. */
     money<const C extends string>(currency: C): Column<Money<C, 2>>;
     money<const C extends string, const S extends number>(currency: C, scale: S): Column<Money<C, S>>;
     ref<R extends Record<string, any>>(target: Table<R>): Column<string>;
@@ -124,6 +126,7 @@ declare module "snapback2" {
   export function seed<const S extends { personas: string[]; rows: Record<string, Json[]> }>(value: S): S;
 
   export function range(start: number, end: number): number[];
+  /** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
   export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
   export function deterministicShare(amount: number, recipients: unknown[], recipient: unknown): number;
