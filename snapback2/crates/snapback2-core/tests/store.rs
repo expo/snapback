@@ -365,18 +365,9 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
 fn store_snapshot_reset_and_reserved_names_obey_the_contract() {
     let snapshot = temp_store("snapshot");
     let mut store = Store::memory().unwrap();
-    store.set_meta("custom", "kept").unwrap();
     store.snapshot_to(&snapshot).unwrap();
-    assert_eq!(
-        Store::open(&snapshot)
-            .unwrap()
-            .meta("custom")
-            .unwrap()
-            .as_deref(),
-        Some("kept")
-    );
+    Store::open(&snapshot).unwrap();
     store.reset_data().unwrap();
-    assert_eq!(store.meta("custom").unwrap().as_deref(), Some("kept"));
     assert_eq!(store.commit_seq().unwrap(), 0);
 
     let mut invalid = schema();
@@ -394,8 +385,7 @@ fn store_snapshot_reset_and_reserved_names_obey_the_contract() {
 fn durable_store_has_one_owner_and_owner_can_snapshot() {
     let path = temp_store("owner");
     let snapshot = temp_store("owner-snapshot");
-    let mut first = Store::open(&path).unwrap();
-    first.set_meta("snapshot_marker", "present").unwrap();
+    let first = Store::open(&path).unwrap();
     let holder = first.meta("owner").unwrap().unwrap();
     assert!(holder.starts_with(&format!("{}@", std::process::id())));
     assert_eq!(holder.matches(':').count(), 1);
@@ -413,10 +403,6 @@ fn durable_store_has_one_owner_and_owner_can_snapshot() {
 
     first.snapshot_to(&snapshot).unwrap();
     let snapshot_store = Store::open(&snapshot).unwrap();
-    assert_eq!(
-        snapshot_store.meta("snapshot_marker").unwrap().as_deref(),
-        Some("present")
-    );
     drop(snapshot_store);
     drop(first);
 

@@ -237,8 +237,6 @@ pub enum RuntimeError {
     TraceSubset(String),
     #[error("E_OP_UNKNOWN: {0}")]
     OpUnknown(String),
-    #[error("E_HANDLE_UNKNOWN: {0}")]
-    HandleUnknown(String),
     #[error("E_MIGRATION_PLAN: {0}")]
     MigrationPlan(String),
     #[error(transparent)]
@@ -269,7 +267,6 @@ impl RuntimeError {
             Self::StoreOwned { .. } => "E_STORE_OWNED",
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
             Self::OpUnknown(_) => "E_OP_UNKNOWN",
-            Self::HandleUnknown(_) => "E_HANDLE_UNKNOWN",
             Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
             Self::Successor(refusal) => &refusal.code,
         }
@@ -298,7 +295,7 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(store: Store, schema: Schema) -> Result<Self, RuntimeError> {
-        validate_schema(&schema)?;
+        validate_schema(&schema).map_err(first_schema_error)?;
         Ok(Self {
             store,
             schema,
@@ -327,7 +324,7 @@ impl Engine {
     }
 
     pub(crate) fn set_schema(&mut self, schema: Schema) -> Result<(), RuntimeError> {
-        validate_schema(&schema)?;
+        validate_schema(&schema).map_err(first_schema_error)?;
         self.schema = schema;
         Ok(())
     }
@@ -914,20 +911,21 @@ pub(crate) fn append_commit(
     Ok(())
 }
 
-pub fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
-    if let Some(name) = schema.tables.keys().find(|name| name.starts_with('_')) {
-        return Err(RuntimeError::SchemaReserved(name.clone()));
+pub fn validate_schema(schema: &Schema) -> Result<(), Vec<RuntimeError>> {
+    let mut errors = Vec::new();
+    for name in schema.tables.keys().filter(|name| name.starts_with('_')) {
+        errors.push(RuntimeError::SchemaReserved(name.clone()));
     }
     for (table_name, table) in &schema.tables {
         if table.columns.get("id") != Some(&ColumnType::Id) {
-            return Err(RuntimeError::Schema(format!(
+            errors.push(RuntimeError::Schema(format!(
                 "table {table_name} must declare the implicit id column as Id"
             )));
         }
         for (index_name, index) in &table.indexes {
             for column in &index.columns {
                 if !table.columns.contains_key(column) {
-                    return Err(RuntimeError::Schema(format!(
+                    errors.push(RuntimeError::Schema(format!(
                         "index {table_name}.{index_name} names undeclared column {column}"
                     )));
                 }
@@ -936,7 +934,7 @@ pub fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
                     .get(column)
                     .is_some_and(ColumnType::contains_list)
                 {
-                    return Err(RuntimeError::SchemaIndexColumn {
+                    errors.push(RuntimeError::SchemaIndexColumn {
                         table: table_name.clone(),
                         index: index_name.clone(),
                         column: column.clone(),
@@ -945,7 +943,18 @@ pub fn validate_schema(schema: &Schema) -> Result<(), RuntimeError> {
             }
         }
     }
-    Ok(())
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
+    errors
+        .into_iter()
+        .next()
+        .expect("schema validation refusal contains at least one diagnostic")
 }
 
 mod index;
@@ -956,7 +965,8 @@ mod runner_ops;
 use index::{EvaluatedRange, delete_index_row, lookup_indexed, row_ids, scan_indexed};
 #[allow(unused_imports)]
 pub(crate) use index::{
-    fetch_table_connection, index_values, materialize_optional_fields, reindex_row, validate_row,
+    fetch_table_connection, index_values, materialize_optional_fields, reindex_row,
+    validate_column_value, validate_row,
 };
 #[allow(unused_imports)]
 use runner::{Flow, Runner};

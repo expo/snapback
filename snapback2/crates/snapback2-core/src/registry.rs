@@ -12,7 +12,7 @@ use crate::schema::{Auth, RuleExpr, Schema};
 use crate::store::{CommitRecord, Store, unix_millis};
 use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
-    apply_migration_drops, plan, successor_refusal, validate_stored_rows,
+    apply_migration_drops, plan, successor_refusal,
 };
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
@@ -307,7 +307,6 @@ impl Generation {
 pub struct Runtime {
     pub(crate) engine: Engine,
     pub(crate) generation: Generation,
-    admitted_handles: BTreeMap<String, (Program, Certificate)>,
     pub(crate) subs: Subscriptions,
     #[cfg(test)]
     fail_after_then_commit: bool,
@@ -315,7 +314,8 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn open(mut store: Store, generation: Generation) -> Result<Self, SuccessorRefusal> {
-        crate::engine::validate_schema(&generation.schema).map_err(store_refusal)?;
+        crate::engine::validate_schema(&generation.schema)
+            .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         let installed = store.meta("generation").map_err(store_refusal)?;
         match installed {
             None => {
@@ -329,15 +329,6 @@ impl Runtime {
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
             }
             Some(hash) if hash == generation.hash => {
-                let validation_generation = store
-                    .meta("row_validation_generation")
-                    .map_err(store_refusal)?;
-                if validation_generation.as_deref() != Some(hash.as_str())
-                    && let Some(refusal) = validate_stored_rows(&store.conn, &generation.schema)
-                        .map_err(store_refusal)?
-                {
-                    return Err(refusal);
-                }
                 // Additive owner metadata can appear after the generation was
                 // first installed (for example the outbox declaration binding).
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
@@ -373,12 +364,10 @@ impl Runtime {
                     .map_err(|error| store_refusal(RuntimeError::Sql(error)))?;
             }
         }
-        let admitted_handles = admitted_handles(&generation);
         let engine = Engine::new(store, generation.schema.clone()).map_err(store_refusal)?;
         Ok(Self {
             engine,
             generation,
-            admitted_handles,
             subs: Subscriptions::default(),
             #[cfg(test)]
             fail_after_then_commit: false,
@@ -392,33 +381,6 @@ impl Runtime {
             .get(op)
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
-        self.execute_certified(&program, &certificate, context)
-    }
-
-    /// Return the opaque token for a currently admitted operation handle.
-    pub fn handle(&self, op: &str) -> Result<String, RuntimeError> {
-        let (program, certificate) = self
-            .generation
-            .programs
-            .get(op)
-            .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
-        Ok(handle_token(program, certificate))
-    }
-
-    /// Resolve a current or retained predecessor handle server-side. Callers
-    /// never supply the program or certificate that execution trusts.
-    // @ref LLP 1002#7-test-and-the-receipt — the derived stale-handle proof
-    // presents its retained predecessor handle to the successor runtime.
-    pub fn execute_handle(
-        &mut self,
-        handle: &str,
-        context: Context,
-    ) -> Result<Execution, RuntimeError> {
-        let (program, certificate) = self
-            .admitted_handles
-            .get(handle)
-            .cloned()
-            .ok_or_else(|| RuntimeError::HandleUnknown(handle.to_owned()))?;
         self.execute_certified(&program, &certificate, context)
     }
 
@@ -620,7 +582,8 @@ impl Runtime {
         &mut self,
         next: Generation,
     ) -> Result<SuccessorReport, SuccessorRefusal> {
-        crate::engine::validate_schema(&next.schema).map_err(store_refusal)?;
+        crate::engine::validate_schema(&next.schema)
+            .map_err(|errors| store_refusal(first_schema_error(errors)))?;
         if let Some(refusal) =
             successor_refusal(self.engine.store(), &self.generation.schema, &next.schema)
                 .map_err(store_refusal)?
@@ -650,7 +613,6 @@ impl Runtime {
         self.engine
             .set_schema(next.schema.clone())
             .map_err(store_refusal)?;
-        self.admitted_handles.extend(admitted_handles(&next));
         self.generation = next;
         self.rerun_all_subscriptions();
         Ok(report)
@@ -661,7 +623,7 @@ impl Runtime {
         next: Generation,
         migration: &MigrationPlan,
     ) -> Result<SuccessorReport, RuntimeError> {
-        crate::engine::validate_schema(&next.schema)?;
+        crate::engine::validate_schema(&next.schema).map_err(first_schema_error)?;
         let expected = plan(self.engine.store(), &self.generation.schema, &next.schema)?;
         if &expected != migration {
             return Err(RuntimeError::MigrationPlan(format!(
@@ -686,7 +648,6 @@ impl Runtime {
         persist_generation_transaction(&transaction, &next)?;
         transaction.commit()?;
         self.engine.set_schema(next.schema.clone())?;
-        self.admitted_handles.extend(admitted_handles(&next));
         self.generation = next;
         self.rerun_all_subscriptions();
         Ok(report)
@@ -855,7 +816,6 @@ fn persist_generation_transaction(
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
         ("generation", generation.hash.clone()),
-        ("row_validation_generation", generation.hash.clone()),
         ("schema_json", schema_json),
         ("effects_json", effects_json),
     ] {
@@ -881,24 +841,15 @@ fn store_refusal(error: RuntimeError) -> SuccessorRefusal {
     SuccessorRefusal::store(&error)
 }
 
+fn first_schema_error(errors: Vec<RuntimeError>) -> RuntimeError {
+    errors
+        .into_iter()
+        .next()
+        .expect("schema validation refusal contains at least one diagnostic")
+}
+
 fn rejection_code(error: &RuntimeError) -> Option<&str> {
     crate::engine::mutation_rejection_code(error)
-}
-
-fn admitted_handles(generation: &Generation) -> BTreeMap<String, (Program, Certificate)> {
-    generation
-        .programs
-        .values()
-        .cloned()
-        .map(|(program, certificate)| {
-            (handle_token(&program, &certificate), (program, certificate))
-        })
-        .collect()
-}
-
-fn handle_token(program: &Program, certificate: &Certificate) -> String {
-    debug_assert_eq!(certificate.plan_hash, digest(program));
-    digest(&(certificate.plan_hash.as_str(), certificate))
 }
 
 fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
@@ -1088,60 +1039,6 @@ mod tests {
     use super::*;
     use crate::Actor;
     use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
-
-    #[test]
-    fn forged_certificate_handle_is_unknown_and_never_executes() {
-        let schema = Schema {
-            effects: vec!["mail.send".to_owned()],
-            ..Schema::default()
-        };
-        let generation = Generation::certify(
-            &ProjectJson {
-                version: 1,
-                schema: schema.clone(),
-                programs: Vec::new(),
-                effects: vec![EffectDecl {
-                    name: "mail.send".to_owned(),
-                    grants: Vec::new(),
-                    source: "async () => null".to_owned(),
-                    then: None,
-                }],
-                auth: Auth::default(),
-            },
-            Ceilings::default(),
-        )
-        .unwrap();
-        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-        let forged_program = Program {
-            name: "forged.emit".to_owned(),
-            kind: ProgramKind::Mutation,
-            args: BTreeMap::new(),
-            read_time_granularity_ms: None,
-            body: vec![Stmt::Emit {
-                effect: "mail.send".to_owned(),
-                payload: Expr::Literal(Value::Null),
-            }],
-        };
-        let mut forged_certificate = Checker::new(&schema, Ceilings::default())
-            .check(&forged_program)
-            .unwrap();
-        forged_certificate.max_examined = u64::MAX;
-        forged_certificate.max_index_entries = u64::MAX;
-        forged_certificate.max_rule_probes = u64::MAX;
-        forged_certificate.max_steps = u64::MAX;
-        forged_certificate.max_heap_bytes = u64::MAX;
-        forged_certificate.max_output_bytes = u64::MAX;
-        forged_certificate.max_closure_bytes = u64::MAX;
-        let forged_handle = handle_token(&forged_program, &forged_certificate);
-        let mut context = Context::mutation(Actor::user("attacker").unwrap(), BTreeMap::new());
-        context.new_ids.push_back("forged-outbox".to_owned());
-
-        let error = runtime.execute_handle(&forged_handle, context).unwrap_err();
-
-        assert_eq!(error.code(), "E_HANDLE_UNKNOWN");
-        assert_eq!(runtime.store().outbox_counts().unwrap().queued, 0);
-        assert_eq!(runtime.store().commit_seq().unwrap(), 0);
-    }
 
     #[test]
     fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {

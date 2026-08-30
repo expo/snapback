@@ -37,7 +37,6 @@ impl Store {
     pub fn open(path: &Path) -> Result<Store, RuntimeError>;   // WAL, busy_timeout 5 s, foreign keys off
     pub fn memory() -> Result<Store, RuntimeError>;            // what Engine::memory used
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
-    pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError>;
     pub fn commit_seq(&self) -> Result<u64, RuntimeError>;     // last committed seq, 0 when empty
     pub fn commits_since(&self, seq: u64, limit: usize) -> Result<Vec<CommitRecord>, RuntimeError>;
     pub fn snapshot_to(&self, path: &Path) -> Result<(), RuntimeError>;  // `fork`: rusqlite backup API
@@ -163,13 +162,24 @@ pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
 impl Runtime {
     pub fn open(store: Store, generation: Generation) -> Result<Runtime, SuccessorRefusal>; // applies gen to an empty or same-hash store; else runs the successor check
     pub fn execute(&mut self, op: &str, context: Context) -> Result<Execution, RuntimeError>; // E_OP_UNKNOWN when op is not in the generation
-    pub fn execute_handle(&mut self, program: &Program, certificate: &Certificate, context: Context) -> Result<Execution, RuntimeError>; // retained handles are fenced by plan/schema hashes
+    pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
+    pub fn rerun(&mut self, ids: &[SubscriptionId]) -> Vec<Delivery>; // resolves op + certificate from the active generation
     pub fn apply_successor(&mut self, next: Generation) -> Result<SuccessorReport, SuccessorRefusal>;
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError>;  // one commit, kind "seed"
     pub fn generation(&self) -> &Generation;
     pub fn store(&self) -> &Store;
 }
 ```
+
+**Subscription replan amendment (author-authorized 2026-08-30).** `Runtime`
+has no public handle-execution or caller-supplied certificate surface. The
+derived policy-successor check subscribes under generation N, installs the
+successor, and reruns the subscription by id; its test receipt records the
+schema hash observed at subscribe and the successor certificate's schema hash
+at rerun, and requires the successor denial/blank result rather than the
+predecessor rows. The engine-level certificate invariant remains separate:
+the core unit test presents a predecessor certificate to `Engine` under the
+successor schema and requires `E_TRACE_SUBSET`.
 
 **Successors.** A successor is *additive* when every existing table keeps its
 columns and their types, every existing index keeps its columns, and nothing
@@ -222,6 +232,16 @@ Three rulings from the 2026-08-30 review (M3, M4, M8):
   successor is refused with `E_SUCCESSOR_COLUMN_REQUIRED` (rewrite:
   `t.optional(...)`, or add it while the table is empty). Existing rows keep
   their JSON; an absent optional column reads as `Null`.
+
+**Stored-row admission amendment (author-authorized 2026-08-30).** Row
+validation runs only while installing a successor, never while reopening an
+already installed generation; there is no validation watermark in `_meta`.
+For existing rows it validates only newly declared columns and columns newly
+interpreted as `Id`/`Ref` (including nested optional/list forms), applying
+both field validation and the reserved-principal walk. An unrelated legacy
+undeclared field therefore cannot block a clean additive successor, but a
+successor that declares that field refuses with `E_SUCCESSOR_ROW_INVALID`
+naming the offending row.
 
 ## 5. Live subscriptions (`live.rs`)
 

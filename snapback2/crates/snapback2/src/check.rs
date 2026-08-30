@@ -234,8 +234,11 @@ fn check_request(request: Request) -> Vec<ResultItem> {
             SchemaMode::Synthetic => synthetic_schema(&parsed_programs),
         },
     };
-    if let Err(error) = validate_schema(&schema) {
-        let mut results = vec![refused_item("<schema>", SerializableError::schema(error))];
+    if let Err(errors) = validate_schema(&schema) {
+        let mut results = errors
+            .into_iter()
+            .map(|error| refused_item("<schema>", SerializableError::schema(error)))
+            .collect::<Vec<_>>();
         results.extend(uncertified_program_results(
             programs,
             "program cannot be certified because the project schema is invalid",
@@ -452,6 +455,7 @@ mod tests {
     fn invalid_implicit_id_and_program_parse_errors_are_reported_together() {
         let mut schema = serde_json::to_value(spike_schema()).unwrap();
         schema["tables"]["conversations"]["columns"]["id"] = json!({ "Text": { "max": 32 } });
+        schema["tables"]["messages"]["columns"]["id"] = json!({ "Text": { "max": 32 } });
         let results = check_request(Request {
             programs: vec![json!({
                 "name": "broken.program",
@@ -463,7 +467,7 @@ mod tests {
             schema_mode: SchemaMode::Spike,
         });
 
-        assert_eq!(results.len(), 2);
+        assert_eq!(results.len(), 3);
         assert_eq!(results[0].program, "<schema>");
         assert_eq!(results[0].error.as_ref().unwrap().code, "E_SCHEMA");
         assert!(
@@ -472,15 +476,25 @@ mod tests {
                 .as_ref()
                 .unwrap()
                 .message
-                .contains("implicit id column")
+                .contains("conversations")
         );
-        assert_eq!(results[1].program, "broken.program");
+        assert_eq!(results[1].program, "<schema>");
+        assert_eq!(results[1].error.as_ref().unwrap().code, "E_SCHEMA");
+        assert!(
+            results[1]
+                .error
+                .as_ref()
+                .unwrap()
+                .message
+                .contains("messages")
+        );
+        assert_eq!(results[2].program, "broken.program");
         assert_eq!(
-            results[1].error.as_ref().unwrap().code,
+            results[2].error.as_ref().unwrap().code,
             "E_CHECK_IR_UNSUPPORTED"
         );
         assert!(
-            results[1]
+            results[2]
                 .error
                 .as_ref()
                 .unwrap()

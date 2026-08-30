@@ -525,7 +525,7 @@ fn required_column_on_populated_table_is_refused() {
 }
 
 #[test]
-fn additive_successor_refuses_reserved_id_in_newly_declared_field() {
+fn successor_ignores_unrelated_legacy_fields_but_validates_the_field_when_declared() {
     let path = temp_store_path("reserved-successor-row");
     let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
     let base = generation(
@@ -536,16 +536,10 @@ fn additive_successor_refuses_reserved_id_in_newly_declared_field() {
         Vec::new(),
     );
     {
-        Runtime::open(Store::open(&path).unwrap(), base).unwrap();
+        Runtime::open(Store::open(&path).unwrap(), base.clone()).unwrap();
     }
     {
         let connection = rusqlite::Connection::open(&path).unwrap();
-        connection
-            .execute(
-                "DELETE FROM _meta WHERE key = 'row_validation_generation'",
-                [],
-            )
-            .unwrap();
         let vulnerable_row = object([
             ("id", Value::Id("legacy-row".to_owned())),
             ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
@@ -558,22 +552,34 @@ fn additive_successor_refuses_reserved_id_in_newly_declared_field() {
             .unwrap();
     }
 
-    let mut next_items = items;
-    next_items.columns.insert(
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), base).unwrap();
+    let mut clean_items = items.clone();
+    clean_items.columns.insert(
+        "note".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Text { max: 64 })),
+    );
+    runtime
+        .apply_successor(generation(
+            schema(
+                BTreeMap::from([("items".to_owned(), clean_items.clone())]),
+                Vec::new(),
+            ),
+            Vec::new(),
+        ))
+        .expect("an unrelated undeclared legacy field must not block a clean successor");
+
+    clean_items.columns.insert(
         "ownerId".to_owned(),
         ColumnType::Optional(Box::new(ColumnType::Id)),
     );
     let next = generation(
         schema(
-            BTreeMap::from([("items".to_owned(), next_items)]),
+            BTreeMap::from([("items".to_owned(), clean_items)]),
             Vec::new(),
         ),
         Vec::new(),
     );
-    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
-        Ok(_) => panic!("the vulnerable stored row must refuse its successor"),
-        Err(refusal) => refusal,
-    };
+    let refusal = runtime.apply_successor(next).unwrap_err();
 
     assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
     assert!(refusal.message.contains("items.legacy-row"));

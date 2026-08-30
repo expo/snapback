@@ -212,15 +212,6 @@ impl Store {
             .map_err(Into::into)
     }
 
-    pub fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> {
-        self.conn.execute(
-            "INSERT INTO _meta(key, value) VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            params![key, value],
-        )?;
-        Ok(())
-    }
-
     pub fn commit_seq(&self) -> Result<u64, RuntimeError> {
         let sequence: Option<i64> =
             self.conn

@@ -336,9 +336,10 @@ pub(super) fn check_invalidation(
         revocation_while_live(compiled, seed);
     failures.extend(revocation_failures);
     blocked.extend(revocation_blocked);
-    let (stale_handle, stale_failures, stale_blocked) = stale_handle(compiled, seed);
-    failures.extend(stale_failures);
-    blocked.extend(stale_blocked);
+    let (subscription_replan, replan_failures, replan_blocked) =
+        subscription_replan(compiled, seed);
+    failures.extend(replan_failures);
+    blocked.extend(replan_blocked);
 
     let detail = json!({
         "probes": probes,
@@ -348,7 +349,7 @@ pub(super) fn check_invalidation(
         "intersectionLevel": "table+index",
         "intersections": intersections,
         "revocationWhileLive": revocation,
-        "staleHandle": stale_handle,
+        "subscriptionReplan": subscription_replan,
         "blocked": blocked,
     });
     if !failures.is_empty() {
@@ -562,13 +563,16 @@ fn direct_rule_input_tables(
     tables
 }
 
-fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>, Vec<Json>) {
+fn subscription_replan(
+    compiled: &CompiledProject,
+    seed: &SeedData,
+) -> (Json, Vec<Json>, Vec<Json>) {
     let rows = match seed_rows(seed, compiled) {
         Ok(rows) => rows,
         Err(error) => {
             return (
                 json!({ "status": "fail" }),
-                vec![json!({ "probe": "staleHandle", "error": error })],
+                vec![json!({ "probe": "subscriptionReplan", "error": error })],
                 Vec::new(),
             );
         }
@@ -604,22 +608,23 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                     Ok(context) => context,
                     Err(_) => continue,
                 };
-                let initial = match runtime.execute(query_name, context.clone()) {
-                    Ok(execution)
-                        if !matches!(execution.state, ExecutionState::Denied { .. })
-                            && !is_blank(&execution.result) =>
-                    {
-                        execution
-                    }
-                    _ => continue,
-                };
-                let handle = match runtime.handle(query_name) {
-                    Ok(handle) => handle,
-                    Err(_) => continue,
-                };
+                let (subscription_id, initial) =
+                    match runtime.subscribe(query_name, context.clone()) {
+                        Ok((id, execution))
+                            if !matches!(execution.state, ExecutionState::Denied { .. })
+                                && !is_blank(&execution.result) =>
+                        {
+                            (id, execution)
+                        }
+                        _ => continue,
+                    };
                 if !initial.trace.rows.iter().any(|row| row.table == site.table) {
                     continue;
                 }
+                let predecessor_schema_hash = runtime.generation().programs[query_name]
+                    .1
+                    .schema_hash
+                    .clone();
                 let mut project = compiled.project.clone();
                 let Some(table) = project.schema.tables.get_mut(&site.table) else {
                     continue;
@@ -639,11 +644,11 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                     .1
                     .schema_hash
                     .clone();
-                if certificate.schema_hash == successor_schema_hash {
+                if predecessor_schema_hash == successor_schema_hash {
                     return (
                         json!({ "status": "fail", "query": query_name }),
                         vec![json!({
-                            "probe": "staleHandle",
+                            "probe": "subscriptionReplan",
                             "query": query_name,
                             "error": "policy successor retained the predecessor certificate hash",
                             "schemaHash": successor_schema_hash,
@@ -651,40 +656,52 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                         Vec::new(),
                     );
                 }
-                match runtime.execute_handle(&handle, context) {
-                    Err(error)
-                        if error.code() == "E_TRACE_SUBSET"
-                            && error.to_string().contains("schema hash mismatch") =>
+                let mut deliveries = runtime.rerun(&[subscription_id]);
+                let delivery = deliveries.pop();
+                match delivery.and_then(|delivery| delivery.execution.ok()) {
+                    Some(execution)
+                        if matches!(execution.state, ExecutionState::Denied { .. })
+                            || is_blank(&execution.result) =>
                     {
+                        let successor_verdict =
+                            if matches!(execution.state, ExecutionState::Denied { .. }) {
+                                "denied"
+                            } else {
+                                "blank"
+                            };
                         return (
                             json!({
                                 "status": "pass",
-                                "disposition": "refused",
+                                "disposition": "replanned",
                                 "query": query_name,
                                 "table": site.table,
                                 "fromGeneration": from,
                                 "toGeneration": to,
-                                "certificateDisposition": "predecessorRefused",
-                                "refusalCode": error.code(),
-                                "predecessorSchemaHash": certificate.schema_hash,
-                                "runtimeSchemaHash": successor_schema_hash,
+                                "certificateDisposition": "successorReplanned",
+                                "predecessorObservedAtSubscribeSchemaHash": predecessor_schema_hash,
+                                "successorRerunSchemaHash": successor_schema_hash,
+                                "successorVerdict": successor_verdict,
+                                "successorState": execution.state,
+                                "successorResult": execution.result,
                             }),
                             Vec::new(),
                             Vec::new(),
                         );
                     }
-                    result => {
+                    execution => {
                         return (
                             json!({ "status": "fail", "query": query_name }),
                             vec![json!({
-                                "probe": "staleHandle",
+                                "probe": "subscriptionReplan",
                                 "query": query_name,
                                 "table": site.table,
                                 "fromGeneration": from,
                                 "toGeneration": to,
-                                "error": format!("retained predecessor handle was not fenced: {result:?}"),
-                                "predecessorSchemaHash": certificate.schema_hash,
-                                "runtimeSchemaHash": successor_schema_hash,
+                                "error": "subscription rerun returned neither a successor denial nor a blank result",
+                                "rerun": format!("{execution:?}"),
+                                "predecessorObservedAtSubscribeSchemaHash": predecessor_schema_hash,
+                                "successorRerunSchemaHash": successor_schema_hash,
+                                "predecessorResult": initial.result,
                             })],
                             Vec::new(),
                         );
@@ -694,7 +711,7 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
         }
     }
     (
-        json!({ "status": "notApplicable", "reason": "no seeded visible query handle", "candidates": candidates }),
+        json!({ "status": "notApplicable", "reason": "no seeded visible query subscription", "candidates": candidates }),
         Vec::new(),
         Vec::new(),
     )

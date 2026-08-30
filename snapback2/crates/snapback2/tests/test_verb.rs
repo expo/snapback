@@ -49,20 +49,26 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         "the chat receipt did not prove live membership revocation: {invalidation}"
     );
     assert_eq!(
-        invalidation["detail"]["staleHandle"]["status"], "pass",
-        "the chat receipt did not prove successor fencing of a retained handle: {invalidation}"
+        invalidation["detail"]["subscriptionReplan"]["status"], "pass",
+        "the chat receipt did not prove successor replanning of a live subscription: {invalidation}"
     );
     assert_eq!(
-        invalidation["detail"]["staleHandle"]["certificateDisposition"], "predecessorRefused",
-        "the retained predecessor handle was not presented to the successor runtime: {invalidation}"
+        invalidation["detail"]["subscriptionReplan"]["certificateDisposition"],
+        "successorReplanned",
+        "the subscription was not replanned against the successor certificate: {invalidation}"
     );
     assert_eq!(
-        invalidation["detail"]["staleHandle"]["refusalCode"], "E_TRACE_SUBSET",
-        "the retained predecessor handle was not fenced by the runtime: {invalidation}"
+        invalidation["detail"]["subscriptionReplan"]["successorVerdict"], "blank",
+        "the successor rule did not blank the replanned subscription: {invalidation}"
+    );
+    assert_eq!(
+        invalidation["detail"]["subscriptionReplan"]["successorResult"],
+        serde_json::json!({ "Array": [] }),
+        "the successor rerun returned predecessor rows: {invalidation}"
     );
     assert_ne!(
-        invalidation["detail"]["staleHandle"]["predecessorSchemaHash"],
-        invalidation["detail"]["staleHandle"]["runtimeSchemaHash"],
+        invalidation["detail"]["subscriptionReplan"]["predecessorObservedAtSubscribeSchemaHash"],
+        invalidation["detail"]["subscriptionReplan"]["successorRerunSchemaHash"],
         "the policy replacement did not replace the certificate hash: {invalidation}"
     );
     let bounds = check(&receipt, "bounds");

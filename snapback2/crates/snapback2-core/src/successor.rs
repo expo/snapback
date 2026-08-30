@@ -2,7 +2,8 @@
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
 use crate::engine::{
-    RuntimeError, materialize_optional_fields, reindex_row, validate_row, write_aggregate_backfill,
+    RuntimeError, materialize_optional_fields, reindex_row, validate_column_value,
+    write_aggregate_backfill,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
@@ -221,7 +222,7 @@ pub(crate) fn additive_refusal(
         }
     }
 
-    if let Some(refusal) = validate_stored_rows(connection, next)? {
+    if let Some(refusal) = validate_stored_rows(connection, current, next)? {
         return Ok(Some(refusal));
     }
 
@@ -333,38 +334,69 @@ pub(crate) fn additive_refusal(
 
 pub(crate) fn validate_stored_rows(
     connection: &Connection,
-    schema: &Schema,
+    current: &Schema,
+    next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
-    let mut statement = connection
-        .prepare("SELECT table_name, row_id, data FROM rows ORDER BY table_name, row_id")?;
-    let rows = statement.query_map([], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    })?;
-    for row in rows {
-        let (table_name, row_id, data) = row?;
-        let value = match serde_json::from_str::<Value>(&data) {
-            Ok(value) => value,
-            Err(error) => {
-                return Ok(Some(SuccessorRefusal::invalid_row(
-                    &table_name,
-                    &row_id,
-                    error,
-                )));
+    for (table_name, next_table) in &next.tables {
+        let current_table = current.tables.get(table_name);
+        let columns = next_table
+            .columns
+            .iter()
+            .filter(|(column, kind)| {
+                match current_table.and_then(|table| table.columns.get(*column)) {
+                    None => true,
+                    Some(current_kind) => current_kind != *kind && contains_id_or_ref(kind),
+                }
+            })
+            .collect::<Vec<_>>();
+        if columns.is_empty() {
+            continue;
+        }
+        let mut statement = connection
+            .prepare("SELECT row_id, data FROM rows WHERE table_name = ?1 ORDER BY row_id")?;
+        let rows = statement.query_map([table_name], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            let (row_id, data) = row?;
+            let value = match serde_json::from_str::<Value>(&data) {
+                Ok(value) => value,
+                Err(error) => {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            };
+            let object = match value.as_object() {
+                Ok(object) => object,
+                Err(error) => {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
+            };
+            for (column, kind) in &columns {
+                if let Err(error) =
+                    validate_column_value(table_name, column, kind, object.get(*column))
+                {
+                    return Ok(Some(SuccessorRefusal::invalid_row(
+                        table_name, &row_id, error,
+                    )));
+                }
             }
-        };
-        if let Err(error) = validate_row(schema.table(&table_name), &table_name, &value) {
-            return Ok(Some(SuccessorRefusal::invalid_row(
-                &table_name,
-                &row_id,
-                error,
-            )));
         }
     }
     Ok(None)
+}
+
+fn contains_id_or_ref(kind: &ColumnType) -> bool {
+    match kind {
+        ColumnType::Id | ColumnType::Ref { .. } => true,
+        ColumnType::Optional(inner) | ColumnType::List { of: inner, .. } => {
+            contains_id_or_ref(inner)
+        }
+        _ => false,
+    }
 }
 
 pub(crate) fn apply_additive(
