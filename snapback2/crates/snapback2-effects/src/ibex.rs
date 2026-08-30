@@ -42,6 +42,7 @@ const EFFECT_GLOBALS: &[&str] = &[
     "TextEncoder",
     "TypeError",
     "URL",
+    "Uint8Array",
     "WeakMap",
     // Ibex 2's C++ pump resolves this name directly. The prelude replaces the
     // binding with a wrapper guarded by a closure-held, host-armed permit.
@@ -49,8 +50,10 @@ const EFFECT_GLOBALS: &[&str] = &[
     "atob",
     "btoa",
     "console",
+    "fetch",
     "globalThis",
     "isFinite",
+    "meta",
     "setTimeout",
     "undefined",
 ];
@@ -180,6 +183,69 @@ fn host_channel_token() -> String {
     format!("{second:016x}{first:016x}")
 }
 
+/// Freeze the JSON data captured by the compiler's effect-source IIFE without
+/// placing a helper in the effect's lexical or global authority surface. Each
+/// generated constant is initialized through its own self-contained freezer;
+/// arbitrary hand-authored function expressions are left byte-for-byte alone.
+fn freeze_compiler_embedded_constants(source: &str) -> String {
+    const PREFIX: &str = "(() => {";
+    const FREEZER: &str = "(function freeze(value) { if (value === null || typeof value !== 'object') return value; const names = Object.getOwnPropertyNames(value); for (let i = 0; i < names.length; i++) freeze(value[names[i]]); return Object.freeze(value); })";
+
+    if !source.starts_with(PREFIX) {
+        return source.to_owned();
+    }
+    let mut cursor = PREFIX.len();
+    let mut output = PREFIX.to_owned();
+    let mut transformed = false;
+
+    loop {
+        let whitespace_start = cursor;
+        while source
+            .as_bytes()
+            .get(cursor)
+            .is_some_and(u8::is_ascii_whitespace)
+        {
+            cursor += 1;
+        }
+        output.push_str(&source[whitespace_start..cursor]);
+        let Some(after_const) = source[cursor..].strip_prefix("const ") else {
+            break;
+        };
+        let Some(equals) = after_const.find(" = ") else {
+            return source.to_owned();
+        };
+        let name = &after_const[..equals];
+        if name.is_empty() {
+            return source.to_owned();
+        }
+        let declaration_prefix_end = cursor + "const ".len() + equals + " = ".len();
+        let mut values = serde_json::Deserializer::from_str(&source[declaration_prefix_end..])
+            .into_iter::<serde_json::Value>();
+        let Some(Ok(_)) = values.next() else {
+            return source.to_owned();
+        };
+        let value_end = declaration_prefix_end + values.byte_offset();
+        if source.as_bytes().get(value_end) != Some(&b';') {
+            return source.to_owned();
+        }
+        output.push_str("const ");
+        output.push_str(name);
+        output.push_str(" = ");
+        output.push_str(FREEZER);
+        output.push('(');
+        output.push_str(&source[declaration_prefix_end..value_end]);
+        output.push_str(");");
+        cursor = value_end + 1;
+        transformed = true;
+    }
+
+    if !transformed {
+        return source.to_owned();
+    }
+    output.push_str(&source[cursor..]);
+    output
+}
+
 fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
@@ -223,13 +289,12 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         .replace(
             "__SNAPBACK_HOST_TOKEN__",
             &serde_json::to_string(&host_token).expect("host token is JSON"),
-        )
-        .replace("__SNAPBACK_EFFECT_SOURCE__", &decl.source);
+        );
     runtime
         .eval(&format!("globalThis.__snapback_install = {prelude}"))
         .map_err(|error| BuildFailure::Invalid(format!("install effect prelude: {}", error.0)))?;
-    // Hand the returned function to the token-gated host channel exactly once,
-    // then remove the public install slot before job code can run.
+    // Hand the prelude entry to the token-gated host channel exactly once,
+    // then remove the public install slot before source is evaluated.
     let token = serde_json::to_string(&host_token).expect("host token is JSON");
     runtime
         .eval(&format!(
@@ -244,6 +309,15 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         .harden()
         .map_err(|error| BuildFailure::Invalid(format!("harden effect runtime: {}", error.0)))?;
     verify_globals(&mut runtime)?;
+    // Isolation boundary: source gets its own top-level script over the already
+    // hardened global. Argument evaluation obtains the function value there;
+    // the token-gated call then transfers only that value into the prelude.
+    let isolated_source = freeze_compiler_embedded_constants(&decl.source);
+    runtime
+        .eval(&format!(
+            "__ibex2_fire_timer({token}, 'installEffect', ({isolated_source}))"
+        ))
+        .map_err(|error| BuildFailure::Invalid(format!("install isolated effect: {}", error.0)))?;
 
     Ok(EffectRuntime {
         runtime,
@@ -297,6 +371,9 @@ struct JobSnapshot {
     contaminated: bool,
     source_evaluations: u64,
     effect_frozen: bool,
+    pending_fetches: u64,
+    pending_timers: u64,
+    next_timer_delay: Option<f64>,
 }
 
 fn host_call_expression(effect_runtime: &EffectRuntime, method: &str, args: &[String]) -> String {
@@ -364,6 +441,13 @@ fn read_job_snapshot(
         effect_frozen: field("effectFrozen")?
             .as_bool()
             .ok_or_else(|| "host snapshot effectFrozen is not a boolean".to_owned())?,
+        pending_fetches: field("pendingFetches")?
+            .as_u64()
+            .ok_or_else(|| "host snapshot pendingFetches is not an integer".to_owned())?,
+        pending_timers: field("pendingTimers")?
+            .as_u64()
+            .ok_or_else(|| "host snapshot pendingTimers is not an integer".to_owned())?,
+        next_timer_delay: field("nextTimerDelay")?.as_f64(),
     })
 }
 
@@ -406,55 +490,85 @@ fn run_job(
         let logs = drain_logs(&effect_runtime.runtime, job);
         return (Outcome::Failed { error, retry: true }, logs, false, true);
     }
-    if let Err(error) = call_host(effect_runtime, "armTimers", &[]) {
-        let logs = drain_logs(&effect_runtime.runtime, job);
-        return (
-            Outcome::Failed {
-                error: format!("E_EFFECT_HOST_CHANNEL: arm timers: {error}"),
-                retry: false,
-            },
-            logs,
-            true,
-            true,
-        );
-    }
     let started = Instant::now();
-    effect_runtime.runtime.run_to_quiescence(budget);
-    // Ibex 2's bounded driver returns early only at quiescence. Reaching the
-    // budget is therefore the conservative signal that work was left behind.
-    let quiescent = started.elapsed() < budget;
-    let disarm_error = call_host(effect_runtime, "disarmTimers", &[]).err();
-    let snapshot = read_job_snapshot(effect_runtime, &job.id);
-    let logs = drain_logs(&effect_runtime.runtime, job);
-    if let Some(error) = disarm_error {
-        return (
-            Outcome::Failed {
-                error: format!("E_EFFECT_HOST_CHANNEL: disarm timers: {error}"),
-                retry: false,
-            },
-            logs,
-            true,
-            quiescent,
-        );
-    }
-    let snapshot = match snapshot {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
+    let (snapshot, quiescent) = loop {
+        // Isolation boundary: drain application microtasks while no timer
+        // permit exists. Then arm exactly one permit immediately before one
+        // Ibex pump; a real timer consumes it before its callback microtasks.
+        effect_runtime.runtime.drain_microtasks();
+        let snapshot = match read_job_snapshot(effect_runtime, &job.id) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                let logs = drain_logs(&effect_runtime.runtime, job);
+                return (
+                    Outcome::Failed {
+                        error: if error.contains("E_EFFECT_RESULT") {
+                            "E_EFFECT_RESULT".to_owned()
+                        } else {
+                            format!("E_EFFECT_RESULT_READ: {error}")
+                        },
+                        retry: false,
+                    },
+                    logs,
+                    true,
+                    false,
+                );
+            }
+        };
+        let settled = matches!(snapshot.status.as_str(), "sent" | "failed");
+        if settled && snapshot.pending_fetches == 0 {
+            if snapshot.pending_timers == 0 {
+                break (snapshot, true);
+            }
+            if snapshot.next_timer_delay.is_none_or(|millis| millis > 0.0) {
+                break (snapshot, false);
+            }
+        }
+        if started.elapsed() >= budget {
+            break (snapshot, false);
+        }
+
+        let remaining = budget.saturating_sub(started.elapsed());
+        let wait = if snapshot.pending_fetches == 0 {
+            snapshot
+                .next_timer_delay
+                .map(|millis| Duration::from_secs_f64((millis.max(0.0)) / 1000.0))
+                .unwrap_or(Duration::from_millis(1))
+        } else {
+            Duration::from_millis(1)
+        }
+        .min(remaining);
+        if !wait.is_zero() {
+            std::thread::sleep(wait);
+        }
+
+        if let Err(error) = call_host(effect_runtime, "armTimers", &[]) {
+            let logs = drain_logs(&effect_runtime.runtime, job);
             return (
                 Outcome::Failed {
-                    error: if error.contains("E_EFFECT_RESULT") {
-                        "E_EFFECT_RESULT".to_owned()
-                    } else {
-                        format!("E_EFFECT_RESULT_READ: {error}")
-                    },
+                    error: format!("E_EFFECT_HOST_CHANNEL: arm timers: {error}"),
                     retry: false,
                 },
                 logs,
                 true,
-                quiescent,
+                false,
+            );
+        }
+        effect_runtime.runtime.pump();
+        if let Err(error) = call_host(effect_runtime, "disarmTimers", &[]) {
+            let logs = drain_logs(&effect_runtime.runtime, job);
+            return (
+                Outcome::Failed {
+                    error: format!("E_EFFECT_HOST_CHANNEL: disarm timers: {error}"),
+                    retry: false,
+                },
+                logs,
+                true,
+                false,
             );
         }
     };
+    let logs = drain_logs(&effect_runtime.runtime, job);
     if snapshot.source_evaluations != 1 || !snapshot.effect_frozen {
         return (
             Outcome::Failed {
@@ -490,7 +604,9 @@ fn run_job(
             let result_error = error_code == Some("E_EFFECT_RESULT");
             let retry = !matches!(error_code, Some("E_EFFECT_GRANT" | "E_EFFECT_RESULT"));
             let error = if result_error {
-                "E_EFFECT_RESULT".to_owned()
+                snapshot
+                    .error
+                    .unwrap_or_else(|| "E_EFFECT_RESULT".to_owned())
             } else {
                 snapshot
                     .error
@@ -533,6 +649,14 @@ mod tests {
 
     impl TestServer {
         fn start(reply: &'static str) -> Self {
+            Self::start_with(reply, None)
+        }
+
+        fn start_redirecting_to(location: String) -> Self {
+            Self::start_with("", Some(location))
+        }
+
+        fn start_with(reply: &'static str, redirect_to: Option<String>) -> Self {
             let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback server");
             let port = listener.local_addr().unwrap().port();
             let hits = Arc::new(Mutex::new(Vec::new()));
@@ -561,11 +685,16 @@ mod tests {
                             .unwrap_or("")
                             .to_owned(),
                     );
-                    let response = format!(
-                        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                        reply.len(),
-                        reply
-                    );
+                    let response = match &redirect_to {
+                        Some(location) => format!(
+                            "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                        ),
+                        None => format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                            reply.len(),
+                            reply
+                        ),
+                    };
                     let _ = stream.write_all(response.as_bytes());
                     let _ = stream.flush();
                 }
@@ -674,6 +803,39 @@ mod tests {
     }
 
     #[test]
+    fn redirect_denial_names_the_denied_hop_origin() {
+        let denied = TestServer::start("must not arrive");
+        let redirector = TestServer::start_redirecting_to(format!("{}/secret", denied.origin()));
+        let decl = declaration(
+            "async (payload, { fetch }) => { try { await fetch(payload.url); } catch (error) { return { code: error.code || 'missing', origin: error.origin || 'missing', message: error.message || String(error) }; } }",
+            vec![redirector.origin()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert_eq!(
+            host.run(
+                &decl,
+                &job(
+                    "redirect-denied",
+                    json!({ "url": format!("{}/start", redirector.origin()) }),
+                ),
+                Duration::from_secs(2),
+            ),
+            sent(json!({
+                "code": "E_EFFECT_GRANT",
+                "origin": denied.origin(),
+                "message": format!(
+                    "denied: net.fetch {}; declare {}",
+                    denied.origin(),
+                    denied.origin()
+                ),
+            }))
+        );
+        assert_eq!(redirector.hits.lock().unwrap().len(), 1);
+        assert!(denied.hits.lock().unwrap().is_empty());
+    }
+
+    #[test]
     fn throw_retries_and_never_resolving_promise_times_out() {
         let mut host = Ibex2Host::new().unwrap();
         let throws = declaration(
@@ -747,7 +909,7 @@ mod tests {
     }
 
     #[test]
-    fn undefined_is_null_and_non_json_results_are_non_retryable() {
+    fn undefined_is_non_retryable_null_is_valid_and_non_json_results_are_refused() {
         let grants = vec!["http://127.0.0.1:1".to_owned()];
         let mut host = Ibex2Host::new().unwrap();
 
@@ -755,18 +917,35 @@ mod tests {
             ("undefined", "async () => undefined"),
             ("bare-return", "async () => { return; }"),
         ] {
-            assert_eq!(
-                host.run(
-                    &declaration(source, grants.clone()),
-                    &job(id, Value::Null),
-                    Duration::from_millis(100),
+            assert!(
+                matches!(
+                    host.run(
+                        &declaration(source, grants.clone()),
+                        &job(id, Value::Null),
+                        Duration::from_millis(100),
+                    ),
+                    Outcome::Failed { retry: false, ref error }
+                        if error == "E_EFFECT_RESULT: effect returned undefined; return null explicitly"
                 ),
-                sent(Value::Null),
                 "{id}"
             );
         }
 
+        assert_eq!(
+            host.run(
+                &declaration("async () => null", grants.clone()),
+                &job("explicit-null", Value::Null),
+                Duration::from_millis(100),
+            ),
+            sent(Value::Null)
+        );
+
         for (id, source) in [
+            ("nan", "async () => NaN"),
+            ("infinity", "async () => Infinity"),
+            ("negative-infinity", "async () => -Infinity"),
+            ("undefined-field", "async () => ({ missing: undefined })"),
+            ("undefined-element", "async () => [undefined]"),
             ("function", "async () => function nope() {}"),
             ("symbol", "async () => Symbol('nope')"),
             ("bigint", "async () => 1n"),
@@ -783,11 +962,96 @@ mod tests {
                         Duration::from_millis(100),
                     ),
                     Outcome::Failed { retry: false, ref error }
-                        if error == "E_EFFECT_RESULT"
+                        if error.starts_with("E_EFFECT_RESULT")
                 ),
                 "{id}"
             );
         }
+    }
+
+    #[test]
+    fn effect_source_cannot_resolve_prelude_closure_state() {
+        let decl = declaration(
+            r#"async function ({ forged = (state.result = '\"forged\"', state.status = 'sent') } = {}) {
+              return forged;
+            }"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert!(
+            matches!(
+                host.run(
+                    &decl,
+                    &job("closure-state", json!({})),
+                    Duration::from_millis(100),
+                ),
+                Outcome::Failed { retry: false, ref error }
+                    if error.starts_with("E_EFFECT_RESULT") && error.contains("ReferenceError")
+            ),
+            "effect source must resolve only against the hardened global"
+        );
+    }
+
+    #[test]
+    fn compiler_embedded_json_constants_are_isolated_between_jobs() {
+        let decl = declaration(
+            r#"(() => { const box = {"value":"clean","nested":{"value":"clean"}}; return (async (payload) => {
+              if (payload.poison) {
+                try { box.value = "secret"; } catch (_) {}
+                try { box.nested.value = "secret"; } catch (_) {}
+              }
+              return { value: box.value, nested: box.nested.value };
+            }); })()"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        let _ = host.run(
+            &decl,
+            &job("constants-poison", json!({ "poison": true })),
+            Duration::from_millis(100),
+        );
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("constants-read", json!({ "poison": false })),
+                Duration::from_millis(100),
+            ),
+            sent(json!({ "value": "clean", "nested": "clean" }))
+        );
+        assert_eq!(host.cached_runtime_count(), 1);
+    }
+
+    #[test]
+    fn timer_permit_is_consumed_before_application_microtasks() {
+        let decl = declaration(
+            r#"async () => {
+              let handle;
+              let fired = false;
+              const realTimer = new Promise(function (resolve) {
+                handle = setTimeout(function () { fired = true; resolve(); }, 5000);
+              });
+              const fireTimer = globalThis.__ibex2_fire_timer;
+              await Promise.resolve();
+              let denied = false;
+              try { fireTimer(handle); } catch (_) { denied = true; }
+              const firedBeforeDue = fired;
+              await realTimer;
+              return { denied, firedBeforeDue, fired };
+            }"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("timer-single-use", Value::Null),
+                Duration::from_secs(7),
+            ),
+            sent(json!({ "denied": true, "firedBeforeDue": false, "fired": true }))
+        );
     }
 
     #[test]
@@ -845,6 +1109,8 @@ mod tests {
     #[test]
     fn console_is_attributed_and_job_tools_share_no_state() {
         let source = r#"async function (payload, tools) {
+          const fetch = tools.fetch;
+          const meta = tools.meta;
           if (payload.set) {
             try { fetch.jobLeak = "fetch"; } catch (_) {}
             try { meta.jobLeak = "meta"; } catch (_) {}
@@ -854,10 +1120,10 @@ mod tests {
             return null;
           }
           return {
-            fetchLeak: fetch.jobLeak,
-            metaLeak: meta.jobLeak,
-            toolsLeak: tools.jobLeak,
-            globalLeak: globalThis.jobLeak,
+            fetchClean: fetch.jobLeak === undefined,
+            metaClean: meta.jobLeak === undefined,
+            toolsClean: tools.jobLeak === undefined,
+            globalClean: globalThis.jobLeak === undefined,
             fetchFrozen: Object.isFrozen(fetch),
             metaFrozen: Object.isFrozen(meta),
             toolsFrozen: Object.isFrozen(tools)
@@ -889,8 +1155,12 @@ mod tests {
                 Duration::from_millis(100),
             ),
             sent(json!({
+                "fetchClean": true,
                 "fetchFrozen": true,
+                "globalClean": true,
+                "metaClean": true,
                 "metaFrozen": true,
+                "toolsClean": true,
                 "toolsFrozen": true
             }))
         );
@@ -1026,7 +1296,7 @@ mod tests {
     fn payload_json_parse_preserves_an_own_proto_key() {
         let decl = declaration(
             r#"async (payload) => ({
-              inheritedAdmin: payload.admin,
+              inheritedAdminAbsent: payload.admin === undefined,
               ownProto: Object.prototype.hasOwnProperty.call(payload, "__proto__")
             })"#,
             vec!["http://127.0.0.1:1".to_owned()],
@@ -1036,7 +1306,7 @@ mod tests {
 
         assert_eq!(
             host.run(&decl, &job("proto-1", payload), Duration::from_millis(100),),
-            sent(json!({ "ownProto": true }))
+            sent(json!({ "inheritedAdminAbsent": true, "ownProto": true }))
         );
     }
 
