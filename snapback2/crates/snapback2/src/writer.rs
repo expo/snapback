@@ -3,14 +3,14 @@
 
 use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, seed_rows};
-use crate::protocol::{Refusal, json_to_value, value_to_json};
+use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
-use serde_json::{Map, Value as Json, json};
+use serde_json::{Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Value,
+    Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program, ProgramKind,
+    Runtime, Scan, Stmt, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -18,6 +18,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use std::thread;
+
+#[path = "writer_effects.rs"]
+mod writer_effects;
+#[path = "writer_ledger.rs"]
+mod writer_ledger;
+
+use writer_ledger::{CommitLedger, LedgerDelivery};
 
 #[derive(Clone, Debug)]
 pub enum Identity {
@@ -31,18 +38,6 @@ pub struct SseEvent {
     pub seq: Option<u64>,
     pub data: Json,
     pub terminal: bool,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EffectsStatus {
-    pub engine: String,
-    pub queued: u64,
-    pub running: u64,
-    pub then_pending: u64,
-    pub sent: u64,
-    pub failed: u64,
-    pub sent_unknown: u64,
 }
 
 #[derive(Clone)]
@@ -236,21 +231,6 @@ struct ChannelClient {
     context: Context,
     verdict: ChannelVerdict,
     events: Sender<SseEvent>,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LedgerDelivery {
-    id: u64,
-    seq: u64,
-}
-
-#[derive(Clone, Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CommitLedger {
-    seq: u64,
-    invalidated: Vec<u64>,
-    deliveries: Vec<LedgerDelivery>,
 }
 
 struct State {
@@ -523,7 +503,7 @@ impl State {
                 result,
                 last_error,
                 next_at,
-            } => settle_outbox(
+            } => writer_effects::settle_outbox(
                 self.runtime(),
                 &id,
                 &state,
@@ -730,33 +710,6 @@ impl State {
             self.after_commit(execution.seq)?;
         }
         Ok(execution)
-    }
-
-    fn execute_then(&mut self, op: &str, args: Json, outbox_id: &str) -> Result<Json, Refusal> {
-        let values = match operation_args(self.runtime().generation(), op, &args) {
-            Ok(values) => values,
-            Err(refusal) => {
-                let execution = self
-                    .runtime_mut()
-                    .reject_then(op, outbox_id, &refusal.code, &refusal.message)
-                    .map_err(|error| Refusal::from_runtime(&error))?;
-                return Ok(execution_json(&execution));
-            }
-        };
-        let now = self.now();
-        let mut context = Context::system();
-        context.args = values;
-        context.now = Some(now);
-        context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
-        let execution = self
-            .runtime_mut()
-            .execute_then(op, context, outbox_id)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        if matches!(execution.state, ExecutionState::Committed { .. }) {
-            self.after_commit(execution.seq)?;
-        }
-        Ok(execution_json(&execution))
     }
 
     fn subscribe(
@@ -1180,237 +1133,8 @@ impl State {
         Ok(json!({ "table": table_name, "as": principal.id, "rows": rows }))
     }
 
-    fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
-        let context = self.context(principal, &op, args)?;
-        let requested_args = context.args.clone();
-        let requested_principal = context.viewer.clone();
-        let execution = self
-            .runtime_mut()
-            .execute(&op, context)
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        let runtime_subscriptions = self.runtime().subscriptions();
-        let subscriptions = self
-            .live
-            .iter()
-            .filter(|(_, client)| {
-                client.op == op
-                    && client.context.args == requested_args
-                    && client.context.viewer == requested_principal
-            })
-            .filter_map(|(id, client)| {
-                runtime_subscriptions
-                    .iter()
-                    .find(|subscription| subscription.id == client.runtime_id)
-                    .map(|subscription| {
-                        json!({
-                            "id": id,
-                            "op": client.op,
-                            "principal": subscription.principal,
-                            "lastResultDigest": subscription.last_result_digest,
-                            "lastSeq": subscription.last_seq,
-                        })
-                    })
-            })
-            .collect::<Vec<_>>();
-        Ok(json!({
-            "op": op,
-            "result": execution_json(&execution),
-            "trace": execution.trace,
-            "subscriptions": subscriptions,
-        }))
-    }
-
-    fn trace(&self, seq: Option<u64>) -> Result<Json, Refusal> {
-        let latest = self
-            .runtime()
-            .store()
-            .commit_seq()
-            .map_err(|error| Refusal::from_runtime(&error))?;
-        let wanted = seq.unwrap_or(latest);
-        let commit = self
-            .runtime()
-            .store()
-            .commits_since(wanted.saturating_sub(1), 1)
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .into_iter()
-            .find(|commit| commit.seq == wanted)
-            .ok_or_else(|| {
-                Refusal::new(
-                    "E_INPUT_TRACE_UNKNOWN",
-                    "input",
-                    format!("commit {wanted} is not retained"),
-                    "pass latest or a retained commit seq",
-                    "input/trace",
-                )
-            })?;
-        let outbox_rows = self
-            .runtime()
-            .store()
-            .outbox_rows_for_seq(wanted)
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .into_iter()
-            .map(|row| {
-                json!({
-                    "id": row.id,
-                    "seq": row.seq,
-                    "effect": row.effect,
-                    "payload": value_to_json(&row.payload),
-                    "state": row.state,
-                    "attempts": row.attempts,
-                    "nextAt": row.next_at,
-                    "lastError": row.last_error,
-                    "result": row.result.clone(),
-                    "createdAt": row.created_at,
-                    "updatedAt": row.updated_at,
-                })
-            })
-            .collect::<Vec<_>>();
-        let ledger = self
-            .ledger
-            .iter()
-            .find(|entry| entry.seq == wanted)
-            .cloned()
-            .unwrap_or(CommitLedger {
-                seq: wanted,
-                invalidated: Vec::new(),
-                deliveries: Vec::new(),
-            });
-        Ok(json!({
-            "commit": commit,
-            "outbox": {
-                "emits": commit.emits,
-                "engine": effects_engine(),
-                "rows": outbox_rows.clone(),
-            },
-            "outboxRows": outbox_rows,
-            "invalidated": ledger.invalidated,
-            "deliveries": ledger.deliveries,
-        }))
-    }
-
-    fn status(&self) -> Result<Json, Refusal> {
-        let personas = self
-            .runtime()
-            .principals(Some("persona"))
-            .map_err(|error| Refusal::from_identity(&error))?;
-        let outbox = self.outbox_counts()?;
-        Ok(json!({
-            "project": self.root,
-            "status": self.phase,
-            "generation": self.runtime().generation().hash,
-            "seq": self.runtime().store().commit_seq().map_err(|error| Refusal::from_runtime(&error))?,
-            "subscriptions": self.live.len(),
-            "channelSubscriptions": self.channels.len(),
-            "effects": EffectsStatus {
-                engine: effects_engine().to_owned(),
-                queued: outbox.queued,
-                running: outbox.running,
-                then_pending: outbox.then_pending,
-                sent: outbox.sent,
-                failed: outbox.failed,
-                sent_unknown: outbox.sent_unknown,
-            },
-            "personas": personas,
-            "mode": self.mode,
-        }))
-    }
-
-    fn manifest(&self) -> Json {
-        let ops = self
-            .runtime()
-            .generation()
-            .programs
-            .iter()
-            .filter(|(name, _)| !name.starts_with("__owner."))
-            .map(|(name, (program, _))| {
-                (
-                    name.clone(),
-                    json!({
-                        "kind": match program.kind { ProgramKind::Query => "query", ProgramKind::Mutation => "mutation" },
-                        "args": program.args,
-                    }),
-                )
-            })
-            .collect::<Map<_, _>>();
-        json!({
-            "generation": self.runtime().generation().hash,
-            "ops": ops,
-            "channels": self.runtime().generation().schema.channels,
-            "auth": self.runtime().generation().schema.auth,
-        })
-    }
-
-    fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
-        self.runtime()
-            .store()
-            .outbox_counts()
-            .map_err(|error| Refusal::from_runtime(&error))
-    }
-
-    fn effect_declarations(&self, effect: &str, generation: Option<&str>) -> Result<Json, Refusal> {
-        let current_generation = self.runtime().generation().hash.clone();
-        let current = self.runtime().generation().effects.get(effect).cloned();
-        let bound = generation
-            .map(|generation| format!("effects_json:{generation}"))
-            .map(|key| self.runtime().store().meta(&key))
-            .transpose()
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .flatten()
-            .map(|encoded| {
-                serde_json::from_str::<BTreeMap<String, snapback2_core::EffectDecl>>(&encoded)
-                    .map_err(|error| {
-                        Refusal::from_runtime(&snapback2_core::RuntimeError::Serialization(
-                            error.to_string(),
-                        ))
-                    })
-            })
-            .transpose()?
-            .and_then(|declarations| declarations.get(effect).cloned());
-        Ok(json!({
-            "currentGeneration": current_generation,
-            "bound": bound,
-            "current": current,
-        }))
-    }
-
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
-    }
-
-    fn wake_effects(&self) {
-        if let Some(wake) = &self.effects_wake {
-            let _ = wake.try_send(());
-        }
-    }
-}
-
-fn effects_engine() -> &'static str {
-    snapback2_effects::describe()
-}
-
-fn settle_outbox(
-    runtime: &Runtime,
-    id: &str,
-    state: &str,
-    result: Option<&Json>,
-    last_error: Option<&str>,
-    next_at: Option<i64>,
-) -> Result<Json, Refusal> {
-    runtime
-        .store()
-        .outbox_settle(id, state, result, last_error, next_at)
-        .map_err(|error| Refusal::from_runtime(&error))?;
-    Ok(json!({ "ok": true }))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::effects_engine;
-
-    #[test]
-    fn status_names_the_linked_effect_engine() {
-        assert_eq!(effects_engine(), snapback2_effects::describe());
     }
 }
 

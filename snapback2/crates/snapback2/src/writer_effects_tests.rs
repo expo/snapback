@@ -1,4 +1,4 @@
-use super::settle_outbox;
+use super::writer_effects::settle_outbox;
 use crate::effects::serialize_claimed_outbox;
 use serde_json::json;
 use snapback2_core::{
