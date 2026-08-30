@@ -11,8 +11,8 @@ use crate::live::Subscriptions;
 use crate::schema::{Auth, RuleExpr, Schema};
 use crate::store::{CommitRecord, Store, unix_millis};
 use crate::successor::{
-    MigrationPlan, SuccessorRefusal, SuccessorReport, apply_additive, apply_migration_drops, plan,
-    successor_refusal,
+    MigrationPlan, SuccessorRefusal, SuccessorReport, additive_refusal, apply_additive,
+    apply_migration_drops, plan, successor_refusal,
 };
 use crate::value::{I53_MAX, I53_MIN, Value, ValueError, digest};
 use serde::{Deserialize, Serialize};
@@ -417,6 +417,13 @@ impl Runtime {
         let from = self.generation.hash.clone();
         let transaction = self.engine.store_mut().conn.transaction()?;
         apply_migration_drops(&transaction, &mut reduced, migration)?;
+        if let Some(refusal) = additive_refusal(&transaction, &reduced, &next.schema)? {
+            return Err(RuntimeError::Successor {
+                code: refusal.code,
+                message: refusal.message,
+                rewrite: refusal.rewrite,
+            });
+        }
         let report = apply_additive(
             &transaction,
             &reduced,

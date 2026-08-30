@@ -238,6 +238,14 @@ impl<'a> Runner<'a> {
             .table(table)
             .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let row_id = row.field("id")?.as_str()?.to_owned();
+        if table_schema.indexes.is_empty() {
+            self.trace.touched.push(TouchedKey {
+                table: table.to_owned(),
+                index: String::new(),
+                key: Vec::new(),
+                row_id: row_id.clone(),
+            });
+        }
         for (index, definition) in &table_schema.indexes {
             self.trace.touched.push(TouchedKey {
                 table: table.to_owned(),

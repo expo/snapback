@@ -506,6 +506,106 @@ fn denied_subscription_keeps_rule_trace_and_is_readmitted() {
 }
 
 #[test]
+fn complete_to_denied_with_the_same_result_is_a_changed_delivery() {
+    let memberships = public_table(
+        BTreeMap::from([
+            ("id".to_owned(), ColumnType::Id),
+            ("group".to_owned(), ColumnType::Id),
+            ("user".to_owned(), ColumnType::Id),
+        ]),
+        BTreeMap::from([(
+            "byGroupUser".to_owned(),
+            Index {
+                columns: vec!["group".to_owned(), "user".to_owned()],
+                unique: true,
+            },
+        )]),
+    );
+    let schema = Schema {
+        tables: BTreeMap::from([("memberships".to_owned(), memberships)]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    };
+    let query = Program {
+        name: "groups.requireMembership".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("group".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Require {
+                condition: Expr::Exists(Read {
+                    site: "groups.requireMembership".to_owned(),
+                    table: "memberships".to_owned(),
+                    index: "byGroupUser".to_owned(),
+                    key: vec![var("group"), Expr::Input(Input::Viewer)],
+                    provenance: KeyProvenance::Shape,
+                }),
+                code: "MEMBERSHIP_REQUIRED".to_owned(),
+            },
+            Stmt::Return(Expr::Literal(Value::Null)),
+        ],
+    };
+    let revoke = Program {
+        name: "memberships.revoke".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Delete {
+            table: "memberships".to_owned(),
+            key: Expr::Literal(Value::Id("m1".to_owned())),
+        }],
+    };
+    let mut runtime = Runtime::open(
+        Store::memory().unwrap(),
+        generation(schema, vec![query, revoke]),
+    )
+    .unwrap();
+    runtime
+        .seed(&[(
+            "memberships".to_owned(),
+            object([
+                ("id", Value::Id("m1".to_owned())),
+                ("group", Value::Id("g1".to_owned())),
+                ("user", Value::Id("u1".to_owned())),
+            ]),
+        )])
+        .unwrap();
+    let (id, initial) = runtime
+        .subscribe(
+            "groups.requireMembership",
+            Context::query(
+                "u1",
+                BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(initial.state, ExecutionState::Complete);
+    assert_eq!(initial.result, Value::Null);
+
+    let execution = runtime
+        .execute(
+            "memberships.revoke",
+            Context::mutation("u1", BTreeMap::new()),
+        )
+        .unwrap();
+    let seq = execution.seq;
+    let commit = runtime.store().commits_since(seq - 1, 1).unwrap().remove(0);
+    assert_eq!(runtime.invalidated(&commit), vec![id]);
+    let delivery = runtime.rerun(&[id]).remove(0);
+    let denied = delivery.execution.unwrap();
+    assert_eq!(
+        denied.state,
+        ExecutionState::Denied {
+            rule: "MEMBERSHIP_REQUIRED".to_owned(),
+        }
+    );
+    assert_eq!(denied.result, Value::Null);
+    assert!(delivery.changed);
+}
+
+#[test]
 fn rerun_runtime_value_error_is_delivered_as_error() {
     let counters = public_table(
         BTreeMap::from([

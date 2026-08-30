@@ -182,11 +182,11 @@ pub(crate) fn successor_refusal(
     if !migration.drops.is_empty() {
         return Ok(Some(SuccessorRefusal::destructive(migration)));
     }
-    additive_refusal(store, current, next)
+    additive_refusal(&store.conn, current, next)
 }
 
 pub(crate) fn additive_refusal(
-    store: &Store,
+    connection: &Connection,
     current: &Schema,
     next: &Schema,
 ) -> Result<Option<SuccessorRefusal>, RuntimeError> {
@@ -198,7 +198,7 @@ pub(crate) fn additive_refusal(
             !current_table.columns.contains_key(*column) && !matches!(kind, ColumnType::Optional(_))
         });
         if let Some((column, _)) = added_required {
-            let rows: i64 = store.conn.query_row(
+            let rows: i64 = connection.query_row(
                 "SELECT COUNT(*) FROM rows WHERE table_name = ?1",
                 [table_name],
                 |row| row.get(0),
@@ -214,7 +214,7 @@ pub(crate) fn additive_refusal(
         let Some(current_table) = current.tables.get(table_name) else {
             continue;
         };
-        let rows = fetch_rows(&store.conn, table_name)?;
+        let rows = fetch_rows(connection, table_name)?;
         for (index_name, index) in &next_table.indexes {
             let newly_unique = index.unique
                 && !current_table
@@ -261,7 +261,7 @@ pub(crate) fn additive_refusal(
         let rows = if let Some(rows) = future_targets.get_mut(&maintain.target) {
             rows
         } else {
-            let existing = fetch_rows(&store.conn, &maintain.target)?
+            let existing = fetch_rows(connection, &maintain.target)?
                 .into_iter()
                 .map(|row| {
                     let id = row.field("id")?.as_str()?.to_owned();
@@ -273,7 +273,7 @@ pub(crate) fn additive_refusal(
                 .get_mut(&maintain.target)
                 .expect("target was just inserted")
         };
-        for row in projected_backfill_rows(&store.conn, maintain)? {
+        for row in projected_backfill_rows(connection, maintain)? {
             let id = row.field("id")?.as_str()?.to_owned();
             rows.insert(id, row);
         }

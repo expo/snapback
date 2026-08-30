@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
+const DUMMY_PASSWORD_HASH: &str = concat!(
+    "$argon2id$v=19$m=19456,t=2,p=1$c25hcGJhY2syLWR1bW15$",
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,14 +110,19 @@ impl Runtime {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
-        let Some((principal_id, hash)) = credential else {
+        let hash = credential
+            .as_ref()
+            .map_or(DUMMY_PASSWORD_HASH, |(_, hash)| hash.as_str());
+        let parsed = PasswordHash::new(hash).unwrap_or_else(|_| {
+            PasswordHash::new(DUMMY_PASSWORD_HASH).expect("dummy password hash must be valid")
+        });
+        let password_valid = Argon2::default()
+            .verify_password(password.as_bytes(), &parsed)
+            .is_ok();
+        let Some((principal_id, _)) = credential else {
             return Err(IdentityError::Invalid);
         };
-        let parsed = PasswordHash::new(&hash).map_err(|_| IdentityError::Invalid)?;
-        if Argon2::default()
-            .verify_password(password.as_bytes(), &parsed)
-            .is_err()
-        {
+        if !password_valid {
             return Err(IdentityError::Invalid);
         }
         let principal = load_principal(&self.engine.store().conn, &principal_id)?

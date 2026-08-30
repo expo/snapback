@@ -14,6 +14,10 @@ type TraceIndex = (String, String);
 type ExactTraceKey = (String, String, String);
 type RangeSubscription = (Vec<Value>, SubscriptionId);
 
+fn delivery_digest(execution: &Execution) -> String {
+    digest(&(&execution.state, &execution.result))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Delivery {
@@ -130,7 +134,7 @@ impl Runtime {
             Subscription {
                 op: op.to_owned(),
                 context,
-                last_result_digest: digest(&execution.result),
+                last_result_digest: delivery_digest(&execution),
                 last_seq: execution.seq,
                 trace: execution.trace.clone(),
             },
@@ -182,7 +186,7 @@ impl Runtime {
             let (seq, execution, changed) =
                 match self.execute(&subscription.op, subscription.context.clone()) {
                     Ok(execution) => {
-                        let fresh_digest = digest(&execution.result);
+                        let fresh_digest = delivery_digest(&execution);
                         let changed = fresh_digest != subscription.last_result_digest;
                         if let Some(entry) = self.subs.entries.get_mut(&id) {
                             entry.last_result_digest = fresh_digest;
@@ -229,5 +233,76 @@ impl Runtime {
     pub(crate) fn rerun_all_subscriptions(&mut self) {
         let ids = self.subs.ids();
         let _ = self.rerun(&ids);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::certificate::Ceilings;
+    use crate::engine::ConstraintTrace;
+    use crate::registry::{Generation, ProjectJson};
+    use crate::schema::{Auth, ColumnType, Schema, public_table};
+    use crate::store::Store;
+    use crate::value::{Value, object};
+
+    #[test]
+    fn unindexed_table_write_invalidates_table_constraint_subscription() {
+        let schema = Schema {
+            tables: BTreeMap::from([(
+                "probes".to_owned(),
+                public_table(
+                    BTreeMap::from([("id".to_owned(), ColumnType::Id)]),
+                    BTreeMap::new(),
+                ),
+            )]),
+            maintains: Vec::new(),
+            channels: BTreeMap::new(),
+            auth: Auth::default(),
+            effects: Vec::new(),
+        };
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema,
+                programs: Vec::new(),
+                effects: Vec::new(),
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+        let seq = runtime
+            .seed(&[(
+                "probes".to_owned(),
+                object([("id", Value::Id("p1".to_owned()))]),
+            )])
+            .unwrap();
+        let commit = runtime.store().commits_since(seq - 1, 1).unwrap().remove(0);
+        assert_eq!(commit.touched.len(), 1);
+        assert_eq!(commit.touched[0].table, "probes");
+        assert_eq!(commit.touched[0].index, "");
+        assert!(commit.touched[0].key.is_empty());
+
+        runtime.subs.entries.insert(
+            1,
+            Subscription {
+                op: "probe".to_owned(),
+                context: Context::query("u1", BTreeMap::new()),
+                last_result_digest: String::new(),
+                last_seq: 0,
+                trace: AuthoritativeTrace {
+                    constraint_inputs: vec![ConstraintTrace {
+                        table: "probes".to_owned(),
+                        check: "Cap([],1)".to_owned(),
+                        examined_ids: Vec::new(),
+                    }],
+                    ..AuthoritativeTrace::default()
+                },
+            },
+        );
+        runtime.subs.rebuild_indexes();
+        assert_eq!(runtime.invalidated(&commit), vec![1]);
     }
 }

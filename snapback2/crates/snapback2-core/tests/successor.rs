@@ -445,6 +445,146 @@ fn new_unique_index_reports_conflicting_keys_without_changing_generation() {
 }
 
 #[test]
+fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
+    let items = table(
+        &[
+            ("id", ColumnType::Id),
+            ("name", ColumnType::Text { max: 64 }),
+        ],
+        &[("byId", &["id"])],
+    );
+    let scratch = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("items".to_owned(), items.clone()),
+                ("scratch".to_owned(), scratch),
+            ]),
+            Vec::new(),
+        ),
+        vec![get_program("scratch.get", "scratch", "byId", "id")],
+    );
+    let original_hash = base.hash.clone();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i1".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+            (
+                "items".to_owned(),
+                object([
+                    ("id", Value::Id("i2".to_owned())),
+                    ("name", Value::String("same".to_owned())),
+                ]),
+            ),
+            (
+                "scratch".to_owned(),
+                object([("id", Value::Id("keep".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items.indexes.insert(
+        "byName".to_owned(),
+        Index {
+            columns: vec!["name".to_owned()],
+            unique: true,
+        },
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+
+    let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
+    assert_eq!(error.code(), "E_SUCCESSOR_UNIQUE");
+    assert_eq!(runtime.generation().hash, original_hash);
+    let scratch = runtime
+        .execute(
+            "scratch.get",
+            Context::query(
+                "u1",
+                BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        scratch.result.field("id").unwrap(),
+        &Value::Id("keep".to_owned())
+    );
+}
+
+#[test]
+fn migration_rechecks_required_columns_and_rolls_back_its_drops() {
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let scratch = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([
+                ("items".to_owned(), items.clone()),
+                ("scratch".to_owned(), scratch),
+            ]),
+            Vec::new(),
+        ),
+        vec![get_program("scratch.get", "scratch", "byId", "id")],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), base).unwrap();
+    runtime
+        .seed(&[
+            (
+                "items".to_owned(),
+                object([("id", Value::Id("i1".to_owned()))]),
+            ),
+            (
+                "scratch".to_owned(),
+                object([("id", Value::Id("keep".to_owned()))]),
+            ),
+        ])
+        .unwrap();
+
+    let mut next_items = items;
+    next_items
+        .columns
+        .insert("name".to_owned(), ColumnType::Text { max: 64 });
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = runtime.apply_successor(next.clone()).unwrap_err();
+    assert_eq!(refusal.code, "E_SUCCESSOR_DESTRUCTIVE");
+
+    let error = runtime.apply_migration(next, &refusal.plan).unwrap_err();
+    assert_eq!(error.code(), "E_SUCCESSOR_COLUMN_REQUIRED");
+    let scratch = runtime
+        .execute(
+            "scratch.get",
+            Context::query(
+                "u1",
+                BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
+            ),
+        )
+        .unwrap();
+    assert_eq!(
+        scratch.result.field("id").unwrap(),
+        &Value::Id("keep".to_owned())
+    );
+}
+
+#[test]
 fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
     let cards = table(
         &[("id", ColumnType::Id), ("group", ColumnType::Id)],
