@@ -18,6 +18,7 @@ import {
   propertyName,
   replaceNode,
   singular,
+  staticMemberPath,
   stringLiteral,
   syntheticIdentifier,
   temporary,
@@ -574,16 +575,20 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   };
 }
 
-export function tableReference(node: ts.Expression, env: Pick<Environment, "tables">): { table: string; index: string } {
-  if (ts.isIdentifier(node)) {
-    const info = env.tables.get(node.text);
-    return { table: info?.name ?? node.text, index: info?.maintainedFrom ? "byGroup" : "byId" };
-  }
-  if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-    const info = env.tables.get(node.expression.text);
-    return { table: info?.name ?? node.expression.text, index: node.name.text };
-  }
-  throw new Error(`non-static table reference: ${node.getText()}`);
+export function tableReference(node: ts.Expression, env: Environment): { table: string; index: string } {
+  const path = staticMemberPath(node);
+  const direct = path && env.tables.get(path);
+  if (direct) return { table: direct.name, index: direct.maintainedFrom ? "byGroup" : "byId" };
+  const separator = path?.lastIndexOf(".") ?? -1;
+  const owner = separator > 0 ? env.tables.get(path!.slice(0, separator)) : undefined;
+  if (owner) return { table: owner.name, index: path!.slice(separator + 1) };
+  refuse(
+    env,
+    "E_OPAQUE",
+    node,
+    `static table/index reference required; ${node.getText(env.sourceFile)} does not resolve to an imported table or table.index`,
+    replaceNode(env.source, node, "table.index"),
+  );
 }
 
 export function lowerKey(node: ts.Expression, env: Environment): Expr[] {

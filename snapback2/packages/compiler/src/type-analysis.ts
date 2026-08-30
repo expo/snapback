@@ -1,8 +1,9 @@
 import ts from "typescript";
+import { expandArgumentObject } from "./args";
 import { requiredType, sameDecimal, unknownType, type AuthoredType, type TableInfo } from "./authored-types";
 import { diagnostic, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
-import { callName, expandedNumericLiteral, isDb, isFunctionLike, propertyName, replaceNode, unwrapCall, unwrapExpression } from "./syntax";
+import { callName, expandedNumericLiteral, isDb, isFunctionLike, propertyName, replaceNode, staticMemberPath, unwrapCall, unwrapExpression } from "./syntax";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Decimal target scales are compiler facts; the emitted value is integer minor units.
 
@@ -20,10 +21,8 @@ export function analyzeOperationTypes(module: TypeModule, call: ts.CallExpressio
   const argsObject = call.arguments[0] && unwrapExpression(call.arguments[0]);
   const args: Record<string, AuthoredType> = {};
   if (argsObject && ts.isObjectLiteralExpression(argsObject)) {
-    for (const property of argsObject.properties) {
-      if (!ts.isPropertyAssignment(property)) continue;
-      const name = propertyName(property.name);
-      if (name) args[name] = descriptorType(property.initializer);
+    for (const property of expandArgumentObject(argsObject).entries) {
+      args[property.name] = descriptorType(property.value);
     }
   }
   const handler = call.arguments[1];
@@ -173,45 +172,45 @@ class Analyzer {
 
   private numeric(node: ts.NumericLiteral, expected: AuthoredType | undefined, quiet: boolean): AuthoredType {
     const digits = fractionalDigits(node.text);
-    if (digits === 0) return { kind: "int" };
-    if (expected?.kind !== "decimal") {
-      if (!quiet) {
-        this.add("E_DECIMAL_SCALE", node, `fractional literal ${node.text} has ${digits} fractional digits but no Decimal scale`,
-          replaceNode(this.module.source, node, `decimal(${node.text}, ${digits})`));
+    if (expected?.kind === "decimal") {
+      if (digits > expected.scale) {
+        this.add(
+          "E_DECIMAL_SCALE",
+          node,
+          `${digits} fractional digits, scale ${expected.scale}; ${decimalName(expected)} cannot represent ${node.text}`,
+          replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`),
+        );
+        return expected;
       }
-      return unknownType;
-    }
-    if (digits > expected.scale) {
-      this.add(
-        "E_DECIMAL_SCALE",
-        node,
-        `${digits} fractional digits, scale ${expected.scale}; ${decimalName(expected)} cannot represent ${node.text}`,
-        replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`),
-      );
+      const minor = scaledInteger(node.text, expected.scale);
+      if (minor === undefined) {
+        this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`,
+          replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`));
+      } else {
+        this.literalValues.set(node.getStart(this.module.sourceFile), minor);
+      }
       return expected;
     }
-    const minor = scaledInteger(node.text, expected.scale);
-    if (minor === undefined) {
-      this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`,
-        replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`));
-    } else {
-      this.literalValues.set(node.getStart(this.module.sourceFile), minor);
+    if (digits === 0) return { kind: "int" };
+    if (!quiet) {
+      this.add("E_DECIMAL_SCALE", node, `fractional literal ${node.text} has ${digits} fractional digits but no Decimal scale`,
+        replaceNode(this.module.source, node, `decimal(${node.text}, ${digits})`));
     }
-    return expected;
+    return unknownType;
   }
 
   private binary(node: ts.BinaryExpression, env: TypeEnvironment, expected?: AuthoredType): AuthoredType {
+    const operator = node.operatorToken.kind;
     let left = this.expression(node.left, env, undefined, true);
     let right = this.expression(node.right, env, undefined, true);
-    if (left.kind === "decimal") right = this.expression(node.right, env, left);
-    else if (right.kind === "decimal") left = this.expression(node.left, env, right);
+    if (operator !== ts.SyntaxKind.AsteriskToken && left.kind === "decimal") right = this.expression(node.right, env, left);
+    else if (operator !== ts.SyntaxKind.AsteriskToken && right.kind === "decimal") left = this.expression(node.left, env, right);
     else if (left.kind === "enum") right = this.expression(node.right, env, left);
     else if (right.kind === "enum") left = this.expression(node.left, env, right);
     else {
       left = this.expression(node.left, env, expected);
       right = this.expression(node.right, env, expected);
     }
-    const operator = node.operatorToken.kind;
     if (operator === ts.SyntaxKind.QuestionQuestionToken) {
       if (left.kind === "enum") right = this.expression(node.right, env, left);
       if (right.kind === "enum") left = this.expression(node.left, env, right);
@@ -332,10 +331,12 @@ class Analyzer {
   }
 
   private tableReference(node: ts.Expression): TableInfo | undefined {
-    const value = unwrapExpression(node);
-    if (ts.isIdentifier(value)) return this.module.tables.get(value.text);
-    if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) return this.module.tables.get(value.expression.text);
-    return undefined;
+    const path = staticMemberPath(node);
+    if (!path) return undefined;
+    const direct = this.module.tables.get(path);
+    if (direct) return direct;
+    const separator = path.lastIndexOf(".");
+    return separator > 0 ? this.module.tables.get(path.slice(0, separator)) : undefined;
   }
 
   private table(name: string): TableInfo | undefined {
@@ -423,17 +424,14 @@ function commonType(values: AuthoredType[]): AuthoredType {
 
 function fractionalDigits(value: string): number {
   const expanded = expandedNumericLiteral(value);
-  if (!expanded) return Number.isInteger(Number(value)) ? 0 : 1;
-  return Number.isInteger(Number(value)) && expanded.fraction.length === 0
-    ? 0
-    : Math.max(1, expanded.fraction.length);
+  return expanded?.fraction.length ?? 1;
 }
 
 function scaledInteger(value: string, scale: number): number | undefined {
   const expanded = expandedNumericLiteral(value);
   if (!expanded || expanded.fraction.length > scale) return undefined;
-  const result = Number(`${expanded.whole}${expanded.fraction.padEnd(scale, "0")}`);
-  return Number.isSafeInteger(result) ? result : undefined;
+  const result = BigInt(`${expanded.whole}${expanded.fraction.padEnd(scale, "0")}`);
+  return result <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(result) : undefined;
 }
 
 function decimalName(value: AuthoredType): string {
@@ -443,7 +441,8 @@ function decimalName(value: AuthoredType): string {
 
 function isIntegerZero(node: ts.Expression): boolean {
   const value = unwrapExpression(node);
-  return ts.isNumericLiteral(value) && (expandedNumericLiteral(value.text)?.fraction.length ?? 1) === 0 && Number(value.text) === 0;
+  const expanded = ts.isNumericLiteral(value) && expandedNumericLiteral(value.text);
+  return !!expanded && expanded.whole === "0" && expanded.fraction === "";
 }
 
 function numericExpression(node: ts.Expression): boolean {

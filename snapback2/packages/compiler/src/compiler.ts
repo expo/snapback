@@ -1,5 +1,6 @@
 import ts from "typescript";
 import type { TableInfo } from "./authored-types";
+import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
   cloneEnvironment,
@@ -22,6 +23,7 @@ import {
 import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
+import { typeDiagnosticSite } from "./type-diagnostic-site";
 import { lowerArgDescriptor } from "./lower/schema";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
@@ -43,6 +45,7 @@ import {
   replaceNode,
   singular,
   snapbackCallName,
+  staticMemberPath,
   stringArgument,
   syntheticIdentifier,
   temporary,
@@ -94,7 +97,6 @@ export type Environment = ModuleInfo & {
   diagnostics: FrontendDiagnostic[];
 };
 export type LoweredValue = { statements: Stmt[]; expression: Expr };
-
 export { typecheckSource } from "./typecheck";
 export { mechanicalBoundRewrite } from "./policy";
 export async function lowerProject(root: string) {
@@ -121,8 +123,9 @@ export function lowerSource(
       const node = item.file && item.start !== undefined
         ? findNarrowestNode(item.file, item.start)
         : sourceFile;
+      const siteKind = typeDiagnosticSite(node, fileName);
       const schemaLabelRewrite = source.replace(/\bschema\s+\([^\n:]+\):/g, "schema:");
-      diagnostics.push(diagnostic(module, "E_OPAQUE", node, formatTypeDiagnostic(item), schemaLabelRewrite));
+      diagnostics.push(diagnostic(module, siteKind.code, node, formatTypeDiagnostic(item), schemaLabelRewrite));
     }
   }
   let recognizableExports = 0;
@@ -229,15 +232,19 @@ function lowerOperation(
     refuse(module, "E_OPAQUE", call, "query/mutation requires an argument object and inline handler");
   }
   const args: Program["args"] = {};
-  for (const property of argObject.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
-    const argName = propertyName(property.name);
-    if (!argName) refuse(module, "E_OPAQUE", property, "computed argument names are not supported");
-    const descriptor = unwrapCall(property.initializer);
+  const expandedArgs = expandArgumentObject(argObject);
+  if (expandedArgs.invalidSpread) {
+    refuse(module, "E_ARGS_SPREAD", expandedArgs.invalidSpread, "argument object spread is not a module-level constant object; spell out every argument field",
+      argumentSpreadRewrite(module.source, expandedArgs.invalidSpread));
+  }
+  if (expandedArgs.invalidProperty) refuse(module, "E_ARGS_TYPE", expandedArgs.invalidProperty, "argument members must use name: descriptor syntax");
+  for (const property of expandedArgs.entries) {
+    const argName = property.name;
+    const descriptor = unwrapCall(property.value);
     const options = descriptor && descriptorName(descriptor) === "list" && descriptor.arguments[1];
     const legacyMax = options && ts.isObjectLiteralExpression(options) ? numberProperty(options, "max") : undefined;
-    const lowered = (lowerArgDescriptor(property.initializer) ?? (legacyMax !== undefined ? { List: { max: legacyMax } } : descriptor ? "Scalar" : undefined)) as Program["args"][string] | undefined;
-    if (!lowered) refuse(module, "E_ARGS_TYPE", property, `invalid argument descriptor ${argName}`);
+    const lowered = (lowerArgDescriptor(property.value) ?? (legacyMax !== undefined ? { List: { max: legacyMax } } : descriptor ? "Scalar" : undefined)) as Program["args"][string] | undefined;
+    if (!lowered) refuse(module, "E_ARGS_TYPE", property.node, `invalid argument descriptor ${argName}`);
     args[argName] = lowered;
   }
   const variables = new Map<string, VariableInfo>();
@@ -394,12 +401,13 @@ function lowerExpressionStatement(expression: ts.Expression, env: Environment): 
       }
       const effectNode = expression.arguments[0];
       const payloadNode = expression.arguments[1];
-      if (!effectNode || !ts.isIdentifier(effectNode) || !payloadNode) {
+      if (!effectNode || !payloadNode) {
         refuse(env, "E_EFFECT_UNKNOWN", expression, "emit requires an imported effect and a JSON payload");
       }
-      const effect = env.effects.get(effectNode.text);
+      const effectPath = staticMemberPath(effectNode);
+      const effect = effectPath && env.effects.get(effectPath);
       if (!effect) {
-        refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.text} is not declared in this project`);
+        refuse(env, "E_EFFECT_UNKNOWN", effectNode, `effect ${effectNode.getText(env.sourceFile)} is not declared in this project`);
       }
       const payload = lowerValue(payloadNode, env, `${env.programName}.emit`);
       return [...payload.statements, { Emit: { effect, payload: payload.expression } }];

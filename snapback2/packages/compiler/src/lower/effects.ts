@@ -1,8 +1,9 @@
 import ts from "typescript";
+import { expandArgumentObject } from "../args";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
-import { hasExport, unwrapCall, unwrapExpression, walk } from "../syntax";
-import { callLeaf, moduleJsonConstants, objectOf, property, propertyEntries, staticJson, stringArray } from "./static";
+import { hasExport, staticMemberPath, unwrapCall, unwrapExpression, walk } from "../syntax";
+import { callLeaf, moduleJsonConstants, objectOf, property, staticJson, stringArray } from "./static";
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
 
@@ -51,7 +52,13 @@ export function effectBindings(module: SourceModule, catalog: EffectCatalog): Ma
       || !statement.moduleSpecifier.text.startsWith(".")) continue;
     const targetModule = moduleNameFromSpecifier(statement.moduleSpecifier.text);
     const imports = statement.importClause?.namedBindings;
-    if (!imports || !ts.isNamedImports(imports)) continue;
+    if (!imports) continue;
+    if (ts.isNamespaceImport(imports)) {
+      for (const [qualified, effect] of catalog) {
+        if (effect.module.moduleName === targetModule) bindings.set(`${imports.name.text}.${effect.exportName}`, qualified);
+      }
+      continue;
+    }
     for (const item of imports.elements) {
       const imported = item.propertyName?.text ?? item.name.text;
       const qualified = `${targetModule}.${imported}`;
@@ -236,16 +243,23 @@ function isInsideType(node: ts.Node): boolean {
 }
 
 function resolveOperation(module: SourceModule, node: ts.Expression, operations: Map<string, OperationDecl>): OperationDecl | undefined {
-  const value = unwrapExpression(node);
-  if (!ts.isIdentifier(value)) return undefined;
-  const local = operations.get(`${module.moduleName}.${value.text}`);
+  const path = staticMemberPath(node);
+  if (!path) return undefined;
+  const local = !path.includes(".") ? operations.get(`${module.moduleName}.${path}`) : undefined;
   if (local) return local;
   for (const statement of module.sourceFile.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
       || !statement.moduleSpecifier.text.startsWith(".")) continue;
     const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
-    const item = bindings.elements.find((entry) => entry.name.text === value.text);
+    if (!bindings) continue;
+    if (ts.isNamespaceImport(bindings)) {
+      const prefix = `${bindings.name.text}.`;
+      if (path.startsWith(prefix) && !path.slice(prefix.length).includes(".")) {
+        return operations.get(`${moduleNameFromSpecifier(statement.moduleSpecifier.text)}.${path.slice(prefix.length)}`);
+      }
+      continue;
+    }
+    const item = bindings.elements.find((entry) => entry.name.text === path);
     if (!item) continue;
     const exported = item.propertyName?.text ?? item.name.text;
     return operations.get(`${moduleNameFromSpecifier(statement.moduleSpecifier.text)}.${exported}`);
@@ -256,7 +270,7 @@ function resolveOperation(module: SourceModule, node: ts.Expression, operations:
 function validThenArgs(call: ts.CallExpression): boolean {
   const args = objectOf(call.arguments[0]);
   if (!args) return false;
-  const entries = propertyEntries(args);
+  const entries = expandArgumentObject(args).entries;
   if (entries.map((item) => item.name).sort().join(",") !== "effect,outboxId,result") return false;
   const descriptors = new Map(entries.map((item) => [item.name, callLeaf(item.value)]));
   return ["id", "text"].includes(descriptors.get("outboxId") ?? "")

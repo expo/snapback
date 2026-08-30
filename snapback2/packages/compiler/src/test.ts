@@ -241,6 +241,40 @@ test("object and array spreads lower only from static shapes and preserve overri
   assert(guarded.ok, `explicitly guarded db.get spread was refused: ${guarded.ok ? "" : guarded.diagnostics.map((item) => item.message).join("; ")}`);
 });
 
+test("argument spreads expand module constants or refuse without dropping fields", () => {
+  const expanded = lowerSource(`import { mutation, t } from "snapback2";
+    const shared = { title: t.text(100), done: t.bool() };
+    const inherited = { ...shared, ownerId: t.id() };
+    export const add = mutation({ ...inherited, title: t.text(200) }, ({ args }) => args);`, "arg-spread.ts");
+  assert(expanded.ok, `static argument spread refused: ${expanded.ok ? "" : expanded.diagnostics.map((item) => item.message).join("; ")}`);
+  const args = expanded.programs[0]?.args ?? {};
+  assert(Object.keys(args).sort().join(",") === "done,ownerId,title", "static argument spread dropped a field");
+  assert(args.title === "Scalar", "later explicit argument did not override a spread field with a valid descriptor");
+
+  const refused = lowerSource(`import { mutation, t } from "snapback2";
+    const makeArgs = () => ({ title: t.text(100) });
+    export const add = mutation({ ...makeArgs() }, ({ args }) => args);`, "opaque-arg-spread.ts");
+  const diagnostic = refused.ok ? undefined : refused.diagnostics.find((item) => item.code === "E_ARGS_SPREAD");
+  assert(diagnostic?.site.startsWith("opaque-arg-spread.ts:3:")
+    && diagnostic.rewrite.includes("field: makeArgs().field"), "opaque argument spread was dropped or lacked an explicit-field rewrite");
+});
+
+test("non-static table and index references are sited opaque refusals, never thrown errors", () => {
+  const source = `import { query } from "snapback2";
+    export const dynamicTable = query({}, ({ db }) => db.scan(selectTable(), [], { take: 5 }));
+    export const dynamicIndex = query({}, ({ db }) => db.scan(todos[chooseIndex()], [], { take: 5 }));`;
+  let lowered: ReturnType<typeof lowerSource> | undefined;
+  try {
+    lowered = lowerSource(source, "dynamic-reference.ts");
+  } catch (error) {
+    assert(false, `lowerSource threw authored input: ${String(error)}`);
+  }
+  assert(lowered && !lowered.ok, "dynamic table/index references unexpectedly lowered");
+  const opaque = lowered.diagnostics.filter((item) => item.code === "E_OPAQUE" && item.message.includes("static table/index"));
+  assert(opaque.length === 2 && opaque.every((item) => item.site.startsWith("dynamic-reference.ts:")
+    && item.rewrite.includes("table.index")), "dynamic table/index refusal lost its authored site or static rewrite");
+});
+
 test("snapback2 constructors resolve through named aliases and namespace imports, while empty modules refuse", async () => {
   await withProject({
     "snapback/schema.ts": `import * as sb from "snapback2";
@@ -283,6 +317,40 @@ test("snapback2 constructors resolve through named aliases and namespace imports
   }, async (root) => {
     const emptyProject = await lowerProject(root);
     assert(!emptyProject.ok && emptyProject.diagnostics.some((item) => item.code === "E_OP_NONE"), "schema-only project silently succeeded");
+  });
+});
+
+test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const todos = table({ columns: { value: t.text(100) } });
+      export default schema({ tables: { todos } });`,
+    "snapback/callbacks.ts": `import { mutation, t } from "snapback2";
+      export const record = mutation({ outboxId: t.id(), effect: t.text(100), result: t.json<{ delivered: true }>(100) }, ({ args }) => args.result);`,
+    "snapback/effects.ts": `import { effect } from "snapback2";
+      import * as callbacks from "./callbacks";
+      export const notify = effect({ grants: ["https://api.example.com"], run: async (_payload: { value: string }) => ({ delivered: true }), then: callbacks.record });`,
+    "snapback/ops.ts": `import { emit, mutation, query, t } from "snapback2";
+      import * as schema from "./schema";
+      import * as effects from "./effects";
+      export const list = query({}, ({ db }) => db.scan(schema.todos.byId, [], { take: 5 }));
+      export const add = mutation({ value: t.text(100) }, ({ db, ctx, args }) => {
+        db.insert(schema.todos, { id: ctx.newId(), value: args.value });
+        emit(effects.notify, { value: args.value });
+        return true;
+      });`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `namespace references refused: ${project.ok ? "" : project.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
+    const list = project.project.programs.find((item) => item.name === "ops.list") as any;
+    const add = project.project.programs.find((item) => item.name === "ops.add") as any;
+    assert(list?.body[0]?.Return?.Scan?.table === "todos" && list.body[0].Return.Scan.index === "byId"
+      && add?.body[0]?.Insert?.table === "todos",
+      "schema namespace lowered to the namespace or export name instead of todos/byId");
+    const encoded = canonical(project.project.programs);
+    assert(encoded.includes('"effect":"effects.notify"'), "program namespace effect reference did not resolve");
+    assert(project.project.effects[0]?.then === "callbacks.record", "program namespace then reference did not resolve");
+    assert(project.apiDts.includes("list: Op<{}, Page<TodosRow>>"), "schema namespace scan lost its authored API row type");
   });
 });
 
@@ -337,6 +405,19 @@ test("project type diagnostics choose schema, args, opaque, and effect families 
         `${item.code} TypeScript rewrite omitted its one-line fix hint`);
     }
   });
+});
+
+test("single-file type diagnostics choose the same family from the authored site", () => {
+  const source = `import { effect, query, t } from "snapback2";
+    export const badArgs = query({ value: t.int(1) }, () => 0);
+    export const badBody = query({}, () => missingValue);
+    export const badEffect = effect({ grants: [123], run: async (_payload: null) => null });`;
+  const lowered = lowerSource(source, "single-site.ts", libText);
+  assert(!lowered.ok, "single-file type-family fixture unexpectedly compiled");
+  const has = (code: string, family: string) => lowered.diagnostics.some((item) => item.code === code && item.family === family);
+  assert(has("E_ARGS_TYPE", "args"), "single-file argument type error did not use the args family");
+  assert(has("E_OPAQUE", "opaque"), "single-file body type error did not use the opaque family");
+  assert(has("E_EFFECT_TYPE", "effect"), "single-file effect type error did not use the effect family");
 });
 
 test("placeholder declarations export every not-built client, React, and journey symbol", async () => {
@@ -449,10 +530,32 @@ test("Decimal scaling requires a verified target and exponential literals classi
 
   const valid = lowerSource(`import { decimal, query } from "snapback2";
     export const tiny = query({}, () => decimal(1e-7, 7));
+    export const wholeForms = query({}, () => [decimal(2, 2), decimal(2.00, 2), decimal(2e0, 2), decimal(1.5e1, 2)]);
     export const thousand = query({}, () => 1e3);`, "exponents.ts");
   assert(valid.ok, `valid exponential literals refused: ${valid.ok ? "" : valid.diagnostics.map((item) => item.message).join("; ")}`);
   assert(canonical(valid.programs.find((item) => item.name === "tiny")).includes('"Int":1'), "decimal(1e-7, 7) did not lower to Int 1");
+  const wholeForms = canonical(valid.programs.find((item) => item.name === "wholeForms"));
+  assert((wholeForms.match(/"Int":200/g) ?? []).length === 3 && wholeForms.includes('"Int":1500'),
+    "decimal whole-unit literal spellings did not scale exactly");
   assert(canonical(valid.programs.find((item) => item.name === "thousand")).includes('"Int":1000'), "1e3 did not lower to Int 1000");
+
+  const writes = lowerSource(`import { mutation } from "snapback2";
+    export const add = mutation({}, ({ db, ctx }) => {
+      db.insert(products, { id: ctx.newId(), price: 2 });
+      db.insert(products, { id: ctx.newId(), price: 2.00 });
+      db.insert(products, { id: ctx.newId(), price: 2e0 });
+      db.insert(products, { id: ctx.newId(), price: 1.5e1 });
+      return true;
+    });`, "whole-unit-writes.ts", undefined, { tables });
+  assert(writes.ok, `whole-unit Decimal writes refused: ${writes.ok ? "" : writes.diagnostics.map((item) => item.message).join("; ")}`);
+  const writeIr = canonical(writes.programs[0]);
+  assert((writeIr.match(/"Int":200/g) ?? []).length === 3 && writeIr.includes('"Int":1500'),
+    "Decimal-targeted integer/exponent literals were treated as minor units");
+
+  const excess = lowerSource(`import { decimal, query } from "snapback2";
+    export const bad = query({}, () => decimal(1.23e-1, 2));`, "excess-expanded-scale.ts");
+  assert(!excess.ok && excess.diagnostics.some((item) => item.code === "E_DECIMAL_SCALE" && item.message.includes("3 fractional digits, scale 2")),
+    "exponential literal with excess expanded precision was admitted");
   const fractional = lowerSource(`import { query } from "snapback2";
     export const bad = query({}, () => 1.5e0);`, "fractional-exponent.ts");
   assert(!fractional.ok && fractional.diagnostics.some((item) => item.code === "E_DECIMAL_SCALE"), "1.5e0 was classified as an integer");
@@ -488,6 +591,16 @@ test("decimal helper scales from the number string and refuses excess precision"
     refused = error instanceof RangeError && error.message.includes("3 fractional digits, scale 2");
   }
   assert(refused, "decimal helper admitted excess fractional digits");
+});
+
+test("Decimal authoring JSDoc states that numeric literals are whole units", async () => {
+  const implementation = await readFile(`${crate}packages/snapback2/src/index.ts`, "utf8");
+  const declarations = await readFile(`${frontend}lib.d.ts`, "utf8");
+  for (const symbol of ["t.decimal", "t.money", "decimal(value, scale)"]) {
+    assert(implementation.includes(symbol) && declarations.includes(symbol), `${symbol} JSDoc does not state whole-unit scaling on both module surfaces`);
+  }
+  assert((implementation.match(/whole units/g) ?? []).length >= 3 && (declarations.match(/whole units/g) ?? []).length >= 3,
+    "Decimal authoring JSDoc omits the whole-unit ruling");
 });
 
 test("project compilation aggregates refusals across every failing module", async () => {

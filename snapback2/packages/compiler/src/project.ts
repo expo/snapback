@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
 import { lowerSource } from "./compiler";
 import { boundedDiagnostics, diagnostic, typeDiagnostic } from "./diagnostics";
@@ -11,7 +12,8 @@ import { effectBindings, collectEffectCatalog, lowerEffects, type OperationDecl,
 import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
 import { callLeaf, moduleJsonConstants, numberValue, objectOf, property, propertyEntries, staticJson, stringArray, stringValue } from "./lower/static";
-import { findNarrowestNode, hasExport, propertyName, unwrapCall, unwrapExpression, walk } from "./syntax";
+import { findNarrowestNode, hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression, walk } from "./syntax";
+import { typeDiagnosticSite } from "./type-diagnostic-site";
 
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
@@ -233,39 +235,18 @@ function projectTypeDiagnostics(program: ts.Program, projectRoot: string): Front
     const file = relativeSite(projectRoot, item.file.fileName);
     const message = ts.flattenDiagnosticMessageText(item.messageText, "\n");
     const node = item.start === undefined ? item.file : findNarrowestNode(item.file, item.start);
-    const effectThen = ancestorProperty(node, "then");
-    const siteKind = effectThen ? undefined : typeDiagnosticSite(node, file);
+    const siteKind = typeDiagnosticSite(node, file);
     return [typeDiagnostic(
-      effectThen ? "E_EFFECT_THEN_ARGS" : siteKind!.code,
-      effectThen ? "effect" : siteKind!.family,
+      siteKind.code,
+      siteKind.family,
       file,
       position.line + 1,
       position.character + 1,
       message,
       typeDiagnosticRewrite(item.file, node, message),
-      effectThen ? "effects/authoring" : siteKind!.guide,
+      siteKind.guide,
     )];
   });
-}
-
-function typeDiagnosticSite(
-  node: ts.Node,
-  file: string,
-): { code: "E_SCHEMA_INVALID" | "E_EFFECT_TYPE" | "E_ARGS_TYPE" | "E_OPAQUE"; family: FrontendDiagnostic["family"]; guide: string } {
-  if (file === "snapback/schema.ts" || file.endsWith("/schema.ts")) {
-    return { code: "E_SCHEMA_INVALID", family: "schema", guide: "schema/project" };
-  }
-  const declaration = ancestor(node, ts.isVariableDeclaration);
-  const call = declaration?.initializer && unwrapCall(declaration.initializer);
-  const kind = call && callLeaf(call);
-  if (kind === "effect") return { code: "E_EFFECT_TYPE", family: "effect", guide: "effects/authoring" };
-  if (call && (kind === "query" || kind === "mutation")) {
-    const args = call.arguments[0];
-    if (args && node.getStart() >= args.getStart() && node.getEnd() <= args.getEnd()) {
-      return { code: "E_ARGS_TYPE", family: "args", guide: "programs/args" };
-    }
-  }
-  return { code: "E_OPAQUE", family: "opaque", guide: "opaque/subset" };
 }
 
 function collectOperations(modules: SourceModule[]): Map<string, OperationDecl & { module: SourceModule }> {
@@ -314,7 +295,11 @@ function tableBindings(
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
       || !/^\.\/schema(?:\.ts)?$/.test(statement.moduleSpecifier.text)) continue;
     const imports = statement.importClause?.namedBindings;
-    if (!imports || !ts.isNamedImports(imports)) continue;
+    if (!imports) continue;
+    if (ts.isNamespaceImport(imports)) {
+      for (const [exported, table] of declared) bindings.set(`${imports.name.text}.${exported}`, table);
+      continue;
+    }
     for (const item of imports.elements) {
       const exported = item.propertyName?.text ?? item.name.text;
       const table = declared.get(exported);
@@ -393,7 +378,7 @@ function checkedOperationCall(program: ts.Program, operation: OperationDecl): ts
 }
 
 function apiArgsType(object: ts.ObjectLiteralExpression, checker: ts.TypeChecker): string {
-  const fields = propertyEntries(object).map((entry) => {
+  const fields = expandArgumentObject(object).entries.map((entry) => {
     const call = unwrapCall(entry.value);
     const optional = call && callLeaf(call) === "optional";
     const type = call ? descriptorType(call, checker) : "unknown";
@@ -556,10 +541,8 @@ function apiAuthoredType(value: AuthoredType): string {
 }
 
 function apiTable(node: ts.Expression, tables: Map<string, TableInfo>): TableInfo | undefined {
-  const value = unwrapExpression(node);
-  if (ts.isIdentifier(value)) return tables.get(value.text);
-  if (ts.isPropertyAccessExpression(value) && ts.isIdentifier(value.expression)) return tables.get(value.expression.text);
-  return undefined;
+  const path = staticMemberPath(node);
+  return path?.split(".").map((part) => tables.get(part)).find((table) => table !== undefined);
 }
 
 function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>): ts.SpreadAssignment | undefined {
@@ -675,11 +658,6 @@ function selfTableReference(item: ts.Diagnostic): boolean {
   const declaration = ancestor(node, ts.isVariableDeclaration);
   const call = declaration?.initializer && unwrapCall(declaration.initializer);
   return !!call && callLeaf(call) === "table" && ts.isIdentifier(declaration!.name) && node.getText() === declaration!.name.text;
-}
-
-function ancestorProperty(node: ts.Node, name: string): boolean {
-  const property = ancestor(node, ts.isPropertyAssignment);
-  return !!property && propertyName(property.name) === name;
 }
 
 function ancestor<T extends ts.Node>(node: ts.Node, guard: (value: ts.Node) => value is T): T | undefined {

@@ -111,6 +111,7 @@ export type DiagnosticCode =
   | "E_AMBIENT_TIME"
   | "E_OPAQUE"
   | "E_BOUND"
+  | "E_ARGS_SPREAD"
   | "E_ARGS_TYPE"
   | "E_OP_INVALID"
   | "E_OP_NONE"

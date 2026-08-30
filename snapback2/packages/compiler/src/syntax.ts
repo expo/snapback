@@ -147,6 +147,14 @@ export function unwrapExpression(node: ts.Expression): ts.Expression {
   return value;
 }
 
+export function staticMemberPath(node: ts.Expression): string | undefined {
+  const value = unwrapExpression(node);
+  if (ts.isIdentifier(value)) return value.text;
+  if (!ts.isPropertyAccessExpression(value)) return undefined;
+  const base = staticMemberPath(value.expression);
+  return base ? `${base}.${value.name.text}` : undefined;
+}
+
 export function callName(call: ts.CallExpression): string {
   return call.expression.getText();
 }
