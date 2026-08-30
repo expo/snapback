@@ -74,7 +74,8 @@ export function useConnection(): ConnectionState {
 
 /**
  * Reads a receipt-backed query. It subscribes by default; pass `{ live: false }`
- * for a one-shot read. Transport status is returned separately as `connection`.
+ * for a one-shot read. Receipt state stays `complete`, `capped`, `partial`, or
+ * `denied`; `live` and `connection` report the subscription transport separately.
  */
 export function useQuery<Args, Result>(
   ref: Op<Args, Result>,
@@ -122,7 +123,7 @@ export function useQuery<Args, Result>(
           const envelope = error instanceof SnapbackRefusal
             ? error.envelope
             : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
-          dispatch({ state: "refused", ...envelope });
+          dispatch({ state: "refused", live: false, ...envelope });
           return;
         }
       }

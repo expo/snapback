@@ -48,37 +48,30 @@ export type MutationRejected = {
 };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected;
 
-export type LiveDelivery<Result> = { state: "live"; data: Result; seq: number };
-export type PartialDelivery<Result> = {
-  state: "partial";
-  data?: Result;
-  seq: number;
-  take?: number;
-  site?: string;
-  reason: string;
-};
+export type LiveQueryDelivery<Result> = QueryResult<Result> & { live: true };
 export type StaleDelivery<Result> = {
   state: "stale";
+  live: false;
   since: number;
   data?: Result;
-  seq: number;
+  seq?: number;
 };
 export type RefusedDelivery = {
   state: "refused";
   code: string;
-  family?: string;
-  message?: string;
+  family: string;
+  message: string;
   site?: string;
   rule?: string;
   rewrite?: string;
   guide?: string;
   seq?: number;
 };
+export type QueryRefusedDelivery = RefusedDelivery & { live: false };
 export type SubscriptionDelivery<Result> =
-  | LiveDelivery<Result>
-  | PartialDelivery<Result>
+  | LiveQueryDelivery<Result>
   | StaleDelivery<Result>
-  | RefusedDelivery;
+  | QueryRefusedDelivery;
 
 export interface Subscription<Event> {
   close(): void;
@@ -136,6 +129,7 @@ export interface SnapbackClient {
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<MutationResult<Result>>;
+  /** Delivers validated query receipt states with `live: true`; transport loss is client-made `stale`. */
   subscribe<Args, Result>(
     ref: Op<Args, Result>,
     args: NoInfer<Args>,
@@ -148,20 +142,19 @@ export interface SnapbackClient {
 }
 
 export type QueryView<Result> =
-  | { state: "complete"; data: Result; seq: number }
-  | { state: "capped"; data: Result; seq: number; take: number; site: string }
-  | { state: "partial"; data?: Result; seq: number; reason: string }
-  | { state: "denied"; rule: string; seq: number }
-  | { state: "refused"; refusal: RefusalEnvelope }
-  | { state: "stale"; data?: Result; seq: number; since: number }
-  | { state: "live"; data: Result; seq: number }
-  | { state: "hydrating" };
+  | (QueryComplete<Result> & { live: boolean })
+  | (QueryCapped<Result> & { live: boolean })
+  | (QueryPartial<Result> & { live: boolean })
+  | (QueryDenied & { live: boolean })
+  | { state: "refused"; live: false; refusal: RefusalEnvelope }
+  | { state: "stale"; live: false; data?: Result; seq?: number; since: number }
+  | { state: "hydrating"; live: false };
 export type QueryViewState = QueryView<unknown>["state"];
 export type QueryHookResult<Result> = QueryView<Result> & { connection: ConnectionState };
 export type QueryMachineEvent<Result> = QueryResult<Result> | SubscriptionDelivery<Result>;
 
 export function initialQueryState<Result>(): QueryView<Result> {
-  return { state: "hydrating" };
+  return { state: "hydrating", live: false };
 }
 
 function canonical(value: unknown): string {
@@ -186,42 +179,46 @@ export function reduceQueryState<Result>(
   const eventData = "data" in event ? event.data : undefined;
   const currentData = "data" in current ? current.data : undefined;
   const data = canonical(eventData) === canonical(currentData) ? currentData : eventData;
+  const live = "live" in event ? event.live : false;
   let next: QueryView<Result>;
   switch (event.state) {
     case "complete":
-      next = { state: "complete", data: data as Result, seq: event.seq };
+      next = { state: "complete", live, data: data as Result, seq: event.seq };
       break;
     case "capped":
-      next = { state: "capped", data: data as Result, seq: event.seq, take: event.take, site: event.site };
+      next = { state: "capped", live, data: data as Result, seq: event.seq, take: event.take, site: event.site };
       break;
     case "partial":
       next = data === undefined
-        ? { state: "partial", seq: event.seq, reason: event.reason }
-        : { state: "partial", data: data as Result, seq: event.seq, reason: event.reason };
+        ? { state: "partial", live, seq: event.seq, reason: event.reason }
+        : { state: "partial", live, data: data as Result, seq: event.seq, reason: event.reason };
       break;
     case "denied":
-      next = { state: "denied", rule: event.rule, seq: event.seq };
+      next = { state: "denied", live, rule: event.rule, seq: event.seq };
       break;
     case "refused": {
       const refusal: RefusalEnvelope = {
         code: event.code,
-        family: event.family ?? "owner",
-        message: event.message ?? event.code,
+        family: event.family,
+        message: event.message,
       };
       if (event.site !== undefined) refusal.site = event.site;
       if (event.rule !== undefined) refusal.rule = event.rule;
       if (event.rewrite !== undefined) refusal.rewrite = event.rewrite;
       if (event.guide !== undefined) refusal.guide = event.guide;
-      next = { state: "refused", refusal };
+      next = { state: "refused", live: false, refusal };
       break;
     }
     case "stale":
       next = data === undefined
-        ? { state: "stale", seq: event.seq, since: event.since }
-        : { state: "stale", data: data as Result, seq: event.seq, since: event.since };
-      break;
-    case "live":
-      next = { state: "live", data: data as Result, seq: event.seq };
+        ? { state: "stale", live: false, ...(event.seq === undefined ? {} : { seq: event.seq }), since: event.since }
+        : {
+            state: "stale",
+            live: false,
+            data: data as Result,
+            ...(event.seq === undefined ? {} : { seq: event.seq }),
+            since: event.since,
+          };
       break;
   }
   return canonical(current) === canonical(next) ? current : next;

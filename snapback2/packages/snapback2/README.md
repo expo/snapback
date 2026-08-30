@@ -14,7 +14,7 @@ const client = createClient({ url: process.env.SNAPBACK_URL!, as: "alice" });
 const page = await client.query(api.messages.thread, { conversationId: "general" });
 
 const sub = client.subscribe(api.messages.thread, { conversationId: "general" }, console.log);
-await sub.until((delivery) => delivery.state === "live");
+await sub.until((delivery) => delivery.state === "complete" && delivery.live);
 sub.close();
 ```
 
@@ -40,12 +40,20 @@ export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" as="alice
 </SnapbackProvider>;
 ```
 
-Reads surface exactly eight states: `hydrating`, `live`, `stale`, `partial`,
-`denied`, `refused`, `capped`, and `complete`. Transport status is a separate
-`connection: "connected" | "reconnecting" | "offline"` field; it never becomes a
-query state. `useQuery` subscribes by default; pass `{ live: false }` for a one-shot
-query, which remains `hydrating` and retries while its connection is reconnecting.
+Reads surface exactly seven states: `hydrating`, `complete`, `capped`, `partial`,
+`denied`, `refused`, and `stale`. A subscription frame retains its server receipt
+state and sets the orthogonal `live: true`; stream loss changes the view to
+`stale` with `live: false`. Transport status is separately exposed as
+`connection: "connected" | "reconnecting" | "offline"`. `useQuery` subscribes by
+default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
+retries while its connection is reconnecting.
 
 `useMutation` returns `{ run, pending, last }`. `pending` covers the in-flight
 interval, and `last` is the most recent `committed` or `rejected` value. `queued`
 is reserved for the deferred offline outbox and is not a v1 mutation state.
+
+Build and run the package tests from this directory with:
+
+```sh
+node build.mjs && node --test tests/
+```

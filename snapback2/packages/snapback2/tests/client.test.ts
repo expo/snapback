@@ -65,6 +65,38 @@ function fetchSse(...values: unknown[]): Response {
   }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
+function hangingSse(...chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
+function heartbeatSse(): Response {
+  const encoder = new TextEncoder();
+  let timer: ReturnType<typeof setInterval> | undefined;
+  return new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":1}\n\n'));
+      let heartbeats = 0;
+      timer = setInterval(() => {
+        heartbeats += 1;
+        controller.enqueue(encoder.encode(": heartbeat\n\n"));
+        if (heartbeats === 4) {
+          clearInterval(timer);
+          timer = undefined;
+          controller.enqueue(encoder.encode('data: {"state":"complete","data":[],"seq":2}\n\n'));
+        }
+      }, 10);
+    },
+    cancel() {
+      if (timer !== undefined) clearInterval(timer);
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
 function isWireShape(error: unknown, missing: string): boolean {
   return error instanceof SnapbackRefusal
     && error.code === "E_WIRE_SHAPE"
@@ -160,10 +192,23 @@ class MockOwner {
     response.write(": heartbeat\n\n");
   }
 
+  private queryResult(op: string): unknown {
+    if (op === "states.capped") {
+      return { state: "capped", data: this.rows, seq: this.seq, take: 1, site: "messages.scan" };
+    }
+    if (op === "states.partial") {
+      return { state: "partial", data: this.rows, seq: this.seq, reason: "coverage" };
+    }
+    if (op === "states.denied") {
+      return { state: "denied", seq: this.seq, rule: "members only" };
+    }
+    return { state: "complete", data: this.rows, seq: this.seq };
+  }
+
   private sendQuery(stream: QueryStream): void {
     if (stream.response.destroyed) return;
     stream.response.write(`id: ${this.seq}\n`);
-    stream.response.write(`data: ${JSON.stringify({ state: "live", seq: this.seq, data: this.rows })}\n\n`);
+    stream.response.write(`data: ${JSON.stringify(this.queryResult(stream.op))}\n\n`);
   }
 
   private broadcastQueries(): void {
@@ -224,16 +269,10 @@ class MockOwner {
     }
     if (request.method === "POST" && parsed.pathname === "/api/query") {
       const input = await body(request);
-      if (input.op === "states.complete" || input.op === "messages.thread") {
-        json(response, 200, { state: "complete", data: this.rows, seq: this.seq });
-      } else if (input.op === "states.capped") {
-        json(response, 200, { state: "capped", data: this.rows, seq: this.seq, take: 1, site: "messages.scan" });
-      } else if (input.op === "states.partial") {
-        json(response, 200, { state: "partial", data: this.rows, seq: this.seq, reason: "coverage" });
-      } else if (input.op === "states.denied") {
-        json(response, 200, { state: "denied", data: [], seq: this.seq, rule: "members only" });
-      } else {
+      if (!["states.complete", "states.capped", "states.partial", "states.denied", "messages.thread"].includes(input.op)) {
         json(response, 404, refusal("E_OP_UNKNOWN", `unknown operation ${input.op}`));
+      } else {
+        json(response, 200, this.queryResult(input.op));
       }
       return;
     }
@@ -471,12 +510,61 @@ test("a no-op snapshot patch preserves object identity and does not notify", asy
   unsubscribe();
 });
 
+test("bodyless GETs omit Content-Type", async () => {
+  const seen = new Map<string, string | null>();
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      seen.set(path, new Headers(init?.headers).get("Content-Type"));
+      if (path === "/api/auth/me") return fetchJson({ viewer: "alice", kind: "user" });
+      if (path === "/api/manifest") {
+        return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+      }
+      if (path === "/api/subscribe") {
+        return fetchSse({ state: "complete", data: [], seq: 1 });
+      }
+      throw new Error(`unexpected route ${path}`);
+    },
+  });
+  await value.auth.me();
+  await value.manifest();
+  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  await sub.until((delivery) => delivery.state === "complete", 500);
+  assert.equal(seen.get("/api/auth/me"), null);
+  assert.equal(seen.get("/api/manifest"), null);
+  assert.equal(seen.get("/api/subscribe"), null);
+  sub.close();
+  value.close();
+});
+
+test("a successful subscription delivery clears lastRefusal", async () => {
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async (input) => {
+      const path = new URL(String(input)).pathname;
+      if (path === "/api/query") return fetchJson(refusal("E_OP_UNKNOWN", "unknown"), 404);
+      if (path === "/api/subscribe") return fetchSse({ state: "complete", data: [], seq: 1 });
+      throw new Error(`unexpected route ${path}`);
+    },
+  });
+  await assert.rejects(() => value.query(api.states.missing, {}), (error: unknown) =>
+    error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN");
+  assert.equal(value.snapshot.lastRefusal?.code, "E_OP_UNKNOWN");
+  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  await sub.until((delivery) => delivery.state === "complete", 500);
+  assert.equal(value.snapshot.lastRefusal, undefined);
+  sub.close();
+  value.close();
+});
+
 test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (context) => {
   const queryCases = [
-    [{ state: "live", seq: 1 }, "data"],
+    [{ state: "complete", seq: 1 }, "data"],
+    [{ state: "capped", data: [], seq: 1, take: 1 }, "site"],
     [{ state: "partial", seq: 2 }, "reason"],
-    [{ state: "stale", seq: 3 }, "since"],
-    [{ state: "refused", seq: 4 }, "code"],
+    [{ state: "denied", seq: 3 }, "rule"],
+    [{ state: "stale", seq: 4, since: 1 }, "state"],
   ] as const;
   for (const [wire, missing] of queryCases) {
     const queryClient = createClient({
@@ -510,6 +598,50 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
   channelClient.close();
 });
 
+test("a refused frame without code becomes terminal E_PROTOCOL_STATE", async () => {
+  let opens = 0;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      opens += 1;
+      return fetchSse({ state: "refused", family: "auth", message: "missing code" });
+    },
+  });
+  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  const refused = await sub.until((delivery) => delivery.state === "refused", 500);
+  assert.equal(refused.code, "E_PROTOCOL_STATE");
+  assert.equal(refused.family, "op");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(opens, 1, "a protocol refusal frame must close instead of reconnecting");
+  sub.close();
+  value.close();
+});
+
+test("a valid refusal frame preserves code and family and is terminal", async () => {
+  let opens = 0;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      opens += 1;
+      return fetchSse({
+        state: "refused",
+        code: "E_AUTH_REQUIRED",
+        family: "auth",
+        message: "login required",
+        guide: "auth/session",
+      });
+    },
+  });
+  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
+  const delivery = await sub.until((item) => item.state === "refused", 500);
+  assert.equal(delivery.code, "E_AUTH_REQUIRED");
+  assert.equal(delivery.family, "auth");
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(opens, 1);
+  sub.close();
+  value.close();
+});
+
 test("mutation returns committed and rejected without throwing rejected", async () => {
   const value = client(externalUrl ? { as: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
@@ -537,9 +669,10 @@ test("subscription observes another client's mutation and until resolves", async
   const conversationId = externalUrl ? "conversation-1" : "general";
   const seen: string[] = [];
   const sub = reader.subscribe(api.messages.thread, { conversationId }, (delivery) => seen.push(delivery.state));
-  const initial = await sub.until((delivery) => delivery.state === "live", 2_000);
-  assert.equal(initial.state, "live");
-  const initialSeq = initial.state === "live" ? initial.seq : -1;
+  const initial = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 2_000);
+  assert.equal(initial.state, "complete");
+  assert.equal(initial.live, true);
+  const initialSeq = initial.state === "complete" ? initial.seq : -1;
   const body = `from-writer-${Date.now()}`;
   const committed = await writer.mutation(api.messages.send, {
     conversationId,
@@ -548,48 +681,157 @@ test("subscription observes another client's mutation and until resolves", async
   });
   assert.equal(committed.state, "committed");
   const updated = await sub.until((delivery) =>
-    delivery.state === "live" && delivery.seq > initialSeq && delivery.data.some((row: any) => row.body === body), 2_000);
-  assert.equal(updated.state, "live");
-  assert.ok(seen.filter((state) => state === "live").length >= 2);
+    delivery.state === "complete" && delivery.live && delivery.seq > initialSeq
+      && delivery.data.some((row: any) => row.body === body), 2_000);
+  assert.equal(updated.state, "complete");
+  assert.ok(seen.filter((state) => state === "complete").length >= 2);
   sub.close();
 });
 
-test("subscription reconnect reports stale, resumes with Last-Event-ID, then reports live", async (context) => {
+test("live queries expose capped and denied receipt states with live true", async () => {
+  for (const [state, expected] of [
+    ["capped", { take: 1, site: "messages.scan" }],
+    ["denied", { rule: "members only" }],
+  ] as const) {
+    const value = client();
+    const sub = value.subscribe(api.states[state], {}, () => undefined);
+    const delivery = await sub.until((item) => item.state === state, 500);
+    assert.equal(delivery.state, state);
+    assert.equal(delivery.live, true);
+    if (delivery.state === "capped") {
+      assert.equal(delivery.take, expected.take);
+      assert.equal(delivery.site, expected.site);
+    } else if (delivery.state === "denied") {
+      assert.equal(delivery.rule, expected.rule);
+    }
+    sub.close();
+  }
+});
+
+test("5xx and non-envelope subscribe failures are stale transport and reconnect", async () => {
+  for (const first of [
+    fetchJson(refusal("E_OWNER_BUSY", "temporarily unavailable"), 503),
+    fetchJson({ message: "not a refusal envelope" }, 400),
+  ]) {
+    let opens = 0;
+    const deliveries: any[] = [];
+    const value = createClient({
+      url: "http://wire.test",
+      fetch: async () => {
+        opens += 1;
+        if (opens === 1) return first;
+        return fetchSse({ state: "complete", data: [{ id: "one" }], seq: 8 });
+      },
+    });
+    const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
+    const stale = await sub.until((delivery) => delivery.state === "stale", 500);
+    assert.equal(stale.state, "stale");
+    assert.equal(stale.live, false);
+    assert.equal(typeof stale.since, "number");
+    const recovered = await sub.until((delivery) => delivery.state === "complete", 1_000);
+    assert.equal(recovered.state, "complete");
+    assert.equal(recovered.live, true);
+    assert.equal(opens, 2);
+    assert.deepEqual(deliveries.map((delivery) => delivery.state).slice(0, 2), ["stale", "complete"]);
+    sub.close();
+    value.close();
+  }
+});
+
+test("an idle stream becomes stale and reconnects after twice the heartbeat window", async (context) => {
+  let opens = 0;
+  const events: any[] = [];
+  const realSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: any[]) =>
+    realSetTimeout(handler, timeout === 30_000 ? 30 : timeout, ...args)) as typeof globalThis.setTimeout;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      opens += 1;
+      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [], seq: opens })}\n\n`);
+    },
+  });
+  const sub = value.subscribe(api.messages.thread, {}, (event) => events.push(event));
+  context.after(() => {
+    globalThis.setTimeout = realSetTimeout;
+    sub.close();
+    value.close();
+  });
+  const stale = await sub.until((event) => event.state === "stale", 500);
+  assert.equal(stale.state, "stale");
+  assert.equal(stale.live, false);
+  const recovered = await sub.until((event) => event.state === "complete" && event.seq === 2, 500);
+  assert.equal(recovered.live, true);
+  assert.equal(opens, 2);
+  assert.deepEqual(events.slice(0, 3).map((event) => event.state), ["complete", "stale", "complete"]);
+  globalThis.setTimeout = realSetTimeout;
+  sub.close();
+  value.close();
+});
+
+test("heartbeat comments reset the stream idle deadline", async (context) => {
+  let opens = 0;
+  const events: any[] = [];
+  const realSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: any[]) =>
+    realSetTimeout(handler, timeout === 30_000 ? 30 : timeout, ...args)) as typeof globalThis.setTimeout;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      opens += 1;
+      return heartbeatSse();
+    },
+  });
+  const sub = value.subscribe(api.messages.thread, {}, (event) => events.push(event));
+  context.after(() => {
+    globalThis.setTimeout = realSetTimeout;
+    sub.close();
+    value.close();
+  });
+  const second = await sub.until((event) => event.state === "complete" && event.seq === 2, 500);
+  assert.equal(second.live, true);
+  assert.equal(opens, 1);
+  assert.equal(events.some((event) => event.state === "stale"), false);
+  globalThis.setTimeout = realSetTimeout;
+  sub.close();
+  value.close();
+});
+
+test("subscription reconnect reports stale, resumes with Last-Event-ID, then reports a live receipt", async (context) => {
   if (externalUrl) return context.skip("owner process control is supplied in the second integration round");
   const value = client();
   await value.auth.guest();
   const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, () => undefined);
-  const initial = await sub.until((delivery) => delivery.state === "live", 2_000);
-  assert.equal(initial.state, "live");
-  const initialSeq = initial.state === "live" ? initial.seq : -1;
+  const initial = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 2_000);
+  assert.equal(initial.state, "complete");
+  const initialSeq = initial.state === "complete" ? initial.seq : -1;
   const stale = sub.until((delivery) => delivery.state === "stale", 2_000);
   await owner.stop();
   assert.equal((await stale).state, "stale");
   await owner.start();
-  const resumed = await sub.until((delivery) => delivery.state === "live", 4_000);
-  assert.equal(resumed.state, "live");
+  const resumed = await sub.until((delivery) => delivery.state === "complete" && delivery.live, 4_000);
+  assert.equal(resumed.state, "complete");
+  assert.equal(resumed.live, true);
   assert.ok(owner.lastEventIds.includes(String(initialSeq)));
   sub.close();
 });
 
-test("subscription loss never combines data and seq from different deliveries", async (context) => {
+test("subscription loss preserves data and seq from the same receipt", async (context) => {
   const rows = [{ id: "message-1" }];
   const value = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchSse(
-      { state: "live", seq: 3, data: rows },
-      { state: "refused", seq: 4, code: "E_AUTH_REQUIRED", family: "auth", message: "login" },
-    ),
+    fetch: async () => fetchSse({ state: "complete", seq: 3, data: rows }),
   });
   const deliveries: any[] = [];
   const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
   context.after(() => { sub.close(); value.close(); });
   const stale = await sub.until((delivery) => delivery.state === "stale", 500);
-  assert.equal(stale.seq, 4);
-  assert.equal("data" in stale, false);
+  assert.equal(stale.seq, 3);
+  assert.strictEqual(stale.data, deliveries[0]?.data);
+  assert.equal(stale.live, false);
   assert.equal(typeof stale.since, "number");
   assert.equal(deliveries[0]?.seq, 3);
-  assert.equal(deliveries[1]?.state, "refused");
+  assert.equal(deliveries[0]?.live, true);
   sub.close();
   value.close();
 });
@@ -626,6 +868,7 @@ test("terminal channel refusals reach callbacks and reject until immediately", a
   assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
   assert.equal(delivered.state, "refused");
   assert.equal(delivered.code, "E_AUTH_REQUIRED");
+  assert.equal(delivered.family, "auth");
   sub.close();
   value.close();
 });
@@ -645,6 +888,7 @@ test("query and mutation throw every 4xx refusal while subscriptions deliver ref
   const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, () => undefined);
   const refused = await sub.until((delivery) => delivery.state === "refused", 500);
   assert.equal(refused.code, "E_AUTH_PERSONA_NOT_DEV");
+  assert.equal(refused.family, "auth");
   sub.close();
   value.close();
   await serve.stop();
@@ -652,23 +896,27 @@ test("query and mutation throw every 4xx refusal while subscriptions deliver ref
 
 test("React query reducer preserves every discriminant field and only reuses a deep-equal whole view", () => {
   const hydrating = initialQueryState<Array<{ id: string }>>();
-  assert.deepEqual(hydrating, { state: "hydrating" });
+  assert.deepEqual(hydrating, { state: "hydrating", live: false });
   const data = [{ id: "one" }];
-  const live = reduceQueryState(hydrating, { state: "live", data, seq: 1 });
-  const equivalent = reduceQueryState(live, { state: "live", data: [{ id: "one" }], seq: 1 });
+  const live = reduceQueryState(hydrating, { state: "complete", live: true, data, seq: 1 });
+  const equivalent = reduceQueryState(live, { state: "complete", live: true, data: [{ id: "one" }], seq: 1 });
   assert.strictEqual(equivalent, live);
   assert.strictEqual(equivalent.data, data);
+  assert.equal(equivalent.state, "complete");
+  assert.equal(equivalent.live, true);
 
-  const stale = reduceQueryState(live, { state: "stale", since: 99, data, seq: 1 });
+  const stale = reduceQueryState(live, { state: "stale", live: false, since: 99, data, seq: 1 });
   assert.strictEqual(stale.data, data);
   assert.equal(stale.since, 99);
+  assert.equal(stale.live, false);
 
-  const partial = reduceQueryState(stale, { state: "partial", seq: 2, reason: "coverage" });
-  assert.deepEqual(partial, { state: "partial", seq: 2, reason: "coverage" });
-  const denied = reduceQueryState(stale, { state: "denied", seq: 2, rule: "members only" });
-  assert.deepEqual(denied, { state: "denied", seq: 2, rule: "members only" });
+  const partial = reduceQueryState(stale, { state: "partial", live: true, seq: 2, reason: "coverage" });
+  assert.deepEqual(partial, { state: "partial", live: true, seq: 2, reason: "coverage" });
+  const denied = reduceQueryState(stale, { state: "denied", live: true, seq: 2, rule: "members only" });
+  assert.deepEqual(denied, { state: "denied", live: true, seq: 2, rule: "members only" });
   const refused = reduceQueryState(stale, {
     state: "refused",
+    live: false,
     code: "E_AUTH",
     family: "auth",
     message: "no",
@@ -676,23 +924,30 @@ test("React query reducer preserves every discriminant field and only reuses a d
   });
   assert.deepEqual(refused, {
     state: "refused",
+    live: false,
     refusal: { code: "E_AUTH", family: "auth", message: "no", guide: "auth/session" },
   });
 
-  const capped = reduceQueryState(stale, { state: "capped", data, seq: 2, take: 1, site: "messages.scan" });
+  const capped = reduceQueryState(stale, {
+    state: "capped", live: true, data, seq: 2, take: 1, site: "messages.scan",
+  });
   const cappedEquivalent = reduceQueryState(capped, {
-    state: "capped", data: [{ id: "one" }], seq: 2, take: 1, site: "messages.scan",
+    state: "capped", live: true, data: [{ id: "one" }], seq: 2, take: 1, site: "messages.scan",
   });
   assert.strictEqual(cappedEquivalent, capped);
-  const differentTake = reduceQueryState(capped, { state: "capped", data, seq: 2, take: 2, site: "messages.scan" });
-  const differentSite = reduceQueryState(capped, { state: "capped", data, seq: 2, take: 1, site: "messages.other" });
+  const differentTake = reduceQueryState(capped, {
+    state: "capped", live: true, data, seq: 2, take: 2, site: "messages.scan",
+  });
+  const differentSite = reduceQueryState(capped, {
+    state: "capped", live: true, data, seq: 2, take: 1, site: "messages.other",
+  });
   assert.notStrictEqual(differentTake, capped);
   assert.notStrictEqual(differentSite, capped);
   assert.equal(differentTake.take, 2);
   assert.equal(differentSite.site, "messages.other");
 
   assert.deepEqual(reduceQueryState(stale, { state: "complete", data, seq: 2 }), {
-    state: "complete", data, seq: 2,
+    state: "complete", live: false, data, seq: 2,
   });
   assert.equal(stableSerialize({ b: 2, a: [1] }), stableSerialize({ a: [1], b: 2 }));
 });

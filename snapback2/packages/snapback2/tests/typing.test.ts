@@ -17,16 +17,19 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       import { api, createClient, type QueryView } from "snapback2/client";
       const client = createClient({ url: "http://127.0.0.1:3210" });
       declare const view: QueryView<string[]>;
+      const isLive: boolean = view.live;
+      void isLive;
       if (view.state === "capped") {
         const take: number = view.take;
         const site: string = view.site;
         void take; void site;
       }
       if (view.state === "stale") {
-        const seq: number = view.seq;
+        const seq: number | undefined = view.seq;
         const since: number = view.since;
         void seq; void since;
       }
+      if (view.state === "live") {}
       client.query(api.mesages.typo, {});
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
@@ -61,7 +64,8 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     });
     const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
     const rendered = diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(diagnostics.length, 3, `expected three sample diagnostics:\n${rendered.join("\n")}`);
+    assert.equal(diagnostics.length, 4, `expected four sample diagnostics:\n${rendered.join("\n")}`);
+    assert.ok(rendered.some((message) => message.includes("live") && message.includes("no overlap")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("mesages") && message.includes("does not exist")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("extra") && message.includes("known properties")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("bogus") && message.includes("known properties")), rendered.join("\n"));

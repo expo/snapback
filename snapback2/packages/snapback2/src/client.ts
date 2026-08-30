@@ -10,7 +10,9 @@ import type {
   ClientSnapshot,
   CreateClientOptions,
   Manifest,
+  LiveQueryDelivery,
   MutationResult,
+  QueryRefusedDelivery,
   QueryResult,
   RefusalEnvelope,
   RefusedDelivery,
@@ -100,8 +102,7 @@ function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
   return envelope;
 }
 
-function wireQuery<Result>(value: unknown): QueryResult<Result> {
-  const surface = "query response";
+function wireQuery<Result>(value: unknown, surface = "query response"): QueryResult<Result> {
   const record = wireObject(value, surface);
   switch (stringField(record, "state", surface)) {
     case "complete":
@@ -142,47 +143,30 @@ function wireMutation<Result>(value: unknown): MutationResult<Result> {
   }
 }
 
-function wireSubscription<Result>(data: string): SubscriptionDelivery<Result> {
+function wireSubscription<Result>(data: string): LiveQueryDelivery<Result> | QueryRefusedDelivery {
   const surface = "subscription delivery";
   const record = sseObject(data, surface);
-  switch (stringField(record, "state", surface)) {
-    case "live":
-      return { state: "live", data: present(record, "data", surface) as Result, seq: numberField(record, "seq", surface) };
-    case "partial": {
-      const partial = {
-        state: "partial" as const,
-        seq: numberField(record, "seq", surface),
-        reason: stringField(record, "reason", surface),
-      };
-      const take = optionalNumber(record, "take", surface);
-      const site = optionalString(record, "site", surface);
+  if (stringField(record, "state", surface) === "refused") {
+    if (typeof record.code !== "string" || record.code.length === 0) {
       return {
-        ...partial,
-        ...(has(record, "data") ? { data: record.data as Result } : {}),
-        ...(take === undefined ? {} : { take }),
-        ...(site === undefined ? {} : { site }),
+        state: "refused",
+        live: false,
+        code: "E_PROTOCOL_STATE",
+        family: "op",
+        message: `${surface} refusal is missing code`,
+        guide: "op/wire-shape",
       };
     }
-    case "stale":
-      return {
-        state: "stale",
-        seq: numberField(record, "seq", surface),
-        since: numberField(record, "since", surface),
-        ...(has(record, "data") ? { data: record.data as Result } : {}),
-      };
-    case "refused": {
-      const refusal: RefusedDelivery = { state: "refused", code: stringField(record, "code", surface) };
-      for (const field of ["family", "message", "site", "rule", "rewrite", "guide"] as const) {
-        const item = optionalString(record, field, surface);
-        if (item !== undefined) refusal[field] = item;
-      }
-      const seq = optionalNumber(record, "seq", surface);
-      if (seq !== undefined) refusal.seq = seq;
-      return refusal;
-    }
-    default:
-      throw wireShape(`${surface}.state must be live, partial, stale, or refused`);
+    const refusal = wireRefusalEnvelope(record, `${surface} refusal`);
+    const seq = optionalNumber(record, "seq", surface);
+    return {
+      state: "refused",
+      live: false,
+      ...refusal,
+      ...(seq === undefined ? {} : { seq }),
+    };
   }
+  return { ...wireQuery<Result>(record, surface), live: true };
 }
 
 function wireChannelDelivery<Payload>(data: string): ChannelEvent<Payload> {
@@ -330,7 +314,7 @@ class Client implements SnapbackClient {
       decode: ({ data }) => {
         const value = wireSubscription<Result>(data);
         if (value.state === "refused") {
-          lastPair = value.seq === undefined ? undefined : { seq: value.seq };
+          lastPair = undefined;
         } else {
           lastPair = "data" in value ? { seq: value.seq, data: value.data } : { seq: value.seq };
         }
@@ -346,21 +330,32 @@ class Client implements SnapbackClient {
                 rewrite: value.rewrite,
                 guide: value.guide,
               }
-            : this.currentSnapshot.lastRefusal,
+            : undefined,
         });
         return value;
       },
       onError: (error) => {
         const { retry, event } = this.subscriptionError(error);
-        return { retry, event };
+        return { retry, event: event === undefined ? undefined : { ...event, live: false as const } };
       },
       onLoss: () => {
         this.patchSnapshot({ connection: this.transportFailureState() });
-        if (!lastPair) return undefined;
+        if (!lastPair) return { state: "stale", live: false, since: Date.now() };
         return "data" in lastPair
-          ? { state: "stale", since: Date.now(), seq: lastPair.seq, data: lastPair.data }
-          : { state: "stale", since: Date.now(), seq: lastPair.seq };
+          ? { state: "stale", live: false, since: Date.now(), seq: lastPair.seq, data: lastPair.data }
+          : { state: "stale", live: false, since: Date.now(), seq: lastPair.seq };
       },
+      terminal: (event) => event.state === "refused"
+        ? new SnapbackRefusal({
+            code: event.code,
+            family: event.family,
+            message: event.message,
+            site: event.site,
+            rule: event.rule,
+            rewrite: event.rewrite,
+            guide: event.guide,
+          })
+        : undefined,
       onEvent: callback,
     });
     return this.track(subscription);
@@ -378,7 +373,11 @@ class Client implements SnapbackClient {
         const path = `/api/channel/${name}/subscribe?args=${encodeURIComponent(JSON.stringify(args))}`;
         const subscription = new ReconnectingSse<ChannelDelivery<Payload>>({
           open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
-          decode: ({ data }) => wireChannelDelivery<Payload>(data),
+          decode: ({ data }) => {
+            const value = wireChannelDelivery<Payload>(data);
+            this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
+            return value;
+          },
           onError: (error) => {
             const decision = this.subscriptionError(error);
             return { retry: decision.retry, event: decision.event, failure: decision.refusal };
@@ -439,10 +438,10 @@ class Client implements SnapbackClient {
     await this.persist?.(token ?? null);
   }
 
-  private headers(stream = false): Headers {
+  private headers(stream = false, hasBody = false): Headers {
     const headers = new Headers();
     headers.set("Accept", stream ? "text/event-stream" : "application/json");
-    if (!stream) headers.set("Content-Type", "application/json");
+    if (hasBody) headers.set("Content-Type", "application/json");
     if (this.currentToken) headers.set("Authorization", `Bearer ${this.currentToken}`);
     if (this.persona) headers.set("X-Snapback-As", this.persona);
     return headers;
@@ -451,7 +450,10 @@ class Client implements SnapbackClient {
   private async json(path: string, init: RequestInit = {}): Promise<unknown> {
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.url}${path}`, { ...init, headers: this.headers() });
+      response = await this.fetchImpl(`${this.url}${path}`, {
+        ...init,
+        headers: this.headers(false, init.body !== undefined && init.body !== null),
+      });
     } catch (error) {
       const refusal = new SnapbackRefusal(
         fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
@@ -472,7 +474,9 @@ class Client implements SnapbackClient {
       throw refusal;
     }
     try {
-      return await response.json();
+      const value = await response.json();
+      this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
+      return value;
     } catch {
       const refusal = wireShape(`${path} must contain valid JSON`);
       this.recordRefusal(refusal.envelope);
@@ -487,16 +491,27 @@ class Client implements SnapbackClient {
       const response = await this.fetchImpl(`${this.url}${path}`, { headers, signal });
       this.patchSnapshot({ connection: "connected" });
       if (!response.ok) {
-        try {
-          throw await responseRefusal(response);
-        } catch (error) {
-          throw error instanceof SnapbackRefusal ? error : wireShape(`${path} returned a malformed refusal`);
+        if (response.status >= 400 && response.status < 500) {
+          let refusal: SnapbackRefusal | undefined;
+          try {
+            refusal = await responseRefusal(response);
+          } catch {
+            // A non-envelope 4xx cannot be interpreted as a terminal owner refusal.
+          }
+          if (refusal !== undefined) throw refusal;
         }
+        throw new SnapbackRefusal(
+          fallbackRefusal("E_HTTP", `${path} returned HTTP ${response.status}`),
+          true,
+        );
       }
       return response;
     } catch (error) {
       if (error instanceof SnapbackRefusal) {
-        this.recordRefusal(error.envelope);
+        this.patchSnapshot({
+          connection: error.retryable ? this.transportFailureState() : "connected",
+          lastRefusal: error.envelope,
+        });
         throw error;
       }
       if (signal.aborted) throw error;
@@ -535,6 +550,7 @@ class Client implements SnapbackClient {
   private patchSnapshot(patch: Partial<ClientSnapshot>): ClientSnapshot {
     const next = { ...this.currentSnapshot, ...patch };
     if (patch.token === undefined && "token" in patch) delete next.token;
+    if (patch.lastRefusal === undefined && "lastRefusal" in patch) delete next.lastRefusal;
     if (JSON.stringify(next) === JSON.stringify(this.currentSnapshot)) return this.currentSnapshot;
     this.currentSnapshot = next;
     for (const listener of this.statusListeners) listener(next);

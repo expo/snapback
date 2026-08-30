@@ -7,6 +7,7 @@ export interface ReconnectingSseOptions<Event> {
   decode(event: ParsedEvent): Event;
   onError(error: unknown, hadDelivery: boolean): Promise<ErrorDecision<Event>> | ErrorDecision<Event>;
   onLoss(last: Event | undefined): Event | undefined;
+  terminal?(event: Event): Error | undefined;
   onEvent?: (event: Event) => void;
 }
 interface Waiter<Event> {
@@ -37,13 +38,18 @@ async function delay(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-async function* parseSse(response: Response): AsyncGenerator<ParsedEvent> {
+async function* parseSse(
+  response: Response,
+  signal: AbortSignal,
+  onActivity: () => void,
+): AsyncGenerator<ParsedEvent> {
   if (!response.body) throw new Error("SSE response has no body");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let data: string[] = [];
   let id: string | undefined;
+  let finished = false;
   const line = (raw: string): ParsedEvent | undefined => {
     const value = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
     if (value === "") {
@@ -51,9 +57,13 @@ async function* parseSse(response: Response): AsyncGenerator<ParsedEvent> {
       const event = { id, data: data.join("\n") };
       data = [];
       id = undefined;
+      onActivity();
       return event;
     }
-    if (value.startsWith(":")) return undefined;
+    if (value.startsWith(":")) {
+      onActivity();
+      return undefined;
+    }
     const colon = value.indexOf(":");
     const field = colon < 0 ? value : value.slice(0, colon);
     let fieldValue = colon < 0 ? "" : value.slice(colon + 1);
@@ -62,9 +72,12 @@ async function* parseSse(response: Response): AsyncGenerator<ParsedEvent> {
     if (field === "id" && !fieldValue.includes("\0")) id = fieldValue;
     return undefined;
   };
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener("abort", cancel, { once: true });
   try {
     while (true) {
       const chunk = await reader.read();
+      if (signal.aborted) throw abortError();
       buffer += decoder.decode(chunk.value, { stream: !chunk.done });
       let newline = buffer.indexOf("\n");
       while (newline >= 0) {
@@ -73,7 +86,10 @@ async function* parseSse(response: Response): AsyncGenerator<ParsedEvent> {
         if (event) yield event;
         newline = buffer.indexOf("\n");
       }
-      if (chunk.done) break;
+      if (chunk.done) {
+        finished = true;
+        break;
+      }
     }
     if (buffer.length > 0) {
       const event = line(buffer);
@@ -82,6 +98,8 @@ async function* parseSse(response: Response): AsyncGenerator<ParsedEvent> {
     const final = line("");
     if (final) yield final;
   } finally {
+    signal.removeEventListener("abort", cancel);
+    if (!finished) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }
@@ -167,10 +185,23 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
     let hadDelivery = false;
     let lossReported = false;
     while (!this.closed) {
+      const attempt = new AbortController();
+      const closeAttempt = () => attempt.abort();
+      this.controller.signal.addEventListener("abort", closeAttempt, { once: true });
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      let idle = false;
+      const armIdle = () => {
+        if (idleTimer !== undefined) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          idle = true;
+          attempt.abort();
+        }, 30_000);
+      };
       try {
-        const response = await this.options.open(this.lastEventId, this.controller.signal);
+        armIdle();
+        const response = await this.options.open(this.lastEventId, attempt.signal);
         if (!response.ok) throw response;
-        for await (const parsed of parseSse(response)) {
+        for await (const parsed of parseSse(response, attempt.signal, armIdle)) {
           if (this.closed) return;
           if (parsed.id !== undefined) this.lastEventId = parsed.id;
           const event = this.options.decode(parsed);
@@ -178,6 +209,11 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           hadDelivery = true;
           lossReported = false;
           backoff = 250;
+          const terminal = this.options.terminal?.(event);
+          if (terminal !== undefined) {
+            this.fail(terminal);
+            return;
+          }
         }
         if (this.closed) return;
         if (!lossReported) {
@@ -187,7 +223,10 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
         }
       } catch (error) {
         if (this.closed || this.controller.signal.aborted) return;
-        const decision = await this.options.onError(error, hadDelivery);
+        const failure = idle
+          ? new Error("SSE stream idle for 30000 ms")
+          : error;
+        const decision = await this.options.onError(failure, hadDelivery);
         if (decision.event !== undefined) this.deliver(decision.event, decision.failure === undefined);
         if (decision.failure !== undefined) this.fail(decision.failure);
         if (!decision.retry) return;
@@ -196,6 +235,9 @@ export class ReconnectingSse<Event> implements Subscription<Event> {
           if (loss !== undefined) this.deliver(loss);
           lossReported = true;
         }
+      } finally {
+        if (idleTimer !== undefined) clearTimeout(idleTimer);
+        this.controller.signal.removeEventListener("abort", closeAttempt);
       }
       try {
         await delay(backoff, this.controller.signal);
