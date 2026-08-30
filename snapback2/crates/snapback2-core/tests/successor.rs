@@ -379,6 +379,63 @@ fn maintained_backfill_materializes_new_optional_group_as_null() {
 }
 
 #[test]
+fn live_maintained_count_materializes_omitted_optional_group_as_null() {
+    let optional_group = ColumnType::Optional(Box::new(ColumnType::Text { max: 32 }));
+    let items = table(
+        &[("id", ColumnType::Id), ("group", optional_group.clone())],
+        &[("byId", &["id"])],
+    );
+    let counts = table(
+        &[
+            ("id", ColumnType::Id),
+            ("group", optional_group),
+            ("value", ColumnType::Int),
+        ],
+        &[("byGroup", &["group"])],
+    );
+    let insert = Program {
+        name: "items.insert".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Insert {
+            table: "items".to_owned(),
+            row: Expr::Literal(object([("id", Value::Id("i1".to_owned()))])),
+        }],
+    };
+    let generation = generation(
+        schema(
+            BTreeMap::from([("counts".to_owned(), counts), ("items".to_owned(), items)]),
+            vec![Maintain {
+                kind: MaintainKind::Count,
+                source: "items".to_owned(),
+                by: vec!["group".to_owned()],
+                target: "counts".to_owned(),
+                readable: None,
+            }],
+        ),
+        vec![
+            insert,
+            get_program("counts.get", "counts", "byGroup", "group"),
+        ],
+    );
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+
+    let inserted = runtime
+        .execute("items.insert", Context::mutation("u1", BTreeMap::new()))
+        .unwrap();
+    assert!(matches!(inserted.state, ExecutionState::Committed { .. }));
+    let aggregate = runtime
+        .execute(
+            "counts.get",
+            Context::query("u1", BTreeMap::from([("group".to_owned(), Value::Null)])),
+        )
+        .unwrap();
+    assert_eq!(aggregate.result.field("group").unwrap(), &Value::Null);
+    assert_eq!(aggregate.result.field("value").unwrap(), &Value::Int(1));
+}
+
+#[test]
 fn destructive_successor_reports_all_drops_and_applies_only_that_plan() {
     let items = table(
         &[
