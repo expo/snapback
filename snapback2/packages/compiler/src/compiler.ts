@@ -238,7 +238,7 @@ function lowerOperation(
   if (expandedArgs.invalidProperty) refuse(module, "E_ARGS_TYPE", expandedArgs.invalidProperty, "argument members must use name: descriptor syntax");
   for (const property of expandedArgs.entries) {
     const argName = property.name;
-    const loweredDescriptor = lowerArgDescriptor(property.value);
+    const loweredDescriptor = lowerArgDescriptor(property.value, module.tables);
     const invalid = loweredDescriptor === undefined ? invalidNativeDescriptorRefusal(property.value) : undefined;
     if (invalid) refuse(module, "E_ARGS_DESCRIPTOR", invalid.node, `invalid argument descriptor ${argName}; ${invalid.message}`, invalid.rewrite);
     const lowered = (loweredDescriptor ?? lowerLegacyArgDescriptor(property.value)) as Program["args"][string] | undefined;

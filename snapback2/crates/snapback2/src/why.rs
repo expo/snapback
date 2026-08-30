@@ -7,6 +7,8 @@ use crate::project::locate_root;
 use crate::protocol::Refusal;
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
+use snapback2_core::Certificate;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
@@ -45,6 +47,10 @@ pub fn run(args: &[String]) -> ExitCode {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
+    let certificate = match read_certificate(&root, &positional[1]) {
+        Ok(certificate) => certificate,
+        Err(error) => return owner::print_refusal(error, json_output, 1),
+    };
     let attached = match owner::require_owner(&root) {
         Ok(owner) => owner,
         Err(error) => return owner::print_refusal(error, json_output, 1),
@@ -66,7 +72,7 @@ pub fn run(args: &[String]) -> ExitCode {
         .ok()
         .map(|response| response.body)
         .unwrap_or_else(|| json!({}));
-    let output = enrich(&root, &positional[1], response, latest);
+    let output = enrich(&positional[1], response, latest, certificate);
     if json_output {
         println!("{}", serde_json::to_string(&output).unwrap_or_default());
     } else {
@@ -78,7 +84,23 @@ pub fn run(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn enrich(root: &Path, op: &str, response: Json, latest: Json) -> Json {
+fn read_certificate(root: &Path, op: &str) -> Result<Certificate, Refusal> {
+    let path = root.join(".snapback/build/certificates.json");
+    let bytes = fs::read(&path)
+        .map_err(|error| why_stale(format!("cannot read {}: {error}", path.display())))?;
+    let certificates: BTreeMap<String, Certificate> = serde_json::from_slice(&bytes)
+        .map_err(|error| why_stale(format!("cannot parse {}: {error}", path.display())))?;
+    certificates
+        .get(op)
+        .cloned()
+        .ok_or_else(|| why_stale(format!("certificates.json is missing operation {op}")))
+}
+
+fn why_stale(message: impl Into<String>) -> Refusal {
+    Refusal::owner("E_WHY_STALE", message, "run snapback2 check")
+}
+
+fn enrich(op: &str, response: Json, latest: Json, certificate: Certificate) -> Json {
     let trace = response.get("trace").cloned().unwrap_or_else(|| json!({}));
     let mut verdicts = Vec::new();
     if let Some(ranges) = trace.get("ranges").and_then(Json::as_array) {
@@ -114,11 +136,6 @@ fn enrich(root: &Path, op: &str, response: Json, latest: Json) -> Json {
             }
         }
     }
-    let certificate = fs::read(root.join(".snapback/build/certificates.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<Json>(&bytes).ok())
-        .and_then(|value| value.get(op).cloned())
-        .unwrap_or(Json::Null);
     let invalidated = latest
         .get("invalidated")
         .and_then(Json::as_array)
@@ -154,14 +171,7 @@ fn enrich(root: &Path, op: &str, response: Json, latest: Json) -> Json {
             .cloned()
             .unwrap_or_else(|| json!([])),
     );
-    output.insert(
-        "readSites".to_owned(),
-        certificate
-            .get("read_sites")
-            .or_else(|| certificate.get("readSites"))
-            .cloned()
-            .unwrap_or_else(|| json!([])),
-    );
+    output.insert("readSites".to_owned(), json!(certificate.read_sites));
     output.insert("authoritativeTrace".to_owned(), trace);
     output.insert("subscriptions".to_owned(), Json::Array(subscriptions));
     Json::Object(output)

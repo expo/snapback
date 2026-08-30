@@ -696,7 +696,7 @@ pub(crate) fn validate_arg_value(
     match kind {
         ArgType::Optional(_) if *value == Value::Null => Ok(()),
         ArgType::Optional(inner) => validate_arg_value(inner, value, label),
-        ArgType::Id => match value {
+        ArgType::Id | ArgType::Ref { .. } => match value {
             Value::Id(_) => Ok(()),
             _ => Err(RuntimeError::Input(format!("{label} must be an id"))),
         },

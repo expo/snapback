@@ -38,7 +38,13 @@ fn generated_args_exercises_every_arg_type_variant() {
         name: "all.args".to_owned(),
         kind: ProgramKind::Query,
         args: BTreeMap::from([
-            ("id".to_owned(), ArgType::Id),
+            ("outboxId".to_owned(), ArgType::Id),
+            (
+                "todoRef".to_owned(),
+                ArgType::Ref {
+                    table: "todos".to_owned(),
+                },
+            ),
             ("text".to_owned(), ArgType::Text { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
@@ -77,9 +83,14 @@ fn generated_args_exercises_every_arg_type_variant() {
         ))],
     };
 
-    let args = generated_args(&program, &SeedData::default());
+    let seed = SeedData {
+        personas: Vec::new(),
+        rows: BTreeMap::from([("todos".to_owned(), vec![json!({ "id": "todo-1" })])]),
+    };
+    let args = generated_args(&program, &seed).unwrap();
 
-    assert_eq!(args.as_object().unwrap().len(), 12);
+    assert_eq!(args.as_object().unwrap().len(), 13);
+    assert_eq!(args["todoRef"], "todo-1");
     assert_eq!(args["enum"], "first");
     assert_eq!(args["list"], json!([]));
     assert_eq!(args["decimal"], 100);

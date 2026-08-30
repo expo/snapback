@@ -3,7 +3,7 @@ import { authoredTypeFromColumn } from "../authored-types";
 import { diagnostic } from "../diagnostics";
 import type { FrontendDiagnostic, SchemaJson, Value } from "../ir";
 import type { TableInfo } from "../compiler";
-import { hasExport, propertyName, unwrapCall, unwrapExpression } from "../syntax";
+import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
   booleanValue,
   callLeaf,
@@ -525,7 +525,7 @@ function lowerChannel(
   validateRecordShape(module, argsObject, "channel args", "E_SCHEMA_INVALID", diagnostics);
   const args: Record<string, unknown> = {};
   for (const entry of propertyEntries(argsObject)) {
-    const lowered = lowerArgDescriptor(entry.value);
+    const lowered = lowerArgDescriptor(entry.value, tables);
     if (lowered === undefined) {
       diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_INVALID", entry.node, `invalid channel argument descriptor ${entry.name}`));
     } else {
@@ -547,20 +547,23 @@ function lowerChannel(
   };
 }
 
-export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
+export function lowerArgDescriptor(
+  node: ts.Expression,
+  tables?: Map<string, TableInfo>,
+): unknown | undefined {
   const call = unwrapCall(node);
   if (call && callLeaf(call) === "list") {
     const options = objectOf(call.arguments[1]);
     const max = numberValue(options && property(options, "max"));
     const known = options && propertyEntries(options).every((entry) => entry.name === "max")
       && options.properties.length === propertyEntries(options).length;
-    const of = call.arguments[0] && lowerArgDescriptor(call.arguments[0]);
+    const of = call.arguments[0] && lowerArgDescriptor(call.arguments[0], tables);
     return call.arguments.length === 2 && of !== undefined && known && validPositiveInteger(max)
       ? { List: { of, max } }
       : undefined;
   }
   if (call && callLeaf(call) === "optional" && call.arguments[0]) {
-    const inner = lowerArgDescriptor(call.arguments[0]);
+    const inner = lowerArgDescriptor(call.arguments[0], tables);
     return call.arguments.length === 1 && inner !== undefined ? { Optional: inner } : undefined;
   }
   if (call && callLeaf(call) === "enum") {
@@ -582,8 +585,13 @@ export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
   }
   if (!call || !validArgDescriptor(node)) return undefined;
   switch (callLeaf(call)) {
-    case "id":
-    case "ref": return "Id";
+    case "id": return "Id";
+    case "ref": {
+      if (!tables) return "Id";
+      const path = call.arguments[0] && staticMemberPath(call.arguments[0]);
+      const table = path && tables.get(path);
+      return table ? { Ref: { table: table.name } } : undefined;
+    }
     case "int": return "Int";
     case "bool": return "Bool";
     case "time": return "Time";

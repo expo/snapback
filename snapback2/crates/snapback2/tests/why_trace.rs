@@ -158,3 +158,35 @@ fn trace_marks_pre_restart_commit_ledgers_unavailable() {
     assert!(trace.get("invalidated").is_none(), "{trace}");
     assert!(trace.get("deliveries").is_none(), "{trace}");
 }
+
+#[test]
+fn why_refuses_missing_corrupt_and_incomplete_certificates_as_stale() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let certificate_path = project.path.join(".snapback/build/certificates.json");
+    let valid = fs::read(&certificate_path).unwrap();
+    let _owner = OwnerGuard::start(&project);
+
+    let corruptions = [
+        None,
+        Some(b"{not json".to_vec()),
+        Some(serde_json::to_vec(&serde_json::json!({})).unwrap()),
+    ];
+    for bytes in corruptions {
+        match bytes {
+            Some(bytes) => fs::write(&certificate_path, bytes).unwrap(),
+            None => fs::remove_file(&certificate_path).unwrap(),
+        }
+        let why = project.run(&["why", "todos.list", "--as", "alice", "--json"]);
+        assert_eq!(
+            why.status.code(),
+            Some(1),
+            "{}",
+            String::from_utf8_lossy(&why.stdout)
+        );
+        let refusal = json_stdout(&why);
+        assert_eq!(refusal["code"], "E_WHY_STALE", "{refusal}");
+        assert_eq!(refusal["rewrite"], "run snapback2 check", "{refusal}");
+        fs::write(&certificate_path, &valid).unwrap();
+    }
+}

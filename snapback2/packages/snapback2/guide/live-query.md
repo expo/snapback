@@ -4,7 +4,7 @@ A query is live because its authoritative read trace intersects a commit, not
 because the author declares an invalidation list. Bound every scan:
 
 ```ts
-export const thread = query({ conversationId: t.id() }, ({ db, args }) =>
+export const thread = query({ conversationId: t.ref(conversations) }, ({ db, args }) =>
   db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 }),
 );
 ```

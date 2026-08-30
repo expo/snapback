@@ -36,7 +36,13 @@ fn generated_args_exercises_every_arg_type_variant() {
         name: "all.args".to_owned(),
         kind: ProgramKind::Query,
         args: BTreeMap::from([
-            ("id".to_owned(), ArgType::Id),
+            ("outboxId".to_owned(), ArgType::Id),
+            (
+                "todoRef".to_owned(),
+                ArgType::Ref {
+                    table: "todos".to_owned(),
+                },
+            ),
             ("text".to_owned(), ArgType::Text { max: 20 }),
             ("int".to_owned(), ArgType::Int),
             ("bool".to_owned(), ArgType::Bool),
@@ -75,13 +81,77 @@ fn generated_args_exercises_every_arg_type_variant() {
         ))],
     };
 
-    let args = generated_args(&program, &SeedData::default());
+    let seed = SeedData {
+        personas: Vec::new(),
+        rows: BTreeMap::from([("todos".to_owned(), vec![json!({ "id": "todo-1" })])]),
+    };
+    let args = generated_args(&program, &seed).unwrap();
 
-    assert_eq!(args.as_object().unwrap().len(), 12);
+    assert_eq!(args.as_object().unwrap().len(), 13);
+    assert_eq!(args["todoRef"], "todo-1");
     assert_eq!(args["enum"], "first");
     assert_eq!(args["list"], json!([]));
     assert_eq!(args["decimal"], 100);
     assert_eq!(args["money"], 100);
+}
+
+#[test]
+fn bare_named_id_uses_the_matching_seed_table_instead_of_btree_first() {
+    let program = Program {
+        name: "todos.byId".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("todoId".to_owned(), ArgType::Id)]),
+        read_time_granularity_ms: None,
+        body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
+            Value::Null,
+        ))],
+    };
+    let seed = SeedData {
+        personas: vec!["alice".to_owned()],
+        rows: BTreeMap::from([
+            (
+                "conversations".to_owned(),
+                vec![json!({ "id": "conversation-1" })],
+            ),
+            ("todos".to_owned(), vec![json!({ "id": "todo-1" })]),
+        ]),
+    };
+
+    assert_eq!(generated_args(&program, &seed).unwrap()["todoId"], "todo-1");
+}
+
+#[test]
+fn unmatched_named_id_blocks_instead_of_guessing_an_unrelated_seed_table() {
+    let program = Program {
+        name: "todos.byId".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::from([("ownerId".to_owned(), ArgType::Id)]),
+        read_time_granularity_ms: None,
+        body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
+            Value::Null,
+        ))],
+    };
+    let seed = SeedData {
+        personas: Vec::new(),
+        rows: BTreeMap::from([("todos".to_owned(), vec![json!({ "id": "todo-1" })])]),
+    };
+
+    assert_eq!(
+        generated_args(&program, &seed).unwrap_err(),
+        "cannot choose a seed id for todos.byId.ownerId"
+    );
+}
+
+#[test]
+fn bounds_failure_preserves_the_engine_error_code() {
+    let failure = engine_failure(
+        "todos.list",
+        "alice",
+        json!({ "code": "E_AUTH_PERSONA_UNKNOWN", "message": "unknown persona" }),
+    );
+
+    assert_eq!(failure["code"], "E_AUTH_PERSONA_UNKNOWN");
+    assert!(failure.get("failureCode").is_none(), "{failure}");
 }
 
 #[test]

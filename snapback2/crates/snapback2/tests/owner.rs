@@ -30,8 +30,8 @@ fn chat_owner_wire_sse_channels_and_successors() {
     copy_tree(&fixture().join("snapback"), &root.join("snapback"));
     let messages = root.join("snapback/messages.ts");
     let source = fs::read_to_string(&messages).unwrap().replace(
-        "import { memberships, messages, profiles } from \"./schema\";",
-        "import { memberships, messageCounts, messages, profiles } from \"./schema\";",
+        "import { conversations, memberships, messages, profiles } from \"./schema\";",
+        "import { conversations, memberships, messageCounts, messages, profiles } from \"./schema\";",
     ) + r#"
 
 export const leave = mutation({ membershipId: t.id() }, ({ db, args }) => {
@@ -399,8 +399,8 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         .next()
         .unwrap()
         .replace(
-            "import { memberships, messageCounts, messages, profiles } from \"./schema\";",
-            "import { memberships, messages, profiles } from \"./schema\";",
+            "import { conversations, memberships, messageCounts, messages, profiles } from \"./schema\";",
+            "import { conversations, memberships, messages, profiles } from \"./schema\";",
         );
     fs::write(&messages, source).unwrap();
     let schema_path = root.join("snapback/schema.ts");

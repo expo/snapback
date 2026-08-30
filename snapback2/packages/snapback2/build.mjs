@@ -117,8 +117,7 @@ await rm(resolve(guide, "families.source.json"));
 const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
 const chatTarget = resolve(templateDist, "chat", "snapback");
-await cp(resolve(fixtures, "chat", "snapback"), chatTarget, { recursive: true });
-await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true, force: true });
+await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true });
 await cp(
   resolve(here, "templates/todos/snapback"),
   resolve(templateDist, "todos", "snapback"),

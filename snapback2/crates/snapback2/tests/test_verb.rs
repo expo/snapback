@@ -44,7 +44,29 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .is_some_and(|count| count > 0),
         "the chat receipt did not exercise an invalidation silence probe: {invalidation}"
     );
-    assert_eq!(check(&receipt, "bounds")["detail"]["enforcedBy"], "engine");
+    let bounds = check(&receipt, "bounds");
+    let executions = bounds["detail"]["executions"].as_array().unwrap();
+    assert_eq!(executions.len(), 2, "{bounds}");
+    for execution in executions {
+        assert_eq!(execution["op"], "messages.thread", "{execution}");
+        assert_eq!(
+            execution["examined"],
+            serde_json::json!({ "actual": 1, "ceiling": 52 })
+        );
+        assert_eq!(
+            execution["ruleProbes"],
+            serde_json::json!({ "actual": 1, "ceiling": 1 })
+        );
+        assert_eq!(
+            execution["steps"],
+            serde_json::json!({ "actual": 3, "ceiling": 262 })
+        );
+        assert_eq!(
+            execution["readSites"][0]["calls"],
+            serde_json::json!({ "actual": 1, "ceiling": 1 })
+        );
+        assert_eq!(execution["readSites"][0]["take"], 50);
+    }
     assert_eq!(
         checks
             .iter()
@@ -84,6 +106,32 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     assert!(
         scratch.is_empty(),
         "test left temporary stores behind: {scratch:?}"
+    );
+}
+
+#[test]
+fn unmatched_bare_id_blocks_with_the_operation_and_argument_name() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/todos.ts"),
+        r#"import { query, t } from "snapback2";
+export const byOwner = query({ ownerId: t.id() }, ({ args }) => args.ownerId);
+"#,
+    )
+    .unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let tested = project.run(&["test", "--derived-only", "--json"]);
+    assert_eq!(tested.status.code(), Some(1));
+    let receipt = json_stdout(&tested);
+    let bounds = check(&receipt, "bounds");
+    assert_eq!(bounds["verdict"], "blocked", "{bounds}");
+    assert_eq!(
+        bounds["detail"]["blocked"][0]["reason"],
+        "cannot choose a seed id for todos.byOwner.ownerId",
+        "{bounds}"
     );
 }
 

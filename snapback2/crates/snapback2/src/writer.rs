@@ -1244,7 +1244,7 @@ fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
     match kind {
         ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
         ArgType::Optional(inner) => json_as_arg(value, inner),
-        ArgType::Id => value
+        ArgType::Id | ArgType::Ref { .. } => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))
             .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),
