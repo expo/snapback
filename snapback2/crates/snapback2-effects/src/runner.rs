@@ -30,6 +30,7 @@ impl From<&str> for OutboxError {
 pub enum OutboxSettlement {
     ThenPending {
         result: Value,
+        then_op: String,
     },
     Sent {
         result: Value,
@@ -56,6 +57,7 @@ pub struct PendingThen {
     pub id: String,
     pub effect: String,
     pub result: Value,
+    pub then_op: Option<String>,
 }
 
 /// The short request/reply seam between the effects runner and the sole store
@@ -78,16 +80,22 @@ pub trait OutboxAccess {
     /// Return every durable `then_pending` row in stable outbox order.
     fn pending_then(&mut self) -> Result<Vec<PendingThen>, OutboxError>;
 
-    /// Explicitly return a row to `queued`. Attempts are preserved so a human
-    /// retry of `sent_unknown` remains visible in its history.
+    /// Explicitly return a `sent_unknown` or `failed` row to `queued` and
+    /// reset attempts for the new operator-authorized run.
     fn requeue(&mut self, id: &str, now: i64) -> Result<(), OutboxError>;
 
     /// On owner startup, atomically mark every lingering `running` row as
     /// `sent_unknown`. Such rows are never claimed automatically.
     fn mark_unknown_running_at_start(&mut self, now: i64) -> Result<u64, OutboxError>;
 
-    /// Execute a named mutation as `Context::system()` on the writer thread.
-    fn execute_system(&mut self, op: &str, args: Value) -> Result<(), OutboxError>;
+    /// Execute a named mutation as `Context::system()` and atomically settle
+    /// this row. `Some(error)` means the mutation was rejected durably.
+    fn execute_then(
+        &mut self,
+        op: &str,
+        args: Value,
+        outbox_id: &str,
+    ) -> Result<Option<String>, OutboxError>;
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -130,6 +138,10 @@ impl<H: EffectHost> Runner<H> {
         self.host.describe()
     }
 
+    pub fn generation_changed(&mut self) {
+        self.host.generation_changed();
+    }
+
     pub fn initialize<A: OutboxAccess>(
         &mut self,
         access: &mut A,
@@ -137,22 +149,20 @@ impl<H: EffectHost> Runner<H> {
     ) -> Result<u64, OutboxError> {
         let unknown = access.mark_unknown_running_at_start(unix_millis())?;
         for pending in access.pending_then()? {
-            let last_error = match declarations
-                .get(&pending.effect)
-                .and_then(|decl| decl.then.as_deref())
-            {
-                Some(then) => execute_then(access, then, &pending)
-                    .err()
-                    .map(|error| error.0),
-                None => Some("E_EFFECT_THEN_UNKNOWN".to_owned()),
-            };
-            access.settle(
-                &pending.id,
-                OutboxSettlement::Sent {
-                    result: pending.result,
-                    last_error,
-                },
-            )?;
+            let declaration = declarations.get(&pending.effect);
+            let then_matches =
+                declaration.is_some_and(|declaration| declaration.then == pending.then_op);
+            if then_matches {
+                let then = pending.then_op.as_deref().expect("matched then target");
+                execute_then(access, then, &pending)?;
+            } else {
+                access.settle(
+                    &pending.id,
+                    OutboxSettlement::Failed {
+                        error: "E_EFFECT_THEN_CHANGED".to_owned(),
+                    },
+                )?;
+            }
         }
         Ok(unknown)
     }
@@ -219,26 +229,18 @@ impl<H: EffectHost> Runner<H> {
                             &job.id,
                             OutboxSettlement::ThenPending {
                                 result: result.clone(),
+                                then_op: then.clone(),
                             },
                         )?;
                         let pending = PendingThen {
                             id: job.id,
                             effect: job.effect,
                             result,
+                            then_op: Some(then.clone()),
                         };
-                        let last_error = execute_then(access, then, &pending)
-                            .err()
-                            .map(|error| error.0);
-                        if last_error.is_some() {
+                        if execute_then(access, then, &pending)?.is_some() {
                             drained.then_failed += 1;
                         }
-                        access.settle(
-                            &pending.id,
-                            OutboxSettlement::Sent {
-                                result: pending.result,
-                                last_error,
-                            },
-                        )?;
                     } else {
                         access.settle(
                             &job.id,
@@ -286,14 +288,15 @@ fn execute_then<A: OutboxAccess>(
     access: &mut A,
     then: &str,
     pending: &PendingThen,
-) -> Result<(), OutboxError> {
-    access.execute_system(
+) -> Result<Option<String>, OutboxError> {
+    access.execute_then(
         then,
         json!({
             "outboxId": pending.id,
             "effect": pending.effect,
             "result": pending.result,
         }),
+        &pending.id,
     )
 }
 
@@ -323,6 +326,7 @@ mod tests {
         created_at: i64,
         last_error: Option<String>,
         result: Option<Value>,
+        then_op: Option<String>,
     }
 
     #[derive(Default)]
@@ -348,6 +352,7 @@ mod tests {
                 created_at: self.rows.len() as i64,
                 last_error: None,
                 result: None,
+                then_op: None,
             });
         }
 
@@ -397,10 +402,11 @@ mod tests {
             });
             let row = self.row_mut(id)?;
             match settlement {
-                OutboxSettlement::ThenPending { result } => {
+                OutboxSettlement::ThenPending { result, then_op } => {
                     row.state = "then_pending";
                     row.result = Some(result);
                     row.last_error = None;
+                    row.then_op = Some(then_op);
                 }
                 OutboxSettlement::Sent { result, last_error } => {
                     row.state = "sent";
@@ -434,6 +440,7 @@ mod tests {
                     id: row.job.id.clone(),
                     effect: row.job.effect.clone(),
                     result: row.result.clone().expect("then_pending result"),
+                    then_op: row.then_op.clone(),
                 })
                 .collect())
         }
@@ -441,6 +448,7 @@ mod tests {
         fn requeue(&mut self, id: &str, now: i64) -> Result<(), OutboxError> {
             let row = self.row_mut(id)?;
             row.state = "queued";
+            row.job.attempt = 0;
             row.next_at = now;
             row.last_error = None;
             Ok(())
@@ -457,12 +465,29 @@ mod tests {
             Ok(changed)
         }
 
-        fn execute_system(&mut self, op: &str, args: Value) -> Result<(), OutboxError> {
+        fn execute_then(
+            &mut self,
+            op: &str,
+            args: Value,
+            outbox_id: &str,
+        ) -> Result<Option<String>, OutboxError> {
+            if self.fail_sent_once {
+                self.fail_sent_once = false;
+                return Err(OutboxError(
+                    "simulated crash before atomic then commit".to_owned(),
+                ));
+            }
             self.system_calls.push((op.to_owned(), args));
             if let Some(Some(error)) = self.system_errors.pop_front() {
-                return Err(OutboxError(error));
+                let row = self.row_mut(outbox_id)?;
+                row.state = "sent";
+                row.last_error = Some(error.clone());
+                return Ok(Some(error));
             }
-            Ok(())
+            let row = self.row_mut(outbox_id)?;
+            row.state = "sent";
+            row.last_error = None;
+            Ok(None)
         }
     }
 
@@ -536,7 +561,7 @@ mod tests {
         assert_eq!(drained.sent, 1);
         assert_eq!(outbox.row("o1").state, "sent");
         assert_eq!(outbox.row("o1").job.attempt, 1);
-        assert_eq!(outbox.settlements, vec!["then_pending", "sent"]);
+        assert_eq!(outbox.settlements, vec!["then_pending"]);
         assert_eq!(outbox.system_calls[0].0, "notifications.recordNotified");
         assert_eq!(outbox.system_calls[0].1["outboxId"], "o1");
         assert_eq!(outbox.system_calls[0].1["effect"], "notifications.notify");
@@ -702,7 +727,7 @@ mod tests {
     }
 
     #[test]
-    fn restart_replays_then_pending_after_crash_before_sent_settlement() {
+    fn atomic_then_failure_replays_once_after_restart() {
         let declarations = declarations(declaration(Some("notifications.recordNotified")));
         let host = StubHost::new([sent(json!({ "providerId": "p1" }))]);
         let mut runner = Runner::new(host);
@@ -715,24 +740,47 @@ mod tests {
         let error = runner
             .drain_with_clock(&mut outbox, &declarations, 16, || 0)
             .expect_err("the test double kills the runner before sent");
-        assert!(error.0.contains("simulated crash"));
+        assert!(error.0.contains("atomic then commit"));
         assert_eq!(outbox.row("o1").state, "then_pending");
-        assert_eq!(outbox.system_calls.len(), 1);
+        assert_eq!(outbox.system_calls.len(), 0);
         assert_eq!(outbox.settlements, vec!["then_pending"]);
 
-        outbox.system_errors.push_back(Some(
-            "E_CONSTRAINT: duplicate outboxId on unique index".to_owned(),
-        ));
         let mut restarted = Runner::new(StubHost::new(Vec::<Outcome>::new()));
         assert_eq!(restarted.initialize(&mut outbox, &declarations).unwrap(), 0);
 
-        assert_eq!(outbox.system_calls.len(), 2, "then runs exactly once more");
+        assert_eq!(outbox.system_calls.len(), 1, "then commits exactly once");
         assert_eq!(outbox.row("o1").state, "sent");
+        assert_eq!(outbox.row("o1").last_error, None);
+        assert_eq!(outbox.settlements, vec!["then_pending"]);
+    }
+
+    #[test]
+    fn restart_refuses_a_changed_then_binding() {
+        let old = declarations(declaration(Some("notifications.recordNotified")));
+        let host = StubHost::new([sent(json!({ "providerId": "p1" }))]);
+        let mut runner = Runner::new(host);
+        let mut outbox = MemoryOutbox {
+            fail_sent_once: true,
+            ..MemoryOutbox::default()
+        };
+        outbox.push("o1", "notifications.notify", "queued", 0);
+        runner
+            .drain_with_clock(&mut outbox, &old, 16, || 0)
+            .expect_err("leave then pending");
+
+        let mut changed = declaration(Some("notifications.recordElsewhere"));
+        changed.source = "async () => 'changed'".to_owned();
+        let mut restarted = Runner::new(StubHost::new(Vec::<Outcome>::new()));
+        restarted
+            .initialize(&mut outbox, &declarations(changed))
+            .unwrap();
+
+        assert_eq!(outbox.row("o1").state, "failed");
         assert_eq!(
             outbox.row("o1").last_error.as_deref(),
-            Some("E_CONSTRAINT: duplicate outboxId on unique index")
+            Some("E_EFFECT_THEN_CHANGED")
         );
-        assert_eq!(outbox.settlements, vec!["then_pending", "sent"]);
+        assert!(outbox.system_calls.is_empty());
     }
 
     #[test]

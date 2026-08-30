@@ -45,6 +45,11 @@ pub fn run(json: bool) -> ExitCode {
         Err(error) => (None, Some(error)),
     };
     let owner = owner_state();
+    let queued = owner
+        .as_ref()
+        .and_then(|owner| owner.pointer("/effects/queued"))
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
     let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
     let ok = refused.is_empty() && compiler_ok;
     if json {
@@ -62,6 +67,7 @@ pub fn run(json: bool) -> ExitCode {
                     "error": compiler_error,
                 },
                 "effects": effects,
+                "effectsQueued": queued,
                 "owner": owner,
                 "elapsedMs": elapsed_ms,
             })
@@ -83,7 +89,11 @@ pub fn run(json: bool) -> ExitCode {
         } else {
             println!("compiler: refused {}", compiler_error.unwrap_or_default());
         }
-        println!("effects: {effects}");
+        if effects == "none" {
+            println!("effects: no engine in this build — {queued} queued");
+        } else {
+            println!("effects: {effects}");
+        }
         if let Some(owner) = owner {
             println!("owner: {owner}");
         } else {
@@ -130,11 +140,11 @@ fn compiler_proof() -> Result<PathBuf, String> {
     result
 }
 
-fn owner_state() -> Option<String> {
+fn owner_state() -> Option<serde_json::Value> {
     let root = crate::project::locate_root(None).ok()?;
     let info = owner::read_owner(&root)?;
     let response = client::control(&info, "GET", "/control/status", serde_json::json!({})).ok()?;
-    (response.status == 200).then(|| response.body.to_string())
+    (response.status == 200).then_some(response.body)
 }
 
 #[cfg(feature = "effects")]
@@ -144,5 +154,5 @@ fn effects_description() -> &'static str {
 
 #[cfg(not(feature = "effects"))]
 fn effects_description() -> &'static str {
-    "not built (feature `effects`)"
+    "none"
 }

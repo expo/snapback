@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[cfg(not(feature = "hermes"))]
 #[test]
 fn chat_owner_wire_sse_channels_and_successors() {
     let root = temp_root();
@@ -208,6 +209,17 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
             "failed": 0,
             "sentUnknown": 0,
         })
+    );
+    let doctor = Command::new(binary)
+        .arg("doctor")
+        .current_dir(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(doctor.status.success());
+    assert!(
+        String::from_utf8_lossy(&doctor.stdout)
+            .contains("effects: no engine in this build — 1 queued")
     );
 
     let mut typing = Sse::open(
@@ -753,6 +765,7 @@ fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], body: 
     Response { status, body }
 }
 
+#[cfg(not(feature = "hermes"))]
 fn status(port: u16, secret: &str) -> Value {
     let response = request(
         port,
@@ -765,11 +778,13 @@ fn status(port: u16, secret: &str) -> Value {
     response.body
 }
 
+#[cfg(not(feature = "hermes"))]
 struct Sse {
     reader: BufReader<TcpStream>,
     last_id: Option<u64>,
 }
 
+#[cfg(not(feature = "hermes"))]
 impl Sse {
     fn open(port: u16, path: &str, persona: &str) -> Self {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
@@ -903,6 +918,7 @@ fn process_alive(pid: u32) -> bool {
     unsafe { kill(pid as i32, 0) == 0 }
 }
 
+#[cfg(not(feature = "hermes"))]
 fn wait_for<T>(timeout: Duration, mut check: impl FnMut() -> Option<T>) -> T {
     let started = Instant::now();
     while started.elapsed() < timeout {

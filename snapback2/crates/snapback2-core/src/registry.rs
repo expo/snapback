@@ -254,7 +254,11 @@ impl Runtime {
                 }
                 persist_generation(&mut store, &generation).map_err(store_refusal)?;
             }
-            Some(hash) if hash == generation.hash => {}
+            Some(hash) if hash == generation.hash => {
+                // Additive owner metadata can appear after the generation was
+                // first installed (for example the outbox declaration binding).
+                persist_generation(&mut store, &generation).map_err(store_refusal)?;
+            }
             Some(hash) => {
                 let current_json = store
                     .meta("schema_json")
@@ -302,6 +306,159 @@ impl Runtime {
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         self.execute_certified(&program, &certificate, context)
+    }
+
+    /// Execute an effect's `then` mutation and settle its durable outbox row
+    /// in the mutation's own SQLite transaction. A rejected mutation has no
+    /// data writes to commit, so its durable rejection and `sent` settlement
+    /// are recorded together by the writer before this method returns.
+    // @ref LLP 1003#2-the-outbox-lifecycle — `then` and `then_pending` → `sent` are one transaction.
+    pub fn execute_then(
+        &mut self,
+        op: &str,
+        mut context: Context,
+        outbox_id: &str,
+    ) -> Result<Execution, RuntimeError> {
+        if context.viewer != "system" || context.principal_kind != "system" {
+            return Err(RuntimeError::Input(
+                "effect then must execute as Context::system()".to_owned(),
+            ));
+        }
+        let pending = self
+            .engine
+            .store()
+            .outbox_get(outbox_id)?
+            .ok_or_else(|| RuntimeError::Input(format!("unknown outbox row {outbox_id}")))?;
+        if pending.state != "then_pending" {
+            return Err(RuntimeError::Input(format!(
+                "outbox row {outbox_id} is {}, not then_pending",
+                pending.state
+            )));
+        }
+        let declaration = self.generation.effects.get(&pending.effect);
+        let claimed_declaration = pending
+            .generation
+            .as_deref()
+            .map(|generation| format!("effects_json:{generation}"))
+            .map(|key| self.engine.store().meta(&key))
+            .transpose()?
+            .flatten()
+            .map(|json| {
+                serde_json::from_str::<BTreeMap<String, EffectDecl>>(&json)
+                    .map_err(|error| RuntimeError::Serialization(error.to_string()))
+            })
+            .transpose()?
+            .and_then(|effects| effects.get(&pending.effect).cloned());
+        let binding_matches =
+            declaration
+                .zip(claimed_declaration.as_ref())
+                .is_some_and(|(current, claimed)| {
+                    current.then.as_deref() == Some(op)
+                        && pending.then_op.as_deref() == Some(op)
+                        && digest(&current.source) == digest(&claimed.source)
+                });
+        if !binding_matches {
+            self.fail_changed_then(outbox_id)?;
+            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
+        }
+        let (program, certificate) = self
+            .generation
+            .programs
+            .get(op)
+            .cloned()
+            .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
+        if program.kind != ProgramKind::Mutation {
+            self.fail_changed_then(outbox_id)?;
+            return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
+        }
+
+        // Effect completion is an engine-owned write. The system principal is
+        // still visible in the commit, while user table-write rules do not
+        // veto the declared bookkeeping mutation.
+        context.seed_write = true;
+        let trigger = format!("snapback2_then_{}", digest(&(outbox_id, op)));
+        let quoted_id = sqlite_quote(self.engine.store(), outbox_id)?;
+        let quoted_op = sqlite_quote(self.engine.store(), op)?;
+        self.engine.store().conn.execute_batch(&format!(
+            "DROP TRIGGER IF EXISTS temp.{trigger};
+             CREATE TEMP TRIGGER {trigger} AFTER INSERT ON main._commits
+             WHEN NEW.program = {quoted_op}
+             BEGIN
+               UPDATE _outbox SET state = 'sent', last_error = NULL,
+                      updated_at = NEW.at
+               WHERE id = {quoted_id} AND state = 'then_pending';
+             END;"
+        ))?;
+        let execution = self.execute_certified(&program, &certificate, context);
+        let drop_result = self
+            .engine
+            .store()
+            .conn
+            .execute_batch(&format!("DROP TRIGGER IF EXISTS temp.{trigger}"));
+        let execution = execution?;
+        drop_result?;
+        match &execution.state {
+            ExecutionState::Committed { .. } => {
+                let settled = self
+                    .engine
+                    .store()
+                    .outbox_get(outbox_id)?
+                    .is_some_and(|row| row.state == "sent");
+                if !settled {
+                    return Err(RuntimeError::Input(format!(
+                        "atomic then settlement did not update outbox row {outbox_id}"
+                    )));
+                }
+            }
+            ExecutionState::Rejected { code, message } => {
+                let error = format!("{code}: {message}");
+                let changed = self.engine.store().conn.execute(
+                    "UPDATE _outbox SET state = 'sent', last_error = ?1, updated_at = ?2
+                     WHERE id = ?3 AND state = 'then_pending'",
+                    rusqlite::params![error, unix_millis(), outbox_id],
+                )?;
+                if changed != 1 {
+                    return Err(RuntimeError::Input(format!(
+                        "rejected then could not settle outbox row {outbox_id}"
+                    )));
+                }
+            }
+            _ => {
+                return Err(RuntimeError::Input(format!(
+                    "effect then operation {op} did not produce a mutation state"
+                )));
+            }
+        }
+        Ok(execution)
+    }
+
+    fn fail_changed_then(&self, outbox_id: &str) -> Result<(), RuntimeError> {
+        let changed = self.engine.store().conn.execute(
+            "UPDATE _outbox SET state = 'failed', last_error = 'E_EFFECT_THEN_CHANGED',
+                    updated_at = ?1
+             WHERE id = ?2 AND state = 'then_pending'",
+            rusqlite::params![unix_millis(), outbox_id],
+        )?;
+        if changed == 1 {
+            Ok(())
+        } else {
+            Err(RuntimeError::Input(format!(
+                "outbox row {outbox_id} is not then_pending"
+            )))
+        }
+    }
+
+    fn then_rejection(&self, code: &str) -> Result<Execution, RuntimeError> {
+        Ok(Execution {
+            result: Value::Null,
+            trace: AuthoritativeTrace::default(),
+            receipt: ClosureReceipt::default(),
+            state: ExecutionState::Rejected {
+                code: code.to_owned(),
+                message: code.to_owned(),
+            },
+            seq: self.engine.store().commit_seq()?,
+        })
     }
 
     pub fn execute_adhoc(
@@ -542,10 +699,13 @@ fn persist_generation_transaction(
 ) -> Result<(), RuntimeError> {
     let schema_json = serde_json::to_string(&generation.schema)
         .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
+    let effects_json = serde_json::to_string(&generation.effects)
+        .map_err(|error| RuntimeError::Serialization(error.to_string()))?;
     for (key, value) in [
         ("schema_hash", generation.schema.hash()),
         ("generation", generation.hash.clone()),
         ("schema_json", schema_json),
+        ("effects_json", effects_json),
     ] {
         transaction.execute(
             "INSERT INTO _meta(key, value) VALUES (?1, ?2)
@@ -553,7 +713,23 @@ fn persist_generation_transaction(
             rusqlite::params![key, value],
         )?;
     }
+    transaction.execute(
+        "INSERT INTO _meta(key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        rusqlite::params![
+            format!("effects_json:{}", generation.hash),
+            serde_json::to_string(&generation.effects)
+                .map_err(|error| RuntimeError::Serialization(error.to_string()))?
+        ],
+    )?;
     Ok(())
+}
+
+fn sqlite_quote(store: &Store, value: &str) -> Result<String, RuntimeError> {
+    store
+        .conn
+        .query_row("SELECT quote(?1)", [value], |row| row.get(0))
+        .map_err(Into::into)
 }
 
 fn store_refusal(error: RuntimeError) -> SuccessorRefusal {

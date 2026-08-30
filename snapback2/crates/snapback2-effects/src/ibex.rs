@@ -158,6 +158,10 @@ impl EffectHost for Ibex2Host {
         "ibex2 + vanilla hermes"
     }
 
+    fn generation_changed(&mut self) {
+        Ibex2Host::generation_changed(self);
+    }
+
     fn take_logs(&mut self) -> Vec<EffectLog> {
         std::mem::take(&mut self.logs)
     }

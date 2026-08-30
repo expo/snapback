@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use std::thread;
 
 #[derive(Clone, Debug)]
@@ -23,8 +23,6 @@ pub enum Identity {
     Bearer(String),
     Persona(String),
     Anonymous,
-    #[allow(dead_code)] // Lane C uses this through `OwnerHandle::execute_system`.
-    System,
 }
 
 #[derive(Clone, Debug)]
@@ -78,37 +76,11 @@ impl OwnerHandle {
     pub fn unsubscribe(&self, id: u64) {
         let _ = self.call(Action::Unsubscribe { id });
     }
-
-    /// Lane C's runner uses this to return an effect result through a named mutation.
-    #[allow(dead_code)] // public seam for lane C's feature-gated effects module
-    pub fn execute_system(&self, op: String, args: Json) -> Result<Json, Refusal> {
-        self.call(Action::Execute {
-            op,
-            args,
-            identity: Identity::System,
-            expected: Some(ProgramKind::Mutation),
-        })
-    }
-
-    /// Outbox visibility stays on the writer thread; lane C adds claim/settle
-    /// actions beside this count without introducing a second store owner.
-    #[allow(dead_code)] // public seam for lane C's feature-gated effects module
-    pub fn outbox_queued(&self) -> Result<u64, Refusal> {
-        self.call(Action::OutboxQueued)?
-            .get("queued")
-            .and_then(Json::as_u64)
-            .ok_or_else(|| {
-                Refusal::owner(
-                    "E_OWNER_PROTOCOL",
-                    "owner omitted outbox count",
-                    "restart snapback2 dev",
-                )
-            })
-    }
 }
 
 // Apply carries a whole certified successor so the writer remains the sole Runtime owner.
 #[allow(clippy::large_enum_variant)]
+#[cfg_attr(not(feature = "effects"), allow(dead_code))]
 pub enum Action {
     Status,
     Manifest,
@@ -200,8 +172,33 @@ pub enum Action {
     Clock {
         advance_ms: i64,
     },
-    #[allow(dead_code)] // feature-gated lane C action
-    OutboxQueued,
+    EffectsGeneration,
+    OutboxClaim {
+        now: i64,
+    },
+    OutboxSettle {
+        id: String,
+        state: String,
+        result: Option<Json>,
+        last_error: Option<String>,
+        next_at: Option<i64>,
+    },
+    OutboxThenPending,
+    OutboxMarkUnknown,
+    OutboxExecuteThen {
+        op: String,
+        args: Json,
+        outbox_id: String,
+    },
+    OutboxRequeue {
+        id: String,
+    },
+    InstallEffectsWake {
+        wake: SyncSender<()>,
+    },
+    EffectsLog {
+        lines: Vec<Json>,
+    },
     Stop {
         cause: String,
     },
@@ -243,6 +240,7 @@ struct State {
     next_channel: u64,
     clock_offset_ms: i64,
     stop: Arc<AtomicBool>,
+    effects_wake: Option<SyncSender<()>>,
 }
 
 pub fn spawn_writer(
@@ -273,6 +271,7 @@ pub fn spawn_writer(
                     next_channel: 0,
                     clock_offset_ms: 0,
                     stop,
+                    effects_wake: None,
                 },
                 rx,
             )
@@ -478,7 +477,79 @@ impl State {
                 self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
             }
-            Action::OutboxQueued => Ok(json!({ "queued": self.outbox_queued()? })),
+            Action::EffectsGeneration => Ok(json!({
+                "generation": self.runtime().generation().hash,
+                "effects": self.runtime().generation().effects,
+            })),
+            Action::OutboxClaim { now } => Ok(serde_json::to_value(
+                self.runtime()
+                    .store()
+                    .outbox_claim_next(now)
+                    .map_err(|error| Refusal::from_runtime(&error))?,
+            )
+            .unwrap_or(Json::Null)),
+            Action::OutboxSettle {
+                id,
+                state,
+                result,
+                last_error,
+                next_at,
+            } => {
+                let result = result.as_ref().map(json_to_value).transpose()?;
+                self.runtime()
+                    .store()
+                    .outbox_settle(&id, &state, result.as_ref(), last_error.as_deref(), next_at)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "ok": true }))
+            }
+            Action::OutboxThenPending => Ok(serde_json::to_value(
+                self.runtime()
+                    .store()
+                    .outbox_then_pending()
+                    .map_err(|error| Refusal::from_runtime(&error))?,
+            )
+            .unwrap_or_else(|_| Json::Array(Vec::new()))),
+            Action::OutboxMarkUnknown => {
+                let changed = self
+                    .runtime()
+                    .store()
+                    .outbox_mark_unknown_running()
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                Ok(json!({ "changed": changed }))
+            }
+            Action::OutboxExecuteThen {
+                op,
+                args,
+                outbox_id,
+            } => self.execute_then(&op, args, &outbox_id),
+            Action::OutboxRequeue { id } => {
+                let requeued = self
+                    .runtime()
+                    .store()
+                    .outbox_requeue(&id)
+                    .map_err(|error| Refusal::from_runtime(&error))?;
+                if !requeued {
+                    return Err(Refusal::new(
+                        "E_EFFECT_REQUEUE_STATE",
+                        "effect",
+                        format!("outbox row {id} is neither sent_unknown nor failed"),
+                        "requeue only a sent_unknown or failed outbox row",
+                        "effects/requeue",
+                    ));
+                }
+                self.wake_effects();
+                Ok(json!({ "ok": true, "id": id, "state": "queued" }))
+            }
+            Action::InstallEffectsWake { wake } => {
+                self.effects_wake = Some(wake);
+                Ok(json!({ "ok": true }))
+            }
+            Action::EffectsLog { lines } => {
+                for line in lines {
+                    crate::watch::log(&self.root, json!({ "effect": line }));
+                }
+                Ok(json!({ "ok": true }))
+            }
             Action::Stop { cause } => {
                 self.phase = json!({ "state": "exited", "cause": cause });
                 crate::watch::log(&self.root, json!({ "exited": cause }));
@@ -522,11 +593,6 @@ impl State {
                     .map(|session| session.principal)
                     .map_err(|error| Refusal::from_identity(&error))
             }
-            Identity::System => Ok(Principal {
-                id: "system".to_owned(),
-                kind: "system".to_owned(),
-                name: Some("system".to_owned()),
-            }),
             Identity::Anonymous => Err(Refusal::new(
                 "E_AUTH_REQUIRED",
                 "auth",
@@ -614,6 +680,24 @@ impl State {
             self.after_commit(execution.seq)?;
         }
         Ok(execution)
+    }
+
+    fn execute_then(&mut self, op: &str, args: Json, outbox_id: &str) -> Result<Json, Refusal> {
+        let values = operation_args(self.runtime().generation(), op, &args)?;
+        let now = self.now();
+        let mut context = Context::system();
+        context.args = values;
+        context.now = Some(now);
+        context.read_time = Some(now);
+        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        let execution = self
+            .runtime_mut()
+            .execute_then(op, context, outbox_id)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if matches!(execution.state, ExecutionState::Committed { .. }) {
+            self.after_commit(execution.seq)?;
+        }
+        Ok(execution_json(&execution))
     }
 
     fn subscribe(
@@ -756,6 +840,9 @@ impl State {
             .collect::<Vec<_>>();
         self.rerun_live(&clients, false);
         self.readmit_channels(&commit);
+        if commit.emits > 0 {
+            self.wake_effects();
+        }
         Ok(())
     }
 
@@ -861,6 +948,7 @@ impl State {
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
         self.rerun_live(&clients, true);
+        self.wake_effects();
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -902,6 +990,7 @@ impl State {
         self.runtime = Some(runtime);
         self.live.clear();
         self.channels.clear();
+        self.wake_effects();
         Ok(json!({ "ok": true, "seq": self.runtime().store().commit_seq().unwrap_or(0) }))
     }
 
@@ -1032,9 +1121,14 @@ impl State {
                 )
             })?;
         let invalidated = self.runtime().invalidated(&commit);
+        let outbox = self
+            .runtime()
+            .store()
+            .outbox_for_seq(wanted)
+            .map_err(|error| Refusal::from_runtime(&error))?;
         Ok(json!({
             "commit": commit,
-            "outbox": { "emits": commit.emits, "engine": effects_engine() },
+            "outbox": { "emits": commit.emits, "engine": effects_engine(), "rows": outbox },
             "invalidated": invalidated,
         }))
     }
@@ -1092,10 +1186,6 @@ impl State {
         })
     }
 
-    fn outbox_queued(&self) -> Result<u64, Refusal> {
-        Ok(self.outbox_counts()?.queued)
-    }
-
     fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
         self.runtime()
             .store()
@@ -1105,6 +1195,12 @@ impl State {
 
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
+    }
+
+    fn wake_effects(&self) {
+        if let Some(wake) = &self.effects_wake {
+            let _ = wake.try_send(());
+        }
     }
 }
 
