@@ -301,6 +301,26 @@ impl Runtime {
             .get(op)
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
+        self.execute_certified(&program, &certificate, context)
+    }
+
+    pub fn execute_adhoc(
+        &mut self,
+        program: &Program,
+        context: Context,
+    ) -> Result<Execution, RuntimeError> {
+        let certificate = Checker::new(&self.generation.schema, Ceilings::default())
+            .check(program)
+            .map_err(|error| RuntimeError::Schema(error.to_string()))?;
+        self.execute_certified(program, &certificate, context)
+    }
+
+    fn execute_certified(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+    ) -> Result<Execution, RuntimeError> {
         match self.engine.execute(&program, &certificate, context) {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Mutation => {
@@ -591,5 +611,45 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
         }
         RuleExpr::Not(rule) => collect_reserved_rule_reads(rule, reads),
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema: Schema::default(),
+                programs: Vec::new(),
+                effects: Vec::new(),
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let before = generation.clone();
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+        let program = Program {
+            name: "__owner.inspect".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Literal(Value::Int(42)))],
+        };
+
+        let execution = runtime
+            .execute_adhoc(&program, Context::query("dev:alice", BTreeMap::new()))
+            .unwrap();
+
+        assert_eq!(execution.result, Value::Int(42));
+        assert_eq!(runtime.generation(), &before);
+        assert_eq!(
+            runtime.store().meta("generation").unwrap(),
+            Some(before.hash)
+        );
     }
 }

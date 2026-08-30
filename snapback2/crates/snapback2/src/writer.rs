@@ -7,9 +7,9 @@ use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, Checker, ColumnType, Context, Execution,
-    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal,
-    Program, ProgramKind, Runtime, Scan, Stmt, Store, Value,
+    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
+    Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal, Program,
+    ProgramKind, Runtime, Scan, Stmt, Store, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -482,7 +482,25 @@ impl State {
             Action::Stop { cause } => {
                 self.phase = json!({ "state": "exited", "cause": cause });
                 crate::watch::log(&self.root, json!({ "exited": cause }));
+                let owner_path = self.root.join(".snapback/owner.json");
+                let removed = std::fs::remove_file(&owner_path).or_else(|error| {
+                    if error.kind() == std::io::ErrorKind::NotFound {
+                        Ok(())
+                    } else {
+                        Err(error)
+                    }
+                });
                 self.stop.store(true, AtomicOrdering::SeqCst);
+                removed.map_err(|error| {
+                    Refusal::owner(
+                        "E_OWNER_STATE",
+                        format!(
+                            "cannot remove {} while stopping: {error}",
+                            owner_path.display()
+                        ),
+                        "make .snapback writable and retry snapback2 dev --stop",
+                    )
+                })?;
                 Ok(json!({ "ok": true, "exited": cause }))
             }
         }
@@ -943,9 +961,8 @@ impl State {
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
-        let op = format!("__owner.data.{table_name}");
         let program = Program {
-            name: op.clone(),
+            name: format!("__owner.data.{table_name}"),
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
@@ -962,23 +979,18 @@ impl State {
                 provenance: KeyProvenance::Const,
             }))],
         };
-        let certificate = Checker::new(&self.runtime().generation().schema, Ceilings::default())
-            .check(&program)
-            .map_err(|error| {
-                Refusal::new(
-                    error.code,
-                    "bound",
-                    error.message,
-                    error.rewrite,
-                    "bound/data",
-                )
-            })?;
-        let mut next = self.runtime().generation().clone();
-        next.programs.insert(op.clone(), (program, certificate));
-        self.runtime_mut()
-            .apply_successor(next)
-            .map_err(|error| Refusal::from_successor(&error))?;
-        self.execute(&op, json!({}), identity, Some(ProgramKind::Query))
+        let principal = self.principal(identity)?;
+        let mut context = Context::query(principal.id, BTreeMap::new());
+        context.principal_kind = principal.kind;
+        let now = self.now();
+        context.now = Some(now);
+        context.read_time = Some(now);
+        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        let execution = self
+            .runtime_mut()
+            .execute_adhoc(&program, context)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(execution_json(&execution))
     }
 
     fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {

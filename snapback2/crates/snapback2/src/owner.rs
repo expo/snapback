@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 use snapback2_core::{Runtime, Store};
 use std::fs::{self, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::sync::Arc;
@@ -106,12 +106,17 @@ pub fn run(options: DevOptions) -> ExitCode {
 }
 
 pub fn require_owner(root: &Path) -> Result<OwnerInfo, Refusal> {
+    let had_owner_file = owner_path(root).is_file();
     active_owner(root).ok_or_else(|| {
-        Refusal::owner(
-            "E_OWNER_NOT_RUNNING",
-            format!("no owner is running for {}", root.display()),
-            "snapback2 dev",
-        )
+        let message = if had_owner_file {
+            format!(
+                "stale owner.json removed; no owner is running for {}",
+                root.display()
+            )
+        } else {
+            format!("no owner is running for {}", root.display())
+        };
+        Refusal::owner("E_OWNER_NOT_RUNNING", message, "snapback2 dev")
     })
 }
 
@@ -232,11 +237,9 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
             2,
         );
     }
-    let log = match OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(snapback.join("log.jsonl"))
-    {
+    let log_path = snapback.join("log.jsonl");
+    let log_start = fs::metadata(&log_path).map(|meta| meta.len()).unwrap_or(0);
+    let log = match OpenOptions::new().create(true).append(true).open(&log_path) {
         Ok(file) => file,
         Err(error) => {
             return print_refusal(
@@ -319,6 +322,10 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
             return ExitCode::SUCCESS;
         }
         if let Ok(Some(status)) = child.try_wait() {
+            let refusals = startup_refusals(&log_path, log_start);
+            if !refusals.is_empty() {
+                return print_refusal(first(refusals), options.json, 1);
+            }
             return print_refusal(
                 Refusal::owner(
                     "E_OWNER_START_FAILED",
@@ -345,13 +352,36 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
 }
 
 fn active_owner(root: &Path) -> Option<OwnerInfo> {
-    let info = read_owner(root)?;
-    let response = client::control(&info, "GET", "/control/status", json!({})).ok()?;
-    if response.status != 200 {
+    let path = owner_path(root);
+    if !path.is_file() {
         return None;
     }
-    let project = response.body.get("project").and_then(Json::as_str)?;
-    (Path::new(project) == root).then_some(info)
+    let Some(info) = read_owner(root) else {
+        let _ = fs::remove_file(path);
+        return None;
+    };
+    if !pid_is_running(info.pid) {
+        let _ = fs::remove_file(path);
+        return None;
+    }
+    let Some(response) = client::control(&info, "GET", "/control/status", json!({})).ok() else {
+        let _ = fs::remove_file(path);
+        return None;
+    };
+    if response.status != 200 {
+        let _ = fs::remove_file(path);
+        return None;
+    }
+    let Some(project) = response.body.get("project").and_then(Json::as_str) else {
+        let _ = fs::remove_file(path);
+        return None;
+    };
+    if Path::new(project) == root {
+        Some(info)
+    } else {
+        let _ = fs::remove_file(path);
+        None
+    }
 }
 
 fn control_command(
@@ -367,13 +397,14 @@ fn control_command(
     };
     match client::control(&info, method, path, body) {
         Ok(response) => {
-            println!(
-                "{}",
-                serde_json::to_string(&response.body).unwrap_or_default()
-            );
             if response.status < 400 {
+                if path == "/control/stop" {
+                    wait_for_pid_exit(info.pid, Duration::from_secs(2));
+                }
+                print_control_body(&response.body);
                 ExitCode::SUCCESS
             } else {
+                print_control_body(&response.body);
                 ExitCode::from(1)
             }
         }
@@ -419,23 +450,83 @@ fn print_url(info: &OwnerInfo, json_output: bool) {
 }
 
 pub fn print_refusal(error: Refusal, json_output: bool, code: u8) -> ExitCode {
-    let value = serde_json::to_string(&error).unwrap_or_default();
-    if json_output {
-        println!("{value}");
-    } else {
-        eprintln!("{value}");
+    let errors = error
+        .detail
+        .get("refusals")
+        .and_then(Json::as_array)
+        .cloned()
+        .unwrap_or_else(|| vec![serde_json::to_value(&error).unwrap_or(Json::Null)]);
+    for error in errors {
+        let value = serde_json::to_string(&error).unwrap_or_default();
+        if json_output {
+            println!("{value}");
+        } else {
+            eprintln!("{value}");
+        }
     }
     ExitCode::from(code)
 }
 
-fn first(mut errors: Vec<Refusal>) -> Refusal {
-    errors.drain(..).next().unwrap_or_else(|| {
+fn first(errors: Vec<Refusal>) -> Refusal {
+    Refusal::from_refusals(
+        errors,
         Refusal::owner(
             "E_OWNER_COMPILER_PROTOCOL",
             "compiler failed without a refusal",
             "rerun snapback2 check",
-        )
-    })
+        ),
+    )
+}
+
+fn print_control_body(body: &Json) {
+    if let Some(refusals) = body.get("refusals").and_then(Json::as_array) {
+        for refusal in refusals {
+            println!("{}", serde_json::to_string(refusal).unwrap_or_default());
+        }
+    } else {
+        println!("{}", serde_json::to_string(body).unwrap_or_default());
+    }
+}
+
+fn startup_refusals(path: &Path, offset: u64) -> Vec<Refusal> {
+    let Ok(mut file) = fs::File::open(path) else {
+        return Vec::new();
+    };
+    if file.seek(SeekFrom::Start(offset)).is_err() {
+        return Vec::new();
+    }
+    let mut text = String::new();
+    if file.read_to_string(&mut text).is_err() {
+        return Vec::new();
+    }
+    text.lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect()
+}
+
+fn wait_for_pid_exit(pid: u32, timeout: Duration) {
+    let started = Instant::now();
+    while started.elapsed() < timeout && pid_is_running(pid) {
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
+#[cfg(unix)]
+fn pid_is_running(pid: u32) -> bool {
+    if pid == 0 || pid > i32::MAX as u32 {
+        return false;
+    }
+    unsafe extern "C" {
+        fn kill(pid: i32, signal: i32) -> i32;
+    }
+    // SAFETY: signal 0 checks whether the recorded PID exists and delivers no signal.
+    let result = unsafe { kill(pid as i32, 0) };
+    result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(1)
+}
+
+#[cfg(not(unix))]
+fn pid_is_running(_pid: u32) -> bool {
+    true
 }
 
 fn random_secret() -> Result<String, Refusal> {

@@ -1,9 +1,10 @@
 use serde_json::{Value, json};
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{Shutdown, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -88,6 +89,30 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     );
     assert_eq!(initial.status, 200);
     assert_eq!(initial.body["state"], "complete");
+
+    let inspected = request(
+        port,
+        "POST",
+        "/control/data",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "table": "messages",
+            "index": "byConvTime",
+            "prefix": ["conversation-1"],
+            "limit": 10,
+            "as": "alice",
+        }),
+    );
+    assert_eq!(inspected.status, 200, "{}", inspected.body);
+    let synthetic = request(
+        port,
+        "POST",
+        "/control/why",
+        &[("X-Snapback-Control", &secret)],
+        json!({ "op": "__owner.data.messages", "args": {}, "as": "alice" }),
+    );
+    assert_eq!(synthetic.status, 400, "{}", synthetic.body);
+    assert_eq!(synthetic.body["code"], "E_OP_UNKNOWN");
 
     let mut live = Sse::open(
         port,
@@ -288,6 +313,10 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         "{}",
         String::from_utf8_lossy(&stop.stderr)
     );
+    assert!(
+        !root.join(".snapback/owner.json").exists(),
+        "stop must remove owner.json before replying"
+    );
     owner.wait();
     assert!(!root.join(".snapback/owner.json").exists());
     assert!(
@@ -327,6 +356,19 @@ fn serve_refuses_personas_before_every_route_dispatch() {
     );
     assert_eq!(response.status, 403, "{}", response.body);
     assert_eq!(response.body["code"], "E_AUTH_PERSONA_NOT_DEV");
+
+    let anonymous = request(
+        port,
+        "POST",
+        "/api/query",
+        &[],
+        json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+    );
+    assert_eq!(anonymous.status, 401, "{}", anonymous.body);
+    assert_eq!(
+        anonymous.body["rewrite"],
+        "send Authorization: Bearer <token>"
+    );
 
     let stopped = request(
         port,
@@ -440,6 +482,227 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
         assert!(String::from_utf8_lossy(&output.stderr).contains("nope"));
     }
     fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn detached_stop_removes_owner_state_and_waits_for_the_pid() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let started = Command::new(binary)
+        .args(["dev", "--project"])
+        .arg(&root)
+        .env("SNAPBACK2_COMPILER", &compiler)
+        .output()
+        .unwrap();
+    assert!(
+        started.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&started.stdout),
+        String::from_utf8_lossy(&started.stderr)
+    );
+    let owner: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let pid = owner["pid"].as_u64().unwrap() as u32;
+    let mut guard = DetachedOwnerGuard { pid };
+
+    let stop_started = Instant::now();
+    let stopped = Command::new(binary)
+        .args(["dev", "--project"])
+        .arg(&root)
+        .args(["--stop", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        stopped.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&stopped.stdout),
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    assert!(stop_started.elapsed() <= Duration::from_millis(2200));
+    assert!(!root.join(".snapback/owner.json").exists());
+    assert!(
+        !process_alive(pid),
+        "stop returned while pid {pid} was live"
+    );
+    guard.pid = 0;
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn status_removes_dead_and_unreachable_owner_files_with_an_explicit_refusal() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    fs::create_dir_all(root.join(".snapback")).unwrap();
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let unreachable_port = listener.local_addr().unwrap().port();
+    drop(listener);
+
+    for (pid, port) in [
+        (2_000_000_000_u32, 9_u16),
+        (std::process::id(), unreachable_port),
+    ] {
+        fs::write(
+            root.join(".snapback/owner.json"),
+            serde_json::to_vec(&json!({
+                "pid": pid,
+                "port": port,
+                "url": format!("http://127.0.0.1:{port}"),
+                "secret": "stale",
+                "generation": "stale",
+                "startedAt": 0,
+                "mode": "dev",
+                "project": root,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let output = Command::new(binary)
+            .args(["dev", "--project"])
+            .arg(&root)
+            .args(["--status", "--json"])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let refusal: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(refusal["code"], "E_OWNER_NOT_RUNNING");
+        assert!(
+            refusal["message"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("stale owner.json removed"),
+            "{refusal}"
+        );
+        assert!(!root.join(".snapback/owner.json").exists());
+    }
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn doctor_accepts_a_correct_slow_compiler_and_reports_its_latency() {
+    let root = temp_root();
+    let worker = write_worker(
+        &root,
+        "slow-compiler.mjs",
+        r#"import { createInterface } from "node:readline";
+for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+  const request = JSON.parse(line);
+  await new Promise((resolve) => setTimeout(resolve, 550));
+  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\n");
+}
+"#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["doctor", "--json"])
+        .env("SNAPBACK2_COMPILER", worker)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["compiler"]["answered"], true);
+    assert!(report["compiler"]["ms"].as_f64().unwrap() >= 500.0);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn dev_start_and_control_apply_preserve_every_refusal() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let refusing = write_worker(
+        &root,
+        "refusing-compiler.mjs",
+        r#"import { createInterface } from "node:readline";
+const diagnostic = (code) => ({ code, family: "op", message: code, site: "snapback/broken.ts:1:1", rewrite: "fix it", guide: "op/compiler" });
+for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
+  const request = JSON.parse(line);
+  process.stdout.write(JSON.stringify({ id: request.id, ok: false, diagnostics: [diagnostic("E_FIRST"), diagnostic("E_SECOND")] }) + "\n");
+}
+"#,
+    );
+    let refused = Command::new(env!("CARGO_BIN_EXE_snapback2"))
+        .args(["dev", "--project"])
+        .arg(&root)
+        .arg("--json")
+        .env("SNAPBACK2_COMPILER", refusing)
+        .output()
+        .unwrap();
+    assert_eq!(refused.status.code(), Some(1));
+    let output = String::from_utf8_lossy(&refused.stdout);
+    assert!(output.contains("E_FIRST"), "{output}");
+    assert!(output.contains("E_SECOND"), "{output}");
+
+    let compiler = compiler();
+    let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+    let mut project: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    let duplicate = project["programs"][0].clone();
+    project["programs"]
+        .as_array_mut()
+        .unwrap()
+        .push(duplicate.clone());
+    project["programs"].as_array_mut().unwrap().push(duplicate);
+    let applied = request(
+        port,
+        "POST",
+        "/control/apply",
+        &[("X-Snapback-Control", secret)],
+        json!({ "project": project }),
+    );
+    assert_eq!(applied.status, 400, "{}", applied.body);
+    assert!(
+        applied.body["refusals"]
+            .as_array()
+            .is_some_and(|items| items.len() >= 2),
+        "{}",
+        applied.body
+    );
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", secret)],
+        json!({ "cause": "multi-refusal test" }),
+    );
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    owner.wait();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn measure_regression_self_test_covers_failed_step_scoring_and_summary() {
+    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/measure.mjs");
+    let output = Command::new("node")
+        .arg(script)
+        .arg("--self-test")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("measure self-test ok"));
 }
 
 struct Response {
@@ -614,6 +877,32 @@ impl Drop for ChildGuard {
     }
 }
 
+#[cfg(unix)]
+struct DetachedOwnerGuard {
+    pid: u32,
+}
+
+#[cfg(unix)]
+impl Drop for DetachedOwnerGuard {
+    fn drop(&mut self) {
+        if self.pid != 0 && process_alive(self.pid) {
+            let _ = Command::new("kill").arg(self.pid.to_string()).status();
+        }
+    }
+}
+
+#[cfg(unix)]
+fn process_alive(pid: u32) -> bool {
+    if pid == 0 || pid > i32::MAX as u32 {
+        return false;
+    }
+    unsafe extern "C" {
+        fn kill(pid: i32, signal: i32) -> i32;
+    }
+    // SAFETY: signal 0 performs a liveness check and does not deliver a signal.
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
 fn wait_for<T>(timeout: Duration, mut check: impl FnMut() -> Option<T>) -> T {
     let started = Instant::now();
     while started.elapsed() < timeout {
@@ -633,10 +922,18 @@ fn compiler() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback2/dist/compiler.mjs")
 }
 
+fn write_worker(root: &Path, name: &str, source: &str) -> PathBuf {
+    let path = root.join(name);
+    fs::write(&path, source).unwrap();
+    path
+}
+
 fn temp_root() -> PathBuf {
+    static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
     let path = std::env::temp_dir().join(format!(
-        "snapback2-owner-test-{}-{}",
+        "snapback2-owner-test-{}-{}-{}",
         std::process::id(),
+        NEXT_ROOT.fetch_add(1, Ordering::Relaxed),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
