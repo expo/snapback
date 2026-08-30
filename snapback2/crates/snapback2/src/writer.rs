@@ -4,7 +4,7 @@
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
-use crate::writer_wire::{execution_json, live_frame};
+use crate::writer_wire::{channel_refusal_frame, execution_json, live_frame};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
@@ -791,10 +791,13 @@ impl State {
             .channel_admit(&name, ChannelSide::Publish, &args, &context)
             .map_err(|error| Refusal::from_runtime(&error))?;
         if !verdict.admitted {
-            return Ok(json!({
-                "state": "refused",
-                "code": "E_RULE_CHANNEL_PUBLISH",
-            }));
+            return Ok(channel_refusal_frame(Refusal::new(
+                "E_RULE_CHANNEL_PUBLISH",
+                "rule",
+                format!("principal is not admitted to publish on channel {name}"),
+                "use channel arguments and a principal admitted by the publish rule",
+                "rule/channels",
+            )));
         }
         let at = self.now();
         let seq = self
@@ -911,13 +914,24 @@ impl State {
                     }
                 }
                 result => {
-                    let code = result
+                    let refusal = result
                         .err()
-                        .map(|error| error.code().to_owned())
-                        .unwrap_or_else(|| "E_RULE_CHANNEL_SUBSCRIBE".to_owned());
+                        .map(|error| Refusal::from_runtime(&error))
+                        .unwrap_or_else(|| {
+                            Refusal::new(
+                                "E_RULE_CHANNEL_SUBSCRIBE",
+                                "rule",
+                                format!(
+                                    "principal is no longer admitted to channel {}",
+                                    client.name
+                                ),
+                                "restore channel membership before subscribing again",
+                                "rule/channels",
+                            )
+                        });
                     let _ = client.events.send(SseEvent {
                         seq: Some(commit.seq),
-                        data: json!({ "state": "refused", "code": code }),
+                        data: channel_refusal_frame(refusal),
                         terminal: true,
                     });
                     self.channels.remove(&id);
@@ -1182,7 +1196,6 @@ impl State {
             "ops": ops,
             "channels": self.runtime().generation().schema.channels,
             "auth": self.runtime().generation().schema.auth,
-            "tables": self.runtime().generation().schema.tables.keys().collect::<Vec<_>>(),
         })
     }
 
