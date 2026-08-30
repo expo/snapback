@@ -1425,6 +1425,8 @@ name = "snapback2-effects"
 version = "0.0.1"
 dependencies = [
  "ibex2",
+ "serde_json",
+ "snapback2-core",
  "thiserror",
 ]
 

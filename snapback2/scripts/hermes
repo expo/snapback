@@ -19,4 +19,6 @@ if [ ! -x "$IBEX2_HERMESC" ]; then
   echo "  build it with expo/ibex ./scripts/build-hermes.sh --vanilla, or set IBEX2_HERMESC" >&2
   exit 2
 fi
-exec cargo "${1:-build}" -p snapback2 --features hermes "${@:2}"
+command="${1:-build}"
+if [ "$#" -gt 0 ]; then shift; fi
+exec cargo "$command" --features hermes "$@"
