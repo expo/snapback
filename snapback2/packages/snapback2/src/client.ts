@@ -1,6 +1,7 @@
 import { api, referenceName, type Api, type ApiProxy, type Channel as ChannelRef, type Op } from "./api.js";
 import { ReconnectingSse } from "./sse.js";
 import type {
+  AuthTokenStore,
   AuthSession,
   AuthMe,
   ChannelDelivery,
@@ -272,16 +273,47 @@ function sseObject(data: string, surface: string): Record<string, unknown> {
   }
 }
 
+/** Adapts explicitly supplied browser storage; the client never selects storage itself. */
+export function browserTokenStore(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem">,
+  key = "snapback2.auth.token",
+): AuthTokenStore {
+  if (!storage || typeof storage.getItem !== "function"
+    || typeof storage.setItem !== "function" || typeof storage.removeItem !== "function") {
+    throw new TypeError("browserTokenStore requires an explicit Storage implementation");
+  }
+  if (!key) throw new TypeError("browserTokenStore requires a non-empty key");
+  return {
+    load: () => storage.getItem(key),
+    save: (token) => {
+      if (token === null) storage.removeItem(key);
+      else storage.setItem(key, token);
+    },
+  };
+}
+
+interface Authority {
+  authGeneration: number;
+  fence: number;
+  token?: string;
+}
+
+// @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — auth custody is restored explicitly and every principal transition fences old in-memory work.
 class Client implements SnapbackClient {
   readonly auth;
+  readonly ready: Promise<void>;
   private readonly url: string;
   private readonly fetchImpl: typeof globalThis.fetch;
-  private readonly persist;
+  private readonly tokenStore?: AuthTokenStore;
   private readonly persona?: string;
   private currentToken?: string;
+  private authGeneration = 0;
+  private operationFence = 0;
+  private transitionTail: Promise<void> = Promise.resolve();
   private currentSnapshot: ClientSnapshot;
   private readonly statusListeners = new Set<(snapshot: ClientSnapshot) => void>();
   private readonly subscriptions = new Set<Subscription<unknown>>();
+  private readonly writes = new Set<Promise<unknown>>();
   private closed = false;
 
   constructor(options: CreateClientOptions) {
@@ -289,11 +321,10 @@ class Client implements SnapbackClient {
     this.url = options.url.replace(/\/+$/, "");
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     if (typeof this.fetchImpl !== "function") throw new TypeError("createClient requires a fetch implementation");
-    this.persist = options.persist;
+    this.tokenStore = options.tokenStore;
     this.persona = options.as;
-    this.currentToken = options.token;
     this.currentSnapshot = {
-      token: options.token,
+      authGeneration: 0,
       persona: options.as,
       connection: "reconnecting",
     };
@@ -301,18 +332,10 @@ class Client implements SnapbackClient {
       signup: (input: { email: string; password: string }) => this.session("/api/auth/signup", input),
       login: (input: { email: string; password: string }) => this.session("/api/auth/login", input),
       guest: () => this.session("/api/auth/guest", {}),
-      logout: async () => {
-        const result = wireLogout(await this.json("/api/auth/logout", { method: "POST" }));
-        this.validated();
-        await this.setToken(undefined);
-        return result;
-      },
-      me: async () => {
-        const result = wireAuthMe(await this.json("/api/auth/me"));
-        this.validated();
-        return result;
-      },
+      logout: () => this.logout(),
+      me: () => this.me(),
     };
+    this.ready = this.hydrate(options.token);
   }
 
   get snapshot(): ClientSnapshot {
@@ -320,14 +343,15 @@ class Client implements SnapbackClient {
   }
 
   async query<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<QueryResult<Result>> {
+    const authority = await this.operationAuthority();
     let backoff = 50;
     for (let attempt = 1; ; attempt += 1) {
       try {
         const result = wireQuery<Result>(await this.json("/api/query", {
           method: "POST",
           body: JSON.stringify({ op: referenceName(ref), args }),
-        }));
-        this.validated();
+        }, authority));
+        this.validated(authority);
         return result;
       } catch (error) {
         if (!isSnapbackRefusal(error)
@@ -335,18 +359,27 @@ class Client implements SnapbackClient {
           || !error.retryable
           || attempt >= 3) throw error;
         await new Promise<void>((resolve) => setTimeout(resolve, backoff));
+        this.ensureAuthority(authority);
         backoff *= 2;
       }
     }
   }
 
   async mutation<Args, Result>(ref: Op<Args, Result>, args: Args): Promise<MutationResult<Result>> {
-    const result = wireMutation<Result>(await this.json("/api/mutation", {
-      method: "POST",
-      body: JSON.stringify({ op: referenceName(ref), args }),
-    }));
-    this.validated();
-    return result;
+    const authority = await this.operationAuthority();
+    return this.trackWrite(async () => {
+      const result = wireMutation<Result>(await this.json("/api/mutation", {
+        method: "POST",
+        body: JSON.stringify({ op: referenceName(ref), args }),
+      }, authority));
+      if (result.state === "rejected" && result.code === "E_AUTH_SESSION") {
+        await this.expireSession(authority);
+        this.recordRefusal(result);
+        return result;
+      }
+      this.validated(authority);
+      return result;
+    });
   }
 
   subscribe<Args, Result>(
@@ -356,10 +389,19 @@ class Client implements SnapbackClient {
   ): Subscription<SubscriptionDelivery<Result>> {
     const path = `/api/subscribe?op=${encodeURIComponent(referenceName(ref))}&args=${encodeURIComponent(JSON.stringify(args))}`;
     let lastPair: { seq: number; data?: Result } | undefined;
-    const subscription = new ReconnectingSse<SubscriptionDelivery<Result>>({
-      open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
+    let authority: Authority | undefined;
+    let subscription: Subscription<SubscriptionDelivery<Result>>;
+    subscription = new ReconnectingSse<SubscriptionDelivery<Result>>({
+      open: async (lastEventId, signal) => {
+        authority ??= await this.operationAuthority();
+        return this.stream(path, lastEventId, signal, authority);
+      },
       decode: ({ data }) => {
         const value = wireSubscription<Result>(data);
+        if (value.state === "refused" && value.code === "E_AUTH_SESSION") {
+          throw new SnapbackRefusal(copyRefusal(value));
+        }
+        this.ensureAuthority(authority);
         if (value.state === "refused") {
           lastPair = undefined;
         } else {
@@ -371,8 +413,8 @@ class Client implements SnapbackClient {
         });
         return value;
       },
-      onError: (error) => {
-        const { retry, event, refusal } = this.subscriptionError(error);
+      onError: async (error) => {
+        const { retry, event, refusal } = await this.subscriptionError(error, authority, subscription);
         return {
           retry,
           event: event === undefined ? undefined : { ...event, live: false as const },
@@ -380,6 +422,7 @@ class Client implements SnapbackClient {
         };
       },
       onLoss: () => {
+        if (!this.authorityCurrent(authority)) return undefined;
         this.patchSnapshot({ connection: this.transportFailureState() });
         if (!lastPair) return undefined;
         return "data" in lastPair
@@ -399,19 +442,36 @@ class Client implements SnapbackClient {
     const name = encodeURIComponent(path.startsWith("channels.") ? path.slice("channels.".length) : path);
     return {
       publish: async (payload: Payload) => {
-        const result = wireChannelPublish(await this.json(`/api/channel/${name}/publish`, {
-          method: "POST",
-          body: JSON.stringify({ args, payload }),
-        }));
-        this.validated();
-        return result;
+        const authority = await this.operationAuthority();
+        return this.trackWrite(async () => {
+          const result = wireChannelPublish(await this.json(`/api/channel/${name}/publish`, {
+            method: "POST",
+            body: JSON.stringify({ args, payload }),
+          }, authority));
+          if ("state" in result) {
+            if (result.code === "E_AUTH_SESSION") await this.expireSession(authority);
+            this.recordRefusal(result);
+          } else {
+            this.validated(authority);
+          }
+          return result;
+        });
       },
       subscribe: (callback: (event: ChannelDelivery<Payload>) => void) => {
         const path = `/api/channel/${name}/subscribe?args=${encodeURIComponent(JSON.stringify(args))}`;
-        const subscription = new ReconnectingSse<ChannelDelivery<Payload>>({
-          open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
+        let authority: Authority | undefined;
+        let subscription: Subscription<ChannelDelivery<Payload>>;
+        subscription = new ReconnectingSse<ChannelDelivery<Payload>>({
+          open: async (lastEventId, signal) => {
+            authority ??= await this.operationAuthority();
+            return this.stream(path, lastEventId, signal, authority);
+          },
           decode: ({ data }) => {
             const value = wireChannelDelivery<Payload>(data);
+            if ("state" in value && value.state === "refused" && value.code === "E_AUTH_SESSION") {
+              throw new SnapbackRefusal(copyRefusal(value));
+            }
+            this.ensureAuthority(authority);
             this.patchSnapshot({
               connection: "connected",
               lastRefusal: "state" in value && value.state === "refused"
@@ -420,11 +480,12 @@ class Client implements SnapbackClient {
             });
             return value;
           },
-          onError: (error) => {
-            const decision = this.subscriptionError(error);
+          onError: async (error) => {
+            const decision = await this.subscriptionError(error, authority, subscription);
             return { retry: decision.retry, event: decision.event, failure: decision.refusal };
           },
           onLoss: () => {
+            if (!this.authorityCurrent(authority)) return undefined;
             this.patchSnapshot({ connection: this.transportFailureState() });
             return undefined;
           },
@@ -439,8 +500,9 @@ class Client implements SnapbackClient {
   }
 
   async manifest(): Promise<Manifest> {
-    const value = wireManifest(await this.json("/api/manifest"));
-    this.validated();
+    const authority = await this.operationAuthority();
+    const value = wireManifest(await this.json("/api/manifest", {}, authority));
+    this.validated(authority);
     this.patchSnapshot({ generation: value.generation });
     return value;
   }
@@ -454,8 +516,8 @@ class Client implements SnapbackClient {
   close(): void {
     if (this.closed) return;
     this.closed = true;
-    for (const subscription of this.subscriptions) subscription.close();
-    this.subscriptions.clear();
+    this.operationFence += 1;
+    this.closeTransports();
     this.patchSnapshot({ connection: "offline" });
   }
 
@@ -470,38 +532,94 @@ class Client implements SnapbackClient {
   }
 
   private async session(path: string, input: unknown): Promise<AuthSession> {
-    const session = wireAuthSession(
-      await this.json(path, { method: "POST", body: JSON.stringify(input) }),
-      `${path.slice("/api/".length)} response`,
-    );
-    this.validated();
-    await this.setToken(session.token);
-    return session;
+    return this.transition(async (authority) => {
+      const session = wireAuthSession(
+        await this.json(path, { method: "POST", body: JSON.stringify(input) }, authority, false, false),
+        `${path.slice("/api/".length)} response`,
+      );
+      await this.saveToken(session.token);
+      this.currentToken = session.token;
+      this.validated(undefined);
+      return session;
+    });
   }
 
-  private async setToken(token: string | undefined): Promise<void> {
+  private async logout(): Promise<{ ok: boolean }> {
+    return this.transition(async (authority) => {
+      let result: { ok: boolean } | undefined;
+      let requestFailure: unknown;
+      try {
+        result = wireLogout(await this.json(
+          "/api/auth/logout",
+          { method: "POST" },
+          authority,
+          false,
+          false,
+        ));
+      } catch (error) {
+        requestFailure = error;
+      }
+      await this.clearToken();
+      if (requestFailure !== undefined) throw requestFailure;
+      this.validated(undefined);
+      return result as { ok: boolean };
+    });
+  }
+
+  private async me(): Promise<AuthMe> {
+    const authority = await this.operationAuthority();
+    const result = wireAuthMe(await this.json("/api/auth/me", {}, authority));
+    this.validated(authority);
+    return result;
+  }
+
+  private async hydrate(explicitToken: string | undefined): Promise<void> {
+    let token = explicitToken;
+    if (token === undefined && this.tokenStore) {
+      try {
+        token = (await this.tokenStore.load()) ?? undefined;
+      } catch (error) {
+        throw this.storageRefusal("load", error);
+      }
+    } else if (token !== undefined) {
+      await this.saveToken(token);
+    }
+    if (token !== undefined && (typeof token !== "string" || token.length === 0)) {
+      throw this.storageRefusal("load", new TypeError("stored token must be a non-empty string or null"));
+    }
+    if (this.closed) return;
     this.currentToken = token;
-    this.patchSnapshot({ token });
-    await this.persist?.(token ?? null);
+    this.authGeneration += 1;
+    this.publishAuthSnapshot();
   }
 
-  private headers(stream = false, hasBody = false): Headers {
+  private headers(authority: Authority, stream = false, hasBody = false): Headers {
     const headers = new Headers();
     headers.set("Accept", stream ? "text/event-stream" : "application/json");
     if (hasBody) headers.set("Content-Type", "application/json");
-    if (this.currentToken) headers.set("Authorization", `Bearer ${this.currentToken}`);
+    if (authority.token) headers.set("Authorization", `Bearer ${authority.token}`);
     if (this.persona) headers.set("X-Snapback-As", this.persona);
     return headers;
   }
 
-  private async json(path: string, init: RequestInit = {}): Promise<unknown> {
+  private async json(
+    path: string,
+    init: RequestInit,
+    authority: Authority,
+    enforceAuthority = true,
+    clearTerminalSession = true,
+  ): Promise<unknown> {
+    if (enforceAuthority) this.ensureAuthority(authority);
+    else this.ensureOpen();
     let response: Response;
     try {
       response = await this.fetchImpl(`${this.url}${path}`, {
         ...init,
-        headers: this.headers(false, init.body !== undefined && init.body !== null),
+        headers: this.headers(authority, false, init.body !== undefined && init.body !== null),
       });
     } catch (error) {
+      if (enforceAuthority) this.ensureAuthority(authority);
+      else this.ensureOpen();
       const refusal = new SnapbackRefusal(
         fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
         true,
@@ -509,12 +627,20 @@ class Client implements SnapbackClient {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
+    if (enforceAuthority) this.ensureAuthority(authority);
+    else this.ensureOpen();
     if (!response.ok) {
       if (response.status >= 400 && response.status < 500) {
         try {
           const refusal = await responseRefusal(response);
+          if (enforceAuthority) this.ensureAuthority(authority);
+          else this.ensureOpen();
           this.patchSnapshot({ connection: "connected" });
           this.recordRefusal(refusal.envelope);
+          if (clearTerminalSession && refusal.code === "E_AUTH_SESSION") {
+            await this.expireSession(authority);
+            this.recordRefusal(refusal.envelope);
+          }
           throw refusal;
         } catch (error) {
           if (isSnapbackRefusal(error)) {
@@ -532,22 +658,32 @@ class Client implements SnapbackClient {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       throw refusal;
     }
+    let value: unknown;
     try {
-      const value = await response.json();
-      this.patchSnapshot({ connection: "connected" });
-      return value;
+      value = await response.json();
     } catch {
       const refusal = wireShape(`${path} must contain valid JSON`);
       this.recordRefusal(refusal.envelope);
       throw refusal;
     }
+    if (enforceAuthority) this.ensureAuthority(authority);
+    else this.ensureOpen();
+    this.patchSnapshot({ connection: "connected" });
+    return value;
   }
 
-  private async stream(path: string, lastEventId: string | undefined, signal: AbortSignal): Promise<Response> {
-    const headers = this.headers(true);
+  private async stream(
+    path: string,
+    lastEventId: string | undefined,
+    signal: AbortSignal,
+    authority: Authority,
+  ): Promise<Response> {
+    this.ensureAuthority(authority);
+    const headers = this.headers(authority, true);
     if (lastEventId !== undefined) headers.set("Last-Event-ID", lastEventId);
     try {
       const response = await this.fetchImpl(`${this.url}${path}`, { headers, signal });
+      this.ensureAuthority(authority);
       this.patchSnapshot({ connection: "connected" });
       if (!response.ok) {
         if (response.status >= 400 && response.status < 500) {
@@ -567,6 +703,7 @@ class Client implements SnapbackClient {
       }
       return response;
     } catch (error) {
+      if (!signal.aborted) this.ensureAuthority(authority);
       if (isSnapbackRefusal(error)) {
         this.patchSnapshot({
           connection: error.retryable ? this.transportFailureState() : "connected",
@@ -584,13 +721,40 @@ class Client implements SnapbackClient {
     }
   }
 
-  private subscriptionError(error: unknown): { event?: RefusedDelivery; retry: boolean; refusal?: SnapbackRefusal } {
+  private async subscriptionError(
+    error: unknown,
+    authority: Authority | undefined,
+    origin: Subscription<unknown>,
+  ): Promise<{ event?: RefusedDelivery; retry: boolean; refusal?: SnapbackRefusal }> {
     const refusal = isSnapbackRefusal(error)
       ? error
       : new SnapbackRefusal(
           fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),
           true,
         );
+    if (refusal.code === "E_AUTH_SUPERSEDED") {
+      return { retry: false, refusal };
+    }
+    if (refusal.code === "E_AUTH_SESSION" && authority !== undefined) {
+      try {
+        await this.expireSession(authority, origin);
+      } catch (error) {
+        const terminal = isSnapbackRefusal(error)
+          ? error
+          : new SnapbackRefusal({
+              code: "E_AUTH_TOKEN_STORE",
+              family: "auth",
+              message: `token store clear failed: ${error instanceof Error ? error.message : String(error)}`,
+              guide: "auth/session",
+            });
+        this.patchSnapshot({ connection: "connected", lastRefusal: terminal.envelope });
+        return {
+          retry: false,
+          refusal: terminal,
+          event: { state: "refused", ...terminal.envelope },
+        };
+      }
+    }
     if (refusal.retryable) {
       this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: refusal.envelope });
       return { retry: true };
@@ -603,8 +767,141 @@ class Client implements SnapbackClient {
     this.patchSnapshot({ lastRefusal: envelope });
   }
 
-  private validated(): void {
+  private validated(authority: Authority | undefined): void {
+    if (authority !== undefined) this.ensureAuthority(authority);
     this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
+  }
+
+  private async operationAuthority(): Promise<Authority> {
+    await this.ready;
+    while (true) {
+      const transition = this.transitionTail;
+      await transition;
+      if (transition === this.transitionTail) break;
+    }
+    this.ensureOpen();
+    return {
+      authGeneration: this.authGeneration,
+      fence: this.operationFence,
+      token: this.currentToken,
+    };
+  }
+
+  private transition<T>(
+    action: (authority: Authority) => Promise<T>,
+    waitForWrites = true,
+    except?: Subscription<unknown>,
+  ): Promise<T> {
+    this.operationFence += 1;
+    this.closeTransports(except);
+    const run = this.transitionTail.then(async () => {
+      await this.ready;
+      this.ensureOpen();
+      if (waitForWrites) await this.settleWrites();
+      const authority: Authority = {
+        authGeneration: this.authGeneration,
+        fence: this.operationFence,
+        token: this.currentToken,
+      };
+      try {
+        return await action(authority);
+      } finally {
+        this.authGeneration += 1;
+        this.publishAuthSnapshot();
+      }
+    });
+    this.transitionTail = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  private async expireSession(authority: Authority, origin?: Subscription<unknown>): Promise<void> {
+    if (!this.authorityCurrent(authority)) return;
+    await this.transition(async () => {
+      if (this.currentToken !== authority.token) return;
+      await this.clearToken();
+    }, false, origin);
+  }
+
+  private async saveToken(token: string): Promise<void> {
+    if (!this.tokenStore) return;
+    try {
+      await this.tokenStore.save(token);
+    } catch (error) {
+      throw this.storageRefusal("save", error);
+    }
+  }
+
+  private async clearToken(): Promise<void> {
+    let failure: SnapbackRefusal | undefined;
+    if (this.tokenStore) {
+      try {
+        await this.tokenStore.save(null);
+      } catch (error) {
+        failure = this.storageRefusal("clear", error);
+      }
+    }
+    this.currentToken = undefined;
+    if (failure) throw failure;
+  }
+
+  private storageRefusal(action: string, error: unknown): SnapbackRefusal {
+    return new SnapbackRefusal({
+      code: "E_AUTH_TOKEN_STORE",
+      family: "auth",
+      message: `token store ${action} failed: ${error instanceof Error ? error.message : String(error)}`,
+      guide: "auth/session",
+    });
+  }
+
+  private trackWrite<Result>(run: () => Promise<Result>): Promise<Result> {
+    const request = run();
+    this.writes.add(request as Promise<unknown>);
+    void request.finally(() => this.writes.delete(request as Promise<unknown>)).catch(() => undefined);
+    return request;
+  }
+
+  private async settleWrites(): Promise<void> {
+    while (this.writes.size > 0) await Promise.allSettled([...this.writes]);
+  }
+
+  private closeTransports(except?: Subscription<unknown>): void {
+    for (const subscription of [...this.subscriptions]) {
+      if (subscription !== except) subscription.close();
+    }
+  }
+
+  private authorityCurrent(authority: Authority | undefined): authority is Authority {
+    return authority !== undefined
+      && !this.closed
+      && authority.fence === this.operationFence
+      && authority.authGeneration === this.authGeneration
+      && authority.token === this.currentToken;
+  }
+
+  private ensureAuthority(authority: Authority | undefined): asserts authority is Authority {
+    if (!this.authorityCurrent(authority)) {
+      throw new SnapbackRefusal({
+        code: "E_AUTH_SUPERSEDED",
+        family: "auth",
+        message: "operation belonged to a previous authentication generation",
+        guide: "auth/session",
+      });
+    }
+  }
+
+  private ensureOpen(): void {
+    if (this.closed) {
+      throw new SnapbackRefusal({
+        code: "E_CLIENT_CLOSED",
+        family: "owner",
+        message: "client is closed",
+        guide: "owner/connect",
+      });
+    }
+  }
+
+  private publishAuthSnapshot(): void {
+    this.patchSnapshot({ authGeneration: this.authGeneration, token: this.currentToken });
   }
 
   private transportFailureState(): "reconnecting" | "offline" {

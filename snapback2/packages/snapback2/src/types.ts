@@ -113,6 +113,8 @@ export interface Manifest {
 
 export type ConnectionState = "connected" | "reconnecting" | "offline";
 export interface ClientSnapshot {
+  /** Client-local cache/transport partition; never a server bearer or epoch. */
+  authGeneration: number;
   token?: string;
   persona?: string;
   connection: ConnectionState;
@@ -120,17 +122,25 @@ export interface ClientSnapshot {
   lastRefusal?: RefusalEnvelope;
 }
 
-export type PersistToken = (token: string | null) => void | Promise<void>;
+export interface AuthTokenStore {
+  /** Restores the bearer before `client.ready` settles. */
+  load(): string | null | undefined | Promise<string | null | undefined>;
+  /** Persists a bearer, or clears custody with `null`. */
+  save(token: string | null): void | Promise<void>;
+}
+
 export interface CreateClientOptions {
   url: string;
   token?: string;
+  tokenStore?: AuthTokenStore;
   as?: string;
   fetch?: typeof globalThis.fetch;
-  persist?: PersistToken;
 }
 
 export interface SnapbackClient {
   readonly auth: AuthApi;
+  /** Settles only after explicit token restoration and any initial persistence. */
+  readonly ready: Promise<void>;
   readonly snapshot: ClientSnapshot;
   query<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<QueryResult<Result>>;
   mutation<Args, Result>(ref: Op<Args, Result>, args: NoInfer<Args>): Promise<MutationResult<Result>>;

@@ -391,7 +391,12 @@ test("api proxy preserves operations named like proxy metadata", async () => {
 
 test("guest, signup, login, logout, me, token memory, and persistence", async () => {
   const persisted: Array<string | null> = [];
-  const guestClient = client({ persist: (token: string | null) => persisted.push(token) });
+  const guestClient = client({
+    tokenStore: {
+      load: () => null,
+      save: (token: string | null) => { persisted.push(token); },
+    },
+  });
   const guest = await guestClient.auth.guest();
   assert.ok(guest.token.length > 0);
   assert.equal((await guestClient.auth.me()).kind, "guest");

@@ -14,8 +14,13 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     const sample = join(root, "sample.ts");
     const apiDts = join(root, "api.d.ts");
     await writeFile(sample, `
-      import { api, createClient, type QueryView } from "snapback2/client";
-      const client = createClient({ url: "http://127.0.0.1:3210" });
+      import { api, browserTokenStore, createClient, type AuthTokenStore, type QueryView } from "snapback2/client";
+      const tokenStore: AuthTokenStore = { load: () => null, save: (_token) => undefined };
+      const client = createClient({ url: "http://127.0.0.1:3210", tokenStore });
+      const ready: Promise<void> = client.ready;
+      const authGeneration: number = client.snapshot.authGeneration;
+      const browserStore: AuthTokenStore = browserTokenStore(localStorage);
+      void ready; void authGeneration; void browserStore;
       declare const view: QueryView<string[]>;
       const isLive: boolean = view.live;
       void isLive;
@@ -33,6 +38,7 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
       client.query(api.mesages.typo, {});
       client.query(api.messages.thread, { conversationId: "general", extra: true });
       client.channel(api.typing, { bogus: true });
+      createClient({ url: "http://127.0.0.1:3210", persist: (_token: string | null) => undefined });
     `);
     await writeFile(apiDts, `
       import type { Channel, Op } from "snapback2/client";
@@ -64,11 +70,12 @@ test("generated Api rejects typos, extra query args, and wrong channel args", as
     });
     const diagnostics = ts.getPreEmitDiagnostics(program).filter((item) => item.file?.fileName === sample);
     const rendered = diagnostics.map((item) => ts.flattenDiagnosticMessageText(item.messageText, "\n"));
-    assert.equal(diagnostics.length, 4, `expected four sample diagnostics:\n${rendered.join("\n")}`);
+    assert.equal(diagnostics.length, 5, `expected five sample diagnostics:\n${rendered.join("\n")}`);
     assert.ok(rendered.some((message) => message.includes("live") && message.includes("no overlap")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("mesages") && message.includes("does not exist")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("extra") && message.includes("known properties")), rendered.join("\n"));
     assert.ok(rendered.some((message) => message.includes("bogus") && message.includes("known properties")), rendered.join("\n"));
+    assert.ok(rendered.some((message) => message.includes("persist") && message.includes("known properties")), rendered.join("\n"));
     context.diagnostic(diagnostics.map((item, index) => `TS${item.code}: ${rendered[index]}`).join("\n"));
   } finally {
     await rm(root, { recursive: true, force: true });

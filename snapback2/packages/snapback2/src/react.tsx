@@ -16,6 +16,7 @@ import {
   stableSerialize,
   type AuthMe,
   type AuthSession,
+  type AuthTokenStore,
   type ChannelHandle,
   type ClientSnapshot,
   type ConnectionState,
@@ -42,13 +43,17 @@ export interface SnapbackProviderProps {
   url: string;
   as?: string;
   token?: string;
+  tokenStore?: AuthTokenStore;
   fetch?: typeof globalThis.fetch;
   children: ReactNode;
 }
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
-export function SnapbackProvider({ url, as, token, fetch, children }: SnapbackProviderProps): React.ReactElement {
-  const client = useMemo(() => createClient({ url, as, token, fetch }), [url, as, token, fetch]);
+export function SnapbackProvider({ url, as, token, tokenStore, fetch, children }: SnapbackProviderProps): React.ReactElement {
+  const client = useMemo(
+    () => createClient({ url, as, token, tokenStore, fetch }),
+    [url, as, token, tokenStore, fetch],
+  );
   const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);
 
   useEffect(() => {
@@ -88,7 +93,10 @@ export function useQuery<Args, Result>(
   const stableArgs = useMemo(() => args, [argsKey]);
   const live = options.live !== false;
   const operation = referenceName(ref);
-  const identity = useMemo(() => ({ client, key: `${operation}:${argsKey}:${live}` }), [client, operation, argsKey, live]);
+  const identity = useMemo(
+    () => ({ client, key: `${snapshot.authGeneration}:${operation}:${argsKey}:${live}` }),
+    [client, snapshot.authGeneration, operation, argsKey, live],
+  );
   const [machine, dispatch] = useReducer(
     (
       current: { identity: typeof identity; view: QueryView<Result> },
@@ -125,6 +133,7 @@ export function useQuery<Args, Result>(
           return;
         } catch (error) {
           if (!active) return;
+          if (isSnapbackRefusal(error) && error.code === "E_AUTH_SUPERSEDED") return;
           if (isSnapbackRefusal(error) && error.retryable) {
             await new Promise<void>((resolve) => { timer = setTimeout(resolve, backoff); });
             backoff = Math.min(backoff * 2, 5_000);
@@ -162,27 +171,47 @@ export interface UseMutationResult<Args, Result> {
 }
 
 export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationResult<Args, Result> {
-  const { client } = provider();
-  const [last, setLast] = useState<MutationResult<Result>>();
-  const [transport, setTransport] = useState<SnapbackRefusal>();
-  const [pendingCount, setPendingCount] = useState(0);
+  const { client, snapshot } = provider();
+  const [machine, setMachine] = useState<{
+    generation: number;
+    pending: number;
+    last?: MutationResult<Result>;
+    transport?: SnapbackRefusal;
+  }>({ generation: snapshot.authGeneration, pending: 0 });
+  const visible = machine.generation === snapshot.authGeneration
+    ? machine
+    : { generation: snapshot.authGeneration, pending: 0 };
   const run = useCallback(async (args: Args) => {
-    setPendingCount((value) => value + 1);
+    const startedGeneration = client.snapshot.authGeneration;
+    setMachine((current) => current.generation === startedGeneration
+      ? { ...current, pending: current.pending + 1 }
+      : { generation: startedGeneration, pending: 1 });
     try {
       const result = await client.mutation(ref, args);
-      setLast(result);
-      setTransport(undefined);
+      const generation = client.snapshot.authGeneration;
+      setMachine((current) => ({
+        generation,
+        pending: current.generation === generation ? current.pending : 0,
+        last: result,
+      }));
       return result;
     } catch (error) {
-      if (isSnapbackRefusal(error) && error.retryable) setTransport(error);
+      if (isSnapbackRefusal(error) && error.retryable) {
+        const generation = client.snapshot.authGeneration;
+        setMachine((current) => current.generation === generation
+          ? { ...current, transport: error }
+          : { generation, pending: 0, transport: error });
+      }
       throw error;
     } finally {
-      setPendingCount((value) => value - 1);
+      setMachine((current) => current.generation === startedGeneration
+        ? { ...current, pending: Math.max(0, current.pending - 1) }
+        : current);
     }
   }, [client, referenceName(ref)]);
   return useMemo(
-    () => ({ run, pending: pendingCount > 0, last, transport }),
-    [run, pendingCount, last, transport],
+    () => ({ run, pending: visible.pending > 0, last: visible.last, transport: visible.transport }),
+    [run, visible.pending, visible.last, visible.transport],
   );
 }
 
@@ -202,35 +231,43 @@ export interface UseAuthResult {
 
 export function useAuth(): UseAuthResult {
   const { client, snapshot } = provider();
-  const [state, setState] = useState<Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">>({
-    state: "hydrating",
-    token: snapshot.token,
+  type AuthState = Omit<UseAuthResult, "signup" | "login" | "guest" | "logout" | "me">;
+  const [machine, setMachine] = useState<{ generation: number; value: AuthState }>({
+    generation: snapshot.authGeneration,
+    value: { state: "hydrating", token: snapshot.token },
   });
+  const state = machine.generation === snapshot.authGeneration
+    ? machine.value
+    : { state: "hydrating" as const, token: snapshot.token };
   const me = useCallback(async () => {
+    const generation = snapshot.authGeneration;
     try {
       const value = await client.auth.me();
-      setState({ state: "authenticated", ...value, token: client.snapshot.token });
+      if (client.snapshot.authGeneration === generation) {
+        setMachine({ generation, value: { state: "authenticated", ...value, token: client.snapshot.token } });
+      }
       return value;
     } catch (error) {
-      if (isSnapbackRefusal(error) && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED")) {
-        setState({ state: "anonymous", refusal: error.envelope });
-      } else {
-        const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
-        setState({ state: "refused", refusal, token: client.snapshot.token });
+      if (client.snapshot.authGeneration === generation) {
+        if (isSnapbackRefusal(error)
+          && (error.code === "E_AUTH" || error.code === "E_AUTH_REQUIRED" || error.code === "E_AUTH_SESSION")) {
+          setMachine({ generation, value: { state: "anonymous", refusal: error.envelope } });
+        } else if (!isSnapbackRefusal(error) || error.code !== "E_AUTH_SUPERSEDED") {
+          const refusal = isSnapbackRefusal(error) ? error.envelope : undefined;
+          setMachine({ generation, value: { state: "refused", refusal, token: client.snapshot.token } });
+        }
       }
       throw error;
     }
-  }, [client]);
+  }, [client, snapshot.authGeneration]);
 
   useEffect(() => {
     void me().catch(() => undefined);
-  }, [me, snapshot.token]);
+  }, [me]);
 
   const establish = useCallback(async (action: () => Promise<AuthSession>) => {
-    const session = await action();
-    await me();
-    return session;
-  }, [me]);
+    return action();
+  }, []);
 
   return {
     ...state,
@@ -240,7 +277,8 @@ export function useAuth(): UseAuthResult {
     guest: () => establish(() => client.auth.guest()),
     logout: async () => {
       const result = await client.auth.logout();
-      setState({ state: "anonymous" });
+      const generation = client.snapshot.authGeneration;
+      setMachine({ generation, value: { state: "anonymous" } });
       return result;
     },
     me,
@@ -248,9 +286,12 @@ export function useAuth(): UseAuthResult {
 }
 
 export function useChannel<Args, Payload = unknown>(ref: ChannelRef<Args, Payload>, args: NoInfer<Args>): ChannelHandle<Payload> {
-  const { client } = provider();
+  const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
-  return useMemo(() => client.channel<Args, Payload>(ref, args), [client, referenceName(ref), argsKey]);
+  return useMemo(
+    () => client.channel<Args, Payload>(ref, args),
+    [client, snapshot.authGeneration, referenceName(ref), argsKey],
+  );
 }
 
 export function DevOverlay(): React.ReactElement {
