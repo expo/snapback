@@ -1,7 +1,7 @@
 use snapback2_core::*;
 use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 fn temp_store(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
@@ -222,6 +222,43 @@ fn store_snapshot_reset_and_reserved_names_obey_the_contract() {
         Engine::memory(invalid),
         Err(RuntimeError::SchemaReserved(name)) if name == "_owned"
     ));
+    cleanup(&snapshot);
+}
+
+#[test]
+fn durable_store_has_one_owner_and_owner_can_snapshot() {
+    let path = temp_store("owner");
+    let snapshot = temp_store("owner-snapshot");
+    let mut first = Store::open(&path).unwrap();
+    first.set_meta("snapshot_marker", "present").unwrap();
+    let holder = first.meta("owner").unwrap().unwrap();
+    assert!(holder.starts_with(&format!("{}@", std::process::id())));
+    assert_eq!(holder.matches(':').count(), 1);
+
+    let started = Instant::now();
+    let error = match Store::open(&path) {
+        Ok(_) => panic!("a second store owner unexpectedly acquired the path"),
+        Err(error) => error,
+    };
+    assert!(started.elapsed() < Duration::from_secs(2));
+    assert!(matches!(
+        error,
+        RuntimeError::StoreOwned { holder: actual } if actual == holder
+    ));
+
+    first.snapshot_to(&snapshot).unwrap();
+    let snapshot_store = Store::open(&snapshot).unwrap();
+    assert_eq!(
+        snapshot_store.meta("snapshot_marker").unwrap().as_deref(),
+        Some("present")
+    );
+    drop(snapshot_store);
+    drop(first);
+
+    let reopened = Store::open(&path).unwrap();
+    assert!(reopened.meta("owner").unwrap().is_some());
+    drop(reopened);
+    cleanup(&path);
     cleanup(&snapshot);
 }
 

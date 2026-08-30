@@ -260,7 +260,7 @@ pub(crate) fn validate_row(
     }
     for (name, kind) in &table.columns {
         if !valid_column_value(kind, object.get(name)) {
-            return Err(RuntimeError::Schema(format!(
+            return Err(RuntimeError::Input(format!(
                 "{table_name}.{name} violates {kind:?}"
             )));
         }
@@ -282,9 +282,14 @@ fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {
         (ColumnType::Text { max }, Some(Value::String(text))) => {
             text.chars().count() <= *max as usize
         }
-        (ColumnType::Int | ColumnType::Time, Some(Value::Int(value))) => {
-            (I53_MIN..=I53_MAX).contains(value)
-        }
+        (ColumnType::Enum { variants }, Some(Value::String(value))) => variants.contains(value),
+        (
+            ColumnType::Int
+            | ColumnType::Time
+            | ColumnType::Decimal { .. }
+            | ColumnType::Money { .. },
+            Some(Value::Int(value)),
+        ) => (I53_MIN..=I53_MAX).contains(value),
         (ColumnType::Bool, Some(Value::Bool(_))) => true,
         (ColumnType::Json { max_bytes }, Some(value)) => {
             canonical_json(value).len() <= *max_bytes as usize

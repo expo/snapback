@@ -22,6 +22,10 @@ pub enum ProgramKind {
 pub enum ArgType {
     Scalar,
     List { max: u32 },
+    // @ref LLP 1001#9-schema-additions — typed scalar args preserve enum and fixed-scale checks.
+    Enum { variants: Vec<String> },
+    Decimal { scale: u8 },
+    Money { currency: String, scale: u8 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

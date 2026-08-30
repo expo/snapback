@@ -14,7 +14,7 @@ use crate::successor::{
     MigrationPlan, SuccessorRefusal, SuccessorReport, apply_additive, apply_migration_drops, plan,
     successor_refusal,
 };
-use crate::value::{Value, digest};
+use crate::value::{I53_MAX, I53_MIN, Value, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -491,7 +491,22 @@ impl Runtime {
                 ArgType::List { .. } => {
                     value.as_array()?;
                 }
-                ArgType::Scalar => {}
+                ArgType::Enum { variants } if !matches!(value, Value::String(value) if variants.contains(value)) =>
+                {
+                    return Err(RuntimeError::Input(format!(
+                        "channel {name} arg {arg} must be one of {variants:?}"
+                    )));
+                }
+                ArgType::Decimal { .. } | ArgType::Money { .. } if !matches!(value, Value::Int(value) if (I53_MIN..=I53_MAX).contains(value)) =>
+                {
+                    return Err(RuntimeError::Input(format!(
+                        "channel {name} arg {arg} must be an integer"
+                    )));
+                }
+                ArgType::Enum { .. }
+                | ArgType::Decimal { .. }
+                | ArgType::Money { .. }
+                | ArgType::Scalar => {}
             }
         }
         let rule = match side {
@@ -559,7 +574,7 @@ fn rejection_code(error: &RuntimeError) -> Option<&str> {
         RuntimeError::Rule { .. } => Some("rule"),
         RuntimeError::Constraint(_) => Some("E_CONSTRAINT"),
         error if is_sqlite_constraint(error) => Some("E_CONSTRAINT"),
-        RuntimeError::Input(_) => Some("input"),
+        RuntimeError::Input(_) => Some("E_INPUT"),
         RuntimeError::Steps(_) | RuntimeError::Fanout | RuntimeError::TraceSubset(_) => {
             Some("bound")
         }

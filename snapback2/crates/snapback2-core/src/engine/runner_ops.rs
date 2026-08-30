@@ -681,6 +681,15 @@ impl<'a> Runner<'a> {
                 )));
             }
         }
+        // @ref LLP 1001#2-what-a-commit-records — receipt absences stay inside the server trace.
+        // issues/20260829-bounded-programs-receipt-absences-unvalidated.md
+        for absence in &self.receipt.absences {
+            if !self.trace.absences.contains(absence) {
+                return Err(RuntimeError::TraceSubset(format!(
+                    "receipt absence {absence:?} absent from trace"
+                )));
+            }
+        }
         for verdict in &self.receipt.verdicts {
             if !self
                 .certificate
@@ -715,5 +724,48 @@ impl<'a> Runner<'a> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::certificate::{Ceilings, Checker};
+
+    #[test]
+    fn receipt_absence_missing_from_trace_is_rejected() {
+        let mut connection = Connection::open_in_memory().unwrap();
+        let transaction = connection.transaction().unwrap();
+        let schema = Schema::default();
+        let program = Program {
+            name: "absence-bound".to_owned(),
+            kind: ProgramKind::Query,
+            args: BTreeMap::new(),
+            read_time_granularity_ms: None,
+            body: vec![Stmt::Return(Expr::Literal(Value::Null))],
+        };
+        let certificate = Checker::new(&schema, Ceilings::default())
+            .check(&program)
+            .unwrap();
+        let verdicts = Vec::new();
+        let mut runner = Runner::new(
+            &transaction,
+            &schema,
+            &certificate,
+            Context::query("u1", BTreeMap::new()),
+            &verdicts,
+            0,
+        );
+        runner.receipt.absences.push((
+            "items".to_owned(),
+            "byId".to_owned(),
+            vec![Value::Id("missing".to_owned())],
+        ));
+
+        let error = runner.assert_bounds().unwrap_err();
+        assert!(error.to_string().starts_with("E_TRACE_SUBSET:"));
+        assert!(
+            matches!(error, RuntimeError::TraceSubset(message) if message.contains("receipt absence"))
+        );
     }
 }

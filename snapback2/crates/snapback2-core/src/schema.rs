@@ -47,6 +47,10 @@ pub enum ColumnType {
     Id,
     Text { max: u32 },
     Int,
+    // @ref LLP 1001#9-schema-additions — enum and fixed-scale columns keep scalar storage keys.
+    Enum { variants: Vec<String> },
+    Decimal { scale: u8 },
+    Money { currency: String, scale: u8 },
     Bool,
     Time,
     Ref { table: String },

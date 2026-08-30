@@ -215,6 +215,8 @@ pub enum RuntimeError {
     Steps(u64),
     #[error("E_INPUT: {0}")]
     Input(String),
+    #[error("E_STORE_OWNED: {holder}")]
+    StoreOwned { holder: String },
     #[error("E_TRACE_SUBSET: {0}")]
     TraceSubset(String),
     #[error("E_OP_UNKNOWN: {0}")]
@@ -286,6 +288,7 @@ impl Engine {
         certificate: &Certificate,
         context: Context,
     ) -> Result<Execution, RuntimeError> {
+        validate_inputs(program, &context.args)?;
         match self.execute_with_kind(program, certificate, context, None) {
             Ok(execution) => Ok(execution),
             Err(error) if program.kind == ProgramKind::Query => {
@@ -408,6 +411,47 @@ impl Engine {
         transaction.commit()?;
         Ok((result, trace))
     }
+}
+
+fn validate_inputs(
+    program: &Program,
+    inputs: &BTreeMap<String, Value>,
+) -> Result<(), RuntimeError> {
+    for (name, kind) in &program.args {
+        let value = inputs
+            .get(name)
+            .ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+        match kind {
+            ArgType::List { max } => match value {
+                Value::Array(values) if values.len() <= *max as usize => {}
+                Value::Array(_) => return Err(RuntimeError::Fanout),
+                _ => return Err(RuntimeError::Input(format!("arg {name} must be a list"))),
+            },
+            ArgType::Enum { variants } => match value {
+                Value::String(value) if variants.contains(value) => {}
+                Value::String(value) => {
+                    return Err(RuntimeError::Input(format!(
+                        "arg {name} value {value:?} is not in {variants:?}"
+                    )));
+                }
+                _ => {
+                    return Err(RuntimeError::Input(format!(
+                        "arg {name} must be an enum string"
+                    )));
+                }
+            },
+            ArgType::Decimal { .. } | ArgType::Money { .. } => match value {
+                Value::Int(value) if (I53_MIN..=I53_MAX).contains(value) => {}
+                _ => {
+                    return Err(RuntimeError::Input(format!(
+                        "arg {name} must be an i53 integer"
+                    )));
+                }
+            },
+            ArgType::Scalar => {}
+        }
+    }
+    Ok(())
 }
 
 fn query_state(receipt: &ClosureReceipt, certificate: &Certificate) -> ExecutionState {

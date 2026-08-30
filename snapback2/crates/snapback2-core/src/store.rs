@@ -4,9 +4,13 @@
 use crate::engine::RuntimeError;
 use crate::value::Value;
 use rusqlite::backup::Backup;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+#[cfg(unix)]
+use std::ffi::CStr;
+#[cfg(unix)]
+use std::os::raw::{c_char, c_int};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -41,20 +45,44 @@ pub struct Store {
 impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let connection = Connection::open(path)?;
-        connection.busy_timeout(Duration::from_secs(5))?;
-        connection.pragma_update(None, "foreign_keys", "OFF")?;
-        connection.pragma_update(None, "journal_mode", "WAL")?;
-        Self::initialize(connection)
+        let owner = owner_stamp();
+        let acquired = (|| -> rusqlite::Result<()> {
+            connection.busy_timeout(Duration::from_millis(500))?;
+            connection.pragma_update(None, "foreign_keys", "OFF")?;
+            connection.pragma_update(None, "journal_mode", "WAL")?;
+            connection.pragma_update(None, "locking_mode", "EXCLUSIVE")?;
+            connection.execute_batch("BEGIN IMMEDIATE")?;
+            Self::initialize_schema(&connection)?;
+            connection.execute(
+                "INSERT INTO _meta(key, value) VALUES ('owner', ?1)
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                [&owner],
+            )?;
+            connection.execute_batch("COMMIT")?;
+            // Keep the owner readable from the main database file even while
+            // EXCLUSIVE mode prevents a competing connection from reading WAL.
+            connection.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
+            connection.busy_timeout(Duration::from_secs(5))?;
+            Ok(())
+        })();
+        match acquired {
+            Ok(()) => Ok(Self { conn: connection }),
+            Err(error) if sqlite_is_locked(&error) => Err(RuntimeError::StoreOwned {
+                holder: persisted_owner(path).unwrap_or_else(|| "unknown".to_owned()),
+            }),
+            Err(error) => Err(error.into()),
+        }
     }
 
     pub fn memory() -> Result<Self, RuntimeError> {
         let connection = Connection::open_in_memory()?;
         connection.busy_timeout(Duration::from_secs(5))?;
         connection.pragma_update(None, "foreign_keys", "OFF")?;
-        Self::initialize(connection)
+        Self::initialize_schema(&connection)?;
+        Ok(Self { conn: connection })
     }
 
-    fn initialize(connection: Connection) -> Result<Self, RuntimeError> {
+    fn initialize_schema(connection: &Connection) -> rusqlite::Result<()> {
         connection.execute_batch(
             "CREATE TABLE IF NOT EXISTS rows (
                 table_name TEXT NOT NULL,
@@ -135,7 +163,7 @@ impl Store {
              VALUES ('system', 'system', 'system', ?1)",
             [now],
         )?;
-        Ok(Self { conn: connection })
+        Ok(())
     }
 
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
@@ -224,4 +252,73 @@ pub(crate) fn unix_millis() -> i64 {
         .unwrap_or_default()
         .as_millis()
         .min(i64::MAX as u128) as i64
+}
+
+fn sqlite_is_locked(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(sqlite, _)
+            if matches!(
+                sqlite.code,
+                rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked
+            )
+    )
+}
+
+fn persisted_owner(path: &Path) -> Option<String> {
+    let uri = format!("file:{}?immutable=1", sqlite_uri_path(path));
+    let connection = Connection::open_with_flags(
+        uri,
+        OpenFlags::SQLITE_OPEN_READ_ONLY
+            | OpenFlags::SQLITE_OPEN_URI
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .ok()?;
+    connection
+        .query_row("SELECT value FROM _meta WHERE key = 'owner'", [], |row| {
+            row.get(0)
+        })
+        .optional()
+        .ok()?
+}
+
+fn sqlite_uri_path(path: &Path) -> String {
+    let mut encoded = String::new();
+    for byte in path.to_string_lossy().bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~') {
+            encoded.push(byte as char);
+        } else {
+            encoded.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    encoded
+}
+
+fn owner_stamp() -> String {
+    format!("{}@{}:{}", std::process::id(), hostname(), unix_millis())
+}
+
+#[cfg(unix)]
+fn hostname() -> String {
+    unsafe extern "C" {
+        fn gethostname(name: *mut c_char, len: usize) -> c_int;
+    }
+
+    let mut buffer = [0_u8; 256];
+    // SAFETY: `buffer` is writable for its full declared length. A successful
+    // gethostname call leaves a C string because the zeroed buffer has spare room.
+    let result = unsafe { gethostname(buffer.as_mut_ptr().cast(), buffer.len() - 1) };
+    if result == 0 {
+        // SAFETY: the buffer began zeroed and gethostname received one byte less
+        // than its capacity, so a trailing NUL remains in bounds.
+        let hostname = unsafe { CStr::from_ptr(buffer.as_ptr().cast()) };
+        hostname.to_string_lossy().into_owned()
+    } else {
+        "unknown-host".to_owned()
+    }
+}
+
+#[cfg(not(unix))]
+fn hostname() -> String {
+    std::env::var("COMPUTERNAME").unwrap_or_else(|_| "unknown-host".to_owned())
 }
