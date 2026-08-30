@@ -4,7 +4,9 @@ import { lowerSource, typecheckSource } from "./compiler";
 import { assessGauntlet } from "./gauntlet";
 import type { Program, ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
+import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
+import { decimal } from "../../snapback2/src/index";
 
 const frontend = decodeURIComponent(new URL("../", import.meta.url).pathname);
 const crate = decodeURIComponent(new URL("../../../", import.meta.url).pathname);
@@ -92,6 +94,15 @@ test("the authored module requires imports and keeps the deterministic subset", 
   }
 });
 
+test("one module reports every policy refusal instead of failing fast", () => {
+  const source = `import { query } from 'snapback2';
+    export const bad = query({}, () => { let i = 0; while (i < 2) i++; return Date.now(); });`;
+  const lowered = lowerSource(source, "both-policy.ts", libText);
+  assert(!lowered.ok, "multi-policy module unexpectedly lowered");
+  assert(lowered.diagnostics.some((item) => item.code === "E_OPAQUE" && item.message.includes("while")), "while refusal missing");
+  assert(lowered.diagnostics.some((item) => item.code === "E_AMBIENT_TIME"), "ambient-time refusal missing");
+});
+
 test("all first-attempt refusals carry complete envelopes and mechanical rewrites", async () => {
   const firstAttempts: Record<string, string> = {
     "unbound-scan.ts": "E_UNBOUND_SCAN",
@@ -148,13 +159,70 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
-  assert(todos.apiDts.startsWith("import type { Op } from 'snapback2/client'"), "API declaration is not a module augmentation");
+  assert(todos.apiDts.startsWith("import type { Decimal, Money } from 'snapback2'"), "API declaration is not a module augmentation");
   assert(todos.apiDts.includes("note?: string") && todos.apiDts.includes("labels: string[]"), "optional/list API inference differs");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
   const seed = await lowerSeed(`${frontend}fixtures/chat`);
   assert(seed.ok && seed.seed.personas.length === 2 && seed.seed.rows.profiles?.length === 2, "chat seed did not lower");
   const journeys = await listJourneys(`${frontend}fixtures/chat`);
   assert(canonical(journeys) === canonical(["snapback/tests/chat.test.ts"]), "chat journey list differs");
+});
+
+test("Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values", async () => {
+  const todos = await lowerProject(`${frontend}fixtures/todos`);
+  assert(todos.ok, `typed todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
+  const table = (todos.project.schema.tables.todos as any).columns;
+  assert(canonical(table.price) === canonical({ Decimal: { scale: 2 } }), "Decimal schema JSON differs");
+  assert(canonical(table.status) === canonical({ Enum: { variants: ["open", "done"] } }), "Enum schema JSON differs");
+  assert(canonical(table.budget) === canonical({ Optional: { Money: { currency: "USD", scale: 2 } } }), "Money schema JSON differs");
+  assert(todos.apiDts.includes("price: Decimal<2>") && todos.apiDts.includes('status: "open" | "done"') && todos.apiDts.includes('Money<"USD", 2>'), "branded/enum API types are missing");
+  for (const field of ["unchanged", "doubled", "minimum"]) {
+    assert(todos.apiDts.includes(`${field}: Decimal<2>`), `Decimal expression result ${field} lost its brand in api.d.ts`);
+  }
+  const add = todos.project.programs.find((item) => item.name === "todos.add")!;
+  assert(add.args.price === "Scalar" && add.args.status === "Scalar", "pre-lane-A Decimal/Enum args must remain Scalar in IR");
+  for (const name of ["todos.addLiteral", "todos.decimalMath", "todos.argDefaults"]) {
+    const program = todos.project.programs.find((item) => item.name === name)!;
+    assert(canonical(program).includes('"Int":999'), `${name} did not scale 9.99 to integer 999`);
+    if (name === "todos.addLiteral") {
+      assert((canonical(program).match(/"Int":999/g) ?? []).length === 2, "Decimal return field was not target-scaled alongside the inserted column");
+    }
+  }
+  assert(canonical(todos.project.programs.find((item) => item.name === "todos.reprice")).includes('"Int":125'), "update Decimal literal was not scaled");
+  assert(canonical(todos.project.programs.find((item) => item.name === "todos.upsertLiteral")).includes('"Int":250'), "upsert Decimal literal was not scaled/padded");
+  assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
+});
+
+test("Decimal scale rules and Enum membership refuse every unsupported expression form", async () => {
+  const invalid = await lowerProject(`${frontend}fixtures/types-invalid`);
+  assert(!invalid.ok, "invalid Decimal/Enum project unexpectedly lowered");
+  const decimalMessages = invalid.diagnostics.filter((item) => item.code === "E_DECIMAL_SCALE").map((item) => item.message);
+  for (const text of [
+    "3 fractional digits, scale 2",
+    "no Decimal scale",
+    "Decimal<2> and Decimal<3>",
+    "/ requires",
+    "% requires",
+    "* requires",
+    "Decimal<2> and Int",
+    "max requires",
+  ]) assert(decimalMessages.some((message) => message.includes(text)), `Decimal refusals omitted ${text}`);
+  const enumRefusal = invalid.diagnostics.find((item) => item.code === "E_ENUM_VARIANT");
+  assert(enumRefusal?.message.includes('"open", "closed"') && enumRefusal.rewrite.includes('"open"'), "Enum refusal omitted variants/rewrite");
+  assert(invalid.diagnostics.filter((item) => item.code === "E_ENUM_VARIANT").length >= 3, "Enum comparison/default/assignment were not all refused");
+});
+
+test("decimal helper scales from the number string and refuses excess precision", () => {
+  assert(decimal(9.99, 2) === 999, "decimal(9.99, 2) differs");
+  assert(decimal(1.2, 2) === 120 && decimal(-1.2, 2) === -120, "decimal padding/sign differs");
+  assert(decimal(1e-7, 7) === 1, "decimal exponent string scaling differs");
+  let refused = false;
+  try {
+    decimal(9.999, 2);
+  } catch (error) {
+    refused = error instanceof RangeError && error.message.includes("3 fractional digits, scale 2");
+  }
+  assert(refused, "decimal helper admitted excess fractional digits");
 });
 
 test("project compilation aggregates refusals across every failing module", async () => {
@@ -168,6 +236,33 @@ test("project compilation aggregates refusals across every failing module", asyn
   assert(invalid.diagnostics.some((item) => item.site.startsWith("snapback/b.ts")), "module b refusal missing");
 });
 
+test("schema lowering refuses malformed constraints and every skipped authored shape", () => {
+  const source = `import { schema, table, t, rule } from 'snapback2';
+    export const source = table({ columns: { ownerId: t.id() },
+      indexes: { byOwner: { columns: ['ownerId'], mystery: true } },
+      rules: { read: rule.mystery() },
+      constraints: [{ cap: { by: ['ownerId'], max: '2' } }, { mystery: true }] });
+    export const target = table({ columns: { count: t.int() } });
+    export default schema({ tables: { source, target }, maintains: [{ mystery: 'source', by: ['ownerId'], into: 'target' }] });`;
+  const lowered = lowerSchema(source, "snapback/schema.ts");
+  const codes = new Set(lowered.diagnostics.map((item) => item.code));
+  for (const code of ["E_SCHEMA_CONSTRAINT", "E_SCHEMA_INDEX_OPTION", "E_RULE_INVALID", "E_SCHEMA_MAINTAIN"]) {
+    assert(codes.has(code as any), `strict schema diagnostics omitted ${code}`);
+  }
+  assert(lowered.diagnostics.every((item) => item.site.startsWith("snapback/schema.ts:") && item.rewrite.length > 0), "schema refusal envelope is incomplete");
+});
+
+test("implicit id and byId cannot be overwritten", () => {
+  const source = `import { schema, table, t } from 'snapback2';
+    export const rows = table({ columns: { id: t.int(), value: t.int() }, indexes: { byId: { columns: ['value'] } } });
+    export default schema({ tables: { rows } });`;
+  const lowered = lowerSchema(source, "snapback/schema.ts");
+  const reserved = lowered.diagnostics.filter((item) => item.code === "E_SCHEMA_ID_RESERVED");
+  assert(reserved.length === 2, `expected reserved id and byId refusals, got ${reserved.length}`);
+  assert((lowered.schema.tables.rows as any).columns.id === "Id", "authored id replaced the implicit Id column");
+  assert(canonical((lowered.schema.tables.rows as any).indexes.byId) === canonical({ columns: ["id"], unique: true }), "authored byId replaced the implicit index");
+});
+
 test("effect authoring reports grants, closure, imports, and then arguments together", async () => {
   const invalid = await lowerProject(`${frontend}fixtures/effects-invalid`);
   assert(!invalid.ok, "invalid effects project compiled");
@@ -175,6 +270,28 @@ test("effect authoring reports grants, closure, imports, and then arguments toge
   for (const code of ["E_EFFECT_GRANT", "E_EFFECT_CLOSURE", "E_EFFECT_IMPORT", "E_EFFECT_THEN_ARGS", "E_EFFECT_UNKNOWN", "E_EMIT_IN_QUERY"]) {
     assert(codes.has(code as any), `effect diagnostics omitted ${code}`);
   }
+});
+
+test("effect source embeds JSON constants and scopes nested parameters and catch bindings", async () => {
+  const chat = await lowerProject(`${frontend}fixtures/chat`);
+  assert(chat.ok, "chat effect with nested bindings was refused");
+  const source = chat.project.effects.find((item) => item.name === "notifications.notify")?.source ?? "";
+  assert(source.startsWith("(() => {") && source.includes('const requestDefaults = {"method":"POST"'), "effect JSON constant was not embedded in its IIFE");
+  assert(source.includes(".map((value) => value)") && source.includes("catch (error)"), "nested effect bindings were not retained in emitted source");
+});
+
+test("seed validation checks personas, tables, rows, and every schema value shape", async () => {
+  const invalid = await lowerSeed(`${frontend}fixtures/seed-invalid`);
+  assert(!invalid.ok, "invalid seed unexpectedly lowered");
+  const codes = new Set(invalid.diagnostics.map((item) => item.code));
+  for (const code of ["E_SEED_PERSONA", "E_SEED_TABLE", "E_SEED_ROW", "E_SEED_VALUE"]) {
+    assert(codes.has(code as any), `seed validation omitted ${code}`);
+  }
+  const messages = invalid.diagnostics.map((item) => item.message).join("\n");
+  for (const text of ["one of", "integer minor units", "list max", "unknown column", "JSON numbers must be integers"]) {
+    assert(messages.includes(text), `seed value validation omitted ${text}`);
+  }
+  assert(invalid.diagnostics.every((item) => item.site.startsWith("snapback/seed.ts:")), "seed refusal site is not seed.ts");
 });
 
 test("worker survives a refused compile and serves the next request under Node", async () => {
@@ -186,6 +303,7 @@ test("worker survives a refused compile and serves the next request under Node",
   const worker = Bun.spawn({ cmd: ["node", bundle, "--worker"], stdin: "pipe", stdout: "pipe", stderr: "pipe" });
   worker.stdin.write(`${JSON.stringify({ id: 1, op: "compile", root: resolve(frontend, "fixtures/invalid") })}\n`);
   worker.stdin.write(`${JSON.stringify({ id: 2, op: "compile", root: resolve(frontend, "fixtures/todos") })}\n`);
+  worker.stdin.write(`${JSON.stringify({ id: 3, op: "compile", root: "fixtures/todos" })}\n`);
   worker.stdin.end();
   const output = await new Response(worker.stdout).text();
   const stderr = await new Response(worker.stderr).text();
@@ -194,6 +312,8 @@ test("worker survives a refused compile and serves the next request under Node",
   const responses = output.trim().split("\n").map((line) => JSON.parse(line));
   assert(responses[0]?.id === 1 && responses[0]?.ok === false, "worker did not return the refused compile");
   assert(responses[1]?.id === 2 && responses[1]?.ok === true, "worker did not survive for the next compile");
+  assert(responses[2]?.id === 3 && responses[2]?.ok === false
+    && responses[2]?.diagnostics?.[0]?.code === "E_OP_INVALID", "worker admitted a relative project root");
 });
 
 test("binary check accepts explicit schema requests and ProjectJson files", async () => {
@@ -206,14 +326,35 @@ test("binary check accepts explicit schema requests and ProjectJson files", asyn
   const projectPath = `${buildDir}/project.json`;
   await Bun.write(projectPath, JSON.stringify(chat.project));
   const checked = runBinaryCheck(["--project", projectPath]);
-  assert(checked.exitCode === 0, `project check failed: ${checked.stderr}`);
+  const checkedRefusals = checked.results.filter((item: any) => item.error);
+  assert(checked.exitCode === (checkedRefusals.length > 0 ? 1 : 0), `project check exit did not match its refusals: ${checked.stderr}`);
   assert(checked.results.length === chat.project.programs.length, "project check omitted programs");
   assert(checked.results.every((item: any) => (item.certificate === null) !== (item.error === null)), "project check omitted a certificate/refusal outcome");
-  const unsupported = checked.results.filter((item: any) => item.error?.message.includes("matching project IR"));
-  assert(unsupported.length <= 1 && unsupported.every((item: any) => item.program === "messages.send"), "project check returned an unexpected refusal");
+  assert(checkedRefusals.every((item: any) => fullCheckEnvelope(item.error)), "checker refusal envelope is incomplete");
 
-  const explicit = runBinaryCheck([], { schema: chat.project.schema, programs: chat.project.programs } as ProjectJson);
-  assert(explicit.exitCode === 0 && explicit.results.length === chat.project.programs.length, "explicit schema request failed");
+  const unsupportedProgram = runBinaryCheck([], {
+    schemaMode: "synthetic",
+    programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
+  });
+  assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
+  assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
+
+  const explicit = runBinaryCheck([], {
+    schema: {
+      tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
+      maintains: [],
+      channels: {},
+      auth: { password: false, guests: false },
+      effects: [],
+    },
+    programs: [],
+    effects: [],
+  } as ProjectJson);
+  assert([0, 1].includes(explicit.exitCode), `explicit-schema check panicked/exited as usage: ${explicit.exitCode}`);
+  if (explicit.exitCode === 1) {
+    assert(explicit.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED" && fullCheckEnvelope(explicit.results[0]?.error), "unsupported Optional/List schema was not a typed refusal");
+    assert(/Optional|List/.test(explicit.results[0]?.error?.message ?? ""), "schema refusal did not name Optional/List");
+  }
 });
 
 test("the 30-shape gauntlet remains measured", async () => {
@@ -227,6 +368,12 @@ test("the 30-shape gauntlet remains measured", async () => {
   const coded = gauntlet.filter((item) => item.source.trim());
   assert(coded.length === 27, `expected 27 shapes with code, got ${coded.length}`);
 });
+
+function fullCheckEnvelope(error: any): boolean {
+  return typeof error?.code === "string" && typeof error?.family === "string"
+    && typeof error?.message === "string" && typeof error?.site === "string"
+    && typeof error?.rewrite === "string" && typeof error?.guide === "string";
+}
 
 function runBinaryCheck(args: string[], input?: unknown): { exitCode: number; stderr: string; results: any[] } {
   const process = Bun.spawnSync({

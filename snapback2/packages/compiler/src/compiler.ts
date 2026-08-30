@@ -1,6 +1,9 @@
 import ts from "typescript";
+import type { TableInfo } from "./authored-types";
 import { diagnostic, refuse, Refusal } from "./diagnostics";
-import { findPolicyRefusal, mechanicalBoundRewrite } from "./policy";
+import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
+import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
+import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import {
   binaryOperator,
   callName,
@@ -43,7 +46,7 @@ import type {
   Stmt,
 } from "./ir";
 
-export type TableInfo = { name: string; private: boolean; maintainedFrom?: string };
+export type { TableInfo } from "./authored-types";
 type VariableInfo = {
   provenance: Provenance;
   max?: number;
@@ -76,50 +79,12 @@ type Environment = ModuleInfo & {
   substitutions: Map<string, ts.Expression>;
   helperStack: string[];
   temp: { value: number };
+  literalValues: Map<number, number>;
 };
 
 type LoweredValue = { statements: Stmt[]; expression: Expr };
 
-export function typecheckSource(
-  source: string,
-  fileName: string,
-  libText: string,
-): ts.Diagnostic[] {
-  const sourceName = fileName.endsWith(".ts") ? fileName : `${fileName}.ts`;
-  const files = new Map([
-    [sourceName, source],
-    ["bounded-lib.d.ts", libText],
-  ]);
-  const options: ts.CompilerOptions = {
-    module: ts.ModuleKind.ESNext,
-    noEmit: true,
-    noLib: true,
-    strict: true,
-    target: ts.ScriptTarget.ES2022,
-  };
-  const host: ts.CompilerHost = {
-    fileExists: (name) => files.has(name),
-    getCanonicalFileName: (name) => name,
-    getCurrentDirectory: () => "",
-    getDefaultLibFileName: () => "bounded-lib.d.ts",
-    getNewLine: () => "\n",
-    getSourceFile: (name, languageVersion) => {
-      const text = files.get(name);
-      return text === undefined ? undefined : ts.createSourceFile(name, text, languageVersion, true);
-    },
-    readFile: (name) => files.get(name),
-    useCaseSensitiveFileNames: () => true,
-    writeFile: () => undefined,
-  };
-  const program = ts.createProgram([sourceName, "bounded-lib.d.ts"], options, host);
-  return ts
-    .getPreEmitDiagnostics(program)
-    .filter((diagnostic) => diagnostic.file?.fileName !== "bounded-lib.d.ts");
-}
-
-export function formatTypeDiagnostic(diagnostic: ts.Diagnostic): string {
-  return ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-}
+export { typecheckSource } from "./typecheck";
 
 export { mechanicalBoundRewrite } from "./policy";
 
@@ -135,44 +100,54 @@ export function lowerSource(
 ): LowerResult {
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true);
   const module = inspectModule(sourceFile, source, fileName, options);
-  const policy = findPolicyRefusal(module);
-  if (policy) return { ok: false, diagnostics: [policy] };
+  const diagnostics = findPolicyRefusals(module, 50);
 
   if (libText !== undefined) {
-    const diagnostics = typecheckSource(source, fileName, libText);
-    if (diagnostics.length > 0) {
-      const first = diagnostics[0]!;
-      const node = first.file && first.start !== undefined
-        ? findNarrowestNode(first.file, first.start)
+    const typed = typecheckSource(source, fileName, libText);
+    for (const item of typed.slice(0, 50 - diagnostics.length)) {
+      const node = item.file && item.start !== undefined
+        ? findNarrowestNode(item.file, item.start)
         : sourceFile;
       const schemaLabelRewrite = source.replace(/\bschema\s+\([^\n:]+\):/g, "schema:");
-      return {
-        ok: false,
-        diagnostics: [diagnostic(module, "E_OPAQUE", node, formatTypeDiagnostic(first), schemaLabelRewrite)],
-      };
+      diagnostics.push(diagnostic(module, "E_OPAQUE", node, formatTypeDiagnostic(item), schemaLabelRewrite));
     }
   }
+  const typePlans = new Map<number, TypePlan>();
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || !ts.isIdentifier(call.expression) || !["query", "mutation"].includes(call.expression.text)) continue;
+      const plan = analyzeOperationTypes(module, call);
+      typePlans.set(call.getStart(sourceFile), plan);
+      diagnostics.push(...plan.diagnostics.slice(0, 50 - diagnostics.length));
+    }
+  }
+  if (diagnostics.length > 0) return { ok: false, diagnostics };
 
-  try {
-    const programs: Program[] = [];
-    for (const statement of sourceFile.statements) {
-      if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
-        const call = unwrapCall(declaration.initializer);
-        if (!call || !ts.isIdentifier(call.expression)) continue;
-        if (call.expression.text !== "query" && call.expression.text !== "mutation") continue;
-        const name = options.operationPrefix
-          ? `${options.operationPrefix}.${declaration.name.text}`
-          : declaration.name.text;
-        programs.push(lowerOperation(module, name, call.expression.text, call));
+  const programs: Program[] = [];
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || !ts.isIdentifier(call.expression)) continue;
+      if (call.expression.text !== "query" && call.expression.text !== "mutation") continue;
+      const name = options.operationPrefix
+        ? `${options.operationPrefix}.${declaration.name.text}`
+        : declaration.name.text;
+      try {
+        programs.push(lowerOperation(module, name, call.expression.text, call, typePlans.get(call.getStart(sourceFile))));
+      } catch (error) {
+        if (error instanceof Refusal) diagnostics.push(error.diagnostic);
+        else throw error;
       }
+      if (diagnostics.length >= 50) break;
     }
-    return { ok: true, programs };
-  } catch (error) {
-    if (error instanceof Refusal) return { ok: false, diagnostics: [error.diagnostic] };
-    throw error;
+    if (diagnostics.length >= 50) break;
   }
+  return diagnostics.length > 0 ? { ok: false, diagnostics } : { ok: true, programs };
 }
 
 function inspectModule(
@@ -224,6 +199,7 @@ function lowerOperation(
   name: string,
   kindName: "query" | "mutation",
   call: ts.CallExpression,
+  typePlan?: TypePlan,
 ): Program {
   const argObject = call.arguments[0];
   const handler = call.arguments[1];
@@ -262,6 +238,7 @@ function lowerOperation(
     substitutions: new Map(),
     helperStack: [],
     temp: { value: 0 },
+    literalValues: typePlan?.literalValues ?? new Map(),
   };
   let body: Stmt[];
   if (ts.isBlock(handler.body)) {
@@ -1130,7 +1107,19 @@ function lowerExpr(node: ts.Expression, env: Environment, hint?: string): Expr {
   if (node.kind === ts.SyntaxKind.NullKeyword) return literal(null);
   if (node.kind === ts.SyntaxKind.TrueKeyword) return literal(true);
   if (node.kind === ts.SyntaxKind.FalseKeyword) return literal(false);
-  if (ts.isNumericLiteral(node)) return literal(Number(node.text));
+  if (ts.isNumericLiteral(node)) {
+    const scaled = env.literalValues.get(node.getStart(env.sourceFile));
+    if (node.text.includes(".") && scaled === undefined) {
+      refuse(
+        env,
+        "E_DECIMAL_SCALE",
+        node,
+        `fractional literal ${node.text} has no known Decimal scale`,
+        env.source.slice(0, node.getStart(env.sourceFile)) + node.text.replace(".", "") + env.source.slice(node.getEnd()),
+      );
+    }
+    return literal(scaled ?? Number(node.text));
+  }
   if (ts.isStringLiteralLike(node)) return literal(node.text);
   if (ts.isIdentifier(node)) return { Variable: node.text };
   if (ts.isArrayLiteralExpression(node)) return { Array: node.elements.map((value) => lowerExpr(value, env)) };
@@ -1198,6 +1187,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
   const expanded = expandHelper(call, env);
   if (expanded) return lowerExpr(expanded.expression, expanded.environment, expanded.siteHint ?? hint);
   const name = callName(call);
+  if (name === "decimal" && call.arguments[0]) return lowerExpr(call.arguments[0], env, hint);
   if (name === "ctx.now" || name === "ctx.commitTime") return { Input: "Now" };
   if (name === "ctx.newId") return { Input: "NewId" };
   if (name.endsWith(".get") && isDbMember(call.expression)) return { Get: lowerRead(call, env, hint) };

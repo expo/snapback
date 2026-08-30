@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { createInterface } from "node:readline";
+import { isAbsolute, resolve } from "node:path";
 import { lowerProject, lowerSeed, listJourneys } from "./project";
 
 type Request = { id?: string | number; op: "compile" | "seed" | "journeys"; root: string };
 
 async function respond(request: Request): Promise<Record<string, unknown>> {
-  if (!request || typeof request.root !== "string") {
+  if (!request || typeof request.root !== "string" || !isAbsolute(request.root)) {
     return refusal(request?.id, "E_OP_INVALID", "compiler request requires an absolute project root");
   }
   if (request.op === "compile") return { id: request.id, ...await lowerProject(request.root) };
@@ -63,7 +64,7 @@ async function main(): Promise<void> {
     process.exitCode = 2;
     return;
   }
-  const response = await safeRespond({ op: "compile", root: process.argv[projectAt + 1] });
+  const response = await safeRespond({ op: "compile", root: resolve(process.argv[projectAt + 1]) });
   delete response.id;
   console.log(JSON.stringify(response, null, 2));
   if (!response.ok) process.exitCode = 1;

@@ -80,8 +80,9 @@ function span(module: Pick<DiagnosticModule, "sourceFile" | "fileName">, node: t
 function diagnosticFamily(code: DiagnosticCode): FrontendDiagnostic["family"] {
   if (code.startsWith("E_SCHEMA_")) return "schema";
   if (code.startsWith("E_RULE_")) return "rule";
+  if (code.startsWith("E_SEED_")) return "input";
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effect";
-  if (code.startsWith("E_ARGS_")) return "args";
+  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE" || code === "E_ENUM_VARIANT") return "args";
   if (code.startsWith("E_OP_")) return "op";
   if (["E_UNBOUND_SCAN", "E_UNBOUND_LOOP", "E_UNBOUND_COUNT", "E_STRUCTURAL_COUNT", "E_BOUND"].includes(code)) {
     return "bound";
@@ -97,8 +98,9 @@ function diagnosticGuide(code: DiagnosticCode): string {
   if (code === "E_AMBIENT_TIME") return "opaque/time";
   if (code.startsWith("E_SCHEMA_")) return "schema/project";
   if (code.startsWith("E_RULE_")) return "schema/rules";
+  if (code.startsWith("E_SEED_")) return "schema/seed";
   if (code.startsWith("E_EFFECT_") || code === "E_EMIT_IN_QUERY") return "effects/authoring";
-  if (code.startsWith("E_ARGS_")) return "programs/args";
+  if (code.startsWith("E_ARGS_") || code === "E_DECIMAL_SCALE" || code === "E_ENUM_VARIANT") return "programs/types";
   if (code.startsWith("E_OP_")) return "programs/operations";
   return "opaque/subset";
 }

@@ -1,5 +1,13 @@
 declare module "snapback2" {
   export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+  export type Decimal<S extends number> = number & {
+    readonly __decimalScale: S;
+    readonly __decimalBrand: unique symbol;
+  };
+  export type Money<C extends string, S extends number = 2> = Decimal<S> & {
+    readonly __moneyCurrency: C;
+    readonly __moneyBrand: unique symbol;
+  };
   export type Column<T = unknown, Optional extends boolean = false> = {
     readonly __value: T;
     readonly __optional: Optional;
@@ -36,13 +44,15 @@ declare module "snapback2" {
     { [K in keyof A as A[K] extends Arg<any, true> ? never : K]: A[K] extends Arg<infer T, any> ? T : never }
     & { [K in keyof A as A[K] extends Arg<any, true> ? K : never]?: A[K] extends Arg<infer T, any> ? T : never };
   export type Page<T> = Array<T> & { hasMore: boolean };
+  export type WriteValue<T> = T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
+  export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
   export type Db = {
     get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
     exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
     scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: Record<string, any>): Page<R>;
-    insert<R extends Record<string, any>>(target: Table<R>, row: R): R;
-    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<R> | ((row: R) => Partial<R>)): void;
-    upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: R | ((row: R | null) => R)): void;
+    insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
+    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<WriteRow<R>> | ((row: R) => Partial<WriteRow<R>>)): void;
+    upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: WriteRow<R> | ((row: R | null) => WriteRow<R>)): void;
     delete(target: Table<any>, key: unknown): void;
     require(condition: unknown, code?: string): void;
     assert(condition: unknown): void;
@@ -66,6 +76,10 @@ declare module "snapback2" {
     int(): Column<number>;
     bool(): Column<boolean>;
     time(): Column<number>;
+    enum<const V extends readonly [string, ...string[]]>(variants: V): Column<V[number]>;
+    decimal<const S extends number>(scale: S): Column<Decimal<S>>;
+    money<const C extends string>(currency: C): Column<Money<C, 2>>;
+    money<const C extends string, const S extends number>(currency: C, scale: S): Column<Money<C, S>>;
     ref<R extends Record<string, any>>(target: Table<R>): Column<string>;
     json<T extends Json = Json>(maxBytes: number): Column<T>;
     optional<T>(value: Column<T, any>): Column<T, true>;
@@ -110,10 +124,13 @@ declare module "snapback2" {
   export function seed<const S extends { personas: string[]; rows: Record<string, Json[]> }>(value: S): S;
 
   export function range(start: number, end: number): number[];
+  export function decimal<const S extends number>(value: number, scale: S): Decimal<S>;
   export function mentionTokens(value: string): string[];
   export function deterministicShare(amount: number, recipients: unknown[], recipient: unknown): number;
   export function concat(...values: unknown[]): string;
+  export function max<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
   export function max(...values: number[]): number;
+  export function min<const S extends number>(...values: Decimal<S>[]): Decimal<S>;
   export function min(...values: number[]): number;
   export function divmod(value: number, divisor: number): { quotient: number; remainder: number };
   export function recurse<T>(seed: unknown, step: (value: any) => T | null, options: { depth: number; fanout: number }): T[];

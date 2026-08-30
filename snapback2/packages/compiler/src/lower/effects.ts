@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
-import { hasExport, propertyName, unwrapCall, unwrapExpression, walk } from "../syntax";
+import { hasExport, isFunctionLike, propertyName, unwrapCall, unwrapExpression, walk } from "../syntax";
 import { callLeaf, moduleJsonConstants, objectOf, property, propertyEntries, staticJson, stringArray } from "./static";
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
@@ -120,7 +120,11 @@ function lowerEffect(
       removeComments: true,
     },
   }).outputText.trim().replace(/;$/, "");
-  return { name, grants, source: transpiled, then };
+  const constants = [...moduleJsonConstants(module.sourceFile)]
+    .map(([constant, value]) => `const ${constant} = ${JSON.stringify(value)};`)
+    .join(" ");
+  const source = constants ? `(() => { ${constants} return ${transpiled}; })()` : transpiled;
+  return { name, grants, source, then };
 }
 
 function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.FunctionExpression): FrontendDiagnostic | undefined {
@@ -132,15 +136,20 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   });
   if (imported) return effectDiagnostic(module, "E_EFFECT_IMPORT", imported, "effect run cannot import or require modules");
 
-  const declared = new Set<string>();
-  for (const parameter of run.parameters) collectBindingNames(parameter.name, declared);
+  const bindings: Array<{ name: string; owner: ts.Node }> = [];
+  for (const parameter of run.parameters) collectScopedBindings(parameter.name, run, bindings);
   walk(run.body, (node) => {
-    if (ts.isVariableDeclaration(node)) collectBindingNames(node.name, declared);
-    if (ts.isFunctionDeclaration(node) && node.name) declared.add(node.name.text);
+    if (ts.isVariableDeclaration(node)) collectScopedBindings(node.name, bindingOwner(node, run), bindings);
+    if (isFunctionLike(node)) {
+      for (const parameter of node.parameters) collectScopedBindings(parameter.name, node, bindings);
+      if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
+        bindings.push({ name: node.name.text, owner: ts.isFunctionDeclaration(node) ? bindingOwner(node, run) : node });
+      }
+    }
+    if (ts.isCatchClause(node) && node.variableDeclaration) collectScopedBindings(node.variableDeclaration.name, node, bindings);
   });
   const constants = moduleJsonConstants(module.sourceFile);
   const allowed = new Set([
-    ...declared,
     ...constants.keys(),
     "console", "JSON", "Math", "Date", "URL", "TextEncoder", "TextDecoder", "btoa", "atob",
     "setTimeout", "Promise", "crypto", "Error", "undefined", "NaN", "Infinity",
@@ -148,16 +157,34 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   let escaped: ts.Identifier | undefined;
   walk(run.body, (node) => {
     if (escaped || !ts.isIdentifier(node) || !isReferenceIdentifier(node)) return;
-    if (!allowed.has(node.text)) escaped = node;
+    if (!allowed.has(node.text) && !bindings.some((binding) => binding.name === node.text && isWithin(node, binding.owner))) escaped = node;
   });
   return escaped
     ? effectDiagnostic(module, "E_EFFECT_CLOSURE", escaped, `effect run closes over non-JSON value ${escaped.text}`)
     : undefined;
 }
 
-function collectBindingNames(name: ts.BindingName, output: Set<string>): void {
-  if (ts.isIdentifier(name)) output.add(name.text);
-  else for (const item of name.elements) if (ts.isBindingElement(item)) collectBindingNames(item.name, output);
+function collectScopedBindings(name: ts.BindingName, owner: ts.Node, output: Array<{ name: string; owner: ts.Node }>): void {
+  if (ts.isIdentifier(name)) output.push({ name: name.text, owner });
+  else for (const item of name.elements) if (ts.isBindingElement(item)) collectScopedBindings(item.name, owner, output);
+}
+
+function bindingOwner(node: ts.Node, fallback: ts.Node): ts.Node {
+  let current = node.parent;
+  while (current && current !== fallback) {
+    if (ts.isBlock(current) || isFunctionLike(current) || ts.isCatchClause(current)) return current;
+    current = current.parent;
+  }
+  return fallback;
+}
+
+function isWithin(node: ts.Node, owner: ts.Node): boolean {
+  let current: ts.Node | undefined = node;
+  while (current) {
+    if (current === owner) return true;
+    current = current.parent;
+  }
+  return false;
 }
 
 function isReferenceIdentifier(node: ts.Identifier): boolean {

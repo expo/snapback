@@ -43,40 +43,37 @@ export function mechanicalBoundRewrite(source: string): string {
   return largest ? replaceNode(source, largest.node, String(Math.max(1, Math.floor(largest.value / 2)))) : source;
 }
 
-export function findPolicyRefusal(module: PolicyModule): FrontendDiagnostic | undefined {
-  let found: FrontendDiagnostic | undefined;
+export function findPolicyRefusals(module: PolicyModule, limit = 50): FrontendDiagnostic[] {
+  const found: FrontendDiagnostic[] = [];
+  const add = (item: FrontendDiagnostic) => {
+    if (found.length < limit) found.push(item);
+  };
   const visit = (node: ts.Node, currentFunction?: string) => {
-    if (found) return;
+    if (found.length >= limit) return;
     if (isFunctionLike(node) && isEffectFunction(node)) return;
     if (ts.isFunctionDeclaration(node) && node.name) currentFunction = node.name.text;
 
     if (ts.isWhileStatement(node)) {
-      found = diagnostic(module, "E_OPAQUE", node, "while loops have no static iteration bound", rewriteWhile(module.source, node));
-      return;
+      add(diagnostic(module, "E_OPAQUE", node, "while loops have no static iteration bound", rewriteWhile(module.source, node)));
     }
     if (ts.isAwaitExpression(node) || hasAsyncModifier(node)) {
-      found = diagnostic(module, "E_OPAQUE", node, "async/await is outside data programs", module.source);
-      return;
+      add(diagnostic(module, "E_OPAQUE", node, "async/await is outside data programs", module.source));
     }
     if (ts.isCallExpression(node)) {
       const name = callName(node);
       if (name === "Date.now" || (name === "Date" && node.arguments.length === 0)) {
-        found = diagnostic(module, "E_AMBIENT_TIME", node, "ambient time is not replay-stable", rewriteAmbientTime(module.source, node));
-        return;
+        add(diagnostic(module, "E_AMBIENT_TIME", node, "ambient time is not replay-stable", rewriteAmbientTime(module.source, node)));
       }
       if (["Math.random", "fetch", "setTimeout", "eval"].includes(name)) {
-        found = diagnostic(module, "E_OPAQUE", node, `${name} is outside the deterministic subset`, module.source);
-        return;
+        add(diagnostic(module, "E_OPAQUE", node, `${name} is outside the deterministic subset`, module.source));
       }
       if (currentFunction && ts.isIdentifier(node.expression) && node.expression.text === currentFunction) {
-        found = diagnostic(module, "E_OPAQUE", node, "recursive helpers must use recurse with depth and fanout", module.source);
-        return;
+        add(diagnostic(module, "E_OPAQUE", node, "recursive helpers must use recurse with depth and fanout", module.source));
       }
     }
     ts.forEachChild(node, (child) => visit(child, currentFunction));
   };
   visit(module.sourceFile);
-  if (found) return found;
 
   const reductions: ts.CallExpression[] = [];
   const scans: ts.CallExpression[] = [];
@@ -90,41 +87,46 @@ export function findPolicyRefusal(module: PolicyModule): FrontendDiagnostic | un
   });
 
   for (const reduction of reductions) {
+    if (found.length >= limit) break;
     const scan = firstDescendantCall(reduction.expression, ".scan");
     if (!scan) continue;
     if (!scanTake(scan)) {
-      return diagnostic(module, "E_UNBOUND_COUNT", reduction, "an exact reduction over a growing population has no static bound", rewriteUnboundCount(module.source));
+      add(diagnostic(module, "E_UNBOUND_COUNT", reduction, "an exact reduction over a growing population has no static bound", rewriteUnboundCount(module.source)));
     }
-    if (scanIsPrivate(module, scan)) return structuralDiagnostic(module, reduction, scan);
+    if (scanIsPrivate(module, scan)) add(structuralDiagnostic(module, reduction, scan));
   }
 
   for (const access of structuralSorts) {
+    if (found.length >= limit) break;
     const scan = firstDescendantCall(access.expression, ".scan");
-    if (scan && scanIsPrivate(module, scan)) return structuralDiagnostic(module, access, scan);
+    if (scan && scanIsPrivate(module, scan)) add(structuralDiagnostic(module, access, scan));
   }
 
   for (const loop of forLoops) {
+    if (found.length >= limit) break;
     const scan = firstDescendantCall(loop.expression, ".scan");
     if (scan && scanIsPrivate(module, scan) && containsIncrement(loop.statement)) {
-      return structuralLoopDiagnostic(module, loop, scan);
+      add(structuralLoopDiagnostic(module, loop, scan));
     }
     if (containsCall(loop.expression, ".split") && !boundedSplit(loop.expression)) {
-      return diagnostic(module, "E_UNBOUND_LOOP", loop.expression, "split-derived loop cardinality is not declared", rewriteSplit(module.source));
+      add(diagnostic(module, "E_UNBOUND_LOOP", loop.expression, "split-derived loop cardinality is not declared", rewriteSplit(module.source)));
     }
   }
 
   for (const scan of scans) {
+    if (found.length >= limit) break;
     if (!scanTake(scan)) {
-      return diagnostic(
+      add(diagnostic(
         module,
         "E_UNBOUND_SCAN",
         scan,
         "scan requires a literal take or an argument with a declared maximum",
         rewriteMapReturns(rewriteAllScans(module.sourceFile, module.source)),
-      );
+      ));
     }
   }
-  return boundRefusal(module);
+  for (const item of boundRefusals(module, limit - found.length)) add(item);
+  return found;
 }
 
 function structuralDiagnostic(module: PolicyModule, node: ts.Node, scan: ts.CallExpression): FrontendDiagnostic {
@@ -245,8 +247,8 @@ function rewriteAmbientTime(source: string, node: ts.CallExpression): string {
   return rewritten;
 }
 
-function boundRefusal(module: PolicyModule): FrontendDiagnostic | undefined {
-  let result: FrontendDiagnostic | undefined;
+function boundRefusals(module: PolicyModule, limit: number): FrontendDiagnostic[] {
+  const results: FrontendDiagnostic[] = [];
   const visitLoop = (loop: ts.ForOfStatement, factors: Array<{ value: number; node: ts.Expression }>) => {
     const scan = firstDescendantCall(loop.expression, ".scan");
     const takeNode = scan && scan.arguments[2] && ts.isObjectLiteralExpression(scan.arguments[2])
@@ -255,31 +257,29 @@ function boundRefusal(module: PolicyModule): FrontendDiagnostic | undefined {
     const take = numericLiteral(takeNode);
     const next = take !== undefined && takeNode ? [...factors, { value: take, node: takeNode }] : factors;
     const product = next.reduce((total, factor) => total * factor.value, 1);
-    if (product > 10_240 && takeNode) {
+    if (product > 10_240 && takeNode && results.length < limit) {
       const largest = [...next].sort((a, b) => b.value - a.value)[0]!;
       const other = product / largest.value;
       const replacement = Math.max(1, Math.floor(10_240 / (other + 4)));
-      result = diagnostic(
+      results.push(diagnostic(
         module,
         "E_BOUND",
         loop,
         `nested population product ${next.map((factor) => factor.value).join(" × ")} = ${product} exceeds 10240`,
         replaceNode(module.source, largest.node, String(replacement)),
-      );
-      return;
+      ));
     }
     const body = ts.isBlock(loop.statement) ? loop.statement.statements : [loop.statement];
     for (const statement of body) {
-      if (result) return;
       walk(statement, (node) => {
-        if (!result && ts.isForOfStatement(node) && node !== loop) visitLoop(node, next);
+        if (results.length < limit && ts.isForOfStatement(node) && node !== loop) visitLoop(node, next);
       });
     }
   };
   walk(module.sourceFile, (node) => {
-    if (!result && ts.isForOfStatement(node) && !findAncestor(node, ts.isForOfStatement)) visitLoop(node, []);
+    if (results.length < limit && ts.isForOfStatement(node) && !findAncestor(node, ts.isForOfStatement)) visitLoop(node, []);
   });
-  return result;
+  return results;
 }
 
 function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {

@@ -109,11 +109,22 @@ export type DiagnosticCode =
   | "E_ARGS_TYPE"
   | "E_OP_INVALID"
   | "E_SCHEMA_RESERVED"
+  | "E_SCHEMA_ID_RESERVED"
   | "E_SCHEMA_UNKNOWN_TABLE"
   | "E_SCHEMA_INDEX_COLUMN"
+  | "E_SCHEMA_INDEX_OPTION"
+  | "E_SCHEMA_CONSTRAINT"
+  | "E_SCHEMA_MAINTAIN"
   | "E_SCHEMA_DEFAULT_EXPORT"
   | "E_SCHEMA_INVALID"
   | "E_RULE_INVALID"
+  | "E_DECIMAL_SCALE"
+  | "E_ENUM_VARIANT"
+  | "E_SEED_INVALID"
+  | "E_SEED_PERSONA"
+  | "E_SEED_TABLE"
+  | "E_SEED_ROW"
+  | "E_SEED_VALUE"
   | "E_EFFECT_CLOSURE"
   | "E_EFFECT_IMPORT"
   | "E_EFFECT_GRANT"
@@ -121,7 +132,7 @@ export type DiagnosticCode =
   | "E_EFFECT_UNKNOWN"
   | "E_EMIT_IN_QUERY";
 
-export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op";
+export type RefusalFamily = "bound" | "opaque" | "schema" | "rule" | "effect" | "args" | "op" | "input";
 
 export type FrontendDiagnostic = {
   code: DiagnosticCode;
