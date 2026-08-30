@@ -264,7 +264,10 @@ client bound to that persona; `tick(ms)` advances the owner's clock for
 `ctx.now()` (`POST /control/clock`); each journey ≤ 5 s. A rerun re-samples
 `now` from the owner's clock at rerun time, and a clock advance reruns every
 subscription — a tick is a synthetic commit — so time-dependent live queries
-advance (review ruling 2026-08-30).
+advance (review ruling 2026-08-30). In a *query*, `ctx.now()` lowers to the
+bucketed `ReadTime` input (LLP 0329.014.004: read time is a declared-
+granularity clock); the compiler currently pins the granularity at 1 ms —
+declaring it on the surface (`query({…}, { readTime: '1m' }, …)`) is deferred.
 
 **Receipt** (`.snapback/receipts/<ts>.json`, also printed): `{ binary: { version,
 digest }, generation, commands: [...], checks: [{ name, kind: "derived" | "journey",
