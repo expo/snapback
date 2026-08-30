@@ -1,5 +1,7 @@
 use snapback2_core::*;
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn table(columns: &[(&str, ColumnType)], indexes: &[(&str, &[&str])]) -> Table {
     public_table(
@@ -520,6 +522,63 @@ fn required_column_on_populated_table_is_refused() {
     assert_eq!(refusal.code, "E_SUCCESSOR_COLUMN_REQUIRED");
     assert!(refusal.message.contains("items.name"));
     assert!(refusal.rewrite.contains("t.optional"));
+}
+
+#[test]
+fn additive_successor_refuses_reserved_id_in_newly_declared_field() {
+    let path = temp_store_path("reserved-successor-row");
+    let items = table(&[("id", ColumnType::Id)], &[("byId", &["id"])]);
+    let base = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), items.clone())]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    {
+        Runtime::open(Store::open(&path).unwrap(), base).unwrap();
+    }
+    {
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        connection
+            .execute(
+                "DELETE FROM _meta WHERE key = 'row_validation_generation'",
+                [],
+            )
+            .unwrap();
+        let vulnerable_row = object([
+            ("id", Value::Id("legacy-row".to_owned())),
+            ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+        ]);
+        connection
+            .execute(
+                "INSERT INTO rows(table_name, row_id, data) VALUES (?1, ?2, ?3)",
+                rusqlite::params!["items", "legacy-row", canonical_json(&vulnerable_row)],
+            )
+            .unwrap();
+    }
+
+    let mut next_items = items;
+    next_items.columns.insert(
+        "ownerId".to_owned(),
+        ColumnType::Optional(Box::new(ColumnType::Id)),
+    );
+    let next = generation(
+        schema(
+            BTreeMap::from([("items".to_owned(), next_items)]),
+            Vec::new(),
+        ),
+        Vec::new(),
+    );
+    let refusal = match Runtime::open(Store::open(&path).unwrap(), next) {
+        Ok(_) => panic!("the vulnerable stored row must refuse its successor"),
+        Err(refusal) => refusal,
+    };
+
+    assert_eq!(refusal.code, "E_SUCCESSOR_ROW_INVALID");
+    assert!(refusal.message.contains("items.legacy-row"));
+    assert!(refusal.message.contains("reserved system principal"));
+    cleanup_store(&path);
 }
 
 #[test]
@@ -1270,4 +1329,25 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         Engine::memory(invalid),
         Err(RuntimeError::SchemaIndexColumn { .. })
     ));
+}
+
+fn temp_store_path(label: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "snapback2-{label}-{}-{}.sqlite",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ))
+}
+
+fn cleanup_store(path: &Path) {
+    for path in [
+        path.to_path_buf(),
+        PathBuf::from(format!("{}-wal", path.display())),
+        PathBuf::from(format!("{}-shm", path.display())),
+    ] {
+        let _ = std::fs::remove_file(path);
+    }
 }

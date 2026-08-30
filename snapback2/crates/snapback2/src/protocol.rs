@@ -81,7 +81,7 @@ impl Refusal {
             "successor"
         } else if code.starts_with("E_SCHEMA") {
             "schema"
-        } else if code.starts_with("E_OP") {
+        } else if code.starts_with("E_OP") || code.starts_with("E_HANDLE") {
             "op"
         } else if code.starts_with("E_RULE") {
             "rule"
@@ -96,6 +96,7 @@ impl Refusal {
         };
         let rewrite = match code {
             "E_OP_UNKNOWN" => "use an operation listed by /api/manifest",
+            "E_HANDLE_UNKNOWN" => "obtain a fresh handle from the active runtime",
             "E_STORE_OWNED" => "attach to the existing owner or stop it before starting another",
             "E_RULE" => "use a principal admitted by the table rule",
             "E_INPUT" => "pass arguments matching the operation declaration",

@@ -613,6 +613,10 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                     }
                     _ => continue,
                 };
+                let handle = match runtime.handle(query_name) {
+                    Ok(handle) => handle,
+                    Err(_) => continue,
+                };
                 if !initial.trace.rows.iter().any(|row| row.table == site.table) {
                     continue;
                 }
@@ -647,7 +651,7 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                         Vec::new(),
                     );
                 }
-                match runtime.execute_handle(query, certificate, context) {
+                match runtime.execute_handle(&handle, context) {
                     Err(error)
                         if error.code() == "E_TRACE_SUBSET"
                             && error.to_string().contains("schema hash mismatch") =>

@@ -237,6 +237,8 @@ pub enum RuntimeError {
     TraceSubset(String),
     #[error("E_OP_UNKNOWN: {0}")]
     OpUnknown(String),
+    #[error("E_HANDLE_UNKNOWN: {0}")]
+    HandleUnknown(String),
     #[error("E_MIGRATION_PLAN: {0}")]
     MigrationPlan(String),
     #[error(transparent)]
@@ -267,6 +269,7 @@ impl RuntimeError {
             Self::StoreOwned { .. } => "E_STORE_OWNED",
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
             Self::OpUnknown(_) => "E_OP_UNKNOWN",
+            Self::HandleUnknown(_) => "E_HANDLE_UNKNOWN",
             Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
             Self::Successor(refusal) => &refusal.code,
         }

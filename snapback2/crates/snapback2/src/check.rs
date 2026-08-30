@@ -190,6 +190,10 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
             );
         }
     };
+    print_response(check_request(request), json)
+}
+
+fn check_request(request: Request) -> Vec<ResultItem> {
     let programs: Vec<(String, Result<Program, String>)> = request
         .programs
         .into_iter()
@@ -218,20 +222,11 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
                         format!("project schema contains an unsupported IR variant: {error}"),
                     ),
                 )];
-                results.extend(programs.into_iter().map(|(name, program)| {
-                    let error = match program {
-                        Err(message) => SerializableError::unsupported(
-                            &format!("<project>:{name}"),
-                            format!("program JSON contains an unsupported IR variant: {message}"),
-                        ),
-                        Ok(_) => SerializableError::unsupported(
-                            &format!("<project>:{name}"),
-                            "program cannot be certified because the project schema is unsupported",
-                        ),
-                    };
-                    refused_item(&name, error)
-                }));
-                return print_response(results, json);
+                results.extend(uncertified_program_results(
+                    programs,
+                    "program cannot be certified because the project schema is unsupported",
+                ));
+                return results;
             }
         },
         None => match request.schema_mode {
@@ -240,10 +235,12 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
         },
     };
     if let Err(error) = validate_schema(&schema) {
-        return print_response(
-            vec![refused_item("<schema>", SerializableError::schema(error))],
-            json,
-        );
+        let mut results = vec![refused_item("<schema>", SerializableError::schema(error))];
+        results.extend(uncertified_program_results(
+            programs,
+            "program cannot be certified because the project schema is invalid",
+        ));
+        return results;
     }
     let checker = Checker::new(&schema, Ceilings::default());
     let results = programs
@@ -271,7 +268,23 @@ pub fn run_input(input: String, json: bool) -> ExitCode {
             },
         })
         .collect();
-    print_response(results, json)
+    results
+}
+
+fn uncertified_program_results(
+    programs: Vec<(String, Result<Program, String>)>,
+    schema_message: &str,
+) -> impl Iterator<Item = ResultItem> {
+    programs.into_iter().map(move |(name, program)| {
+        let error = match program {
+            Err(message) => SerializableError::unsupported(
+                &format!("<project>:{name}"),
+                format!("program JSON contains an unsupported IR variant: {message}"),
+            ),
+            Ok(_) => SerializableError::unsupported(&format!("<project>:{name}"), schema_message),
+        };
+        refused_item(&name, error)
+    })
 }
 
 /// Compile and certify an authored project, then refresh its uncommitted build cache.
@@ -427,5 +440,52 @@ fn collect_sites(
                 .for_each(|value| collect_sites(value, reads, writes));
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn invalid_implicit_id_and_program_parse_errors_are_reported_together() {
+        let mut schema = serde_json::to_value(spike_schema()).unwrap();
+        schema["tables"]["conversations"]["columns"]["id"] = json!({ "Text": { "max": 32 } });
+        let results = check_request(Request {
+            programs: vec![json!({
+                "name": "broken.program",
+                "kind": "notAProgramKind",
+                "args": {},
+                "body": []
+            })],
+            schema: Some(schema),
+            schema_mode: SchemaMode::Spike,
+        });
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].program, "<schema>");
+        assert_eq!(results[0].error.as_ref().unwrap().code, "E_SCHEMA");
+        assert!(
+            results[0]
+                .error
+                .as_ref()
+                .unwrap()
+                .message
+                .contains("implicit id column")
+        );
+        assert_eq!(results[1].program, "broken.program");
+        assert_eq!(
+            results[1].error.as_ref().unwrap().code,
+            "E_CHECK_IR_UNSUPPORTED"
+        );
+        assert!(
+            results[1]
+                .error
+                .as_ref()
+                .unwrap()
+                .message
+                .contains("program JSON")
+        );
     }
 }

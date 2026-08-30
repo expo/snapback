@@ -2,7 +2,7 @@
 // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — destructive changes need a plan.
 
 use crate::engine::{
-    RuntimeError, materialize_optional_fields, reindex_row, write_aggregate_backfill,
+    RuntimeError, materialize_optional_fields, reindex_row, validate_row, write_aggregate_backfill,
 };
 use crate::schema::{ColumnType, Maintain, MaintainKind, Schema};
 use crate::store::Store;
@@ -112,6 +112,16 @@ impl SuccessorRefusal {
             conflicts,
         }
     }
+
+    fn invalid_row(table: &str, row: &str, error: impl std::fmt::Display) -> Self {
+        Self {
+            code: "E_SUCCESSOR_ROW_INVALID".to_owned(),
+            message: format!("successor validation refused stored row {table}.{row}: {error}"),
+            rewrite: format!("repair or remove stored row {table}.{row}, then retry the successor"),
+            plan: MigrationPlan::default(),
+            conflicts: Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,6 +219,10 @@ pub(crate) fn additive_refusal(
                 return Ok(Some(SuccessorRefusal::required_column(table_name, column)));
             }
         }
+    }
+
+    if let Some(refusal) = validate_stored_rows(connection, next)? {
+        return Ok(Some(refusal));
     }
 
     let mut conflicts = Vec::new();
@@ -315,6 +329,42 @@ pub(crate) fn additive_refusal(
         }
     }
     Ok((!conflicts.is_empty()).then(|| SuccessorRefusal::unique(conflicts)))
+}
+
+pub(crate) fn validate_stored_rows(
+    connection: &Connection,
+    schema: &Schema,
+) -> Result<Option<SuccessorRefusal>, RuntimeError> {
+    let mut statement = connection
+        .prepare("SELECT table_name, row_id, data FROM rows ORDER BY table_name, row_id")?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (table_name, row_id, data) = row?;
+        let value = match serde_json::from_str::<Value>(&data) {
+            Ok(value) => value,
+            Err(error) => {
+                return Ok(Some(SuccessorRefusal::invalid_row(
+                    &table_name,
+                    &row_id,
+                    error,
+                )));
+            }
+        };
+        if let Err(error) = validate_row(schema.table(&table_name), &table_name, &value) {
+            return Ok(Some(SuccessorRefusal::invalid_row(
+                &table_name,
+                &row_id,
+                error,
+            )));
+        }
+    }
+    Ok(None)
 }
 
 pub(crate) fn apply_additive(
