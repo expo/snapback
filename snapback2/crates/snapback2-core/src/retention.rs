@@ -55,6 +55,16 @@ impl Flow {
         self
     }
 
+    fn growth_over(mut self, current: &Self) -> Self {
+        for (site, retained) in &current.rows {
+            if let Some(incoming) = self.rows.get_mut(site) {
+                incoming.count = incoming.count.saturating_sub(retained.count);
+            }
+        }
+        self.rows.retain(|_, row| row.count > 0);
+        self
+    }
+
     fn take(mut self, count: u64, available: u64) -> Self {
         let retained = count.min(available);
         for row in self.rows.values_mut() {
@@ -95,6 +105,7 @@ struct Binding {
     instances: u64,
     collection_len: Option<u64>,
     held_collection: bool,
+    loop_varying: bool,
 }
 
 pub(crate) struct RetentionEstimator<'a> {
@@ -132,10 +143,9 @@ impl<'a> RetentionEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
-                Stmt::Const { name, value }
-                | Stmt::Let { name, value }
-                | Stmt::Assign { name, value } => {
+                Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let (flow, collection_len, held_collection) = self.expression(value, variables);
+                    let loop_varying = Self::expression_is_loop_varying(value, variables, None);
                     variables.insert(
                         name.clone(),
                         Binding {
@@ -143,17 +153,62 @@ impl<'a> RetentionEstimator<'a> {
                             instances: calls,
                             collection_len,
                             held_collection,
+                            loop_varying,
                         },
                     );
                     self.record_held_collections(variables);
                 }
+                Stmt::Assign { name, value } => {
+                    let (flow, collection_len, held_collection) = self.expression(value, variables);
+                    let loop_varying =
+                        Self::expression_is_loop_varying(value, variables, Some(name));
+                    let collection = collection_len.is_some() || held_collection;
+                    let growth = collection
+                        && variables.contains_key(name)
+                        && expression_references_matching(value, &mut |variable| variable == name)
+                        && loop_varying;
+                    if growth {
+                        let current = variables.get_mut(name).expect("growth target exists");
+                        let repetitions = calls
+                            .saturating_add(current.instances.saturating_sub(1))
+                            .saturating_div(current.instances.max(1));
+                        let added = flow.growth_over(&current.flow).scale(repetitions);
+                        current.flow = current.flow.clone().add(added);
+                        current.collection_len = current.collection_len.zip(collection_len).map(
+                            |(current_len, assigned_len)| {
+                                current_len.saturating_add(
+                                    assigned_len
+                                        .saturating_sub(current_len)
+                                        .saturating_mul(repetitions),
+                                )
+                            },
+                        );
+                        current.held_collection = true;
+                        current.loop_varying |= loop_varying;
+                    } else {
+                        variables.insert(
+                            name.clone(),
+                            Binding {
+                                flow,
+                                instances: calls,
+                                collection_len,
+                                held_collection,
+                                loop_varying,
+                            },
+                        );
+                    }
+                    self.record_held_collections(variables);
+                }
                 Stmt::Push { target, value } => {
                     let (element, _, _) = self.expression(value, variables);
+                    let loop_varying =
+                        Self::expression_is_loop_varying(value, variables, Some(target));
                     let current = variables.entry(target.clone()).or_insert(Binding {
                         flow: Flow::default(),
                         instances: calls,
                         collection_len: Some(0),
                         held_collection: true,
+                        loop_varying: false,
                     });
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
@@ -163,6 +218,7 @@ impl<'a> RetentionEstimator<'a> {
                         .collection_len
                         .map(|length| length.saturating_add(repetitions));
                     current.held_collection = true;
+                    current.loop_varying |= loop_varying;
                     self.record_held_collections(variables);
                 }
                 Stmt::If {
@@ -193,6 +249,7 @@ impl<'a> RetentionEstimator<'a> {
                             instances: nested_calls,
                             collection_len: None,
                             held_collection: false,
+                            loop_varying: true,
                         },
                     );
                     self.statements(body, &mut nested, nested_calls);
@@ -394,6 +451,19 @@ impl<'a> RetentionEstimator<'a> {
         )
     }
 
+    fn expression_is_loop_varying(
+        expression: &Expr,
+        variables: &BTreeMap<String, Binding>,
+        excluded: Option<&String>,
+    ) -> bool {
+        expression_references_matching(expression, &mut |name| {
+            excluded.is_none_or(|excluded| name != excluded)
+                && variables
+                    .get(name)
+                    .is_some_and(|binding| binding.loop_varying)
+        })
+    }
+
     fn merge_variables(
         variables: &mut BTreeMap<String, Binding>,
         branch: BTreeMap<String, Binding>,
@@ -410,6 +480,7 @@ impl<'a> RetentionEstimator<'a> {
                         _ => None,
                     };
                     current.held_collection |= incoming.held_collection;
+                    current.loop_varying |= incoming.loop_varying;
                 })
                 .or_insert(incoming);
         }
@@ -430,5 +501,59 @@ fn literal_index(expression: Option<&Expr>) -> Option<u64> {
     match expression {
         Some(Expr::Literal(Value::Int(value))) => u64::try_from(*value).ok(),
         _ => None,
+    }
+}
+
+pub(crate) fn expression_references_matching(
+    expression: &Expr,
+    predicate: &mut impl FnMut(&str) -> bool,
+) -> bool {
+    match expression {
+        Expr::Variable(name) => predicate(name),
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
+            expression_references_matching(base, predicate)
+        }
+        Expr::Array(values) => values
+            .iter()
+            .any(|value| expression_references_matching(value, predicate)),
+        Expr::Object(values) => values
+            .values()
+            .any(|value| expression_references_matching(value, predicate)),
+        Expr::Binary { left, right, .. } => {
+            expression_references_matching(left, predicate)
+                || expression_references_matching(right, predicate)
+        }
+        Expr::Builtin { args, .. } => args
+            .iter()
+            .any(|value| expression_references_matching(value, predicate)),
+        Expr::Get(read) | Expr::Exists(read) => read
+            .key
+            .iter()
+            .any(|value| expression_references_matching(value, predicate)),
+        Expr::Scan(scan) => {
+            scan.prefix
+                .iter()
+                .any(|value| expression_references_matching(value, predicate))
+                || scan
+                    .after
+                    .as_deref()
+                    .is_some_and(|value| expression_references_matching(value, predicate))
+                || scan
+                    .before
+                    .as_deref()
+                    .is_some_and(|value| expression_references_matching(value, predicate))
+                || scan.range.as_ref().is_some_and(|range| {
+                    [
+                        range.gt.as_deref(),
+                        range.gte.as_deref(),
+                        range.lt.as_deref(),
+                        range.lte.as_deref(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|value| expression_references_matching(value, predicate))
+                })
+        }
+        Expr::Literal(_) | Expr::Input(_) => false,
     }
 }

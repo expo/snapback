@@ -1,5 +1,5 @@
 use crate::ir::*;
-use crate::retention::RetentionEstimator;
+use crate::retention::{RetentionEstimator, expression_references_matching};
 use crate::schema::{ColumnType, MaintainKind, RuleExpr, RuleTerm, Schema};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
@@ -697,6 +697,8 @@ struct OutputEstimator<'a> {
 struct OutputBound {
     bytes: u64,
     instances: u64,
+    collection: bool,
+    loop_varying: bool,
 }
 
 impl<'a> OutputEstimator<'a> {
@@ -714,6 +716,8 @@ impl<'a> OutputEstimator<'a> {
                     OutputBound {
                         bytes: Self::argument(argument),
                         instances: 1,
+                        collection: matches!(argument, ArgType::List { .. }),
+                        loop_varying: false,
                     },
                 )
             })
@@ -730,23 +734,61 @@ impl<'a> OutputEstimator<'a> {
     ) {
         for statement in statements {
             match statement {
-                Stmt::Const { name, value }
-                | Stmt::Let { name, value }
-                | Stmt::Assign { name, value } => {
+                Stmt::Const { name, value } | Stmt::Let { name, value } => {
                     let bytes = self.expression(value, variables);
+                    let collection = Self::expression_is_collection(value, variables);
+                    let loop_varying = Self::expression_is_loop_varying(value, variables, None);
                     variables.insert(
                         name.clone(),
                         OutputBound {
                             bytes,
                             instances: calls,
+                            collection,
+                            loop_varying,
                         },
                     );
                 }
+                Stmt::Assign { name, value } => {
+                    let bytes = self.expression(value, variables);
+                    let collection = Self::expression_is_collection(value, variables);
+                    let loop_varying =
+                        Self::expression_is_loop_varying(value, variables, Some(name));
+                    let growth = collection
+                        && variables.contains_key(name)
+                        && expression_references_matching(value, &mut |variable| variable == name)
+                        && loop_varying;
+                    if growth {
+                        let current = variables.get_mut(name).expect("growth target exists");
+                        let repetitions = calls
+                            .saturating_add(current.instances.saturating_sub(1))
+                            .saturating_div(current.instances.max(1));
+                        let added = bytes.saturating_sub(current.bytes);
+                        current.bytes = current
+                            .bytes
+                            .saturating_add(added.saturating_mul(repetitions));
+                        current.collection = true;
+                        current.loop_varying |= loop_varying;
+                    } else {
+                        variables.insert(
+                            name.clone(),
+                            OutputBound {
+                                bytes,
+                                instances: calls,
+                                collection,
+                                loop_varying,
+                            },
+                        );
+                    }
+                }
                 Stmt::Push { target, value } => {
                     let element = self.expression(value, variables).saturating_add(1);
+                    let loop_varying =
+                        Self::expression_is_loop_varying(value, variables, Some(target));
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
                         bytes: 2,
                         instances: calls,
+                        collection: true,
+                        loop_varying: false,
                     });
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
@@ -754,6 +796,8 @@ impl<'a> OutputEstimator<'a> {
                     current.bytes = current
                         .bytes
                         .saturating_add(repetitions.saturating_mul(element));
+                    current.collection = true;
+                    current.loop_varying |= loop_varying;
                 }
                 Stmt::If {
                     then_body,
@@ -780,6 +824,8 @@ impl<'a> OutputEstimator<'a> {
                         OutputBound {
                             bytes: element,
                             instances: nested_calls,
+                            collection: false,
+                            loop_varying: true,
                         },
                     );
                     self.statements(body, &mut nested, nested_calls);
@@ -811,6 +857,8 @@ impl<'a> OutputEstimator<'a> {
                 .and_modify(|current| {
                     current.bytes = current.bytes.max(bound.bytes);
                     current.instances = current.instances.min(bound.instances);
+                    current.collection |= bound.collection;
+                    current.loop_varying |= bound.loop_varying;
                 })
                 .or_insert(bound);
         }
@@ -906,6 +954,39 @@ impl<'a> OutputEstimator<'a> {
             Expr::Exists(_) => 16,
             Expr::Scan(scan) => Self::repeated(self.row(&scan.table), scan.take.maximum()),
         }
+    }
+
+    fn expression_is_collection(
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> bool {
+        match expression {
+            Expr::Variable(name) => variables.get(name).is_some_and(|bound| bound.collection),
+            Expr::Array(_) | Expr::Scan(_) => true,
+            Expr::Builtin { builtin, .. } => matches!(
+                builtin,
+                Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
+            ),
+            Expr::Literal(_)
+            | Expr::Input(_)
+            | Expr::Field { .. }
+            | Expr::Object(_)
+            | Expr::Binary { .. }
+            | Expr::Unary { .. }
+            | Expr::Get(_)
+            | Expr::Exists(_) => false,
+        }
+    }
+
+    fn expression_is_loop_varying(
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+        excluded: Option<&String>,
+    ) -> bool {
+        expression_references_matching(expression, &mut |name| {
+            excluded.is_none_or(|excluded| name != excluded)
+                && variables.get(name).is_some_and(|bound| bound.loop_varying)
+        })
     }
 
     fn collection(values: impl Iterator<Item = u64>) -> u64 {

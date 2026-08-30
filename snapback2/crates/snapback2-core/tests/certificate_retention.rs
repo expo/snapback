@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 
 const TAKE: u32 = 9_405;
 const ROW_BYTES: u64 = 446;
+const GROWTH_TAKE: u32 = 7_000;
+const GROWTH_ROW_BYTES: u64 = 796;
 
 fn schema() -> Schema {
     Schema {
@@ -43,6 +45,57 @@ fn scan() -> Expr {
         range: None,
         provenance: KeyProvenance::Const,
     })
+}
+
+fn growth_schema() -> Schema {
+    Schema {
+        tables: BTreeMap::from([(
+            "items".to_owned(),
+            public_table(
+                BTreeMap::from([
+                    ("id".to_owned(), ColumnType::Id),
+                    ("amount".to_owned(), ColumnType::Int),
+                    ("body".to_owned(), ColumnType::Text { max: 570 }),
+                ]),
+                BTreeMap::from([(
+                    "byId".to_owned(),
+                    Index {
+                        columns: vec!["id".to_owned()],
+                        unique: true,
+                    },
+                )]),
+            ),
+        )]),
+        maintains: Vec::new(),
+        channels: BTreeMap::new(),
+        auth: Auth::default(),
+        effects: Vec::new(),
+    }
+}
+
+fn growth_scan(take: u32) -> Scan {
+    Scan {
+        site: "items.growth".to_owned(),
+        table: "items".to_owned(),
+        index: "byId".to_owned(),
+        prefix: Vec::new(),
+        order: Order::Asc,
+        take: Bound::Literal(take),
+        after: None,
+        before: None,
+        range: None,
+        provenance: KeyProvenance::Const,
+    }
+}
+
+fn spread_append(target: &str, value: Expr) -> Stmt {
+    Stmt::Assign {
+        name: target.to_owned(),
+        value: Expr::Builtin {
+            builtin: Builtin::Concat,
+            args: vec![Expr::Variable(target.to_owned()), Expr::Array(vec![value])],
+        },
+    }
 }
 
 fn program(name: &str, body: Vec<Stmt>) -> Program {
@@ -199,6 +252,145 @@ fn closure_retention_follows_page_data_flow() {
             .starts_with("closure bytes 4194630 exceeds ceiling")),
         "pushing every page row no longer preserves the full-page refusal: {errors:?}"
     );
+}
+
+#[test]
+fn collection_reassignment_growth_tracks_loop_cardinality() {
+    let schema = growth_schema();
+    assert_eq!(
+        declared_serialized_row_max(&schema, "items"),
+        GROWTH_ROW_BYTES
+    );
+
+    // Exact lowering of `result = [...result, item]` over 7,000 declared
+    // 796-byte rows.
+    let spread_loop = program(
+        "items.spreadLoop",
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![spread_append("result", Expr::Variable("item".to_owned()))],
+            },
+            Stmt::Return(Expr::Variable("result".to_owned())),
+        ],
+    );
+    let spread = permissive_checker(&schema).check(&spread_loop).unwrap();
+    assert_eq!(spread.max_closure_bytes, 5_572_000);
+    assert_eq!(spread.max_output_bytes, 5_593_002);
+    let spread_errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&spread_loop)
+        .unwrap_err();
+    assert!(
+        spread_errors.iter().any(|error| error
+            .message
+            .starts_with("output bytes 5593002 exceeds ceiling")),
+        "spread append did not cross the output ceiling: {spread_errors:?}"
+    );
+    assert!(
+        spread_errors.iter().any(|error| error
+            .message
+            .starts_with("closure bytes 5572000 exceeds ceiling")),
+        "spread append did not cross the closure ceiling: {spread_errors:?}"
+    );
+
+    let nested_loop = program(
+        "items.nestedSpreadLoop",
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(400)),
+                body: vec![Stmt::For {
+                    binding: "copy".to_owned(),
+                    domain: LoopDomain::LiteralRange {
+                        start: 0,
+                        end_exclusive: 20,
+                    },
+                    body: vec![spread_append("result", Expr::Variable("item".to_owned()))],
+                }],
+            },
+            Stmt::Return(Expr::Variable("result".to_owned())),
+        ],
+    );
+    let nested = permissive_checker(&schema).check(&nested_loop).unwrap();
+    assert_eq!(nested.max_closure_bytes, 6_368_000);
+    assert_eq!(nested.max_output_bytes, 6_392_002);
+    let nested_errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&nested_loop)
+        .unwrap_err();
+    assert!(
+        nested_errors.iter().any(|error| error
+            .message
+            .starts_with("output bytes 6392002 exceeds ceiling")),
+        "nested append did not multiply the output width: {nested_errors:?}"
+    );
+    assert!(
+        nested_errors.iter().any(|error| error
+            .message
+            .starts_with("closure bytes 6368000 exceeds ceiling")),
+        "nested append did not multiply the retained width: {nested_errors:?}"
+    );
+
+    let scalar_reassignment = program(
+        "items.scalarReassignment",
+        vec![
+            Stmt::Let {
+                name: "sum".to_owned(),
+                value: Expr::Literal(Value::Int(0)),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![Stmt::Assign {
+                    name: "sum".to_owned(),
+                    value: Expr::Binary {
+                        op: BinaryOp::Add,
+                        left: Box::new(Expr::Variable("sum".to_owned())),
+                        right: Box::new(Expr::Field {
+                            base: Box::new(Expr::Variable("item".to_owned())),
+                            name: "amount".to_owned(),
+                        }),
+                    },
+                }],
+            },
+            Stmt::Return(Expr::Variable("sum".to_owned())),
+        ],
+    );
+    let scalar = permissive_checker(&schema)
+        .check(&scalar_reassignment)
+        .unwrap();
+    assert_eq!(scalar.max_closure_bytes, 64);
+    assert_eq!(scalar.max_output_bytes, 32);
+
+    let fresh_array = program(
+        "items.freshArray",
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "item".to_owned(),
+                domain: LoopDomain::Page(growth_scan(GROWTH_TAKE)),
+                body: vec![Stmt::Assign {
+                    name: "result".to_owned(),
+                    value: Expr::Array(vec![Expr::Variable("item".to_owned())]),
+                }],
+            },
+            Stmt::Return(Expr::Variable("result".to_owned())),
+        ],
+    );
+    let fresh = permissive_checker(&schema).check(&fresh_array).unwrap();
+    assert_eq!(fresh.max_closure_bytes, GROWTH_ROW_BYTES);
+    assert_eq!(fresh.max_output_bytes, 799);
 }
 
 #[test]
