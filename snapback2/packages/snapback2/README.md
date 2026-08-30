@@ -43,7 +43,8 @@ export const App = () => <SnapbackProvider url="http://127.0.0.1:3210" as="alice
 Reads surface exactly seven states: `hydrating`, `complete`, `capped`, `partial`,
 `denied`, `refused`, and `stale`. A subscription frame retains its server receipt
 state and sets the orthogonal `live: true`; stream loss changes the view to
-`stale` with `live: false`. Transport status is separately exposed as
+`stale` with `live: false` only after a receipt has been delivered. An initial
+connection failure remains `hydrating`. Transport status is separately exposed as
 `connection: "connected" | "reconnecting" | "offline"`. `useQuery` subscribes by
 default; pass `{ live: false }` for a one-shot query, which remains `hydrating` and
 retries while its connection is reconnecting.
@@ -52,8 +53,14 @@ retries while its connection is reconnecting.
 interval, and `last` is the most recent `committed` or `rejected` value. `queued`
 is reserved for the deferred offline outbox and is not a v1 mutation state.
 
-Build and run the package tests from this directory with:
+Build and run the package tests against a real debug owner from this directory with:
 
 ```sh
-node build.mjs && node --test tests/
+node build.mjs
+env -u SNAPBACK_URL node --test tests/
 ```
+
+With `SNAPBACK_URL` unset, the harness builds the chat fixture with the bundled
+compiler, starts `target/debug/snapback2 dev --foreground` on an ephemeral port,
+and exports its URL to the suite. To use an already-running compatible owner, set
+`SNAPBACK_URL=http://127.0.0.1:<port>` instead.

@@ -41,6 +41,7 @@ export type MutationRejected = {
   code: string;
   family: string;
   message: string;
+  retryable?: boolean;
   rewrite?: string;
   site?: string;
   rule?: string;
@@ -92,7 +93,7 @@ export interface ChannelEvent<Payload = unknown> { from: string; payload: Payloa
 export type ChannelDelivery<Payload = unknown> = ChannelEvent<Payload> | RefusedDelivery;
 export type ChannelPublishResult =
   | { ok: true }
-  | ({ state: "refused" } & Partial<RefusalEnvelope> & { code: string });
+  | ({ state: "refused" } & RefusalEnvelope);
 export interface ChannelHandle<Payload = unknown> {
   publish(payload: Payload): Promise<ChannelPublishResult>;
   subscribe(callback: (event: ChannelDelivery<Payload>) => void): Subscription<ChannelDelivery<Payload>>;
@@ -100,7 +101,7 @@ export interface ChannelHandle<Payload = unknown> {
 
 export interface ManifestOperation { kind: string; args: unknown }
 export interface Manifest {
-  generation: number;
+  generation: string;
   ops: Record<string, ManifestOperation>;
   channels: Record<string, unknown>;
   auth: Record<string, unknown>;
@@ -111,7 +112,7 @@ export interface ClientSnapshot {
   token?: string;
   persona?: string;
   connection: ConnectionState;
-  generation?: number;
+  generation?: string;
   lastRefusal?: RefusalEnvelope;
 }
 

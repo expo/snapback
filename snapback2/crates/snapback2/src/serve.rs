@@ -340,6 +340,10 @@ fn respond_json(request: Request, status: u16, value: Json, mode: &str) {
             "Access-Control-Allow-Headers",
             "Authorization, Content-Type, X-Snapback-As, X-Snapback-Control",
         ));
+        response.add_header(header_value(
+            "Access-Control-Allow-Methods",
+            "GET, POST, OPTIONS",
+        ));
     }
     let _ = request.respond(response);
 }

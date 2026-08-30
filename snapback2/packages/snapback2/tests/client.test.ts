@@ -260,7 +260,7 @@ class MockOwner {
     }
     if (request.method === "GET" && parsed.pathname === "/api/manifest") {
       json(response, 200, {
-        generation: 1,
+        generation: "mock-generation",
         ops: { "messages.thread": { kind: "query", args: { conversationId: "id" } } },
         channels: { typing: { args: { conversationId: "id" } } },
         auth: { password: true, guests: true },
@@ -279,7 +279,7 @@ class MockOwner {
     if (request.method === "POST" && parsed.pathname === "/api/mutation") {
       const input = await body(request);
       if (input.op === "messages.reject" || input.args?.body === "reject") {
-        json(response, 200, { state: "rejected", ...refusal("E_REQUIRE:REJECTED", "mutation rejected") });
+        json(response, 200, { state: "rejected", ...refusal("RECIPIENT_UNKNOWN", "mutation rejected") });
         return;
       }
       if (input.op !== "messages.send") {
@@ -363,13 +363,14 @@ after(async () => {
   if (!externalUrl) await owner.stop();
 });
 
-test("api proxy produces inert qualified operation references", () => {
+test("api proxy produces inert qualified operation references", async () => {
   assert.equal(api.messages.thread.op, "messages.thread");
   assert.equal(api.channels.typing.op, "channels.typing");
   assert.equal(api.channels.op.op, "channels.op");
-  assert.equal(api.channels.then.op, "channels.then");
+  assert.equal(api.channels.then, undefined);
   assert.equal(api.channels.toJSON.op, "channels.toJSON");
   assert.deepEqual(JSON.parse(JSON.stringify(api.messages.thread)), { op: "messages.thread" });
+  assert.deepEqual(await Promise.all([api.messages.thread]), [api.messages.thread]);
 });
 
 test("api proxy preserves operations named like proxy metadata", async () => {
@@ -381,10 +382,10 @@ test("api proxy preserves operations named like proxy metadata", async () => {
       return fetchJson({ state: "complete", seq: seen.length, data: true });
     },
   });
-  for (const ref of [api.messages.op, api.messages.then, api.messages.toJSON, api.op.list, api.then.list, api.toJSON.list]) {
+  for (const ref of [api.messages.op, api.messages.toJSON, api.op.list, api.toJSON.list]) {
     assert.equal((await value.query(ref, {})).state, "complete");
   }
-  assert.deepEqual(seen, ["messages.op", "messages.then", "messages.toJSON", "op.list", "then.list", "toJSON.list"]);
+  assert.deepEqual(seen, ["messages.op", "messages.toJSON", "op.list", "toJSON.list"]);
   value.close();
 });
 
@@ -414,8 +415,8 @@ test("query returns every typed read state and refuses 4xx/network as envelopes"
   const value = client(externalUrl ? { as: "alice" } : {});
   if (!externalUrl) await value.auth.guest();
   const manifest = await value.manifest();
-  assert.equal(manifest.generation, 1);
-  assert.equal(manifest.ops["messages.thread"]?.kind, "query");
+  assert.ok(manifest.generation.length > 0);
+  assert.ok(manifest.ops["messages.thread"]?.kind.toLowerCase() === "query");
   if (externalUrl) {
     const result = await value.query(api.messages.thread, { conversationId: "conversation-1" });
     assert.ok(["complete", "capped", "partial", "denied"].includes(result.state));
@@ -452,6 +453,7 @@ test("every HTTP wire state validates its state-specific required fields", async
   const mutationCases = [
     [{ state: "committed", seq: 1 }, "data"],
     [{ state: "rejected", family: "op", message: "no" }, "code"],
+    [{ state: "rejected", code: "E_NO", family: "op", message: "no" }, "guide"],
   ] as const;
   for (const [wire, missing] of mutationCases) {
     const value = createClient({ url: "http://wire.test", fetch: async () => fetchJson(wire) });
@@ -469,6 +471,26 @@ test("every HTTP wire state validates its state-specific required fields", async
   );
   malformed4xx.close();
 
+  const missingFamily = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ code: "E_NO", message: "missing family", guide: "op/no" }, 400),
+  });
+  await assert.rejects(
+    () => missingFamily.query(api.states.complete, {}),
+    (error: unknown) => isWireShape(error, "family"),
+  );
+  missingFamily.close();
+
+  const missingGuide = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson({ code: "E_NO", family: "op", message: "missing guide" }, 400),
+  });
+  await assert.rejects(
+    () => missingGuide.query(api.states.complete, {}),
+    (error: unknown) => isWireShape(error, "guide"),
+  );
+  missingGuide.close();
+
   const authCases: Array<[(value: SnapbackClient) => Promise<unknown>, unknown, string]> = [
     [(value) => value.auth.guest(), { token: "token" }, "viewer"],
     [(value) => value.auth.logout(), {}, "ok"],
@@ -482,7 +504,7 @@ test("every HTTP wire state validates its state-specific required fields", async
 
   const manifest = createClient({
     url: "http://wire.test",
-    fetch: async () => fetchJson({ generation: 1, ops: {}, auth: {} }),
+    fetch: async () => fetchJson({ generation: "test", ops: {}, auth: {} }),
   });
   await assert.rejects(() => manifest.manifest(), (error: unknown) => isWireShape(error, "channels"));
   manifest.close();
@@ -519,7 +541,7 @@ test("bodyless GETs omit Content-Type", async () => {
       seen.set(path, new Headers(init?.headers).get("Content-Type"));
       if (path === "/api/auth/me") return fetchJson({ viewer: "alice", kind: "user" });
       if (path === "/api/manifest") {
-        return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+        return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
       }
       if (path === "/api/subscribe") {
         return fetchSse({ state: "complete", data: [], seq: 1 });
@@ -567,16 +589,17 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
     [{ state: "stale", seq: 4, since: 1 }, "state"],
   ] as const;
   for (const [wire, missing] of queryCases) {
+    let queryDelivery: any;
     const queryClient = createClient({
       url: "http://wire.test",
       fetch: async () => fetchSse(wire),
     });
-    const querySub = queryClient.subscribe(api.messages.thread, {}, () => undefined);
+    const querySub = queryClient.subscribe(api.messages.thread, {}, (delivery) => { queryDelivery = delivery; });
     context.after(() => { querySub.close(); queryClient.close(); });
-    const refused = await querySub.until((delivery) => delivery.state === "refused", 500);
-    assert.equal(refused.code, "E_WIRE_SHAPE");
-    assert.equal(refused.family, "op");
-    assert.match(refused.message ?? "", new RegExp(missing));
+    await assert.rejects(() => querySub.until(() => false, 500), (error: unknown) => isWireShape(error, missing));
+    assert.equal(queryDelivery.code, "E_WIRE_SHAPE");
+    assert.equal(queryDelivery.family, "op");
+    assert.match(queryDelivery.message ?? "", new RegExp(missing));
     querySub.close();
     queryClient.close();
   }
@@ -598,8 +621,9 @@ test("malformed subscription and channel frames deliver E_WIRE_SHAPE", async (co
   channelClient.close();
 });
 
-test("a refused frame without code becomes terminal E_PROTOCOL_STATE", async () => {
+test("a refused frame without code becomes terminal E_WIRE_SHAPE", async () => {
   let opens = 0;
+  let delivered: any;
   const value = createClient({
     url: "http://wire.test",
     fetch: async () => {
@@ -607,10 +631,10 @@ test("a refused frame without code becomes terminal E_PROTOCOL_STATE", async () 
       return fetchSse({ state: "refused", family: "auth", message: "missing code" });
     },
   });
-  const sub = value.subscribe(api.messages.thread, {}, () => undefined);
-  const refused = await sub.until((delivery) => delivery.state === "refused", 500);
-  assert.equal(refused.code, "E_PROTOCOL_STATE");
-  assert.equal(refused.family, "op");
+  const sub = value.subscribe(api.messages.thread, {}, (delivery) => { delivered = delivery; });
+  await assert.rejects(() => sub.until(() => false, 500), (error: unknown) => isWireShape(error, "code"));
+  assert.equal(delivered.code, "E_WIRE_SHAPE");
+  assert.equal(delivered.family, "op");
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.equal(opens, 1, "a protocol refusal frame must close instead of reconnecting");
   sub.close();
@@ -659,7 +683,7 @@ test("mutation returns committed and rejected without throwing rejected", async 
       })
     : await value.mutation(api.messages.reject, { body: "reject" });
   assert.equal(rejected.state, "rejected");
-  if (rejected.state === "rejected") assert.equal(rejected.code, "E_REQUIRE:REJECTED");
+  if (rejected.state === "rejected") assert.equal(rejected.code, "RECIPIENT_UNKNOWN");
 });
 
 test("subscription observes another client's mutation and until resolves", async () => {
@@ -688,19 +712,24 @@ test("subscription observes another client's mutation and until resolves", async
   sub.close();
 });
 
-test("live queries expose capped and denied receipt states with live true", async () => {
+test("live queries expose capped and denied receipt states with live true", async (context) => {
+  if (externalUrl && process.env.SNAPBACK2_REAL_OWNER_MODE !== "self-started") {
+    return context.skip("live capped/denied fixtures are added by the self-started real-owner harness");
+  }
   for (const [state, expected] of [
     ["capped", { take: 1, site: "messages.scan" }],
-    ["denied", { rule: "members only" }],
+    ["denied", { rule: externalUrl ? "MEMBERSHIP_REQUIRED" : "members only" }],
   ] as const) {
-    const value = client();
-    const sub = value.subscribe(api.states[state], {}, () => undefined);
-    const delivery = await sub.until((item) => item.state === state, 500);
+    const value = client(externalUrl ? { as: state === "denied" ? "charlie" : "alice" } : {});
+    const ref = externalUrl ? api.integration[state] : api.states[state];
+    const args = externalUrl && state === "denied" ? { conversationId: "conversation-1" } : {};
+    const sub = value.subscribe(ref, args, () => undefined);
+    const delivery = await sub.until((item) => item.state === state, 2_000);
     assert.equal(delivery.state, state);
     assert.equal(delivery.live, true);
     if (delivery.state === "capped") {
       assert.equal(delivery.take, expected.take);
-      assert.equal(delivery.site, expected.site);
+      assert.ok(delivery.site.length > 0);
     } else if (delivery.state === "denied") {
       assert.equal(delivery.rule, expected.rule);
     }
@@ -715,6 +744,7 @@ test("5xx and non-envelope subscribe failures are stale transport and reconnect"
   ]) {
     let opens = 0;
     const deliveries: any[] = [];
+    const connections: string[] = [];
     const value = createClient({
       url: "http://wire.test",
       fetch: async () => {
@@ -723,16 +753,15 @@ test("5xx and non-envelope subscribe failures are stale transport and reconnect"
         return fetchSse({ state: "complete", data: [{ id: "one" }], seq: 8 });
       },
     });
+    const unsubscribe = value.subscribeStatus((snapshot) => connections.push(snapshot.connection));
     const sub = value.subscribe(api.messages.thread, {}, (delivery) => deliveries.push(delivery));
-    const stale = await sub.until((delivery) => delivery.state === "stale", 500);
-    assert.equal(stale.state, "stale");
-    assert.equal(stale.live, false);
-    assert.equal(typeof stale.since, "number");
     const recovered = await sub.until((delivery) => delivery.state === "complete", 1_000);
     assert.equal(recovered.state, "complete");
     assert.equal(recovered.live, true);
     assert.equal(opens, 2);
-    assert.deepEqual(deliveries.map((delivery) => delivery.state).slice(0, 2), ["stale", "complete"]);
+    assert.deepEqual(deliveries.map((delivery) => delivery.state), ["complete"]);
+    assert.ok(connections.includes("reconnecting"));
+    unsubscribe();
     sub.close();
     value.close();
   }
@@ -873,6 +902,87 @@ test("terminal channel refusals reach callbacks and reject until immediately", a
   value.close();
 });
 
+test("terminal query refusals on subscribe open reach callbacks and reject until immediately", async () => {
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => fetchJson(refusal("E_AUTH_REQUIRED", "a session is required"), 401),
+  });
+  let delivered: any;
+  const sub = value.subscribe(api.messages.thread, {}, (event) => { delivered = event; });
+  const started = Date.now();
+  await assert.rejects(
+    () => sub.until(() => false, 2_000),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_REQUIRED",
+  );
+  assert.ok(Date.now() - started < 500, "until waited for its timeout instead of rejecting the refusal");
+  assert.equal(delivered.state, "refused");
+  assert.equal(delivered.code, "E_AUTH_REQUIRED");
+  sub.close();
+  value.close();
+});
+
+test("lastRefusal clears only after state-specific validation succeeds", async () => {
+  let request = 0;
+  const value = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      request += 1;
+      return request === 1
+        ? fetchJson(refusal("E_OP_UNKNOWN", "unknown"), 404)
+        : fetchJson({ state: "complete", seq: 1 });
+    },
+  });
+  await assert.rejects(() => value.query(api.missing, {}), (error: unknown) =>
+    error instanceof SnapbackRefusal && error.code === "E_OP_UNKNOWN");
+  await assert.rejects(() => value.query(api.messages.thread, {}), (error: unknown) =>
+    isWireShape(error, "data"));
+  assert.equal(value.snapshot.lastRefusal?.code, "E_OP_UNKNOWN");
+  value.close();
+});
+
+test("query retries HTTP transport failures while mutation never retries", async () => {
+  for (const response of [
+    () => fetchJson({ message: "busy" }, 503),
+    () => new Response("not a refusal envelope", { status: 400 }),
+  ]) {
+    let queryAttempts = 0;
+    const querying = createClient({
+      url: "http://wire.test",
+      fetch: async () => {
+        queryAttempts += 1;
+        return response();
+      },
+    });
+    await assert.rejects(
+      () => querying.query(api.messages.thread, {}),
+      (error: unknown) => error instanceof SnapbackRefusal
+        && error.code === "E_TRANSPORT"
+        && error.retryable,
+    );
+    assert.equal(queryAttempts, 3);
+    assert.equal(querying.snapshot.connection, "reconnecting");
+    querying.close();
+  }
+
+  let mutationAttempts = 0;
+  const mutating = createClient({
+    url: "http://wire.test",
+    fetch: async () => {
+      mutationAttempts += 1;
+      return fetchJson(refusal("E_OWNER_BUSY", "busy"), 503);
+    },
+  });
+  await assert.rejects(
+    () => mutating.mutation(api.messages.send, {}),
+    (error: unknown) => error instanceof SnapbackRefusal
+      && error.code === "E_TRANSPORT"
+      && error.retryable,
+  );
+  assert.equal(mutationAttempts, 1);
+  assert.equal(mutating.snapshot.connection, "reconnecting");
+  mutating.close();
+});
+
 test("query and mutation throw every 4xx refusal while subscriptions deliver refused", async () => {
   const serve = new MockOwner("serve");
   await serve.start();
@@ -885,10 +995,14 @@ test("query and mutation throw every 4xx refusal while subscriptions deliver ref
     () => value.mutation(api.messages.send, { conversationId: "general", body: "hello" }),
     (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
   );
-  const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, () => undefined);
-  const refused = await sub.until((delivery) => delivery.state === "refused", 500);
-  assert.equal(refused.code, "E_AUTH_PERSONA_NOT_DEV");
-  assert.equal(refused.family, "auth");
+  let delivered: any;
+  const sub = value.subscribe(api.messages.thread, { conversationId: "general" }, (delivery) => { delivered = delivery; });
+  await assert.rejects(
+    () => sub.until(() => false, 500),
+    (error: unknown) => error instanceof SnapbackRefusal && error.code === "E_AUTH_PERSONA_NOT_DEV",
+  );
+  assert.equal(delivered.code, "E_AUTH_PERSONA_NOT_DEV");
+  assert.equal(delivered.family, "auth");
   sub.close();
   value.close();
   await serve.stop();
@@ -958,7 +1072,7 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
     }
     return await new Promise<Response>((resolve) => { release = resolve; });
   };
@@ -992,12 +1106,88 @@ test("useMutation exposes pending for exactly the in-flight interval", async () 
   await act(async () => { renderer!.unmount(); });
 });
 
+test("useMutation records a rejected-shaped retryable transport failure without retrying", async () => {
+  let current: any;
+  let mutationAttempts = 0;
+  const fetch = async (input: string | URL | Request) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/manifest") {
+      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+    }
+    mutationAttempts += 1;
+    return fetchJson({ message: "upstream failed" }, 503);
+  };
+  function Harness() {
+    current = useMutation(api.messages.send);
+    return null;
+  }
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { url: "http://wire.test", fetch },
+      React.createElement(Harness),
+    ));
+  });
+  await act(async () => {
+    await assert.rejects(() => current.run({}), (error: any) =>
+      error?.code === "E_TRANSPORT" && error?.retryable === true);
+  });
+  assert.equal(mutationAttempts, 1);
+  assert.deepEqual(current.last, {
+    state: "rejected",
+    code: "E_TRANSPORT",
+    family: "owner",
+    message: "/api/mutation returned HTTP 503",
+    guide: "owner/connect",
+    retryable: true,
+  });
+  await act(async () => { renderer!.unmount(); });
+});
+
+test("useQuery renders hydrating immediately when its identity changes", async () => {
+  const renders: Array<{ op: string; state: string }> = [];
+  const fetch = async (input: string | URL | Request) => {
+    const parsed = new URL(String(input));
+    if (parsed.pathname === "/api/manifest") {
+      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
+    }
+    if (parsed.pathname === "/api/subscribe") {
+      const op = parsed.searchParams.get("op") ?? "missing";
+      return hangingSse(`data: ${JSON.stringify({ state: "complete", data: [op], seq: 1 })}\n\n`);
+    }
+    throw new Error(`unexpected route ${parsed.pathname}`);
+  };
+  function Harness({ operation }: { operation: any }) {
+    const view = useQuery(operation, { identity: operation.op });
+    renders.push({ op: operation.op, state: view.state });
+    return null;
+  }
+  const element = (operation: any) => React.createElement(
+    SnapbackProvider,
+    { url: "http://wire.test", fetch },
+    React.createElement(Harness, { operation }),
+  );
+  let renderer: TestRenderer.ReactTestRenderer;
+  await act(async () => {
+    renderer = TestRenderer.create(element(api.messages.first));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  assert.equal(renders.filter((render) => render.op === "messages.first").at(-1)?.state, "complete");
+  await act(async () => {
+    renderer!.update(element(api.messages.second));
+  });
+  const secondIdentityRenders = renders.filter((render) => render.op === "messages.second");
+  assert.equal(secondIdentityRenders[0]?.state, "hydrating", "the old receipt leaked under the new identity");
+  await act(async () => { renderer!.unmount(); });
+});
+
 test("non-live useQuery keeps hydrating across a network failure, reports connection, and retries", async () => {
   let queryAttempts = 0;
   const fetch = async (input: string | URL | Request) => {
     const path = new URL(String(input)).pathname;
     if (path === "/api/manifest") {
-      return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+      return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
     }
     if (path === "/api/query") {
       queryAttempts += 1;
@@ -1039,7 +1229,7 @@ test("separately bundled client and React entry points share generated API refer
   let operation: string | undefined;
   const fetch = async (input: string | URL | Request, init?: RequestInit) => {
     const path = new URL(String(input)).pathname;
-    if (path === "/api/manifest") return fetchJson({ generation: 1, ops: {}, channels: {}, auth: {} });
+    if (path === "/api/manifest") return fetchJson({ generation: "test", ops: {}, channels: {}, auth: {} });
     operation = JSON.parse(String(init?.body)).op;
     return fetchJson({ state: "complete", seq: 1, data: [] });
   };

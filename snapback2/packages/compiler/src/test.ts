@@ -324,6 +324,24 @@ test("snapback2 constructors resolve through named aliases and namespace imports
   });
 });
 
+test("the thenable property name is reserved at every generated API path", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { channel, rule, schema } from "snapback2";
+      export const then = channel({ args: {}, publish: rule.allow(), subscribe: rule.allow(), ttlMs: 1000 });
+      export default schema({ tables: {}, channels: { then } });`,
+    "snapback/then.ts": `import { query } from "snapback2";
+      export const list = query({}, () => []);`,
+    "snapback/ops.ts": `import { query } from "snapback2";
+      export const then = query({}, () => []);`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(!project.ok, "then-bearing API paths unexpectedly compiled");
+    const reserved = project.diagnostics.filter((item) => item.code === "E_OP_RESERVED");
+    assert(reserved.length === 3, `expected three reserved then diagnostics, got ${reserved.length}`);
+    assert(reserved.every((item) => item.family === "op" && item.guide === "programs/operations"), "reserved then diagnostics used the wrong envelope");
+  });
+});
+
 test("schema and program namespace imports resolve table, index, emit, and then references", async () => {
   await withProject({
     "snapback/schema.ts": `import { schema, table, t } from "snapback2";

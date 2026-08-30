@@ -67,6 +67,7 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
   diagnostics.push(...projectTypeDiagnostics(checked.program, projectRoot));
 
   const operations = collectOperations(modules);
+  diagnostics.push(...reservedApiPathDiagnostics(operations, schemaSource, schemaFileName));
   const catalog = collectEffectCatalog(modules);
   const loweredEffects = lowerEffects(catalog, operations);
   diagnostics.push(...loweredEffects.diagnostics);
@@ -265,6 +266,53 @@ function collectOperations(modules: SourceModule[]): Map<string, OperationDecl &
     }
   }
   return operations;
+}
+
+function reservedApiPathDiagnostics(
+  operations: Map<string, OperationDecl & { module: SourceModule }>,
+  schemaSource: string,
+  schemaFileName: string,
+): FrontendDiagnostic[] {
+  const diagnostics: FrontendDiagnostic[] = [];
+  for (const operation of operations.values()) {
+    if (operation.moduleName === "then") {
+      diagnostics.push(diagnostic(
+        operation.module,
+        "E_OP_RESERVED",
+        operation.call,
+        `operation ${operation.name} uses reserved API path segment then`,
+        `rename snapback/then.ts to snapback/${operation.exportName === "then" ? "operations" : operation.exportName}.ts`,
+      ));
+    }
+    if (operation.exportName === "then") {
+      diagnostics.push(diagnostic(
+        operation.module,
+        "E_OP_RESERVED",
+        operation.call,
+        `operation ${operation.name} uses reserved API property then`,
+        operation.module.source.replace(/\bthen\b/, "thenOperation"),
+      ));
+    }
+  }
+
+  const sourceFile = ts.createSourceFile(schemaFileName, schemaSource, ts.ScriptTarget.ES2022, true);
+  const schemaModule = { sourceFile, source: schemaSource, fileName: schemaFileName };
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "then" || !declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || callLeaf(call) !== "channel") continue;
+      diagnostics.push(diagnostic(
+        schemaModule,
+        "E_OP_RESERVED",
+        declaration.name,
+        "channel then uses a reserved API property",
+        schemaSource.replace(/\bthen\b/g, "thenChannel"),
+      ));
+    }
+  }
+  return diagnostics;
 }
 
 function boundProjectOperationDiagnostics(

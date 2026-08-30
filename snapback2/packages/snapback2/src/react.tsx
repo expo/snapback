@@ -85,20 +85,29 @@ export function useQuery<Args, Result>(
   const { client, snapshot } = provider();
   const argsKey = stableSerialize(args);
   const stableArgs = useMemo(() => args, [argsKey]);
-  const [state, dispatch] = useReducer(
-    (current: QueryView<Result>, event: QueryMachineEvent<Result> | { state: "reset" }) =>
-      event.state === "reset" ? initialQueryState<Result>() : reduceQueryState(current, event),
-    undefined,
-    initialQueryState<Result>,
-  );
   const live = options.live !== false;
+  const operation = referenceName(ref);
+  const identity = useMemo(() => ({ client, key: `${operation}:${argsKey}:${live}` }), [client, operation, argsKey, live]);
+  const [machine, dispatch] = useReducer(
+    (
+      current: { identity: typeof identity; view: QueryView<Result> },
+      action: { identity: typeof identity; event: QueryMachineEvent<Result> },
+    ) => ({
+      identity: action.identity,
+      view: reduceQueryState(
+        current.identity === action.identity ? current.view : initialQueryState<Result>(),
+        action.event,
+      ),
+    }),
+    { identity, view: initialQueryState<Result>() },
+  );
+  const state = machine.identity === identity ? machine.view : initialQueryState<Result>();
 
   useEffect(() => {
     let active = true;
-    dispatch({ state: "reset" });
     if (live) {
       const subscription = client.subscribe(ref, stableArgs, (delivery) => {
-        if (active) dispatch(delivery);
+        if (active) dispatch({ identity, event: delivery });
       });
       return () => {
         active = false;
@@ -111,11 +120,11 @@ export function useQuery<Args, Result>(
       while (active) {
         try {
           const result = await client.query(ref, stableArgs);
-          if (active) dispatch(result);
+          if (active) dispatch({ identity, event: result });
           return;
         } catch (error) {
           if (!active) return;
-          if (error instanceof SnapbackRefusal && error.code === "E_NETWORK") {
+          if (error instanceof SnapbackRefusal && error.retryable) {
             await new Promise<void>((resolve) => { timer = setTimeout(resolve, backoff); });
             backoff = Math.min(backoff * 2, 5_000);
             continue;
@@ -123,7 +132,7 @@ export function useQuery<Args, Result>(
           const envelope = error instanceof SnapbackRefusal
             ? error.envelope
             : { code: "E_CLIENT", family: "owner", message: String(error), guide: "owner/connect" };
-          dispatch({ state: "refused", live: false, ...envelope });
+          dispatch({ identity, event: { state: "refused", live: false, ...envelope } });
           return;
         }
       }
@@ -132,7 +141,7 @@ export function useQuery<Args, Result>(
       active = false;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [client, referenceName(ref), argsKey, live, stableArgs]);
+  }, [identity, stableArgs]);
 
   return useMemo(() => ({ ...state, connection: snapshot.connection }), [state, snapshot.connection]);
 }
@@ -160,6 +169,11 @@ export function useMutation<Args, Result>(ref: Op<Args, Result>): UseMutationRes
       const result = await client.mutation(ref, args);
       setLast(result);
       return result;
+    } catch (error) {
+      if (error instanceof SnapbackRefusal && error.retryable) {
+        setLast({ state: "rejected", ...error.envelope, retryable: true });
+      }
+      throw error;
     } finally {
       setPendingCount((value) => value - 1);
     }

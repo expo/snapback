@@ -28,16 +28,12 @@ function proxy(path: string[]): ApiProxy {
   const existing = proxies.get(op);
   if (existing) return existing;
 
-  const target = Object.assign(
-    path.at(-1) === "then"
-      ? ((resolve?: unknown) => { if (typeof resolve === "function") resolve(undefined); })
-      : {},
-    { op, [referencePath]: op },
-  ) as ApiProxy;
+  const target = Object.assign({}, { op, [referencePath]: op }) as ApiProxy;
   const value = new Proxy(target, {
     get(_current, property) {
       if (property === referencePath) return op;
       if (property === Symbol.toStringTag) return "SnapbackOp";
+      if (property === "then") return undefined;
       if (property === "op" && path.length >= 2) return op;
       return typeof property === "string" ? proxy([...path, property]) : undefined;
     },
