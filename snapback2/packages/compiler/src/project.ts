@@ -343,9 +343,53 @@ function generateApiDts(
     .sort((left, right) => left.name.localeCompare(right.name))
     .map(apiRowType)
     .join("\n");
-  const modulesText = [...grouped].sort(([left], [right]) => left.localeCompare(right)).map(([name, items]) =>
-    `    readonly ${quoteProperty(name)}: {\n${items.join("\n")}\n    };`).join("\n");
-  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${modulesText}\n  }\n}\n\nexport {};\n`;
+  const channels = apiChannels(program, checker);
+  const modulesText = [...grouped].sort(([left], [right]) => left.localeCompare(right))
+    .filter(([name]) => name !== "channels" || channels.length === 0)
+    .map(([name, items]) => `    readonly ${quoteProperty(name)}: {\n${items.join("\n")}\n    };`)
+    .join("\n");
+  const channelsText = channels.length === 0 ? "" : (() => {
+    const channelByName = new Map(channels.map((item) => [item.name, item]));
+    const channelOperations = [...operations.values()]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .filter((operation) => operation.moduleName === "channels");
+    const operationItems = (grouped.get("channels") ?? []).map((item, index) => {
+      const channel = channelByName.get(channelOperations[index]!.exportName);
+      return channel ? item.replace(/;$/, ` & Channel<${channel.args}, unknown>;`) : item;
+    });
+    const operationNames = new Set(channelOperations.map((operation) => operation.exportName));
+    const channelItems = channels
+      .filter((item) => !operationNames.has(item.name))
+      .map((item) => `${quoteProperty(item.name)}: Channel<${item.args}, unknown>`);
+    const catalog = operationItems.length === 0
+      ? `    readonly channels: { ${channelItems.join("; ")} };`
+      : `    readonly channels: {\n${operationItems.join("\n")}\n${channelItems.map((item) => `      readonly ${item};`).join("\n")}\n    };`;
+    const occupiedRoots = new Set([...grouped.keys(), "channels", "op", "then", "toJSON"]);
+    const aliases = channels
+      .filter((item) => !occupiedRoots.has(item.name))
+      .map((item) => `    readonly ${quoteProperty(item.name)}: Channel<${item.args}, unknown>;`);
+    return [catalog, ...aliases].join("\n");
+  })();
+  const members = [modulesText, channelsText].filter(Boolean).join("\n");
+  return `import type { Decimal, Json, Money, Page } from 'snapback2';\nimport type { Channel, Op } from 'snapback2/client';\n\n${rowTypes}\n\ndeclare module 'snapback2/client' {\n  interface Api {\n${members}\n  }\n}\n\nexport {};\n`;
+}
+
+function apiChannels(program: ts.Program, checker: ts.TypeChecker): Array<{ name: string; args: string }> {
+  const schema = program.getSourceFiles().find((item) => /[/\\]snapback[/\\]schema\.ts$/.test(item.fileName));
+  if (!schema) return [];
+  const channels: Array<{ name: string; args: string }> = [];
+  for (const statement of schema.statements) {
+    if (!ts.isVariableStatement(statement) || !hasExport(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+      if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue;
+      const call = unwrapCall(declaration.initializer);
+      if (!call || callLeaf(call) !== "channel") continue;
+      const config = objectOf(call.arguments[0]);
+      const args = config && objectOf(property(config, "args"));
+      channels.push({ name: declaration.name.text, args: args ? apiArgsType(args, checker) : "{}" });
+    }
+  }
+  return channels.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function apiRowType(table: TableInfo): string {
