@@ -12,12 +12,16 @@ use std::path::Path;
 use std::process::ExitCode;
 
 pub fn run(args: &[String]) -> ExitCode {
-    let json_output = verbs::has(args, "--json");
-    let positional = positionals(args);
+    let options = match verbs::parse_options(args, &["--as", "--project"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let json_output = options.has("--json");
+    let positional = options.positionals();
     if positional.len() < 2 || positional.len() > 3 {
         return usage();
     }
-    let persona = match verbs::flag(args, "--as") {
+    let persona = match options.value("--as") {
         Some(persona) => persona,
         None => return usage(),
     };
@@ -37,7 +41,7 @@ pub fn run(args: &[String]) -> ExitCode {
         },
         None => json!({}),
     };
-    let root = match locate_root(verbs::flag(args, "--project").map(Path::new)) {
+    let root = match locate_root(options.value("--project").map(Path::new)) {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
@@ -169,21 +173,6 @@ fn string_array(value: &Json, snake: &str, camel: &str) -> Vec<String> {
         .filter_map(Json::as_str)
         .map(ToOwned::to_owned)
         .collect()
-}
-
-fn positionals(args: &[String]) -> Vec<String> {
-    let mut output = Vec::new();
-    let mut skip = false;
-    for arg in args {
-        if skip {
-            skip = false;
-        } else if matches!(arg.as_str(), "--as" | "--project") {
-            skip = true;
-        } else if !arg.starts_with("--") {
-            output.push(arg.clone());
-        }
-    }
-    output
 }
 
 fn usage() -> ExitCode {

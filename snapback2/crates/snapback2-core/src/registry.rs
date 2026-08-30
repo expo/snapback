@@ -509,42 +509,28 @@ impl Runtime {
     }
 
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
-        let program = Program {
-            name: "seed".to_owned(),
-            kind: ProgramKind::Mutation,
-            args: BTreeMap::new(),
-            read_time_granularity_ms: None,
-            body: rows
-                .iter()
-                .map(|(table, row)| {
-                    let id = row
-                        .field("id")
-                        .and_then(Value::as_str)
-                        .map(ToOwned::to_owned)?;
-                    Ok(Stmt::Upsert {
-                        table: table.clone(),
-                        key: Expr::Literal(Value::Id(id)),
-                        row: Expr::Literal(row.clone()),
-                    })
-                })
-                .chain(std::iter::once(Ok(Stmt::Return(Expr::Literal(
-                    Value::Null,
-                )))))
-                .collect::<Result<Vec<_>, RuntimeError>>()?,
-        };
-        let ceilings = Ceilings {
-            write_rows: u64::MAX,
-            ..Ceilings::default()
-        };
-        let certificate = Checker::new(&self.generation.schema, ceilings)
-            .check(&program)
-            .map_err(|error| RuntimeError::Schema(error.to_string()))?;
+        let (program, certificate) = seed_program(&self.generation.schema, rows)?;
         let mut context = Context::system();
         context.now = Some(unix_millis());
         context.seed_write = true;
         self.engine
             .execute_with_kind(&program, &certificate, context, Some("seed"))
             .map(|execution| execution.seq)
+    }
+
+    /// Reset application data and apply the seed in one SQLite transaction.
+    /// Program construction and certification precede the destructive statement,
+    /// and any execution refusal rolls the whole transaction back.
+    pub fn reset_and_seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
+        let (program, certificate) = seed_program(&self.generation.schema, rows)?;
+        let mut context = Context::system();
+        context.now = Some(unix_millis());
+        context.seed_write = true;
+        let execution =
+            self.engine
+                .reset_and_execute(&program, &certificate, context, Some("seed"))?;
+        self.rerun_all_subscriptions();
+        Ok(execution.seq)
     }
 
     pub fn apply_successor(
@@ -720,6 +706,43 @@ impl Runtime {
             })
         })
     }
+}
+
+fn seed_program(
+    schema: &Schema,
+    rows: &[(String, Value)],
+) -> Result<(Program, Certificate), RuntimeError> {
+    let program = Program {
+        name: "seed".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: rows
+            .iter()
+            .map(|(table, row)| {
+                let id = row
+                    .field("id")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)?;
+                Ok(Stmt::Upsert {
+                    table: table.clone(),
+                    key: Expr::Literal(Value::Id(id)),
+                    row: Expr::Literal(row.clone()),
+                })
+            })
+            .chain(std::iter::once(Ok(Stmt::Return(Expr::Literal(
+                Value::Null,
+            )))))
+            .collect::<Result<Vec<_>, RuntimeError>>()?,
+    };
+    let ceilings = Ceilings {
+        write_rows: u64::MAX,
+        ..Ceilings::default()
+    };
+    let certificate = Checker::new(schema, ceilings)
+        .check(&program)
+        .map_err(|error| RuntimeError::Schema(error.to_string()))?;
+    Ok((program, certificate))
 }
 
 fn persist_generation(store: &mut Store, generation: &Generation) -> Result<(), RuntimeError> {

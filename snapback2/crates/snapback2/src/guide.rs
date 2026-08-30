@@ -15,12 +15,16 @@ use std::process::ExitCode;
 const RECIPES: &[&str] = &["auth", "live-query", "effects", "personas", "testing"];
 
 pub fn run(args: &[String]) -> ExitCode {
-    let json_output = verbs::has(args, "--json");
-    let positional = positionals(args);
+    let options = match verbs::parse_options(args, &["--project"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let json_output = options.has("--json");
+    let positional = options.positionals();
     if positional.len() > 2 {
         return usage();
     }
-    let page = positional.get(1).map(String::as_str).unwrap_or("grammar");
+    let page = positional.get(1).copied().unwrap_or("grammar");
     let root = match guide_root() {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
@@ -28,7 +32,7 @@ pub fn run(args: &[String]) -> ExitCode {
     let content = if page == "grammar" {
         read_page(&root.join("grammar.md"))
     } else if page == "app" {
-        app_page(args)
+        app_page(&options)
     } else if RECIPES.contains(&page) {
         read_page(&root.join(format!("{page}.md")))
     } else if page.starts_with("E_") {
@@ -89,8 +93,8 @@ fn read_page(path: &Path) -> Result<String, Refusal> {
     })
 }
 
-fn app_page(args: &[String]) -> Result<String, Refusal> {
-    let root = locate_root(verbs::flag(args, "--project").map(Path::new))?;
+fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
+    let root = locate_root(options.value("--project").map(Path::new))?;
     let project: ProjectJson = serde_json::from_slice(
         &fs::read(root.join(".snapback/build/project.json")).map_err(|_| {
             Refusal::owner(
@@ -374,21 +378,6 @@ fn unknown(page: &str) -> Refusal {
         "run snapback2 guide grammar, app, a symbol, an E_CODE, or a listed recipe",
         "input/guide",
     )
-}
-
-fn positionals(args: &[String]) -> Vec<String> {
-    let mut output = Vec::new();
-    let mut skip = false;
-    for arg in args {
-        if skip {
-            skip = false;
-        } else if arg == "--project" {
-            skip = true;
-        } else if !arg.starts_with("--") {
-            output.push(arg.clone());
-        }
-    }
-    output
 }
 
 fn usage() -> ExitCode {

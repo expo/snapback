@@ -5,10 +5,9 @@ use crate::client;
 use crate::owner;
 use crate::project::CompilerWorker;
 use snapback2_core::{Ceilings, Checker, spike_schema};
-use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 
 pub fn run(json: bool) -> ExitCode {
     let started = Instant::now();
@@ -108,36 +107,17 @@ pub fn run(json: bool) -> ExitCode {
 }
 
 fn compiler_proof() -> Result<PathBuf, String> {
-    let root = std::env::temp_dir().join(format!(
-        "snapback2-doctor-{}-{}",
-        std::process::id(),
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    let authored = root.join("snapback");
-    fs::create_dir_all(&authored).map_err(|error| error.to_string())?;
-    fs::write(
-        authored.join("schema.ts"),
-        "import { schema } from 'snapback2'; export default schema({ auth: { password: true, guests: false }, tables: {} });\n",
-    )
-    .map_err(|error| error.to_string())?;
-    let result = (|| {
-        let mut worker = CompilerWorker::spawn()
-            .map_err(|error| format!("{}: {}", error.code, error.message))?;
-        let path = worker.path.clone();
-        worker.answers_compile(&root).map_err(|errors| {
-            errors
-                .into_iter()
-                .map(|error| format!("{}: {}", error.code, error.message))
-                .collect::<Vec<_>>()
-                .join("; ")
-        })?;
-        Ok(path)
-    })();
-    let _ = fs::remove_dir_all(root);
-    result
+    let mut worker =
+        CompilerWorker::spawn().map_err(|error| format!("{}: {}", error.code, error.message))?;
+    let path = worker.path.clone();
+    worker.answers(&std::env::temp_dir()).map_err(|errors| {
+        errors
+            .into_iter()
+            .map(|error| format!("{}: {}", error.code, error.message))
+            .collect::<Vec<_>>()
+            .join("; ")
+    })?;
+    Ok(path)
 }
 
 fn owner_state() -> Option<serde_json::Value> {

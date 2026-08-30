@@ -467,6 +467,79 @@ impl Engine {
         Ok(execution)
     }
 
+    pub(crate) fn reset_and_execute(
+        &mut self,
+        program: &Program,
+        certificate: &Certificate,
+        context: Context,
+        commit_kind: Option<&str>,
+    ) -> Result<Execution, RuntimeError> {
+        if program.kind != ProgramKind::Mutation {
+            return Err(RuntimeError::Input(
+                "reset seed must be a mutation".to_owned(),
+            ));
+        }
+        if certificate.plan_hash != digest(program) {
+            return Err(RuntimeError::TraceSubset("plan hash mismatch".to_owned()));
+        }
+        if certificate.schema_hash != self.schema.hash() {
+            return Err(RuntimeError::TraceSubset("schema hash mismatch".to_owned()));
+        }
+        let principal = context.viewer.clone();
+        let principal_kind = context.principal_kind.clone();
+        let commit_at = context.now.unwrap_or_else(unix_millis);
+        let transaction = self.store.conn.transaction()?;
+        transaction.execute_batch(
+            "DELETE FROM index_entries;
+             DELETE FROM rows;
+             DELETE FROM _commits;
+             DELETE FROM _outbox;",
+        )?;
+        let seq = 1;
+        let mut runner = Runner::new(
+            &transaction,
+            &self.schema,
+            certificate,
+            context,
+            &self.verdicts,
+            seq,
+        );
+        let flow = runner.statements(&program.body)?;
+        let result = match flow {
+            Flow::Return(value) => value,
+            _ => Value::Null,
+        };
+        runner.assert_bounds()?;
+        let execution = Execution {
+            result,
+            trace: runner.trace,
+            receipt: runner.receipt,
+            state: ExecutionState::Committed { seq },
+            seq,
+        };
+        // @ref LLP 1001#2-what-a-commit-records — reset, seed rows, and the seed commit are atomic.
+        let kind = commit_kind.unwrap_or(if principal_kind == "system" {
+            "system"
+        } else {
+            "mutation"
+        });
+        append_commit(
+            &transaction,
+            &CommitRecord {
+                seq,
+                at: commit_at,
+                program: program.name.clone(),
+                principal,
+                kind: kind.to_owned(),
+                touched: execution.trace.touched.clone(),
+                writes: execution.trace.writes.clone(),
+                emits: execution.trace.emits.len() as u64,
+            },
+        )?;
+        transaction.commit()?;
+        Ok(execution)
+    }
+
     pub(crate) fn probe_rule(
         &mut self,
         rule: &RuleExpr,

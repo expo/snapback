@@ -32,21 +32,25 @@ enum Client {
 }
 
 pub fn run(args: &[String]) -> ExitCode {
-    let json_output = verbs::has(args, "--json");
-    let positional = positionals(args);
+    let options = match verbs::parse_options(args, &["--template", "--client"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let json_output = options.has("--json");
+    let positional = options.positionals();
     if positional.len() > 2 {
         return usage();
     }
-    let template = verbs::flag(args, "--template").unwrap_or("todos");
+    let template = options.value("--template").unwrap_or("todos");
     if !matches!(template, "todos" | "chat") {
         return usage();
     }
-    let client = match verbs::flag(args, "--client").unwrap_or("react") {
+    let client = match options.value("--client").unwrap_or("react") {
         "react" => Client::React,
         "none" => Client::None,
         _ => return usage(),
     };
-    let root = match target_root(positional.get(1)) {
+    let root = match target_root(positional.get(1).copied()) {
         Ok(root) => root,
         Err(error) => return owner::print_refusal(error, json_output, 2),
     };
@@ -68,7 +72,7 @@ pub fn run(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-fn target_root(value: Option<&String>) -> Result<PathBuf, Refusal> {
+fn target_root(value: Option<&str>) -> Result<PathBuf, Refusal> {
     let root = match value {
         Some(value) => PathBuf::from(value),
         None => std::env::current_dir().map_err(|error| conflict(error.to_string()))?,
@@ -330,21 +334,6 @@ fn conflict(message: impl Into<String>) -> Refusal {
         "move the conflicting path aside or run init in another directory",
         "input/init",
     )
-}
-
-fn positionals(args: &[String]) -> Vec<String> {
-    let mut output = Vec::new();
-    let mut skip = false;
-    for arg in args {
-        if skip {
-            skip = false;
-        } else if matches!(arg.as_str(), "--template" | "--client") {
-            skip = true;
-        } else if !arg.starts_with("--") {
-            output.push(arg.clone());
-        }
-    }
-    output
 }
 
 fn usage() -> ExitCode {

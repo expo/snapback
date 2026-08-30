@@ -59,7 +59,6 @@ pub fn spawn(
                             seed: Some(seed),
                         }) {
                             Ok(report) => {
-                                update_owner_generation(&root, &generation);
                                 log(
                                     &root,
                                     json!({
@@ -97,18 +96,20 @@ pub fn spawn(
 }
 
 fn refuse(handle: &OwnerHandle, root: &Path, generation: String, errors: Vec<Refusal>) {
-    for error in &errors {
-        log(root, json!({ "successor": "refused", "refusal": error }));
-    }
-    let refusal = errors.into_iter().next().unwrap_or_else(|| {
-        Refusal::owner(
+    let refusals = if errors.is_empty() {
+        vec![Refusal::owner(
             "E_OWNER_WATCH",
             "watch rebuild failed without a refusal",
             "rerun snapback2 check",
-        )
-    });
+        )]
+    } else {
+        errors
+    };
+    for error in &refusals {
+        log(root, json!({ "successor": "refused", "refusal": error }));
+    }
     let _ = handle.call(Action::Refused {
-        refusal,
+        refusals,
         generation,
     });
 }
@@ -192,26 +193,5 @@ pub fn log(root: &Path, value: Json) {
                 json!({ "logError": error.to_string(), "path": path, "event": value })
             );
         }
-    }
-}
-
-pub fn update_owner_generation(root: &Path, generation: &str) {
-    let path = root.join(".snapback/owner.json");
-    let Ok(bytes) = fs::read(&path) else { return };
-    let Ok(mut value) = serde_json::from_slice::<Json>(&bytes) else {
-        return;
-    };
-    let Some(object) = value.as_object_mut() else {
-        return;
-    };
-    object.insert("generation".to_owned(), Json::String(generation.to_owned()));
-    let temporary = root.join(".snapback/owner.json.watch.tmp");
-    if fs::write(
-        &temporary,
-        serde_json::to_vec_pretty(&value).unwrap_or_default(),
-    )
-    .is_ok()
-    {
-        let _ = fs::rename(temporary, path);
     }
 }
