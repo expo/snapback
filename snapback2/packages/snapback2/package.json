@@ -19,7 +19,7 @@
       "import": "./dist/react.mjs"
     },
     "./test": {
-      "types": "./dist/placeholder.d.ts",
+      "types": "./dist/test.d.ts",
       "import": "./dist/test.mjs"
     }
   },

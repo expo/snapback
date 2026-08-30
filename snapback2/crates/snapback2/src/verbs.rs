@@ -6,11 +6,32 @@ use crate::owner::{self, DevOptions};
 use crate::project::locate_root;
 use crate::protocol::Refusal;
 use serde_json::{Value as Json, json};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 pub fn dev(args: &[String]) -> ExitCode {
-    let port = match flag(args, "--port") {
+    let options = match parse_options(
+        args,
+        &["--port", "--project", "--apply-migration"],
+        &[
+            "--foreground",
+            "--owner-child",
+            "--serve",
+            "--stop",
+            "--status",
+            "--json",
+        ],
+    ) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    if options.positionals().len() != 1 {
+        return usage(
+            "usage: snapback2 dev [--port N] [--foreground] [--stop] [--status] [--apply-migration file] [--serve] [--project dir] [--json]",
+        );
+    }
+    let port = match options.value("--port") {
         Some(value) => match value.parse() {
             Ok(port) => port,
             Err(_) => {
@@ -22,24 +43,28 @@ pub fn dev(args: &[String]) -> ExitCode {
         None => 0,
     };
     owner::run(DevOptions {
-        project: flag(args, "--project").map(PathBuf::from),
+        project: options.value("--project").map(PathBuf::from),
         port,
-        foreground: has(args, "--foreground"),
-        owner_child: has(args, "--owner-child"),
-        serve: has(args, "--serve"),
-        stop: has(args, "--stop"),
-        status: has(args, "--status"),
-        apply_migration: flag(args, "--apply-migration").map(PathBuf::from),
-        json: has(args, "--json"),
+        foreground: options.has("--foreground"),
+        owner_child: options.has("--owner-child"),
+        serve: options.has("--serve"),
+        stop: options.has("--stop"),
+        status: options.has("--status"),
+        apply_migration: options.value("--apply-migration").map(PathBuf::from),
+        json: options.has("--json"),
     })
 }
 
 pub fn run(args: &[String]) -> ExitCode {
-    let positional = positionals(args, &["--project", "--as"]);
+    let options = match parse_options(args, &["--project", "--as"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let positional = options.positionals();
     if positional.len() < 2 || positional.len() > 3 {
         return usage("usage: snapback2 run <op> [args-json] --as <persona> [--json]");
     }
-    let op = positional[1].clone();
+    let op = positional[1].to_owned();
     let args_json = if positional.len() == 3 {
         match serde_json::from_str(&positional[2]) {
             Ok(value) => value,
@@ -49,7 +74,7 @@ pub fn run(args: &[String]) -> ExitCode {
                         format!("invalid args JSON: {error}"),
                         "pass a JSON object such as '{}'",
                     ),
-                    has(args, "--json"),
+                    options.has("--json"),
                     2,
                 );
             }
@@ -57,18 +82,20 @@ pub fn run(args: &[String]) -> ExitCode {
     } else {
         json!({})
     };
-    let persona = match flag(args, "--as") {
+    let persona = match options.value("--as") {
         Some(persona) => persona,
         None => return usage("usage: snapback2 run <op> [args-json] --as <persona> [--json]"),
     };
-    let (root, owner) = match attached(args) {
+    let (root, owner) = match attached(&options) {
         Ok(value) => value,
-        Err(error) => return refused(error, has(args, "--json"), 1),
+        Err(error) => return refused(error, options.has("--json"), 1),
     };
     let manifest = match client::api(&owner, "GET", "/api/manifest", &[], json!({})) {
         Ok(response) if response.status < 400 => response.body,
-        Ok(response) => return print_response(response.status, response.body, has(args, "--json")),
-        Err(error) => return refused(error, has(args, "--json"), 1),
+        Ok(response) => {
+            return print_response(response.status, response.body, options.has("--json"));
+        }
+        Err(error) => return refused(error, options.has("--json"), 1),
     };
     let kind = manifest
         .get("ops")
@@ -87,7 +114,7 @@ pub fn run(args: &[String]) -> ExitCode {
                     "use an operation listed by /api/manifest",
                     "op/manifest",
                 ),
-                has(args, "--json"),
+                options.has("--json"),
                 1,
             );
         }
@@ -100,49 +127,54 @@ pub fn run(args: &[String]) -> ExitCode {
         &[("X-Snapback-As", persona)],
         json!({ "op": op, "args": args_json }),
     ) {
-        Ok(response) => print_response(response.status, response.body, has(args, "--json")),
-        Err(error) => refused(error, has(args, "--json"), 1),
+        Ok(response) => print_response(response.status, response.body, options.has("--json")),
+        Err(error) => refused(error, options.has("--json"), 1),
     }
 }
 
 pub fn data(args: &[String]) -> ExitCode {
-    let positional = positionals(
+    let options = match parse_options(
         args,
         &["--project", "--as", "--index", "--prefix", "--limit"],
-    );
+        &["--json"],
+    ) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let positional = options.positionals();
     if positional.len() != 2 {
         return usage(
             "usage: snapback2 data <table> [--index name --prefix json] [--limit 50] --as <persona> [--json]",
         );
     }
-    let persona = match flag(args, "--as") {
+    let persona = match options.value("--as") {
         Some(value) => value,
         None => return usage("usage: snapback2 data <table> --as <persona> [--json]"),
     };
-    let prefix = match flag(args, "--prefix") {
+    let prefix = match options.value("--prefix") {
         Some(value) => match serde_json::from_str(value) {
             Ok(value) => value,
             Err(error) => {
                 return refused(
                     Refusal::input(format!("invalid prefix JSON: {error}"), "pass a JSON array"),
-                    has(args, "--json"),
+                    options.has("--json"),
                     2,
                 );
             }
         },
         None => json!([]),
     };
-    let limit = match numeric_flag(args, "--limit") {
-        Ok(value) => value.unwrap_or(50),
+    let limit = match data_limit(&options) {
+        Ok(value) => value,
         Err(code) => return code,
     };
     control(
-        args,
+        &options,
         "POST",
         "/control/data",
         json!({
             "table": positional[1],
-            "index": flag(args, "--index").unwrap_or("byId"),
+            "index": options.value("--index").unwrap_or("byId"),
             "prefix": prefix,
             "limit": limit,
             "as": persona,
@@ -151,16 +183,23 @@ pub fn data(args: &[String]) -> ExitCode {
 }
 
 pub fn logs(args: &[String]) -> ExitCode {
-    let since = match numeric_flag(args, "--since") {
+    let options = match parse_options(args, &["--project", "--since", "--limit"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    if options.positionals().len() != 1 {
+        return usage("usage: snapback2 logs [--since seq] [--limit 100] [--json]");
+    }
+    let since = match numeric_option(&options, "--since") {
         Ok(value) => value.unwrap_or(0),
         Err(code) => return code,
     };
-    let limit = match numeric_flag(args, "--limit") {
+    let limit = match numeric_option(&options, "--limit") {
         Ok(value) => value.unwrap_or(100).min(500) as usize,
         Err(code) => return code,
     };
     control(
-        args,
+        &options,
         "GET",
         &format!("/control/logs?since={since}&limit={limit}"),
         json!({}),
@@ -168,13 +207,17 @@ pub fn logs(args: &[String]) -> ExitCode {
 }
 
 pub fn persona(args: &[String]) -> ExitCode {
-    let positional = positionals(args, &["--project"]);
-    match positional.get(1).map(String::as_str) {
+    let options = match parse_options(args, &["--project"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let positional = options.positionals();
+    match positional.get(1).copied() {
         Some("list") if positional.len() == 2 => {
-            control(args, "GET", "/control/personas", json!({}))
+            control(&options, "GET", "/control/personas", json!({}))
         }
         Some("create") if positional.len() == 3 => control(
-            args,
+            &options,
             "POST",
             "/control/persona",
             json!({ "name": positional[2] }),
@@ -184,12 +227,16 @@ pub fn persona(args: &[String]) -> ExitCode {
 }
 
 pub fn fork(args: &[String]) -> ExitCode {
-    let positional = positionals(args, &["--project"]);
+    let options = match parse_options(args, &["--project"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    let positional = options.positionals();
     if positional.len() != 2 {
         return usage("usage: snapback2 fork <name> [--json]");
     }
     control(
-        args,
+        &options,
         "POST",
         "/control/fork",
         json!({ "name": positional[1] }),
@@ -197,25 +244,29 @@ pub fn fork(args: &[String]) -> ExitCode {
 }
 
 pub fn reset(args: &[String]) -> ExitCode {
-    if positionals(args, &["--project"]).len() != 1 {
+    let options = match parse_options(args, &["--project"], &["--json"]) {
+        Ok(options) => options,
+        Err(code) => return code,
+    };
+    if options.positionals().len() != 1 {
         return usage("usage: snapback2 reset [--json]");
     }
-    control(args, "POST", "/control/reset", json!({}))
+    control(&options, "POST", "/control/reset", json!({}))
 }
 
-fn control(args: &[String], method: &str, path: &str, body: Json) -> ExitCode {
-    let (_, owner) = match attached(args) {
+fn control(options: &ParsedOptions<'_>, method: &str, path: &str, body: Json) -> ExitCode {
+    let (_, owner) = match attached(options) {
         Ok(value) => value,
-        Err(error) => return refused(error, has(args, "--json"), 1),
+        Err(error) => return refused(error, options.has("--json"), 1),
     };
     match client::control(&owner, method, path, body) {
-        Ok(response) => print_response(response.status, response.body, has(args, "--json")),
-        Err(error) => refused(error, has(args, "--json"), 1),
+        Ok(response) => print_response(response.status, response.body, options.has("--json")),
+        Err(error) => refused(error, options.has("--json"), 1),
     }
 }
 
-fn attached(args: &[String]) -> Result<(PathBuf, owner::OwnerInfo), Refusal> {
-    let root = locate_root(flag(args, "--project").map(Path::new))?;
+fn attached(options: &ParsedOptions<'_>) -> Result<(PathBuf, owner::OwnerInfo), Refusal> {
+    let root = locate_root(options.value("--project").map(Path::new))?;
     let owner = owner::require_owner(&root)?;
     Ok((root, owner))
 }
@@ -245,48 +296,100 @@ fn usage(message: &str) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn numeric_flag(args: &[String], name: &str) -> Result<Option<u64>, ExitCode> {
-    let Some(index) = args.iter().position(|arg| arg == name) else {
+fn numeric_option(options: &ParsedOptions<'_>, name: &str) -> Result<Option<u64>, ExitCode> {
+    let Some(value) = options.value(name) else {
         return Ok(None);
     };
-    let Some(value) = args.get(index + 1) else {
-        return Err(usage(&format!("{name} requires a numeric value")));
-    };
-    if value.starts_with("--") {
-        return Err(usage(&format!(
-            "{name} requires a numeric value, not {value}"
-        )));
-    }
     value
         .parse()
         .map(Some)
         .map_err(|_| usage(&format!("invalid numeric value for {name}: {value}")))
 }
 
-pub fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
-    args.windows(2)
-        .find(|pair| pair[0] == name)
-        .map(|pair| pair[1].as_str())
-        .filter(|value| !value.starts_with("--"))
+fn data_limit(options: &ParsedOptions<'_>) -> Result<u64, ExitCode> {
+    let Some(value) = options.value("--limit") else {
+        return Ok(50);
+    };
+    let parsed = value.parse::<i128>();
+    if !matches!(parsed, Ok(1..=500)) {
+        return Err(refused(
+            Refusal::new(
+                "E_ARGS_LIMIT",
+                "args",
+                format!("data limit must be between 1 and 500, got {value}"),
+                "pass --limit 1..500",
+                "args/data-limit",
+            ),
+            options.has("--json"),
+            2,
+        ));
+    }
+    Ok(parsed.unwrap() as u64)
 }
 
-pub fn has(args: &[String], name: &str) -> bool {
-    args.iter().any(|arg| arg == name)
+pub(crate) struct ParsedOptions<'a> {
+    values: BTreeMap<&'a str, &'a str>,
+    booleans: BTreeSet<&'a str>,
+    positionals: Vec<&'a str>,
 }
 
-fn positionals(args: &[String], value_flags: &[&str]) -> Vec<String> {
-    let mut output = Vec::new();
-    let mut skip = false;
-    for arg in args {
-        if skip {
-            skip = false;
+impl<'a> ParsedOptions<'a> {
+    pub(crate) fn value(&self, name: &str) -> Option<&'a str> {
+        self.values.get(name).copied()
+    }
+
+    pub(crate) fn has(&self, name: &str) -> bool {
+        self.booleans.contains(name)
+    }
+
+    pub(crate) fn positionals(&self) -> &[&'a str] {
+        &self.positionals
+    }
+}
+
+pub(crate) fn parse_options<'a>(
+    args: &'a [String],
+    value_flags: &[&str],
+    boolean_flags: &[&str],
+) -> Result<ParsedOptions<'a>, ExitCode> {
+    let mut values = BTreeMap::new();
+    let mut booleans = BTreeSet::new();
+    let mut positionals = args
+        .first()
+        .map(|verb| vec![verb.as_str()])
+        .unwrap_or_default();
+    let mut index = 1;
+    while index < args.len() {
+        let arg = args[index].as_str();
+        if value_flags.contains(&arg) {
+            let Some(value) = args.get(index + 1) else {
+                return Err(usage(&format!("{arg} requires a value")));
+            };
+            if value.starts_with("--") {
+                return Err(usage(&format!("{arg} requires a value, not {value}")));
+            }
+            if values.insert(arg, value.as_str()).is_some() {
+                return Err(usage(&format!("{arg} may be passed only once")));
+            }
+            index += 2;
             continue;
         }
-        if value_flags.contains(&arg.as_str()) {
-            skip = true;
-        } else if !arg.starts_with("--") {
-            output.push(arg.clone());
+        if boolean_flags.contains(&arg) {
+            if !booleans.insert(arg) {
+                return Err(usage(&format!("{arg} may be passed only once")));
+            }
+            index += 1;
+            continue;
         }
+        if arg.starts_with('-') {
+            return Err(usage(&format!("unknown option {arg}")));
+        }
+        positionals.push(arg);
+        index += 1;
     }
-    output
+    Ok(ParsedOptions {
+        values,
+        booleans,
+        positionals,
+    })
 }

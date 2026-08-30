@@ -7,7 +7,7 @@ export interface RefusalEnvelope {
   site?: string;
   rule?: string;
   rewrite?: string;
-  guide?: string;
+  guide: string;
 }
 
 export type QueryComplete<Result> = { state: "complete"; data: Result; seq: number };
@@ -45,7 +45,7 @@ export type MutationRejected = {
   rewrite?: string;
   site?: string;
   rule?: string;
-  guide?: string;
+  guide: string;
 };
 export type MutationResult<Result> = MutationCommitted<Result> | MutationRejected;
 
@@ -65,7 +65,7 @@ export type RefusedDelivery = {
   site?: string;
   rule?: string;
   rewrite?: string;
-  guide?: string;
+  guide: string;
   seq?: number;
 };
 export type QueryRefusedDelivery = RefusedDelivery & { live: false };
@@ -202,11 +202,11 @@ export function reduceQueryState<Result>(
         code: event.code,
         family: event.family,
         message: event.message,
+        guide: event.guide,
       };
       if (event.site !== undefined) refusal.site = event.site;
       if (event.rule !== undefined) refusal.rule = event.rule;
       if (event.rewrite !== undefined) refusal.rewrite = event.rewrite;
-      if (event.guide !== undefined) refusal.guide = event.guide;
       next = { state: "refused", live: false, refusal };
       break;
     }

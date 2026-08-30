@@ -142,7 +142,10 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 ## 4. The wire
 
 HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
-mode. Authentication: `Authorization: Bearer <token>`; in `dev` mode
+mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
+`GET`). Every refusal on every route — including a rejected mutation and a
+channel refusal — carries the full envelope below; `guide` and `family` are
+required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 `X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
 
 | route | body → response |
@@ -178,7 +181,11 @@ Control routes (loopback only, `X-Snapback-Control: <secret>` from
 `POST /control/fork { name }`, `GET /control/logs?since=<seq>&limit=`,
 `GET /control/personas`, `POST /control/persona { name }`,
 `POST /control/why { op, args, as }`, `GET /control/trace?seq=`,
-`GET /control/subscriptions`, `POST /control/stop { cause }`.
+`GET /control/subscriptions`, `POST /control/verdicts { table, as }`
+(the engine's read-rule verdict for EVERY stored row of the table under a persona — an ad-hoc certified read
+that never touches the served generation; `test`'s rules check uses it),
+`POST /control/outbox/<id>/requeue`, `POST /control/clock { advanceMs }`,
+`POST /control/stop { cause }`.
 
 ## 5. The owner
 
@@ -300,8 +307,10 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   keys), the outbox rows it emitted and their real states, and the
   subscriptions it invalidated with their delivery seqs — intent → commit →
   invalidation → delivery — read from the owner's bounded per-commit ledger
-  (last 1,000 commits) and the store's `_outbox`, never reconstructed from
-  program syntax or the current subscription set (review ruling 2026-08-30).
+  (last 1,000 commits, per owner lifetime — a commit older than the current
+  owner's start reports `ledger: unavailable (owner restarted at <ts>)`, never
+  empty arrays) and the store's `_outbox`, never reconstructed from program
+  syntax or the current subscription set (review rulings 2026-08-30).
 - `guide`: `grammar` (one screen, hand-written, in the package), `app`
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
@@ -331,9 +340,13 @@ subscription is connected and this view is its latest delivery — the RFC's
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
 stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
-`{ run, pending, last }` with `last: committed | rejected` — `queued` is
-reserved for the offline outbox (deferred) and never claimed before it exists
-(review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+`{ run, pending, last, transport }` with `last: committed | rejected` — only
+ever the server's receipt; a transport failure (network, 5xx) leaves `last`
+untouched, sets `transport` (a `SnapbackRefusal`, `retryable: true`, cleared
+on the next successful run) and rejects `run()` — a 503 after a commit must
+never look like a rejection, since a retry could duplicate the write.
+`queued` is reserved for the offline outbox (deferred) and never claimed
+before it exists (review rulings 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
 throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
@@ -378,8 +391,10 @@ shape. `--client react` adds a Vite React app under `src/` that reads
 ## 11. Measured
 
 `scripts/measure.mjs` gains `check_project_s` (`check` on the chat template),
-`init_to_dev_s` (`init` → `dev` ready, fresh dir), `test_s` (`test` on the
-chat template). Gates from `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s;
+`init_to_dev_s` (`init` → `dev` ready, fresh dir), `test_todos_s` (must
+`pass`) and `test_chat_s` (timed; `blocked` naming `effects` is the honest
+verdict on an engine-less build, `pass` on the engine build) — both scored
+against the 30 s budget with their verdicts recorded (ruling 2026-08-30). Gates from `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s;
 from LLP 0329.016 §8: `init` → `dev` ≤ 10 s, `test` on a template < 30 s.
 
 ## Deferred (not binding)

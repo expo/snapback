@@ -1,7 +1,7 @@
 use snapback2_core::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn generation(password: bool, guests: bool) -> Generation {
     let auth = Auth { password, guests };
@@ -107,33 +107,24 @@ fn password_guest_persona_and_session_contracts_are_persistent_and_typed() {
 }
 
 #[test]
-fn unknown_email_and_wrong_password_have_comparable_verification_time() {
+fn unknown_email_and_wrong_password_each_verify_once() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation(true, false)).unwrap();
     runtime
         .signup("known@example.com", "long enough password", 1)
         .unwrap();
 
-    let elapsed = |runtime: &mut Runtime, email: &str| {
-        let started = Instant::now();
-        for _ in 0..2 {
-            assert!(matches!(
-                runtime.login(email, "definitely wrong", 2),
-                Err(IdentityError::Invalid)
-            ));
-        }
-        started.elapsed()
+    let verification_calls = |runtime: &mut Runtime, email: &str| {
+        let before = snapback2_core::identity::password_verification_calls();
+        assert!(matches!(
+            runtime.login(email, "definitely wrong", 2),
+            Err(IdentityError::Invalid)
+        ));
+        snapback2_core::identity::password_verification_calls()
+            .checked_sub(before)
+            .unwrap()
     };
-    let unknown = elapsed(&mut runtime, "unknown@example.com");
-    let wrong = elapsed(&mut runtime, "known@example.com");
-    let (shorter, longer) = if unknown <= wrong {
-        (unknown, wrong)
-    } else {
-        (wrong, unknown)
-    };
-    assert!(
-        longer <= shorter.saturating_mul(2).max(Duration::from_millis(1)),
-        "unknown email took {unknown:?}, wrong password took {wrong:?}"
-    );
+    assert_eq!(verification_calls(&mut runtime, "unknown@example.com"), 1);
+    assert_eq!(verification_calls(&mut runtime, "known@example.com"), 1);
 }
 
 fn temp_path() -> PathBuf {

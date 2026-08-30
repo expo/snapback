@@ -6,6 +6,7 @@
 **Systems:** Everything under `snapback2/`; the rules under `rules/`
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-08-29
+**Revised:** 2026-08-30
 **Related:** LLP 0000, LLP 0329, LLP 0329.014, LLP 0329.014.004, LLP 0329.016,
 LLP 0316, LLP 0330, `rules/RULES.md`, `rules/NOT-DOING.md`,
 `spikes/bounded-programs/`, expo/ibex LLP 0057, LLP 0058, LLP 0068
@@ -62,22 +63,22 @@ numbered 1000 and up.
    protocol in `benchmarks/protocol.md`) runs against published Snapback 2 as
    soon as `init` and `dev` exist. Promotion is the author's call.
 
-## What exists today (2026-08-29)
+## What exists today (2026-08-30)
 
 | Piece | State |
 |---|---|
-| `crates/snapback2-core` | S1 engine, certificate, trace, receipt-only client; 7/7 tests; `edition = 2024` |
-| `crates/snapback2-effects` | the `EffectHost` seam; `NoEngine` refuses loudly; `ibex::Ibex2Host` behind `hermes` |
-| `crates/snapback2` | `version`, `doctor` (certifies 11 programs in ~7 ms), `check` (S1's checker over stdin or a file) |
-| `packages/compiler` | S2: TypeScript subset → IR; 17/17 certificates identical to Rust |
-| `packages/evaluator` | S3: the IR twin; 75/75 corpus cases |
-| `packages/snapback2` | npm shim → `snapback2-<os>-<arch>` |
-| `corpus/` | 75 conformance cases shared by all three |
-| `scripts/` | `test.sh`, `measure.mjs --check`, `publish.mjs --dry-run`, `hermes` |
+| `crates/snapback2-core` | LLP 1001 implemented: durable `Store` (WAL, exclusive owner + `E_STORE_OWNED`, `_meta/_commits/_outbox/_principals/_credentials/_sessions`), touched keys on the trace, typed states (`complete | capped | partial | denied | committed | rejected`), `Generation`/`Runtime` with `check_all` (every refusal), additive successors in place + destructive plans + `E_SUCCESSOR_UNIQUE`/`COLUMN_REQUIRED`, live `Subscriptions` (trace-indexed, coalesced, state-aware digests), identity (argon2id, personas, constant-time login), channels with traced verdicts, engine-owned seed/maintained writes, `Stmt::Emit` → outbox, `Optional/List/Enum/Decimal/Money` columns, `execute_adhoc`, `receipt.absences ⊆ trace.absences` asserted; ~60 tests in ~21 s |
+| `crates/snapback2-effects` | LLP 1003: `EffectHost`/`NoEngine`/`Ibex2Host` over vanilla Hermes, vendored fetch factory bound to declared grants, source evaluated at global scope, per-job frozen tools, single-use timer permit, unforgeable denial markers, lifecycle runner over `OutboxAccess` with `then_pending`; 30 Hermes tests (`scripts/hermes test`) |
+| `crates/snapback2` | the owner (LLP 1002 §5: detach/attach by project, watch, hot successors, migration plans, typed exits), the wire (§4: HTTP JSON + SSE frames = query responses or terminal refusals, channels, control routes with secret), verbs `check --project`/`--ir`, `dev`, `run`, `data`, `logs`, `persona`, `fork`, `reset`, `init`, `test` (six derived checks + journeys + receipt), `why`, `trace`, `guide`, `doctor`; effects runner thread (`--features hermes`) |
+| `packages/compiler` | LLP 1002 §2–§3: the `snapback2` module surface, project lowering (schema/programs/effects/seed/journeys), Node worker + one-shot CLI, `api.d.ts` with named row types and channels, refusal envelopes with families, all-diagnostics + `E_DIAG_TRUNCATED`, Decimal/Money/Enum with exact whole-unit scaling; 38 checks |
+| `packages/evaluator` | the 7.8 KB twin, + `Emit`; 76/76 corpus |
+| `packages/snapback2` | shim + authoring runtime + `client` (5.0 KB gz) + `react` (6.1 KB gz) + `test` runner + guide pages + templates (`todos`, `chat`, React) |
+| `corpus/` | 76 conformance cases |
+| `scripts/` | `test.sh` (~40 s incl. owner E2E), `measure.mjs --check` (incremental 1.6 s, check --project 0.26 s, dev boot 0.27 s, doctor 0.22 s, init → dev 0.58 s, test 1.8 s), `publish.mjs` (ships the engine: 5.06 MB; 2.18 MB without), `hermes` |
 
-Not yet: `init`, `dev`, `test`, `why`, `trace`, `deploy`, personas, the React
-hook, the Expo arm, the Exact 2 arm, a hosted target, the benchmark wiring.
-Those are the next LLPs (1001+), each with an implementer and a date.
+Not yet: `deploy`/`rollback`, `secret`, previews, MCP, `--changed`, the Expo and Exact 2 arms, a hosted target, the benchmark wiring, `Bytes`/`Interval` columns, provenance/site as authored facts, AOT effect bytecode, `snapback.query/run` from inside an effect. Post-cap tickets: `issues/20260830-snapback2-*.md`.
+
+The specs are LLP 1001 (engine), 1002 (loop), 1003 (effects) — Draft, implemented by codex lanes A/B0/B1/B2/C/D on 2026-08-29/30 under two-family blind review (LLP 0005 loop, codex + grok), rulings folded into each spec as they were made. Post-cap findings and deferred work are the `issues/20260830-snapback2-*` tickets.
 
 ## How to orient
 

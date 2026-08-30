@@ -14,6 +14,18 @@ const DUMMY_PASSWORD_HASH: &str = concat!(
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 );
 
+#[cfg(debug_assertions)]
+std::thread_local! {
+    static PASSWORD_VERIFICATION_CALLS: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// Debug-only test hook for proving that login paths perform password verification.
+#[cfg(debug_assertions)]
+#[doc(hidden)]
+pub fn password_verification_calls() -> u64 {
+    PASSWORD_VERIFICATION_CALLS.with(|calls| calls.get())
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Principal {
@@ -116,9 +128,7 @@ impl Runtime {
         let parsed = PasswordHash::new(hash).unwrap_or_else(|_| {
             PasswordHash::new(DUMMY_PASSWORD_HASH).expect("dummy password hash must be valid")
         });
-        let password_valid = Argon2::default()
-            .verify_password(password.as_bytes(), &parsed)
-            .is_ok();
+        let password_valid = verify_password(password, &parsed);
         let Some((principal_id, _)) = credential else {
             return Err(IdentityError::Invalid);
         };
@@ -290,6 +300,14 @@ fn hash_password(password: &str) -> Result<String, IdentityError> {
         .hash_password(password.as_bytes(), &salt)
         .map(|hash| hash.to_string())
         .map_err(|error| IdentityError::Crypto(error.to_string()))
+}
+
+fn verify_password(password: &str, hash: &PasswordHash<'_>) -> bool {
+    #[cfg(debug_assertions)]
+    PASSWORD_VERIFICATION_CALLS.with(|calls| calls.set(calls.get().saturating_add(1)));
+    Argon2::default()
+        .verify_password(password.as_bytes(), hash)
+        .is_ok()
 }
 
 fn random_base64url(bytes: usize) -> Result<String, IdentityError> {

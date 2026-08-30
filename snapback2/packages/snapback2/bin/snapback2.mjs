@@ -14,6 +14,9 @@ try {
 const env = {
   ...process.env,
   SNAPBACK2_COMPILER: fileURLToPath(new URL("../dist/compiler.mjs", import.meta.url)),
+  SNAPBACK2_GUIDE: fileURLToPath(new URL("../dist/guide", import.meta.url)),
+  SNAPBACK2_TEMPLATES: fileURLToPath(new URL("../dist/templates", import.meta.url)),
+  SNAPBACK2_TEST_RUNNER: fileURLToPath(new URL("../dist/test-runner.mjs", import.meta.url)),
 };
 const result = spawnSync(bin, process.argv.slice(2), { stdio: "inherit", env });
 process.exit(result.status ?? 1);

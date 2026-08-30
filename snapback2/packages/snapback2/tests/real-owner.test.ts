@@ -32,8 +32,51 @@ test("the package suite is pointed at a checked real owner", async (context) => 
   });
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), "*");
-  assert.match(preflight.headers.get("Access-Control-Allow-Methods") ?? "", /POST/);
+  const allowedMethods = new Set(
+    (preflight.headers.get("Access-Control-Allow-Methods") ?? "")
+      .split(",")
+      .map((method) => method.trim())
+      .filter(Boolean),
+  );
+  assert.deepEqual(allowedMethods, new Set(["GET", "POST", "OPTIONS"]));
   context.diagnostic(`real-owner mode=${process.env.SNAPBACK2_REAL_OWNER_MODE} url=${owner.url}`);
+});
+
+test("a real rejected mutation carries the complete refusal envelope", async (context) => {
+  if (!owner.owned) return context.skip("the chat fixture and non-member persona belong to the self-started harness");
+  const response = await fetch(`${owner.url}/api/mutation`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Snapback-As": "charlie",
+    },
+    body: JSON.stringify({
+      op: "messages.send",
+      args: {
+        conversationId: "conversation-1",
+        recipientId: "dev:alice",
+        body: "not a member",
+      },
+    }),
+  });
+  assert.equal(response.status, 200);
+  const rejected = await response.json();
+  assert.deepEqual(
+    {
+      state: rejected.state,
+      code: rejected.code,
+      family: rejected.family,
+      message: rejected.message,
+      guide: rejected.guide,
+    },
+    {
+      state: "rejected",
+      code: "NOT_MEMBER",
+      family: "input",
+      message: "E_REQUIRE:NOT_MEMBER: program requirement failed",
+      guide: "input/runtime",
+    },
+  );
 });
 
 test("real owner stop and restart yields stale then a full first re-delivery", async (context) => {

@@ -58,21 +58,13 @@ pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (
     }
 }
 
-fn refusal_frame(refusal: Refusal, seq: u64) -> (Json, bool) {
+pub fn refusal_frame(refusal: Refusal, seq: u64) -> (Json, bool) {
     let mut frame = refusal_json(&refusal);
     if let Some(object) = frame.as_object_mut() {
         object.insert("state".to_owned(), Json::String("refused".to_owned()));
         object.insert("seq".to_owned(), Json::from(seq));
     }
     (frame, true)
-}
-
-pub fn channel_refusal_frame(refusal: Refusal) -> Json {
-    let mut frame = refusal_json(&refusal);
-    if let Some(object) = frame.as_object_mut() {
-        object.insert("state".to_owned(), Json::String("refused".to_owned()));
-    }
-    frame
 }
 
 #[cfg(test)]
@@ -145,13 +137,18 @@ mod tests {
             );
         }
 
-        let refused = channel_refusal_frame(Refusal::new(
-            "E_RULE_CHANNEL_SUBSCRIBE",
-            "rule",
-            "membership was revoked",
-            "join the channel before subscribing",
-            "rule/channels",
-        ));
+        let (refused, terminal) = refusal_frame(
+            Refusal::new(
+                "E_RULE_CHANNEL_SUBSCRIBE",
+                "rule",
+                "membership was revoked",
+                "join the channel before subscribing",
+                "rule/channels",
+            ),
+            42,
+        );
+        assert!(terminal);
+        assert_eq!(refused["seq"], 42);
         assert_eq!(refused["state"], "refused");
         for field in ["code", "family", "message", "guide"] {
             assert!(

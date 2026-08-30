@@ -28,7 +28,10 @@ function fallbackRefusal(code: string, message: string): RefusalEnvelope {
   return { code, family: "owner", message, guide: "owner/connect" };
 }
 
+const snapbackRefusalBrand = Symbol.for("snapback2.SnapbackRefusal");
+
 export class SnapbackRefusal extends Error {
+  readonly [snapbackRefusalBrand] = true;
   readonly envelope: RefusalEnvelope;
   readonly code: string;
 
@@ -38,6 +41,13 @@ export class SnapbackRefusal extends Error {
     this.envelope = envelope;
     this.code = envelope.code;
   }
+}
+
+export function isSnapbackRefusal(value: unknown): value is SnapbackRefusal {
+  return typeof value === "object"
+    && value !== null
+    && (value as { name?: unknown }).name === "SnapbackRefusal"
+    && (value as Record<symbol, unknown>)[snapbackRefusalBrand] === true;
 }
 
 // @ref LLP 1002#4-the-wire — validate every state-specific body before exposing owner data to callers.
@@ -100,6 +110,19 @@ function wireRefusalEnvelope(value: unknown, surface: string): RefusalEnvelope {
     if (item !== undefined) envelope[field] = item;
   }
   return envelope;
+}
+
+function copyRefusal(envelope: RefusalEnvelope): RefusalEnvelope {
+  const refusal: RefusalEnvelope = {
+    code: envelope.code,
+    family: envelope.family,
+    message: envelope.message,
+    guide: envelope.guide,
+  };
+  if (envelope.site !== undefined) refusal.site = envelope.site;
+  if (envelope.rule !== undefined) refusal.rule = envelope.rule;
+  if (envelope.rewrite !== undefined) refusal.rewrite = envelope.rewrite;
+  return refusal;
 }
 
 function wireQuery<Result>(value: unknown, surface = "query response"): QueryResult<Result> {
@@ -239,7 +262,7 @@ function sseObject(data: string, surface: string): Record<string, unknown> {
   try {
     return wireObject(JSON.parse(data), surface);
   } catch (error) {
-    if (error instanceof SnapbackRefusal) throw error;
+    if (isSnapbackRefusal(error)) throw error;
     throw wireShape(`${surface} must contain valid JSON`);
   }
 }
@@ -302,8 +325,8 @@ class Client implements SnapbackClient {
         this.validated();
         return result;
       } catch (error) {
-        if (!(error instanceof SnapbackRefusal)
-          || error.code !== "E_TRANSPORT"
+        if (!isSnapbackRefusal(error)
+          || (error.code !== "E_TRANSPORT" && error.code !== "E_NETWORK")
           || !error.retryable
           || attempt >= 3) throw error;
         await new Promise<void>((resolve) => setTimeout(resolve, backoff));
@@ -339,17 +362,7 @@ class Client implements SnapbackClient {
         }
         this.patchSnapshot({
           connection: "connected",
-          lastRefusal: value.state === "refused"
-            ? {
-                code: value.code,
-                family: value.family ?? "owner",
-                message: value.message ?? value.code,
-                site: value.site,
-                rule: value.rule,
-                rewrite: value.rewrite,
-                guide: value.guide,
-              }
-            : undefined,
+          lastRefusal: value.state === "refused" ? copyRefusal(value) : undefined,
         });
         return value;
       },
@@ -369,15 +382,7 @@ class Client implements SnapbackClient {
           : { state: "stale", live: false, since: Date.now(), seq: lastPair.seq };
       },
       terminal: (event) => event.state === "refused"
-        ? new SnapbackRefusal({
-            code: event.code,
-            family: event.family,
-            message: event.message,
-            site: event.site,
-            rule: event.rule,
-            rewrite: event.rewrite,
-            guide: event.guide,
-          })
+        ? new SnapbackRefusal(copyRefusal(event))
         : undefined,
       onEvent: callback,
     });
@@ -402,7 +407,12 @@ class Client implements SnapbackClient {
           open: (lastEventId, signal) => this.stream(path, lastEventId, signal),
           decode: ({ data }) => {
             const value = wireChannelDelivery<Payload>(data);
-            this.patchSnapshot({ connection: "connected", lastRefusal: undefined });
+            this.patchSnapshot({
+              connection: "connected",
+              lastRefusal: "state" in value && value.state === "refused"
+                ? copyRefusal(value)
+                : undefined,
+            });
             return value;
           },
           onError: (error) => {
@@ -414,7 +424,7 @@ class Client implements SnapbackClient {
             return undefined;
           },
           terminal: (event) => "state" in event && event.state === "refused"
-            ? new SnapbackRefusal(event)
+            ? new SnapbackRefusal(copyRefusal(event))
             : undefined,
           onEvent: callback,
         });
@@ -502,7 +512,7 @@ class Client implements SnapbackClient {
           this.recordRefusal(refusal.envelope);
           throw refusal;
         } catch (error) {
-          if (error instanceof SnapbackRefusal) {
+          if (isSnapbackRefusal(error)) {
             if (error.retryable) {
               this.patchSnapshot({ connection: this.transportFailureState(), lastRefusal: error.envelope });
             }
@@ -540,7 +550,7 @@ class Client implements SnapbackClient {
           try {
             refusal = await responseRefusal(response);
           } catch (error) {
-            if (error instanceof SnapbackRefusal && !error.retryable) throw error;
+            if (isSnapbackRefusal(error) && !error.retryable) throw error;
             // A non-envelope 4xx cannot be interpreted as a terminal owner refusal.
           }
           if (refusal !== undefined) throw refusal;
@@ -552,7 +562,7 @@ class Client implements SnapbackClient {
       }
       return response;
     } catch (error) {
-      if (error instanceof SnapbackRefusal) {
+      if (isSnapbackRefusal(error)) {
         this.patchSnapshot({
           connection: error.retryable ? this.transportFailureState() : "connected",
           lastRefusal: error.envelope,
@@ -570,7 +580,7 @@ class Client implements SnapbackClient {
   }
 
   private subscriptionError(error: unknown): { event?: RefusedDelivery; retry: boolean; refusal?: SnapbackRefusal } {
-    const refusal = error instanceof SnapbackRefusal
+    const refusal = isSnapbackRefusal(error)
       ? error
       : new SnapbackRefusal(
           fallbackRefusal("E_NETWORK", error instanceof Error ? error.message : String(error)),

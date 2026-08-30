@@ -100,7 +100,10 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
         "/api/subscribe?op=notifications.list&args=%7B%7D",
         "alice",
     );
-    assert_eq!(notifications.event()["data"], json!([]));
+    let seeded = notifications.event();
+    assert_eq!(seeded["state"], "complete", "{seeded}");
+    assert_eq!(seeded["data"].as_array().unwrap().len(), 1);
+    assert_eq!(seeded["data"][0]["outboxId"], "seed-outbox");
     let requeued = request(
         port,
         "POST",
@@ -113,9 +116,14 @@ fn owner_runs_effect_then_delivery_and_honest_restart_requeue() {
 
     let delivery = notifications.event();
     assert_eq!(delivery["state"], "complete", "{delivery}");
-    assert_eq!(delivery["data"].as_array().unwrap().len(), 1);
-    assert_eq!(delivery["data"][0]["outboxId"], outbox_id);
-    assert_eq!(delivery["data"][0]["providerId"], "provider-2");
+    assert_eq!(delivery["data"].as_array().unwrap().len(), 2);
+    let delivered = delivery["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["outboxId"] == outbox_id)
+        .expect("the effect delivery row must be present beside seed data");
+    assert_eq!(delivered["providerId"], "provider-2");
     assert_eq!(provider.hits(), 2);
     let final_status = wait_for(Duration::from_secs(5), || {
         let status = status(port, &secret);

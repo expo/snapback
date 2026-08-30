@@ -478,6 +478,11 @@ impl Store {
         rows.map(|row| decode_outbox_row(row?)).collect()
     }
 
+    // @ref LLP 1002#8-why-trace-guide — trace reads the durable rows emitted by this commit, never program syntax.
+    pub fn outbox_rows_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
+        self.outbox_for_seq(seq)
+    }
+
     pub fn outbox_mark_unknown_running(&self) -> Result<u64, RuntimeError> {
         let changed = self.conn.execute(
             "UPDATE _outbox SET state = 'sent_unknown', updated_at = ?1
@@ -751,6 +756,57 @@ mod tests {
                 sent_unknown: 1,
             }
         );
+    }
+
+    #[test]
+    fn outbox_rows_for_seq_returns_only_real_rows_with_durable_states() {
+        let store = Store::memory().unwrap();
+        for (id, seq, state) in [
+            ("queued", 7_i64, "queued"),
+            ("running", 7_i64, "running"),
+            ("then-pending", 7_i64, "then_pending"),
+            ("sent", 7_i64, "sent"),
+            ("failed", 7_i64, "failed"),
+            ("sent-unknown", 7_i64, "sent_unknown"),
+            ("other-commit", 8_i64, "failed"),
+        ] {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO _outbox(
+                        id, seq, effect, payload, state, attempts, next_at,
+                        last_error, result, created_at, updated_at
+                     ) VALUES (?1, ?2, 'notify', ?3, ?4, 2, 10, 'detail', ?5, 6, 9)",
+                    params![
+                        id,
+                        seq,
+                        serde_json::to_string(&Value::String(id.to_owned())).unwrap(),
+                        state,
+                        serde_json::to_string(&serde_json::json!(true)).unwrap(),
+                    ],
+                )
+                .unwrap();
+        }
+
+        let rows = store.outbox_rows_for_seq(7).unwrap();
+        let states = rows
+            .iter()
+            .map(|row| (row.id.as_str(), row.state.as_str()))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            states,
+            BTreeMap::from([
+                ("failed", "failed"),
+                ("queued", "queued"),
+                ("running", "running"),
+                ("sent", "sent"),
+                ("sent-unknown", "sent_unknown"),
+                ("then-pending", "then_pending"),
+            ])
+        );
+        let queued = rows.iter().find(|row| row.id == "queued").unwrap();
+        assert_eq!(queued.payload, Value::String("queued".to_owned()));
+        assert_eq!(queued.result, Some(serde_json::json!(true)));
     }
 }
 

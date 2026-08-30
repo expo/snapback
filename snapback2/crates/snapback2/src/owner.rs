@@ -6,7 +6,7 @@ use crate::project::{CompilerWorker, locate_root, seed_rows, write_build_cache};
 use crate::protocol::Refusal;
 use crate::serve::{BoundServer, Context as ServerContext};
 use crate::watch;
-use crate::writer::{apply_seed, spawn_writer};
+use crate::writer::{Action, apply_seed, spawn_writer};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
 use snapback2_core::{Runtime, Store};
@@ -84,19 +84,33 @@ pub fn run(options: DevOptions) -> ExitCode {
         };
         return control_command(&root, "POST", "/control/migrate", value, options.json);
     }
-    if let Some(info) = active_owner(&root) {
-        print_url(&info, options.json);
-        return ExitCode::SUCCESS;
+    match probe_owner(&root) {
+        OwnerProbe::Active(info) => {
+            print_url(&info, options.json);
+            return ExitCode::SUCCESS;
+        }
+        OwnerProbe::Running(info) => {
+            print_running_owner(&info, options.json);
+            return ExitCode::SUCCESS;
+        }
+        OwnerProbe::Missing => {}
     }
     if options.foreground {
         match foreground(root.clone(), &options) {
             Ok(()) => ExitCode::SUCCESS,
+            Err(error) if error.code == "E_STORE_OWNED" => {
+                if let Some(info) = wait_for_owner_file(&root, Duration::from_secs(2)) {
+                    print_running_owner(&info, options.json);
+                    ExitCode::SUCCESS
+                } else {
+                    print_refusal(error, options.json, 1)
+                }
+            }
             Err(error) => {
                 watch::log(
                     &root,
                     json!({ "exited": format!("fatal: {}", error.code), "refusal": error }),
                 );
-                let _ = fs::remove_file(owner_path(&root));
                 print_refusal(error, options.json, 1)
             }
         }
@@ -106,18 +120,15 @@ pub fn run(options: DevOptions) -> ExitCode {
 }
 
 pub fn require_owner(root: &Path) -> Result<OwnerInfo, Refusal> {
-    let had_owner_file = owner_path(root).is_file();
-    active_owner(root).ok_or_else(|| {
-        let message = if had_owner_file {
-            format!(
-                "stale owner.json removed; no owner is running for {}",
-                root.display()
-            )
-        } else {
-            format!("no owner is running for {}", root.display())
-        };
-        Refusal::owner("E_OWNER_NOT_RUNNING", message, "snapback2 dev")
-    })
+    match probe_owner(root) {
+        OwnerProbe::Active(info) => Ok(info),
+        OwnerProbe::Running(info) => Err(owner_running(&info)),
+        OwnerProbe::Missing => Err(Refusal::owner(
+            "E_OWNER_NOT_RUNNING",
+            format!("no owner is running for {}", root.display()),
+            "snapback2 dev",
+        )),
+    }
 }
 
 pub fn read_owner(root: &Path) -> Option<OwnerInfo> {
@@ -134,6 +145,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     })?;
     let mut compiler = CompilerWorker::spawn()?;
     let compiled = compiler.compile(&root).map_err(first)?;
+    let _ = compiler.journeys(&root).map_err(first)?;
     let seed = compiler.seed(&root).map_err(first)?;
     write_build_cache(&root, &compiled)?;
     let rows = seed_rows(&seed, &compiled)?;
@@ -161,16 +173,6 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     let stop = Arc::new(AtomicBool::new(false));
     #[cfg(unix)]
     install_signal_exit(root.clone(), stop.clone());
-    let handle = spawn_writer(
-        runtime,
-        compiled.clone(),
-        seed,
-        store_path,
-        root.clone(),
-        mode.clone(),
-        stop.clone(),
-    )?;
-    let _effects = crate::effects::spawn(handle.clone());
     let secret = random_secret()?;
     let url = format!("http://127.0.0.1:{}", server.port);
     let info = OwnerInfo {
@@ -178,20 +180,32 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         port: server.port,
         url: url.clone(),
         secret: secret.clone(),
-        generation: compiled.generation.hash,
+        generation: compiled.generation.hash.clone(),
         started_at: unix_millis(),
         mode: mode.clone(),
         project: root.clone(),
     };
-    write_owner(&root, &info)?;
+    let handle = spawn_writer(
+        runtime,
+        compiled.clone(),
+        seed,
+        root.clone(),
+        mode.clone(),
+        stop.clone(),
+        info.clone(),
+    )?;
+    let _effects = crate::effects::spawn(handle.clone());
+    handle.call(Action::PublishOwner)?;
     print_url(&info, options.json);
-    std::io::stdout().flush().map_err(|error| {
-        Refusal::owner(
+    if let Err(error) = std::io::stdout().flush() {
+        stop.store(true, Ordering::SeqCst);
+        let _ = remove_owner_if_matches(&root, &info);
+        return Err(Refusal::owner(
             "E_OWNER_OUTPUT",
             error.to_string(),
             "run snapback2 dev again with a writable stdout",
-        )
-    })?;
+        ));
+    }
     watch::log(
         &root,
         json!({
@@ -214,12 +228,16 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         stop: stop.clone(),
     });
     stop.store(true, Ordering::SeqCst);
-    if watcher.join().is_err() {
-        watch::log(&root, json!({ "watcherError": "source watcher panicked" }));
+    match join_watcher(watcher, Duration::from_millis(500)) {
+        WatcherExit::Joined => {}
+        WatcherExit::Panicked => {
+            watch::log(&root, json!({ "exited": "source watcher panicked" }));
+        }
+        WatcherExit::TimedOut => {
+            watch::log(&root, json!({ "exited": "source watcher stop timeout" }));
+        }
     }
-    if let Err(error) = fs::remove_file(owner_path(&root))
-        && error.kind() != std::io::ErrorKind::NotFound
-    {
+    if let Err(error) = remove_owner_if_matches(&root, &info) {
         watch::log(&root, json!({ "ownerStateError": error.to_string() }));
     }
     if !options.owner_child {
@@ -318,9 +336,24 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
     };
     let started = Instant::now();
     while started.elapsed() < Duration::from_secs(10) {
-        if let Some(info) = active_owner(&root) {
-            print_url(&info, options.json);
-            return ExitCode::SUCCESS;
+        match probe_owner(&root) {
+            OwnerProbe::Active(info) => {
+                if info.pid != child.id() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+                print_url(&info, options.json);
+                return ExitCode::SUCCESS;
+            }
+            OwnerProbe::Running(info) => {
+                if info.pid != child.id() {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                }
+                print_running_owner(&info, options.json);
+                return ExitCode::SUCCESS;
+            }
+            OwnerProbe::Missing => {}
         }
         if let Ok(Some(status)) = child.try_wait() {
             let refusals = startup_refusals(&log_path, log_start);
@@ -352,37 +385,48 @@ fn detach(root: PathBuf, options: DevOptions) -> ExitCode {
     )
 }
 
-fn active_owner(root: &Path) -> Option<OwnerInfo> {
-    let path = owner_path(root);
-    if !path.is_file() {
-        return None;
-    }
-    let Some(info) = read_owner(root) else {
-        let _ = fs::remove_file(path);
-        return None;
+enum OwnerProbe {
+    Active(OwnerInfo),
+    Running(OwnerInfo),
+    Missing,
+}
+
+fn probe_owner(root: &Path) -> OwnerProbe {
+    let Some(info) = owner_file_for_project(root) else {
+        return OwnerProbe::Missing;
     };
     if !pid_is_running(info.pid) {
-        let _ = fs::remove_file(path);
-        return None;
+        return OwnerProbe::Missing;
     }
-    let Some(response) = client::control(&info, "GET", "/control/status", json!({})).ok() else {
-        let _ = fs::remove_file(path);
-        return None;
-    };
-    if response.status != 200 {
-        let _ = fs::remove_file(path);
-        return None;
+    match client::control(&info, "GET", "/control/status", json!({})) {
+        Ok(response)
+            if response.status == 200
+                && response
+                    .body
+                    .get("project")
+                    .and_then(Json::as_str)
+                    .is_some_and(|project| Path::new(project) == root) =>
+        {
+            OwnerProbe::Active(info)
+        }
+        _ => OwnerProbe::Running(info),
     }
-    let Some(project) = response.body.get("project").and_then(Json::as_str) else {
-        let _ = fs::remove_file(path);
-        return None;
-    };
-    if Path::new(project) == root {
-        Some(info)
-    } else {
-        let _ = fs::remove_file(path);
-        None
+}
+
+fn owner_file_for_project(root: &Path) -> Option<OwnerInfo> {
+    let info = read_owner(root)?;
+    (info.project == root).then_some(info)
+}
+
+fn wait_for_owner_file(root: &Path, timeout: Duration) -> Option<OwnerInfo> {
+    let started = Instant::now();
+    while started.elapsed() < timeout {
+        if let Some(info) = owner_file_for_project(root).filter(|info| pid_is_running(info.pid)) {
+            return Some(info);
+        }
+        thread::sleep(Duration::from_millis(25));
     }
+    None
 }
 
 fn control_command(
@@ -400,7 +444,18 @@ fn control_command(
         Ok(response) => {
             if response.status < 400 {
                 if path == "/control/stop" {
-                    wait_for_pid_exit(info.pid, Duration::from_secs(2));
+                    if !wait_for_owner_exit(root, &info, Duration::from_secs(2)) {
+                        return print_refusal(
+                            Refusal::owner(
+                                "E_OWNER_STOP_TIMEOUT",
+                                format!("owner pid {} is still alive after 2 seconds", info.pid),
+                                "inspect .snapback/log.jsonl, then retry snapback2 dev --stop",
+                            )
+                            .with_detail("pid", json!(info.pid)),
+                            json_output,
+                            1,
+                        );
+                    }
                 }
                 print_control_body(&response.body);
                 ExitCode::SUCCESS
@@ -413,7 +468,7 @@ fn control_command(
     }
 }
 
-fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> {
+pub(crate) fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> {
     let path = owner_path(root);
     let temporary = root.join(".snapback/owner.json.tmp");
     let bytes = serde_json::to_vec_pretty(info).map_err(|error| {
@@ -435,6 +490,34 @@ fn write_owner(root: &Path, info: &OwnerInfo) -> Result<(), Refusal> {
     })
 }
 
+pub(crate) fn write_owner_if_active(
+    root: &Path,
+    info: &OwnerInfo,
+    exited: bool,
+) -> Result<(), Refusal> {
+    if exited {
+        Ok(())
+    } else {
+        write_owner(root, info)
+    }
+}
+
+fn remove_owner_if_matches(root: &Path, expected: &OwnerInfo) -> std::io::Result<()> {
+    let Some(current) = read_owner(root) else {
+        return Ok(());
+    };
+    if current.pid != expected.pid || current.secret != expected.secret {
+        return Ok(());
+    }
+    fs::remove_file(owner_path(root)).or_else(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            Ok(())
+        } else {
+            Err(error)
+        }
+    })
+}
+
 fn owner_path(root: &Path) -> PathBuf {
     root.join(".snapback/owner.json")
 }
@@ -448,6 +531,35 @@ fn print_url(info: &OwnerInfo, json_output: bool) {
     } else {
         println!("SNAPBACK_URL={}", info.url);
     }
+}
+
+fn print_running_owner(info: &OwnerInfo, json_output: bool) {
+    if json_output {
+        println!(
+            "{}",
+            json!({
+                "code": "E_OWNER_RUNNING",
+                "url": info.url,
+                "generation": info.generation,
+                "pid": info.pid,
+            })
+        );
+    } else {
+        println!("SNAPBACK_URL={}", info.url);
+    }
+}
+
+fn owner_running(info: &OwnerInfo) -> Refusal {
+    Refusal::owner(
+        "E_OWNER_RUNNING",
+        format!(
+            "owner pid {} is running at {}, but its status probe did not answer",
+            info.pid, info.url
+        ),
+        "use the reported URL or retry after the owner becomes responsive",
+    )
+    .with_detail("pid", json!(info.pid))
+    .with_detail("url", json!(info.url))
 }
 
 pub fn print_refusal(error: Refusal, json_output: bool, code: u8) -> ExitCode {
@@ -505,10 +617,47 @@ fn startup_refusals(path: &Path, offset: u64) -> Vec<Refusal> {
         .collect()
 }
 
-fn wait_for_pid_exit(pid: u32, timeout: Duration) {
+fn wait_for_owner_exit(root: &Path, info: &OwnerInfo, timeout: Duration) -> bool {
     let started = Instant::now();
-    while started.elapsed() < timeout && pid_is_running(pid) {
+    while started.elapsed() < timeout && !owner_process_exited(root, info) {
         thread::sleep(Duration::from_millis(25));
+    }
+    owner_process_exited(root, info)
+}
+
+fn owner_file_matches(root: &Path, expected: &OwnerInfo) -> bool {
+    read_owner(root)
+        .is_some_and(|current| current.pid == expected.pid && current.secret == expected.secret)
+}
+
+fn owner_process_exited(root: &Path, info: &OwnerInfo) -> bool {
+    if !pid_is_running(info.pid) {
+        return true;
+    }
+    // A foreground owner held by a test or supervisor can be an unreaped zombie:
+    // it has exited even though signal 0 still observes its PID. Only run the
+    // platform process-state probe after this owner has removed its own record.
+    !owner_file_matches(root, info) && pid_is_zombie(info.pid)
+}
+
+enum WatcherExit {
+    Joined,
+    Panicked,
+    TimedOut,
+}
+
+fn join_watcher(watcher: thread::JoinHandle<()>, timeout: Duration) -> WatcherExit {
+    let started = Instant::now();
+    while started.elapsed() < timeout && !watcher.is_finished() {
+        thread::sleep(Duration::from_millis(10));
+    }
+    if !watcher.is_finished() {
+        return WatcherExit::TimedOut;
+    }
+    if watcher.join().is_ok() {
+        WatcherExit::Joined
+    } else {
+        WatcherExit::Panicked
     }
 }
 
@@ -525,9 +674,27 @@ fn pid_is_running(pid: u32) -> bool {
     result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(1)
 }
 
+#[cfg(unix)]
+fn pid_is_zombie(pid: u32) -> bool {
+    let output = Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .output();
+    output.is_ok_and(|output| {
+        output.status.success()
+            && String::from_utf8_lossy(&output.stdout)
+                .trim_start()
+                .starts_with('Z')
+    })
+}
+
 #[cfg(not(unix))]
 fn pid_is_running(_pid: u32) -> bool {
     true
+}
+
+#[cfg(not(unix))]
+fn pid_is_zombie(_pid: u32) -> bool {
+    false
 }
 
 fn random_secret() -> Result<String, Refusal> {
@@ -564,6 +731,70 @@ fn unix_millis() -> i64 {
         .unwrap_or_default()
         .as_millis()
         .min(i64::MAX as u128) as i64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_info(root: &Path, pid: u32, secret: &str) -> OwnerInfo {
+        OwnerInfo {
+            pid,
+            port: 1234,
+            url: "http://127.0.0.1:1234".to_owned(),
+            secret: secret.to_owned(),
+            generation: "one".to_owned(),
+            started_at: 0,
+            mode: "dev".to_owned(),
+            project: root.to_owned(),
+        }
+    }
+
+    fn root(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "snapback2-owner-unit-{name}-{}-{}",
+            std::process::id(),
+            unix_millis()
+        ));
+        fs::create_dir_all(root.join(".snapback")).unwrap();
+        root
+    }
+
+    #[test]
+    fn cleanup_is_conditional_on_pid_and_secret() {
+        let root = root("identity");
+        let winner = test_info(&root, 11, "winner");
+        let loser = test_info(&root, 22, "loser");
+        write_owner(&root, &winner).unwrap();
+        remove_owner_if_matches(&root, &loser).unwrap();
+        let current = read_owner(&root).unwrap();
+        assert_eq!(current.pid, winner.pid);
+        assert_eq!(current.secret, winner.secret);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn exited_owner_state_refuses_a_late_generation_write() {
+        let root = root("late-generation");
+        let mut info = test_info(&root, 11, "owner");
+        write_owner_if_active(&root, &info, false).unwrap();
+        remove_owner_if_matches(&root, &info).unwrap();
+        info.generation = "two".to_owned();
+        write_owner_if_active(&root, &info, true).unwrap();
+        assert!(!owner_path(&root).exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn watcher_join_is_bounded() {
+        let watcher = thread::spawn(|| thread::sleep(Duration::from_millis(100)));
+        let started = Instant::now();
+        assert!(matches!(
+            join_watcher(watcher, Duration::from_millis(10)),
+            WatcherExit::TimedOut
+        ));
+        assert!(started.elapsed() < Duration::from_millis(50));
+    }
 }
 
 #[cfg(unix)]
