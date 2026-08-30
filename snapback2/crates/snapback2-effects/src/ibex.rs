@@ -2,7 +2,9 @@ use crate::{EffectHost, EffectJob, EffectLog, Outcome};
 use ibex2::engine::hermes::{DynamicCode, Grants, Hermes};
 use serde_json::json;
 use snapback2_core::{EffectDecl, digest};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, hash_map::RandomState};
+use std::hash::{BuildHasher, Hash, Hasher};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 const MAX_JOBS_PER_RUNTIME: u32 = 50;
@@ -41,8 +43,9 @@ const EFFECT_GLOBALS: &[&str] = &[
     "TypeError",
     "URL",
     "WeakMap",
+    // Ibex 2's C++ pump resolves this name directly. The prelude replaces the
+    // binding with a wrapper guarded by a closure-held, host-armed permit.
     "__ibex2_fire_timer",
-    "__snapback",
     "atob",
     "btoa",
     "console",
@@ -70,6 +73,7 @@ struct EffectRuntime {
     _grants: Grants,
     declared_grants: Vec<String>,
     jobs: u32,
+    host_token: String,
 }
 
 /// Ibex 2 over vanilla Hermes, with one hardened runtime per effect source.
@@ -161,6 +165,21 @@ enum BuildFailure {
     Invalid(String),
 }
 
+static HOST_CHANNEL_NONCE: AtomicU64 = AtomicU64::new(0);
+
+fn host_channel_token() -> String {
+    let nonce = HOST_CHANNEL_NONCE.fetch_add(1, Ordering::Relaxed);
+    let random_part = |domain: u64| {
+        let mut hasher = RandomState::new().build_hasher();
+        nonce.hash(&mut hasher);
+        domain.hash(&mut hasher);
+        hasher.finish()
+    };
+    let first = random_part(0);
+    let second = random_part(1);
+    format!("{second:016x}{first:016x}")
+}
+
 fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
     let mut runtime = Hermes::new(DynamicCode::Closed)
         .ok_or(BuildFailure::Unavailable("Hermes::new returned None"))?;
@@ -190,6 +209,7 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         ));
     }
 
+    let host_token = host_channel_token();
     let prelude = PRELUDE
         .replace("__SNAPBACK_FETCH_FACTORY__", FETCH_FACTORY)
         .replace(
@@ -200,10 +220,26 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
             "__SNAPBACK_ALLOWED_GLOBALS__",
             &serde_json::to_string(EFFECT_GLOBALS).expect("effect globals are JSON"),
         )
+        .replace(
+            "__SNAPBACK_HOST_TOKEN__",
+            &serde_json::to_string(&host_token).expect("host token is JSON"),
+        )
         .replace("__SNAPBACK_EFFECT_SOURCE__", &decl.source);
     runtime
-        .eval(&prelude)
+        .eval(&format!("globalThis.__snapback_install = {prelude}"))
         .map_err(|error| BuildFailure::Invalid(format!("install effect prelude: {}", error.0)))?;
+    // Hand the returned function to the token-gated host channel exactly once,
+    // then remove the public install slot before job code can run.
+    let token = serde_json::to_string(&host_token).expect("host token is JSON");
+    runtime
+        .eval(&format!(
+            "__ibex2_fire_timer({token}, 'install', globalThis.__snapback_install); \
+             delete globalThis.__snapback_install; \
+             Object.preventExtensions(globalThis)",
+        ))
+        .map_err(|error| {
+            BuildFailure::Invalid(format!("capture effect host entry: {}", error.0))
+        })?;
     runtime
         .harden()
         .map_err(|error| BuildFailure::Invalid(format!("harden effect runtime: {}", error.0)))?;
@@ -214,6 +250,7 @@ fn build_runtime(decl: &EffectDecl) -> Result<EffectRuntime, BuildFailure> {
         _grants: grants,
         declared_grants: decl.grants.clone(),
         jobs: 0,
+        host_token,
     })
 }
 
@@ -251,13 +288,91 @@ fn verify_globals(runtime: &mut Hermes) -> Result<(), BuildFailure> {
     Ok(())
 }
 
+#[derive(Debug)]
+struct JobSnapshot {
+    status: String,
+    result: Option<String>,
+    error: Option<String>,
+    error_code: Option<String>,
+    contaminated: bool,
+    source_evaluations: u64,
+    effect_frozen: bool,
+}
+
+fn host_call_expression(effect_runtime: &EffectRuntime, method: &str, args: &[String]) -> String {
+    let token = serde_json::to_string(&effect_runtime.host_token).expect("host token is JSON");
+    let method = serde_json::to_string(method).expect("host method is JSON");
+    let arguments = std::iter::once(token)
+        .chain(std::iter::once(method))
+        .chain(args.iter().cloned())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("__ibex2_fire_timer({arguments})")
+}
+
+fn call_host(
+    effect_runtime: &mut EffectRuntime,
+    method: &str,
+    args: &[String],
+) -> Result<String, String> {
+    let expression = host_call_expression(effect_runtime, method, args);
+    effect_runtime
+        .runtime
+        .eval(&expression)
+        .map_err(|error| error.0)
+}
+
+fn read_job_snapshot(
+    effect_runtime: &mut EffectRuntime,
+    job_token: &str,
+) -> Result<JobSnapshot, String> {
+    let token_json = serde_json::to_string(job_token).expect("job token is JSON");
+    let read = host_call_expression(effect_runtime, "read", &[token_json]);
+    let encoded = effect_runtime
+        .runtime
+        .eval(&format!("JSON.stringify({read})"))
+        .map_err(|error| error.0)?;
+    let value: serde_json::Value = serde_json::from_str(&encoded)
+        .map_err(|error| format!("host snapshot is not JSON: {error}"))?;
+    let field = |name: &str| {
+        value
+            .get(name)
+            .ok_or_else(|| format!("host snapshot is missing {name}"))
+    };
+    let token = value
+        .get("token")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("E_EFFECT_RESULT")?
+        .to_owned();
+    if token != job_token {
+        return Err("E_EFFECT_RESULT".to_owned());
+    }
+    Ok(JobSnapshot {
+        status: field("status")?
+            .as_str()
+            .ok_or_else(|| "host snapshot status is not a string".to_owned())?
+            .to_owned(),
+        result: field("result")?.as_str().map(str::to_owned),
+        error: field("error")?.as_str().map(str::to_owned),
+        error_code: field("errorCode")?.as_str().map(str::to_owned),
+        contaminated: field("contaminated")?
+            .as_bool()
+            .ok_or_else(|| "host snapshot contaminated is not a boolean".to_owned())?,
+        source_evaluations: field("sourceEvaluations")?
+            .as_u64()
+            .ok_or_else(|| "host snapshot sourceEvaluations is not an integer".to_owned())?,
+        effect_frozen: field("effectFrozen")?
+            .as_bool()
+            .ok_or_else(|| "host snapshot effectFrozen is not a boolean".to_owned())?,
+    })
+}
+
 fn run_job(
     effect_runtime: &mut EffectRuntime,
     job: &EffectJob,
     budget: Duration,
 ) -> (Outcome, Vec<EffectLog>, bool, bool) {
-    let runtime = &mut effect_runtime.runtime;
-    let _ = runtime.drain_console();
+    let _ = effect_runtime.runtime.drain_console();
     let payload = match serde_json::to_string(&job.payload) {
         Ok(payload) => payload,
         Err(error) => {
@@ -281,59 +396,106 @@ fn run_job(
     let meta_json =
         serde_json::to_string(&serde_json::to_string(&meta).expect("effect metadata is JSON"))
             .expect("encoded effect metadata is JSON");
-    let invocation = format!("__snapback.run({payload_json}, {meta_json})");
+    let job_token_json = serde_json::to_string(&job.id).expect("job token is JSON");
 
-    if let Err(error) = runtime.eval(&invocation) {
-        let logs = drain_logs(runtime, job);
+    if let Err(error) = call_host(
+        effect_runtime,
+        "run",
+        &[job_token_json, payload_json, meta_json],
+    ) {
+        let logs = drain_logs(&effect_runtime.runtime, job);
+        return (Outcome::Failed { error, retry: true }, logs, false, true);
+    }
+    if let Err(error) = call_host(effect_runtime, "armTimers", &[]) {
+        let logs = drain_logs(&effect_runtime.runtime, job);
         return (
             Outcome::Failed {
-                error: error.0,
-                retry: true,
+                error: format!("E_EFFECT_HOST_CHANNEL: arm timers: {error}"),
+                retry: false,
             },
             logs,
-            false,
+            true,
             true,
         );
     }
     let started = Instant::now();
-    runtime.run_to_quiescence(budget);
+    effect_runtime.runtime.run_to_quiescence(budget);
     // Ibex 2's bounded driver returns early only at quiescence. Reaching the
     // budget is therefore the conservative signal that work was left behind.
     let quiescent = started.elapsed() < budget;
-
-    let status = runtime
-        .eval("__snapback.status")
-        .unwrap_or_else(|error| format!("host-error:{}", error.0));
-    let contaminated = runtime
-        .eval("String(__snapback.contaminated)")
-        .map(|value| value == "true")
-        .unwrap_or(true);
-    let logs = drain_logs(runtime, job);
-    let outcome = match status.as_str() {
-        "sent" => match runtime.eval("__snapback.result") {
-            Ok(result) => match serde_json::from_str(&result) {
+    let disarm_error = call_host(effect_runtime, "disarmTimers", &[]).err();
+    let snapshot = read_job_snapshot(effect_runtime, &job.id);
+    let logs = drain_logs(&effect_runtime.runtime, job);
+    if let Some(error) = disarm_error {
+        return (
+            Outcome::Failed {
+                error: format!("E_EFFECT_HOST_CHANNEL: disarm timers: {error}"),
+                retry: false,
+            },
+            logs,
+            true,
+            quiescent,
+        );
+    }
+    let snapshot = match snapshot {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return (
+                Outcome::Failed {
+                    error: if error.contains("E_EFFECT_RESULT") {
+                        "E_EFFECT_RESULT".to_owned()
+                    } else {
+                        format!("E_EFFECT_RESULT_READ: {error}")
+                    },
+                    retry: false,
+                },
+                logs,
+                true,
+                quiescent,
+            );
+        }
+    };
+    if snapshot.source_evaluations != 1 || !snapshot.effect_frozen {
+        return (
+            Outcome::Failed {
+                error: "E_EFFECT_ENGINE: installed effect lost its frozen one-evaluation invariant"
+                    .to_owned(),
+                retry: false,
+            },
+            logs,
+            true,
+            quiescent,
+        );
+    }
+    let contaminated = snapshot.contaminated;
+    let outcome = match snapshot.status.as_str() {
+        "sent" => match snapshot.result {
+            Some(result) => match serde_json::from_str(&result) {
                 Ok(value) => Outcome::Sent {
                     result: value,
                     leftover: !quiescent,
                 },
-                Err(error) => Outcome::Failed {
-                    error: format!("E_EFFECT_RESULT_JSON: {error}"),
+                Err(_) => Outcome::Failed {
+                    error: "E_EFFECT_RESULT".to_owned(),
                     retry: false,
                 },
             },
-            Err(error) => Outcome::Failed {
-                error: format!("E_EFFECT_RESULT_READ: {}", error.0),
+            None => Outcome::Failed {
+                error: "E_EFFECT_RESULT".to_owned(),
                 retry: false,
             },
         },
         "failed" => {
-            let error = runtime
-                .eval("__snapback.error")
-                .unwrap_or_else(|read| format!("effect failed; error read failed: {}", read.0));
-            let retry = runtime
-                .eval("__snapback.errorCode")
-                .map(|code| code != "E_EFFECT_GRANT")
-                .unwrap_or(true);
+            let error_code = snapshot.error_code.as_deref();
+            let result_error = error_code == Some("E_EFFECT_RESULT");
+            let retry = !matches!(error_code, Some("E_EFFECT_GRANT" | "E_EFFECT_RESULT"));
+            let error = if result_error {
+                "E_EFFECT_RESULT".to_owned()
+            } else {
+                snapshot
+                    .error
+                    .unwrap_or_else(|| "effect failed without an error".to_owned())
+            };
             Outcome::Failed { error, retry }
         }
         _ => Outcome::Failed {
@@ -556,6 +718,131 @@ mod tests {
     }
 
     #[test]
+    fn settled_job_cannot_reenter_the_host_from_a_timer() {
+        let decl = declaration(
+            r#"async (payload) => {
+              if (payload.pwned) return { pwned: true };
+              setTimeout(function () {
+                try {
+                  globalThis.__snapback.run(
+                    JSON.stringify({ pwned: true }),
+                    JSON.stringify({ id: "attacker", effect: "notifications.notify", attempt: 1 })
+                  );
+                } catch (_) {}
+              }, 0);
+              return { real: true };
+            }"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("real-job", json!({ "pwned": false })),
+                Duration::from_millis(100),
+            ),
+            sent(json!({ "real": true }))
+        );
+    }
+
+    #[test]
+    fn undefined_is_null_and_non_json_results_are_non_retryable() {
+        let grants = vec!["http://127.0.0.1:1".to_owned()];
+        let mut host = Ibex2Host::new().unwrap();
+
+        for (id, source) in [
+            ("undefined", "async () => undefined"),
+            ("bare-return", "async () => { return; }"),
+        ] {
+            assert_eq!(
+                host.run(
+                    &declaration(source, grants.clone()),
+                    &job(id, Value::Null),
+                    Duration::from_millis(100),
+                ),
+                sent(Value::Null),
+                "{id}"
+            );
+        }
+
+        for (id, source) in [
+            ("function", "async () => function nope() {}"),
+            ("symbol", "async () => Symbol('nope')"),
+            ("bigint", "async () => 1n"),
+            (
+                "cyclic",
+                "async () => { const value = {}; value.self = value; return value; }",
+            ),
+        ] {
+            assert!(
+                matches!(
+                    host.run(
+                        &declaration(source, grants.clone()),
+                        &job(id, Value::Null),
+                        Duration::from_millis(100),
+                    ),
+                    Outcome::Failed { retry: false, ref error }
+                        if error == "E_EFFECT_RESULT"
+                ),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn job_code_cannot_fire_ibex_timers_by_name() {
+        let decl = declaration(
+            r#"async () => {
+              let fired = false;
+              const handle = setTimeout(function () { fired = true; }, 5000);
+              return new Promise(function (resolve) {
+                setTimeout(function () {
+                  let denied = false;
+                  try { globalThis.__ibex2_fire_timer(handle); } catch (_) { denied = true; }
+                  resolve({ denied, fired });
+                }, 0);
+              });
+            }"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("timer-guard", Value::Null),
+                Duration::from_millis(10),
+            ),
+            Outcome::Sent {
+                result: json!({ "denied": true, "fired": false }),
+                leftover: true,
+            }
+        );
+    }
+
+    #[test]
+    fn guarded_ibex_timer_still_drives_an_awaited_timeout() {
+        let decl = declaration(
+            r#"async () => {
+              await new Promise(function (resolve) { setTimeout(resolve, 0); });
+              return { timer: "delivered" };
+            }"#,
+            vec!["http://127.0.0.1:1".to_owned()],
+        );
+        let mut host = Ibex2Host::new().unwrap();
+
+        assert_eq!(
+            host.run(
+                &decl,
+                &job("timer-await", Value::Null),
+                Duration::from_millis(100),
+            ),
+            sent(json!({ "timer": "delivered" }))
+        );
+    }
+
+    #[test]
     fn console_is_attributed_and_job_tools_share_no_state() {
         let source = r#"async function (payload, tools) {
           if (payload.set) {
@@ -705,20 +992,34 @@ mod tests {
             .values_mut()
             .next()
             .expect("one cached runtime");
-        assert_eq!(
-            cached
-                .runtime
-                .eval("String(__snapback.sourceEvaluations)")
-                .unwrap(),
-            "1"
+        let snapshot = read_job_snapshot(cached, "compile-3").unwrap();
+        assert_eq!(snapshot.source_evaluations, 1);
+        assert!(snapshot.effect_frozen);
+    }
+
+    #[test]
+    fn host_refuses_a_result_for_another_job_token() {
+        let decl = declaration(
+            "async () => ({ real: true })",
+            vec!["http://127.0.0.1:1".to_owned()],
         );
+        let mut host = Ibex2Host::new().unwrap();
         assert_eq!(
-            cached
-                .runtime
-                .eval("String(Object.isFrozen(__snapback.effects) && Object.isFrozen(__snapback.effects['notifications.notify']))")
-                .unwrap(),
-            "true"
+            host.run(
+                &decl,
+                &job("right-job", Value::Null),
+                Duration::from_millis(100),
+            ),
+            sent(json!({ "real": true }))
         );
+
+        let cached = host
+            .runtimes
+            .values_mut()
+            .next()
+            .expect("one cached runtime");
+        let error = read_job_snapshot(cached, "wrong-job").unwrap_err();
+        assert_eq!(error, "E_EFFECT_RESULT");
     }
 
     #[test]

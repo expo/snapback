@@ -40,6 +40,11 @@ pub enum OutboxSettlement {
         error: String,
         next_at: i64,
     },
+    /// The host could not run the claimed job. Settlement atomically restores
+    /// `queued` and the pre-claim attempt count, recording only `last_error`.
+    Unavailable {
+        error: String,
+    },
     Failed {
         error: String,
     },
@@ -59,10 +64,15 @@ pub struct PendingThen {
 // @ref LLP 1002#5-the-owner — only the writer thread owns Runtime and SQLite.
 // @ref LLP 1003#2-the-outbox-lifecycle — claiming, settling, restart honesty, and `then` all cross this seam.
 pub trait OutboxAccess {
-    /// Atomically select the oldest eligible queued row and transition it to
-    /// `running`, incrementing `attempts` before returning it.
+    /// Atomically select the oldest eligible row using the exact predicate
+    /// `state = 'queued' AND next_at <= ?`, transition it to `running`, and
+    /// increment `attempts` before returning it. No other state, especially
+    /// `sent_unknown`, is eligible for an automatic claim.
     fn claim_next(&mut self, now: i64) -> Result<Option<EffectJob>, OutboxError>;
 
+    /// Atomically apply the complete settlement. `Unavailable` must restore
+    /// the pre-claim attempt count while returning the row to `queued` and
+    /// recording its error.
     fn settle(&mut self, id: &str, settlement: OutboxSettlement) -> Result<(), OutboxError>;
 
     /// Return every durable `then_pending` row in stable outbox order.
@@ -256,12 +266,10 @@ impl<H: EffectHost> Runner<H> {
                     drained.failed += 1;
                 }
                 Outcome::Unavailable(message) => {
-                    let failed_at = now();
                     access.settle(
                         &job.id,
-                        OutboxSettlement::Retry {
+                        OutboxSettlement::Unavailable {
                             error: message.to_owned(),
-                            next_at: failed_at.saturating_add(retry_delay_ms(job.attempt)),
                         },
                     )?;
                     drained.requeued += 1;
@@ -290,7 +298,8 @@ fn execute_then<A: OutboxAccess>(
 }
 
 fn retry_delay_ms(attempt: u32) -> i64 {
-    1_000_i64.saturating_mul(1_i64.checked_shl(attempt.min(30)).unwrap_or(i64::MAX))
+    let exponent = attempt.saturating_sub(1).min(30);
+    1_000_i64.saturating_mul(1_i64.checked_shl(exponent).unwrap_or(i64::MAX))
 }
 
 fn unix_millis() -> i64 {
@@ -383,6 +392,7 @@ mod tests {
                 OutboxSettlement::ThenPending { .. } => "then_pending",
                 OutboxSettlement::Sent { .. } => "sent",
                 OutboxSettlement::Retry { .. } => "queued",
+                OutboxSettlement::Unavailable { .. } => "queued",
                 OutboxSettlement::Failed { .. } => "failed",
             });
             let row = self.row_mut(id)?;
@@ -400,6 +410,11 @@ mod tests {
                 OutboxSettlement::Retry { error, next_at } => {
                     row.state = "queued";
                     row.next_at = next_at;
+                    row.last_error = Some(error);
+                }
+                OutboxSettlement::Unavailable { error } => {
+                    row.state = "queued";
+                    row.job.attempt = row.job.attempt.saturating_sub(1);
                     row.last_error = Some(error);
                 }
                 OutboxSettlement::Failed { error } => {
@@ -530,6 +545,10 @@ mod tests {
 
     #[test]
     fn retry_uses_post_claim_attempt_and_stops_at_five() {
+        assert_eq!(
+            (1..=5).map(retry_delay_ms).collect::<Vec<_>>(),
+            vec![1_000, 2_000, 4_000, 8_000, 16_000]
+        );
         let host = StubHost::new([
             Outcome::Failed {
                 error: "temporary".to_owned(),
@@ -552,7 +571,7 @@ mod tests {
         assert_eq!(drained.requeued, 1);
         assert_eq!(drained.failed, 1);
         assert_eq!(outbox.row("retry").state, "queued");
-        assert_eq!(outbox.row("retry").next_at, 3_000);
+        assert_eq!(outbox.row("retry").next_at, 2_000);
         assert_eq!(outbox.row("last").state, "failed");
         assert_eq!(outbox.row("last").job.attempt, 5);
     }
@@ -575,16 +594,17 @@ mod tests {
             .unwrap();
 
         assert_eq!(drained.requeued, 1);
-        assert_eq!(outbox.row("retry").next_at, 3_750);
+        assert_eq!(outbox.row("retry").next_at, 2_750);
     }
 
     #[test]
-    fn unavailable_requeues_with_message_and_backoff() {
+    fn unavailable_requeues_with_message_without_spending_an_attempt() {
         let host = StubHost::new([Outcome::Unavailable("provider unavailable")]);
         let mut runner = Runner::new(host);
         let mut outbox = MemoryOutbox::default();
-        outbox.push("offline", "notifications.notify", "queued", 0);
-        let mut times = VecDeque::from([2_000, 2_500]);
+        outbox.push("offline", "notifications.notify", "queued", 3);
+        outbox.row_mut("offline").unwrap().next_at = 1_500;
+        let mut times = VecDeque::from([2_000]);
 
         let drained = runner
             .drain_with_clock(&mut outbox, &declarations(declaration(None)), 1, || {
@@ -595,11 +615,32 @@ mod tests {
         assert_eq!(drained.unavailable, vec!["provider unavailable"]);
         assert_eq!(drained.requeued, 1);
         assert_eq!(outbox.row("offline").state, "queued");
-        assert_eq!(outbox.row("offline").next_at, 4_500);
+        assert_eq!(outbox.row("offline").job.attempt, 3);
+        assert_eq!(outbox.row("offline").next_at, 1_500);
         assert_eq!(
             outbox.row("offline").last_error.as_deref(),
             Some("provider unavailable")
         );
+    }
+
+    #[cfg(feature = "hermes")]
+    #[test]
+    fn engine_claims_queued_but_never_sent_unknown() {
+        let mut outbox = MemoryOutbox::default();
+        outbox.push("maybe-sent", "notifications.notify", "sent_unknown", 1);
+        outbox.push("waiting", "notifications.notify", "queued", 0);
+        let mut runner = Runner::new(crate::ibex::Ibex2Host::new().unwrap());
+
+        let drained = runner
+            .drain_with_clock(&mut outbox, &declarations(declaration(None)), 16, || 0)
+            .unwrap();
+
+        assert_eq!(drained.claimed, 1);
+        assert_eq!(drained.sent, 1);
+        assert_eq!(outbox.row("maybe-sent").state, "sent_unknown");
+        assert_eq!(outbox.row("maybe-sent").job.attempt, 1);
+        assert_eq!(outbox.row("waiting").state, "sent");
+        assert_eq!(outbox.row("waiting").job.attempt, 1);
     }
 
     #[test]

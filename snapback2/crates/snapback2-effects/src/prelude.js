@@ -1,10 +1,14 @@
 // Snapback 2 effect compartment. Rust inserts the vendored Ibex 2 factory
-// expression at the marker below.
+// expression at the marker below. The IIFE returns exactly one host entry;
+// Rust captures it once and removes the temporary global before hardening.
+// @ref LLP 1003#3-the-runtime-snapback2-effects — host commands and timer delivery stay behind closure capabilities.
 (function () {
   "use strict";
 
+  const hostToken = __SNAPBACK_HOST_TOKEN__;
   const saved = globalThis.__sb_saved;
   const allowedGlobals = __SNAPBACK_ALLOWED_GLOBALS__;
+  const fireTimer = globalThis.__ibex2_fire_timer;
   globalThis.__ibex2_response_field = saved.field;
   globalThis.__ibex2_text_decode = saved.decode;
   globalThis.__ibex2_text_encode = saved.encode;
@@ -45,14 +49,61 @@
 
   const state = {
     status: "idle",
+    token: null,
     result: null,
     error: null,
     errorCode: null,
-    errorOrigin: null,
     contaminated: false,
     sourceEvaluations: 0,
   };
   let permanentGlobals = [];
+  const timerToken = Object.freeze({});
+  let timerPermit = null;
+  let installedEntry = null;
+
+  // Ibex 2's C++ pump must resolve this function by its global name. Keep the
+  // name, but require a closure-held permit armed by the Rust host. Consuming
+  // the permit while the real callback runs prevents job code inside a timer
+  // callback from recursively firing another handle.
+  const guardedFireTimer = Object.freeze(function __ibex2_fire_timer(handle) {
+    if (handle === hostToken) {
+      const command = arguments[1];
+      if (command === "install") {
+        if (installedEntry !== null) {
+          throw new Error("E_EFFECT_HOST_CHANNEL: host entry already installed");
+        }
+        const candidate = arguments[2];
+        if (typeof candidate !== "function") {
+          throw new TypeError("E_EFFECT_HOST_CHANNEL: host entry is not a function");
+        }
+        installedEntry = candidate;
+        return;
+      }
+      if (installedEntry === null) {
+        throw new Error("E_EFFECT_HOST_CHANNEL: host entry is not installed");
+      }
+      return installedEntry.apply(
+        undefined,
+        Array.prototype.slice.call(arguments, 1)
+      );
+    }
+    if (timerPermit !== timerToken) {
+      throw new Error("effect jobs cannot fire Ibex timers");
+    }
+    timerPermit = null;
+    try {
+      return fireTimer(handle);
+    } finally {
+      timerPermit = timerToken;
+    }
+  });
+  Object.freeze(fireTimer);
+  Object.defineProperty(globalThis, "__ibex2_fire_timer", {
+    value: guardedFireTimer,
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
 
   // These lexical bindings let a compiled one-parameter effect use `fetch`
   // and `meta` without putting either capability on globalThis. Their values
@@ -91,64 +142,92 @@
     return String(error);
   }
 
-  const api = {};
-  Object.defineProperties(api, {
-    status: { get: function () { return state.status; } },
-    result: { get: function () { return state.result; } },
-    error: { get: function () { return state.error; } },
-    errorCode: { get: function () { return state.errorCode; } },
-    errorOrigin: { get: function () { return state.errorOrigin; } },
-    contaminated: { get: function () { return state.contaminated; } },
-    sourceEvaluations: { get: function () { return state.sourceEvaluations; } },
-    effects: { value: effects, writable: false, enumerable: true, configurable: false },
-    run: {
-      value: function run(payloadJson, metaJson) {
-        if (state.status === "running") throw new Error("effect job already running");
-        state.status = "running";
-        state.result = null;
-        state.error = null;
-        state.errorCode = null;
-        state.errorOrigin = null;
-        state.contaminated = false;
-        const payload = JSON.parse(payloadJson);
-        const jobMeta = Object.freeze(JSON.parse(metaJson));
-        const jobFetch = makeJobFetch();
-        const tools = Object.freeze({ fetch: jobFetch, meta: jobMeta });
-        const effect = effects[jobMeta.effect];
-        if (typeof effect !== "function") throw new Error("effect source is not installed");
-        fetch = jobFetch;
-        meta = jobMeta;
-        return Promise.resolve()
-          .then(function () { return effect(payload, tools); })
-          .then(function (value) {
-            const encoded = JSON.stringify(value);
-            if (encoded === undefined) throw new TypeError("effect result is not JSON");
-            state.result = encoded;
-            state.status = "sent";
-            cleanJobGlobals();
-            fetch = undefined;
-            meta = undefined;
-            return value;
-          })
-          .catch(function (error) {
-            state.error = errorText(error);
-            state.errorCode = error && error.code ? String(error.code) : null;
-            state.errorOrigin = error && error.origin ? String(error.origin) : null;
-            state.status = "failed";
-            cleanJobGlobals();
-            fetch = undefined;
-            meta = undefined;
-          });
-      },
-    },
-  });
-  Object.freeze(api);
-  Object.defineProperty(globalThis, "__snapback", {
-    value: api,
-    writable: false,
-    enumerable: false,
-    configurable: false,
-  });
+  function resultError() {
+    const error = new TypeError("E_EFFECT_RESULT");
+    error.code = "E_EFFECT_RESULT";
+    return error;
+  }
+
+  function run(jobToken, payloadJson, metaJson) {
+    if (state.status === "running") throw new Error("effect job already running");
+    state.status = "running";
+    state.token = String(jobToken);
+    state.result = null;
+    state.error = null;
+    state.errorCode = null;
+    state.contaminated = false;
+    const payload = JSON.parse(payloadJson);
+    const jobMeta = Object.freeze(JSON.parse(metaJson));
+    const jobFetch = makeJobFetch();
+    const tools = Object.freeze({ fetch: jobFetch, meta: jobMeta });
+    const effect = effects[jobMeta.effect];
+    if (typeof effect !== "function") throw new Error("effect source is not installed");
+    fetch = jobFetch;
+    meta = jobMeta;
+    let effectResult;
+    try {
+      // Invoke synchronously while the timer permit is disarmed. The returned
+      // promise is what the host pumps after it arms real timer delivery.
+      effectResult = effect(payload, tools);
+    } catch (error) {
+      effectResult = Promise.reject(error);
+    }
+    return Promise.resolve(effectResult)
+      .then(function (value) {
+        let encoded;
+        if (value === undefined) {
+          encoded = "null";
+        } else {
+          try {
+            encoded = JSON.stringify(value);
+          } catch (error) {
+            throw resultError(error);
+          }
+          if (encoded === undefined) throw resultError();
+        }
+        state.result = encoded;
+        state.status = "sent";
+        cleanJobGlobals();
+        fetch = undefined;
+        meta = undefined;
+        return value;
+      })
+      .catch(function (error) {
+        state.error = errorText(error);
+        state.errorCode = error && error.code ? String(error.code) : null;
+        state.status = "failed";
+        cleanJobGlobals();
+        fetch = undefined;
+        meta = undefined;
+      });
+  }
+
+  function read(jobToken) {
+    if (String(jobToken) !== state.token) {
+      const error = new Error("E_EFFECT_RESULT");
+      error.code = "E_EFFECT_RESULT";
+      throw error;
+    }
+    return {
+      token: state.token,
+      status: state.status,
+      result: state.result,
+      error: state.error,
+      errorCode: state.errorCode,
+      contaminated: state.contaminated,
+      sourceEvaluations: state.sourceEvaluations,
+      effectFrozen: Object.isFrozen(effects) && Object.isFrozen(compiledEffect),
+    };
+  }
+
+  function armTimers() {
+    timerPermit = timerToken;
+  }
+
+  function disarmTimers() {
+    timerPermit = null;
+  }
+
   const installedGlobals = Object.getOwnPropertyNames(globalThis);
   for (let i = 0; i < installedGlobals.length; i++) {
     if (allowedGlobals.indexOf(installedGlobals[i]) === -1) {
@@ -156,7 +235,19 @@
     }
   }
   permanentGlobals = Object.getOwnPropertyNames(globalThis);
-  // Effects do not load modules after boot. Combined with Ibex 2's harden()
-  // pass, a non-extensible global is fully frozen before any job runs.
-  Object.preventExtensions(globalThis);
+  Object.freeze(run);
+  Object.freeze(read);
+  Object.freeze(armTimers);
+  Object.freeze(disarmTimers);
+  const hostEntry = Object.freeze(function hostEntry(command) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    switch (command) {
+      case "run": return run.apply(undefined, args);
+      case "read": return read.apply(undefined, args);
+      case "armTimers": return armTimers();
+      case "disarmTimers": return disarmTimers();
+      default: throw new Error("E_EFFECT_HOST_CHANNEL: unknown host command");
+    }
+  });
+  return hostEntry;
 })();
