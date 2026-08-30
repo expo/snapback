@@ -24,12 +24,11 @@ import { findPolicyRefusals, mechanicalBoundRewrite } from "./policy";
 import { analyzeOperationTypes, type TypePlan } from "./type-analysis";
 import { formatTypeDiagnostic, typecheckSource } from "./typecheck";
 import { typeDiagnosticSite } from "./type-diagnostic-site";
-import { lowerArgDescriptor } from "./lower/schema";
+import { invalidNativeDescriptorRefusal, lowerArgDescriptor, lowerLegacyArgDescriptor } from "./lower/schema";
 import { boundOperationDiagnostics, localConstructorShadow } from "./operation-diagnostics";
 import {
   binaryOperator,
   collectionConstructor,
-  descriptorName,
   findNarrowestNode,
   hasExport,
   isDb,
@@ -40,7 +39,6 @@ import {
   literal,
   memberName,
   nonNullIdentifier,
-  numberProperty,
   propertyName,
   replaceNode,
   singular,
@@ -240,10 +238,10 @@ function lowerOperation(
   if (expandedArgs.invalidProperty) refuse(module, "E_ARGS_TYPE", expandedArgs.invalidProperty, "argument members must use name: descriptor syntax");
   for (const property of expandedArgs.entries) {
     const argName = property.name;
-    const descriptor = unwrapCall(property.value);
-    const options = descriptor && descriptorName(descriptor) === "list" && descriptor.arguments[1];
-    const legacyMax = options && ts.isObjectLiteralExpression(options) ? numberProperty(options, "max") : undefined;
-    const lowered = (lowerArgDescriptor(property.value) ?? (legacyMax !== undefined ? { List: { max: legacyMax } } : descriptor ? "Scalar" : undefined)) as Program["args"][string] | undefined;
+    const loweredDescriptor = lowerArgDescriptor(property.value);
+    const invalid = loweredDescriptor === undefined ? invalidNativeDescriptorRefusal(property.value) : undefined;
+    if (invalid) refuse(module, "E_ARGS_DESCRIPTOR", invalid.node, `invalid argument descriptor ${argName}; ${invalid.message}`, invalid.rewrite);
+    const lowered = (loweredDescriptor ?? lowerLegacyArgDescriptor(property.value)) as Program["args"][string] | undefined;
     if (!lowered) refuse(module, "E_ARGS_TYPE", property.node, `invalid argument descriptor ${argName}`);
     args[argName] = lowered;
   }
