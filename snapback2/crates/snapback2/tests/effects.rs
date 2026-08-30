@@ -168,9 +168,15 @@ export const list = query({}, ({ db }) =>
     )
     .unwrap();
     let schema = root.join("snapback/schema.ts");
+    // Match only the read rule line: an intervening comment must not silently
+    // turn this rewrite into a no-op (it did once; the test then failed far away).
     let source = fs::read_to_string(&schema).unwrap().replace(
-        "read: rule.deny(),\n    insert: rule.principal(\"system\"),",
-        "read: rule.public(\"test observes effect completion\"),\n    insert: rule.principal(\"system\"),",
+        "read: rule.deny(),",
+        "read: rule.public(\"test observes effect completion\"),",
+    );
+    assert!(
+        source.contains("test observes effect completion"),
+        "prepare_effect_fixture: the schema rewrite matched nothing"
     );
     fs::write(schema, source).unwrap();
 }
