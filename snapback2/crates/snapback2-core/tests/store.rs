@@ -143,11 +143,77 @@ fn generation() -> Generation {
             ])),
         }],
     };
+    let create_generated = Program {
+        name: "items.createGenerated".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("name".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "allocated".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Insert {
+                table: "items".to_owned(),
+                row: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), var("allocated")),
+                    ("name".to_owned(), var("name")),
+                ])),
+            },
+            Stmt::Emit {
+                effect: "audit".to_owned(),
+                payload: var("name"),
+            },
+            Stmt::Return(var("allocated")),
+        ],
+    };
+    let create_then_reject = Program {
+        name: "items.createThenReject".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("name".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "allocated".to_owned(),
+                value: Expr::Input(Input::NewId),
+            },
+            Stmt::Insert {
+                table: "items".to_owned(),
+                row: Expr::Object(BTreeMap::from([
+                    ("id".to_owned(), var("allocated")),
+                    ("name".to_owned(), var("name")),
+                ])),
+            },
+            Stmt::Require {
+                condition: Expr::Literal(Value::Bool(false)),
+                code: "ROLLBACK".to_owned(),
+            },
+        ],
+    };
+    let delete = Program {
+        name: "items.delete".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([("id".to_owned(), ArgType::Scalar)]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Delete {
+            table: "items".to_owned(),
+            key: var("id"),
+        }],
+    };
     Generation::certify(
         &ProjectJson {
             version: 1,
             schema: schema(),
-            programs: vec![insert, list, rename, reidentify, upsert_at],
+            programs: vec![
+                insert,
+                list,
+                rename,
+                reidentify,
+                upsert_at,
+                create_generated,
+                create_then_reject,
+                delete,
+            ],
             effects: vec![EffectDecl {
                 name: "audit".to_owned(),
                 grants: Vec::new(),
@@ -311,6 +377,140 @@ fn addressed_writes_reject_row_id_changes_without_leaving_stale_indexes() {
         .execute("items.list", Context::query("system", BTreeMap::new()))
         .unwrap();
     assert_eq!(listed.result.as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn durable_new_id_ranges_survive_rollback_reset_and_restart_without_aba() {
+    let path = temp_store("durable-new-ids");
+    let generation = generation();
+    let old_id;
+    let rolled_back_id;
+    let namespace;
+    {
+        let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
+        assert_eq!(runtime.store().meta("id_namespace").unwrap(), None);
+        assert_eq!(runtime.store().meta("id_high_water").unwrap(), None);
+        runtime
+            .execute("items.list", Context::query("system", BTreeMap::new()))
+            .unwrap();
+        assert_eq!(
+            runtime.store().meta("id_high_water").unwrap(),
+            None,
+            "read-only execution must not initialize the allocator"
+        );
+
+        let mut create = Context::mutation(
+            "system",
+            BTreeMap::from([("name".to_owned(), Value::String("first".to_owned()))]),
+        );
+        create.now = Some(1);
+        create.new_ids = runtime.reserve_new_ids().unwrap();
+        assert_eq!(create.new_ids.len(), 1_024);
+        old_id = create.new_ids.front().unwrap().clone();
+        assert!(old_id.starts_with("s2id-"));
+        assert!(
+            !old_id.starts_with("id-"),
+            "legacy ids occupy a disjoint prefix"
+        );
+        let created = runtime.execute("items.createGenerated", create).unwrap();
+        assert_eq!(created.result.as_str().unwrap(), old_id);
+
+        runtime
+            .execute(
+                "items.delete",
+                Context::mutation(
+                    "system",
+                    BTreeMap::from([("id".to_owned(), Value::Id(old_id.clone()))]),
+                ),
+            )
+            .unwrap();
+
+        let mut rejected = Context::mutation(
+            "system",
+            BTreeMap::from([("name".to_owned(), Value::String("rolled back".to_owned()))]),
+        );
+        rejected.new_ids = runtime.reserve_new_ids().unwrap();
+        rolled_back_id = rejected.new_ids.front().unwrap().clone();
+        let rejection = runtime.execute("items.createThenReject", rejected).unwrap();
+        assert!(matches!(
+            rejection.state,
+            ExecutionState::Rejected { ref code, .. } if code == "ROLLBACK"
+        ));
+        assert!(
+            runtime
+                .execute("items.list", Context::query("system", BTreeMap::new()))
+                .unwrap()
+                .result
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        assert_eq!(
+            runtime.store().meta("id_high_water").unwrap().as_deref(),
+            Some("2048")
+        );
+        namespace = runtime.store().meta("id_namespace").unwrap().unwrap();
+
+        runtime.reset_and_seed(&[]).unwrap();
+        assert_eq!(
+            runtime.store().meta("id_high_water").unwrap().as_deref(),
+            Some("2048"),
+            "reset must not rewind the allocator"
+        );
+    }
+
+    let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
+    assert_eq!(
+        runtime.store().meta("id_namespace").unwrap().as_deref(),
+        Some(namespace.as_str())
+    );
+    let mut successor = Context::mutation(
+        "system",
+        BTreeMap::from([("name".to_owned(), Value::String("successor".to_owned()))]),
+    );
+    successor.now = Some(2);
+    successor.new_ids = runtime.reserve_new_ids().unwrap();
+    let successor_id = successor.new_ids.front().unwrap().clone();
+    assert_ne!(successor_id, old_id);
+    assert_ne!(successor_id, rolled_back_id);
+    assert!(successor_id > rolled_back_id);
+    assert_eq!(
+        runtime.store().meta("id_high_water").unwrap().as_deref(),
+        Some("3072")
+    );
+    let created = runtime.execute("items.createGenerated", successor).unwrap();
+    assert_eq!(created.result.as_str().unwrap(), successor_id);
+
+    let stale = runtime
+        .execute(
+            "items.rename",
+            Context::mutation(
+                "system",
+                BTreeMap::from([
+                    ("id".to_owned(), Value::Id(old_id)),
+                    ("name".to_owned(), Value::String("stale".to_owned())),
+                ]),
+            ),
+        )
+        .unwrap();
+    assert!(matches!(
+        stale.state,
+        ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+    ));
+    let rows = runtime
+        .execute("items.list", Context::query("system", BTreeMap::new()))
+        .unwrap()
+        .result;
+    assert_eq!(rows.as_array().unwrap().len(), 1);
+    assert_eq!(
+        rows.as_array().unwrap()[0]
+            .field("id")
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        successor_id
+    );
+    cleanup(&path);
 }
 
 #[test]

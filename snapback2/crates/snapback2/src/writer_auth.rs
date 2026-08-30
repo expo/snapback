@@ -97,6 +97,20 @@ impl State {
         Ok(self.execution_context(authority, values))
     }
 
+    pub(super) fn mutation_context(
+        &mut self,
+        authority: &ResolvedAuthority,
+        op: &str,
+        args: Json,
+    ) -> Result<Context, Refusal> {
+        let mut context = self.context(authority, op, args)?;
+        context.new_ids = self
+            .runtime_mut()
+            .reserve_new_ids()
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(context)
+    }
+
     pub(super) fn execution_context(
         &self,
         authority: &ResolvedAuthority,
@@ -108,7 +122,6 @@ impl State {
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
         context
     }
 

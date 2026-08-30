@@ -55,7 +55,7 @@ place):
 | table | columns | owner |
 |---|---|---|
 | `rows`, `index_entries` | as S1 | engine |
-| `_meta` | `key TEXT PK, value TEXT` — `schema_hash`, `generation`, `created_at`, `store_version` | store |
+| `_meta` | `key TEXT PK, value TEXT` — `schema_hash`, `generation`, `created_at`, `store_version`, lazy `id_namespace` and `id_high_water` | store |
 | `_commits` | `seq INTEGER PK, at INTEGER, program TEXT, principal TEXT, kind TEXT, touched TEXT(JSON), writes TEXT(JSON), emits INTEGER` — bounded: keep the last 10,000, trimmed on insert | engine |
 | `_outbox` | `id TEXT PK, seq INTEGER, effect TEXT, payload TEXT(JSON), state TEXT, attempts INTEGER, next_at INTEGER, last_error TEXT, result TEXT(JSON), created_at INTEGER, updated_at INTEGER` + index on `(state, next_at)` | engine writes, LLP 1003 drains |
 | `_principals` | `id TEXT PK, kind TEXT ('user'\|'guest'\|'persona'\|'system'), name TEXT, created_at INTEGER` | identity |
@@ -72,6 +72,15 @@ its `rows.row_id` storage address. Insert derives the address from the row;
 update/replace and both upsert branches reject a mismatch before changing the
 row or its index entries. An addressed write never migrates a row to another
 identity.
+
+Serving-owner ids come from fixed ranges reserved in `_meta`. On the first
+mutation that needs an id, an existing v2 store lazily receives a random
+per-store namespace and a high-water mark. The owner commits the next
+high-water mark before exposing any id from that range, so rejected
+transactions and crashes may leave gaps but cannot make an exposed id
+available again after reset or restart. The new namespace-qualified format is
+disjoint from the legacy `id-<millis>-<counter>` format. Queries and channel
+operations do not reserve ranges.
 
 **Exclusive write ownership** (LLP 0329.021 P2, LLP 0329.022 R1 — folded
 2026-08-30). The Snapback 2 owner is the *only* writer of its store. An
@@ -431,7 +440,9 @@ twin, which treats `Emit` as a no-op *that still consumes the id*, stays
 aligned) and inserts an `_outbox` row with `state = 'queued'`, `seq` = the
 commit's seq, `attempts = 0`, `next_at = now`. `AuthoritativeTrace.emits`
 records `{ id, effect }` for `trace`. Nothing else in this crate knows what
-an effect is.
+an effect is. Serving mutation and effect-then contexts fill that queue from a
+durable range whose high-water mark was committed first; deterministic replay
+contexts may instead inject their pinned ids directly.
 
 ## 9. Schema additions
 

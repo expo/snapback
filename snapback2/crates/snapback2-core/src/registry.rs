@@ -16,7 +16,7 @@ use crate::successor::{
 };
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -364,6 +364,13 @@ impl Runtime {
             .cloned()
             .ok_or_else(|| RuntimeError::OpUnknown(op.to_owned()))?;
         self.execute_certified(&program, &certificate, context)
+    }
+
+    /// Commit one fixed-size application-id range before handing it to a
+    /// mutation. Unused ids are gaps; no execution rollback can reclaim them.
+    // @ref LLP 1001#1-store-storers — Runtime exposes allocation without exposing mutable storage.
+    pub fn reserve_new_ids(&mut self) -> Result<VecDeque<String>, RuntimeError> {
+        self.engine.store_mut().reserve_new_ids()
     }
 
     /// Execute an effect's `then` mutation and settle its durable outbox row

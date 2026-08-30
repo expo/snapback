@@ -28,7 +28,26 @@ impl State {
         identity: Identity,
     ) -> Result<Json, Refusal> {
         let authority = self.resolve_authority(identity)?;
-        let context = self.context(&authority, &op, args)?;
+        let kind = self
+            .runtime()
+            .generation()
+            .programs
+            .get(&op)
+            .map(|(program, _)| program.kind)
+            .ok_or_else(|| {
+                Refusal::new(
+                    "E_OP_UNKNOWN",
+                    "op",
+                    format!("unknown operation {op}"),
+                    "use an operation listed by /api/manifest",
+                    "op/manifest",
+                )
+            })?;
+        let context = if kind == ProgramKind::Mutation {
+            self.mutation_context(&authority, &op, args)?
+        } else {
+            self.context(&authority, &op, args)?
+        };
         let requested_args = context.args.clone();
         let requested_principal = context.viewer.clone();
         let execution = self

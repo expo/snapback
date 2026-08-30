@@ -1,10 +1,7 @@
 //! Small helpers shared by the owner writer's runtime paths.
 
 use crate::protocol::Refusal;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub fn rejection_family(code: &str) -> &'static str {
     if code.starts_with("E_RULE") {
@@ -18,11 +15,6 @@ pub fn rejection_family(code: &str) -> &'static str {
     } else {
         "input"
     }
-}
-
-pub fn next_id() -> String {
-    let sequence = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("id-{}-{sequence}", unix_millis())
 }
 
 pub fn unix_millis() -> i64 {

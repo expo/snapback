@@ -22,6 +22,9 @@ Programs: `query(args, ({ db, ctx, args }) => value)` and
 
 `ctx.viewer`, `ctx.now()`, and `ctx.newId()` are the authority, clock, and id
 inputs. Authentication is always on; development identities are personas.
+`ctx.newId()` is mutation-only and draws from a durable per-store range:
+rejected work may leave gaps, but reset and owner restart never repeat an
+exposed id.
 Every scan names `take`. Query states are `complete`, `capped`, `partial`, or
 `denied`; writes are `committed` or `rejected`. Generated facts live only in
 `.snapback/build/`.

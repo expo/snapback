@@ -148,6 +148,12 @@ The implicit application `id` is insert/upsert data, not update data: `db.update
 patches omit it from their authored type, while every `db.upsert` row supplies
 it and the engine requires it to equal the addressed key.
 
+The serving owner supplies `ctx.newId()` from a namespace-qualified range whose
+high-water mark is durably advanced before the range is exposed. Transaction
+rejection, owner crash, reset, and restart can leave gaps but cannot repeat an
+exposed id; the format is disjoint from legacy clock/counter ids. Read-only
+queries and channels do not reserve ranges.
+
 The group surface creates 2–50-person groups atomically: the creator is the
 only bootstrap admin, every other initial seat is a member, and a conversation
 cannot commit without that creator-admin seat. Current admins may add members,
@@ -331,6 +337,11 @@ owner changes its offset, sweeps sessions, or reruns live state.
   receiver and are fanned out by the writer after each commit
   (`invalidated` → `rerun` → deliveries; `changed: false` is not sent). No
   tokio.
+- **Mutation ids.** Mutation and effect-then contexts reserve a fixed id range
+  through the runtime's narrow allocator API. The store commits its allocator
+  high-water mark before the context can consume the range. Queries, live
+  query re-execution, channel operations, and other read-only contexts carry
+  no allocator range.
 - **Session authority.** Every bearer action resolves to
   `(Principal, auth_epoch, expires_at)` in the writer before an engine context
   is built. Live-query and channel entries retain that exact epoch, not only
@@ -432,8 +443,10 @@ unit test may support one but does not replace the served-loop proof:
    current store through the served surface.
 9. `grant-incarnation-aba` — capture an intent against one membership row,
    remove it, recreate the same `(scope, principal)` relation with a new
-   immutable row identity/incarnation or version, replay the captured intent,
-   and require refusal with the successor row unchanged.
+   immutable row identity/incarnation or version across an owner restart,
+   replay the captured intent, and require refusal with the successor row
+   unchanged. A generated successor id must differ from the removed id; a
+   process-local allocator does not satisfy this proof.
 
 The scoped-authority alignment cannot be reported complete unless all three
 pass on that fixture. An unrelated project with no scoped relationship does

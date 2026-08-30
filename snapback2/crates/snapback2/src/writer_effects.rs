@@ -72,7 +72,10 @@ impl State {
         context.args = values;
         context.now = Some(now);
         context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        context.new_ids = self
+            .runtime_mut()
+            .reserve_new_ids()
+            .map_err(|error| Refusal::from_runtime(&error))?;
         let execution = self
             .runtime_mut()
             .execute_then(op, context, outbox_id)

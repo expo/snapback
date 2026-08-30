@@ -4,7 +4,7 @@
 use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
-use crate::writer_util::{next_id, owner_gone, unix_millis};
+use crate::writer_util::{owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
@@ -712,10 +712,11 @@ impl State {
             ));
         }
         let authority = self.resolve_authority(identity)?;
-        let context = self.context(&authority, op, args)?;
         let execution = if kind == ProgramKind::Mutation {
+            let context = self.mutation_context(&authority, op, args)?;
             self.execute_mutation(op, context)?
         } else {
+            let context = self.context(&authority, op, args)?;
             self.runtime_mut()
                 .execute(op, context)
                 .map_err(|error| Refusal::from_runtime(&error))?

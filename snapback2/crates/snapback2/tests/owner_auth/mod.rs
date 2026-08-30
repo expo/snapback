@@ -317,6 +317,17 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
         "{}",
         persona_query.body
     );
+    let channel = request(
+        port,
+        "POST",
+        "/api/channel/typing/publish",
+        &[("X-Snapback-As", "alice")],
+        json!({
+            "args": { "conversationId": "conversation-1" },
+            "payload": { "phase": "allocator-read-only" },
+        }),
+    );
+    assert_eq!(channel.status, 200, "{}", channel.body);
     stop_owner(port, &secret, &mut owner, "persona epoch zero inspection");
 
     let project: snapback2_core::ProjectJson =
@@ -330,6 +341,94 @@ fn startup_and_persona_headers_do_not_issue_sessions() {
     )
     .unwrap();
     assert_eq!(runtime.next_session_expiry().unwrap(), None);
+    assert_eq!(runtime.store().meta("id_namespace").unwrap(), None);
+    assert_eq!(
+        runtime.store().meta("id_high_water").unwrap(),
+        None,
+        "query and channel contexts must not reserve mutation ids"
+    );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn generated_grant_incarnations_do_not_repeat_across_owner_restart() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
+
+    let mutate = |port: u16, op: &str, args: Value| {
+        request(
+            port,
+            "POST",
+            "/api/mutation",
+            &[("X-Snapback-As", "alice")],
+            json!({ "op": op, "args": args }),
+        )
+    };
+    let first = mutate(
+        port,
+        "groups.memberAdd",
+        json!({
+            "conversationId": "conversation-1",
+            "principal": "dev:charlie",
+        }),
+    );
+    assert_eq!(first.body["state"], "committed", "{}", first.body);
+    let predecessor_id = first.body["data"]["id"].as_str().unwrap().to_owned();
+    assert!(predecessor_id.starts_with("s2id-"));
+    let removed = mutate(
+        port,
+        "groups.memberRemove",
+        json!({
+            "conversationId": "conversation-1",
+            "membershipId": predecessor_id,
+        }),
+    );
+    assert_eq!(removed.body["state"], "committed", "{}", removed.body);
+    stop_owner(port, &secret, &mut owner, "predecessor grant removed");
+
+    let (mut owner, port, secret) = start_owner(binary, &compiler, &root);
+    let recreated = mutate(
+        port,
+        "groups.memberAdd",
+        json!({
+            "conversationId": "conversation-1",
+            "principal": "dev:charlie",
+        }),
+    );
+    assert_eq!(recreated.body["state"], "committed", "{}", recreated.body);
+    let successor_id = recreated.body["data"]["id"].as_str().unwrap().to_owned();
+    assert_ne!(successor_id, predecessor_id);
+
+    let stale = mutate(
+        port,
+        "groups.memberPromote",
+        json!({
+            "conversationId": "conversation-1",
+            "membershipId": predecessor_id,
+        }),
+    );
+    assert_eq!(stale.body["state"], "rejected", "{}", stale.body);
+    assert_eq!(stale.body["code"], "MEMBERSHIP_REQUIRED", "{}", stale.body);
+    let current = mutate(
+        port,
+        "groups.memberPromote",
+        json!({
+            "conversationId": "conversation-1",
+            "membershipId": successor_id,
+        }),
+    );
+    assert_eq!(current.body["state"], "committed", "{}", current.body);
+
+    stop_owner(
+        port,
+        &secret,
+        &mut owner,
+        "durable grant incarnation verified",
+    );
     fs::remove_dir_all(root).unwrap();
 }
 

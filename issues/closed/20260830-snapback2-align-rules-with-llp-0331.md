@@ -100,10 +100,14 @@ scoped-authority program.
   proves both that handle and a fresh request resolve under G+1's deny policy.
 - [x] The intrinsic immutable membership row id is the grant incarnation.
   `grant-incarnation-aba` captures the old id, removes it, recreates the same
-  `(scope, principal)` relation under a fresh id, and proves replay of the
-  captured promote/remove intent cannot affect the successor row. Core raw-IR
-  tests also reject addressed update/upsert attempts whose resulting `id`
-  differs from the addressed key, before storage or index mutation.
+  `(scope, principal)` relation under a fresh id across an owner restart, and
+  proves replay of the captured promote/remove intent cannot affect the
+  successor row. Serving `ctx.newId()` uses a durable per-store namespace and
+  precommitted high-water range, rather than wall clock plus process-local
+  state. Core rollback/reset/restart coverage proves an exposed id is not
+  reused. Core raw-IR tests also reject addressed update/upsert attempts whose
+  resulting `id` differs from the addressed key, before storage or index
+  mutation.
 - [x] The corpus is regenerated without legacy `input_visibility`; all 76
   filenames/case names and expected semantic results remain, and the Rust
   engine/evaluator twin passes all 76.

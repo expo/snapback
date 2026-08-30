@@ -7,7 +7,7 @@ use crate::value::Value;
 use rusqlite::backup::Backup;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params, params_from_iter};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 #[cfg(unix)]
 use std::ffi::CStr;
 #[cfg(unix)]
@@ -16,6 +16,9 @@ use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const STORE_VERSION: &str = "2";
+const ID_NAMESPACE_KEY: &str = "id_namespace";
+const ID_HIGH_WATER_KEY: &str = "id_high_water";
+const NEW_ID_BLOCK_SIZE: u64 = 1_024;
 
 #[derive(Debug, PartialEq, Eq)]
 enum ExistingStoreFormat {
@@ -240,6 +243,84 @@ impl Store {
             params![key, value],
         )?;
         Ok(())
+    }
+
+    // @ref LLP 1001#1-store-storers — reserve before execution so rollback or
+    // process death can create gaps but can never make an exposed id reusable.
+    pub(crate) fn reserve_new_ids(&mut self) -> Result<VecDeque<String>, RuntimeError> {
+        let transaction = self.conn.transaction()?;
+        let namespace = transaction
+            .query_row(
+                "SELECT value FROM _meta WHERE key = ?1",
+                [ID_NAMESPACE_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        let encoded_high_water = transaction
+            .query_row(
+                "SELECT value FROM _meta WHERE key = ?1",
+                [ID_HIGH_WATER_KEY],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+
+        let (namespace, high_water) = match (namespace, encoded_high_water) {
+            (None, None) => {
+                transaction.execute(
+                    "INSERT INTO _meta(key, value)
+                     VALUES (?1, lower(hex(randomblob(16))))",
+                    [ID_NAMESPACE_KEY],
+                )?;
+                transaction.execute(
+                    "INSERT INTO _meta(key, value) VALUES (?1, '0')",
+                    [ID_HIGH_WATER_KEY],
+                )?;
+                let namespace = transaction.query_row(
+                    "SELECT value FROM _meta WHERE key = ?1",
+                    [ID_NAMESPACE_KEY],
+                    |row| row.get::<_, String>(0),
+                )?;
+                (namespace, 0)
+            }
+            (Some(namespace), Some(encoded)) => {
+                let high_water =
+                    encoded
+                        .parse::<u64>()
+                        .map_err(|_| RuntimeError::StoreVersion {
+                            detail: "id allocator high-water is not an unsigned integer".to_owned(),
+                        })?;
+                (namespace, high_water)
+            }
+            _ => {
+                return Err(RuntimeError::StoreVersion {
+                    detail: "id allocator namespace/high-water metadata is incomplete".to_owned(),
+                });
+            }
+        };
+        if !valid_id_namespace(&namespace) {
+            return Err(RuntimeError::StoreVersion {
+                detail: "id allocator namespace is malformed".to_owned(),
+            });
+        }
+        let reserved_through = high_water.checked_add(NEW_ID_BLOCK_SIZE).ok_or_else(|| {
+            RuntimeError::StoreVersion {
+                detail: "id allocator high-water is exhausted".to_owned(),
+            }
+        })?;
+        if transaction.execute(
+            "UPDATE _meta SET value = ?2 WHERE key = ?1",
+            params![ID_HIGH_WATER_KEY, reserved_through.to_string()],
+        )? != 1
+        {
+            return Err(RuntimeError::StoreVersion {
+                detail: "id allocator high-water disappeared during reservation".to_owned(),
+            });
+        }
+        transaction.commit()?;
+
+        Ok(((high_water + 1)..=reserved_through)
+            .map(|sequence| format!("s2id-{namespace}-{sequence:016x}"))
+            .collect())
     }
 
     pub fn commit_seq(&self) -> Result<u64, RuntimeError> {
@@ -844,6 +925,13 @@ fn ensure_column(
         ))?;
     }
     Ok(())
+}
+
+fn valid_id_namespace(namespace: &str) -> bool {
+    namespace.len() == 32
+        && namespace
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 pub(crate) fn unix_millis() -> i64 {
