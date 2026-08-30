@@ -321,6 +321,15 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
       estimate: "output bytes 7133002 exceeds ceiling",
       rewrite: "result = [args.value]",
     },
+    {
+      name: "json-seeded-recursive-wrapper",
+      args: "{ value: t.json(1000) }",
+      body: `let result = args.value;
+        for (const item of range(0, 7000)) result = [result, args.value];
+        return result;`,
+      estimate: "output bytes 7141016 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
   ];
 
   for (const item of cases) {
@@ -343,6 +352,23 @@ test("loop collection refusals paste per-family rewrites that lower and certify"
     assert(certified.every((result) => result.error === null),
       `${item.name} pasted rewrite did not certify: ${JSON.stringify(certified)}\n${refusal.rewrite}`);
   }
+
+  const decoySource = `import { query, range, t } from "snapback2";
+    export const refused = query({ value: t.text(1000) }, ({ args }) => {
+      let decoy = [];
+      for (const bait of range(0, 2)) decoy = [...decoy, bait];
+      let result = [];
+      for (const item of range(0, 7000)) result = [...result, args.value];
+      return result;
+    });`;
+  const decoy = lowerSource(decoySource, "two-growth-sites.ts", undefined, { tables });
+  assert(decoy.ok, `two-site fixture did not lower: ${decoy.ok ? "" : decoy.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
+  const decoyRefusal = rustCheck(decoy.programs, "synthetic", schema)[0]?.error;
+  assert(decoyRefusal?.message.startsWith("output bytes 7133002 exceeds ceiling")
+    && decoyRefusal.rewrite.includes("let result = []")
+    && decoyRefusal.rewrite.includes("range(0, 7000)")
+    && !decoyRefusal.rewrite.includes("decoy"),
+    `two-site refusal did not name the 7,000-iteration result site: ${JSON.stringify(decoyRefusal)}`);
 });
 
 test("bound rewrite uses the refusing table's declared row width", () => {

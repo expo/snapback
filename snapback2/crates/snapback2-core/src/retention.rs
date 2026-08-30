@@ -1,7 +1,7 @@
 use crate::certificate::declared_serialized_row_max;
 use crate::growth::{
-    CollectionBinding, assignment_growth, expression_from as collection_expression_from,
-    saturating_power, take_identity,
+    ProvenanceBinding, assignment_growth, collection_price_from,
+    expression_from as provenance_expression_from, saturating_power, take_identity,
 };
 use crate::ir::{ArgType, Builtin, Expr, Input, LoopDomain, Program, Scan, Stmt};
 use crate::schema::Schema;
@@ -159,7 +159,15 @@ struct Binding {
     instances: u64,
     collection_len: Option<u64>,
     held_collection: bool,
-    collection: CollectionBinding,
+    collection: bool,
+    provenance: ProvenanceBinding,
+}
+
+struct RetentionAssignmentPrice {
+    flow: Flow,
+    collection_len: Option<u64>,
+    held_collection: bool,
+    collection: bool,
 }
 
 pub(crate) struct RetentionEstimator<'a> {
@@ -193,9 +201,10 @@ impl<'a> RetentionEstimator<'a> {
                             _ => None,
                         },
                         held_collection: false,
-                        collection: CollectionBinding::new(
+                        collection,
+                        provenance: ProvenanceBinding::new(
                             identity,
-                            crate::growth::CollectionExpression::argument(collection),
+                            crate::growth::ProvenanceExpression::argument(),
                         ),
                     },
                 )
@@ -224,13 +233,15 @@ impl<'a> RetentionEstimator<'a> {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
-                    let (flow, collection_len, held_collection) = self.expression(value, variables);
-                    let provenance = collection_expression_from(
+                    let provenance = provenance_expression_from(
                         value,
                         variables,
-                        |binding| &binding.collection,
+                        |binding| &binding.provenance,
                         iteration,
                     );
+                    let (flow, collection_len, held_collection) = self.expression(value, variables);
+                    let collection =
+                        collection_price_from(value, variables, |binding| binding.collection);
                     let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
@@ -239,36 +250,46 @@ impl<'a> RetentionEstimator<'a> {
                             instances: calls,
                             collection_len,
                             held_collection,
-                            collection: CollectionBinding::new(identity, provenance),
+                            collection,
+                            provenance: ProvenanceBinding::new(identity, provenance),
                         },
                     );
                     self.record_held_collections(variables);
                 }
                 Stmt::Assign { name, value } => {
-                    let (flow, collection_len, held_collection) = self.expression(value, variables);
                     let instances = variables
                         .get(name)
                         .map_or(calls, |binding| binding.instances);
-                    let provenance = collection_expression_from(
+                    let assignment = assignment_growth(
+                        variables.get(name).map(|binding| &binding.provenance),
                         value,
                         variables,
-                        |binding| &binding.collection,
+                        |binding| &binding.provenance,
+                        calls,
+                        instances,
                         iteration,
+                        || {
+                            let (flow, collection_len, held_collection) =
+                                self.expression(value, variables);
+                            RetentionAssignmentPrice {
+                                flow,
+                                collection_len,
+                                held_collection,
+                                collection: collection_price_from(value, variables, |binding| {
+                                    binding.collection
+                                }),
+                            }
+                        },
                     );
-                    let growth = variables.get(name).and_then(|current| {
-                        assignment_growth(
-                            &current.collection,
-                            &provenance,
-                            calls,
-                            current.instances,
-                            iteration,
-                        )
-                    });
-                    if let Some(growth) = growth {
+                    let (provenance, growth, price) = assignment.into_parts();
+                    if let Some(growth) = growth.filter(|_| price.collection) {
                         let current = variables.get_mut(name).expect("growth target exists");
-                        let mut added = flow.clone().growth_over(&current.flow, growth.occurrences);
+                        let mut added = price
+                            .flow
+                            .clone()
+                            .growth_over(&current.flow, growth.occurrences);
                         if !added.has_growth_width() {
-                            added = flow.clone();
+                            added = price.flow.clone();
                         }
                         current.flow = if growth.occurrences > 1 {
                             let factor = saturating_power(growth.occurrences, growth.repetitions);
@@ -283,39 +304,45 @@ impl<'a> RetentionEstimator<'a> {
                                 .clone()
                                 .add(added.retain_value_width().scale(growth.repetitions))
                         } else {
-                            current
-                                .flow
-                                .clone()
-                                .add(flow.clone().retain_value_width().scale(growth.repetitions))
+                            current.flow.clone().add(
+                                price
+                                    .flow
+                                    .clone()
+                                    .retain_value_width()
+                                    .scale(growth.repetitions),
+                            )
                         };
-                        current.collection_len = current.collection_len.zip(collection_len).map(
-                            |(current_len, assigned_len)| {
+                        current.collection_len = current
+                            .collection_len
+                            .zip(price.collection_len)
+                            .map(|(current_len, assigned_len)| {
                                 current_len.saturating_add(
                                     assigned_len
                                         .saturating_sub(current_len)
                                         .saturating_mul(growth.repetitions),
                                 )
-                            },
-                        );
+                            });
                         current.held_collection = true;
-                        current.collection = current.collection.assigned(provenance);
+                        current.collection = true;
+                        current.provenance = current.provenance.assigned(provenance);
                     } else {
                         let identity = variables
                             .get(name)
-                            .map(|binding| binding.collection.identity)
+                            .map(|binding| binding.provenance.identity)
                             .unwrap_or_else(|| take_identity(&mut self.next_identity));
-                        let collection = variables
+                        let assigned = variables
                             .get(name)
-                            .map(|binding| binding.collection.assigned(provenance.clone()))
-                            .unwrap_or_else(|| CollectionBinding::new(identity, provenance));
+                            .map(|binding| binding.provenance.assigned(provenance.clone()))
+                            .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
                         variables.insert(
                             name.clone(),
                             Binding {
-                                flow,
+                                flow: price.flow,
                                 instances,
-                                collection_len,
-                                held_collection,
-                                collection,
+                                collection_len: price.collection_len,
+                                held_collection: price.held_collection,
+                                collection: price.collection,
+                                provenance: assigned,
                             },
                         );
                     }
@@ -328,9 +355,10 @@ impl<'a> RetentionEstimator<'a> {
                         instances: calls,
                         collection_len: Some(0),
                         held_collection: true,
-                        collection: CollectionBinding::new(
+                        collection: true,
+                        provenance: ProvenanceBinding::new(
                             take_identity(&mut self.next_identity),
-                            crate::growth::CollectionExpression::iteration(true, iteration),
+                            crate::growth::ProvenanceExpression::iteration(true, iteration),
                         ),
                     });
                     let repetitions = calls
@@ -341,6 +369,7 @@ impl<'a> RetentionEstimator<'a> {
                         .collection_len
                         .map(|length| length.saturating_add(repetitions));
                     current.held_collection = true;
+                    current.collection = true;
                     self.record_held_collections(variables);
                 }
                 Stmt::If {
@@ -372,9 +401,13 @@ impl<'a> RetentionEstimator<'a> {
                             instances: nested_calls,
                             collection_len: None,
                             held_collection: false,
-                            collection: CollectionBinding::new(
+                            collection: matches!(
+                                domain,
+                                LoopDomain::Page(_) | LoopDomain::Recurse(_)
+                            ),
+                            provenance: ProvenanceBinding::new(
                                 take_identity(&mut self.next_identity),
-                                crate::growth::CollectionExpression::iteration(
+                                crate::growth::ProvenanceExpression::iteration(
                                     matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_)),
                                     nested_iteration,
                                 ),
@@ -620,7 +653,8 @@ impl<'a> RetentionEstimator<'a> {
                         _ => None,
                     };
                     current.held_collection |= incoming.held_collection;
-                    current.collection.merge(&incoming.collection);
+                    current.collection |= incoming.collection;
+                    current.provenance.merge(&incoming.provenance);
                 })
                 .or_insert(incoming);
         }

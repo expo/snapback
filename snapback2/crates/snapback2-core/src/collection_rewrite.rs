@@ -1,4 +1,5 @@
-use crate::growth::{CollectionBinding, expression_from as collection_expression_from};
+use crate::bounds::declared_serialized_row_max;
+use crate::growth::{ProvenanceBinding, expression_from as provenance_expression_from};
 use crate::ir::*;
 use crate::schema::Schema;
 use crate::value::Value;
@@ -9,20 +10,28 @@ pub(crate) struct OutputEstimator<'a> {
     pub(crate) max_result: u64,
     pub(crate) next_identity: u64,
     pub(crate) args: BTreeSet<String>,
-    pub(crate) rewrite: Option<CollectionRewrite>,
+    pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
 }
 
 #[derive(Clone)]
 pub(crate) struct OutputBound {
     pub(crate) bytes: u64,
     pub(crate) instances: u64,
-    pub(crate) provenance: CollectionBinding,
+    pub(crate) collection: bool,
+    pub(crate) provenance: ProvenanceBinding,
+    pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
     pub(crate) value: Expr,
 }
 
 pub(crate) struct OutputEstimate {
     pub(crate) bytes: u64,
-    pub(crate) rewrite: Option<CollectionRewrite>,
+    pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
+}
+
+pub(crate) struct OutputAssignmentPrice {
+    pub(crate) bytes: u64,
+    pub(crate) collection: bool,
+    pub(crate) rewrite: Option<(u64, CollectionRewrite)>,
 }
 
 #[derive(Clone)]
@@ -31,6 +40,79 @@ pub(crate) struct CollectionRewrite {
     loops: Vec<(String, LoopDomain)>,
     target: String,
     value: Expr,
+}
+
+impl OutputEstimator<'_> {
+    pub(crate) fn row(&self, table: &str) -> u64 {
+        declared_serialized_row_max(self.schema, table)
+    }
+
+    pub(crate) fn merge_variables(
+        variables: &mut BTreeMap<String, OutputBound>,
+        branch: BTreeMap<String, OutputBound>,
+    ) {
+        for (name, bound) in branch {
+            variables
+                .entry(name)
+                .and_modify(|current| {
+                    if bound.bytes > current.bytes {
+                        current.bytes = bound.bytes;
+                        current.rewrite = bound.rewrite.clone();
+                        current.value = bound.value.clone();
+                    } else if bound.bytes == current.bytes
+                        && current.rewrite.is_none()
+                        && bound.rewrite.is_some()
+                    {
+                        current.rewrite = bound.rewrite.clone();
+                    }
+                    current.instances = current.instances.min(bound.instances);
+                    current.collection |= bound.collection;
+                    current.provenance.merge(&bound.provenance);
+                })
+                .or_insert(bound);
+        }
+    }
+
+    pub(crate) fn expression_rewrite(
+        &self,
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> Option<(u64, CollectionRewrite)> {
+        let largest = |values: Vec<&Expr>| {
+            values
+                .into_iter()
+                .filter_map(|value| self.expression_rewrite(value, variables))
+                .max_by_key(|(bytes, _)| *bytes)
+        };
+        match expression {
+            Expr::Variable(name) => variables.get(name).and_then(|bound| bound.rewrite.clone()),
+            Expr::Field { base, .. } => self.expression_rewrite(base, variables),
+            Expr::Array(values) => largest(values.iter().collect()),
+            Expr::Object(values) => largest(values.values().collect()),
+            Expr::Builtin { builtin, args } => match builtin {
+                Builtin::Slice | Builtin::Sort { .. } => args
+                    .first()
+                    .and_then(|value| self.expression_rewrite(value, variables)),
+                Builtin::Concat => largest(args.iter().collect()),
+                Builtin::Len
+                | Builtin::MentionTokens
+                | Builtin::Min
+                | Builtin::Max
+                | Builtin::Divmod { .. }
+                | Builtin::DeterministicShare
+                | Builtin::Count
+                | Builtin::Sum
+                | Builtin::CountCapped => None,
+            },
+            Expr::Literal(_)
+            | Expr::Input(_)
+            | Expr::Binary { .. }
+            | Expr::Unary { .. }
+            | Expr::Get(_)
+            | Expr::Exists(_)
+            | Expr::Scan(_) => None,
+        }
+    }
 }
 
 impl CollectionRewrite {
@@ -165,7 +247,7 @@ fn fresh_collection_value(
         return resolved;
     }
 
-    let provenance = collection_expression_from(value, variables, |bound| &bound.provenance, 0);
+    let provenance = provenance_expression_from(value, variables, |bound| &bound.provenance, 0);
     if !provenance.references(target_identity) {
         return Some(inline_expr(
             value,

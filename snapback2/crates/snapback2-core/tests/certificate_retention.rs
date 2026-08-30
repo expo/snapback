@@ -565,6 +565,27 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
         ],
     );
 
+    // Closing-review scalar seed: JSON is not statically a collection, but
+    // wrapping the prior binding in a new array is still recursive growth.
+    let json_wrapper = program_with_args(
+        "items.jsonWrapper",
+        BTreeMap::from([("value".to_owned(), ArgType::Json { max_bytes: 1_000 })]),
+        vec![
+            Stmt::Let {
+                name: "result".to_owned(),
+                value: Expr::Variable("value".to_owned()),
+            },
+            literal_loop(vec![Stmt::Assign {
+                name: "result".to_owned(),
+                value: Expr::Array(vec![
+                    Expr::Variable("result".to_owned()),
+                    Expr::Variable("value".to_owned()),
+                ]),
+            }]),
+            returned(),
+        ],
+    );
+
     let cases = [
         (
             "loop-invariant argument",
@@ -631,6 +652,61 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
             "{shape} refusal rewrites diverged"
         );
     }
+
+    let wrapper = permissive_checker(&schema).check(&json_wrapper).unwrap();
+    assert_eq!(wrapper.max_output_bytes, 7_141_016);
+    let wrapper_errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&json_wrapper)
+        .unwrap_err();
+    let wrapper_refusal = wrapper_errors
+        .iter()
+        .find(|error| error.message.starts_with("output bytes"))
+        .unwrap_or_else(|| panic!("JSON wrapper did not refuse output: {wrapper_errors:?}"));
+    assert!(
+        wrapper_refusal
+            .message
+            .starts_with("output bytes 7141016 exceeds ceiling")
+            && wrapper_refusal.rewrite.contains("result = [args.value]"),
+        "JSON wrapper was not refused at its honest recurrence: {wrapper_refusal:?}"
+    );
+
+    let decoy = program_with_args(
+        "items.decoyThenResult",
+        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        vec![
+            Stmt::Let {
+                name: "decoy".to_owned(),
+                value: Expr::Array(Vec::new()),
+            },
+            Stmt::For {
+                binding: "bait".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 2,
+                },
+                body: vec![spread_append("decoy", Expr::Variable("bait".to_owned()))],
+            },
+            empty_array(),
+            literal_loop(vec![spread_append(
+                "result",
+                Expr::Variable("value".to_owned()),
+            )]),
+            returned(),
+        ],
+    );
+    let decoy_errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&decoy)
+        .unwrap_err();
+    let decoy_refusal = decoy_errors
+        .iter()
+        .find(|error| error.message.starts_with("output bytes"))
+        .unwrap_or_else(|| panic!("two-site program did not refuse output: {decoy_errors:?}"));
+    assert!(
+        decoy_refusal.rewrite.contains("let result = []")
+            && decoy_refusal.rewrite.contains("range(0, 7000)")
+            && !decoy_refusal.rewrite.contains("decoy"),
+        "two-site refusal anchored to the decoy: {decoy_refusal:?}"
+    );
 }
 
 #[test]

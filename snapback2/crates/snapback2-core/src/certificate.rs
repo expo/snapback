@@ -1,8 +1,10 @@
 pub use crate::bounds::{declared_serialized_row_max, max_certified_page_rows};
-use crate::collection_rewrite::{CollectionRewrite, OutputBound, OutputEstimate, OutputEstimator};
+use crate::collection_rewrite::{
+    CollectionRewrite, OutputAssignmentPrice, OutputBound, OutputEstimate, OutputEstimator,
+};
 use crate::growth::{
-    CollectionBinding, assignment_growth, expression_from as collection_expression_from,
-    saturating_power, take_identity,
+    ProvenanceBinding, assignment_growth, collection_price_from,
+    expression_from as provenance_expression_from, saturating_power, take_identity,
 };
 use crate::ir::*;
 use crate::retention::{RetentionEstimator, argument_max, collection_bytes};
@@ -183,8 +185,7 @@ impl<'a> Checker<'a> {
         let collection_rewrite = output
             .rewrite
             .as_ref()
-            .map(CollectionRewrite::render)
-            .unwrap_or_else(|| "return null;".to_owned());
+            .map(|(bytes, rewrite)| (*bytes, rewrite.render()));
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", summary.examined, self.ceilings.examined),
@@ -208,7 +209,7 @@ impl<'a> Checker<'a> {
             ),
         ] {
             if let Err(error) =
-                self.check_ceiling(name, actual, ceiling, &summary, &collection_rewrite)
+                self.check_ceiling(name, actual, ceiling, &summary, collection_rewrite.as_ref())
             {
                 bound_errors.push(error);
             }
@@ -624,7 +625,7 @@ impl<'a> Checker<'a> {
         actual: u64,
         ceiling: u64,
         summary: &Summary,
-        collection_rewrite: &str,
+        collection_rewrite: Option<&(u64, String)>,
     ) -> Result<(), CheckError> {
         if actual <= ceiling {
             return Ok(());
@@ -636,7 +637,10 @@ impl<'a> Checker<'a> {
         };
         let product = summary.product.as_deref().unwrap_or("sequential sites");
         let rewrite = if matches!(name, "output bytes" | "closure bytes") {
-            collection_rewrite.to_owned()
+            collection_rewrite
+                .filter(|(bytes, _)| *bytes > ceiling)
+                .map(|(_, rewrite)| rewrite.clone())
+                .unwrap_or_else(|| "return null;".to_owned())
         } else {
             "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned()
         };
@@ -731,13 +735,12 @@ impl<'a> OutputEstimator<'a> {
                     OutputBound {
                         bytes: argument_max(argument),
                         instances: 1,
-                        provenance: CollectionBinding::new(
+                        collection: matches!(argument, ArgType::List { .. }),
+                        provenance: ProvenanceBinding::new(
                             identity,
-                            crate::growth::CollectionExpression::argument(matches!(
-                                argument,
-                                ArgType::List { .. }
-                            )),
+                            crate::growth::ProvenanceExpression::argument(),
                         ),
+                        rewrite: None,
                         value: Expr::Variable(name.clone()),
                     },
                 )
@@ -761,57 +764,62 @@ impl<'a> OutputEstimator<'a> {
         for statement in statements {
             match statement {
                 Stmt::Const { name, value } | Stmt::Let { name, value } => {
-                    let bytes = self.expression(value, variables);
-                    let provenance = collection_expression_from(
+                    let provenance = provenance_expression_from(
                         value,
                         variables,
                         |bound| &bound.provenance,
                         iteration,
                     );
+                    let bytes = self.expression(value, variables);
+                    let collection =
+                        collection_price_from(value, variables, |bound| bound.collection);
+                    let rewrite = self.expression_rewrite(value, variables);
                     let identity = take_identity(&mut self.next_identity);
                     variables.insert(
                         name.clone(),
                         OutputBound {
                             bytes,
                             instances: calls,
-                            provenance: CollectionBinding::new(identity, provenance),
+                            collection,
+                            provenance: ProvenanceBinding::new(identity, provenance),
+                            rewrite,
                             value: value.clone(),
                         },
                     );
                 }
                 Stmt::Assign { name, value } => {
-                    let bytes = self.expression(value, variables);
                     let instances = variables.get(name).map_or(calls, |bound| bound.instances);
-                    let provenance = collection_expression_from(
+                    let assignment = assignment_growth(
+                        variables.get(name).map(|bound| &bound.provenance),
                         value,
                         variables,
                         |bound| &bound.provenance,
+                        calls,
+                        instances,
                         iteration,
+                        || OutputAssignmentPrice {
+                            bytes: self.expression(value, variables),
+                            collection: collection_price_from(value, variables, |bound| {
+                                bound.collection
+                            }),
+                            rewrite: self.expression_rewrite(value, variables),
+                        },
                     );
-                    let growth = variables.get(name).and_then(|current| {
-                        assignment_growth(
-                            &current.provenance,
-                            &provenance,
-                            calls,
-                            current.instances,
-                            iteration,
-                        )
-                    });
-                    if let Some(growth) = growth {
-                        if self.rewrite.is_none() {
-                            self.rewrite = Some(CollectionRewrite::for_assignment(
-                                self.args.clone(),
-                                loops,
-                                name,
-                                value,
-                                variables,
-                            ));
-                        }
+                    let (provenance, growth, price) = assignment.into_parts();
+                    if let Some(growth) = growth.filter(|_| price.collection) {
+                        let rewrite = CollectionRewrite::for_assignment(
+                            self.args.clone(),
+                            loops,
+                            name,
+                            value,
+                            variables,
+                        );
                         let current = variables.get_mut(name).expect("growth target exists");
-                        let mut added =
-                            bytes.saturating_sub(current.bytes.saturating_mul(growth.occurrences));
+                        let mut added = price
+                            .bytes
+                            .saturating_sub(current.bytes.saturating_mul(growth.occurrences));
                         if added == 0 {
-                            added = bytes;
+                            added = price.bytes;
                         }
                         current.bytes =
                             if growth.occurrences > 1 {
@@ -825,9 +833,11 @@ impl<'a> OutputEstimator<'a> {
                             } else {
                                 current
                                     .bytes
-                                    .saturating_add(bytes.saturating_mul(growth.repetitions))
+                                    .saturating_add(price.bytes.saturating_mul(growth.repetitions))
                             };
+                        current.collection = true;
                         current.provenance = current.provenance.assigned(provenance);
+                        current.rewrite = Some((current.bytes, rewrite));
                         current.value = value.clone();
                     } else {
                         let identity = variables
@@ -837,36 +847,40 @@ impl<'a> OutputEstimator<'a> {
                         let assigned = variables
                             .get(name)
                             .map(|bound| bound.provenance.assigned(provenance.clone()))
-                            .unwrap_or_else(|| CollectionBinding::new(identity, provenance));
+                            .unwrap_or_else(|| ProvenanceBinding::new(identity, provenance));
                         variables.insert(
                             name.clone(),
                             OutputBound {
-                                bytes,
+                                bytes: price.bytes,
                                 instances,
+                                collection: price.collection,
                                 provenance: assigned,
+                                rewrite: price.rewrite,
                                 value: value.clone(),
                             },
                         );
                     }
                 }
                 Stmt::Push { target, value } => {
-                    if self.rewrite.is_none() && !loops.is_empty() {
-                        self.rewrite = Some(CollectionRewrite::for_push(
+                    let rewrite = (!loops.is_empty()).then(|| {
+                        CollectionRewrite::for_push(
                             self.args.clone(),
                             loops,
                             target,
                             value,
                             variables,
-                        ));
-                    }
+                        )
+                    });
                     let element = self.expression(value, variables).saturating_add(1);
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
                         bytes: 2,
                         instances: calls,
-                        provenance: CollectionBinding::new(
+                        collection: true,
+                        provenance: ProvenanceBinding::new(
                             take_identity(&mut self.next_identity),
-                            crate::growth::CollectionExpression::iteration(true, iteration),
+                            crate::growth::ProvenanceExpression::iteration(true, iteration),
                         ),
+                        rewrite: None,
                         value: Expr::Array(Vec::new()),
                     });
                     let repetitions = calls
@@ -875,6 +889,10 @@ impl<'a> OutputEstimator<'a> {
                     current.bytes = current
                         .bytes
                         .saturating_add(repetitions.saturating_mul(element));
+                    current.collection = true;
+                    if let Some(rewrite) = rewrite {
+                        current.rewrite = Some((current.bytes, rewrite));
+                    }
                 }
                 Stmt::If {
                     then_body,
@@ -902,13 +920,18 @@ impl<'a> OutputEstimator<'a> {
                         OutputBound {
                             bytes: element,
                             instances: nested_calls,
-                            provenance: CollectionBinding::new(
+                            collection: matches!(
+                                domain,
+                                LoopDomain::Page(_) | LoopDomain::Recurse(_)
+                            ),
+                            provenance: ProvenanceBinding::new(
                                 take_identity(&mut self.next_identity),
-                                crate::growth::CollectionExpression::iteration(
+                                crate::growth::ProvenanceExpression::iteration(
                                     matches!(domain, LoopDomain::Page(_) | LoopDomain::Recurse(_)),
                                     nested_iteration,
                                 ),
                             ),
+                            rewrite: None,
                             value: Expr::Variable(binding.clone()),
                         },
                     );
@@ -919,7 +942,11 @@ impl<'a> OutputEstimator<'a> {
                     Self::merge_variables(variables, nested);
                 }
                 Stmt::Return(value) => {
-                    self.max_result = self.max_result.max(self.expression(value, variables));
+                    let bytes = self.expression(value, variables);
+                    if bytes > self.max_result {
+                        self.max_result = bytes;
+                        self.rewrite = self.expression_rewrite(value, variables);
+                    }
                 }
                 Stmt::Require { .. }
                 | Stmt::Insert { .. }
@@ -930,22 +957,6 @@ impl<'a> OutputEstimator<'a> {
                 | Stmt::Break
                 | Stmt::Continue => {}
             }
-        }
-    }
-
-    fn merge_variables(
-        variables: &mut BTreeMap<String, OutputBound>,
-        branch: BTreeMap<String, OutputBound>,
-    ) {
-        for (name, bound) in branch {
-            variables
-                .entry(name)
-                .and_modify(|current| {
-                    current.bytes = current.bytes.max(bound.bytes);
-                    current.instances = current.instances.min(bound.instances);
-                    current.provenance.merge(&bound.provenance);
-                })
-                .or_insert(bound);
         }
     }
 
@@ -981,7 +992,11 @@ impl<'a> OutputEstimator<'a> {
         }
     }
 
-    fn expression(&self, expression: &Expr, variables: &BTreeMap<String, OutputBound>) -> u64 {
+    pub(crate) fn expression(
+        &self,
+        expression: &Expr,
+        variables: &BTreeMap<String, OutputBound>,
+    ) -> u64 {
         match expression {
             Expr::Literal(value) => canonical_json(value).len() as u64,
             Expr::Variable(name) => variables.get(name).map(|bound| bound.bytes).unwrap_or(1024),
@@ -1043,10 +1058,6 @@ impl<'a> OutputEstimator<'a> {
 
     fn repeated(element: u64, count: u64) -> u64 {
         2_u64.saturating_add(count.saturating_mul(element.saturating_add(1)))
-    }
-
-    fn row(&self, table: &str) -> u64 {
-        declared_serialized_row_max(self.schema, table)
     }
 }
 

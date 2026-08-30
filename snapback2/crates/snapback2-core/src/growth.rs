@@ -3,18 +3,16 @@ use crate::value::Value;
 use std::collections::BTreeMap;
 
 #[derive(Clone, Default)]
-pub(crate) struct CollectionBinding {
+pub(crate) struct ProvenanceBinding {
     pub(crate) identity: u64,
     origins: BTreeMap<u64, u64>,
     constructed_at: Option<u64>,
-    pub(crate) collection: bool,
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct CollectionExpression {
+pub(crate) struct ProvenanceExpression {
     origins: BTreeMap<u64, u64>,
     constructed_at: Option<u64>,
-    collection: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -23,18 +21,26 @@ pub(crate) struct Growth {
     pub(crate) repetitions: u64,
 }
 
-impl CollectionExpression {
-    pub(crate) fn argument(collection: bool) -> Self {
-        Self {
-            collection,
-            ..Self::default()
-        }
+pub(crate) struct AssignmentGrowth<P> {
+    provenance: ProvenanceExpression,
+    growth: Option<Growth>,
+    price: P,
+}
+
+impl<P> AssignmentGrowth<P> {
+    pub(crate) fn into_parts(self) -> (ProvenanceExpression, Option<Growth>, P) {
+        (self.provenance, self.growth, self.price)
+    }
+}
+
+impl ProvenanceExpression {
+    pub(crate) fn argument() -> Self {
+        Self::default()
     }
 
-    pub(crate) fn iteration(collection: bool, iteration: u64) -> Self {
+    pub(crate) fn iteration(constructed: bool, iteration: u64) -> Self {
         Self {
-            constructed_at: Some(iteration),
-            collection,
+            constructed_at: constructed.then_some(iteration),
             ..Self::default()
         }
     }
@@ -44,66 +50,71 @@ impl CollectionExpression {
     }
 }
 
-impl CollectionBinding {
-    pub(crate) fn new(identity: u64, expression: CollectionExpression) -> Self {
+impl ProvenanceBinding {
+    pub(crate) fn new(identity: u64, expression: ProvenanceExpression) -> Self {
         Self {
             identity,
             origins: expression.origins,
             constructed_at: expression.constructed_at,
-            collection: expression.collection,
         }
     }
 
-    pub(crate) fn assigned(&self, expression: CollectionExpression) -> Self {
+    pub(crate) fn assigned(&self, expression: ProvenanceExpression) -> Self {
         let mut next = Self::new(self.identity, expression);
         // The stable identity now denotes the assigned value, not an older
         // version already accounted for in that value's retained width.
         next.origins.remove(&self.identity);
-        next.collection |= self.collection;
         next
     }
 
     pub(crate) fn merge(&mut self, incoming: &Self) {
-        if self.identity != incoming.identity && incoming.collection {
+        if self.identity != incoming.identity {
             add_origin(&mut self.origins, incoming.identity, 1);
         }
         merge_origins(&mut self.origins, &incoming.origins, u64::max);
         if self.constructed_at != incoming.constructed_at {
             self.constructed_at = None;
         }
-        self.collection |= incoming.collection;
     }
 }
 
-// Default-deny: a collection assignment inside a loop is growth unless the
-// analysis proves freshness. Freshness requires a collection constructed in
-// this iteration and no dataflow path back to the binding's prior value;
-// origins are followed through temporaries, helper arguments after lowering,
-// every argument of a collection constructor, and nested arrays/objects.
-pub(crate) fn assignment_growth(
-    target: &CollectionBinding,
-    expression: &CollectionExpression,
+// Default-deny: walk every assignment before pricing can inspect static value
+// classification. Freshness requires a value constructed in this iteration
+// and no structural path back to the binding's prior value; origins are
+// followed through temporaries, helper arguments after lowering, every
+// constructor argument, and nested arrays/objects. The pricing closure runs
+// only after that decision, so scalar/collection classification can refine
+// width without becoming a pre-provenance gate.
+pub(crate) fn assignment_growth<T, P>(
+    target: Option<&ProvenanceBinding>,
+    value: &Expr,
+    variables: &BTreeMap<String, T>,
+    binding: fn(&T) -> &ProvenanceBinding,
     calls: u64,
     instances: u64,
     iteration: u64,
-) -> Option<Growth> {
-    if !target.collection {
-        return None;
-    }
-    let occurrences = expression
-        .origins
-        .get(&target.identity)
+    price: impl FnOnce() -> P,
+) -> AssignmentGrowth<P> {
+    let provenance = expression_from(value, variables, binding, iteration);
+    let occurrences = target
+        .and_then(|target| provenance.origins.get(&target.identity))
         .copied()
         .unwrap_or(0);
-    if expression.collection && expression.constructed_at == Some(iteration) && occurrences == 0 {
-        return None;
+    let proven_fresh = provenance.constructed_at == Some(iteration) && occurrences == 0;
+    let growth = target.and_then(|_| {
+        (!proven_fresh).then_some(Growth {
+            occurrences,
+            repetitions: calls
+                .saturating_add(instances.saturating_sub(1))
+                .saturating_div(instances.max(1)),
+        })
+    });
+    let price = price();
+    AssignmentGrowth {
+        provenance,
+        growth,
+        price,
     }
-    Some(Growth {
-        occurrences,
-        repetitions: calls
-            .saturating_add(instances.saturating_sub(1))
-            .saturating_div(instances.max(1)),
-    })
 }
 
 pub(crate) fn saturating_power(mut base: u64, mut exponent: u64) -> u64 {
@@ -121,9 +132,9 @@ pub(crate) fn saturating_power(mut base: u64, mut exponent: u64) -> u64 {
 pub(crate) fn expression_from<T>(
     value: &Expr,
     variables: &BTreeMap<String, T>,
-    binding: fn(&T) -> &CollectionBinding,
+    binding: fn(&T) -> &ProvenanceBinding,
     iteration: u64,
-) -> CollectionExpression {
+) -> ProvenanceExpression {
     let collections = variables
         .iter()
         .map(|(name, value)| (name.clone(), binding(value).clone()))
@@ -139,28 +150,25 @@ pub(crate) fn take_identity(next: &mut u64) -> u64 {
 
 pub(crate) fn expression(
     value: &Expr,
-    variables: &BTreeMap<String, CollectionBinding>,
+    variables: &BTreeMap<String, ProvenanceBinding>,
     iteration: u64,
-) -> CollectionExpression {
+) -> ProvenanceExpression {
     match value {
         Expr::Variable(name) => {
             variables
                 .get(name)
-                .map_or_else(CollectionExpression::default, |binding| {
+                .map_or_else(ProvenanceExpression::default, |binding| {
                     let mut origins = binding.origins.clone();
-                    if binding.collection {
-                        add_origin(&mut origins, binding.identity, 1);
-                    }
-                    CollectionExpression {
+                    add_origin(&mut origins, binding.identity, 1);
+                    ProvenanceExpression {
                         origins,
                         constructed_at: binding.constructed_at,
-                        collection: binding.collection,
                     }
                 })
         }
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
             let mut provenance = expression(base, variables, iteration);
-            provenance.collection = false;
+            provenance.constructed_at = None;
             provenance
         }
         Expr::Array(values) => constructed(
@@ -189,7 +197,6 @@ pub(crate) fn expression(
                 Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
             ) {
                 provenance.constructed_at = Some(iteration);
-                provenance.collection = true;
             }
             provenance
         }
@@ -200,7 +207,6 @@ pub(crate) fn expression(
                     .map(|argument| expression(argument, variables, iteration)),
             );
             provenance.constructed_at = Some(iteration);
-            provenance.collection = true;
             provenance
         }
         Expr::Exists(read) => combined(
@@ -226,39 +232,59 @@ pub(crate) fn expression(
                 iteration,
             )
         }
-        Expr::Literal(value) => CollectionExpression {
+        Expr::Literal(value) => ProvenanceExpression {
             origins: BTreeMap::new(),
             constructed_at: matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_))
                 .then_some(iteration),
-            collection: matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)),
         },
-        Expr::Input(_) => CollectionExpression::default(),
+        Expr::Input(_) => ProvenanceExpression::default(),
     }
 }
 
 fn constructed(
-    expressions: impl IntoIterator<Item = CollectionExpression>,
+    expressions: impl IntoIterator<Item = ProvenanceExpression>,
     calls: u64,
-) -> CollectionExpression {
+) -> ProvenanceExpression {
     let mut provenance = combined(expressions);
     provenance.constructed_at = Some(calls);
-    provenance.collection = true;
     provenance
 }
 
-fn combined(expressions: impl IntoIterator<Item = CollectionExpression>) -> CollectionExpression {
+fn combined(expressions: impl IntoIterator<Item = ProvenanceExpression>) -> ProvenanceExpression {
     expressions.into_iter().fold(
-        CollectionExpression::default(),
+        ProvenanceExpression::default(),
         |mut combined, expression| {
             merge_origins(
                 &mut combined.origins,
                 &expression.origins,
                 u64::saturating_add,
             );
-            combined.collection |= expression.collection;
             combined
         },
     )
+}
+
+// This classifier is deliberately separate from provenance and is intended
+// only for a pricing closure passed to `assignment_growth`.
+pub(crate) fn collection_price_from<T>(
+    value: &Expr,
+    variables: &BTreeMap<String, T>,
+    collection: fn(&T) -> bool,
+) -> bool {
+    match value {
+        Expr::Variable(name) => variables.get(name).is_some_and(collection),
+        Expr::Array(_) | Expr::Object(_) | Expr::Get(_) | Expr::Scan(_) => true,
+        Expr::Builtin { builtin, .. } => matches!(
+            builtin,
+            Builtin::Slice | Builtin::Sort { .. } | Builtin::Concat
+        ),
+        Expr::Literal(value) => matches!(value, Value::Array(_) | Value::Row(_) | Value::Map(_)),
+        Expr::Field { .. }
+        | Expr::Binary { .. }
+        | Expr::Unary { .. }
+        | Expr::Exists(_)
+        | Expr::Input(_) => false,
+    }
 }
 
 fn add_origin(origins: &mut BTreeMap<u64, u64>, identity: u64, count: u64) {
