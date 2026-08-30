@@ -110,10 +110,101 @@ test("browser token custody is explicit and no storage is selected by default", 
     removeItem: (key: string) => { values.delete(key); },
   };
   const store = browserTokenStore(storage, "auth-key");
+  const otherBackend = browserTokenStore(storage, "other-backend-auth-key");
   await store.save("token-a");
   assert.equal(await store.load(), "token-a");
+  assert.equal(await otherBackend.load(), null);
   await store.save(null);
   assert.equal(await store.load(), null);
+  assert.throws(
+    () => browserTokenStore(storage, undefined as unknown as string),
+    /non-empty key/,
+  );
+});
+
+test("dev personas cannot be combined with bearer custody", () => {
+  assert.throws(
+    () => createClient({ url: "http://auth.test", as: "alice", token: "token-a" } as any),
+    /cannot combine dev persona/,
+  );
+  assert.throws(
+    () => createClient({
+      url: "http://auth.test",
+      as: "alice",
+      tokenStore: { load: () => "token-a", save: () => undefined },
+    } as any),
+    /cannot combine dev persona/,
+  );
+});
+
+test("SnapbackProvider rejects a runtime persona and bearer combination", async () => {
+  await assert.rejects(
+    async () => {
+      await act(async () => {
+        TestRenderer.create(React.createElement(
+          SnapbackProvider,
+          { url: "http://auth.test", as: "alice", token: "token-a" } as any,
+          React.createElement("output"),
+        ));
+        await flush();
+      });
+    },
+    /cannot combine dev persona/,
+  );
+});
+
+test("an invalid explicit bearer cannot poison persistent custody", async () => {
+  let stored: string | null = null;
+  let saves = 0;
+  const tokenStore = {
+    load: () => stored,
+    save: (token: string | null) => {
+      saves += 1;
+      stored = token;
+    },
+  };
+  const invalid = createClient({
+    url: "http://auth.test",
+    token: "",
+    tokenStore,
+    fetch: async () => json({}),
+  } as any);
+  await assert.rejects(invalid.ready, isCode("E_AUTH_TOKEN_STORE"));
+  assert.equal(saves, 0);
+  assert.equal(stored, null);
+  invalid.close();
+
+  const relaunched = createClient({
+    url: "http://auth.test",
+    tokenStore,
+    fetch: async () => json({}),
+  });
+  await relaunched.ready;
+  assert.equal(relaunched.snapshot.token, undefined);
+  relaunched.close();
+});
+
+test("dev persona clients refuse bearer-session transitions without sending a request", async () => {
+  let requests = 0;
+  const value = createClient({
+    url: "http://auth.test",
+    as: "alice",
+    fetch: async () => {
+      requests += 1;
+      return json({});
+    },
+  });
+  await value.ready;
+  const generation = value.snapshot.authGeneration;
+  await assert.rejects(() => value.auth.signup({ email: "a@example.com", password: "password" }), isCode("E_AUTH_PERSONA_TRANSITION"));
+  await assert.rejects(() => value.auth.login({ email: "a@example.com", password: "password" }), isCode("E_AUTH_PERSONA_TRANSITION"));
+  await assert.rejects(() => value.auth.guest(), isCode("E_AUTH_PERSONA_TRANSITION"));
+  await assert.rejects(() => value.auth.logout(), isCode("E_AUTH_PERSONA_TRANSITION"));
+  assert.equal(requests, 0);
+  assert.equal(value.snapshot.token, undefined);
+  assert.equal(value.snapshot.authGeneration, generation);
+  assert.equal(value.snapshot.lastRefusal?.code, "E_AUTH_PERSONA_TRANSITION");
+  value.close();
 });
 
 test("ready blocks every data transport until explicit token restore settles", async () => {
@@ -308,6 +399,182 @@ test("auth transitions serialize and already-dispatched writes settle before rep
   value.close();
 });
 
+test("a delayed terminal write clears the old bearer before a failed replacement", async () => {
+  const mutationResponse = deferred<Response>();
+  let stored: string | null = "expired-token";
+  const requests: Array<{ path: string; bearer: string | null }> = [];
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => { stored = token; },
+    },
+    fetch: async (input, init) => {
+      const path = pathOf(input);
+      requests.push({ path, bearer: bearer(init) });
+      if (path === "/api/mutation") return mutationResponse.promise;
+      if (path === "/api/auth/login") return json(refusal("E_AUTH_INVALID"), 401);
+      throw new Error(`unexpected path ${path}`);
+    },
+  });
+  await value.ready;
+  const mutation = value.mutation(api.messages.send, {});
+  await waitFor(() => requests.length === 1, "old mutation dispatch");
+  const login = value.auth.login({ email: "a@example.com", password: "wrong-password" });
+  await flush();
+  assert.equal(requests.some((request) => request.path === "/api/auth/login"), false);
+
+  mutationResponse.resolve(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }));
+  await assert.rejects(mutation, isCode("E_AUTH_SUPERSEDED"));
+  await assert.rejects(login, isCode("E_AUTH_INVALID"));
+  assert.deepEqual(requests, [
+    { path: "/api/mutation", bearer: "Bearer expired-token" },
+    { path: "/api/auth/login", bearer: null },
+  ]);
+  assert.equal(stored, null);
+  assert.equal(value.snapshot.token, undefined);
+  value.close();
+});
+
+test("a delayed terminal read cannot clear a successfully replaced bearer", async () => {
+  const oldResponse = deferred<Response>();
+  let stored: string | null = "expired-token";
+  let queryStarted = false;
+  const value = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => stored,
+      save: (token) => { stored = token; },
+    },
+    fetch: async (input) => {
+      const path = pathOf(input);
+      if (path === "/api/query") {
+        queryStarted = true;
+        return oldResponse.promise;
+      }
+      if (path === "/api/auth/login") {
+        return json({ token: "replacement-token", viewer: "principal-new" });
+      }
+      throw new Error(`unexpected path ${path}`);
+    },
+  });
+  await value.ready;
+  const query = value.query(api.messages.thread, {});
+  await waitFor(() => queryStarted, "old query dispatch");
+  await value.auth.login({ email: "a@example.com", password: "password" });
+  oldResponse.resolve(json(refusal("E_AUTH_SESSION"), 401));
+  await assert.rejects(query, isCode("E_AUTH_SUPERSEDED"));
+  assert.equal(stored, "replacement-token");
+  assert.equal(value.snapshot.token, "replacement-token");
+  value.close();
+});
+
+test("a transition during slow terminal cleanup suppresses typed mutation and channel receipts", async () => {
+  for (const surface of ["mutation", "channel"] as const) {
+    const clear = deferred<void>();
+    const clearStarted = deferred<void>();
+    let stored: string | null = "expired-token";
+    let loginStarted = false;
+    const value = createClient({
+      url: "http://auth.test",
+      tokenStore: {
+        load: () => stored,
+        save: async (token) => {
+          if (token === null) {
+            clearStarted.resolve();
+            await clear.promise;
+          }
+          stored = token;
+        },
+      },
+      fetch: async (input) => {
+        const path = pathOf(input);
+        if (path === "/api/mutation") {
+          return json({ state: "rejected", ...refusal("E_AUTH_SESSION") });
+        }
+        if (path.endsWith("/publish")) {
+          return json({ state: "refused", ...refusal("E_AUTH_SESSION") });
+        }
+        if (path === "/api/auth/login") {
+          loginStarted = true;
+          return json({ token: "replacement-token", viewer: "principal-new" });
+        }
+        throw new Error(`unexpected path ${path}`);
+      },
+    });
+    await value.ready;
+    const old = surface === "mutation"
+      ? value.mutation(api.messages.send, {})
+      : value.channel(api.typing, {}).publish({ typing: true });
+    await clearStarted.promise;
+    const login = value.auth.login({ email: "a@example.com", password: "password" });
+    await flush();
+    assert.equal(loginStarted, false, `${surface}: login must wait for the old write`);
+    clear.resolve();
+    await assert.rejects(old, isCode("E_AUTH_SUPERSEDED"));
+    await login;
+    assert.equal(stored, "replacement-token", surface);
+    assert.equal(value.snapshot.token, "replacement-token", surface);
+    value.close();
+  }
+});
+
+test("close during token persistence never resurrects the client", async () => {
+  const loginSave = deferred<void>();
+  const loginSaveStarted = deferred<void>();
+  let loginStored: string | null = "old-token";
+  const loginClient = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => loginStored,
+      save: async (token) => {
+        loginStored = token;
+        if (token === "new-token") {
+          loginSaveStarted.resolve();
+          await loginSave.promise;
+        }
+      },
+    },
+    fetch: async () => json({ token: "new-token", viewer: "principal-new" }),
+  });
+  await loginClient.ready;
+  const login = loginClient.auth.login({ email: "a@example.com", password: "password" });
+  await loginSaveStarted.promise;
+  loginClient.close();
+  loginSave.resolve();
+  await assert.rejects(login, isCode("E_CLIENT_CLOSED"));
+  assert.equal(loginClient.snapshot.connection, "offline");
+  assert.equal(loginClient.snapshot.token, "old-token");
+  assert.equal(loginStored, "new-token", "a future client may restore the completed durable login");
+
+  const logoutClear = deferred<void>();
+  const logoutClearStarted = deferred<void>();
+  let logoutStored: string | null = "logout-token";
+  const logoutClient = createClient({
+    url: "http://auth.test",
+    tokenStore: {
+      load: () => logoutStored,
+      save: async (token) => {
+        logoutStored = token;
+        if (token === null) {
+          logoutClearStarted.resolve();
+          await logoutClear.promise;
+        }
+      },
+    },
+    fetch: async () => json({ ok: true }),
+  });
+  await logoutClient.ready;
+  const logout = logoutClient.auth.logout();
+  await logoutClearStarted.promise;
+  logoutClient.close();
+  logoutClear.resolve();
+  await assert.rejects(logout, isCode("E_CLIENT_CLOSED"));
+  assert.equal(logoutClient.snapshot.connection, "offline");
+  assert.equal(logoutClient.snapshot.token, undefined);
+  assert.equal(logoutStored, null);
+});
+
 test("logout and terminal session expiry clear custody and stop old-bearer reconnect", async () => {
   let stored: string | null = "logout-token";
   const clear = deferred<void>();
@@ -380,6 +647,39 @@ test("logout and terminal session expiry clear custody and stop old-bearer recon
   expiredClient.close();
 });
 
+test("token-store clear failures stay visible on every request-based terminal path", async () => {
+  const exercise = async (
+    response: Response,
+    run: (value: ReturnType<typeof createClient>) => Promise<unknown>,
+  ): Promise<void> => {
+    const value = createClient({
+      url: "http://auth.test",
+      tokenStore: {
+        load: () => "expired-token",
+        save: (token) => {
+          if (token === null) throw new Error("storage unavailable");
+        },
+      },
+      fetch: async () => response,
+    });
+    await value.ready;
+    const generation = value.snapshot.authGeneration;
+    await assert.rejects(() => run(value), isCode("E_AUTH_TOKEN_STORE"));
+    assert.equal(value.snapshot.token, undefined);
+    assert.equal(value.snapshot.authGeneration, generation + 1);
+    assert.equal(value.snapshot.lastRefusal?.code, "E_AUTH_TOKEN_STORE");
+    value.close();
+  };
+
+  await exercise(json(refusal("E_AUTH_SESSION"), 401), (value) =>
+    value.query(api.messages.thread, {}));
+  await exercise(json({ state: "rejected", ...refusal("E_AUTH_SESSION") }), (value) =>
+    value.mutation(api.messages.send, {}));
+  await exercise(json({ state: "refused", ...refusal("E_AUTH_SESSION") }), (value) =>
+    value.channel(api.typing, {}).publish({ typing: true }));
+  await exercise(json({ ok: true }), (value) => value.auth.logout());
+});
+
 test("terminal expiry remains terminal when persisted custody cannot be cleared", async () => {
   const delivered = deferred<unknown>();
   let opens = 0;
@@ -409,6 +709,7 @@ test("terminal expiry remains terminal when persisted custody cannot be cleared"
   });
   await assert.rejects(terminal, isCode("E_AUTH_TOKEN_STORE"));
   assert.equal(value.snapshot.token, undefined, "memory custody is cleared even when persistence rejects");
+  assert.equal(value.snapshot.lastRefusal?.code, "E_AUTH_TOKEN_STORE");
   await new Promise<void>((resolve) => setTimeout(resolve, 300));
   assert.equal(opens, 1);
   subscription.close();

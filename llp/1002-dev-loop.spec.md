@@ -11,7 +11,7 @@ LLP 0329.016 §5 (the design this implements verbatim where it can), LLP
 0329.016 §5.11 (the verb table — no verb exists without its row), LLP
 0329.016 §8 (gates), LLP 0331 §"Failure and disclosure semantics" /
 §"Amendment to ruling 0" (Draft Research influence, not a governing
-Snapback2 spec), `issues/20260830-snapback2-align-rules-with-llp-0331.md`
+Snapback2 spec), `issues/closed/20260830-snapback2-align-rules-with-llp-0331.md`
 
 ## Summary
 
@@ -65,30 +65,103 @@ module's declaration; the compiler accepts and strips the import):
 import { schema, table, t, rule, channel, query, mutation, effect, emit, seed } from 'snapback2'
 
 export const profiles = table({
-  columns: { principal: t.principal(), handle: t.text(32), name: t.text(80) }, // application `id` and `byId` are implicit
+  columns: { principal: t.principal(), displayName: t.text(50),
+             handle: t.text(20), avatarUrl: t.optional(t.text(2048)),
+             bio: t.text(200), location: t.text(50),
+             link: t.optional(t.text(2048)) }, // application `id` and `byId` are implicit
   indexes: { byPrincipal: { columns: ['principal'], unique: true },
              byHandle: { columns: ['handle'], unique: true } },
   rules: { read: rule.public('profiles are public'), insert: rule.viewerIs('principal'),
            update: rule.viewerIs('principal'), delete: rule.deny() },
-  constraints: [{ unique: 'byPrincipal' }, { immutable: ['principal'] }],
+  constraints: [{ unique: 'byPrincipal' }, { unique: 'byHandle' },
+                { immutable: ['principal'] },
+                { text: { field: 'displayName', min: 1 } },
+                { text: { field: 'handle', min: 3, format: 'handle' } },
+                { text: { field: 'avatarUrl', format: 'url' } },
+                { text: { field: 'link', format: 'url' } }],
+})
+export const conversations = table({
+  columns: { title: t.text(120), creatorId: t.principal() },
+  indexes: { byIdCreator: { columns: ['id', 'creatorId'], unique: true } },
+  rules: { read: rule.public('conversation shells are public'),
+           insert: rule.viewerIs('creatorId'), update: rule.deny(), delete: rule.deny() },
+  constraints: [{ finalExistsOnInsert: { table: 'memberships',
+    index: 'byConversationPrincipalRole',
+    key: [rule.field('id'), rule.field('creatorId'), rule.literal('admin')] } }],
 })
 export const memberships = table({
-  columns: { conversationId: t.ref(conversations), userId: t.principal(), lastReadAt: t.time() },
-  indexes: { byConvUser: { columns: ['conversationId', 'userId'], unique: true }, byUser: { columns: ['userId'] } },
-  rules: { read: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
-           insert: rule.allow(), update: rule.viewerIs('userId'), delete: rule.viewerIs('userId') },
-  constraints: [{ unique: 'byConvUser' }],
+  columns: { conversationId: t.ref(conversations), principal: t.principal(),
+             role: t.enum(['member', 'admin']), joinedAt: t.time() },
+  indexes: {
+    byConversationPrincipal: { columns: ['conversationId', 'principal'], unique: true },
+    byConversationPrincipalRole: { columns: ['conversationId', 'principal', 'role'] },
+  },
+  rules: {
+    read: rule.exists(memberships, 'byConversationPrincipal',
+      [rule.field('conversationId'), rule.viewer]),
+    insert: rule.or(
+      rule.exists(memberships, 'byConversationPrincipalRole',
+        [rule.field('conversationId'), rule.viewer, rule.literal('admin')]),
+      rule.and(rule.viewerIs('principal'),
+        rule.eq(rule.field('role'), rule.literal('admin')),
+        rule.created(conversations, 'byIdCreator',
+          [rule.field('conversationId'), rule.viewer]))),
+    update: rule.and(
+      rule.exists(memberships, 'byConversationPrincipalRole',
+        [rule.oldField('conversationId'), rule.viewer, rule.literal('admin')]),
+      rule.eq(rule.oldField('conversationId'), rule.nextField('conversationId')),
+      rule.eq(rule.oldField('principal'), rule.nextField('principal')),
+      rule.eq(rule.oldField('role'), rule.literal('member')),
+      rule.eq(rule.nextField('role'), rule.literal('admin'))),
+    delete: rule.or(rule.viewerIs('principal'),
+      rule.exists(memberships, 'byConversationPrincipalRole',
+        [rule.field('conversationId'), rule.viewer, rule.literal('admin')])),
+  },
+  constraints: [{ unique: 'byConversationPrincipal' },
+                { immutable: ['conversationId', 'principal', 'joinedAt'] }],
 })
 export const typing = channel({ args: { conversationId: t.ref(conversations) },
-  publish: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
-  subscribe: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]), ttlMs: 4000 })
+  publish: rule.exists(memberships, 'byConversationPrincipal',
+    [rule.field('conversationId'), rule.viewer]),
+  subscribe: rule.exists(memberships, 'byConversationPrincipal',
+    [rule.field('conversationId'), rule.viewer]), ttlMs: 4000 })
 export default schema({
   auth: { password: true, guests: true },
-  tables: { profiles, memberships, /* … */ },
+  tables: { profiles, conversations, memberships, /* … */ },
   maintains: [{ count: 'messages', by: ['conversationId'], into: 'messageCounts' }],
   channels: { typing },
 })
 ```
+
+The canonical chat project is also the M1–M3 account/relationship/RBAC proof. Its
+profile has viewer-derived immutable `principal`, unique handle, display-name
+and handle minima, closed handle syntax, optional absolute avatar/link URLs,
+and the agreed field maxima; identity email never enters the app table. Its
+public posts carry a nominal author and remain globally readable under an
+explicit `public(reason)` rule. A unique `(follower, followed)` row is an
+ordinary public product-selection relationship: `followingFeed` traces it,
+while `globalFeed` and the post table rule do not. `setFollow` derives the
+follower from `ctx.viewer`, so unfollow changes Following selection without
+granting or revoking post authority.
+
+The implicit application `id` is insert/upsert data, not update data: `db.update`
+patches omit it from their authored type, while every `db.upsert` row supplies
+it and the engine requires it to equal the addressed key.
+
+The group surface creates 2–50-person groups atomically: the creator is the
+only bootstrap admin, every other initial seat is a member, and a conversation
+cannot commit without that creator-admin seat. Current admins may add members,
+promote member → admin, and remove another seat; any member may leave. Adding
+the acting admin as a second seat is refused. Deliberately, there is no
+last-admin invariant: a sole admin may leave, producing an adminless group
+whose remaining members cannot mint authority. Remove/re-add creates a new row
+identity; a captured operation against the removed id cannot retarget it.
+Promote/remove bind the loaded target row to the authored conversation argument,
+and the admin remove path refuses the viewer's own seat so self-departure stays
+on the named leave path. A private message send admits both the sender and the
+recipient through current memberships in that same conversation before it
+inserts the message or emits its outbox row; a public profile is not delivery
+authority, and a rejected send commits neither artifact.
 
 `t`: `id()`, `principal()`, `text(max)`, `int()`, `bool()`, `time()`, `ref(table)`,
 `json(maxBytes)`, `optional(x)`, `list(x, { max })`, and (folded 2026-08-30
@@ -109,16 +182,26 @@ minor units are only ever carried by a value already typed `Decimal<S>` (a
 column read, an arg, the wire). The wire carries the integer; the client's
 `decimal(9.99, 2)` helper produces it. Floats never exist anywhere. `rule`:
 `public(reason)`, `allow()`, `deny()`, `eq(a,b)`, `ne(a,b)`, `and(…)`,
-`or(…)`, `not(r)`, `exists(table, index, key[])`, `system()`,
-`viewerIs(field)` (= `eq(field(f), viewer)`); terms `field(name)`, `viewer`,
-`literal(v)`. `rule.system()` is convenience syntax only and lowers exactly
+`or(…)`, `not(r)`, `exists(table, index, key[])`,
+`created(table, index, key[])`, `system()`, `viewerIs(field)`
+(= `eq(field(f), viewer)`); terms `field(name)`, `oldField(name)`,
+`nextField(name)`, `viewer`, `literal(v)`. `rule.system()` is convenience syntax only and lowers exactly
 to `Eq(Viewer, Literal(Id("system")))`; there is no `principal(kind)` surface
-or `PrincipalKind` rule term. `rule.exists` takes exactly three arguments.
+or `PrincipalKind` rule term. `rule.exists` and `rule.created` take exactly
+three arguments. `created` is valid only in a table insert rule and proves an
+exact indexed row was inserted earlier in that transaction. `oldField` and
+`nextField` are valid only in table update rules; an update rule sees both row
+images once, and ordinary `field` names the next image.
 The compiler resolves every rule field and index, checks compatible operands
-for `eq`/`ne`, requires exact `exists` key arity, and checks every key term
+for `eq`/`ne`, requires exact point-probe key arity, and checks every key term
 against its indexed column. In particular, `viewer` can inhabit only a
 Principal position. The engine repeats those checks while certifying raw
 project JSON, so handcrafted IR has no less strict lane.
+Constraints add `text` and `finalExistsOnInsert` to `unique`, `cap`,
+`appendOnly`, and `immutable`. The final-exists target table is a static string
+(which avoids schema declaration cycles); its exact indexed point must exist at
+the end of every execution that inserted a source row, or the transaction
+rolls back.
 Rule-input visibility is derived by LLP 1001 §9 from the referenced table's
 active read policy, including its exact self-readable indexed-row proof; a
 fourth visibility/options argument is a sited `E_RULE_INVALID` refusal and no
@@ -218,6 +301,9 @@ that never touches the served generation; `test`'s rules check uses it),
 `POST /control/outbox/<id>/requeue`, `POST /control/clock { advanceMs }`,
 `POST /control/stop { cause }`.
 
+Clock advances are non-negative. A negative `advanceMs` is refused before the
+owner changes its offset, sweeps sessions, or reruns live state.
+
 ## 5. The owner
 
 - **Start.** `dev` → compile (worker) → `Generation::certify` → open
@@ -245,6 +331,21 @@ that never touches the served generation; `test`'s rules check uses it),
   receiver and are fanned out by the writer after each commit
   (`invalidated` → `rerun` → deliveries; `changed: false` is not sent). No
   tokio.
+- **Session authority.** Every bearer action resolves to
+  `(Principal, auth_epoch, expires_at)` in the writer before an engine context
+  is built. Live-query and channel entries retain that exact epoch, not only
+  the principal. The writer sweeps persisted expiries before dispatch, after a
+  development-clock advance, before fan-out, and on a bounded `recv_timeout`
+  while otherwise idle. Bearer resolution and logout repeat that sweep using
+  the exact same captured clock sample used for authentication, so crossing
+  the expiry boundary after an earlier dispatch sweep cannot delete an epoch
+  before its retained streams are fenced. Logout deletes and fences only the matching epoch;
+  its live/query and channel streams receive terminal `E_AUTH_SESSION`, while
+  another session for the same principal continues. An action admitted before
+  an expiry/logout may finish; the logout response is produced only after all
+  earlier writer actions settle, the session row is gone, and its terminal
+  events are queued. Later actions cannot authenticate. HTTP heartbeats are
+  not an authorization timer.
 - **Owner states** on `/control/status`: `ready | applying(gen) |
   refused(plan) | exited(cause)`, plus `generation`, `seq`, `subscriptions`,
   `effects` (LLP 1003's runner state), `personas`.
@@ -289,10 +390,27 @@ read-only in the receipt, never editable):
    arguments take IDs only from that table's seed rows; a bare `<x>Id: t.id()`
    resolves an unambiguous singular/plural table name or blocks rather than
    guessing an unrelated seed row.
-4. `invalidation` — for every query and every seed mutation whose write sites
-   intersect the query's read sites: subscribe, run the mutation as its seed
-   persona, assert a delivery arrives with the new `seq`; for a mutation whose
-   write sites are disjoint, assert silence.
+4. `invalidation` — subscribe, capture that retained subscription's exact stored
+   authoritative trace, run a persona-seed mutation (seed-derived arguments
+   under a seeded or deterministic synthetic dev persona), and independently
+   intersect the trace's exact/range keys with the commit's physical `touched`
+   keys. Re-run the query to compare its before/after state and result. A
+   concrete overlap whose output changed must
+   record invalidation and produce an SSE delivery at the commit's exact
+   `seq`; an overlap whose output stayed equal must record invalidation and
+   preserve SSE silence; a concrete key-disjoint write must record neither
+   invalidation nor delivery and preserve silence. A zero-write committed
+   response is not evidence and the harness tries a later deterministic
+   candidate. This corrects the former static-site/unconditional-delivery
+   wording: a fresh-scope insert cannot affect an existing scope, and a role
+   update may require a conservative rerun without changing the visible
+   query result. Static certificate intersections only prioritize candidates;
+   they do not decide concrete overlap. Every query/mutation pair records each
+   rejected, zero-write, or physical attempt and either selects an
+   oracle-classified physical disposition or blocks. Effect `then` mutations
+   are recorded as excluded system-only continuations here and remain covered
+   by replay under `Context::system`, not by inventing a privileged served
+   persona.
 5. `replay` — every seed mutation, run twice against two forks of the seeded
    store with the same pinned `now`/`newId`s, yields byte-identical traces.
 6. `effects` — every effect declaration has a runner able to run it, or the
@@ -382,7 +500,8 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
 ## 9. The client (`snapback2/client`, `snapback2/react`, `snapback2/test`)
 
 ```ts
-const client = createClient({ url, token?, as? })     // `as` refused by a `serve` owner
+const client = createClient({ url, token?, tokenStore? } | { url, as }) // storage is explicitly keyed; `as` is dev-only and exclusive
+await client.ready                                  // restore barrier before any data request
 client.auth.signup / login / guest / logout / me
 await client.query(api.todos.list, { take: 50 })       // → { state, data, seq, … } — never throws on a typed state
 await client.mutation(api.todos.add, { title })       // → committed | rejected
@@ -412,6 +531,44 @@ throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
 `hydrating` with `connection: reconnecting`, never `refused`.
+
+The headless client is the sole auth owner. An `AuthTokenStore` has explicit
+`load()` and `save(token | null)` methods; the package exports a browser
+storage adapter, but never chooses `localStorage`, `sessionStorage`, or any
+other persistent custody by default. The adapter requires a non-empty,
+backend-specific storage key; a client rejects `as` combined with `token` or
+`tokenStore`, so a request never carries ambiguous persona and bearer
+authority; raw requests carrying both are refused too. Persona clients cannot
+run signup, login, guest, or logout bearer transitions. `client.ready` settles the initial load
+before any query, mutation, subscription, channel action, or `me` request can
+reach the network. Browser storage protects restart continuity, not XSS: code
+executing in the page origin can read a bearer held by browser JavaScript.
+
+The client maintains a local monotonically increasing `authGeneration` that
+is never the server bearer or epoch. Signup, login, guest, logout, restore,
+expiry, and principal replacement are serialized transitions. Before a
+successor token/anonymous snapshot becomes observable, persistence has
+settled, every old query/channel transport is closed, delayed old-generation
+responses are suppressed, and React query identity moves to the new cache
+partition. A terminal `E_AUTH_SESSION` clears current and persisted custody
+and never reconnects the old bearer. Terminal evidence is keyed by the bearer,
+not discarded merely because an overlapping transition already fenced its
+request: cleanup runs on its own serialized custody queue, clears only while
+that bearer remains current, and carries a completion marker so a replacement
+started during slow persistence still suppresses the old response. Successful
+replacement custody is never cleared by a delayed predecessor response.
+Closing during persistence never resurrects the instance or changes it from
+`offline`; a login token whose durable save completed may remain available to
+a future client's explicit restore, while the closed operation rejects.
+Explicit transitions wait for already
+dispatched writes to settle; operations queued behind the barrier use only the
+successor authority. A locally suppressed response is never represented as a
+server `rejected` mutation because it may already have committed.
+
+There is no offline outbox or durable private-row snapshot in this slice, so
+the client makes no claim about destroying or replay-fencing surfaces that do
+not exist. Its guarantee covers current in-memory transports, queued client
+calls, React cache identity, and the explicitly supplied token store.
 
 Three rulings folded 2026-08-30 from the client-tier arc (LLP 0329.018–.023):
 
@@ -444,9 +601,10 @@ in `AGENTS.md` (≤ 40 lines: the five verbs an agent needs, the grammar
 pointer, three gotchas), adds `.snapback/` to `.gitignore`, adds
 `.snapback/build/api.d.ts` to `tsconfig.json` `include`, pins `snapback2` in
 `package.json`. Templates: `todos` (one table, two ops, a seed, one journey)
-and `chat` (profiles, conversations, memberships, messages, typing channel,
-a `notify` effect, seed, two journeys) — the chat template is Clique M1's
-shape. `--client react` adds a Vite React app under `src/` that reads
+and `chat` (profiles, posts, follows, conversations, memberships, messages,
+typing channel, a `notify` effect, seed, and six journeys) — the chat template
+carries the account-, relationship-, and scoped-role-relevant Clique M1–M3 shape.
+`--client react` adds a Vite React app under `src/` that reads
 `VITE_SNAPBACK_URL`. `init` then runs `check` and prints the next command.
 
 ## 11. Measured

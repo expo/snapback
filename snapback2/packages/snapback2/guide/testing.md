@@ -5,17 +5,18 @@ authored journeys:
 
 ```ts
     profiles: [
-      { id: "profile-alice", principal: "dev:alice", handle: "alice", name: "Alice", email: "alice@example.com" },
-      { id: "profile-bob", principal: "dev:bob", handle: "bob", name: "Bob", email: "bob@example.com" },
+      { id: "profile-alice", principal: "dev:alice", displayName: "Alice", handle: "alice", avatarUrl: "https://example.com/alice.png", bio: "", location: "", link: null },
+      { id: "profile-bob", principal: "dev:bob", displayName: "Bob", handle: "bob", avatarUrl: "https://example.com/bob.png", bio: "", location: "", link: null },
     ],
     conversations: [
       { id: "conversation-1", title: "General", creatorId: "dev:alice" },
       { id: "conversation-2", title: "Side room", creatorId: "dev:alice" },
     ],
     memberships: [
-      { id: "membership-1", conversationId: "conversation-1", userId: "dev:alice", lastReadAt: 0 },
-      { id: "membership-2", conversationId: "conversation-1", userId: "dev:bob", lastReadAt: 0 },
-      { id: "membership-3", conversationId: "conversation-2", userId: "dev:alice", lastReadAt: 0 },
+      { id: "membership-1", conversationId: "conversation-1", principal: "dev:alice", role: "admin", joinedAt: 0 },
+      { id: "membership-2", conversationId: "conversation-1", principal: "dev:bob", role: "member", joinedAt: 0 },
+      { id: "membership-3", conversationId: "conversation-2", principal: "dev:alice", role: "admin", joinedAt: 0 },
+      { id: "membership-4", conversationId: "conversation-2", principal: "dev:charlie", role: "member", joinedAt: 0 },
     ],
     messages: [
       { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
@@ -24,7 +25,10 @@ authored journeys:
 ```
 
 Here `profile-alice` is an application row id while `dev:alice` is the persona
-Principal used by creator, membership, and author columns.
+Principal used by creator, membership, and author columns. Identity email and
+password hashes are deliberately absent from application seed rows. The chat
+fixture also keeps `charlie` as an account/persona without a profile so the
+idempotent post-auth profile-creation path has a real absent-row proof.
 
 Write journeys with `journey(name, async ({ as, tick, url }) => …)`. The test
 verb starts a fresh isolated owner, runs all six derived check families, runs

@@ -97,6 +97,11 @@ impl Refusal {
         let rewrite = match code {
             "E_OP_UNKNOWN" => "use an operation listed by /api/manifest",
             "E_STORE_OWNED" => "attach to the existing owner or stop it before starting another",
+            // @ref LLP 1001#6-identity-identityrs — legacy plaintext-session stores are refused,
+            // so the local recovery needs to name the exact disposable dev-store artifact.
+            "E_STORE_VERSION" => {
+                "stop snapback2 dev, delete .snapback/store.sqlite, and restart the owner"
+            }
             "E_RULE" => "use a principal admitted by the table rule",
             "E_INPUT" => "pass arguments matching the operation declaration",
             _ => "fix the refused input and retry",
@@ -198,4 +203,22 @@ pub fn refusal_json(refusal: &Refusal) -> Json {
             "guide": "owner/protocol",
         })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_store_version_names_the_recoverable_dev_reset() {
+        let refusal = Refusal::from_runtime(&RuntimeError::StoreVersion {
+            detail: "legacy sessions table".to_owned(),
+        });
+        assert_eq!(refusal.code, "E_STORE_VERSION");
+        assert_eq!(refusal.family, "owner");
+        assert_eq!(
+            refusal.rewrite.as_deref(),
+            Some("stop snapback2 dev, delete .snapback/store.sqlite, and restart the owner")
+        );
+    }
 }

@@ -109,7 +109,7 @@ fn successor_rebinds_channel_subscriber_before_g1_publish() {
     let schema = root.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema).unwrap();
     let allowing = source.replace(
-        "subscribe: rule.exists(memberships, \"byConvUser\", [rule.field(\"conversationId\"), rule.viewer]),",
+        "subscribe: rule.exists(memberships, \"byConversationPrincipal\", [rule.field(\"conversationId\"), rule.viewer]),",
         "subscribe: rule.allow(),",
     );
     assert_ne!(source, allowing, "chat fixture channel rule changed");

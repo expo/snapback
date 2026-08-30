@@ -2,18 +2,17 @@
 // @ref LLP 1002#7-test-and-the-receipt — derived probes and journeys share one receipt-backed owner.
 
 use self::test_bounds::engine_failure;
-use self::test_invalidation::certificate_site_intersection;
-use self::test_seed_ids::{arg_is_id, named_id_table, seed_id_arg};
-use self::test_sse::SseProbe;
+use self::test_invalidation::{replay_arg_value, specialize_probe_args, unwrap_optional};
+use self::test_seed_ids::{named_id_table, seed_id_arg};
 use crate::client;
 use crate::owner::{self, OwnerInfo};
 use crate::project::{self, CompiledProject, CompilerWorker, SeedData, locate_root};
-use crate::protocol::{Refusal, json_to_value};
+use crate::protocol::Refusal;
 use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Context, ExecutionState, Generation, Program, ProgramKind, Runtime, Store, Value,
+    ArgType, Context, ExecutionState, Generation, Program, ProgramKind, Runtime, Store,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -162,7 +161,7 @@ pub fn run(args: &[String]) -> ExitCode {
     if !journeys_only {
         checks.push(check_rules(&isolated.info, &compiled, &seed));
         checks.push(check_bounds(&isolated.info, &compiled, &seed));
-        checks.push(check_invalidation(&isolated.info, &compiled, &seed));
+        checks.push(test_invalidation::check(&isolated.info, &compiled, &seed));
         checks.push(check_replay(&isolated.info, &compiled, &seed));
         checks.extend(test_authority::checks(&isolated.info, &compiled, &seed));
         if let Some(effects) = check_effects(&isolated.info, &compiled) {
@@ -597,347 +596,6 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
     }
 }
 
-fn check_invalidation(
-    owner: &OwnerInfo,
-    compiled: &CompiledProject,
-    seed: &SeedData,
-) -> CheckReceipt {
-    let started = Instant::now();
-    let mut failures = Vec::new();
-    let mut blocked = Vec::new();
-    let mut probes = 0_u64;
-    let mut attempts = 0_u64;
-    let mut silence_probes = 0_u64;
-    let mut intersections = Vec::new();
-    for (query_name, (query, query_certificate)) in &compiled.generation.programs {
-        if query.kind != ProgramKind::Query {
-            continue;
-        }
-        let query_args = match generated_args_at(query, seed, 0) {
-            Ok(args) => args,
-            Err(reason) => {
-                blocked.push(json!({ "query": query_name, "reason": reason }));
-                continue;
-            }
-        };
-        let query_persona = seed
-            .personas
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "alice".to_owned());
-        let mut query_has_silence = false;
-        for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
-            if mutation.kind != ProgramKind::Mutation {
-                continue;
-            }
-            let shared_sites = certificate_site_intersection(
-                query_certificate,
-                mutation_certificate,
-                &compiled.generation,
-            );
-            let candidates = match probe_candidates(mutation, seed) {
-                Ok(candidates) => candidates,
-                Err(reason) => {
-                    blocked.push(json!({ "mutation": mutation_name, "reason": reason }));
-                    continue;
-                }
-            };
-            if shared_sites.is_empty() {
-                for (persona, mutation_args) in &candidates {
-                    attempts += 1;
-                    let (committed, failure) = invalidation_attempt(
-                        owner,
-                        query_name,
-                        &query_args,
-                        mutation_name,
-                        mutation_args,
-                        &query_persona,
-                        persona,
-                        false,
-                    );
-                    let proved_silence = committed && failure.is_none();
-                    if let Some(failure) = failure {
-                        failures.push(failure);
-                    }
-                    if proved_silence {
-                        probes += 1;
-                        silence_probes += 1;
-                        query_has_silence = true;
-                        break;
-                    }
-                }
-                continue;
-            }
-
-            intersections.push(json!({
-                "query": query_name,
-                "mutation": mutation_name,
-                "sites": shared_sites.iter().map(|(table, index)| json!({
-                    "table": table,
-                    "index": index,
-                })).collect::<Vec<_>>(),
-            }));
-            let mut committed_intersection = false;
-            for (persona, mutation_args) in candidates
-                .iter()
-                .filter(|(_, args)| probe_args_align(&query_args, args))
-            {
-                attempts += 1;
-                let (committed, failure) = invalidation_attempt(
-                    owner,
-                    query_name,
-                    &query_args,
-                    mutation_name,
-                    mutation_args,
-                    persona,
-                    persona,
-                    true,
-                );
-                if let Some(failure) = failure {
-                    failures.push(failure);
-                }
-                if committed {
-                    committed_intersection = true;
-                    probes += 1;
-                    break;
-                }
-            }
-            if !committed_intersection {
-                blocked.push(json!({
-                    "query": query_name,
-                    "mutation": mutation_name,
-                    "reason": "no committing probe",
-                }));
-                continue;
-            }
-
-            // A second seed key for the same table/index is the strongest
-            // silence probe: the write site overlaps statically but its
-            // concrete touched key is outside this subscription's prefix.
-            for (persona, mutation_args) in candidates
-                .iter()
-                .filter(|(_, args)| probe_args_diverge(&query_args, args))
-            {
-                attempts += 1;
-                let (committed, failure) = invalidation_attempt(
-                    owner,
-                    query_name,
-                    &query_args,
-                    mutation_name,
-                    mutation_args,
-                    &query_persona,
-                    persona,
-                    false,
-                );
-                let proved_silence = committed && failure.is_none();
-                if let Some(failure) = failure {
-                    failures.push(failure);
-                }
-                if proved_silence {
-                    probes += 1;
-                    silence_probes += 1;
-                    query_has_silence = true;
-                    break;
-                }
-            }
-        }
-        if !query_has_silence {
-            let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
-            for (mutation_name, (mutation, _)) in &compiled.generation.programs {
-                if mutation.kind != ProgramKind::Mutation {
-                    continue;
-                }
-                attempts += 1;
-                let mutation_args = match generated_args_at(mutation, seed, 0) {
-                    Ok(args) => args,
-                    Err(reason) => {
-                        blocked.push(json!({ "mutation": mutation_name, "reason": reason }));
-                        continue;
-                    }
-                };
-                let (committed, failure) = invalidation_attempt(
-                    owner,
-                    query_name,
-                    &query_args,
-                    mutation_name,
-                    &mutation_args,
-                    &query_persona,
-                    &disjoint_persona,
-                    false,
-                );
-                match failure {
-                    None if committed => {
-                        probes += 1;
-                        silence_probes += 1;
-                        query_has_silence = true;
-                        break;
-                    }
-                    Some(failure)
-                        if failure.get("error").and_then(Json::as_str)
-                            == Some("non-intersecting committed mutation delivered") => {}
-                    Some(failure) => failures.push(failure),
-                    None => {}
-                }
-            }
-        }
-        if !query_has_silence {
-            blocked.push(json!({
-                "query": query_name,
-                "reason": format!("no disjoint committing probe for {query_name}"),
-            }));
-        }
-    }
-    let detail = json!({
-        "probes": probes,
-        "attempts": attempts,
-        "silenceProbes": silence_probes,
-        "transport": "SSE",
-        "intersectionLevel": "table+index",
-        "intersections": intersections,
-        "blocked": blocked,
-    });
-    if !failures.is_empty() {
-        CheckReceipt::fail(
-            "invalidation",
-            "derived",
-            elapsed_ms(started),
-            json!({ "failures": failures, "summary": detail }),
-        )
-    } else if !blocked.is_empty() {
-        CheckReceipt::blocked("invalidation", "derived", elapsed_ms(started), detail)
-    } else {
-        CheckReceipt::pass("invalidation", "derived", elapsed_ms(started), detail)
-    }
-}
-
-fn probe_args_align(query: &Json, mutation: &Json) -> bool {
-    let Some(query) = query.as_object() else {
-        return true;
-    };
-    let Some(mutation) = mutation.as_object() else {
-        return true;
-    };
-    query
-        .iter()
-        .filter_map(|(name, value)| mutation.get(name).map(|other| (value, other)))
-        .all(|(left, right)| left == right)
-}
-
-fn probe_args_diverge(query: &Json, mutation: &Json) -> bool {
-    let Some(query) = query.as_object() else {
-        return false;
-    };
-    let Some(mutation) = mutation.as_object() else {
-        return false;
-    };
-    query
-        .iter()
-        .any(|(name, value)| mutation.get(name).is_some_and(|other| other != value))
-}
-
-fn invalidation_attempt(
-    owner: &OwnerInfo,
-    query: &str,
-    query_args: &Json,
-    mutation: &str,
-    mutation_args: &Json,
-    query_persona: &str,
-    mutation_persona: &str,
-    expect_delivery: bool,
-) -> (bool, Option<Json>) {
-    if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
-        return (
-            false,
-            Some(
-                json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
-            ),
-        );
-    }
-    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), query_persona) {
-        Ok(stream) => stream,
-        Err(error) => {
-            return (
-                false,
-                Some(
-                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
-                ),
-            );
-        }
-    };
-    if let Err(error) = stream.event(Duration::from_secs(2)) {
-        return (
-            false,
-            Some(json!({
-                "query": query,
-                "mutation": mutation,
-                "as": query_persona,
-                "error": format!("initial SSE delivery missing: {error}"),
-            })),
-        );
-    }
-    let body = match client::api(
-        owner,
-        "POST",
-        "/api/mutation",
-        &[("X-Snapback-As", mutation_persona)],
-        json!({ "op": mutation, "args": mutation_args }),
-    ) {
-        Ok(response) => response.body,
-        Err(error) => {
-            return (
-                false,
-                Some(
-                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
-                ),
-            );
-        }
-    };
-    if body.get("state").and_then(Json::as_str) != Some("committed") {
-        return (false, None);
-    }
-    let expected_seq = body.get("seq").and_then(Json::as_u64);
-    if expect_delivery {
-        match stream.event(Duration::from_secs(2)) {
-            Ok(delivery) if delivery.get("seq").and_then(Json::as_u64) == expected_seq => {
-                (true, None)
-            }
-            delivery => (
-                true,
-                Some(json!({
-                    "query": query,
-                    "mutation": mutation,
-                    "as": mutation_persona,
-                    "expectedSeq": expected_seq,
-                    "delivery": delivery.ok(),
-                })),
-            ),
-        }
-    } else {
-        match stream.prove_silence(Duration::from_millis(250)) {
-            Ok(()) => (true, None),
-            Err(error) if error.delivery.is_some() => (
-                true,
-                Some(json!({
-                    "query": query,
-                    "mutation": mutation,
-                    "as": mutation_persona,
-                    "error": "non-intersecting committed mutation delivered",
-                    "delivery": error.delivery,
-                })),
-            ),
-            Err(error) => (
-                true,
-                Some(json!({
-                    "query": query,
-                    "mutation": mutation,
-                    "as": mutation_persona,
-                    "error": format!("silence probe stream failed: {}", error.message),
-                })),
-            ),
-        }
-    }
-}
-
 fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
@@ -1064,11 +722,7 @@ fn replay_fork(
     let mut args = BTreeMap::new();
     for (name, kind) in &program.args {
         let value = generated.get(name).cloned().unwrap_or(Json::Null);
-        let value = if arg_is_id(kind) && value.as_str().is_some() {
-            Value::Id(value.as_str().unwrap_or_default().to_owned())
-        } else {
-            json_to_value(&value)?
-        };
+        let value = replay_arg_value(kind, &value)?;
         args.insert(name.clone(), value);
     }
     let is_effect_then = generation
@@ -1082,6 +736,9 @@ fn replay_fork(
     } else {
         let mut context = Context::query(format!("dev:{persona}"), args);
         context.principal_kind = "persona".to_owned();
+        // @ref LLP 1001#6-identity-identityrs — offline replay uses the same
+        // epoch-zero trusted dev alias as the served X-Snapback-As path.
+        context.auth_epoch = 0;
         context
     };
     context.now = Some(1_700_000_000_000_i64.saturating_add(index as i64));
@@ -1229,16 +886,27 @@ fn generated_arg(
         )),
         ArgType::Ref { table } => seed_id_arg(op, name, Some(table.as_str()), seed, sample)?,
         ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name),
-        ArgType::Text { .. } => {
-            let candidate = scalar_arg(name);
-            candidate
-                .as_str()
-                .map(|value| json!(value))
-                .unwrap_or_else(|| json!("derived test"))
-        }
+        ArgType::Text { .. } => match name {
+            "handle" => json!("derived_handle"),
+            "avatarUrl" => json!("https://example.com/derived-avatar.png"),
+            "link" => json!("https://example.com/derived"),
+            _ => {
+                let candidate = scalar_arg(name);
+                candidate
+                    .as_str()
+                    .map(|value| json!(value))
+                    .unwrap_or_else(|| json!("derived test"))
+            }
+        },
         ArgType::Int | ArgType::Time => json!(1),
         ArgType::Bool => json!(false),
         ArgType::Optional(inner) => return generated_arg(op, name, inner, seed, sample),
+        ArgType::List { of: Some(of), .. } if matches!(unwrap_optional(of), ArgType::Principal) => {
+            json!([format!(
+                "dev:{}",
+                seed.personas.first().map_or("alice", String::as_str)
+            )])
+        }
         ArgType::List { .. } => json!([]),
         ArgType::Enum { variants } => variants
             .first()
@@ -1286,12 +954,14 @@ fn probe_candidates(program: &Program, seed: &SeedData) -> Result<Vec<(String, J
     for sample in 0..samples {
         let args = generated_args_at(program, seed, sample)?;
         for persona in &personas {
+            let mut args = args.clone();
+            specialize_probe_args(program, seed, sample, persona, &mut args)?;
             let identity = format!(
                 "{persona}:{}",
                 serde_json::to_string(&args).unwrap_or_default()
             );
             if seen.insert(identity) {
-                candidates.push((persona.clone(), args.clone()));
+                candidates.push((persona.clone(), args));
             }
         }
     }

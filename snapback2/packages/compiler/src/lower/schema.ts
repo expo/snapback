@@ -317,7 +317,7 @@ function lowerRule(
     const value = lowerRule(module, call.arguments[0], tables, diagnostics);
     return value === undefined ? undefined : { Not: value };
   }
-  if (name === "exists" && call.arguments.length === 3) {
+  if ((name === "exists" || name === "created") && call.arguments.length === 3) {
     const target = call.arguments[0];
     const tableName = target && ts.isIdentifier(unwrapExpression(target)) ? (unwrapExpression(target) as ts.Identifier).text : undefined;
     if (!tableName || !tables.has(tableName)) {
@@ -327,12 +327,14 @@ function lowerRule(
     const index = stringValue(call.arguments[1]);
     const keyNode = call.arguments[2] && unwrapExpression(call.arguments[2]);
     if (!index || !keyNode || !ts.isArrayLiteralExpression(keyNode)) {
-      diagnostics.push(ruleDiagnostic(module, call, "rule.exists requires table, index, and a key array"));
+      diagnostics.push(ruleDiagnostic(module, call, `rule.${name} requires table, index, and a key array`));
       return undefined;
     }
-    const key = keyNode.elements.map((item) => lowerTerm(module, item, diagnostics)).filter((item) => item !== undefined);
+    const loweredTerms = keyNode.elements.map((item) => lowerTerm(module, item, diagnostics));
+    if (loweredTerms.some((item) => item === undefined)) return undefined;
+    const key = loweredTerms as unknown[];
     return {
-      Exists: {
+      [name === "exists" ? "Exists" : "Created"]: {
         table: tables.get(tableName)!.name,
         index,
         key,
@@ -360,6 +362,10 @@ function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: Front
   if (call && name === "field" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
     return { Field: stringValue(call.arguments[0])! };
   }
+  if (call && (name === "oldField" || name === "nextField")
+    && call.arguments.length === 1 && stringValue(call.arguments[0])) {
+    return { [name === "oldField" ? "OldField" : "NextField"]: stringValue(call.arguments[0])! };
+  }
   if (call && name === "literal" && call.arguments[0]) {
     const fractional = findFractionalLiteral(call.arguments[0]);
     if (fractional) {
@@ -375,7 +381,7 @@ function lowerTerm(module: SchemaModule, node: ts.Expression, diagnostics: Front
     const literal = staticJson(call.arguments[0]);
     if (literal !== undefined) return { Literal: encodeValue(literal) };
   }
-  diagnostics.push(ruleDiagnostic(module, node, "rule term must be field(), viewer, or literal()"));
+  diagnostics.push(ruleDiagnostic(module, node, "rule term must be field(), oldField(), nextField(), viewer, or literal()"));
   return undefined;
 }
 
@@ -412,7 +418,7 @@ function lowerConstraints(
     }
     const entries = propertyEntries(object);
     if (entries.length !== 1 || object.properties.length !== 1) {
-      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "constraint must have exactly one of unique, cap, appendOnly, or immutable"));
+      diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "constraint must have exactly one of unique, cap, appendOnly, immutable, text, or finalExistsOnInsert"));
       continue;
     }
     const unique = stringValue(property(object, "unique"));
@@ -449,9 +455,87 @@ function lowerConstraints(
       output.push({ Immutable: { fields: immutable } });
       continue;
     }
-    diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "unknown or malformed constraint; use unique, cap, appendOnly, or immutable"));
+    const text = objectOf(property(object, "text"));
+    if (text) {
+      validateKnownKeys(module, text, ["field", "min", "format"], "text constraint", "E_SCHEMA_CONSTRAINT", diagnostics);
+      const field = stringValue(property(text, "field"));
+      const min = property(text, "min") ? numberValue(property(text, "min")) : 0;
+      const format = property(text, "format") ? stringValue(property(text, "format")) : undefined;
+      if (!field || !(field in columns)) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `text constraint names unknown column ${field ?? "<missing>"}`));
+        continue;
+      }
+      const max = textDescriptorMax(columns[field]);
+      if (max === undefined) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `text constraint names non-text column ${field}`));
+        continue;
+      }
+      if (min === undefined || !Number.isInteger(min) || min < 0) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "text constraint min must be a non-negative integer"));
+        continue;
+      }
+      if (min > max) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, `text constraint min ${min} exceeds ${field}'s maximum ${max}`));
+        continue;
+      }
+      if (format !== undefined && format !== "handle" && format !== "url") {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "text constraint format must be handle or url"));
+        continue;
+      }
+      if (min === 0 && format === undefined) {
+        diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "text constraint must declare min or format"));
+        continue;
+      }
+      output.push({ Text: { field, min, ...(format === undefined ? {} : { format }) } });
+      continue;
+    }
+    // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — the static table name breaks the source/target declaration cycle without weakening deferred catalog checks.
+    const finalNode = property(object, "finalExistsOnInsert");
+    if (finalNode) {
+      const finalExists = objectOf(finalNode);
+      if (!finalExists) {
+        diagnostics.push(schemaDiagnostic(
+          module,
+          "E_SCHEMA_CONSTRAINT",
+          finalNode,
+          "finalExistsOnInsert must be an object with table, index, and key",
+          finalExistsRewrite(),
+        ));
+        continue;
+      }
+      validateKnownKeys(module, finalExists, ["table", "index", "key"], "finalExistsOnInsert constraint", "E_SCHEMA_CONSTRAINT", diagnostics);
+      const table = stringValue(property(finalExists, "table"));
+      const index = stringValue(property(finalExists, "index"));
+      const keyNode = property(finalExists, "key") && unwrapExpression(property(finalExists, "key")!);
+      if (!table || !index || !keyNode || !ts.isArrayLiteralExpression(keyNode)) {
+        diagnostics.push(schemaDiagnostic(
+          module,
+          "E_SCHEMA_CONSTRAINT",
+          finalExists,
+          "finalExistsOnInsert requires a static table-name string, index string, and key array",
+          finalExistsRewrite(),
+        ));
+        continue;
+      }
+      const loweredTerms = keyNode.elements.map((term) => lowerTerm(module, term, diagnostics));
+      if (loweredTerms.some((term) => term === undefined)) continue;
+      output.push({ FinalExistsOnInsert: { table, index, key: loweredTerms } });
+      continue;
+    }
+    diagnostics.push(schemaDiagnostic(module, "E_SCHEMA_CONSTRAINT", item, "unknown or malformed constraint; use unique, cap, appendOnly, immutable, text, or finalExistsOnInsert"));
   }
   return output;
+}
+
+function textDescriptorMax(value: unknown): number | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const descriptor = value as Record<string, any>;
+  if (descriptor.Text && typeof descriptor.Text.max === "number") return descriptor.Text.max;
+  return "Optional" in descriptor ? textDescriptorMax(descriptor.Optional) : undefined;
+}
+
+function finalExistsRewrite(): string {
+  return '{ finalExistsOnInsert: { table: "memberships", index: "byConversationPrincipalRole", key: [rule.field("id"), rule.field("creatorId"), rule.literal("admin")] } }';
 }
 
 function lowerMaintains(
@@ -671,7 +755,8 @@ function encodeValue(value: unknown): Value {
 }
 
 function ruleProvenance(key: unknown[]): "Arg" | "Viewer" | "Const" | "Shape" | "Computed" {
-  if (key.some((item) => typeof item === "object" && item !== null && "Field" in item)) return "Shape";
+  if (key.some((item) => typeof item === "object" && item !== null
+    && ["Field", "OldField", "NextField"].some((term) => term in item))) return "Shape";
   if (key.some((item) => item === "Viewer")) return "Viewer";
   if (key.every((item) => typeof item === "object" && item !== null && "Literal" in item)) return "Const";
   return "Computed";
@@ -817,7 +902,7 @@ function schemaDiagnostic(
 }
 
 function ruleDiagnostic(module: SchemaModule, node: ts.Node, message: string): FrontendDiagnostic {
-  return diagnostic(module, "E_RULE_INVALID", node, message, "rule.allow()");
+  return diagnostic(module, "E_RULE_INVALID", node, message, "rule.deny()");
 }
 
 function schemaDeclarationRewrite(node: ts.Node): string {

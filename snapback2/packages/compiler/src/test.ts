@@ -7,6 +7,7 @@ import type { Program, ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
+import { registerRuleTransitionChecks } from "./rule-transitions-checks";
 import { decimal } from "../../snapback2/src/index";
 import type { Principal } from "../../snapback2/src/index";
 import type { Op } from "../../snapback2/src/api";
@@ -25,6 +26,7 @@ const legacyLib = `${libText}\n${await Bun.file(`${frontend}gauntlet.d.ts`).text
 type Check = { name: string; run: () => void | Promise<void> };
 const checks: Check[] = [];
 const test = (name: string, run: Check["run"]) => checks.push({ name, run });
+registerRuleTransitionChecks(test, libText);
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -199,6 +201,8 @@ test("bound and collection callback fixtures still certify", async () => {
   const subset = lowerSource(subsetSource, "fixtures/subset-surface.ts");
   assert(subset.ok, `collection/write-callback surface refused: ${subset.ok ? "" : subset.diagnostics[0]?.message}`);
   assert(subset.programs.length === 3, `expected three subset-surface programs, got ${subset.programs.length}`);
+  const callbackUpsert = subset.programs.find((program) => program.name === "callbackUpsert")!;
+  assert(canonical(callbackUpsert).includes('"Upsert"'), "callback upsert bypassed the addressed-key Upsert invariant");
   assert(rustCheck(subset.programs, "synthetic").every((result) => result.error === null), "collection/write-callback surface did not certify");
 });
 
@@ -512,7 +516,7 @@ test("schema and effect refusals rewrite only the failing declaration", async ()
 test("chat and todos lower schema, channels, effects, emit, API types, seed, and journeys", async () => {
   const chat = await lowerProject(`${frontend}fixtures/chat`);
   assert(chat.ok, `chat refused: ${chat.ok ? "" : chat.diagnostics.map((item) => `${item.code} ${item.message}`).join("; ")}`);
-  assert(chat.project.programs.length === 4, "chat operation count differs");
+  assert(chat.project.programs.length === 16, "chat operation count differs");
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
@@ -524,25 +528,69 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   const membershipShape = chat.project.schema.tables.memberships as any;
   assert(profileShape?.columns?.principal === "Principal"
     && canonical(profileShape?.indexes?.byPrincipal) === canonical({ columns: ["principal"], unique: true })
+    && canonical(profileShape?.indexes?.byHandle) === canonical({ columns: ["handle"], unique: true })
     && canonical(profileShape?.constraints).includes(canonical({ Unique: { index: "byPrincipal" } }))
-    && canonical(profileShape?.constraints).includes(canonical({ Immutable: { fields: ["principal"] } })),
-  "chat profiles must join their application row ids to one unique Principal");
-  assert(membershipShape?.columns?.userId === "Principal",
+    && canonical(profileShape?.constraints).includes(canonical({ Unique: { index: "byHandle" } }))
+    && canonical(profileShape?.constraints).includes(canonical({ Immutable: { fields: ["principal"] } }))
+    && canonical(profileShape?.constraints).includes(canonical({ Text: { field: "displayName", min: 1 } }))
+    && canonical(profileShape?.constraints).includes(canonical({ Text: { field: "handle", min: 3, format: "handle" } })),
+  "chat profiles must keep identity protected while enforcing public profile ownership and shape");
+  assert(membershipShape?.columns?.principal === "Principal"
+    && canonical(membershipShape?.columns?.role) === canonical({ Enum: { variants: ["member", "admin"] } })
+    && canonical(membershipShape?.indexes?.byConversationPrincipalRole)
+      === canonical({ columns: ["conversationId", "principal", "role"], unique: false }),
     "chat membership authority must remain a nominal Principal");
   assert((chat.project.schema.tables.conversations as any)?.columns?.creatorId === "Principal"
     && (chat.project.schema.tables.messages as any)?.columns?.authorId === "Principal",
   "chat creator and author authority axes must remain nominal Principals");
+  const postShape = chat.project.schema.tables.posts as any;
+  const followShape = chat.project.schema.tables.follows as any;
+  assert(postShape?.columns?.author === "Principal"
+    && canonical(postShape?.rules?.read) === canonical({ Public: { reason: "posts are globally readable product content" } })
+    && followShape?.columns?.follower === "Principal"
+    && followShape?.columns?.followed === "Principal"
+    && canonical(followShape?.indexes?.byFollowerFollowed)
+      === canonical({ columns: ["follower", "followed"], unique: true }),
+  "chat social rows must preserve nominal actors and the explicit product relationship");
   assert("typing" in chat.project.schema.channels, "typing channel missing");
   assert(chat.apiDts.includes("type ProfilesRow = {") && chat.apiDts.includes("Page<MessagesRow>"), "API declaration omitted named table rows/Page scan results");
   const send = chat.project.programs.find((program) => program.name === "messages.send")!;
   assert(canonical(send).includes('"Emit"'), "emit did not lower into the mutation IR");
-  const leave = chat.project.programs.find((program) => program.name === "messages.leave")!;
+  const leave = chat.project.programs.find((program) => program.name === "groups.memberLeave")!;
   const leaveDelete = (leave.body.find((statement) =>
     typeof statement === "object" && statement !== null && "Delete" in statement) as any)?.Delete;
   assert(canonical(leave.args.membershipId) === canonical({ Ref: { table: "memberships" } })
     && leaveDelete?.table === "memberships",
   "chat self-leave did not retain its membership ref/delete intent");
+  const createGroup = chat.project.programs.find((program) => program.name === "groups.groupCreate")!;
+  const promote = chat.project.programs.find((program) => program.name === "groups.memberPromote")!;
+  const promoteSites = [...JSON.stringify(promote).matchAll(/"site":"([^"]+)"/g)]
+    .map((match) => match[1]!);
+  assert(canonical(createGroup).includes('"table":"conversations"')
+    && canonical(createGroup).includes('"role":{"Literal":{"String":"admin"}}')
+    && canonical(promote).includes('"table":"memberships"')
+    && canonical(promote).includes('"role":{"Literal":{"String":"admin"}}'),
+  "chat group operations omitted atomic bootstrap or promotion intent");
+  assert(new Set(promoteSites).size === promoteSites.length
+    && promoteSites.includes("groups.memberPromote.membership")
+    && promoteSites.includes("groups.memberPromote.membership.2"),
+  `distinct promotion reads reused a certificate site: ${promoteSites.join(", ")}`);
   assert(chat.apiDts.includes("messages") && chat.apiDts.includes("Op<{ conversationId: string"), "chat API declaration missing inferred types");
+  const createProfile = chat.project.programs.find((program) => program.name === "profiles.createMyProfile")!;
+  const updateProfile = chat.project.programs.find((program) => program.name === "profiles.updateMyProfile")!;
+  assert(canonical(createProfile).includes('"Input":"Viewer"')
+    && canonical(updateProfile).includes('"Input":"Viewer"')
+    && !canonical(createProfile.args).includes("principal")
+    && !canonical(updateProfile.args).includes("principal"),
+  "profile writes must derive the protected Principal from the authenticated context");
+  const followingFeed = chat.project.programs.find((program) => program.name === "feeds.followingFeed")!;
+  const globalFeed = chat.project.programs.find((program) => program.name === "feeds.globalFeed")!;
+  const setFollow = chat.project.programs.find((program) => program.name === "follows.setFollow")!;
+  assert(canonical(followingFeed).includes('"table":"follows"')
+    && !canonical(globalFeed).includes('"table":"follows"')
+    && canonical(setFollow).includes('"Input":"Viewer"')
+    && !canonical(setFollow.args).includes("follower"),
+  "follow rows must select Following without becoming Global post authority or caller-selected actors");
 
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
@@ -551,7 +599,9 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(todos.apiDts.includes("type TodosRow = {") && todos.apiDts.includes("Page<TodosRow>"), "scan API did not use named row/Page types");
   assert(canonical(todos.project.schema.tables).includes('"Optional":{"List"'), "optional/list schema columns did not lower");
   const seed = await lowerSeed(`${frontend}fixtures/chat`);
-  assert(seed.ok && seed.seed.personas.length === 2 && seed.seed.rows.profiles?.length === 2, "chat seed did not lower");
+  assert(seed.ok && seed.seed.personas.length === 3 && seed.seed.rows.profiles?.length === 2
+    && seed.seed.rows.posts?.length === 3 && seed.seed.rows.follows?.length === 1,
+  "chat seed did not lower");
   assert(seed.ok && (seed.seed.rows.profiles?.[0] as any)?.id === "profile-alice"
     && (seed.seed.rows.profiles?.[0] as any)?.principal === "dev:alice",
   "chat seed collapsed the profile row id into its authority Principal");
@@ -1004,7 +1054,38 @@ test("rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains", ()
   }
 });
 
-test("implicit id and byId cannot be overwritten", () => {
+test("text constraints lower minimum, handle, and URL validation and reject invalid targets", () => {
+  const valid = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const profiles = table({
+      columns: { handle: t.text(20), link: t.optional(t.text(200)) },
+      constraints: [
+        { text: { field: "handle", min: 3, format: "handle" } },
+        { text: { field: "link", format: "url" } },
+      ],
+    });
+    export default schema({ tables: { profiles } });`, "snapback/schema.ts");
+  assert(valid.diagnostics.length === 0, `valid text constraints refused: ${JSON.stringify(valid.diagnostics)}`);
+  const constraints = (valid.schema.tables.profiles as any).constraints;
+  assert(canonical(constraints) === canonical([
+    { Text: { field: "handle", min: 3, format: "handle" } },
+    { Text: { field: "link", min: 0, format: "url" } },
+  ]), `text constraints lowered unexpectedly: ${JSON.stringify(constraints)}`);
+
+  for (const [label, columns, constraint] of [
+    ["non-text", `{ count: t.int() }`, `{ text: { field: "count", min: 1 } }`],
+    ["too-large", `{ handle: t.text(2) }`, `{ text: { field: "handle", min: 3 } }`],
+    ["format", `{ handle: t.text(20) }`, `{ text: { field: "handle", format: "slug" } }`],
+    ["empty", `{ handle: t.text(20) }`, `{ text: { field: "handle" } }`],
+  ] as const) {
+    const invalid = lowerSchema(`import { schema, table, t } from "snapback2";
+      export const rows = table({ columns: ${columns}, constraints: [${constraint}] });
+      export default schema({ tables: { rows } });`, `snapback/${label}.ts`);
+    assert(invalid.diagnostics.some((item) => item.code === "E_SCHEMA_CONSTRAINT"),
+      `${label} text constraint did not produce E_SCHEMA_CONSTRAINT`);
+  }
+});
+
+test("implicit id and byId cannot be overwritten, including by update patches", () => {
   const source = `import { schema, table, t } from 'snapback2';
     export const rows = table({ columns: { id: t.int(), value: t.int() }, indexes: { byId: { columns: ['value'] } } });
     export default schema({ tables: { rows } });`;
@@ -1013,6 +1094,22 @@ test("implicit id and byId cannot be overwritten", () => {
   assert(reserved.length === 2, `expected reserved id and byId refusals, got ${reserved.length}`);
   assert((lowered.schema.tables.rows as any).columns.id === "Id", "authored id replaced the implicit Id column");
   assert(canonical((lowered.schema.tables.rows as any).indexes.byId) === canonical({ columns: ["id"], unique: true }), "authored byId replaced the implicit index");
+
+  for (const patch of [
+    `{ id: "row-2" }`,
+    `(row: { id: string; value: number }) => ({ id: row.id })`,
+  ]) {
+    const authored = `import { mutation, table, t } from "snapback2";
+      const records = table({ columns: { value: t.int() } });
+      export const rewriteId = mutation({}, ({ db }) => db.update(records, "row-1", ${patch}));`;
+    const diagnostics = typecheckSource(authored, "update-id.ts", libText);
+    assert(diagnostics.length === 1, `update patch unexpectedly admitted id: ${patch}`);
+  }
+  const ordinaryPatch = typecheckSource(`import { mutation, table, t } from "snapback2";
+    const records = table({ columns: { value: t.int() } });
+    export const updateValue = mutation({}, ({ db }) => db.update(records, "row-1", { value: 2 }));`,
+  "update-value.ts", libText);
+  assert(ordinaryPatch.length === 0, "omitting id made an ordinary update patch ill-typed");
 });
 
 test("effect authoring reports grants, closure, imports, and then arguments together", async () => {

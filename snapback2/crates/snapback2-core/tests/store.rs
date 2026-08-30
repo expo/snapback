@@ -107,11 +107,47 @@ fn generation() -> Generation {
             patch: Expr::Object(BTreeMap::from([("name".to_owned(), var("name"))])),
         }],
     };
+    let reidentify = Program {
+        name: "items.reidentify".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("key".to_owned(), ArgType::Scalar),
+            ("rowId".to_owned(), ArgType::Scalar),
+            ("name".to_owned(), ArgType::Scalar),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Update {
+            table: "items".to_owned(),
+            key: var("key"),
+            patch: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), var("rowId")),
+                ("name".to_owned(), var("name")),
+            ])),
+        }],
+    };
+    let upsert_at = Program {
+        name: "items.upsertAt".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::from([
+            ("key".to_owned(), ArgType::Scalar),
+            ("rowId".to_owned(), ArgType::Scalar),
+            ("name".to_owned(), ArgType::Scalar),
+        ]),
+        read_time_granularity_ms: None,
+        body: vec![Stmt::Upsert {
+            table: "items".to_owned(),
+            key: var("key"),
+            row: Expr::Object(BTreeMap::from([
+                ("id".to_owned(), var("rowId")),
+                ("name".to_owned(), var("name")),
+            ])),
+        }],
+    };
     Generation::certify(
         &ProjectJson {
             version: 1,
             schema: schema(),
-            programs: vec![insert, list, rename],
+            programs: vec![insert, list, rename, reidentify, upsert_at],
             effects: vec![EffectDecl {
                 name: "audit".to_owned(),
                 grants: Vec::new(),
@@ -174,7 +210,7 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
 
     let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation).unwrap();
     assert_eq!(
-        runtime.authenticate(&session.token, 101).unwrap(),
+        runtime.authenticate(&session.token, 101).unwrap().principal,
         session.principal
     );
     let execution = runtime
@@ -205,6 +241,76 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
     assert_eq!(outbox, 1);
     drop(connection);
     cleanup(&path);
+}
+
+#[test]
+fn addressed_writes_reject_row_id_changes_without_leaving_stale_indexes() {
+    let mut runtime = Runtime::open(Store::memory().unwrap(), generation()).unwrap();
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("item-1".to_owned())),
+                ("name", Value::String("original".to_owned())),
+            ]),
+        )])
+        .unwrap();
+
+    for (op, key, row_id) in [
+        ("items.reidentify", "item-1", "item-2"),
+        ("items.upsertAt", "item-1", "item-2"),
+        ("items.upsertAt", "missing-key", "item-2"),
+    ] {
+        let execution = runtime
+            .execute(
+                op,
+                Context::mutation(
+                    "system",
+                    BTreeMap::from([
+                        ("key".to_owned(), Value::Id(key.to_owned())),
+                        ("rowId".to_owned(), Value::Id(row_id.to_owned())),
+                        ("name".to_owned(), Value::String("corrupt".to_owned())),
+                    ]),
+                ),
+            )
+            .unwrap();
+        assert!(
+            matches!(
+                execution.state,
+                ExecutionState::Rejected { ref code, ref message }
+                    if code == "E_INPUT"
+                        && message.contains("does not match addressed key")
+            ),
+            "{op} at {key} returned {:?}",
+            execution.state
+        );
+        assert_eq!(runtime.store().commit_seq().unwrap(), 1);
+    }
+
+    let listed = runtime
+        .execute("items.list", Context::query("system", BTreeMap::new()))
+        .unwrap();
+    assert_eq!(
+        listed.result,
+        Value::Array(vec![object([
+            ("id", Value::Id("item-1".to_owned())),
+            ("name", Value::String("original".to_owned())),
+        ])])
+    );
+
+    runtime
+        .seed(&[(
+            "items".to_owned(),
+            object([
+                ("id", Value::Id("item-2".to_owned())),
+                ("name", Value::String("legitimate".to_owned())),
+            ]),
+        )])
+        .expect("rejected writes left no index entry under the attempted new id");
+    let listed = runtime
+        .execute("items.list", Context::query("system", BTreeMap::new()))
+        .unwrap();
+    assert_eq!(listed.result.as_array().unwrap().len(), 2);
 }
 
 #[test]
@@ -341,6 +447,114 @@ fn durable_store_has_one_owner_and_owner_can_snapshot() {
     drop(reopened);
     cleanup(&path);
     cleanup(&snapshot);
+}
+
+#[test]
+fn store_open_refuses_plaintext_and_unknown_session_shapes_without_publishing_owner() {
+    for (label, schema) in [
+        (
+            "plaintext-session",
+            "CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+             INSERT INTO _meta(key, value) VALUES
+                ('store_version', '1'), ('owner', 'legacy-owner');
+             CREATE TABLE _sessions (
+                token TEXT PRIMARY KEY,
+                principal TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+             );",
+        ),
+        (
+            "unknown-session",
+            "CREATE TABLE _sessions (unexpected TEXT PRIMARY KEY);",
+        ),
+    ] {
+        let path = temp_store(label);
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        connection.execute_batch(schema).unwrap();
+        drop(connection);
+
+        let error = match Store::open(&path) {
+            Ok(_) => panic!("{label} unexpectedly opened"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code(), "E_STORE_VERSION");
+        assert!(error.to_string().contains("reset the development store"));
+
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        let rows_table: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master
+                 WHERE type = 'table' AND name = 'rows')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(
+            !rows_table,
+            "refusal must not partially initialize the store"
+        );
+        let owner = connection
+            .query_row("SELECT value FROM _meta WHERE key = 'owner'", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .ok();
+        if label == "plaintext-session" {
+            assert_eq!(owner.as_deref(), Some("legacy-owner"));
+        } else {
+            assert_eq!(owner, None);
+        }
+        drop(connection);
+        cleanup(&path);
+    }
+}
+
+#[test]
+fn store_open_refuses_digest_hybrids_without_blob_type_constraints() {
+    for (label, session_check, throttle_check) in [
+        (
+            "session-digest-hybrid",
+            "CHECK(length(token_digest) = 32)",
+            "CHECK(typeof(bucket_digest) = 'blob' AND length(bucket_digest) = 32)",
+        ),
+        (
+            "throttle-digest-hybrid",
+            "CHECK(typeof(token_digest) = 'blob' AND length(token_digest) = 32)",
+            "CHECK(length(bucket_digest) = 32)",
+        ),
+    ] {
+        let path = temp_store(label);
+        let connection = rusqlite::Connection::open(&path).unwrap();
+        connection
+            .execute_batch(&format!(
+                "CREATE TABLE _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 INSERT INTO _meta(key, value) VALUES ('store_version', '2');
+                 CREATE TABLE _sessions (
+                    auth_epoch INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token_digest BLOB NOT NULL UNIQUE {session_check},
+                    principal TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL
+                 );
+                 CREATE TABLE _auth_throttle (
+                    bucket_digest BLOB PRIMARY KEY NOT NULL {throttle_check},
+                    window_start INTEGER NOT NULL,
+                    attempts INTEGER NOT NULL
+                 );"
+            ))
+            .unwrap();
+        drop(connection);
+
+        let error = match Store::open(&path) {
+            Ok(_) => panic!("digest hybrid unexpectedly opened"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code(), "E_STORE_VERSION");
+        assert!(error.to_string().contains("reset the development store"));
+        cleanup(&path);
+    }
 }
 
 #[test]

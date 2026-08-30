@@ -286,7 +286,7 @@ function lowerRecurse(call: ts.CallExpression, env: Environment): { domain: Loop
   if (!key || !ts.isPropertyAccessExpression(key)) refuse(env, "E_OPAQUE", get, "recurse step key must be a row field");
   return {
     domain: { Recurse: {
-      site: `${env.programName}.step`,
+      site: allocateReadSite(`${env.programName}.step`, env),
       table: ref.table,
       index: ref.index,
       seed: lowerExpr(seed, env),
@@ -464,7 +464,7 @@ function lowerCall(call: ts.CallExpression, env: Environment, hint?: string): Ex
     if (!conversation) refuse(env, "E_OPAQUE", call, "memberOf requires a conversation id");
     return {
       Exists: {
-        site: `${env.programName}.memberOf`,
+        site: allocateReadSite(`${env.programName}.memberOf`, env),
         table: "memberships",
         index: "byConvUser",
         key: [lowerExpr(conversation, env), { Input: "Viewer" }],
@@ -526,7 +526,7 @@ function lowerRead(call: ts.CallExpression, env: Environment, hint?: string) {
   if (!target || !key) refuse(env, "E_OPAQUE", call, "point read requires target and key");
   const ref = tableReference(target, env);
   return {
-    site: hint ?? `${env.programName}.${singular(ref.table)}`,
+    site: allocateReadSite(hint ?? `${env.programName}.${singular(ref.table)}`, env),
     table: ref.table,
     index: ref.index,
     key: lowerKey(key, env),
@@ -558,7 +558,7 @@ function lowerScan(call: ts.CallExpression, env: Environment, hint?: string): Sc
   const orderNode = expressionProperty(options, "order");
   const rangeNode = expressionProperty(options, "range");
   return {
-    site: hint ?? `${env.programName}.${ref.table}`,
+    site: allocateReadSite(hint ?? `${env.programName}.${ref.table}`, env),
     table: ref.table,
     index: ref.index,
     prefix: lowerKey(prefix, env),
@@ -685,6 +685,19 @@ export function cloneEnvironment(env: Environment): Environment {
     substitutions: new Map(env.substitutions),
     helperStack: [...env.helperStack],
   };
+}
+
+/** Certificate read sites are operation-local identities, not just labels. */
+export function allocateReadSite(base: string, env: Environment): string {
+  if (!env.readSites.has(base)) {
+    env.readSites.add(base);
+    return base;
+  }
+  let ordinal = 2;
+  while (env.readSites.has(`${base}.${ordinal}`)) ordinal += 1;
+  const site = `${base}.${ordinal}`;
+  env.readSites.add(site);
+  return site;
 }
 
 export function derivedBound(node: ts.Expression, env: Environment): Partial<VariableInfo> {

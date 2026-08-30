@@ -1,15 +1,7 @@
 //! Schema-directed seed-id selection for derived operation probes.
 // @ref LLP 1002#7-test-and-the-receipt — probe ids come only from schema-directed seed rows.
 
-use super::{ArgType, Json, SeedData, json};
-
-pub(super) fn arg_is_id(kind: &ArgType) -> bool {
-    match kind {
-        ArgType::Id | ArgType::Principal | ArgType::Ref { .. } => true,
-        ArgType::Optional(inner) => arg_is_id(inner),
-        _ => false,
-    }
-}
+use super::{Json, SeedData, json};
 
 pub(super) fn seed_id_arg(
     op: &str,

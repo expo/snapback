@@ -90,8 +90,13 @@ fn chat_template_ships_exactly_its_complete_owned_tree() {
     assert_eq!(
         shipped,
         [
+            "feeds.ts",
+            "follows.ts",
+            "groups.ts",
             "messages.ts",
             "notifications.ts",
+            "posts.ts",
+            "profiles.ts",
             "schema.ts",
             "seed.ts",
             "tests/chat.test.ts",

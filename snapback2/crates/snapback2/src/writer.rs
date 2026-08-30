@@ -9,28 +9,42 @@ use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program, ProgramKind,
-    Runtime, Scan, Stmt, Value,
+    Expr, Generation, KeyProvenance, MigrationPlan, Order, Program, ProgramKind, Runtime, Scan,
+    Stmt, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender, SyncSender};
 use std::thread;
 
+#[path = "writer_auth.rs"]
+mod writer_auth;
 #[path = "writer_effects.rs"]
 mod writer_effects;
 #[path = "writer_ledger.rs"]
 mod writer_ledger;
 
+use writer_auth::SessionFence;
 use writer_ledger::{CommitLedger, LedgerDelivery};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Identity {
     Bearer(String),
     Persona(String),
     Anonymous,
+}
+
+impl fmt::Debug for Identity {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Bearer(_) => formatter.write_str("Bearer(<redacted>)"),
+            Self::Persona(name) => formatter.debug_tuple("Persona").field(name).finish(),
+            Self::Anonymous => formatter.write_str("Anonymous"),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -220,6 +234,7 @@ struct LiveClient {
     runtime_id: u64,
     op: String,
     context: Context,
+    session: Option<SessionFence>,
     last_frame: Json,
     events: Sender<SseEvent>,
 }
@@ -229,6 +244,7 @@ struct ChannelClient {
     name: String,
     args: BTreeMap<String, Value>,
     context: Context,
+    session: Option<SessionFence>,
     verdict: ChannelVerdict,
     events: Sender<SseEvent>,
 }
@@ -312,11 +328,33 @@ pub fn apply_seed(runtime: &mut Runtime, rows: &[(String, Value)]) -> Result<u64
 }
 
 fn run_writer(mut state: State, rx: Receiver<Request>) {
-    while let Ok(request) = rx.recv() {
-        let result = state.handle(request.action);
-        let _ = request.reply.send(result);
-        if state.stop.load(AtomicOrdering::SeqCst) {
-            break;
+    loop {
+        let timeout = match state
+            .sweep_expired_sessions()
+            .and_then(|()| state.auth_poll_timeout())
+        {
+            Ok(timeout) => timeout,
+            Err(error) => {
+                crate::watch::log(
+                    &state.root,
+                    json!({ "exited": "session authority sweep failed", "refusal": error }),
+                );
+                state.stop.store(true, AtomicOrdering::SeqCst);
+                break;
+            }
+        };
+        match rx.recv_timeout(timeout) {
+            Ok(request) => {
+                let result = state
+                    .sweep_expired_sessions()
+                    .and_then(|()| state.handle(request.action));
+                let _ = request.reply.send(result);
+                if state.stop.load(AtomicOrdering::SeqCst) {
+                    break;
+                }
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+            Err(RecvTimeoutError::Disconnected) => break,
         }
     }
 }
@@ -393,14 +431,23 @@ impl State {
                 Ok(json!({ "token": session.token, "viewer": session.principal.id }))
             }
             Action::Logout { token } => {
-                self.runtime_mut()
-                    .logout(&token)
+                let now = self.now();
+                // Pin expiry cleanup and logout to the same instant so an
+                // expired epoch is fenced before identity removes its row.
+                self.sweep_expired_sessions_at(now)?;
+                let authority = self
+                    .runtime_mut()
+                    .logout(&token, now)
                     .map_err(|error| Refusal::from_identity(&error))?;
+                self.fence_session(&authority);
                 Ok(json!({ "ok": true }))
             }
             Action::Me { identity } => {
-                let principal = self.principal(identity)?;
-                Ok(json!({ "viewer": principal.id, "kind": principal.kind }))
+                let authority = self.resolve_authority(identity)?;
+                Ok(json!({
+                    "viewer": authority.principal.id,
+                    "kind": authority.principal.kind,
+                }))
             }
             Action::Personas => {
                 self.require_dev_personas()?;
@@ -487,7 +534,16 @@ impl State {
                         "owner/clock",
                     ));
                 }
+                // @ref LLP 1002#4-the-wire — the development clock is monotonic so
+                // a refused rewind cannot extend session authority or rerun live state.
+                if advance_ms < 0 {
+                    return Err(Refusal::input(
+                        "clock advanceMs must be non-negative",
+                        "pass advanceMs >= 0",
+                    ));
+                }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
+                self.sweep_expired_sessions()?;
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
                 let _ = self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
@@ -610,32 +666,6 @@ impl State {
         }
     }
 
-    fn principal(&mut self, identity: Identity) -> Result<Principal, Refusal> {
-        match identity {
-            Identity::Bearer(token) => {
-                let now = self.now();
-                self.runtime()
-                    .authenticate(&token, now)
-                    .map_err(|error| Refusal::from_identity(&error))
-            }
-            Identity::Persona(name) => {
-                self.require_dev_personas()?;
-                let now = self.now();
-                self.runtime_mut()
-                    .persona(&name, now)
-                    .map(|session| session.principal)
-                    .map_err(|error| Refusal::from_identity(&error))
-            }
-            Identity::Anonymous => Err(Refusal::new(
-                "E_AUTH_REQUIRED",
-                "auth",
-                "authentication is required",
-                "send Authorization: Bearer <token> or X-Snapback-As in dev",
-                "auth/identity",
-            )),
-        }
-    }
-
     fn require_dev_personas(&self) -> Result<(), Refusal> {
         if self.mode == "dev" {
             Ok(())
@@ -648,17 +678,6 @@ impl State {
                 "auth/personas",
             ))
         }
-    }
-
-    fn context(&self, principal: Principal, op: &str, args: Json) -> Result<Context, Refusal> {
-        let values = operation_args(self.runtime().generation(), op, &args)?;
-        let mut context = Context::query(principal.id, values);
-        context.principal_kind = principal.kind;
-        let now = self.now();
-        context.now = Some(now);
-        context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
-        Ok(context)
     }
 
     fn execute(
@@ -692,8 +711,8 @@ impl State {
                 "op/kind",
             ));
         }
-        let principal = self.principal(identity)?;
-        let context = self.context(principal, op, args)?;
+        let authority = self.resolve_authority(identity)?;
+        let context = self.context(&authority, op, args)?;
         let execution = if kind == ProgramKind::Mutation {
             self.execute_mutation(op, context)?
         } else {
@@ -722,8 +741,8 @@ impl State {
         identity: Identity,
         events: Sender<SseEvent>,
     ) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
-        let context = self.context(principal, &op, args)?;
+        let authority = self.resolve_authority(identity)?;
+        let context = self.context(&authority, &op, args)?;
         let (id, execution) = self
             .runtime_mut()
             .subscribe(&op, context.clone())
@@ -742,6 +761,7 @@ impl State {
                 runtime_id: id,
                 op,
                 context,
+                session: authority.session,
                 last_frame: data,
                 events,
             },
@@ -756,11 +776,9 @@ impl State {
         identity: Identity,
         events: Sender<SseEvent>,
     ) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
+        let authority = self.resolve_authority(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
-        context.now = Some(self.now());
+        let context = self.execution_context(&authority, BTreeMap::new());
         let verdict = self
             .runtime_mut()
             .channel_admit(&name, ChannelSide::Subscribe, &args, &context)
@@ -782,6 +800,7 @@ impl State {
                 name,
                 args,
                 context,
+                session: authority.session,
                 verdict,
                 events,
             },
@@ -796,11 +815,9 @@ impl State {
         payload: Json,
         identity: Identity,
     ) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
+        let authority = self.resolve_authority(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
-        context.now = Some(self.now());
+        let context = self.execution_context(&authority, BTreeMap::new());
         let verdict = self
             .runtime_mut()
             .channel_admit(&name, ChannelSide::Publish, &args, &context)
@@ -831,9 +848,10 @@ impl State {
             .map_err(|error| Refusal::from_runtime(&error))?;
         let event = SseEvent {
             seq: Some(seq),
-            data: json!({ "from": principal.id, "payload": payload, "at": at }),
+            data: json!({ "from": authority.principal.id, "payload": payload, "at": at }),
             terminal: false,
         };
+        self.sweep_expired_sessions()?;
         self.channels.retain(|_, subscriber| {
             if subscriber.name == name && subscriber.args == args {
                 subscriber.events.send(event.clone()).is_ok()
@@ -845,6 +863,7 @@ impl State {
     }
 
     fn after_commit(&mut self, seq: u64) -> Result<(), Refusal> {
+        self.sweep_expired_sessions()?;
         let commit = self
             .runtime()
             .store()
@@ -1010,6 +1029,7 @@ impl State {
             self.seed = seed;
         }
         self.owner.generation = self.compiled.generation.hash.clone();
+        self.sweep_expired_sessions()?;
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — retained
         // channel handles must be re-admitted under the one active generation.
         self.readmit_all_channels();
@@ -1032,7 +1052,7 @@ impl State {
         let now = self.now();
         for persona in &seed.personas {
             self.runtime_mut()
-                .persona(persona, now)
+                .ensure_persona(persona, now)
                 .map_err(|error| Refusal::from_identity(&error))?;
         }
         let seq = self
@@ -1120,13 +1140,8 @@ impl State {
                 provenance: KeyProvenance::Const,
             }))],
         };
-        let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
-        let now = self.now();
-        context.now = Some(now);
-        context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        let authority = self.resolve_authority(identity)?;
+        let context = self.execution_context(&authority, BTreeMap::new());
         let execution = self
             .runtime_mut()
             .execute_adhoc(&program, context)
@@ -1139,14 +1154,13 @@ impl State {
     }
 
     fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let authority = self.resolve_authority(identity)?;
+        let context = self.execution_context(&authority, BTreeMap::new());
         let rows = self
             .runtime_mut()
             .read_rule_verdicts(&table_name, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        Ok(json!({ "table": table_name, "as": principal.id, "rows": rows }))
+        Ok(json!({ "table": table_name, "as": authority.principal.id, "rows": rows }))
     }
 
     fn now(&self) -> i64 {

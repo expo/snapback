@@ -7,30 +7,53 @@
 
 use crate::certificate::CheckError;
 use crate::ir::ArgType;
-use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema};
+use crate::schema::{ColumnType, Constraint, Effect, RuleExpr, RuleTerm, Schema};
 use crate::value::Value;
 use std::collections::BTreeMap;
 
 const CODE: &str = "E_RULE_INVALID";
 const REWRITE: &str =
     "declare authority axes as Principal and align rule terms with the referenced index columns";
+const EFFECT_REWRITE: &str =
+    "use OldField/NextField only in table update rules and Created only in table insert rules";
 
 // @ref LLP 1001#6-identity-identityrs — certification restores the nominal Principal boundary erased by v1's shared Id wire scalar.
 pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
     let mut errors = Vec::new();
     for (table_name, table) in &schema.tables {
         let subject = Subject::Table(&table.columns);
-        for (side, rule) in [
-            ("read", &table.rules.read),
-            ("insert", &table.rules.insert),
-            ("update", &table.rules.update),
-            ("delete", &table.rules.delete),
+        for (side, effect, rule) in [
+            ("read", Effect::Read, &table.rules.read),
+            ("insert", Effect::Insert, &table.rules.insert),
+            ("update", Effect::Update, &table.rules.update),
+            ("delete", Effect::Delete, &table.rules.delete),
         ] {
             check_rule(
                 schema,
                 subject,
+                RuleUse::Table(effect),
                 rule,
                 &format!("schema.tables.{table_name}.rules.{side}"),
+                &mut errors,
+            );
+        }
+        for (position, constraint) in table.constraints.iter().enumerate() {
+            let Constraint::FinalExistsOnInsert {
+                table: target,
+                index,
+                key,
+            } = constraint
+            else {
+                continue;
+            };
+            check_final_exists(
+                schema,
+                table_name,
+                subject,
+                target,
+                index,
+                key,
+                &format!("schema.tables.{table_name}.constraints[{position}].finalExistsOnInsert"),
                 &mut errors,
             );
         }
@@ -44,6 +67,7 @@ pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
             check_rule(
                 schema,
                 subject,
+                RuleUse::Other,
                 rule,
                 &format!("schema.channels.{channel_name}.{side}"),
                 &mut errors,
@@ -63,6 +87,7 @@ pub(crate) fn check(schema: &Schema) -> Vec<(String, CheckError)> {
         check_rule(
             schema,
             subject,
+            RuleUse::Other,
             rule,
             &format!("schema.maintains[{position}].readable"),
             &mut errors,
@@ -76,6 +101,22 @@ enum Subject<'a> {
     Table(&'a BTreeMap<String, ColumnType>),
     Channel(&'a BTreeMap<String, ArgType>),
     None,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RuleUse {
+    Table(Effect),
+    Other,
+}
+
+impl RuleUse {
+    fn is_update(self) -> bool {
+        self == Self::Table(Effect::Update)
+    }
+
+    fn admits_created(self) -> bool {
+        self == Self::Table(Effect::Insert)
+    }
 }
 
 impl Subject<'_> {
@@ -200,6 +241,7 @@ impl RuleType {
 fn check_rule(
     schema: &Schema,
     subject: Subject<'_>,
+    rule_use: RuleUse,
     rule: &RuleExpr,
     site: &str,
     errors: &mut Vec<(String, CheckError)>,
@@ -207,8 +249,8 @@ fn check_rule(
     match rule {
         RuleExpr::Public { .. } | RuleExpr::Allow | RuleExpr::Deny => {}
         RuleExpr::Eq(left, right) | RuleExpr::Ne(left, right) => {
-            let left_type = term_type(subject, left, &format!("{site}.left"), errors);
-            let right_type = term_type(subject, right, &format!("{site}.right"), errors);
+            let left_type = term_type(subject, rule_use, left, &format!("{site}.left"), errors);
+            let right_type = term_type(subject, rule_use, right, &format!("{site}.right"), errors);
             if let (Some(left_type), Some(right_type)) = (left_type, right_type)
                 && !compatible(&left_type, &right_type)
             {
@@ -227,6 +269,7 @@ fn check_rule(
                 check_rule(
                     schema,
                     subject,
+                    rule_use,
                     rule,
                     &format!("{site}.and[{position}]"),
                     errors,
@@ -238,39 +281,64 @@ fn check_rule(
                 check_rule(
                     schema,
                     subject,
+                    rule_use,
                     rule,
                     &format!("{site}.or[{position}]"),
                     errors,
                 );
             }
         }
-        RuleExpr::Not(rule) => check_rule(schema, subject, rule, &format!("{site}.not"), errors),
+        RuleExpr::Not(rule) => check_rule(
+            schema,
+            subject,
+            rule_use,
+            rule,
+            &format!("{site}.not"),
+            errors,
+        ),
         RuleExpr::Exists {
             table, index, key, ..
-        } => check_exists(schema, subject, table, index, key, site, errors),
+        } => check_exists(
+            schema, subject, rule_use, table, index, key, "exists", site, errors,
+        ),
+        RuleExpr::Created {
+            table, index, key, ..
+        } => {
+            if !rule_use.admits_created() {
+                errors.push(invalid_effect(
+                    site,
+                    "created-row probes are valid only in table insert rules".to_owned(),
+                ));
+            }
+            check_exists(
+                schema, subject, rule_use, table, index, key, "created", site, errors,
+            );
+        }
     }
 }
 
 fn check_exists(
     schema: &Schema,
     subject: Subject<'_>,
+    rule_use: RuleUse,
     table_name: &str,
     index_name: &str,
     key: &[RuleTerm],
+    probe: &str,
     site: &str,
     errors: &mut Vec<(String, CheckError)>,
 ) {
     let Some(table) = schema.table(table_name) else {
         errors.push(invalid(
             site,
-            format!("rule exists references unknown table {table_name}"),
+            format!("rule {probe} references unknown table {table_name}"),
         ));
         return;
     };
     let Some(index) = table.index(index_name) else {
         errors.push(invalid(
             site,
-            format!("rule exists references unknown index {table_name}.{index_name}"),
+            format!("rule {probe} references unknown index {table_name}.{index_name}"),
         ));
         return;
     };
@@ -278,20 +346,20 @@ fn check_exists(
         errors.push(invalid(
             site,
             format!(
-                "rule exists key for {table_name}.{index_name} has {} terms; expected {}",
+                "rule {probe} key for {table_name}.{index_name} has {} terms; expected {}",
                 key.len(),
                 index.columns.len()
             ),
         ));
     }
     for (position, (term, column_name)) in key.iter().zip(&index.columns).enumerate() {
-        let term_site = format!("{site}.exists.key[{position}]");
-        let actual = term_type(subject, term, &term_site, errors);
+        let term_site = format!("{site}.{probe}.key[{position}]");
+        let actual = term_type(subject, rule_use, term, &term_site, errors);
         let Some(expected) = table.columns.get(column_name).map(RuleType::from_column) else {
             errors.push(invalid(
                 &term_site,
                 format!(
-                    "rule exists index {table_name}.{index_name} references missing column {column_name}"
+                    "rule {probe} index {table_name}.{index_name} references missing column {column_name}"
                 ),
             ));
             continue;
@@ -302,13 +370,105 @@ fn check_exists(
             errors.push(invalid(
                 &term_site,
                 format!(
-                    "rule exists term for {table_name}.{index_name}.{column_name} is {}; expected {}",
+                    "rule {probe} term for {table_name}.{index_name}.{column_name} is {}; expected {}",
                     actual.label(),
                     expected.label()
                 ),
             ));
         }
     }
+}
+
+fn check_final_exists(
+    schema: &Schema,
+    source_table: &str,
+    subject: Subject<'_>,
+    target_table: &str,
+    index_name: &str,
+    key: &[RuleTerm],
+    site: &str,
+    errors: &mut Vec<(String, CheckError)>,
+) {
+    let Some(table) = schema.table(target_table) else {
+        errors.push(invalid(
+            site,
+            format!("final-exists constraint references unknown table {target_table}"),
+        ));
+        return;
+    };
+    let Some(index) = table.index(index_name) else {
+        errors.push(invalid(
+            site,
+            format!("final-exists constraint references unknown index {target_table}.{index_name}"),
+        ));
+        return;
+    };
+    if key.len() != index.columns.len() {
+        errors.push(invalid(
+            site,
+            format!(
+                "final-exists key for {target_table}.{index_name} has {} terms; expected {}",
+                key.len(),
+                index.columns.len()
+            ),
+        ));
+    }
+    for (position, (term, column_name)) in key.iter().zip(&index.columns).enumerate() {
+        let term_site = format!("{site}.key[{position}]");
+        let actual = term_type(subject, RuleUse::Other, term, &term_site, errors);
+        let Some(expected) = table.columns.get(column_name).map(RuleType::from_column) else {
+            errors.push(invalid(
+                &term_site,
+                format!(
+                    "final-exists index {target_table}.{index_name} references missing column {column_name}"
+                ),
+            ));
+            continue;
+        };
+        if let Some(actual) = actual
+            && !compatible_final_exists(
+                &actual,
+                &expected,
+                source_table,
+                target_table,
+                column_name,
+                term,
+            )
+        {
+            errors.push(invalid(
+                &term_site,
+                format!(
+                    "final-exists term for {target_table}.{index_name}.{column_name} is {}; expected {}",
+                    actual.label(),
+                    expected.label()
+                ),
+            ));
+        }
+    }
+}
+
+fn compatible_final_exists(
+    actual: &RuleType,
+    expected: &RuleType,
+    source_table: &str,
+    target_table: &str,
+    target_column: &str,
+    term: &RuleTerm,
+) -> bool {
+    if compatible_exists(actual, expected, target_table, target_column) {
+        return true;
+    }
+    let expected_ref = match expected {
+        RuleType::Ref(table) => Some(table.as_str()),
+        RuleType::Optional(inner) => match inner.as_ref() {
+            RuleType::Ref(table) => Some(table.as_str()),
+            _ => None,
+        },
+        _ => None,
+    };
+    matches!(term, RuleTerm::Field(field) if field == "id")
+        && actual == &RuleType::Id
+        && expected_ref == Some(source_table)
 }
 
 fn compatible_exists(
@@ -327,6 +487,7 @@ fn compatible_exists(
 
 fn term_type(
     subject: Subject<'_>,
+    rule_use: RuleUse,
     term: &RuleTerm,
     site: &str,
     errors: &mut Vec<(String, CheckError)>,
@@ -334,16 +495,41 @@ fn term_type(
     match term {
         RuleTerm::Viewer => Some(RuleType::Principal),
         RuleTerm::Literal(value) => Some(RuleType::from_literal(value)),
-        RuleTerm::Field(field) => match subject.field_type(field) {
-            Some(kind) => Some(kind),
-            None => {
-                errors.push(invalid(
+        RuleTerm::Field(field) => field_type(subject, field, site, errors),
+        RuleTerm::OldField(field) | RuleTerm::NextField(field) => {
+            if !rule_use.is_update() {
+                let image = if matches!(term, RuleTerm::OldField(_)) {
+                    "old"
+                } else {
+                    "next"
+                };
+                errors.push(invalid_effect(
                     site,
-                    format!("rule references unknown field {field} on its outer subject"),
+                    format!("{image}-row fields are valid only in table update rules"),
                 ));
                 None
+            } else {
+                field_type(subject, field, site, errors)
             }
-        },
+        }
+    }
+}
+
+fn field_type(
+    subject: Subject<'_>,
+    field: &str,
+    site: &str,
+    errors: &mut Vec<(String, CheckError)>,
+) -> Option<RuleType> {
+    match subject.field_type(field) {
+        Some(kind) => Some(kind),
+        None => {
+            errors.push(invalid(
+                site,
+                format!("rule references unknown field {field} on its outer subject"),
+            ));
+            None
+        }
     }
 }
 
@@ -402,6 +588,17 @@ fn invalid(site: &str, message: String) -> (String, CheckError) {
             code: CODE.to_owned(),
             message,
             rewrite: REWRITE.to_owned(),
+        },
+    )
+}
+
+fn invalid_effect(site: &str, message: String) -> (String, CheckError) {
+    (
+        site.to_owned(),
+        CheckError {
+            code: CODE.to_owned(),
+            message,
+            rewrite: EFFECT_REWRITE.to_owned(),
         },
     )
 }

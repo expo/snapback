@@ -112,6 +112,22 @@ fn handle(mut request: Request, context: Context) {
     let method = method_name(request.method());
     let raw_url = request.url().to_owned();
     let (path, query) = split_url(&raw_url);
+    // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — persona and bearer are mutually exclusive authority sources at the raw wire too.
+    if header(&request, "X-Snapback-As").is_some() && bearer(&request).is_some() {
+        respond_refusal(
+            request,
+            400,
+            Refusal::new(
+                "E_AUTH_AMBIGUOUS",
+                "auth",
+                "a request cannot carry both persona and bearer authority",
+                "send exactly one of X-Snapback-As or Authorization: Bearer <token>",
+                "auth/session",
+            ),
+            &context.mode,
+        );
+        return;
+    }
     if context.mode == "serve" && header(&request, "X-Snapback-As").is_some() {
         respond_refusal(
             request,

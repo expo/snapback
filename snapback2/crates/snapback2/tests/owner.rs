@@ -15,6 +15,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[cfg(not(feature = "hermes"))]
+mod owner_auth;
 mod owner_cases;
 mod owner_support;
 mod owner_wire;
@@ -357,7 +359,10 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         "POST",
         "/api/mutation",
         &[("X-Snapback-As", "bob")],
-        json!({ "op": "messages.leave", "args": { "membershipId": "membership-2" } }),
+        json!({ "op": "groups.memberLeave", "args": {
+            "conversationId": "conversation-1",
+            "membershipId": "membership-2",
+        } }),
     );
     assert_eq!(left.body["state"], "committed", "{}", left.body);
     let channel_refusal = typing.event();
@@ -408,15 +413,10 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     let removed_start = schema.find("export const messageCounts").unwrap();
     let removed_end = schema.find("export const notifications").unwrap();
     schema.replace_range(removed_start..removed_end, "");
-    let schema = schema
-        .replace(
-            "tables: { profiles, conversations, memberships, messages, messageCounts, notifications },",
-            "tables: { profiles, conversations, memberships, messages, notifications },",
-        )
-        .replace(
-            "maintains: [{ count: \"messages\", by: [\"conversationId\"], into: \"messageCounts\" }],",
-            "maintains: [],",
-        );
+    let schema = schema.replace("messageCounts, ", "").replace(
+        "maintains: [{ count: \"messages\", by: [\"conversationId\"], into: \"messageCounts\" }],",
+        "maintains: [],",
+    );
     fs::write(&schema_path, schema).unwrap();
     let refused = wait_for(Duration::from_secs(6), || {
         let value = status(port, &secret);
@@ -733,6 +733,49 @@ fn reset_seed_refusal_is_atomic_and_keeps_the_owner_running() {
         "/control/stop",
         &[("X-Snapback-Control", &secret)],
         json!({ "cause": "atomic reset test" }),
+    );
+    assert_eq!(stopped.status, 200, "{}", stopped.body);
+    owner.wait();
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn dev_refuses_ambiguous_persona_and_bearer_before_dispatch() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let binary = env!("CARGO_BIN_EXE_snapback2");
+    let compiler = compiler();
+    let mut owner = ChildGuard::spawn(binary, &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+
+    let response = request(
+        port,
+        "GET",
+        "/",
+        &[
+            ("X-Snapback-As", "alice"),
+            ("Authorization", "Bearer session-token"),
+        ],
+        json!({}),
+    );
+    assert_eq!(response.status, 400, "{}", response.body);
+    assert_eq!(response.body["code"], "E_AUTH_AMBIGUOUS");
+
+    let stopped = request(
+        port,
+        "POST",
+        "/control/stop",
+        &[("X-Snapback-Control", secret)],
+        json!({ "cause": "ambiguous authority test" }),
     );
     assert_eq!(stopped.status, 200, "{}", stopped.body);
     owner.wait();

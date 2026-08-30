@@ -1,5 +1,6 @@
+use super::test_sse::SseProbe;
 use super::*;
-use snapback2_core::{Ceilings, Checker, Engine, RuntimeError};
+use snapback2_core::{Ceilings, Checker, Engine, RuntimeError, Value};
 use std::io::Write;
 use std::net::{TcpListener, TcpStream};
 

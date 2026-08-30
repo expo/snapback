@@ -1,5 +1,5 @@
 use super::*;
-use snapback2_core::{Ceilings, Checker, Engine, RuntimeError};
+use snapback2_core::{Ceilings, Checker, Engine, RuntimeError, Value};
 
 #[test]
 fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {

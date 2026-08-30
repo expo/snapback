@@ -48,12 +48,15 @@ declare module "snapback2" {
   export type Page<T> = Array<T> & { hasMore: boolean };
   export type WriteValue<T> = T extends Principal ? Principal : T extends Decimal<any> ? number : T extends string ? string : T extends Array<infer U> ? WriteValue<U>[] : T;
   export type WriteRow<R extends Record<string, any>> = { [K in keyof R]: WriteValue<R[K]> };
+  // @ref LLP 1001#1-store-storers — an update patch cannot rewrite the implicit storage identity.
+  export type WritePatch<R extends Record<string, any>> =
+    { [K in Exclude<keyof R, "id">]?: WriteValue<R[K]> } & { readonly id?: never };
   export type Db = {
     get<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, key: unknown): R | null;
     exists(target: Table<any> | TableIndex<any>, key: unknown): boolean;
     scan<R extends Record<string, any>>(target: Table<R> | TableIndex<R>, prefix: unknown, options?: Record<string, any>): Page<R>;
     insert<R extends Record<string, any>>(target: Table<R>, row: WriteRow<R>): R;
-    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: Partial<WriteRow<R>> | ((row: R) => Partial<WriteRow<R>>)): void;
+    update<R extends Record<string, any>>(target: Table<R>, key: unknown, patch: WritePatch<R> | ((row: R) => WritePatch<R>)): void;
     upsert<R extends Record<string, any>>(target: Table<R>, key: unknown, row: WriteRow<R> | ((row: R | null) => WriteRow<R>)): void;
     delete(target: Table<any>, key: unknown): void;
     require(condition: unknown, code?: string): void;
@@ -100,9 +103,12 @@ declare module "snapback2" {
     or(...rules: Rule[]): Rule;
     not(value: Rule): Rule;
     exists(table: Table<any>, index: string, key: RuleTerm[]): Rule;
+    created(table: Table<any>, index: string, key: RuleTerm[]): Rule;
     system(): Rule;
     viewerIs(field: string): Rule;
     field(name: string): RuleTerm;
+    oldField(name: string): RuleTerm;
+    nextField(name: string): RuleTerm;
     readonly viewer: RuleTerm;
     literal(value: Json): RuleTerm;
   };

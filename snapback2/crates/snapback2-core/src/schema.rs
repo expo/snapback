@@ -90,6 +90,9 @@ fn prove_probe_row_readable(
             .position(|column| column == field)
             .and_then(|position| probe_key.get(position))
             .cloned(),
+        // Relational update terms are never valid in read rules. Keep this
+        // proof fail-closed if an uncertified schema reaches it anyway.
+        RuleTerm::OldField(_) | RuleTerm::NextField(_) => None,
         other => Some(other.clone()),
     };
     match rule {
@@ -116,7 +119,11 @@ fn prove_probe_row_readable(
             .map(substitute)
             .collect::<Option<Vec<_>>>()
             .is_some_and(|key| key == probe_key),
-        RuleExpr::Deny | RuleExpr::Ne(_, _) | RuleExpr::Not(_) | RuleExpr::Exists { .. } => false,
+        RuleExpr::Deny
+        | RuleExpr::Ne(_, _)
+        | RuleExpr::Not(_)
+        | RuleExpr::Exists { .. }
+        | RuleExpr::Created { .. } => false,
     }
 }
 
@@ -215,6 +222,15 @@ pub enum RuleExpr {
         key: Vec<RuleTerm>,
         provenance: KeyProvenance,
     },
+    // @ref LLP 1001#9-schema-additions — creation provenance is insert-rule-only and transaction-local.
+    /// One indexed point probe that is true only when the resolved target row
+    /// was inserted earlier in this same transaction.
+    Created {
+        table: String,
+        index: String,
+        key: Vec<RuleTerm>,
+        provenance: KeyProvenance,
+    },
 }
 
 impl RuleExpr {
@@ -234,15 +250,27 @@ impl RuleExpr {
         match self {
             Self::Eq(a, b) | Self::Ne(a, b) => {
                 for term in [a, b] {
-                    if let RuleTerm::Field(name) = term {
-                        out.insert(name.clone());
+                    match term {
+                        RuleTerm::Field(name) => {
+                            out.insert(name.clone());
+                        }
+                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
+                            out.insert(format!("\0invalid-update-field:{name}"));
+                        }
+                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
                     }
                 }
             }
-            Self::Exists { key, .. } => {
+            Self::Exists { key, .. } | Self::Created { key, .. } => {
                 for term in key {
-                    if let RuleTerm::Field(name) = term {
-                        out.insert(name.clone());
+                    match term {
+                        RuleTerm::Field(name) => {
+                            out.insert(name.clone());
+                        }
+                        RuleTerm::OldField(name) | RuleTerm::NextField(name) => {
+                            out.insert(format!("\0invalid-update-field:{name}"));
+                        }
+                        RuleTerm::Viewer | RuleTerm::Literal(_) => {}
                     }
                 }
             }
@@ -260,16 +288,47 @@ impl RuleExpr {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RuleTerm {
     Field(String),
+    OldField(String),
+    NextField(String),
     Viewer,
     Literal(Value),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Constraint {
-    Unique { index: String },
-    Cap { by: Vec<String>, max: u32 },
+    Unique {
+        index: String,
+    },
+    Cap {
+        by: Vec<String>,
+        max: u32,
+    },
     AppendOnly,
-    Immutable { fields: Vec<String> },
+    Immutable {
+        fields: Vec<String>,
+    },
+    Text {
+        field: String,
+        #[serde(default)]
+        min: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        format: Option<TextFormat>,
+    },
+    // @ref LLP 1001#9-schema-additions — the creator-seat postcondition applies only to source inserts.
+    /// For each row inserted into this table, require the indexed target point
+    /// to exist after every statement has completed and before commit.
+    FinalExistsOnInsert {
+        table: String,
+        index: String,
+        key: Vec<RuleTerm>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TextFormat {
+    Handle,
+    Url,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

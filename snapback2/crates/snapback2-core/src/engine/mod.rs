@@ -52,7 +52,7 @@ impl Context {
         Self {
             viewer: PrincipalId::system(),
             principal_kind: "system".to_owned(),
-            auth_epoch: 1,
+            auth_epoch: 0,
             args: BTreeMap::new(),
             now: Some(0),
             new_ids: VecDeque::new(),
@@ -243,6 +243,8 @@ pub enum RuntimeError {
     Input(String),
     #[error("E_STORE_OWNED: {holder}")]
     StoreOwned { holder: String },
+    #[error("E_STORE_VERSION: {detail}; reset the development store")]
+    StoreVersion { detail: String },
     #[error("E_TRACE_SUBSET: {0}")]
     TraceSubset(String),
     #[error("E_OP_UNKNOWN: {0}")]
@@ -275,6 +277,7 @@ impl RuntimeError {
             Self::Steps(_) => "E_STEPS",
             Self::Input(_) => "E_INPUT",
             Self::StoreOwned { .. } => "E_STORE_OWNED",
+            Self::StoreVersion { .. } => "E_STORE_VERSION",
             Self::TraceSubset(_) => "E_TRACE_SUBSET",
             Self::OpUnknown(_) => "E_OP_UNKNOWN",
             Self::MigrationPlan(_) => "E_MIGRATION_PLAN",
@@ -496,6 +499,12 @@ impl Engine {
         let mut attempted = runner.statements(&program.body);
         if attempted.is_ok()
             && program.kind == ProgramKind::Mutation
+            && let Err(error) = runner.check_final_constraints()
+        {
+            attempted = Err(error);
+        }
+        if attempted.is_ok()
+            && program.kind == ProgramKind::Mutation
             && let Err(error) = runner.assert_bounds()
         {
             attempted = Err(error);
@@ -626,6 +635,7 @@ impl Engine {
             seq,
         );
         let flow = runner.statements(&program.body)?;
+        runner.check_final_constraints()?;
         let result = match flow {
             Flow::Return(value) => value,
             _ => Value::Null,
@@ -666,7 +676,7 @@ impl Engine {
         let seq = self.store.commit_seq()?;
         let transaction = self.store.conn.transaction()?;
         let mut runner = Runner::probe(&transaction, &self.schema, context, &self.verdicts, seq);
-        let result = runner.eval_rule(rule, &rule.hash(), row)?;
+        let result = runner.eval_rule(rule, &rule.hash(), None, row, false)?;
         let trace = runner.trace;
         transaction.commit()?;
         Ok((result, trace))
@@ -683,6 +693,7 @@ pub(crate) fn write_aggregate_backfill<'a>(
     for row in rows {
         runner.write_aggregate_row(target, row)?;
     }
+    runner.check_final_constraints()?;
     Ok(())
 }
 

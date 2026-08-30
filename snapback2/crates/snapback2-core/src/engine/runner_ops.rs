@@ -14,7 +14,7 @@ use thiserror::Error;
 impl<'a> Runner<'a> {
     pub(super) fn insert(&mut self, table: &str, row: Value) -> Result<(), RuntimeError> {
         validate_row(self.schema.table(table), table, &row)?;
-        if !self.check_rule(table, Effect::Insert, &row)? {
+        if !self.check_rule(table, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule {
                 table: table.to_owned(),
                 effect: Effect::Insert,
@@ -27,6 +27,9 @@ impl<'a> Runner<'a> {
             params![table, id, canonical_json(&row)],
         )?;
         reindex_row(self.tx, self.schema, table, &row)?;
+        self.remember_created_row(table, &row)?;
+        self.inserted_rows.push((table.to_owned(), row.clone()));
+        self.rule_memo.clear();
         self.touch_row(table, &row)?;
         self.bump_write(table);
         self.maintain(table, None, Some(&row))?;
@@ -52,6 +55,21 @@ impl<'a> Runner<'a> {
         self.replace(table, key, Value::Row(new))
     }
 
+    pub(super) fn upsert(
+        &mut self,
+        table: &str,
+        key: &Value,
+        row: Value,
+    ) -> Result<(), RuntimeError> {
+        validate_row(self.schema.table(table), table, &row)?;
+        validate_addressed_row_id(table, key, &row)?;
+        if self.fetch_id(table, key.as_str()?)?.is_some() {
+            self.replace(table, key, row)
+        } else {
+            self.insert(table, row)
+        }
+    }
+
     pub(super) fn replace(
         &mut self,
         table: &str,
@@ -62,9 +80,9 @@ impl<'a> Runner<'a> {
             .fetch_id(table, key.as_str()?)?
             .ok_or_else(|| RuntimeError::Input(format!("missing {table} row")))?;
         validate_row(self.schema.table(table), table, &new)?;
-        if !self.check_rule(table, Effect::Update, &old)?
-            || !self.check_rule(table, Effect::Update, &new)?
-        {
+        validate_addressed_row_id(table, key, &new)?;
+        // @ref LLP 1001#9-schema-additions — update policy is one relation over both row images.
+        if !self.check_rule(table, Effect::Update, Some(&old), &new)? {
             return Err(RuntimeError::Rule {
                 table: table.to_owned(),
                 effect: Effect::Update,
@@ -77,6 +95,8 @@ impl<'a> Runner<'a> {
             params![table, key.as_str()?, canonical_json(&new)],
         )?;
         reindex_row(self.tx, self.schema, table, &new)?;
+        self.refresh_created_points(table, &new)?;
+        self.rule_memo.clear();
         self.touch_row(table, &new)?;
         self.bump_write(table);
         self.maintain(table, Some(&old), Some(&new))?;
@@ -87,7 +107,7 @@ impl<'a> Runner<'a> {
         let Some(old) = self.fetch_id(table, id)? else {
             return Ok(());
         };
-        if !self.check_rule(table, Effect::Delete, &old)? {
+        if !self.check_rule(table, Effect::Delete, None, &old)? {
             return Err(RuntimeError::Rule {
                 table: table.to_owned(),
                 effect: Effect::Delete,
@@ -100,6 +120,8 @@ impl<'a> Runner<'a> {
             params![table, id],
         )?;
         delete_index_row(self.tx, table, id)?;
+        self.forget_created_points(table, id);
+        self.rule_memo.clear();
         self.bump_write(table);
         self.maintain(table, Some(&old), None)?;
         Ok(())
@@ -204,6 +226,14 @@ impl<'a> Runner<'a> {
             .fetch_id(target, &id)?
             .expect("aggregate row was just upserted");
         reindex_row(self.tx, self.schema, target, &aggregate)?;
+        if effect == Effect::Insert {
+            self.remember_created_row(target, &aggregate)?;
+            self.inserted_rows
+                .push((target.to_owned(), aggregate.clone()));
+        } else {
+            self.refresh_created_points(target, &aggregate)?;
+        }
+        self.rule_memo.clear();
         self.touch_row(target, &aggregate)?;
         self.bump_write(target);
         Ok(())
@@ -257,6 +287,40 @@ impl<'a> Runner<'a> {
             });
         }
         Ok(())
+    }
+
+    fn remember_created_row(&mut self, table: &str, row: &Value) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        self.created_rows.insert((table.to_owned(), id));
+        self.refresh_created_points(table, row)
+    }
+
+    fn refresh_created_points(&mut self, table: &str, row: &Value) -> Result<(), RuntimeError> {
+        let id = row.field("id")?.as_str()?.to_owned();
+        if !self.created_rows.contains(&(table.to_owned(), id.clone())) {
+            return Ok(());
+        }
+        self.forget_created_points(table, &id);
+        let indexes = self
+            .schema
+            .table(table)
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?
+            .indexes
+            .clone();
+        for (index, definition) in indexes {
+            self.created_points.insert((
+                table.to_owned(),
+                index,
+                canonical_json(&index_values(row, &definition)),
+                id.clone(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn forget_created_points(&mut self, table: &str, id: &str) {
+        self.created_points
+            .retain(|(row_table, _, _, row_id)| row_table != table || row_id != id);
     }
 
     pub(super) fn check_constraints(
@@ -329,12 +393,106 @@ impl<'a> Runner<'a> {
                         )));
                     }
                 }
+                Constraint::Text { field, min, format }
+                    if matches!(effect, Effect::Insert | Effect::Update) =>
+                {
+                    let value = new.as_object()?.get(field);
+                    if let Some(value) = value.filter(|value| !matches!(value, Value::Null)) {
+                        let text = value.as_str()?;
+                        if text.chars().count() < *min as usize {
+                            return Err(RuntimeError::Constraint(format!(
+                                "{table_name}.{field} must contain at least {min} characters"
+                            )));
+                        }
+                        let valid = match format {
+                            None => true,
+                            Some(TextFormat::Handle) => text.bytes().all(|byte| {
+                                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
+                            }),
+                            Some(TextFormat::Url) => {
+                                let rest = text
+                                    .strip_prefix("https://")
+                                    .or_else(|| text.strip_prefix("http://"));
+                                rest.is_some_and(|rest| {
+                                    !rest.is_empty()
+                                        && rest.chars().all(|character| {
+                                            !character.is_whitespace() && !character.is_control()
+                                        })
+                                })
+                            }
+                        };
+                        if !valid {
+                            let expected = match format {
+                                Some(TextFormat::Handle) => {
+                                    "lowercase a-z, digits, and underscore only"
+                                }
+                                Some(TextFormat::Url) => {
+                                    "one absolute http:// or https:// URL without whitespace"
+                                }
+                                None => unreachable!(),
+                            };
+                            return Err(RuntimeError::Constraint(format!(
+                                "{table_name}.{field} must use {expected}"
+                            )));
+                        }
+                    }
+                }
                 _ => {}
             }
         }
         for (name, index) in &table.indexes {
             if index.unique {
                 self.check_unique(table_name, &table, name, old, new)?;
+            }
+        }
+        Ok(())
+    }
+
+    // @ref LLP 1001#9-schema-additions — creator-seat existence is checked after all writes but before commit.
+    /// Enforce insert-scoped relational constraints against the transaction's
+    /// final state. The queued source image is the successful insert image;
+    /// later updates or deletes do not turn this into a general invariant.
+    pub(super) fn check_final_constraints(&mut self) -> Result<(), RuntimeError> {
+        let inserted_rows = self.inserted_rows.clone();
+        for (source_table, source_row) in inserted_rows {
+            let constraints = self
+                .schema
+                .table(&source_table)
+                .ok_or_else(|| RuntimeError::Schema(format!("missing table {source_table}")))?
+                .constraints
+                .clone();
+            for constraint in constraints {
+                let Constraint::FinalExistsOnInsert {
+                    table,
+                    index,
+                    key: terms,
+                } = constraint
+                else {
+                    continue;
+                };
+                let key = terms
+                    .iter()
+                    .map(|term| self.rule_term(term, None, &source_row))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let found = self.lookup_raw(&table, &index, &key)?;
+                self.trace.rule_probes += 1;
+                self.trace.constraint_inputs.push(ConstraintTrace {
+                    table: table.clone(),
+                    check: format!(
+                        "FinalExistsOnInsert({source_table}->{table}.{index},{terms:?})"
+                    ),
+                    examined_ids: found
+                        .as_ref()
+                        .and_then(|row| row.field("id").ok())
+                        .and_then(|id| id.as_str().ok())
+                        .map(|id| vec![id.to_owned()])
+                        .unwrap_or_default(),
+                });
+                if found.is_none() {
+                    return Err(RuntimeError::Constraint(format!(
+                        "{source_table} insert requires final row at {table}.{index} {key:?}"
+                    )));
+                }
             }
         }
         Ok(())
@@ -388,7 +546,8 @@ impl<'a> Runner<'a> {
         &mut self,
         table: &str,
         effect: Effect,
-        row: &Value,
+        old: Option<&Value>,
+        next: &Value,
     ) -> Result<bool, RuntimeError> {
         // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — seed rows
         // are engine-owned; user rules do not bind them, while write validation below does.
@@ -400,30 +559,42 @@ impl<'a> Runner<'a> {
             .table(table)
             .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let rule = table.rules.for_effect(effect).clone();
-        let mut row = row.clone();
-        materialize_optional_fields(&mut row, table);
+        let mut next = next.clone();
+        materialize_optional_fields(&mut next, table);
+        let mut old = old.cloned();
+        if let Some(old) = &mut old {
+            materialize_optional_fields(old, table);
+        }
         let rule_hash = rule.hash();
-        self.eval_rule(&rule, &rule_hash, &row)
+        self.eval_rule(
+            &rule,
+            &rule_hash,
+            old.as_ref(),
+            &next,
+            effect == Effect::Insert,
+        )
     }
 
     pub(super) fn eval_rule(
         &mut self,
         rule: &RuleExpr,
         rule_hash: &str,
-        row: &Value,
+        old: Option<&Value>,
+        next: &Value,
+        created_allowed: bool,
     ) -> Result<bool, RuntimeError> {
         match rule {
             RuleExpr::Public { .. } | RuleExpr::Allow => Ok(true),
             RuleExpr::Deny => Ok(false),
             RuleExpr::Eq(left, right) => {
-                Ok(self.rule_term(left, row)? == self.rule_term(right, row)?)
+                Ok(self.rule_term(left, old, next)? == self.rule_term(right, old, next)?)
             }
             RuleExpr::Ne(left, right) => {
-                Ok(self.rule_term(left, row)? != self.rule_term(right, row)?)
+                Ok(self.rule_term(left, old, next)? != self.rule_term(right, old, next)?)
             }
             RuleExpr::And(rules) => {
                 for rule in rules {
-                    if !self.eval_rule(rule, rule_hash, row)? {
+                    if !self.eval_rule(rule, rule_hash, old, next, created_allowed)? {
                         return Ok(false);
                     }
                 }
@@ -431,13 +602,15 @@ impl<'a> Runner<'a> {
             }
             RuleExpr::Or(rules) => {
                 for rule in rules {
-                    if self.eval_rule(rule, rule_hash, row)? {
+                    if self.eval_rule(rule, rule_hash, old, next, created_allowed)? {
                         return Ok(true);
                     }
                 }
                 Ok(false)
             }
-            RuleExpr::Not(rule) => Ok(!self.eval_rule(rule, rule_hash, row)?),
+            RuleExpr::Not(rule) => {
+                Ok(!self.eval_rule(rule, rule_hash, old, next, created_allowed)?)
+            }
             RuleExpr::Exists {
                 table, index, key, ..
             } => {
@@ -448,7 +621,7 @@ impl<'a> Runner<'a> {
                 let hidden = !self.schema.rule_input_is_readable(table, index, key);
                 let key = key
                     .iter()
-                    .map(|term| self.rule_term(term, row))
+                    .map(|term| self.rule_term(term, old, next))
                     .collect::<Result<Vec<_>, _>>()?;
                 let pinned_inputs_digest = digest(&(table, index, &key));
                 let memo_key = format!("{rule_hash}:{pinned_inputs_digest}");
@@ -497,12 +670,68 @@ impl<'a> Runner<'a> {
                 self.rule_memo.insert(memo_key, result);
                 Ok(result)
             }
+            RuleExpr::Created {
+                table, index, key, ..
+            } => {
+                if !created_allowed {
+                    return Err(RuntimeError::Schema(
+                        "created-row probe evaluated outside a table insert rule".to_owned(),
+                    ));
+                }
+                let key = key
+                    .iter()
+                    .map(|term| self.rule_term(term, old, next))
+                    .collect::<Result<Vec<_>, _>>()?;
+                let pinned_inputs_digest = digest(&("created", table, index, &key));
+                let encoded_key = canonical_json(&key);
+                let result = self.created_points.iter().any(
+                    |(created_table, created_index, created_key, _)| {
+                        created_table == table
+                            && created_index == index
+                            && created_key == &encoded_key
+                    },
+                );
+                self.trace.rule_probes += 1;
+                self.trace.rule_inputs.push(RuleInputTrace {
+                    rule_hash: rule_hash.to_owned(),
+                    table: table.clone(),
+                    index: index.clone(),
+                    key,
+                    result,
+                    // A transaction-local provenance fact can never become a
+                    // reusable row, absence, or authority receipt.
+                    hidden: true,
+                    pinned_inputs_digest,
+                });
+                Ok(result)
+            }
         }
     }
 
-    pub(super) fn rule_term(&self, term: &RuleTerm, row: &Value) -> Result<Value, RuntimeError> {
+    pub(super) fn rule_term(
+        &self,
+        term: &RuleTerm,
+        old: Option<&Value>,
+        next: &Value,
+    ) -> Result<Value, RuntimeError> {
         match term {
-            RuleTerm::Field(name) => Ok(row.field(name)?.clone()),
+            RuleTerm::Field(name) => Ok(next.field(name)?.clone()),
+            RuleTerm::NextField(name) => old
+                .ok_or_else(|| {
+                    RuntimeError::Schema(
+                        "next-row rule term evaluated outside an update rule".to_owned(),
+                    )
+                })
+                .and_then(|_| next.field(name).cloned().map_err(Into::into)),
+            RuleTerm::OldField(name) => old
+                .ok_or_else(|| {
+                    RuntimeError::Schema(
+                        "old-row rule term evaluated outside an update rule".to_owned(),
+                    )
+                })?
+                .field(name)
+                .cloned()
+                .map_err(Into::into),
             RuleTerm::Viewer => Ok(Value::Id(self.context.viewer.to_string())),
             RuleTerm::Literal(value) => Ok(value.clone()),
         }
@@ -753,6 +982,19 @@ impl<'a> Runner<'a> {
         }
         Ok(())
     }
+}
+
+// @ref LLP 1001#1-store-storers — serialized row identity may never diverge from its storage address.
+// @ref LLP 1001#9-schema-additions — implicit row identity cannot change through an addressed write.
+fn validate_addressed_row_id(table: &str, key: &Value, row: &Value) -> Result<(), RuntimeError> {
+    let key = key.as_str()?;
+    let row_id = row.field("id")?.as_str()?;
+    if row_id != key {
+        return Err(RuntimeError::Input(format!(
+            "{table} row id {row_id:?} does not match addressed key {key:?}"
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

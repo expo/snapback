@@ -1,6 +1,6 @@
 # snapback2: align the rule surface with scoped-authority research
 
-**Status:** Open — implementation in progress; named proof closure incomplete
+**Status:** Resolved — implementation and named proof closure verified
 **Systems:** snapback2, schema, certificate, test
 **Severity:** P2
 **Author:** Claude Fable 5, directed by Charlie Cheever
@@ -72,10 +72,10 @@ scoped-authority program.
 - [x] Principal is nominal across schema, program args, generated/client
   types, rule checking, raw project certification, and the canonical fixtures;
   type-negative tests reject string/row-ref values and pseudo-memberships.
-- [ ] All three named served-loop authority proofs pass, and the structural
-  visibility/Capped edge cases below have direct parity coverage. The served
-  `live-revocation` and `successor-policy-fence` checks now pass; the durable
-  `grant-incarnation-aba` carrier remains.
+- [x] All three named served-loop authority proofs pass, and the structural
+  visibility/Capped edge cases below have direct parity coverage. The
+  canonical receipt records `live-revocation`, `successor-policy-fence`, and
+  `grant-incarnation-aba` as passing.
 
 ## Remaining before resolution
 
@@ -91,22 +91,31 @@ scoped-authority program.
   core `complete_to_denied_with_the_same_result_is_a_changed_delivery` test is
   useful engine evidence but does not satisfy LLP 1002's loop-level proof by
   itself. The canonical chat receipt now opens Bob's thread, commits the named
-  `messages.leave` mutation, and observes `Complete -> Denied` at the exact
+  `groups.memberLeave` mutation, and observes `Complete -> Denied` at the exact
   mutation sequence with no delivered rows.
 - [x] Core coverage retains a named handle across an applied successor,
   resolves it under the active denying policy, and rejects the captured
   predecessor certificate. The served-loop `successor-policy-fence` check now
   also retains a G subscription across control-plane application of G+1 and
   proves both that handle and a fresh request resolve under G+1's deny policy.
-- Supply the immutable grant identity/incarnation or expected-version carrier
-  needed by `grant-incarnation-aba`, then prove remove/recreate cannot retarget
-  the captured operation. No such persistent grant-intent carrier is visible
-  in the current working tree, so this item cannot yet be checked honestly.
+- [x] The intrinsic immutable membership row id is the grant incarnation.
+  `grant-incarnation-aba` captures the old id, removes it, recreates the same
+  `(scope, principal)` relation under a fresh id, and proves replay of the
+  captured promote/remove intent cannot affect the successor row. Core raw-IR
+  tests also reject addressed update/upsert attempts whose resulting `id`
+  differs from the addressed key, before storage or index mutation.
 - [x] The corpus is regenerated without legacy `input_visibility`; all 76
   filenames/case names and expected semantic results remain, and the Rust
   engine/evaluator twin passes all 76.
 
-Keep this issue open until every checkbox and remaining item is satisfied.
-When that happens, record the exact tests and move it to `issues/closed/` per
-repository policy; do not close it merely because the three surface changes
-compile.
+## Resolution
+
+Resolved on 2026-08-30 after the exact canonical command
+`cargo test -p snapback2 --test test_verb chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys -- --nocapture`
+passed all named authority checks. Its invalidation qualification recorded 50
+probes, 70 persona-seed attempts, 13 concrete overlaps, 12 exact deliveries,
+37 disjoint silences, five explicit system-only effect exclusions, 75
+auditable outcomes, and zero blocked pairs. `cargo test -p snapback2`,
+`cargo test -p snapback2-core`, the 54-check compiler suite, the 59-case
+package suite (58 passed, one intentional skip), and `./ref-check --verbose`
+also passed on the integrated tree.

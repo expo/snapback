@@ -159,7 +159,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     let now = unix_millis();
     for persona in &seed.personas {
         runtime
-            .persona(persona, now)
+            .ensure_persona(persona, now)
             .map_err(|error| Refusal::from_identity(&error))?;
     }
     if runtime

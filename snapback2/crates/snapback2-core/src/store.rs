@@ -15,7 +15,14 @@ use std::os::raw::{c_char, c_int};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-const STORE_VERSION: &str = "1";
+const STORE_VERSION: &str = "2";
+
+#[derive(Debug, PartialEq, Eq)]
+enum ExistingStoreFormat {
+    Fresh,
+    Canonical,
+    Incompatible(String),
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -78,12 +85,14 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
         let connection = Connection::open(path)?;
         let owner = owner_stamp();
-        let acquired = (|| -> rusqlite::Result<()> {
+        let acquired = (|| -> Result<(), RuntimeError> {
             connection.busy_timeout(Duration::from_millis(500))?;
+            reject_incompatible_store(inspect_store_format(&connection)?)?;
             connection.pragma_update(None, "foreign_keys", "OFF")?;
             connection.pragma_update(None, "journal_mode", "WAL")?;
             connection.pragma_update(None, "locking_mode", "EXCLUSIVE")?;
             connection.execute_batch("BEGIN IMMEDIATE")?;
+            reject_incompatible_store(inspect_store_format(&connection)?)?;
             Self::initialize_schema(&connection)?;
             connection.execute(
                 "INSERT INTO _meta(key, value) VALUES ('owner', ?1)
@@ -99,10 +108,15 @@ impl Store {
         })();
         match acquired {
             Ok(()) => Ok(Self { conn: connection }),
-            Err(error) if sqlite_is_locked(&error) => Err(RuntimeError::StoreOwned {
-                holder: persisted_owner(path).unwrap_or_else(|| "unknown".to_owned()),
-            }),
-            Err(error) => Err(error.into()),
+            Err(error) => {
+                if matches!(&error, RuntimeError::Sql(sqlite) if sqlite_is_locked(sqlite)) {
+                    Err(RuntimeError::StoreOwned {
+                        holder: persisted_owner(path).unwrap_or_else(|| "unknown".to_owned()),
+                    })
+                } else {
+                    Err(error)
+                }
+            }
         }
     }
 
@@ -176,11 +190,19 @@ impl Store {
                 hash TEXT NOT NULL
              );
              CREATE TABLE IF NOT EXISTS _sessions (
-                token TEXT PRIMARY KEY,
+                auth_epoch INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_digest BLOB NOT NULL UNIQUE
+                    CHECK(typeof(token_digest) = 'blob' AND length(token_digest) = 32),
                 principal TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS _auth_throttle (
+                bucket_digest BLOB PRIMARY KEY NOT NULL
+                    CHECK(typeof(bucket_digest) = 'blob' AND length(bucket_digest) = 32),
+                window_start INTEGER NOT NULL,
+                attempts INTEGER NOT NULL
              );",
         )?;
         ensure_column(connection, "_outbox", "then_op", "TEXT")?;
@@ -624,6 +646,186 @@ fn outbox_get_connection(
         .optional()?
         .map(decode_outbox_row)
         .transpose()
+}
+
+fn reject_incompatible_store(format: ExistingStoreFormat) -> Result<(), RuntimeError> {
+    match format {
+        ExistingStoreFormat::Fresh | ExistingStoreFormat::Canonical => Ok(()),
+        ExistingStoreFormat::Incompatible(detail) => Err(RuntimeError::StoreVersion { detail }),
+    }
+}
+
+fn inspect_store_format(connection: &Connection) -> rusqlite::Result<ExistingStoreFormat> {
+    // @ref LLP 1001#6-identity-identityrs — the plaintext-token format is
+    // deliberately not migrated; refusal occurs before publishing an owner.
+    let table_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM sqlite_master
+         WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        [],
+        |row| row.get(0),
+    )?;
+    if table_count == 0 {
+        return Ok(ExistingStoreFormat::Fresh);
+    }
+    if !table_exists(connection, "_sessions")? {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "existing store has no canonical _sessions table".to_owned(),
+        ));
+    }
+
+    let expected_sessions = [
+        ("auth_epoch", "INTEGER", false, 1),
+        ("token_digest", "BLOB", true, 0),
+        ("principal", "TEXT", true, 0),
+        ("kind", "TEXT", true, 0),
+        ("created_at", "INTEGER", true, 0),
+        ("expires_at", "INTEGER", true, 0),
+    ];
+    if !columns_match(connection, "_sessions", &expected_sessions)? {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "_sessions is plaintext, legacy, or has an unknown shape".to_owned(),
+        ));
+    }
+    let sessions_sql = table_sql(connection, "_sessions")?
+        .unwrap_or_default()
+        .chars()
+        .filter(|character| !character.is_ascii_whitespace())
+        .collect::<String>()
+        .to_ascii_uppercase();
+    if !sessions_sql.contains("AUTOINCREMENT")
+        || !sessions_sql.contains("TYPEOF(TOKEN_DIGEST)='BLOB'")
+        || !sessions_sql.contains("LENGTH(TOKEN_DIGEST)=32")
+        || !has_unique_single_column_index(connection, "_sessions", "token_digest")?
+    {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "_sessions lacks the canonical epoch or digest constraints".to_owned(),
+        ));
+    }
+
+    let expected_meta = [("key", "TEXT", false, 1), ("value", "TEXT", true, 0)];
+    if !columns_match(connection, "_meta", &expected_meta)? {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "existing store has no canonical version metadata".to_owned(),
+        ));
+    }
+    let version = connection
+        .query_row(
+            "SELECT value FROM _meta WHERE key = 'store_version'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    if version.as_deref() != Some(STORE_VERSION) {
+        return Ok(ExistingStoreFormat::Incompatible(format!(
+            "store version {} is not {STORE_VERSION}",
+            version.as_deref().unwrap_or("missing")
+        )));
+    }
+
+    let expected_throttle = [
+        ("bucket_digest", "BLOB", true, 1),
+        ("window_start", "INTEGER", true, 0),
+        ("attempts", "INTEGER", true, 0),
+    ];
+    if !columns_match(connection, "_auth_throttle", &expected_throttle)? {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "existing store has no canonical authentication throttle".to_owned(),
+        ));
+    }
+    let throttle_sql = table_sql(connection, "_auth_throttle")?
+        .unwrap_or_default()
+        .chars()
+        .filter(|character| !character.is_ascii_whitespace())
+        .collect::<String>()
+        .to_ascii_uppercase();
+    if !throttle_sql.contains("TYPEOF(BUCKET_DIGEST)='BLOB'")
+        || !throttle_sql.contains("LENGTH(BUCKET_DIGEST)=32")
+    {
+        return Ok(ExistingStoreFormat::Incompatible(
+            "authentication throttle digest constraint is missing".to_owned(),
+        ));
+    }
+    Ok(ExistingStoreFormat::Canonical)
+}
+
+fn table_exists(connection: &Connection, table: &str) -> rusqlite::Result<bool> {
+    connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+        [table],
+        |row| row.get(0),
+    )
+}
+
+fn table_sql(connection: &Connection, table: &str) -> rusqlite::Result<Option<String>> {
+    connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [table],
+            |row| row.get(0),
+        )
+        .optional()
+}
+
+fn columns_match(
+    connection: &Connection,
+    table: &str,
+    expected: &[(&str, &str, bool, i64)],
+) -> rusqlite::Result<bool> {
+    if !table_exists(connection, table)? {
+        return Ok(false);
+    }
+    let escaped = table.replace('"', "\"\"");
+    let mut statement = connection.prepare(&format!("PRAGMA table_info(\"{escaped}\")"))?;
+    let actual = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?.to_ascii_uppercase(),
+                row.get::<_, i64>(3)? != 0,
+                row.get::<_, i64>(5)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(actual
+        == expected
+            .iter()
+            .map(|(name, kind, not_null, primary_key)| {
+                (
+                    (*name).to_owned(),
+                    (*kind).to_owned(),
+                    *not_null,
+                    *primary_key,
+                )
+            })
+            .collect::<Vec<_>>())
+}
+
+fn has_unique_single_column_index(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+) -> rusqlite::Result<bool> {
+    let escaped = table.replace('"', "\"\"");
+    let mut statement = connection.prepare(&format!("PRAGMA index_list(\"{escaped}\")"))?;
+    let indexes = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(1)?, row.get::<_, i64>(2)? != 0))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (index, unique) in indexes {
+        if !unique {
+            continue;
+        }
+        let escaped = index.replace('"', "\"\"");
+        let mut statement = connection.prepare(&format!("PRAGMA index_info(\"{escaped}\")"))?;
+        let columns = statement
+            .query_map([], |row| row.get::<_, String>(2))?
+            .collect::<Result<Vec<_>, _>>()?;
+        if columns == [column] {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn ensure_column(

@@ -5,9 +5,15 @@ Layout: `snapback/schema.ts`, named programs in `snapback/*.ts`, optional
 
 Schema: `schema`, `table`, `channel`; types `t.id/principal/text/int/bool/time/
 ref/json/optional/list/enum/decimal/money`; rules `public/allow/deny/eq/ne/and/
-or/not/exists/system/viewerIs`. `Principal` is the nominal type of
+or/not/exists/created/system/viewerIs`; terms `field/oldField/nextField/viewer/
+literal`. `oldField` and `nextField` are update-only; ordinary `field` is the
+candidate/next image. `created` is insert-only and proves an exact indexed row
+was inserted earlier in the same transaction. `Principal` is the nominal type of
 `ctx.viewer`; it is not an application-row `ref` even though both currently
-use an ID-shaped wire value.
+use an ID-shaped wire value. Table constraints include `unique`, `immutable`,
+`text` with an optional minimum plus the closed `handle` and `url` formats,
+and `finalExistsOnInsert`, an end-of-transaction indexed postcondition for each
+inserted source row.
 
 Programs: `query(args, ({ db, ctx, args }) => value)` and
 `mutation(args, (...) => value)`. Reads are `get`, `exists`, and bounded

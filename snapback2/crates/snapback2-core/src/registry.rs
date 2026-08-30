@@ -100,6 +100,13 @@ impl Generation {
             ] {
                 collect_reserved_rule_reads(rule, &mut reserved_rule_reads);
             }
+            for constraint in &definition.constraints {
+                if let crate::schema::Constraint::FinalExistsOnInsert { table, .. } = constraint
+                    && table.starts_with('_')
+                {
+                    reserved_rule_reads.insert(table.clone());
+                }
+            }
             for reserved in &reserved_rule_reads {
                 errors.push((
                     format!("schema.{table}"),
@@ -149,6 +156,43 @@ impl Generation {
                             },
                         ));
                     }
+                }
+            }
+            for constraint in &table.constraints {
+                let crate::schema::Constraint::Text { field, min, .. } = constraint else {
+                    continue;
+                };
+                let max = match table.columns.get(field) {
+                    Some(crate::schema::ColumnType::Text { max }) => Some(*max),
+                    Some(crate::schema::ColumnType::Optional(inner)) => match inner.as_ref() {
+                        crate::schema::ColumnType::Text { max } => Some(*max),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                match max {
+                    None => errors.push((
+                        format!("schema.{table_name}"),
+                        CheckError {
+                            code: "E_SCHEMA_CONSTRAINT".to_owned(),
+                            message: format!(
+                                "text constraint names non-text or missing column {table_name}.{field}"
+                            ),
+                            rewrite: "name a Text or Optional<Text> column in the text constraint"
+                                .to_owned(),
+                        },
+                    )),
+                    Some(max) if *min > max => errors.push((
+                        format!("schema.{table_name}"),
+                        CheckError {
+                            code: "E_SCHEMA_CONSTRAINT".to_owned(),
+                            message: format!(
+                                "text constraint minimum {min} exceeds {table_name}.{field} maximum {max}"
+                            ),
+                            rewrite: "lower min or raise the column's text maximum".to_owned(),
+                        },
+                    )),
+                    Some(_) => {}
                 }
             }
         }
@@ -1001,7 +1045,9 @@ mod then_tests {
 
 fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
     match rule {
-        RuleExpr::Exists { table, .. } if table.starts_with('_') => {
+        RuleExpr::Exists { table, .. } | RuleExpr::Created { table, .. }
+            if table.starts_with('_') =>
+        {
             reads.insert(table.clone());
         }
         RuleExpr::And(rules) | RuleExpr::Or(rules) => {

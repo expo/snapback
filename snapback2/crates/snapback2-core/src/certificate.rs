@@ -1,5 +1,5 @@
 use crate::ir::*;
-use crate::schema::{MaintainKind, RuleExpr, Schema};
+use crate::schema::{Constraint, MaintainKind, RuleExpr, Schema};
 use crate::value::digest;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -223,13 +223,10 @@ impl<'a> Checker<'a> {
 
         let mut read_sites: Vec<_> = summary.reads.into_values().collect();
         read_sites.sort_by(|a, b| a.site.cmp(&b.site));
-        let mut indexes_required: Vec<_> = read_sites
+        let mut indexes_required: BTreeSet<_> = read_sites
             .iter()
             .map(|site| format!("{}.{}", site.table, site.index))
-            .collect::<BTreeSet<_>>()
-            .into_iter()
             .collect();
-        indexes_required.sort();
         let mut rule_hashes: BTreeMap<_, _> = read_sites
             .iter()
             .filter_map(|site| {
@@ -238,6 +235,11 @@ impl<'a> Checker<'a> {
                     .map(|table| (format!("{}.read", site.table), table.rules.read.hash()))
             })
             .collect();
+        for site in &read_sites {
+            if let Some(table) = self.schema.table(&site.table) {
+                collect_rule_indexes(&table.rules.read, &mut indexes_required);
+            }
+        }
         for write in &summary.writes {
             let Some(table) = self.schema.table(&write.table) else {
                 continue;
@@ -254,8 +256,32 @@ impl<'a> Checker<'a> {
             };
             for (effect, rule) in effects {
                 rule_hashes.insert(format!("{}.{effect}", write.table), rule.hash());
+                collect_rule_indexes(rule, &mut indexes_required);
+            }
+            if matches!(write.kind, WriteKind::Insert | WriteKind::Upsert) {
+                for constraint in &table.constraints {
+                    if let Constraint::FinalExistsOnInsert { table, index, .. } = constraint {
+                        indexes_required.insert(format!("{table}.{index}"));
+                    }
+                }
+            }
+            for maintain in self
+                .schema
+                .maintains
+                .iter()
+                .filter(|maintain| maintain.source == write.table)
+            {
+                let Some(target) = self.schema.table(&maintain.target) else {
+                    continue;
+                };
+                for constraint in &target.constraints {
+                    if let Constraint::FinalExistsOnInsert { table, index, .. } = constraint {
+                        indexes_required.insert(format!("{table}.{index}"));
+                    }
+                }
             }
         }
+        let indexes_required = indexes_required.into_iter().collect();
         let mut checked_tables: BTreeSet<String> = summary
             .writes
             .iter()
@@ -277,19 +303,29 @@ impl<'a> Checker<'a> {
                 continue;
             };
             for constraint in &table.constraints {
-                let label = match constraint {
+                let (trace_table, label) = match constraint {
                     crate::schema::Constraint::Unique { index } => {
-                        format!("Unique({index})")
+                        (table_name.as_str(), format!("Unique({index})"))
                     }
                     crate::schema::Constraint::Cap { by, max } => {
-                        format!("Cap({by:?},{max})")
+                        (table_name.as_str(), format!("Cap({by:?},{max})"))
                     }
-                    crate::schema::Constraint::AppendOnly => "AppendOnly".to_owned(),
+                    crate::schema::Constraint::AppendOnly => {
+                        (table_name.as_str(), "AppendOnly".to_owned())
+                    }
                     crate::schema::Constraint::Immutable { fields } => {
-                        format!("Immutable({fields:?})")
+                        (table_name.as_str(), format!("Immutable({fields:?})"))
                     }
+                    crate::schema::Constraint::Text { field, min, format } => (
+                        table_name.as_str(),
+                        format!("Text({field},min={min},format={format:?})"),
+                    ),
+                    crate::schema::Constraint::FinalExistsOnInsert { table, index, key } => (
+                        table.as_str(),
+                        format!("FinalExistsOnInsert({table_name}->{table}.{index},{key:?})"),
+                    ),
                 };
-                constraint_checks.insert(format!("{table_name}:{label}"));
+                constraint_checks.insert(format!("{trace_table}:{label}"));
             }
             for (index_name, index) in &table.indexes {
                 if index.unique {
@@ -484,7 +520,28 @@ impl<'a> Checker<'a> {
             program: &Program,
             expr: &Expr,
             errors: &mut Vec<CheckError>,
+            sites: &mut BTreeMap<String, String>,
         ) {
+            fn register_site(
+                sites: &mut BTreeMap<String, String>,
+                errors: &mut Vec<CheckError>,
+                site: &str,
+                shape: String,
+            ) {
+                if let Some(existing) = sites.get(site) {
+                    if existing != &shape {
+                        errors.push(CheckError {
+                            code: "E_TRACE_SUBSET".to_owned(),
+                            message: format!(
+                                "read site {site} is reused for incompatible shapes {existing} and {shape}"
+                            ),
+                            rewrite: "give every distinct read a unique site label".to_owned(),
+                        });
+                    }
+                } else {
+                    sites.insert(site.to_owned(), shape);
+                }
+            }
             match expr {
                 Expr::Input(input) => {
                     let invalid = match input {
@@ -506,15 +563,15 @@ impl<'a> Checker<'a> {
                     }
                 }
                 Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-                    visit(checker, program, base, errors)
+                    visit(checker, program, base, errors, sites)
                 }
                 Expr::Binary { left, right, .. } => {
-                    visit(checker, program, left, errors);
-                    visit(checker, program, right, errors);
+                    visit(checker, program, left, errors, sites);
+                    visit(checker, program, right, errors, sites);
                 }
                 Expr::Array(values) => {
                     for value in values {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                 }
                 Expr::Builtin { builtin, args } => {
@@ -542,23 +599,41 @@ impl<'a> Checker<'a> {
                         });
                     }
                     for value in args {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                 }
                 Expr::Object(values) => {
                     for value in values.values() {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                 }
                 Expr::Get(read) | Expr::Exists(read) => {
+                    register_site(
+                        sites,
+                        errors,
+                        &read.site,
+                        format!("point {}.{} {:?}", read.table, read.index, read.provenance),
+                    );
                     if let Some(error) = read_error(checker, &read.table, &read.index) {
                         errors.push(error);
                     }
                     for value in &read.key {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                 }
                 Expr::Scan(scan) => {
+                    register_site(
+                        sites,
+                        errors,
+                        &scan.site,
+                        format!(
+                            "range {}.{} take={} {:?}",
+                            scan.table,
+                            scan.index,
+                            scan.take.maximum(),
+                            scan.provenance
+                        ),
+                    );
                     if let Some(error) = read_error(checker, &scan.table, &scan.index) {
                         errors.push(error);
                     }
@@ -572,13 +647,13 @@ impl<'a> Checker<'a> {
                         });
                     }
                     for value in &scan.prefix {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                     for value in [scan.after.as_deref(), scan.before.as_deref()]
                         .into_iter()
                         .flatten()
                     {
-                        visit(checker, program, value, errors);
+                        visit(checker, program, value, errors, sites);
                     }
                     if let Some(range) = &scan.range {
                         for value in [
@@ -590,7 +665,7 @@ impl<'a> Checker<'a> {
                         .into_iter()
                         .flatten()
                         {
-                            visit(checker, program, value, errors);
+                            visit(checker, program, value, errors, sites);
                         }
                     }
                 }
@@ -599,9 +674,10 @@ impl<'a> Checker<'a> {
         }
 
         let mut errors = Vec::new();
+        let mut sites = BTreeMap::new();
         statement_errors(self, &program.body, program.kind, &mut errors);
         walk_statement_exprs(&program.body, &mut |expr| {
-            visit(self, program, expr, &mut errors)
+            visit(self, program, expr, &mut errors, &mut sites)
         });
         errors
     }
@@ -903,9 +979,7 @@ impl<'a> Analyzer<'a> {
         );
         summary.examined = calls;
         summary.index_entries = calls;
-        if self.rule_has_probe(&read.table) {
-            summary.rule_probes = calls;
-        }
+        summary.rule_probes = calls.saturating_mul(self.rule_probe_count(&read.table));
         summary.steps = calls.saturating_mul(4);
         set_product(&mut summary, factors, (&read.site, 1));
         Ok(summary)
@@ -920,11 +994,12 @@ impl<'a> Analyzer<'a> {
         let take = scan.take.maximum();
         let reserve = take.saturating_add(2);
         let hoist = self.rule_hoists(scan);
-        let rule_probes = if self.rule_has_probe(&scan.table) {
+        let probes_per_row = self.rule_probe_count(&scan.table);
+        let rule_probes = if probes_per_row > 0 {
             if hoist {
-                calls
+                calls.saturating_mul(probes_per_row)
             } else {
-                calls.saturating_mul(reserve)
+                calls.saturating_mul(reserve).saturating_mul(probes_per_row)
             }
         } else {
             0
@@ -950,18 +1025,10 @@ impl<'a> Analyzer<'a> {
         Ok(summary)
     }
 
-    fn rule_has_probe(&self, table: &str) -> bool {
-        fn has(rule: &RuleExpr) -> bool {
-            match rule {
-                RuleExpr::Exists { .. } => true,
-                RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().any(has),
-                RuleExpr::Not(rule) => has(rule),
-                _ => false,
-            }
-        }
+    fn rule_probe_count(&self, table: &str) -> u64 {
         self.schema
             .table(table)
-            .is_some_and(|table| has(&table.rules.read))
+            .map_or(0, |table| count_rule_probes(&table.rules.read))
     }
 
     fn write(
@@ -973,30 +1040,50 @@ impl<'a> Analyzer<'a> {
     ) -> Summary {
         let mut summary = write_summary(table, kind, calls, factors);
         let probe_multiplier = self.schema.table(table).map_or(0, |table| {
-            fn has(rule: &RuleExpr) -> bool {
-                match rule {
-                    RuleExpr::Exists { .. } => true,
-                    RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().any(has),
-                    RuleExpr::Not(rule) => has(rule),
-                    _ => false,
-                }
-            }
+            let final_insert_probes = table
+                .constraints
+                .iter()
+                .filter(|constraint| matches!(constraint, Constraint::FinalExistsOnInsert { .. }))
+                .count() as u64;
             match kind {
-                WriteKind::Insert => u64::from(has(&table.rules.insert)),
-                WriteKind::Update => 2 * u64::from(has(&table.rules.update)),
-                WriteKind::Delete => u64::from(has(&table.rules.delete)),
-                WriteKind::Upsert => {
-                    u64::from(has(&table.rules.insert)).max(2 * u64::from(has(&table.rules.update)))
-                }
+                WriteKind::Insert => count_rule_probes(&table.rules.insert) + final_insert_probes,
+                WriteKind::Update => count_rule_probes(&table.rules.update),
+                WriteKind::Delete => count_rule_probes(&table.rules.delete),
+                WriteKind::Upsert => (count_rule_probes(&table.rules.insert) + final_insert_probes)
+                    .max(count_rule_probes(&table.rules.update)),
                 WriteKind::Emit => 0,
             }
         });
+        let maintained_final_probes = self
+            .schema
+            .maintains
+            .iter()
+            .filter(|maintain| maintain.source == table)
+            .map(|maintain| {
+                self.schema.table(&maintain.target).map_or(0, |target| {
+                    target
+                        .constraints
+                        .iter()
+                        .filter(|constraint| {
+                            matches!(constraint, Constraint::FinalExistsOnInsert { .. })
+                        })
+                        .count() as u64
+                })
+            })
+            .sum::<u64>();
+        let maintain_applications = match kind {
+            WriteKind::Insert | WriteKind::Delete => 1,
+            WriteKind::Update | WriteKind::Upsert => 2,
+            WriteKind::Emit => 0,
+        };
+        let probe_multiplier = probe_multiplier
+            .saturating_add(maintained_final_probes.saturating_mul(maintain_applications));
         summary.rule_probes = calls.saturating_mul(probe_multiplier);
         summary
     }
 
     fn rule_hoists(&self, scan: &Scan) -> bool {
-        self.rule_has_probe(&scan.table) && self.uniform_visibility(scan)
+        self.rule_probe_count(&scan.table) > 0 && self.uniform_visibility(scan)
     }
 
     fn uniform_visibility(&self, scan: &Scan) -> bool {
@@ -1018,6 +1105,40 @@ fn write_summary(table: &str, kind: WriteKind, calls: u64, factors: &[(String, u
         summary.product = Some(format!("{label} {value}"));
     }
     summary
+}
+
+fn count_rule_probes(rule: &RuleExpr) -> u64 {
+    match rule {
+        RuleExpr::Exists { .. } | RuleExpr::Created { .. } => 1,
+        RuleExpr::And(rules) | RuleExpr::Or(rules) => rules.iter().fold(0_u64, |count, rule| {
+            count.saturating_add(count_rule_probes(rule))
+        }),
+        RuleExpr::Not(rule) => count_rule_probes(rule),
+        RuleExpr::Public { .. }
+        | RuleExpr::Allow
+        | RuleExpr::Deny
+        | RuleExpr::Eq(_, _)
+        | RuleExpr::Ne(_, _) => 0,
+    }
+}
+
+fn collect_rule_indexes(rule: &RuleExpr, indexes: &mut BTreeSet<String>) {
+    match rule {
+        RuleExpr::Exists { table, index, .. } | RuleExpr::Created { table, index, .. } => {
+            indexes.insert(format!("{table}.{index}"));
+        }
+        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
+            for rule in rules {
+                collect_rule_indexes(rule, indexes);
+            }
+        }
+        RuleExpr::Not(rule) => collect_rule_indexes(rule, indexes),
+        RuleExpr::Public { .. }
+        | RuleExpr::Allow
+        | RuleExpr::Deny
+        | RuleExpr::Eq(_, _)
+        | RuleExpr::Ne(_, _) => {}
+    }
 }
 
 fn set_product(summary: &mut Summary, factors: &[(String, u64)], current: (&str, u64)) {

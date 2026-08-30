@@ -82,13 +82,22 @@ pub(super) struct Sse {
 #[cfg(not(feature = "hermes"))]
 impl Sse {
     pub(super) fn open(port: u16, path: &str, persona: &str) -> Self {
+        Self::open_with_header(port, path, "X-Snapback-As", persona)
+    }
+
+    pub(super) fn open_bearer(port: u16, path: &str, token: &str) -> Self {
+        let authorization = format!("Bearer {token}");
+        Self::open_with_header(port, path, "Authorization", &authorization)
+    }
+
+    fn open_with_header(port: u16, path: &str, header: &str, value: &str) -> Self {
         let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
         stream
             .set_read_timeout(Some(Duration::from_secs(6)))
             .unwrap();
         write!(
             stream,
-            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Snapback-As: {persona}\r\nConnection: close\r\n\r\n"
+            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n{header}: {value}\r\nConnection: close\r\n\r\n"
         )
         .unwrap();
         stream.flush().unwrap();

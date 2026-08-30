@@ -62,6 +62,24 @@ struct ProtectedWritePlan {
 }
 
 #[derive(Clone, Debug)]
+struct AbaPlan {
+    promote_mutation: String,
+    promote_args: Json,
+    remove_mutation: String,
+    remove_args: Json,
+    add_mutation: String,
+    replacement_args: Json,
+    successor_probe_args: Json,
+    admin_persona: String,
+    admin_principal: String,
+    member_persona: String,
+    member_principal: String,
+    probe_principal: String,
+    membership_id: String,
+    scope: Json,
+}
+
+#[derive(Clone, Debug)]
 struct PlanBlock {
     reason: String,
     candidates: Vec<String>,
@@ -78,8 +96,8 @@ pub(super) fn checks(
     let query_plan = query_plan(compiled, seed, &recipe);
     vec![
         live_revocation(owner, compiled, seed, &recipe, query_plan.clone()),
-        successor_policy_fence(owner, compiled, &recipe, query_plan),
-        grant_incarnation_aba(&recipe),
+        successor_policy_fence(owner, compiled, &recipe, query_plan.clone()),
+        grant_incarnation_aba(owner, compiled, seed, &recipe, query_plan),
     ]
 }
 
@@ -285,21 +303,373 @@ fn successor_policy_fence(
     }
 }
 
-fn grant_incarnation_aba(recipe: &Recipe) -> CheckReceipt {
+fn grant_incarnation_aba(
+    owner: &OwnerInfo,
+    compiled: &CompiledProject,
+    seed: &SeedData,
+    recipe: &Recipe,
+    query_plan: Result<QueryPlan, PlanBlock>,
+) -> CheckReceipt {
     let started = Instant::now();
-    blocked(
-        GRANT_INCARNATION_ABA,
-        started,
+    let query = match query_plan {
+        Ok(plan) => plan,
+        Err(reason) => return blocked(GRANT_INCARNATION_ABA, started, recipe, reason),
+    };
+    let plan = match aba_plan(compiled, seed, recipe, &query) {
+        Ok(plan) => plan,
+        Err(reason) => return blocked(GRANT_INCARNATION_ABA, started, recipe, reason),
+    };
+    match grant_incarnation_aba_attempt(owner, recipe, &plan) {
+        Ok(detail) => CheckReceipt::pass(
+            GRANT_INCARNATION_ABA,
+            "derived",
+            elapsed_ms(started),
+            detail,
+        ),
+        Err(error) => CheckReceipt::fail(
+            GRANT_INCARNATION_ABA,
+            "derived",
+            elapsed_ms(started),
+            json!({
+                "error": error,
+                "promoteMutation": plan.promote_mutation,
+                "removeMutation": plan.remove_mutation,
+                "addMutation": plan.add_mutation,
+                "as": plan.admin_persona,
+                "memberAs": plan.member_persona,
+                "membership": { "table": recipe.membership_table, "id": plan.membership_id },
+                "scope": plan.scope,
+                "transport": "served mutation API",
+            }),
+        ),
+    }
+}
+
+fn aba_plan(
+    compiled: &CompiledProject,
+    seed: &SeedData,
+    recipe: &Recipe,
+    query: &QueryPlan,
+) -> Result<AbaPlan, PlanBlock> {
+    let mut reasons = BTreeSet::new();
+    let Some(rows) = seed.rows.get(&recipe.membership_table) else {
+        return Err(aba_block([format!(
+            "seed has no {} rows whose identity can be captured",
+            recipe.membership_table
+        )]));
+    };
+    let Some(captured) = rows
+        .iter()
+        .find(|row| row.get("id").and_then(Json::as_str) == Some(&query.membership_id))
+    else {
+        return Err(aba_block([format!(
+            "captured membership {} is absent from the seed",
+            query.membership_id
+        )]));
+    };
+    if captured.get("role").and_then(Json::as_str) != Some("member") {
+        reasons.insert(format!(
+            "captured membership {} is not a member-role grant",
+            query.membership_id
+        ));
+    }
+
+    let candidates = membership_candidates(seed, recipe);
+    let admin = candidates.iter().find(|(persona, principal, id, scope)| {
+        principal != &query.principal
+            && scope == &query.scope
+            && rows.iter().any(|row| {
+                row.get("id").and_then(Json::as_str) == Some(id)
+                    && row.get("role").and_then(Json::as_str) == Some("admin")
+                    && row.get(&recipe.principal_field).and_then(Json::as_str) == Some(principal)
+                    && seed.personas.iter().any(|seeded| seeded == persona)
+            })
+    });
+    let Some((admin_persona, admin_principal, _, _)) = admin else {
+        reasons.insert(format!(
+            "scope {} has no second seeded admin persona for remove/recreate",
+            query.scope
+        ));
+        return Err(aba_block(reasons));
+    };
+
+    let occupied = rows
+        .iter()
+        .filter(|row| row.get(&recipe.scope_field) == Some(&query.scope))
+        .filter_map(|row| row.get(&recipe.principal_field).and_then(Json::as_str))
+        .collect::<BTreeSet<_>>();
+    let mut personas = seed.personas.clone();
+    personas.sort();
+    let probe_principal = personas
+        .into_iter()
+        .map(|persona| format!("dev:{persona}"))
+        .find(|principal| !occupied.contains(principal.as_str()));
+    let Some(probe_principal) = probe_principal else {
+        reasons.insert(format!(
+            "scope {} has no seeded persona absent from the membership set for the successor-role probe",
+            query.scope
+        ));
+        return Err(aba_block(reasons));
+    };
+
+    let promote = aba_program(
+        compiled,
         recipe,
-        PlanBlock {
-            reason: "no durable captured-intent carrier binds a membership row identity, incarnation, or expected version; remove/recreate ABA cannot be replayed safely"
-                .to_owned(),
-            candidates: vec![
-                "membership row ids exist, but no served operation captures and later replays one as durable authorization intent"
-                    .to_owned(),
-            ],
-        },
+        ".memberPromote",
+        WriteKind::Update,
+        true,
+        false,
+    );
+    let remove = aba_program(
+        compiled,
+        recipe,
+        ".memberRemove",
+        WriteKind::Delete,
+        true,
+        false,
+    );
+    let add = aba_program(
+        compiled,
+        recipe,
+        ".memberAdd",
+        WriteKind::Insert,
+        false,
+        true,
+    );
+    for result in [&promote, &remove, &add] {
+        if let Err(reason) = result {
+            reasons.insert(reason.clone());
+        }
+    }
+    let (promote_mutation, promote_program) = promote.map_err(|_| aba_block(reasons.clone()))?;
+    let (remove_mutation, remove_program) = remove.map_err(|_| aba_block(reasons.clone()))?;
+    let (add_mutation, add_program) = add.map_err(|_| aba_block(reasons.clone()))?;
+
+    let promote_args = scoped_args(
+        promote_program,
+        seed,
+        recipe,
+        &query.scope,
+        &query.membership_id,
+        admin_principal,
     )
+    .map_err(|reason| aba_block([format!("{promote_mutation}: {reason}")]))?;
+    let remove_args = scoped_args(
+        remove_program,
+        seed,
+        recipe,
+        &query.scope,
+        &query.membership_id,
+        admin_principal,
+    )
+    .map_err(|reason| aba_block([format!("{remove_mutation}: {reason}")]))?;
+    let replacement_args = scoped_args(
+        add_program,
+        seed,
+        recipe,
+        &query.scope,
+        &query.membership_id,
+        &query.principal,
+    )
+    .map_err(|reason| aba_block([format!("{add_mutation}: {reason}")]))?;
+    let successor_probe_args = scoped_args(
+        add_program,
+        seed,
+        recipe,
+        &query.scope,
+        &query.membership_id,
+        &probe_principal,
+    )
+    .map_err(|reason| aba_block([format!("{add_mutation}: {reason}")]))?;
+
+    Ok(AbaPlan {
+        promote_mutation,
+        promote_args,
+        remove_mutation,
+        remove_args,
+        add_mutation,
+        replacement_args,
+        successor_probe_args,
+        admin_persona: admin_persona.clone(),
+        admin_principal: admin_principal.clone(),
+        member_persona: query.persona.clone(),
+        member_principal: query.principal.clone(),
+        probe_principal,
+        membership_id: query.membership_id.clone(),
+        scope: query.scope.clone(),
+    })
+}
+
+fn aba_program<'a>(
+    compiled: &'a CompiledProject,
+    recipe: &Recipe,
+    suffix: &str,
+    write_kind: WriteKind,
+    needs_membership_ref: bool,
+    needs_principal: bool,
+) -> Result<(String, &'a Program), String> {
+    compiled
+        .generation
+        .programs
+        .iter()
+        .find(|(name, (program, certificate))| {
+            name.ends_with(suffix)
+                && program.kind == ProgramKind::Mutation
+                && certificate.write_sites.iter().any(|site| {
+                    site.table == recipe.membership_table && site.kind == write_kind
+                })
+                && (!needs_membership_ref
+                    || program.args.iter().any(|(name, kind)| {
+                        name == "membershipId"
+                            && ref_table(kind) == Some(recipe.membership_table.as_str())
+                    }))
+                && (!needs_principal
+                    || program
+                        .args
+                        .iter()
+                        .any(|(_, kind)| matches!(unwrap_optional(kind), ArgType::Principal)))
+                && program.args.iter().any(|(name, kind)| {
+                    name == &recipe.scope_field
+                        || recipe
+                            .scope_table
+                            .as_deref()
+                            .is_some_and(|table| ref_table(kind) == Some(table))
+                })
+        })
+        .map(|(name, (program, _))| (name.clone(), program))
+        .ok_or_else(|| {
+            format!(
+                "no served {suffix} mutation carries the exact membership incarnation and scope needed for the ABA proof"
+            )
+        })
+}
+
+fn aba_block(reasons: impl IntoIterator<Item = String>) -> PlanBlock {
+    PlanBlock {
+        reason: "no durable captured-intent carrier binds a membership row identity to a served remove/recreate/replay path"
+            .to_owned(),
+        candidates: reasons.into_iter().collect(),
+    }
+}
+
+fn grant_incarnation_aba_attempt(
+    owner: &OwnerInfo,
+    recipe: &Recipe,
+    plan: &AbaPlan,
+) -> Result<Json, String> {
+    reset(owner)?;
+    let attempt = (|| {
+        let captured_promote_args = plan.promote_args.clone();
+        let removed = served_mutation(
+            owner,
+            &plan.admin_persona,
+            &plan.remove_mutation,
+            plan.remove_args.clone(),
+        )?;
+        require_mutation_state(&removed, "committed", "captured membership removal")?;
+
+        let replacement = served_mutation(
+            owner,
+            &plan.admin_persona,
+            &plan.add_mutation,
+            plan.replacement_args.clone(),
+        )?;
+        require_mutation_state(&replacement, "committed", "successor membership creation")?;
+        let replacement_id = replacement["data"]["id"]
+            .as_str()
+            .ok_or_else(|| format!("successor membership omitted its row id: {replacement}"))?;
+        if replacement_id == plan.membership_id {
+            return Err(format!(
+                "remove/recreate reused captured membership id {}",
+                plan.membership_id
+            ));
+        }
+
+        let stale_replay = served_mutation(
+            owner,
+            &plan.admin_persona,
+            &plan.promote_mutation,
+            captured_promote_args,
+        )?;
+        require_mutation_state(&stale_replay, "rejected", "stale promote replay")?;
+
+        let successor_probe = served_mutation(
+            owner,
+            &plan.member_persona,
+            &plan.add_mutation,
+            plan.successor_probe_args.clone(),
+        )?;
+        require_mutation_state(
+            &successor_probe,
+            "rejected",
+            "successor member authority probe",
+        )?;
+        let successor_code = successor_probe["code"].as_str().unwrap_or_default();
+        if !successor_code.contains("ADMIN_REQUIRED") {
+            return Err(format!(
+                "successor probe did not reject specifically because the replacement remained a member: {successor_probe}"
+            ));
+        }
+
+        Ok(json!({
+            "promoteMutation": plan.promote_mutation,
+            "removeMutation": plan.remove_mutation,
+            "addMutation": plan.add_mutation,
+            "as": plan.admin_persona,
+            "principal": plan.admin_principal,
+            "memberAs": plan.member_persona,
+            "memberPrincipal": plan.member_principal,
+            "membership": { "table": recipe.membership_table, "capturedId": plan.membership_id },
+            "scope": plan.scope,
+            "replacementId": replacement_id,
+            "idReused": false,
+            "staleReplayState": stale_replay["state"],
+            "staleReplayCode": stale_replay["code"],
+            "successorProbePrincipal": plan.probe_principal,
+            "successorAuthorityState": successor_probe["state"],
+            "successorAuthorityCode": successor_probe["code"],
+            "successorRole": "member",
+            "transport": "served mutation API",
+        }))
+    })();
+    let cleanup = reset(owner);
+    match (attempt, cleanup) {
+        (Ok(detail), Ok(())) => Ok(detail),
+        (Err(error), Ok(())) => Err(error),
+        (Ok(_), Err(error)) => Err(format!("proof passed but seed reset failed: {error}")),
+        (Err(error), Err(cleanup)) => Err(format!("{error}; seed reset also failed: {cleanup}")),
+    }
+}
+
+fn served_mutation(
+    owner: &OwnerInfo,
+    persona: &str,
+    operation: &str,
+    args: Json,
+) -> Result<Json, String> {
+    let response = client::api(
+        owner,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", persona)],
+        json!({ "op": operation, "args": args }),
+    )
+    .map_err(|error| format!("{operation} request failed: {error:?}"))?;
+    if response.status != 200 {
+        return Err(format!(
+            "{operation} returned HTTP {}: {}",
+            response.status, response.body
+        ));
+    }
+    Ok(response.body)
+}
+
+fn require_mutation_state(response: &Json, state: &str, subject: &str) -> Result<(), String> {
+    if response["state"].as_str() == Some(state) {
+        Ok(())
+    } else {
+        Err(format!("{subject} was not {state}: {response}"))
+    }
 }
 
 fn successor_policy_attempt(
@@ -580,11 +950,14 @@ fn protected_scope(
 }
 
 fn viewer_is(rule: &RuleExpr, field: &str) -> bool {
-    matches!(
-        rule,
+    match rule {
         RuleExpr::Eq(RuleTerm::Field(name), RuleTerm::Viewer)
-            | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(name)) if name == field
-    )
+        | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(name)) => name == field,
+        RuleExpr::And(rules) | RuleExpr::Or(rules) => {
+            rules.iter().any(|rule| viewer_is(rule, field))
+        }
+        _ => false,
+    }
 }
 
 fn query_plan(
@@ -1030,6 +1403,24 @@ mod tests {
         assert!(
             membership_recipe(&pseudo_membership).is_none(),
             "a Ref column must not synthesize canonical authority proofs"
+        );
+    }
+
+    #[test]
+    fn authority_recipe_accepts_self_delete_as_one_admin_policy_branch() {
+        let mut schema = authority_schema(ColumnType::Principal);
+        schema.tables.get_mut("memberships").unwrap().rules.delete = RuleExpr::Or(vec![
+            RuleExpr::Eq(RuleTerm::Field("principal".to_owned()), RuleTerm::Viewer),
+            RuleExpr::Exists {
+                table: "memberships".to_owned(),
+                index: "byScopePrincipal".to_owned(),
+                key: vec![RuleTerm::Field("scopeId".to_owned()), RuleTerm::Viewer],
+                provenance: KeyProvenance::Shape,
+            },
+        ]);
+        assert!(
+            membership_recipe(&schema).is_some(),
+            "an admin branch must not hide the exact self-delete authority path"
         );
     }
 

@@ -12,8 +12,22 @@ fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Valu
         .unwrap_or_else(|| panic!("missing {name} check in {receipt}"))
 }
 
+fn without_export(source: &str, name: &str) -> String {
+    let marker = format!("export const {name} =");
+    let start = source
+        .find(&marker)
+        .unwrap_or_else(|| panic!("fixture had no {name} export"));
+    let end = source[start + marker.len()..]
+        .find("\nexport const ")
+        .map(|offset| start + marker.len() + offset + 1)
+        .unwrap_or(source.len());
+    let mut output = source.to_owned();
+    output.replace_range(start..end, "");
+    output
+}
+
 #[test]
-fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
+fn chat_template_receipt_tracks_the_effect_engine_and_lists_all_journeys() {
     let project = Project::new();
     let initialized = project.init("chat", "none");
     assert!(
@@ -27,9 +41,9 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     let checks = receipt["checks"].as_array().unwrap();
     let rules = check(&receipt, "rules");
     assert_eq!(rules["verdict"], "pass", "{rules}");
-    assert_eq!(rules["detail"]["tables"]["memberships"]["probes"], 9);
-    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 6);
-    assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 3);
+    assert_eq!(rules["detail"]["tables"]["memberships"]["probes"], 16);
+    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 8);
+    assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 4);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
     assert_eq!(rules["detail"]["actualBy"], "data");
     for name in [
@@ -48,7 +62,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["detail"]["as"], "bob", "{revocation}");
     assert_eq!(
-        revocation["detail"]["mutation"], "messages.leave",
+        revocation["detail"]["mutation"], "groups.memberLeave",
         "{revocation}"
     );
     assert_eq!(revocation["detail"]["initialState"], "complete");
@@ -102,13 +116,27 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     );
 
     let aba = check(&receipt, "grant-incarnation-aba");
-    assert_eq!(aba["verdict"], "blocked", "{aba}");
-    assert!(
-        aba["detail"]["reason"]
-            .as_str()
-            .is_some_and(|reason| reason.contains("no durable captured-intent carrier")),
+    assert_eq!(aba["verdict"], "pass", "{aba}");
+    assert_eq!(aba["detail"]["promoteMutation"], "groups.memberPromote");
+    assert_eq!(aba["detail"]["removeMutation"], "groups.memberRemove");
+    assert_eq!(aba["detail"]["addMutation"], "groups.memberAdd");
+    assert_eq!(aba["detail"]["membership"]["capturedId"], "membership-2");
+    assert_ne!(
+        aba["detail"]["membership"]["capturedId"], aba["detail"]["replacementId"],
         "{aba}"
     );
+    assert_eq!(aba["detail"]["staleReplayState"], "rejected", "{aba}");
+    assert_eq!(
+        aba["detail"]["successorAuthorityState"], "rejected",
+        "{aba}"
+    );
+    assert!(
+        aba["detail"]["successorAuthorityCode"]
+            .as_str()
+            .is_some_and(|code| code.contains("ADMIN_REQUIRED")),
+        "{aba}"
+    );
+    assert_eq!(aba["detail"]["successorRole"], "member", "{aba}");
 
     let invalidation = check(&receipt, "invalidation");
     assert!(
@@ -117,32 +145,107 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .is_some_and(|count| count > 0),
         "the chat receipt did not exercise an invalidation silence probe: {invalidation}"
     );
+    assert!(
+        invalidation["detail"]["overlapProbes"]
+            .as_u64()
+            .is_some_and(|count| count > 0),
+        "the chat receipt did not exercise an exact trace-key overlap: {invalidation}"
+    );
+    assert!(
+        invalidation["detail"]["deliveryProbes"]
+            .as_u64()
+            .is_some_and(|count| count > 0),
+        "the chat receipt did not prove an exact-seq SSE delivery: {invalidation}"
+    );
+    let outcomes = invalidation["detail"]["outcomes"].as_array().unwrap();
+    assert_eq!(
+        outcomes.len() as u64,
+        invalidation["detail"]["attempts"].as_u64().unwrap()
+            + invalidation["detail"]["exclusions"].as_u64().unwrap(),
+        "every attempted or excluded pair must remain auditable: {invalidation}"
+    );
+    for outcome in outcomes {
+        for field in [
+            "query",
+            "queryArgs",
+            "queryPersona",
+            "mutation",
+            "mutationArgs",
+            "probeRole",
+            "disposition",
+            "selected",
+        ] {
+            assert!(outcome.get(field).is_some(), "missing {field}: {outcome}");
+        }
+        if outcome["disposition"] == "physical" {
+            for field in [
+                "seq",
+                "overlaps",
+                "changed",
+                "invalidated",
+                "delivered",
+                "sseDelivered",
+            ] {
+                assert!(outcome.get(field).is_some(), "missing {field}: {outcome}");
+            }
+        }
+    }
+    assert!(outcomes.iter().any(|outcome| {
+        outcome["disposition"] == "excluded"
+            && outcome["mutation"] == "notifications.recordNotified"
+            && outcome["reason"] == "system-only effect continuation"
+    }));
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
-    assert_eq!(executions.len(), 2, "{bounds}");
-    for execution in executions {
-        assert_eq!(execution["op"], "messages.thread", "{execution}");
+    assert_eq!(executions.len(), 15, "{bounds}");
+    for operation in [
+        "feeds.followingFeed",
+        "feeds.globalFeed",
+        "messages.thread",
+        "profiles.byHandle",
+        "profiles.mine",
+    ] {
+        assert_eq!(
+            executions
+                .iter()
+                .filter(|execution| execution["op"] == operation)
+                .count(),
+            3,
+            "{operation}: {bounds}"
+        );
+    }
+    for execution in executions
+        .iter()
+        .filter(|execution| execution["op"] == "messages.thread")
+    {
+        let admitted = execution["as"] != "charlie";
         assert_eq!(
             execution["examined"],
-            serde_json::json!({ "actual": 2, "ceiling": 53 })
+            serde_json::json!({ "actual": if admitted { 2 } else { 0 }, "ceiling": 53 })
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": 1, "ceiling": 2 })
+            serde_json::json!({ "actual": if admitted { 1 } else { 0 }, "ceiling": 2 })
         );
         assert_eq!(
             execution["steps"],
-            serde_json::json!({ "actual": 7, "ceiling": 268 })
+            serde_json::json!({ "actual": if admitted { 7 } else { 4 }, "ceiling": 268 })
         );
         assert_eq!(execution["readSites"].as_array().unwrap().len(), 2);
         assert_eq!(
             execution["readSites"][0]["calls"],
-            serde_json::json!({ "actual": 1, "ceiling": 1 })
+            serde_json::json!({
+                "actual": 1,
+                "ceiling": 1,
+            })
         );
         assert_eq!(execution["readSites"][0]["take"], 1);
         assert_eq!(
             execution["readSites"][1]["calls"],
-            serde_json::json!({ "actual": 1, "ceiling": 1 })
+            serde_json::json!({
+                "actual": if admitted { 1 } else { 0 },
+                "ceiling": 1,
+            })
         );
         assert_eq!(execution["readSites"][1]["take"], 50);
     }
@@ -151,11 +254,15 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .iter()
             .filter(|check| check["kind"] == "journey")
             .count(),
-        2
+        6
     );
     for name in [
         "alice sends bob a message",
         "bob replies and alice's live thread updates",
+        "profile ownership, uniqueness, and live public reads",
+        "unfollow changes Following selection but not Global authorization",
+        "group creation bootstraps one creator admin atomically",
+        "scoped roles reject non-admin and stale membership authority",
     ] {
         let journey = check(&receipt, name);
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
@@ -249,19 +356,16 @@ fn todos_template_passes_without_an_effects_check() {
 fn canonical_membership_without_a_probeable_named_delete_blocks_live_revocation() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
-    let messages = project.path.join("snapback/messages.ts");
-    let source = fs::read_to_string(&messages).unwrap();
-    let mut without_leave = source.replace(
-        r#"export const leave = mutation({ membershipId: t.ref(memberships) }, ({ db, args }) => {
-  db.delete(memberships, args.membershipId);
-  return null;
-});
-
-"#,
-        "",
+    let groups = project.path.join("snapback/groups.ts");
+    let source = fs::read_to_string(&groups).unwrap();
+    let without_admin_remove = without_export(&source, "memberRemove");
+    let mut without_leave = without_export(&without_admin_remove, "memberLeave");
+    assert_ne!(
+        source, without_admin_remove,
+        "chat fixture had no admin-remove surface"
     );
     assert_ne!(
-        source, without_leave,
+        without_admin_remove, without_leave,
         "chat fixture had no self-leave surface"
     );
     without_leave.push_str(
@@ -283,7 +387,8 @@ export const aabUnprobeableLeave = mutation({
 });
 "#,
     );
-    fs::write(messages, without_leave).unwrap();
+    fs::write(groups, without_leave).unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
     assert!(project.run(&["check", "--json"]).status.success());
 
     let output = project.run(&["test", "--derived-only", "--json"]);
@@ -302,13 +407,13 @@ export const aabUnprobeableLeave = mutation({
     assert!(
         candidates[0]
             .as_str()
-            .is_some_and(|reason| reason.contains("messages.aaaUnprobeableLeave")),
+            .is_some_and(|reason| reason.contains("groups.aaaUnprobeableLeave")),
         "{revocation}"
     );
     assert!(
         candidates[1]
             .as_str()
-            .is_some_and(|reason| reason.contains("messages.aabUnprobeableLeave")),
+            .is_some_and(|reason| reason.contains("groups.aabUnprobeableLeave")),
         "{revocation}"
     );
     let fence = check(&receipt, "successor-policy-fence");
@@ -323,7 +428,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     assert!(project.init("chat", "none").status.success());
     let schema = project.path.join("snapback/schema.ts");
     let source = fs::read_to_string(&schema).unwrap();
-    let ref_based = source.replace("userId: t.principal(),", "userId: t.ref(profiles),");
+    let ref_based = source.replace("principal: t.principal(),", "principal: t.ref(profiles),");
     assert_ne!(
         source, ref_based,
         "chat fixture did not declare a nominal Principal membership"
@@ -340,7 +445,7 @@ fn ref_based_pseudo_membership_is_refused_before_authority_proofs() {
     let output = String::from_utf8_lossy(&checked.stdout);
     assert!(
         output.contains("\"code\":\"E_RULE_INVALID\"")
-            && output.contains("table memberships.userId is Ref<profiles>")
+            && output.contains("table memberships.principal is Ref<profiles>")
             && output.contains("must be Principal")
             && output.contains("\"rewrite\":"),
         "ref-based pseudo-membership was not refused with the nominal-axis diagnostic: {output}"
@@ -385,10 +490,17 @@ export const aaaUnprobeableLeave = mutation({
     let revocation = check(&receipt, "live-revocation");
     assert_eq!(revocation["verdict"], "pass", "{revocation}");
     assert_eq!(revocation["detail"]["query"], "messages.thread");
-    assert_eq!(revocation["detail"]["mutation"], "messages.leave");
+    assert_eq!(revocation["detail"]["mutation"], "groups.memberLeave");
     let fence = check(&receipt, "successor-policy-fence");
     assert_eq!(fence["verdict"], "pass", "{fence}");
     assert_eq!(fence["detail"]["query"], "messages.thread");
+    let aba = check(&receipt, "grant-incarnation-aba");
+    assert_eq!(aba["verdict"], "pass", "{aba}");
+    assert_eq!(aba["detail"]["staleReplayState"], "rejected", "{aba}");
+    assert_eq!(
+        aba["detail"]["successorAuthorityState"], "rejected",
+        "{aba}"
+    );
 }
 
 #[test]
@@ -511,7 +623,15 @@ export const add = mutation({}, ({ db, ctx }) => {
     assert_eq!(invalidation["verdict"], "blocked");
     assert_eq!(
         invalidation["detail"]["blocked"][0]["reason"],
-        "no committing probe"
+        "no physical committing probe"
+    );
+    assert!(
+        invalidation["detail"]["outcomes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|outcome| outcome["disposition"] == "rejected"
+                && !outcome["selected"].as_bool().unwrap())
     );
     let replay = check(&receipt, "replay");
     assert_eq!(replay["verdict"], "blocked");
@@ -568,7 +688,21 @@ export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label
             .as_array()
             .unwrap()
             .iter()
-            .any(|item| item["reason"] == "no disjoint committing probe for todos.list"),
+            .any(|item| item["reason"] == "no physical concrete-disjoint probe for todos.list"),
+        "{invalidation}"
+    );
+    assert!(
+        invalidation["detail"]["outcomes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|outcome| {
+                outcome["probeRole"] == "silence"
+                    && outcome["disposition"] == "physical"
+                    && outcome["overlaps"] == true
+                    && outcome["delivered"] == true
+                    && outcome["selected"] == false
+            }),
         "{invalidation}"
     );
 }

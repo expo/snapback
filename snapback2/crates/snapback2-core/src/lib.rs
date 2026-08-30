@@ -24,7 +24,7 @@ pub use engine::{
     AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
     RuntimeError, StopReason,
 };
-pub use identity::{IdentityError, Principal, Session};
+pub use identity::{IdentityError, Principal, Session, SessionAuthority};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use principal::PrincipalId;

@@ -5,7 +5,7 @@ row; the optional Ibex 2 runner performs I/O and may invoke a named `then`
 mutation.
 
 ```ts
-  emit(notify, { to: recipient!.email, body: args.body });
+  emit(notify, { to: recipient!.principal, body: args.body });
 ```
 
 The default development binary has no engine. `snapback2 test` records the

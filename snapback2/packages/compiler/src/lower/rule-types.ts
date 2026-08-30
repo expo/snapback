@@ -7,6 +7,9 @@ import { callLeaf, objectOf, property, staticJson, stringValue } from "./static"
 type SchemaModule = { sourceFile: ts.SourceFile; source: string; fileName: string };
 type RuleSubject = { label: string; columns: Record<string, unknown> };
 type RuleTableShape = RuleSubject & { indexes: Record<string, { columns?: string[] }> };
+// @ref LLP 1002#2-the-authored-surface-the-snapback2-module — row-image terms and created-row probes are scoped to the mutation effect that defines them.
+type RuleEffect = "read" | "insert" | "update" | "delete";
+type RuleUse = { kind: "table"; effect: RuleEffect } | { kind: "other" };
 const RULE_TYPE_REWRITE = "declare authority axes as Principal and align rule terms with the referenced index columns";
 type RuleType =
   | { kind: "principal" }
@@ -45,10 +48,11 @@ export function validateRuleTypes(
     const config = objectOf(call.arguments[0]);
     const rules = config && objectOf(property(config, "rules"));
     const subject = catalog.get(name);
-    for (const side of ["read", "insert", "update", "delete"]) {
+    for (const side of ["read", "insert", "update", "delete"] as const) {
       const node = rules && property(rules, side);
-      if (node) validateRuleType(module, node, subject, catalog, diagnostics);
+      if (node) validateRuleType(module, node, subject, { kind: "table", effect: side }, catalog, diagnostics);
     }
+    if (config && subject) validateFinalExistsTypes(module, config, name, subject, catalog, diagnostics);
   }
   for (const [name, call] of channelCalls) {
     const config = objectOf(call.arguments[0]);
@@ -61,7 +65,7 @@ export function validateRuleTypes(
       : undefined;
     for (const side of ["publish", "subscribe"]) {
       const node = config && property(config, side);
-      if (node) validateRuleType(module, node, subject, catalog, diagnostics);
+      if (node) validateRuleType(module, node, subject, { kind: "other" }, catalog, diagnostics);
     }
   }
 }
@@ -80,7 +84,7 @@ export function validateMaintainRuleTypes(
     const readable = config && property(config, "readable");
     if (!readable) continue;
     const target = stringValue(property(config, "into"));
-    validateRuleType(module, readable, target ? catalog.get(target) : undefined, catalog, diagnostics);
+    validateRuleType(module, readable, target ? catalog.get(target) : undefined, { kind: "other" }, catalog, diagnostics);
   }
 }
 
@@ -104,6 +108,7 @@ function validateRuleType(
   module: SchemaModule,
   node: ts.Expression,
   subject: RuleSubject | undefined,
+  ruleUse: RuleUse,
   catalog: Map<string, RuleTableShape>,
   diagnostics: FrontendDiagnostic[],
 ): void {
@@ -125,8 +130,8 @@ function validateRuleType(
     return;
   }
   if ((name === "eq" || name === "ne") && call.arguments.length === 2) {
-    const left = call.arguments[0] && ruleTermType(module, call.arguments[0], subject, diagnostics);
-    const right = call.arguments[1] && ruleTermType(module, call.arguments[1], subject, diagnostics);
+    const left = call.arguments[0] && ruleTermType(module, call.arguments[0], subject, ruleUse, diagnostics);
+    const right = call.arguments[1] && ruleTermType(module, call.arguments[1], subject, ruleUse, diagnostics);
     if (left && right && !compatible(left, right)) {
       diagnostics.push(ruleTypeDiagnostic(
         module,
@@ -137,14 +142,23 @@ function validateRuleType(
     return;
   }
   if (name === "and" || name === "or") {
-    for (const item of call.arguments) validateRuleType(module, item, subject, catalog, diagnostics);
+    for (const item of call.arguments) validateRuleType(module, item, subject, ruleUse, catalog, diagnostics);
     return;
   }
   if (name === "not" && call.arguments[0]) {
-    validateRuleType(module, call.arguments[0], subject, catalog, diagnostics);
+    validateRuleType(module, call.arguments[0], subject, ruleUse, catalog, diagnostics);
     return;
   }
-  if (name !== "exists" || call.arguments.length !== 3) return;
+  if (name !== "exists" && name !== "created") return;
+  if (name === "created" && !(ruleUse.kind === "table" && ruleUse.effect === "insert")) {
+    diagnostics.push(ruleTypeDiagnostic(
+      module,
+      call,
+      "created-row probes are valid only in table insert rules",
+    ));
+  }
+  if (call.arguments.length !== 3) return;
+  const probe = name;
   const target = call.arguments[0] && unwrapExpression(call.arguments[0]);
   const tableName = target && ts.isIdentifier(target) ? target.text : undefined;
   const indexName = stringValue(call.arguments[1]);
@@ -154,7 +168,7 @@ function validateRuleType(
     diagnostics.push(ruleTypeDiagnostic(
       module,
       call.arguments[0] ?? call,
-      `rule.exists references unresolved table ${tableName ?? call.arguments[0]?.getText() ?? "<missing>"}`,
+      `rule.${probe} references unresolved table ${tableName ?? call.arguments[0]?.getText() ?? "<missing>"}`,
     ));
     return;
   }
@@ -164,7 +178,7 @@ function validateRuleType(
     diagnostics.push(ruleTypeDiagnostic(
       module,
       call.arguments[1] ?? call,
-      `rule.exists references unresolved index ${tableName}.${indexName}`,
+      `rule.${probe} references unresolved index ${tableName}.${indexName}`,
     ));
     return;
   }
@@ -174,7 +188,7 @@ function validateRuleType(
     diagnostics.push(ruleTypeDiagnostic(
       module,
       call.arguments[1] ?? call,
-      `rule.exists index ${tableName}.${indexName} has an unresolved column list`,
+      `rule.${probe} index ${tableName}.${indexName} has an unresolved column list`,
     ));
     return;
   }
@@ -182,7 +196,7 @@ function validateRuleType(
     diagnostics.push(ruleTypeDiagnostic(
       module,
       key,
-      `rule.exists key for ${tableName}.${indexName} has ${key.elements.length} terms; expected ${columns.length}`,
+      `rule.${probe} key for ${tableName}.${indexName} has ${key.elements.length} terms; expected ${columns.length}`,
     ));
   }
   for (const [position, term] of key.elements.entries()) {
@@ -193,17 +207,106 @@ function validateRuleType(
       diagnostics.push(ruleTypeDiagnostic(
         module,
         term,
-        `rule.exists index ${tableName}.${indexName} references unresolved column ${column}`,
+        `rule.${probe} index ${tableName}.${indexName} references unresolved column ${column}`,
       ));
       continue;
     }
-    const actual = ruleTermType(module, term, subject, diagnostics);
+    const actual = ruleTermType(module, term, subject, ruleUse, diagnostics);
     if (!actual || compatibleExists(actual, expected, tableName, column)) continue;
     diagnostics.push(ruleTypeDiagnostic(
       module,
       term,
-      `rule.exists term for ${tableName}.${indexName}.${column} is ${ruleTypeLabel(actual)}; expected ${ruleTypeLabel(expected)}`,
+      `rule.${probe} term for ${tableName}.${indexName}.${column} is ${ruleTypeLabel(actual)}; expected ${ruleTypeLabel(expected)}`,
     ));
+  }
+}
+
+function validateFinalExistsTypes(
+  module: SchemaModule,
+  config: ts.ObjectLiteralExpression,
+  sourceTable: string,
+  subject: RuleSubject,
+  catalog: Map<string, RuleTableShape>,
+  diagnostics: FrontendDiagnostic[],
+): void {
+  const constraints = property(config, "constraints");
+  const value = constraints && unwrapExpression(constraints);
+  if (!value || !ts.isArrayLiteralExpression(value)) return;
+  for (const item of value.elements) {
+    const constraint = objectOf(item);
+    const finalNode = constraint && property(constraint, "finalExistsOnInsert");
+    const finalExists = finalNode && objectOf(finalNode);
+    if (!finalExists) continue;
+    const tableNode = property(finalExists, "table");
+    const tableName = stringValue(tableNode);
+    if (!tableName) continue;
+    const target = catalog.get(tableName);
+    if (!target) {
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        tableNode ?? finalNode,
+        `final-exists constraint references unknown table ${tableName}`,
+      ));
+      continue;
+    }
+    const indexNode = property(finalExists, "index");
+    const indexName = stringValue(indexNode);
+    if (!indexName) continue;
+    const index = target.indexes[indexName];
+    if (!index) {
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        indexNode ?? finalNode,
+        `final-exists constraint references unknown index ${tableName}.${indexName}`,
+      ));
+      continue;
+    }
+    const keyNode = property(finalExists, "key");
+    const key = keyNode && unwrapExpression(keyNode);
+    if (!key || !ts.isArrayLiteralExpression(key)) continue;
+    const columns = index.columns;
+    if (!Array.isArray(columns)) {
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        indexNode ?? finalNode,
+        `final-exists index ${tableName}.${indexName} has an unresolved column list`,
+      ));
+      continue;
+    }
+    if (key.elements.length !== columns.length) {
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        key,
+        `final-exists key for ${tableName}.${indexName} has ${key.elements.length} terms; expected ${columns.length}`,
+      ));
+    }
+    for (const [position, term] of key.elements.entries()) {
+      const column = columns[position];
+      if (!column) continue;
+      const expected = ruleTypeFromDescriptor(target.columns[column]);
+      if (!expected) {
+        diagnostics.push(ruleTypeDiagnostic(
+          module,
+          term,
+          `final-exists index ${tableName}.${indexName} references unresolved column ${column}`,
+        ));
+        continue;
+      }
+      const actual = ruleTermType(module, term, subject, { kind: "other" }, diagnostics);
+      if (!actual || compatibleFinalExists(
+        actual,
+        expected,
+        sourceTable,
+        tableName,
+        column,
+        term,
+      )) continue;
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        term,
+        `final-exists term for ${tableName}.${indexName}.${column} is ${ruleTypeLabel(actual)}; expected ${ruleTypeLabel(expected)}`,
+      ));
+    }
   }
 }
 
@@ -211,6 +314,7 @@ function ruleTermType(
   module: SchemaModule,
   node: ts.Expression,
   subject: RuleSubject | undefined,
+  ruleUse: RuleUse,
   diagnostics: FrontendDiagnostic[],
 ): RuleType | undefined {
   const value = unwrapExpression(node);
@@ -218,11 +322,25 @@ function ruleTermType(
     && value.expression.getText() === "rule"
     && value.name.text === "viewer") return { kind: "principal" };
   const call = unwrapCall(value);
-  if (call && callLeaf(call) === "field" && call.arguments.length === 1 && call.arguments[0]) {
+  const name = call && callLeaf(call);
+  if (call && name === "field" && call.arguments.length === 1 && call.arguments[0]) {
     const field = stringValue(call.arguments[0]);
     if (field) return ruleFieldType(module, call.arguments[0], subject, field, diagnostics);
   }
-  if (call && callLeaf(call) === "literal" && call.arguments.length === 1 && call.arguments[0]) {
+  if (call && (name === "oldField" || name === "nextField")
+    && call.arguments.length === 1 && call.arguments[0]) {
+    if (!(ruleUse.kind === "table" && ruleUse.effect === "update")) {
+      diagnostics.push(ruleTypeDiagnostic(
+        module,
+        call,
+        `${name === "oldField" ? "old" : "next"}-row fields are valid only in table update rules`,
+      ));
+      return undefined;
+    }
+    const field = stringValue(call.arguments[0]);
+    if (field) return ruleFieldType(module, call.arguments[0], subject, field, diagnostics);
+  }
+  if (call && name === "literal" && call.arguments.length === 1 && call.arguments[0]) {
     const literal = staticJson(call.arguments[0]);
     if (literal !== undefined) return ruleLiteralType(literal);
   }
@@ -328,6 +446,27 @@ function compatibleExists(
   return compatible(actual, expected)
     || (actual.kind === "ref" && actual.table === targetTable
       && expected.kind === "id" && targetColumn === "id");
+}
+
+function compatibleFinalExists(
+  actual: RuleType,
+  expected: RuleType,
+  sourceTable: string,
+  targetTable: string,
+  targetColumn: string,
+  term: ts.Expression,
+): boolean {
+  if (compatibleExists(actual, expected, targetTable, targetColumn)) return true;
+  const expectedRef = expected.kind === "ref"
+    ? expected.table
+    : expected.kind === "optional" && expected.of.kind === "ref"
+      ? expected.of.table
+      : undefined;
+  const call = unwrapCall(term);
+  return actual.kind === "id"
+    && expectedRef === sourceTable
+    && callLeaf(call) === "field"
+    && stringValue(call?.arguments[0]) === "id";
 }
 
 function sameRuleType(left: RuleType, right: RuleType): boolean {

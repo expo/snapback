@@ -16,10 +16,10 @@ import {
   stableSerialize,
   type AuthMe,
   type AuthSession,
-  type AuthTokenStore,
   type ChannelHandle,
   type ClientSnapshot,
   type ConnectionState,
+  type CreateClientOptions,
   type MutationResult,
   type Principal,
   type QueryHookResult,
@@ -39,19 +39,19 @@ interface ProviderValue {
 
 const Context = createContext<ProviderValue | null>(null);
 
-export interface SnapbackProviderProps {
-  url: string;
-  as?: string;
-  token?: string;
-  tokenStore?: AuthTokenStore;
-  fetch?: typeof globalThis.fetch;
+export type SnapbackProviderProps = CreateClientOptions & {
   children: ReactNode;
-}
+};
 
 // @ref LLP 1002#9-the-client-snapback2client-snapback2react-snapback2test — React web is the first arm over the shared headless client.
 export function SnapbackProvider({ url, as, token, tokenStore, fetch, children }: SnapbackProviderProps): React.ReactElement {
+  if (as !== undefined && (token !== undefined || tokenStore !== undefined)) {
+    throw new TypeError("SnapbackProvider cannot combine dev persona `as` with bearer token custody");
+  }
   const client = useMemo(
-    () => createClient({ url, as, token, tokenStore, fetch }),
+    () => createClient(as !== undefined
+      ? { url, as, fetch }
+      : { url, token, tokenStore, fetch }),
     [url, as, token, tokenStore, fetch],
   );
   const [snapshot, setSnapshot] = useState<ClientSnapshot>(client.snapshot);

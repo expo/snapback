@@ -949,16 +949,13 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
 #[test]
 fn store_open_adds_then_binding_columns_to_an_existing_outbox() {
     let path = temp_path();
+    drop(Store::open(&path).unwrap());
     {
         let connection = rusqlite::Connection::open(&path).unwrap();
         connection
             .execute_batch(
-                "CREATE TABLE _outbox (
-                    id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL,
-                    payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL,
-                    next_at INTEGER NOT NULL, last_error TEXT, result TEXT,
-                    created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
-                 );
+                "ALTER TABLE _outbox DROP COLUMN then_op;
+                 ALTER TABLE _outbox DROP COLUMN generation;
                  INSERT INTO _outbox VALUES
                     ('old', 1, 'audit', '\"Null\"', 'queued', 0, 0, NULL, NULL, 0, 0);",
             )

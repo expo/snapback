@@ -54,9 +54,13 @@ export const rule = Object.freeze({
   not: (value: unknown) => inert("not", value),
   exists: (target: unknown, index: string, key: unknown[]) =>
     inert("exists", { target, index, key }),
+  created: (target: unknown, index: string, key: unknown[]) =>
+    inert("created", { target, index, key }),
   system: () => inert("system"),
   viewerIs: (field: string) => inert("viewerIs", { field }),
   field: (name: string) => inert("field", { name }),
+  oldField: (name: string) => inert("oldField", { name }),
+  nextField: (name: string) => inert("nextField", { name }),
   viewer,
   literal: (value: unknown) => inert("literal", value),
 });

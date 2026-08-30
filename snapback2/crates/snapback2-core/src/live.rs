@@ -35,6 +35,9 @@ pub struct SubscriptionInfo {
     pub principal: String,
     pub last_result_digest: String,
     pub last_seq: u64,
+    // @ref LLP 1002#7-test-and-the-receipt — qualification intersects the exact retained trace.
+    // A later re-execution is not equivalent for branch- or time-sensitive queries.
+    pub trace: AuthoritativeTrace,
 }
 
 #[derive(Clone)]
@@ -229,6 +232,7 @@ impl Runtime {
                 principal: subscription.context.viewer.to_string(),
                 last_result_digest: subscription.last_result_digest.clone(),
                 last_seq: subscription.last_seq,
+                trace: subscription.trace.clone(),
             })
             .collect()
     }
@@ -306,6 +310,9 @@ mod tests {
             },
         );
         runtime.subs.rebuild_indexes();
+        let info = runtime.subscriptions();
+        assert_eq!(info.len(), 1);
+        assert_eq!(info[0].trace, runtime.subs.entries[&1].trace);
         assert_eq!(runtime.invalidated(&commit), vec![1]);
     }
 }

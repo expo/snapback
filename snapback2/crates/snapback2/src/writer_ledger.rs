@@ -27,8 +27,8 @@ impl State {
         args: Json,
         identity: Identity,
     ) -> Result<Json, Refusal> {
-        let principal = self.principal(identity)?;
-        let context = self.context(principal, &op, args)?;
+        let authority = self.resolve_authority(identity)?;
+        let context = self.context(&authority, &op, args)?;
         let requested_args = context.args.clone();
         let requested_principal = context.viewer.clone();
         let execution = self
@@ -55,6 +55,8 @@ impl State {
                             "principal": subscription.principal,
                             "lastResultDigest": subscription.last_result_digest,
                             "lastSeq": subscription.last_seq,
+                            // @ref LLP 1002#7-test-and-the-receipt — the served receipt consumes the exact retained trace.
+                            "trace": subscription.trace,
                         })
                     })
             })

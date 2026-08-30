@@ -129,13 +129,16 @@ export interface AuthTokenStore {
   save(token: string | null): void | Promise<void>;
 }
 
-export interface CreateClientOptions {
+interface ClientLocationOptions {
   url: string;
-  token?: string;
-  tokenStore?: AuthTokenStore;
-  as?: string;
   fetch?: typeof globalThis.fetch;
 }
+
+/** A client has exactly one authority source: a dev persona or bearer custody. */
+export type CreateClientOptions = ClientLocationOptions & (
+  | { as: string; token?: never; tokenStore?: never }
+  | { as?: never; token?: string; tokenStore?: AuthTokenStore }
+);
 
 export interface SnapbackClient {
   readonly auth: AuthApi;

@@ -29,6 +29,16 @@ pub(super) struct Runner<'a> {
     pub(super) trace: AuthoritativeTrace,
     pub(super) receipt: ClosureReceipt,
     pub(super) rule_memo: BTreeMap<String, bool>,
+    /// Row identities inserted by this runner. This is transaction-local
+    /// provenance, not durable authority and not reconstructed from storage.
+    pub(super) created_rows: BTreeSet<(String, String)>,
+    /// Current indexed points for those created row identities. Keeping this
+    /// separately makes a non-unique target key true when *any* matching row
+    /// was created, without scanning pre-existing rows.
+    pub(super) created_points: BTreeSet<(String, String, String, String)>,
+    /// Source rows whose insert-scoped final constraints must hold after the
+    /// complete statement body and immediately before commit.
+    pub(super) inserted_rows: Vec<(String, Value)>,
     pub(super) verdicts: &'a [Verdict],
     pub(super) seq: u64,
 }
@@ -53,6 +63,9 @@ impl<'a> Runner<'a> {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
+            created_rows: BTreeSet::new(),
+            created_points: BTreeSet::new(),
+            inserted_rows: Vec::new(),
             verdicts,
             seq,
         }
@@ -76,6 +89,9 @@ impl<'a> Runner<'a> {
             trace: AuthoritativeTrace::default(),
             receipt: ClosureReceipt::default(),
             rule_memo: BTreeMap::new(),
+            created_rows: BTreeSet::new(),
+            created_points: BTreeSet::new(),
+            inserted_rows: Vec::new(),
             verdicts,
             seq,
         }
@@ -176,11 +192,7 @@ impl<'a> Runner<'a> {
                 Stmt::Upsert { table, key, row } => {
                     let key = self.expr(key)?;
                     let row = self.expr(row)?;
-                    if self.fetch_id(table, key.as_str()?)?.is_some() {
-                        self.replace(table, &key, row)?;
-                    } else {
-                        self.insert(table, row)?;
-                    }
+                    self.upsert(table, &key, row)?;
                     Flow::Next
                 }
                 Stmt::Delete { table, key } => {
@@ -552,7 +564,7 @@ impl<'a> Runner<'a> {
         if let Some(row) = found {
             self.trace.examined += 1;
             let id = row.field("id")?.as_str()?.to_owned();
-            let visible = self.check_rule(&read.table, Effect::Read, &row)?;
+            let visible = self.check_rule(&read.table, Effect::Read, None, &row)?;
             self.trace.points.push(PointTrace {
                 site: read.site.clone(),
                 table: read.table.clone(),
@@ -658,7 +670,7 @@ impl<'a> Runner<'a> {
             .collect::<Result<Vec<_>, _>>()?;
         let mut visible = Vec::new();
         for row in &examined_rows {
-            if self.check_rule(&scan.table, Effect::Read, row)? {
+            if self.check_rule(&scan.table, Effect::Read, None, row)? {
                 visible.push(row.clone());
             }
         }

@@ -31,7 +31,7 @@ export const capped = query({}, ({ db }) =>
 );
 
 export const denied = query({ conversationId: t.id() }, ({ db, ctx, args }) => {
-  db.require(db.exists(memberships.byConvUser, [args.conversationId, ctx.viewer]), "MEMBERSHIP_REQUIRED");
+  db.require(db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]), "MEMBERSHIP_REQUIRED");
   return true;
 });
 

@@ -179,7 +179,10 @@ test("real channel membership revocation ends the subscriber with a refusal", as
     () => undefined,
     (error: unknown) => error,
   );
-  const removed = await bob.mutation(api.messages.leave, { membershipId: "membership-2" });
+  const removed = await bob.mutation(api.groups.memberLeave, {
+    conversationId: "conversation-1",
+    membershipId: "membership-2",
+  });
   assert.equal(removed.state, "committed");
   const terminalError = await terminal;
   assert.ok(terminalError instanceof SnapbackRefusal);

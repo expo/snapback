@@ -6,7 +6,7 @@ because the author declares an invalidation list. Bound every scan:
 ```ts
 export const thread = query({ conversationId: t.ref(conversations) }, ({ db, ctx, args }) => {
   db.require(
-    db.exists(memberships.byConvUser, [args.conversationId, ctx.viewer]),
+    db.exists(memberships.byConversationPrincipal, [args.conversationId, ctx.viewer]),
     "MEMBERSHIP_REQUIRED",
   );
   return db.scan(messages.byConvTime, [args.conversationId], { order: "desc", take: 50 });

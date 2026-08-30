@@ -148,6 +148,51 @@ fn scan_program(name: &str, table: &str, take: u32) -> Program {
     }
 }
 
+fn point(site: &str, index: &str) -> Expr {
+    Expr::Get(Read {
+        site: site.to_owned(),
+        table: "documents".to_owned(),
+        index: index.to_owned(),
+        key: vec![Expr::Literal(Value::Id("key".to_owned()))],
+        provenance: KeyProvenance::Const,
+    })
+}
+
+#[test]
+fn certificate_refuses_incompatible_duplicate_read_sites_but_aggregates_equal_shapes() {
+    let schema = schema(BTreeMap::from([(
+        "documents".to_owned(),
+        documents(RuleExpr::Public {
+            reason: "certificate fixture".to_owned(),
+        }),
+    )]));
+    let program = |second_index: &str| Program {
+        name: "documents.collidingReads".to_owned(),
+        kind: ProgramKind::Query,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "first".to_owned(),
+                value: point("documents.row", "byId"),
+            },
+            Stmt::Return(point("documents.row", second_index)),
+        ],
+    };
+
+    let error = Checker::new(&schema, Ceilings::default())
+        .check(&program("byGroup"))
+        .unwrap_err();
+    assert_eq!(error.code, "E_TRACE_SUBSET");
+    assert!(error.message.contains("documents.row"), "{error:?}");
+
+    let certificate = Checker::new(&schema, Ceilings::default())
+        .check(&program("byId"))
+        .unwrap();
+    assert_eq!(certificate.read_sites.len(), 1);
+    assert_eq!(certificate.read_sites[0].max_calls, 2);
+}
+
 fn document(id: &str, group: &str, owner: &str) -> Value {
     object([
         ("id", Value::Id(id.to_owned())),

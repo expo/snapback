@@ -12,7 +12,7 @@ through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 states), LLP 0331 §"Failure and disclosure semantics" / §"Amendment to
 ruling 0" (Draft Research that informed the implemented alignment recorded
 here; it is not a governing Snapback2 spec),
-`issues/20260830-snapback2-align-rules-with-llp-0331.md`,
+`issues/closed/20260830-snapback2-align-rules-with-llp-0331.md`,
 `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
 
 ## Summary
@@ -60,11 +60,18 @@ place):
 | `_outbox` | `id TEXT PK, seq INTEGER, effect TEXT, payload TEXT(JSON), state TEXT, attempts INTEGER, next_at INTEGER, last_error TEXT, result TEXT(JSON), created_at INTEGER, updated_at INTEGER` + index on `(state, next_at)` | engine writes, LLP 1003 drains |
 | `_principals` | `id TEXT PK, kind TEXT ('user'\|'guest'\|'persona'\|'system'), name TEXT, created_at INTEGER` | identity |
 | `_credentials` | `principal TEXT PK, email TEXT UNIQUE, hash TEXT` | identity |
-| `_sessions` | `token TEXT PK, principal TEXT, kind TEXT, created_at INTEGER, expires_at INTEGER` | identity |
+| `_sessions` | `auth_epoch INTEGER PK AUTOINCREMENT, token_digest BLOB UNIQUE CHECK(length=32), principal TEXT, kind TEXT, created_at INTEGER, expires_at INTEGER` | identity |
+| `_auth_throttle` | `bucket_digest BLOB PK CHECK(length=32), window_start INTEGER, attempts INTEGER` | identity |
 
 Tables whose names begin with `_` are engine-owned: the schema may not declare
 them (`E_SCHEMA_RESERVED`), programs may not read or write them, and `data`
 reads them only through the dedicated verbs.
+
+Application row identity is intrinsic: the serialized row's `id` always equals
+its `rows.row_id` storage address. Insert derives the address from the row;
+update/replace and both upsert branches reject a mismatch before changing the
+row or its index entries. An addressed write never migrates a row to another
+identity.
 
 **Exclusive write ownership** (LLP 0329.021 P2, LLP 0329.022 R1 — folded
 2026-08-30). The Snapback 2 owner is the *only* writer of its store. An
@@ -118,6 +125,14 @@ The engine keeps the containment invariant `receipt ⊆ trace ⊆ certificate`
 `receipt.absences ⊆ trace.absences` beside rows, ranges, and verdicts, with a
 negative test (`issues/20260829-bounded-programs-receipt-absences-unvalidated.md`).
 Nothing in this crate ever constructs a receipt from anything but a trace.
+
+Read-site names are certificate identities, not diagnostic labels. Compiler
+lowering preserves the first readable inferred name and deterministically
+suffixes later collisions within one operation. Raw project JSON that reuses a
+site for incompatible point/range, table/index, bound, or provenance shapes is
+refused with `E_TRACE_SUBSET`; equal shapes may reuse a site and aggregate its
+maximum call count. Certification therefore cannot silently collapse two
+reads into a certificate that only one of them can execute.
 
 ## 3. Read and write states (no silent states)
 
@@ -218,8 +233,9 @@ generation and, where it names a replaceable authority row, that row's
 immutable identity/incarnation or expected version. A stale predecessor
 policy must not authorize after succession, and deleting then recreating the
 same `(scope, principal)` key must not retarget an old promote/remove intent.
-The named closure proofs are specified in LLP 1002 §7; until both pass, the
-alignment issue remains open and the durable grant-handle part is not claimed.
+The named closure proofs are specified in LLP 1002 §7. The canonical served
+receipt now passes all three, including remove/recreate replay against the
+intrinsic membership-row incarnation; the alignment issue is resolved.
 
 **Seed writes and maintained-target rows are engine-owned** (rulings
 2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
@@ -296,21 +312,52 @@ the primitives; the loop owns the routes.
 ```rust
 pub struct PrincipalId(String); // opaque nominal authority subject
 pub struct Principal { pub id: PrincipalId, pub kind: String, pub name: Option<String> }
-pub struct Session { pub token: String, pub principal: Principal, pub expires_at: i64 }
+pub struct Session { pub token: String, pub principal: Principal, pub auth_epoch: u64, pub expires_at: i64 }
+pub struct SessionAuthority { pub principal: Principal, pub auth_epoch: u64, pub expires_at: i64 }
 impl Runtime {
     pub fn signup(&mut self, email: &str, password: &str, now: i64) -> Result<Session, IdentityError>;  // E_AUTH_EMAIL_TAKEN, E_AUTH_PASSWORD_WEAK (< 8 chars)
     pub fn login(&mut self, email: &str, password: &str, now: i64) -> Result<Session, IdentityError>;   // E_AUTH_INVALID (one code for unknown email and wrong password)
     pub fn guest(&mut self, now: i64) -> Result<Session, IdentityError>;                                 // refused E_AUTH_GUESTS_OFF unless the project's auth.guests
-    pub fn persona(&mut self, name: &str, now: i64) -> Result<Session, IdentityError>;                  // dev only: principal id `dev:<name>`, created on first use, stable token
-    pub fn authenticate(&self, token: &str, now: i64) -> Result<Principal, IdentityError>;              // E_AUTH_SESSION
-    pub fn logout(&mut self, token: &str) -> Result<(), IdentityError>;
+    pub fn ensure_persona(&mut self, name: &str, now: i64) -> Result<Principal, IdentityError>;          // stable dev alias; no session side effect
+    pub fn persona(&mut self, name: &str, now: i64) -> Result<Session, IdentityError>;                   // fresh finite session for `dev:<name>`
+    pub fn authenticate(&self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;        // E_AUTH_SESSION
+    pub fn logout(&mut self, token: &str, now: i64) -> Result<SessionAuthority, IdentityError>;          // exact live session, else E_AUTH_SESSION
+    pub fn expire_sessions(&mut self, now: i64) -> Result<Vec<SessionAuthority>, IdentityError>;         // delete and return every epoch whose exclusive bound has arrived
+    pub fn next_session_expiry(&self) -> Result<Option<i64>, IdentityError>;                              // owner polling deadline
     pub fn principals(&self, kind: Option<&str>) -> Result<Vec<Principal>, IdentityError>;
 }
 ```
 
 Password hashing is salted and iterated (argon2id preferred; PBKDF2-HMAC-SHA256
 with ≥ 100k iterations acceptable) through one small crate; the hash format is
-versioned in the string. Tokens are 32 random bytes, base64url. `PrincipalId`
+versioned in the string. Login has two durable fixed-window pre-KDF buckets:
+one global and one keyed by a SHA-256 digest of the canonical email. A refused
+bucket and either credential failure share `E_AUTH_INVALID`; known and unknown
+identities otherwise each consume one Argon2id verification. The limits are
+server constants, not app configuration, and expiry/reset of a bucket is
+performed before the expensive KDF without holding a SQLite transaction.
+
+Tokens are 32 random bytes, base64url. The exact bearer is returned once and
+never written to SQLite. `_sessions` stores only
+`SHA-256("snapback2-session-token-v1\\0" || bearer_bytes)` as a 32-byte BLOB,
+plus principal, kind, creation/expiry times, and an `INTEGER PRIMARY KEY
+AUTOINCREMENT` `auth_epoch`. Epoch zero is reserved for trusted system and
+development-alias contexts; every persisted session has a positive,
+strictly-increasing, never-reused epoch in that store. A session is valid on
+`[created_at, expires_at)`; authentication at the expiry instant fails and
+expired rows are deleted so clock rollback cannot revive them. Logout verifies
+and deletes one exact live epoch; a missing, expired, or already-revoked bearer
+is `E_AUTH_SESSION`, not a successful no-op. Multiple sessions for one
+principal are independent.
+
+This is a pre-promotion store-format break. `Store::open` accepts only the
+canonical digest-only session schema and refuses an older plaintext-token or
+unknown hybrid shape before publishing an owner. It does not preserve legacy
+bearer continuity or add a compatibility migration; development stores must be
+reset. This follows the Snapback2 no-compatibility fence and avoids pretending
+that rewriting a live table could erase plaintext from old database copies.
+
+`PrincipalId`
 is the nominal authority scalar used by `Context::viewer`; the schema/compiler
 surface exposes the same distinction as `t.principal()` / branded
 `Principal`. A principal currently serializes through the `Value::Id` wire and
@@ -343,6 +390,16 @@ representation constructors, not authentication evidence. Untrusted served
 requests acquire their acting `Context::viewer` only through session
 authentication (or the development-only persona boundary); accepting a
 Principal-typed target program argument never changes the acting viewer.
+
+Persona aliases are ordinary protected principals with deterministic
+`dev:<name>` ids in one development store. Owner startup and
+`X-Snapback-As` call `ensure_persona` and create no durable session; the header
+is a loopback-development shortcut with `auth_epoch = 0` and is refused by a
+served/production owner. `snapback2 persona create` issues a fresh finite
+bearer each time for that same principal, so persona session expiry and logout
+exercise the ordinary persisted-session path rather than an immortal token.
+`Session` and bearer identities use redacted debug formatting; tokens never
+appear in receipts, traces, owner status, URLs, app rows, or logs.
 
 ## 7. Channels (`schema.channels`)
 
@@ -380,7 +437,14 @@ an effect is.
 
 ### Authorization rule alignment
 
-The core rule algebra has only `Field`, `Viewer`, and `Literal` terms.
+The core rule algebra has `Field`, `OldField`, `NextField`, `Viewer`, and
+`Literal` terms. `Field` reads the candidate row (and therefore the next image
+for an update). `OldField` and `NextField` are legal only in a table update
+rule. An update rule is evaluated exactly once with both images; it is not an
+independent old-row check followed by an independent next-row check. This
+makes a transition such as member → admin expressible while binding its scope
+and Principal axes across the transition.
+
 `system` is one reserved principal value, not a principal class: the authored
 `rule.system()` convenience in LLP 1002 lowers exactly to
 `Eq(Viewer, Literal(Id("system")))`. There is no `PrincipalKind` rule
@@ -409,6 +473,15 @@ remain in the authoritative trace for invalidation and OCC, but the client
 receives only an authority verdict. There is no `Readable`/`Hidden` IR enum
 and no author-controlled escape hatch.
 
+`RuleExpr::Created { table, index, key, provenance }` is a distinct,
+insert-rule-only point probe. It is true only when the exact indexed target row
+was inserted earlier by the same transaction; finding an indistinguishable
+pre-existing row is false. The provenance fact is transaction-local, is always
+hidden, and cannot enter a reusable row, absence, or authority receipt. This is
+the narrow bootstrap primitive: it lets the creator's first scoped role cite
+the conversation row created by that mutation without making ordinary
+membership insertion public.
+
 `Schema` gains, all `#[serde(default)]`: `channels: BTreeMap<String, Channel>`,
 `auth: Auth { password: bool, guests: bool }`, `effects: Vec<String>` (the
 declared effect names; `Generation::certify` checks an `emit` against the
@@ -435,6 +508,33 @@ arithmetic, ordering, or the evaluator twin changes:
   Indexable, orderable, exact. `Money { currency, scale }` is the same with a
   currency tag for the compiler to check; the engine treats it as `Decimal`.
 
+`Constraint::Text { field, min, format }` binds every writer after ordinary
+column validation. `min` counts Unicode scalar values, matching `t.text(max)`;
+`format: Handle` admits only ASCII lowercase letters, digits, and underscore,
+and `format: Url` admits an absolute `http://` or `https://` URL with a
+non-empty remainder and no whitespace/control characters. Optional text may
+be absent/`Null`; when present it is checked identically. Certification
+requires a text or optional-text field and refuses `min > max`.
+
+The implicit `id` column is intrinsic row identity and is immutable without an
+authored constraint. Every addressed update or upsert requires the resulting
+row's `id` to equal the addressed key before rule evaluation, index mutation,
+or insertion; a mismatch is an atomic `E_INPUT` rejection. The authored
+`db.update` patch type omits `id`, and the engine repeats the equality check for
+raw project JSON. Thus an update cannot strand old/new index entries, and a
+missing-row upsert cannot insert under an identity different from its key.
+
+`Constraint::FinalExistsOnInsert { table, index, key }` is an insert-scoped
+relational postcondition. For each source row inserted by the execution, its
+key terms resolve against that inserted image and the exact indexed target
+point must exist after the complete statement body and immediately before
+commit. It binds seed/system writers as well as user mutations; a miss rejects
+and rolls back the whole transaction. It does not become a perpetual invariant
+on later updates or deletes. Certification checks the static target, index,
+arity, and term types, includes the point probe in bounds/index custody, and
+records its authoritative constraint input. The canonical conversation table
+uses it to make a creator-admin membership mandatory at creation.
+
 Deferred, recorded so they are not re-derived: `Bytes { max }` (needs a value
 variant and a canonical encoding shared with the twin — a value-model version
 bump), `Interval { of }` (four archetypes need it, but it interacts with
@@ -445,7 +545,7 @@ the ruling).
 ## 10. What binds, and how it is checked
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
-  in `tests/{store,live,successor,identity,outbox,rbac_adversarial}.rs`.
+  in `tests/{store,live,successor,identity,outbox,text_constraints,tier0_authorization}.rs`.
 - The 76 corpus filenames, case names, and expected semantic results remain
   unchanged, and the Rust engine/evaluator twin pass all 76. Regeneration is
   intentionally not byte-identical: it removes the legacy serialized
@@ -470,8 +570,8 @@ the ruling).
   `Denied` at the revoking commit; a subscriber/request retained across a
   policy successor cannot execute the predecessor policy; and a stale grant
   intent cannot affect a remove/recreate successor row. LLP 1002 §7 gives
-  these proofs stable receipt names. The issue may not close while any is
-  absent.
+  these proofs stable receipt names; the canonical served receipt passes all
+  three and records the alignment issue's closure evidence.
 - Successor: adding a table/index/column/program applies in place with the
   new index populated; dropping a table with rows is refused with a plan
   naming the table and its row count; `apply_migration` with that plan

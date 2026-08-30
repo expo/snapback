@@ -3,6 +3,7 @@ import type { TableInfo } from "./authored-types";
 import { argumentSpreadRewrite, expandArgumentObject } from "./args";
 import { boundedDiagnostics, diagnostic, refuse, Refusal } from "./diagnostics";
 import {
+  allocateReadSite,
   cloneEnvironment,
   collectionMutationCounts,
   combineProvenance,
@@ -91,6 +92,7 @@ export type Environment = ModuleInfo & {
   substitutions: Map<string, ts.Expression>;
   helperStack: string[];
   temp: { value: number };
+  readSites: Set<string>;
   literalValues: Map<number, number>;
   diagnostics: FrontendDiagnostic[];
 };
@@ -262,6 +264,7 @@ function lowerOperation(
     substitutions: new Map(),
     helperStack: [],
     temp: { value: 0 },
+    readSites: new Set(),
     literalValues: typePlan?.literalValues ?? new Map(),
     diagnostics,
   };
@@ -567,7 +570,7 @@ function lowerCallbackWrite(
   const statements: Stmt[] = [{ Let: {
     name: current,
     value: { Get: {
-      site: `${env.programName}.${singular(table)}For${method === "update" ? "Update" : "Upsert"}`,
+      site: allocateReadSite(`${env.programName}.${singular(table)}For${method === "update" ? "Update" : "Upsert"}`, env),
       table: ref.table,
       index: ref.index,
       key: lowerKey(key, env),
@@ -584,11 +587,8 @@ function lowerCallbackWrite(
   if (method === "update") {
     statements.push({ Update: { table, key: lowerExpr(key, env), patch: lowered.expression } });
   } else {
-    statements.push({ If: {
-      condition: { Binary: { op: "Eq", left: { Variable: current }, right: literal(null) } },
-      then_body: [{ Insert: { table, row: lowered.expression } }],
-      else_body: [{ Update: { table, key: lowerExpr(key, env), patch: lowered.expression } }],
-    } });
+    // @ref LLP 1001#1-store-storers — retain addressed Upsert IR so both physical branches enforce key = row.id.
+    statements.push({ Upsert: { table, key: lowerExpr(key, env), row: lowered.expression } });
   }
   return statements;
 }
