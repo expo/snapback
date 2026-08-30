@@ -19,15 +19,16 @@ pub struct Schema {
 
 impl Schema {
     pub fn hash(&self) -> String {
-        // @ref LLP 0331#amendment-to-ruling-0-ruled-2026-08-30 — authored
-        // rules no longer carry input visibility. Preserve the frozen S1
-        // certificate hash shape while deriving that legacy projection from
-        // the referenced table policy.
-        digest(&HashSchema::from(self))
+        digest(self)
     }
 
     pub fn rule_hash(&self, rule: &RuleExpr) -> String {
-        digest(&HashRuleExpr::from_rule(rule, self))
+        // @ref LLP 1001#7-channels-schema-channels — a scoped verdict binds
+        // the complete referenced policy graph, not a disclosure projection.
+        // Scoped verdicts are reusable authority. Bind them to the complete
+        // schema policy so a successor cannot carry a verdict across any
+        // referenced read-rule replacement, including cyclic rule graphs.
+        digest(&(self.hash(), rule))
     }
 
     pub fn table(&self, name: &str) -> Option<&Table> {
@@ -203,201 +204,5 @@ pub fn public_table(
             delete: public,
         },
         constraints: Vec::new(),
-    }
-}
-
-#[derive(Serialize)]
-struct HashSchema {
-    tables: BTreeMap<String, HashTable>,
-    maintains: Vec<HashMaintain>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    channels: BTreeMap<String, HashChannel>,
-    #[serde(default, skip_serializing_if = "Auth::is_default")]
-    auth: Auth,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    effects: Vec<String>,
-}
-
-impl From<&Schema> for HashSchema {
-    fn from(schema: &Schema) -> Self {
-        Self {
-            tables: schema
-                .tables
-                .iter()
-                .map(|(name, table)| (name.clone(), HashTable::from_table(table, schema)))
-                .collect(),
-            maintains: schema
-                .maintains
-                .iter()
-                .map(|maintain| HashMaintain::from_maintain(maintain, schema))
-                .collect(),
-            channels: schema
-                .channels
-                .iter()
-                .map(|(name, channel)| (name.clone(), HashChannel::from_channel(channel, schema)))
-                .collect(),
-            auth: schema.auth.clone(),
-            effects: schema.effects.clone(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct HashTable {
-    columns: BTreeMap<String, ColumnType>,
-    indexes: BTreeMap<String, Index>,
-    rules: HashRules,
-    constraints: Vec<Constraint>,
-}
-
-impl HashTable {
-    fn from_table(table: &Table, schema: &Schema) -> Self {
-        Self {
-            columns: table.columns.clone(),
-            indexes: table.indexes.clone(),
-            rules: HashRules::from_rules(&table.rules, schema),
-            constraints: table.constraints.clone(),
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct HashRules {
-    read: HashRuleExpr,
-    insert: HashRuleExpr,
-    update: HashRuleExpr,
-    delete: HashRuleExpr,
-}
-
-impl HashRules {
-    fn from_rules(rules: &Rules, schema: &Schema) -> Self {
-        Self {
-            read: HashRuleExpr::from_rule(&rules.read, schema),
-            insert: HashRuleExpr::from_rule(&rules.insert, schema),
-            update: HashRuleExpr::from_rule(&rules.update, schema),
-            delete: HashRuleExpr::from_rule(&rules.delete, schema),
-        }
-    }
-}
-
-#[derive(Serialize)]
-enum HashRuleExpr {
-    Public {
-        reason: String,
-    },
-    Allow,
-    Deny,
-    Eq(RuleTerm, RuleTerm),
-    Ne(RuleTerm, RuleTerm),
-    And(Vec<HashRuleExpr>),
-    Or(Vec<HashRuleExpr>),
-    Not(Box<HashRuleExpr>),
-    Exists {
-        table: String,
-        index: String,
-        key: Vec<RuleTerm>,
-        provenance: KeyProvenance,
-        input_visibility: HashInputVisibility,
-    },
-}
-
-impl HashRuleExpr {
-    fn from_rule(rule: &RuleExpr, schema: &Schema) -> Self {
-        match rule {
-            RuleExpr::Public { reason } => Self::Public {
-                reason: reason.clone(),
-            },
-            RuleExpr::Allow => Self::Allow,
-            RuleExpr::Deny => Self::Deny,
-            RuleExpr::Eq(left, right) => Self::Eq(left.clone(), right.clone()),
-            RuleExpr::Ne(left, right) => Self::Ne(left.clone(), right.clone()),
-            RuleExpr::And(rules) => Self::And(
-                rules
-                    .iter()
-                    .map(|rule| Self::from_rule(rule, schema))
-                    .collect(),
-            ),
-            RuleExpr::Or(rules) => Self::Or(
-                rules
-                    .iter()
-                    .map(|rule| Self::from_rule(rule, schema))
-                    .collect(),
-            ),
-            RuleExpr::Not(rule) => Self::Not(Box::new(Self::from_rule(rule, schema))),
-            RuleExpr::Exists {
-                table,
-                index,
-                key,
-                provenance,
-            } => Self::Exists {
-                table: table.clone(),
-                index: index.clone(),
-                key: key.clone(),
-                provenance: *provenance,
-                input_visibility: HashInputVisibility::for_table(schema, table),
-            },
-        }
-    }
-}
-
-#[derive(Serialize)]
-enum HashInputVisibility {
-    Readable,
-    Hidden,
-}
-
-impl HashInputVisibility {
-    fn for_table(schema: &Schema, table: &str) -> Self {
-        if schema
-            .table(table)
-            .is_some_and(|table| matches!(table.rules.read, RuleExpr::Deny))
-        {
-            Self::Hidden
-        } else {
-            Self::Readable
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct HashMaintain {
-    kind: MaintainKind,
-    source: String,
-    by: Vec<String>,
-    target: String,
-    readable: Option<HashRuleExpr>,
-}
-
-impl HashMaintain {
-    fn from_maintain(maintain: &Maintain, schema: &Schema) -> Self {
-        Self {
-            kind: maintain.kind.clone(),
-            source: maintain.source.clone(),
-            by: maintain.by.clone(),
-            target: maintain.target.clone(),
-            readable: maintain
-                .readable
-                .as_ref()
-                .map(|rule| HashRuleExpr::from_rule(rule, schema)),
-        }
-    }
-}
-
-#[derive(Serialize)]
-struct HashChannel {
-    args: BTreeMap<String, ArgType>,
-    publish: HashRuleExpr,
-    subscribe: HashRuleExpr,
-    ttl_ms: u32,
-}
-
-impl HashChannel {
-    fn from_channel(channel: &Channel, schema: &Schema) -> Self {
-        Self {
-            args: channel.args.clone(),
-            publish: HashRuleExpr::from_rule(&channel.publish, schema),
-            subscribe: HashRuleExpr::from_rule(&channel.subscribe, schema),
-            ttl_ms: channel.ttl_ms,
-        }
     }
 }

@@ -173,14 +173,13 @@ fn bounds_failure_fixture_gets_e_trace_subset_from_the_engine() {
         .unwrap();
     certificate.read_sites.clear();
     let mut engine = Engine::memory(schema).unwrap();
-    let mut context = Context::query(
-        "dev:alice",
+    let context = Context::query(
+        Actor::persona("alice").unwrap(),
         BTreeMap::from([(
             "conversationId".to_owned(),
             Value::Id("conversation-1".to_owned()),
         )]),
     );
-    context.principal_kind = "persona".to_owned();
 
     let error = engine.execute(&program, &certificate, context).unwrap_err();
 

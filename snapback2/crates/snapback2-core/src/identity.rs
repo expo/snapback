@@ -6,12 +6,22 @@ use argon2::Argon2;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use thiserror::Error;
 
 const SESSION_MILLIS: i64 = 30 * 24 * 60 * 60 * 1_000;
 // @ref LLP 0331#amendment-to-ruling-0-ruled-2026-08-30 — system is one
-// reserved ordinary principal value, not a principal-kind rule term.
-pub const SYSTEM_PRINCIPAL_ID: &str = "system";
+// reserved principal value, not a principal-kind rule term. The adjacent
+// core-owned IR contract is also consumed directly by the TypeScript compiler.
+pub const IR_CONTRACT_JSON: &str = include_str!("../ir-contract.json");
+pub static SYSTEM_PRINCIPAL_ID: LazyLock<String> = LazyLock::new(|| {
+    serde_json::from_str::<serde_json::Value>(IR_CONTRACT_JSON)
+        .expect("snapback2-core IR contract must be valid JSON")
+        .get("systemPrincipalId")
+        .and_then(serde_json::Value::as_str)
+        .expect("snapback2-core IR contract must name systemPrincipalId")
+        .to_owned()
+});
 const DUMMY_PASSWORD_HASH: &str = concat!(
     "$argon2id$v=19$m=19456,t=2,p=1$c25hcGJhY2syLWR1bW15$",
     "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
@@ -35,6 +45,61 @@ pub struct Principal {
     pub id: String,
     pub kind: String,
     pub name: Option<String>,
+}
+
+/// An authenticated application actor. Construction rejects the reserved
+/// system identity, so ordinary callers cannot acquire system authority by
+/// choosing a viewer string or principal kind.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Actor {
+    id: String,
+    kind: String,
+}
+
+impl Actor {
+    pub fn new(id: impl Into<String>, kind: impl Into<String>) -> Result<Self, ActorError> {
+        let id = id.into();
+        let kind = kind.into();
+        if id == SYSTEM_PRINCIPAL_ID.as_str() || kind == SYSTEM_PRINCIPAL_ID.as_str() {
+            return Err(ActorError::ReservedSystem);
+        }
+        if id.is_empty() {
+            return Err(ActorError::Empty);
+        }
+        Ok(Self { id, kind })
+    }
+
+    pub fn user(id: impl Into<String>) -> Result<Self, ActorError> {
+        Self::new(id, "user")
+    }
+
+    pub fn persona(name: impl AsRef<str>) -> Result<Self, ActorError> {
+        Self::new(format!("dev:{}", name.as_ref()), "persona")
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn kind(&self) -> &str {
+        &self.kind
+    }
+}
+
+impl TryFrom<&Principal> for Actor {
+    type Error = ActorError;
+
+    fn try_from(principal: &Principal) -> Result<Self, Self::Error> {
+        Self::new(principal.id.clone(), principal.kind.clone())
+    }
+}
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum ActorError {
+    #[error("E_AUTH_RESERVED: the system principal is internal and cannot be an application actor")]
+    ReservedSystem,
+    #[error("E_AUTH_INVALID: actor id must not be empty")]
+    Empty,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

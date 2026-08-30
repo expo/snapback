@@ -52,6 +52,15 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         invalidation["detail"]["staleHandle"]["status"], "pass",
         "the chat receipt did not prove successor handle replanning: {invalidation}"
     );
+    assert_eq!(
+        invalidation["detail"]["staleHandle"]["certificateDisposition"], "successorReplanned",
+        "the stale handle did not explicitly bind execution to the successor certificate: {invalidation}"
+    );
+    assert_ne!(
+        invalidation["detail"]["staleHandle"]["predecessorSchemaHash"],
+        invalidation["detail"]["staleHandle"]["executedSchemaHash"],
+        "the policy replacement did not replace the certificate hash: {invalidation}"
+    );
     let bounds = check(&receipt, "bounds");
     let executions = bounds["detail"]["executions"].as_array().unwrap();
     assert_eq!(executions.len(), 2, "{bounds}");
@@ -63,7 +72,7 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         );
         assert_eq!(
             execution["ruleProbes"],
-            serde_json::json!({ "actual": 1, "ceiling": 1 })
+            serde_json::json!({ "actual": 2, "ceiling": 2 })
         );
         assert_eq!(
             execution["steps"],

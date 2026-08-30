@@ -192,10 +192,12 @@ additive path, in the same transaction, so a refusal rolls the drops back too
 never a silent drop, never a fresh database (LLP 0329.016 §5.4).
 
 **Seed writes and maintained-target rows are engine-owned** (rulings
-2026-08-30). `Runtime::seed` writes as the `system` principal and is exempt
+2026-08-30). `Runtime::seed` uses a purpose-specific engine entry point whose
+system context cannot be constructed by an ordinary caller, and is exempt
 from the tables' user rules (never from constraints, unique indexes, or
 column validation) — a seed is data the author declared, not a client
-intent. Likewise:
+intent. Seed and caller-controlled values may not carry the reserved `system`
+token in an `Id` or `Ref`, including inside optional/list values. Likewise:
 The target table's `insert`/`update`/`delete` rules bind only non-engine
 writers — templates set them to `deny` — and the engine's aggregate writes
 are exempt from those rules and never from constraints or unique indexes.
@@ -282,12 +284,16 @@ with ≥ 100k iterations acceptable) through one small crate; the hash format is
 versioned in the string. Tokens are 32 random bytes, base64url. The principal
 id is the `viewer` every program sees; `principal_kind` is the row's kind
 (`user`, `guest`, `persona`, `system`) and remains identity metadata, not a
-rule term. The `system` principal exists from `Store::open` under the one
-core-owned reserved id and has no session; `Context::system()` constructs its
-context for schedules, `then` mutations (LLP 1003), and seeds. In authored
-rules, `rule.system()` lowers to `Eq(Viewer, Literal(Id(system)))`; there is no
-`PrincipalKind` rule expression (authorization amendment, 2026-08-30, LLP
-0331 ruling 0 as amended).
+rule term. Ordinary contexts require the nominal `Actor` type; its private
+fields and checked constructors reject the reserved id and kind. The `system`
+principal exists from `Store::open` under the one core-owned reserved id and
+has no session; the system-context constructor is private to the engine, and
+only purpose-specific schedule/effect-`then`/seed machinery can reach it. The
+reserved wire token lives in `snapback2-core/ir-contract.json`; both core and
+the compiler consume that contract. In authored rules, `rule.system()` lowers
+to `Eq(Viewer, Literal(Id(system)))`; there is no `PrincipalKind` rule
+expression (authorization amendment, 2026-08-30, LLP 0331 ruling 0 as
+amended).
 
 ## 7. Channels (`schema.channels`)
 
@@ -300,22 +306,30 @@ impl Runtime {
 }
 ```
 
-One rule probe per admission, evaluated over the args as the row (`RuleTerm::Field`
+The admission rule is evaluated over the args as the row (`RuleTerm::Field`
 reads an arg), and the verdict *carries its trace* (review ruling 2026-08-30,
 M7) so the loop indexes each subscriber by the probe's keys and re-admits on
 the commit that touches them — a deleted membership drops the subscriber.
+Every lookup performed while deriving a referenced row's visibility is also
+an authoritative rule probe and consumes the certificate's transitive probe
+ceiling.
 No persistence, no receipt, no prediction (LLP 0329.014.000 §8). The fan-out
 itself is the loop's (LLP 1002 §4).
 
 **Authorization amendment (2026-08-30).** `RuleExpr::Exists` has no authored
 `input_visibility` field, and `rule.exists` has no `hidden` option.
-Certification binds the referenced table policy through the schema and rule
-hashes; evaluation derives disclosure for the running viewer: a found probe
+Certification binds each scoped verdict to the complete schema hash plus its
+enclosing rule, so any referenced policy replacement changes the verdict and
+certificate hashes, including through cyclic rule graphs. Evaluation derives
+disclosure for the running viewer: a found probe
 row is readable only when that viewer passes the referenced table's `read`
 rule, while a denied/private probe is represented by a scoped verdict. Public
-absences remain readable; private absences remain non-enumerating. Both
-outcomes are deterministic and covered by the core and client-twin tests (LLP
-0331 §"Failure and disclosure semantics").
+absences remain readable; private absences remain non-enumerating. A referenced
+read rule's `Exists` lookups are traced and metered; visibility mode does not
+recursively derive disclosure for those nested inputs, which gives cycles a
+finite one-level bound while preserving short-circuit `And`/`Or` ceilings.
+Both outcomes are deterministic and covered by exact-ceiling core tests and
+client-twin successor tests (LLP 0331 §"Failure and disclosure semantics").
 
 ## 8. `emit` and the outbox
 
@@ -370,8 +384,11 @@ the ruling).
 
 - `cargo test -p snapback2-core` stays under the 30 s budget; new tests live
   in `tests/{store,live,successor,identity,outbox}.rs`.
-- The 75-case corpus and the 7 S1 tests pass unchanged; `export_corpus` output
-  is byte-identical (the evaluator twin is LLP 1002's lane, not this one).
+- The 76-case corpus is regenerated by `export_corpus` whenever the current
+  serialization changes; the Rust engine and TypeScript evaluator must agree
+  on all 76 cases. The 2026-08-30 authorization regeneration removes the stale
+  authored `input_visibility` projection and records its exact byte count and
+  SHA-256 in the landed corpus-regeneration commit.
 - Durability: rows, commits, outbox, and sessions survive `Store::open` on the
   same path.
 - Invalidation: a commit that touches a traced range prefix, point, absence,

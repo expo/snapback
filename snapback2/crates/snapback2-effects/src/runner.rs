@@ -120,8 +120,9 @@ pub trait OutboxAccess {
     /// attempt. Returns the number of queued rows updated.
     fn mark_queued_unavailable(&mut self, error: &str) -> Result<u64, OutboxError>;
 
-    /// Execute a named mutation as `Context::system()` and atomically report
-    /// whether its durable row settled `sent` or `failed`.
+    /// Execute the mutation bound to a durable `then_pending` row through the
+    /// core's engine-private system capability, and atomically report whether
+    /// the row settled `sent` or `failed`.
     fn execute_then(
         &mut self,
         op: &str,

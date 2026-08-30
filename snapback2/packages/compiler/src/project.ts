@@ -7,7 +7,7 @@ import { expandArgumentObject } from "./args";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
 import { lowerSource } from "./compiler";
 import { boundedDiagnostics, diagnostic, typeDiagnostic } from "./diagnostics";
-import type { FrontendDiagnostic, Program, ProjectResult, SourceSite } from "./ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type Program, type ProjectResult, type SourceSite } from "./ir";
 import { effectBindings, collectEffectCatalog, lowerEffects, type OperationDecl, type SourceModule } from "./lower/effects";
 import { lowerSchema } from "./lower/schema";
 import { boundOperationDiagnostics } from "./operation-diagnostics";
@@ -769,6 +769,7 @@ function validateSeedRow(
 
 function seedValueMismatch(value: unknown, type: unknown, path: string): string | undefined {
   if (type === "Id" || (type && typeof type === "object" && "Ref" in type)) {
+    if (value === IR_CONTRACT.systemPrincipalId) return `${path} cannot carry the reserved system principal`;
     return typeof value === "string" && value.length > 0 ? undefined : `${path} must be a non-empty string`;
   }
   if (type === "Int" || type === "Time") {

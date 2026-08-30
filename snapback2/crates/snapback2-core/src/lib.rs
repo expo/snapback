@@ -22,7 +22,9 @@ pub use engine::{
     AuthoritativeTrace, Context, Engine, Execution, ExecutionState, PointTrace, RuleInputTrace,
     RuntimeError, StopReason,
 };
-pub use identity::{IdentityError, Principal, SYSTEM_PRINCIPAL_ID, Session};
+pub use identity::{
+    Actor, ActorError, IR_CONTRACT_JSON, IdentityError, Principal, SYSTEM_PRINCIPAL_ID, Session,
+};
 pub use ir::*;
 pub use live::{Delivery, SubscriptionId, SubscriptionInfo, Subscriptions};
 pub use programs::*;

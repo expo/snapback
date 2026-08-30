@@ -134,7 +134,10 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
     assert!(report.added_indexes.contains(&"items.byName".to_owned()));
 
     let updated = runtime
-        .execute("items.addNote", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "items.addNote",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(updated.state, ExecutionState::Committed { .. }));
 
@@ -142,7 +145,7 @@ fn additive_successor_adds_table_column_index_and_program_in_place() {
         .execute(
             "items.byName",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("name".to_owned(), Value::String("one".to_owned()))]),
             ),
         )
@@ -218,7 +221,10 @@ fn successor_optional_column_is_null_in_expressions_rules_and_indexes() {
         .unwrap();
 
     let execution = runtime
-        .execute("items.note", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "items.note",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(execution.result, Value::Null);
     assert!(execution.trace.points[0].visible);
@@ -276,7 +282,7 @@ fn new_maintained_aggregate_is_backfilled_from_existing_rows() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -371,7 +377,10 @@ fn maintained_backfill_materializes_new_optional_group_as_null() {
     let aggregate = runtime
         .execute(
             "counts.get",
-            Context::query("u1", BTreeMap::from([("bucket".to_owned(), Value::Null)])),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("bucket".to_owned(), Value::Null)]),
+            ),
         )
         .unwrap();
     assert_eq!(aggregate.result.field("bucket").unwrap(), &Value::Null);
@@ -422,13 +431,19 @@ fn live_maintained_count_materializes_omitted_optional_group_as_null() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
 
     let inserted = runtime
-        .execute("items.insert", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "items.insert",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(inserted.state, ExecutionState::Committed { .. }));
     let aggregate = runtime
         .execute(
             "counts.get",
-            Context::query("u1", BTreeMap::from([("group".to_owned(), Value::Null)])),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                BTreeMap::from([("group".to_owned(), Value::Null)]),
+            ),
         )
         .unwrap();
     assert_eq!(aggregate.result.field("group").unwrap(), &Value::Null);
@@ -654,7 +669,7 @@ fn migration_rechecks_new_unique_indexes_and_rolls_back_its_drops() {
         .execute(
             "scratch.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
             ),
         )
@@ -713,7 +728,7 @@ fn migration_rechecks_required_columns_and_rolls_back_its_drops() {
         .execute(
             "scratch.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("keep".to_owned()))]),
             ),
         )
@@ -793,7 +808,7 @@ fn maintained_backfill_unique_conflict_refuses_successor_atomically() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -856,7 +871,7 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
             .execute(
                 "counts.get",
                 Context::query(
-                    "u1",
+                    Actor::user("u1").unwrap(),
                     BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
                 ),
             )
@@ -882,7 +897,7 @@ fn maintained_backfill_bypasses_target_rules_but_enforces_constraints() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -989,7 +1004,10 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
 
     let engine_write = runtime
-        .execute("cards.add", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "cards.add",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(
         engine_write.state,
@@ -997,7 +1015,10 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
     ));
     for operation in ["counts.insert", "counts.update"] {
         let user_write = runtime
-            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .execute(
+                operation,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
         assert!(matches!(
             user_write.state,
@@ -1008,7 +1029,7 @@ fn maintained_target_rules_reject_users_but_not_engine_aggregate_writes() {
         .execute(
             "counts.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("group".to_owned(), Value::Id("g1".to_owned()))]),
             ),
         )
@@ -1103,7 +1124,7 @@ fn failed_migration_rolls_back_drops_backfill_and_generation_metadata() {
         .execute(
             "archive.get",
             Context::query(
-                "u1",
+                Actor::user("u1").unwrap(),
                 BTreeMap::from([("id".to_owned(), Value::Id("kept".to_owned()))]),
             ),
         )
@@ -1169,7 +1190,7 @@ fn optional_and_list_column_types_validate_and_list_indexes_are_refused() {
         .execute(
             &get_null,
             &certificate,
-            Context::query("u1", BTreeMap::new()),
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert_ne!(null_indexed.result, Value::Null);

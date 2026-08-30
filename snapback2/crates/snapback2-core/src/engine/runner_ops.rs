@@ -561,6 +561,11 @@ impl<'a> Runner<'a> {
                     return Ok(*result);
                 }
                 let result = self.lookup_raw(table, index, &key)?.is_some();
+                // Visibility derivation is authoritative work and uses the
+                // same certificate meter as an outer rule probe. It does not
+                // recursively classify this nested input for disclosure, so
+                // self-referential read rules terminate after this lookup.
+                self.trace.rule_probes = self.trace.rule_probes.saturating_add(1);
                 self.trace.rule_inputs.push(RuleInputTrace {
                     rule_hash: rule_hash.to_owned(),
                     table: table.clone(),
@@ -856,7 +861,7 @@ mod tests {
             &transaction,
             &schema,
             &certificate,
-            Context::query("u1", BTreeMap::new()),
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
             &verdicts,
             0,
         );

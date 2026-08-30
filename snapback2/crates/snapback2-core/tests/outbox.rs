@@ -76,7 +76,7 @@ fn emit_has_the_wire_shape_certificate_outbox_trace_and_id_consumption() {
         }]
     );
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(444);
     context.new_ids = VecDeque::from(["effect-id".to_owned(), "after-id".to_owned()]);
     let execution = runtime.execute(&program.name, context).unwrap();
@@ -507,7 +507,10 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
         ("ops.field", "E_FIELD"),
     ] {
         let execution = runtime
-            .execute(operation, Context::mutation("u1", BTreeMap::new()))
+            .execute(
+                operation,
+                Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
         assert!(matches!(
             execution.state,
@@ -515,7 +518,10 @@ fn mutation_value_errors_are_rejected_but_query_value_errors_remain_errors() {
         ));
     }
     assert!(matches!(
-        runtime.execute("ops.queryDivZero", Context::query("u1", BTreeMap::new())),
+        runtime.execute(
+            "ops.queryDivZero",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new())
+        ),
         Err(RuntimeError::Value(ValueError::DivideByZero))
     ));
 }
@@ -536,7 +542,10 @@ fn mutation_refusal_is_a_typed_rejected_execution_without_a_commit() {
         Generation::certify(&project(vec![program], empty_schema()), Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     let execution = runtime
-        .execute("ops.reject", Context::mutation("u1", BTreeMap::new()))
+        .execute(
+            "ops.reject",
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(matches!(
         execution.state,
@@ -566,7 +575,10 @@ fn query_require_is_a_typed_denied_execution() {
         Generation::certify(&project(vec![program], empty_schema()), Ceilings::default()).unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
     let execution = runtime
-        .execute("ops.refuseQuery", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "ops.refuseQuery",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(
         execution.state,
@@ -623,7 +635,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
         .execute(
             &duplicate_primary_key,
             &certificate,
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -636,7 +648,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     let through_runtime = runtime
         .execute(
             "users.duplicatePrimaryKey",
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -667,7 +679,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.new_ids = VecDeque::from(["same".to_owned(), "same".to_owned()]);
     let execution = runtime.execute("ops.duplicateOutbox", context).unwrap();
     assert!(matches!(
@@ -727,7 +739,7 @@ fn sqlite_and_declared_unique_constraints_are_typed_mutation_rejections() {
     let execution = runtime
         .execute(
             "users.duplicateEmail",
-            Context::mutation("u1", BTreeMap::new()),
+            Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(matches!(
@@ -801,7 +813,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             "typing",
             ChannelSide::Subscribe,
             &args,
-            &Context::query("u1", BTreeMap::new()),
+            &Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(admitted.admitted);
@@ -811,7 +823,7 @@ fn channel_admission_evaluates_one_args_row_under_the_selected_rule() {
             "typing",
             ChannelSide::Subscribe,
             &args,
-            &Context::query("u2", BTreeMap::new()),
+            &Context::query(Actor::user("u2").unwrap(), BTreeMap::new()),
         )
         .unwrap();
     assert!(!refused.admitted);
@@ -863,7 +875,7 @@ fn store_claim_settle_restart_and_requeue_accessors_are_durable() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation.clone()).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(100);
     context.new_ids = VecDeque::from(["outbox-1".to_owned(), "return-1".to_owned()]);
     runtime.execute("ops.audit", context).unwrap();
@@ -951,9 +963,7 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
     {
         let mut runtime = Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
         leave_then_pending(&mut runtime);
-        let execution = runtime
-            .execute_then("notifications.record", then_context(), "outbox-1")
-            .unwrap();
+        let execution = execute_then(&mut runtime).unwrap();
         assert!(matches!(execution.state, ExecutionState::Committed { .. }));
         assert_eq!(
             runtime
@@ -982,18 +992,23 @@ fn execute_then_commits_bookkeeping_and_sent_settlement_once() {
             .is_empty()
     );
     let listed = restarted
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(listed.result.as_array().unwrap().len(), 1);
     assert!(
-        restarted
-            .execute_then("notifications.record", then_context(), "outbox-1")
+        execute_then(&mut restarted)
             .unwrap_err()
             .to_string()
             .contains("not then_pending")
     );
     let listed = restarted
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert_eq!(listed.result.as_array().unwrap().len(), 1);
     drop(restarted);
@@ -1011,9 +1026,7 @@ fn changed_effect_source_fails_pending_then_without_running_new_target() {
     runtime
         .apply_successor(then_generation("async () => ({ providerId: 'new' })"))
         .unwrap();
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(
         execution.state,
         ExecutionState::Rejected { ref code, .. } if code == "E_EFFECT_THEN_CHANGED"
@@ -1022,7 +1035,10 @@ fn changed_effect_source_fails_pending_then_without_running_new_target() {
     assert_eq!(row.state, "failed");
     assert_eq!(row.last_error.as_deref(), Some("E_EFFECT_THEN_CHANGED"));
     let listed = runtime
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(listed.result.as_array().unwrap().is_empty());
 }
@@ -1036,9 +1052,7 @@ fn rejected_then_is_sent_with_error_across_an_unchanged_effect_declaration() {
         .apply_successor(then_generation_with_rejection(source, true))
         .unwrap();
 
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
     assert!(matches!(
         execution.state,
         ExecutionState::Rejected { ref code, .. } if code == "THEN_REFUSED"
@@ -1062,9 +1076,7 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
     .unwrap();
     leave_then_pending(&mut runtime);
 
-    let execution = runtime
-        .execute_then("notifications.record", then_context(), "outbox-1")
-        .unwrap();
+    let execution = execute_then(&mut runtime).unwrap();
 
     assert!(matches!(
         execution.state,
@@ -1079,7 +1091,10 @@ fn rule_denied_then_is_rejected_and_settled_sent_in_the_same_transaction() {
         "the rejected then must remain visible on its outbox trace row"
     );
     let listed = runtime
-        .execute("notifications.list", Context::query("u1", BTreeMap::new()))
+        .execute(
+            "notifications.list",
+            Context::query(Actor::user("u1").unwrap(), BTreeMap::new()),
+        )
         .unwrap();
     assert!(listed.result.as_array().unwrap().is_empty());
 }
@@ -1095,7 +1110,7 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     )
     .unwrap();
     let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(10);
     context.new_ids = VecDeque::from(["unknown-outbox".to_owned(), "return-id".to_owned()]);
     runtime.execute("ops.audit", context).unwrap();
@@ -1119,7 +1134,7 @@ fn undeclared_effect_is_failed_without_ever_becoming_running() {
     )
     .unwrap();
     runtime.apply_successor(successor).unwrap();
-    let mut context = Context::mutation("u1", BTreeMap::new());
+    let mut context = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     context.now = Some(11);
     context.new_ids = VecDeque::from(["kept-outbox".to_owned(), "kept-return".to_owned()]);
     runtime.execute("ops.kept", context).unwrap();
@@ -1266,7 +1281,7 @@ fn then_generation_with_rule(source: &str, reject: bool, write_rule: RuleExpr) -
 }
 
 fn leave_then_pending(runtime: &mut Runtime) {
-    let mut emit = Context::mutation("u1", BTreeMap::new());
+    let mut emit = Context::mutation(Actor::user("u1").unwrap(), BTreeMap::new());
     emit.now = Some(10);
     emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
     runtime.execute("notifications.emit", emit).unwrap();
@@ -1287,22 +1302,25 @@ fn leave_then_pending(runtime: &mut Runtime) {
         .unwrap();
 }
 
-fn then_context() -> Context {
-    let mut context = Context::system();
-    context.args = BTreeMap::from([
-        ("outboxId".to_owned(), Value::Id("outbox-1".to_owned())),
-        (
-            "effect".to_owned(),
-            Value::String("notifications.notify".to_owned()),
-        ),
-        (
-            "result".to_owned(),
-            object([("providerId", Value::String("provider-1".to_owned()))]),
-        ),
-    ]);
-    context.now = Some(20);
-    context.new_ids = VecDeque::from(["notification-1".to_owned()]);
-    context
+fn execute_then(runtime: &mut Runtime) -> Result<Execution, RuntimeError> {
+    runtime.execute_then(
+        "notifications.record",
+        BTreeMap::from([
+            ("outboxId".to_owned(), Value::Id("outbox-1".to_owned())),
+            (
+                "effect".to_owned(),
+                Value::String("notifications.notify".to_owned()),
+            ),
+            (
+                "result".to_owned(),
+                object([("providerId", Value::String("provider-1".to_owned()))]),
+            ),
+        ]),
+        20,
+        None,
+        VecDeque::from(["notification-1".to_owned()]),
+        "outbox-1",
+    )
 }
 
 fn temp_path() -> PathBuf {

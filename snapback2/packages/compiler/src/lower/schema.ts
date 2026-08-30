@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { authoredTypeFromColumn } from "../authored-types";
 import { diagnostic } from "../diagnostics";
-import type { FrontendDiagnostic, SchemaJson, Value } from "../ir";
+import { IR_CONTRACT, type FrontendDiagnostic, type SchemaJson, type Value } from "../ir";
 import type { TableInfo } from "../compiler";
 import { hasExport, propertyName, staticMemberPath, unwrapCall, unwrapExpression } from "../syntax";
 import {
@@ -290,9 +290,7 @@ function lowerRule(
   if (name === "allow" && call.arguments.length === 0) return "Allow";
   if (name === "deny" && call.arguments.length === 0) return "Deny";
   if (name === "system" && call.arguments.length === 0) {
-    // The wire spelling is owned by snapback2-core's SYSTEM_PRINCIPAL_ID;
-    // authors never supply or select this value.
-    return { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+    return { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
   }
   if (name === "viewerIs" && call.arguments.length === 1 && stringValue(call.arguments[0])) {
     return { Eq: [{ Field: stringValue(call.arguments[0])! }, "Viewer"] };

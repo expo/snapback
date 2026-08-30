@@ -68,14 +68,16 @@ impl State {
             }
         };
         let now = self.now();
-        let mut context = Context::system();
-        context.args = values;
-        context.now = Some(now);
-        context.read_time = Some(now);
-        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
         let execution = self
             .runtime_mut()
-            .execute_then(op, context, outbox_id)
+            .execute_then(
+                op,
+                values,
+                now,
+                Some(now),
+                (0..1024).map(|_| next_id()).collect::<VecDeque<_>>(),
+                outbox_id,
+            )
             .map_err(|error| Refusal::from_runtime(&error))?;
         if matches!(execution.state, ExecutionState::Committed { .. }) {
             self.after_commit(execution.seq)?;

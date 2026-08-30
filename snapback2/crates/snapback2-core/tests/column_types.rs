@@ -218,7 +218,10 @@ fn enum_decimal_and_money_write_read_index_and_scan() {
         create_args("i2", "group", 456, 900),
     ] {
         let execution = runtime
-            .execute("items.create", Context::mutation("u1", args))
+            .execute(
+                "items.create",
+                Context::mutation(Actor::user("u1").unwrap(), args),
+            )
             .unwrap();
         assert!(matches!(execution.state, ExecutionState::Committed { .. }));
     }
@@ -234,7 +237,10 @@ fn enum_decimal_and_money_write_read_index_and_scan() {
         ("items.getPrice", "price", Value::Int(500), "i1"),
     ] {
         let execution = runtime
-            .execute(op, Context::query("u1", query_arg(name, value)))
+            .execute(
+                op,
+                Context::query(Actor::user("u1").unwrap(), query_arg(name, value)),
+            )
             .unwrap();
         assert_eq!(
             execution.result.field("id").unwrap().as_str().unwrap(),
@@ -245,21 +251,30 @@ fn enum_decimal_and_money_write_read_index_and_scan() {
     let enum_scan = runtime
         .execute(
             "items.scanKind",
-            Context::query("u1", query_arg("kind", Value::String("dm".to_owned()))),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                query_arg("kind", Value::String("dm".to_owned())),
+            ),
         )
         .unwrap();
     assert_eq!(result_ids(&enum_scan), vec!["i1", "i2"]);
     let decimal_scan = runtime
         .execute(
             "items.scanAmount",
-            Context::query("u1", query_arg("amount", Value::Int(124))),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                query_arg("amount", Value::Int(124)),
+            ),
         )
         .unwrap();
     assert_eq!(result_ids(&decimal_scan), vec!["i2"]);
     let money_scan = runtime
         .execute(
             "items.scanPrice",
-            Context::query("u1", query_arg("price", Value::Int(501))),
+            Context::query(
+                Actor::user("u1").unwrap(),
+                query_arg("price", Value::Int(501)),
+            ),
         )
         .unwrap();
     assert_eq!(result_ids(&money_scan), vec!["i2"]);
@@ -271,7 +286,10 @@ fn out_of_list_enum_write_is_rejected_as_input() {
     let execution = runtime
         .execute(
             "items.create",
-            Context::mutation("u1", create_args("bad", "broadcast", 100, 100)),
+            Context::mutation(
+                Actor::user("u1").unwrap(),
+                create_args("bad", "broadcast", 100, 100),
+            ),
         )
         .unwrap();
     assert!(matches!(

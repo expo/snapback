@@ -198,7 +198,7 @@ impl Store {
         connection.execute(
             "INSERT OR IGNORE INTO _principals(id, kind, name, created_at)
              VALUES (?1, ?1, ?1, ?2)",
-            params![SYSTEM_PRINCIPAL_ID, now],
+            params![SYSTEM_PRINCIPAL_ID.as_str(), now],
         )?;
         Ok(())
     }

@@ -30,7 +30,7 @@ impl State {
         let principal = self.principal(identity)?;
         let context = self.context(principal, &op, args)?;
         let requested_args = context.args.clone();
-        let requested_principal = context.viewer.clone();
+        let requested_principal = context.viewer().to_owned();
         let execution = self
             .runtime_mut()
             .execute(&op, context)
@@ -42,7 +42,7 @@ impl State {
             .filter(|(_, client)| {
                 client.op == op
                     && client.context.args == requested_args
-                    && client.context.viewer == requested_principal
+                    && client.context.viewer() == requested_principal
             })
             .filter_map(|(id, client)| {
                 runtime_subscriptions

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { lowerSource, typecheckSource, type TableInfo } from "./compiler";
 import { assessGauntlet } from "./gauntlet";
-import type { Program, ProjectJson } from "./ir";
+import { IR_CONTRACT, type Program, type ProjectJson } from "./ir";
 import { listJourneys, lowerProject, lowerSeed } from "./project";
 import { lowerSchema } from "./lower/schema";
 import { rustCheck } from "./rust-check";
@@ -493,7 +493,7 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(chat.project.effects[0]?.name === "notifications.notify", "chat effect was not qualified");
   assert(chat.project.schema.effects[0] === "notifications.notify", "schema effect list differs");
   const notificationRules = (chat.project.schema.tables.notifications as any)?.rules;
-  const systemRule = { Eq: ["Viewer", { Literal: { Id: "system" } }] };
+  const systemRule = { Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] };
   assert(canonical(notificationRules?.insert) === canonical(systemRule)
     && canonical(notificationRules?.update) === canonical(systemRule),
   "chat effect bookkeeping must explicitly admit the system principal");
@@ -758,7 +758,10 @@ test("system sugar is a viewer literal and rule-input visibility is not authored
   const lowered = lowerSchema(source, "snapback/schema.ts");
   assert(lowered.diagnostics.length === 0, `derived rule schema refused: ${lowered.diagnostics.map((item) => item.message).join("; ")}`);
   const rules = (lowered.schema.tables.rows as any).rules;
-  assert(canonical(rules.insert) === canonical({ Eq: ["Viewer", { Literal: { Id: "system" } }] }), "rule.system did not lower to viewer === reserved system Id");
+  assert(
+    canonical(rules.insert) === canonical({ Eq: ["Viewer", { Literal: { Id: IR_CONTRACT.systemPrincipalId } }] }),
+    "rule.system did not lower through the core-owned IR contract",
+  );
   assert(!canonical(rules.read).includes("input_visibility"), "rule.exists retained authored visibility in IR");
 
   const legacy = lowerSchema(source.replace(
@@ -822,6 +825,28 @@ test("seed validation checks personas, tables, rows, and every schema value shap
     assert(messages.includes(text), `seed value validation omitted ${text}`);
   }
   assert(invalid.diagnostics.every((item) => item.site.startsWith("snapback/seed.ts:")), "seed refusal site is not seed.ts");
+
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const rows = table({ columns: { ownerId: t.ref(rows) } });
+      export default schema({ tables: { rows } });`,
+    "snapback/seed.ts": `import { seed } from "snapback2";
+      export default seed({ personas: ["system"], rows: { rows: [
+        { id: "system", ownerId: "row-1" },
+        { id: "row-1", ownerId: "system" },
+      ] } });`,
+  }, async (root) => {
+    const reserved = await lowerSeed(root);
+    assert(!reserved.ok, "seed minted or referenced the reserved system principal");
+    assert(
+      reserved.diagnostics.filter((item) => item.message.includes("reserved system principal")).length === 2,
+      "seed did not reject both reserved Id and Ref values",
+    );
+    assert(
+      !reserved.diagnostics.some((item) => item.code === "E_SEED_PERSONA"),
+      "the prefix-safe persona name system should remain valid",
+    );
+  });
 });
 
 test("seed object spreads preserve authored rows and text maxima count Unicode scalars", async () => {

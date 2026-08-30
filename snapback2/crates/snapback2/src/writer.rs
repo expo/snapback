@@ -8,9 +8,9 @@ use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program, ProgramKind,
-    Runtime, Scan, Stmt, Value,
+    Actor, ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
+    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
+    ProgramKind, Runtime, Scan, Stmt, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -652,8 +652,7 @@ impl State {
 
     fn context(&self, principal: Principal, op: &str, args: Json) -> Result<Context, Refusal> {
         let values = operation_args(self.runtime().generation(), op, &args)?;
-        let mut context = Context::query(principal.id, values);
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, values);
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
@@ -758,8 +757,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         context.now = Some(self.now());
         let verdict = self
             .runtime_mut()
@@ -798,8 +796,7 @@ impl State {
     ) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let args = channel_args(self.runtime().generation(), &name, &args)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         context.now = Some(self.now());
         let verdict = self
             .runtime_mut()
@@ -1108,8 +1105,7 @@ impl State {
             }))],
         };
         let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id, BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let mut context = Context::query(actor(&principal)?, BTreeMap::new());
         let now = self.now();
         context.now = Some(now);
         context.read_time = Some(now);
@@ -1127,8 +1123,7 @@ impl State {
 
     fn rule_verdicts(&mut self, table_name: String, identity: Identity) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
-        let mut context = Context::query(principal.id.clone(), BTreeMap::new());
-        context.principal_kind = principal.kind;
+        let context = Context::query(actor(&principal)?, BTreeMap::new());
         let rows = self
             .runtime_mut()
             .read_rule_verdicts(&table_name, context)
@@ -1139,6 +1134,18 @@ impl State {
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
     }
+}
+
+fn actor(principal: &Principal) -> Result<Actor, Refusal> {
+    Actor::try_from(principal).map_err(|error| {
+        Refusal::new(
+            "E_AUTH_RESERVED",
+            "auth",
+            error.to_string(),
+            "authenticate as a user, guest, or development persona",
+            "auth/identity",
+        )
+    })
 }
 
 #[cfg(test)]

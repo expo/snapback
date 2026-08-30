@@ -2,6 +2,12 @@ export type ProgramKind = "Query" | "Mutation";
 export type Provenance = "Arg" | "Viewer" | "Const" | "Shape" | "Computed";
 export type Order = "Asc" | "Desc";
 
+import coreIrContract from "../../../crates/snapback2-core/ir-contract.json" with { type: "json" };
+
+export const IR_CONTRACT = Object.freeze({
+  systemPrincipalId: coreIrContract.systemPrincipalId,
+});
+
 export type Value =
   | "Null"
   | { Bool: boolean }

@@ -6,7 +6,6 @@ use crate::engine::{
     AuthoritativeTrace, ClosureReceipt, Context, Engine, Execution, ExecutionState, PointTrace,
     RuleInputTrace, RuntimeError, validate_arg_value,
 };
-use crate::identity::SYSTEM_PRINCIPAL_ID;
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::live::Subscriptions;
 use crate::schema::{Auth, RuleExpr, Schema};
@@ -17,7 +16,7 @@ use crate::successor::{
 };
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,7 +104,7 @@ impl Generation {
                     CheckError {
                         code: "E_SCHEMA_RESERVED".to_owned(),
                         message: format!("rule reads reserved table {reserved}"),
-                        rewrite: "use a principal kind or application-owned relation in rules"
+                        rewrite: "use rule.system() or an application-owned relation in rules"
                             .to_owned(),
                     },
                 ));
@@ -327,21 +326,28 @@ impl Runtime {
     pub fn execute_then(
         &mut self,
         op: &str,
-        context: Context,
+        args: BTreeMap<String, Value>,
+        now: i64,
+        read_time: Option<i64>,
+        new_ids: VecDeque<String>,
         outbox_id: &str,
     ) -> Result<Execution, RuntimeError> {
-        if context.viewer != SYSTEM_PRINCIPAL_ID || context.principal_kind != SYSTEM_PRINCIPAL_ID {
-            return Err(RuntimeError::Input(
-                "effect then must execute as Context::system()".to_owned(),
-            ));
-        }
         let Some((program, certificate)) = self.bound_then_target(op, outbox_id)? else {
             return Ok(self.then_rejection("E_EFFECT_THEN_CHANGED")?);
         };
 
-        let execution = self
-            .engine
-            .execute_then(&program, &certificate, context, outbox_id)?;
+        // The durable then binding is the capability: public callers can
+        // supply inputs, but only the engine's purpose-specific entry point
+        // can mint the system context, and only for this bound outbox row.
+        let execution = self.engine.execute_then(
+            &program,
+            &certificate,
+            args,
+            now,
+            read_time,
+            new_ids,
+            outbox_id,
+        )?;
         #[cfg(test)]
         if std::mem::take(&mut self.fail_after_then_commit) {
             return Err(RuntimeError::Input(
@@ -491,11 +497,8 @@ impl Runtime {
 
     pub fn seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let mut context = Context::system();
-        context.now = Some(unix_millis());
-        context.seed_write = true;
         self.engine
-            .execute_with_kind(&program, &certificate, context, Some("seed"))
+            .execute_seed(&program, &certificate, unix_millis())
             .map(|execution| execution.seq)
     }
 
@@ -504,12 +507,9 @@ impl Runtime {
     /// and any execution refusal rolls the whole transaction back.
     pub fn reset_and_seed(&mut self, rows: &[(String, Value)]) -> Result<u64, RuntimeError> {
         let (program, certificate) = seed_program(&self.generation.schema, rows)?;
-        let mut context = Context::system();
-        context.now = Some(unix_millis());
-        context.seed_write = true;
-        let execution =
-            self.engine
-                .reset_and_execute(&program, &certificate, context, Some("seed"))?;
+        let execution = self
+            .engine
+            .reset_and_seed(&program, &certificate, unix_millis())?;
         self.rerun_all_subscriptions();
         Ok(execution.seq)
     }
@@ -794,6 +794,7 @@ fn collect_emits<'a>(statements: &'a [Stmt], effects: &mut Vec<&'a str>) {
 #[cfg(test)]
 mod then_tests {
     use super::*;
+    use crate::Actor;
     use crate::schema::Schema;
     use std::collections::{BTreeMap, VecDeque};
     use std::path::PathBuf;
@@ -806,7 +807,7 @@ mod then_tests {
         {
             let mut runtime =
                 Runtime::open(Store::open(&path).unwrap(), generation.clone()).unwrap();
-            let mut emit = Context::mutation("user", BTreeMap::new());
+            let mut emit = Context::mutation(Actor::user("user").unwrap(), BTreeMap::new());
             emit.now = Some(1);
             emit.new_ids = VecDeque::from(["outbox-1".to_owned()]);
             runtime.execute("clock.emit", emit).unwrap();
@@ -826,11 +827,16 @@ mod then_tests {
                 )
                 .unwrap();
 
-            let mut before_threshold = Context::system();
-            before_threshold.now = Some(5);
             runtime.fail_after_then_commit_once();
             let error = runtime
-                .execute_then("clock.then", before_threshold, "outbox-1")
+                .execute_then(
+                    "clock.then",
+                    BTreeMap::new(),
+                    5,
+                    None,
+                    VecDeque::new(),
+                    "outbox-1",
+                )
                 .unwrap_err();
             assert!(error.to_string().contains("simulated crash"));
         }
@@ -843,11 +849,16 @@ mod then_tests {
                 .as_deref()
                 .is_some_and(|error| error.contains("TOO_EARLY"))
         );
-        let mut after_threshold = Context::system();
-        after_threshold.now = Some(15);
         assert!(
             restarted
-                .execute_then("clock.then", after_threshold, "outbox-1")
+                .execute_then(
+                    "clock.then",
+                    BTreeMap::new(),
+                    15,
+                    None,
+                    VecDeque::new(),
+                    "outbox-1",
+                )
                 .unwrap_err()
                 .to_string()
                 .contains("not then_pending"),
@@ -947,6 +958,7 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Actor;
     use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
 
     #[test]
@@ -973,7 +985,10 @@ mod tests {
         };
 
         let execution = runtime
-            .execute_adhoc(&program, Context::query("dev:alice", BTreeMap::new()))
+            .execute_adhoc(
+                &program,
+                Context::query(Actor::persona("alice").unwrap(), BTreeMap::new()),
+            )
             .unwrap();
 
         assert_eq!(execution.result, Value::Int(42));
@@ -1049,8 +1064,7 @@ mod tests {
                 ),
             ])
             .unwrap();
-        let mut context = Context::query("dev:alice", BTreeMap::new());
-        context.principal_kind = "persona".to_owned();
+        let context = Context::query(Actor::persona("alice").unwrap(), BTreeMap::new());
 
         let verdicts = runtime.read_rule_verdicts("todos", context).unwrap();
         let admitted = verdicts

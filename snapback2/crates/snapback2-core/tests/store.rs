@@ -22,6 +22,12 @@ fn schema() -> Schema {
                 BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
                     ("name".to_owned(), ColumnType::Text { max: 64 }),
+                    (
+                        "ownerId".to_owned(),
+                        ColumnType::Optional(Box::new(ColumnType::Ref {
+                            table: "items".to_owned(),
+                        })),
+                    ),
                 ]),
                 BTreeMap::from([
                     (
@@ -139,7 +145,7 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
             .signup("owner@example.com", "correct horse", 100)
             .unwrap();
         let mut context = Context::mutation(
-            session.principal.id.clone(),
+            Actor::try_from(&session.principal).unwrap(),
             BTreeMap::from([
                 ("id".to_owned(), Value::Id("item-1".to_owned())),
                 ("name".to_owned(), Value::String("durable".to_owned())),
@@ -154,7 +160,7 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
             .execute(
                 "items.rename",
                 Context::mutation(
-                    session.principal.id.clone(),
+                    Actor::try_from(&session.principal).unwrap(),
                     BTreeMap::from([
                         ("id".to_owned(), Value::Id("item-1".to_owned())),
                         ("name".to_owned(), Value::String("renamed".to_owned())),
@@ -177,8 +183,15 @@ fn durable_store_reopens_rows_commits_outbox_and_sessions() {
         runtime.authenticate(&session.token, 101).unwrap(),
         session.principal
     );
+    assert!(Actor::new("system", "user").is_err());
     let execution = runtime
-        .execute("items.list", Context::query("system", BTreeMap::new()))
+        .execute(
+            "items.list",
+            Context::query(
+                Actor::try_from(&session.principal).unwrap(),
+                BTreeMap::new(),
+            ),
+        )
         .unwrap();
     assert_eq!(execution.result.as_array().unwrap().len(), 1);
     let commits = runtime.store().commits_since(0, 10).unwrap();
@@ -218,7 +231,7 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
     table.constraints.push(Constraint::Unique {
         index: "byName".to_owned(),
     });
-    let generation = Generation::certify(
+    let denied_generation = Generation::certify(
         &ProjectJson {
             version: 1,
             schema: denied,
@@ -229,7 +242,7 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
         Ceilings::default(),
     )
     .unwrap();
-    let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+    let mut runtime = Runtime::open(Store::memory().unwrap(), denied_generation).unwrap();
 
     runtime
         .seed(&[(
@@ -274,6 +287,34 @@ fn seed_is_rule_exempt_but_still_validates_columns_and_unique_constraints() {
         ]),
     )]);
     assert!(matches!(invalid, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let reserved_ref = runtime.seed(&[(
+        "items".to_owned(),
+        object([
+            ("id", Value::Id("seed-4".to_owned())),
+            ("name", Value::String("reserved relation".to_owned())),
+            ("ownerId", Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+        ]),
+    )]);
+    assert!(matches!(reserved_ref, Err(RuntimeError::Input(_))));
+    assert_eq!(runtime.store().commit_seq().unwrap(), 2);
+
+    let mut caller_runtime =
+        Runtime::open(Store::memory().unwrap(), generation()).expect("caller generation");
+    let mut caller = Context::mutation(
+        Actor::user("u1").unwrap(),
+        BTreeMap::from([
+            ("id".to_owned(), Value::Id(SYSTEM_PRINCIPAL_ID.to_string())),
+            ("name".to_owned(), Value::String("reserved arg".to_owned())),
+        ]),
+    );
+    caller.new_ids = VecDeque::from(["unused".to_owned()]);
+    let execution = caller_runtime.execute("items.create", caller).unwrap();
+    assert!(matches!(
+        execution.state,
+        ExecutionState::Rejected { ref code, .. } if code == "E_INPUT"
+    ));
     assert_eq!(runtime.store().commit_seq().unwrap(), 2);
 }
 
@@ -360,7 +401,7 @@ fn commit_log_retains_exactly_the_latest_ten_thousand_mutations() {
             .execute(
                 "items.rename",
                 Context::mutation(
-                    "system",
+                    Actor::user("u1").unwrap(),
                     BTreeMap::from([
                         ("id".to_owned(), Value::Id("item-1".to_owned())),
                         ("name".to_owned(), Value::String("same".to_owned())),

@@ -866,7 +866,7 @@ class Runner {
     row: Value,
   ): boolean {
     const rule = this.schema.tables[table].rules[effect];
-    return this.evaluateRule(rule, sha256(JSON.stringify(certificateRule(this.schema, rule))), row);
+    return this.evaluateRule(rule, scopedRuleHash(this.schema, rule), row);
   }
 
   private evaluateRule(rule: any, ruleHash: string, row: Value): boolean {
@@ -1161,40 +1161,8 @@ function variant(value: any): [string, any] {
   return [keys[0], value[keys[0]]];
 }
 
-function certificateRule(schema: any, rule: any): any {
-  const [kind, data] = variant(rule);
-  switch (kind) {
-    case "Public":
-      return { Public: { reason: data.reason } };
-    case "Allow":
-    case "Deny":
-      return kind;
-    case "Eq":
-    case "Ne":
-      return { [kind]: data };
-    case "And":
-    case "Or":
-      return { [kind]: data.map((child: any) => certificateRule(schema, child)) };
-    case "Not":
-      return { Not: certificateRule(schema, data) };
-    case "Exists": {
-      const targetRead = schema.tables[data.table]?.rules?.read;
-      const visibility = targetRead !== undefined && variant(targetRead)[0] === "Deny"
-        ? "Hidden"
-        : "Readable";
-      return {
-        Exists: {
-          table: data.table,
-          index: data.index,
-          key: data.key,
-          provenance: data.provenance,
-          input_visibility: visibility,
-        },
-      };
-    }
-    default:
-      throw new EvalError("E_OPAQUE", `unsupported rule ${kind}`);
-  }
+export function scopedRuleHash(schema: any, rule: any): string {
+  return sha256(JSON.stringify([sha256(JSON.stringify(schema)), rule]));
 }
 
 function kindOf(value: Value): string {

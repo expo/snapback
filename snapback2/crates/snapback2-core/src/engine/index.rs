@@ -271,6 +271,13 @@ pub(crate) fn validate_row(
         return Err(RuntimeError::Schema(format!("{table_name} row lacks id")));
     }
     for (name, kind) in &table.columns {
+        // @ref LLP 1001#6-identity-and-personas — authored data cannot forge
+        // the engine-private system actor through any Id/Ref-shaped column.
+        if reserved_principal_value(kind, object.get(name)) {
+            return Err(RuntimeError::Input(format!(
+                "{table_name}.{name} cannot carry the reserved system principal"
+            )));
+        }
         if !valid_column_value(kind, object.get(name)) {
             return Err(RuntimeError::Input(format!(
                 "{table_name}.{name} violates {kind:?}"
@@ -278,6 +285,19 @@ pub(crate) fn validate_row(
         }
     }
     Ok(())
+}
+
+fn reserved_principal_value(kind: &ColumnType, value: Option<&Value>) -> bool {
+    match (kind, value) {
+        (ColumnType::Optional(inner), Some(value)) => reserved_principal_value(inner, Some(value)),
+        (ColumnType::List { of, .. }, Some(Value::Array(values))) => values
+            .iter()
+            .any(|value| reserved_principal_value(of, Some(value))),
+        (ColumnType::Id | ColumnType::Ref { .. }, Some(Value::Id(value))) => {
+            value == SYSTEM_PRINCIPAL_ID.as_str()
+        }
+        _ => false,
+    }
 }
 
 fn valid_column_value(kind: &ColumnType, value: Option<&Value>) -> bool {

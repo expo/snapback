@@ -12,8 +12,8 @@ use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Certificate, Context, ExecutionState, Generation, Program, ProgramKind, Runtime,
-    Store, Value,
+    Actor, ArgType, Certificate, Context, ExecutionState, Generation, Program, ProgramKind,
+    Runtime, Store, Value,
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -475,6 +475,14 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         if program.kind != ProgramKind::Mutation {
             continue;
         }
+        if compiled
+            .generation
+            .effects
+            .values()
+            .any(|effect| effect.then.as_deref() == Some(name.as_str()))
+        {
+            continue;
+        }
         let candidates = match probe_candidates(program, seed) {
             Ok(candidates) => candidates,
             Err(reason) => {
@@ -597,19 +605,7 @@ fn replay_fork(
         };
         args.insert(name.clone(), value);
     }
-    let is_effect_then = generation
-        .effects
-        .values()
-        .any(|effect| effect.then.as_deref() == Some(program.name.as_str()));
-    let mut context = if is_effect_then {
-        let mut context = Context::system();
-        context.args = args;
-        context
-    } else {
-        let mut context = Context::query(format!("dev:{persona}"), args);
-        context.principal_kind = "persona".to_owned();
-        context
-    };
+    let mut context = Context::query(Actor::persona(persona).expect("derived persona"), args);
     context.now = Some(1_700_000_000_000_i64.saturating_add(index as i64));
     context.new_ids = (0..1024)
         .map(|ordinal| format!("replay-{index}-{ordinal}"))

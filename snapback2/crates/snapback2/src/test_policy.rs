@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::project::seed_rows;
-use snapback2_core::{Expr, RuleExpr, Stmt};
+use snapback2_core::{Actor, Expr, RuleExpr, Stmt};
 
 pub(super) fn check_rules(
     owner: &OwnerInfo,
@@ -386,10 +386,11 @@ fn revocation_while_live(
     } else {
         seed.personas.clone()
     };
-    for (query_name, (query, _)) in &compiled.generation.programs {
+    for (query_name, (query, certificate)) in &compiled.generation.programs {
         if query.kind != ProgramKind::Query {
             continue;
         }
+        let grant_tables = direct_rule_input_tables(certificate, &compiled.generation);
         let args = match generated_args_at(query, seed, 0) {
             Ok(args) => args,
             Err(_) => continue,
@@ -427,7 +428,7 @@ fn revocation_while_live(
                 .trace
                 .rule_inputs
                 .iter()
-                .filter(|input| input.result)
+                .filter(|input| input.result && grant_tables.contains(&input.table))
             {
                 saw_rule_input = true;
                 let Some(row) = row_for_rule_input(&compiled.generation, &rows, input) else {
@@ -447,9 +448,10 @@ fn revocation_while_live(
                     }],
                 };
                 let before_seq = runtime.store().commit_seq().unwrap_or_default();
-                let mut mutation_context =
-                    Context::mutation(format!("dev:{persona}"), BTreeMap::new());
-                mutation_context.principal_kind = "persona".to_owned();
+                let mutation_context = Context::mutation(
+                    Actor::persona(persona).expect("derived persona"),
+                    BTreeMap::new(),
+                );
                 let deleted = match runtime.execute_adhoc(&program, mutation_context) {
                     Ok(execution) => execution,
                     Err(error) => {
@@ -491,6 +493,7 @@ fn revocation_while_live(
                     return (
                         json!({
                             "status": "pass",
+                            "transport": "engineSubscription",
                             "query": query_name,
                             "principal": persona,
                             "deleted": { "table": input.table, "id": id },
@@ -502,17 +505,14 @@ fn revocation_while_live(
                         Vec::new(),
                     );
                 }
-                return (
-                    json!({ "status": "fail", "query": query_name }),
-                    vec![json!({
-                        "probe": "revocationWhileLive",
-                        "query": query_name,
-                        "deleted": { "table": input.table, "id": id },
-                        "invalidated": invalidated,
-                        "deliveries": deliveries,
-                    })],
-                    Vec::new(),
-                );
+                rejected.push(json!({
+                    "probe": "revocationWhileLive",
+                    "query": query_name,
+                    "deleted": { "table": input.table, "id": id },
+                    "invalidated": invalidated,
+                    "deliveries": deliveries,
+                }));
+                continue;
             }
         }
     }
@@ -530,6 +530,36 @@ fn revocation_while_live(
             Vec::new(),
         )
     }
+}
+
+fn direct_rule_input_tables(
+    certificate: &Certificate,
+    generation: &Generation,
+) -> BTreeSet<String> {
+    // @ref LLP 1002#7-test-and-the-receipt — the in-process revocation probe
+    // deletes only direct application grant rows, never nested visibility data.
+    fn collect(rule: &RuleExpr, tables: &mut BTreeSet<String>) {
+        match rule {
+            RuleExpr::Exists { table, .. } => {
+                tables.insert(table.clone());
+            }
+            RuleExpr::And(rules) | RuleExpr::Or(rules) => {
+                for rule in rules {
+                    collect(rule, tables);
+                }
+            }
+            RuleExpr::Not(rule) => collect(rule, tables),
+            _ => {}
+        }
+    }
+
+    let mut tables = BTreeSet::new();
+    for site in &certificate.read_sites {
+        if let Some(table) = generation.schema.tables.get(&site.table) {
+            collect(&table.rules.read, &mut tables);
+        }
+    }
+    tables
 }
 
 fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>, Vec<Json>) {
@@ -601,21 +631,24 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                 if runtime.apply_successor(next).is_err() {
                     continue;
                 }
+                let successor_schema_hash = runtime.generation().programs[query_name]
+                    .1
+                    .schema_hash
+                    .clone();
+                if certificate.schema_hash == successor_schema_hash {
+                    return (
+                        json!({ "status": "fail", "query": query_name }),
+                        vec![json!({
+                            "probe": "staleHandle",
+                            "query": query_name,
+                            "error": "policy successor retained the predecessor certificate hash",
+                            "schemaHash": successor_schema_hash,
+                        })],
+                        Vec::new(),
+                    );
+                }
                 let execution = match runtime.execute(query_name, context) {
                     Ok(execution) => execution,
-                    Err(error) if error.code() == "E_TRACE_SUBSET" => {
-                        return (
-                            json!({
-                                "status": "pass",
-                                "disposition": "refused",
-                                "query": query_name,
-                                "fromGeneration": from,
-                                "toGeneration": to,
-                            }),
-                            Vec::new(),
-                            Vec::new(),
-                        );
-                    }
                     Err(_) => continue,
                 };
                 if matches!(execution.state, ExecutionState::Denied { .. })
@@ -629,8 +662,9 @@ fn stale_handle(compiled: &CompiledProject, seed: &SeedData) -> (Json, Vec<Json>
                             "table": site.table,
                             "fromGeneration": from,
                             "toGeneration": to,
-                            "oldSchemaHash": certificate.schema_hash,
-                            "newSchemaHash": runtime.generation().programs[query_name].1.schema_hash,
+                            "certificateDisposition": "successorReplanned",
+                            "predecessorSchemaHash": certificate.schema_hash,
+                            "executedSchemaHash": successor_schema_hash,
                         }),
                         Vec::new(),
                         Vec::new(),
@@ -694,12 +728,11 @@ fn derived_context(
         };
         args.insert(name.clone(), value);
     }
-    let mut context = if mutation {
-        Context::mutation(format!("dev:{persona}"), args)
+    let context = if mutation {
+        Context::mutation(Actor::persona(persona).expect("derived persona"), args)
     } else {
-        Context::query(format!("dev:{persona}"), args)
+        Context::query(Actor::persona(persona).expect("derived persona"), args)
     };
-    context.principal_kind = "persona".to_owned();
     Ok(context)
 }
 
