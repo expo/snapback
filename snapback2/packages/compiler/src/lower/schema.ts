@@ -555,6 +555,24 @@ export function lowerArgDescriptor(node: ts.Expression): unknown | undefined {
       ? { List: { max } }
       : undefined;
   }
+  if (call && callLeaf(call) === "optional" && call.arguments[0]) return lowerArgDescriptor(call.arguments[0]);
+  if (call && callLeaf(call) === "enum") {
+    const variants = stringArray(call.arguments[0]);
+    return call.arguments.length === 1 && variants?.length && new Set(variants).size === variants.length
+      ? { Enum: { variants } }
+      : undefined;
+  }
+  if (call && callLeaf(call) === "decimal") {
+    const scale = numberValue(call.arguments[0]);
+    return call.arguments.length === 1 && validScale(scale) ? { Decimal: { scale } } : undefined;
+  }
+  if (call && callLeaf(call) === "money") {
+    const currency = stringValue(call.arguments[0]);
+    const scale = call.arguments[1] ? numberValue(call.arguments[1]) : 2;
+    return (call.arguments.length === 1 || call.arguments.length === 2) && currency && /^[A-Z]{3}$/.test(currency) && validScale(scale)
+      ? { Money: { currency, scale } }
+      : undefined;
+  }
   return validArgDescriptor(node) ? "Scalar" : undefined;
 }
 

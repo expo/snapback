@@ -29,7 +29,9 @@ export const t = Object.freeze({
   bool: () => inert("bool"),
   time: () => inert("time"),
   enum: (variants: readonly string[]) => inert("enum", { variants }),
+  /** `t.decimal(scale)` declares a Decimal column; numeric literals assigned to it are whole units and are scaled by 10^scale. */
   decimal: (scale: number) => inert("decimal", { scale }),
+  /** `t.money(currency, scale)` declares a Money column; numeric literals assigned to it are whole units and are scaled by 10^scale. */
   money: (currency: string, scale = 2) => inert("money", { currency, scale }),
   ref: (target: unknown) => inert("ref", { target }),
   json: (maxBytes: number) => inert("json", { maxBytes }),
@@ -84,6 +86,7 @@ export function range(start: number, end: number): number[] {
   return Array.from({ length: Math.max(0, end - start) }, (_, index) => start + index);
 }
 
+/** `decimal(value, scale)` converts a value in whole units to the exact integer minor-unit wire value; for example, `decimal(2, 2)` is 200. */
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — client decimals cross the wire as exactly string-scaled integer minor units.
 export function decimal<const S extends number>(value: number, scale: S): Decimal<S> {
   if (!Number.isFinite(value) || !Number.isInteger(scale) || scale < 0 || scale > 18) {
