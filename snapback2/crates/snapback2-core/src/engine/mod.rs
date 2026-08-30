@@ -77,7 +77,10 @@ pub struct TraceRange {
     pub index: String,
     pub prefix: Vec<Value>,
     pub examined_ids: Vec<String>,
+    /// Every examined row admitted by the read rule, including page-cut rows.
     pub visible_ids: Vec<String>,
+    /// The admitted rows that the scan returned after applying `take`.
+    pub returned_ids: Vec<String>,
     pub stop: StopReason,
     pub absence: bool,
     pub halo: Option<RowRecord>,

@@ -882,7 +882,7 @@ test("the React template typechecks against the built snapback2/react package", 
   );
 });
 
-test("guide validation reports every failing page before it fails", () => {
+test("guide validation reports every family and page failure before it fails", () => {
   const packageRoot = resolve(crate, "packages/snapback2");
   const checked = Bun.spawnSync({
     cmd: ["node", "build.mjs", "--self-test"],
@@ -892,7 +892,11 @@ test("guide validation reports every failing page before it fails", () => {
   });
   const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
   assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
-  assert(output.includes("guide/oversized.md") && output.includes("guide/stale.md"), `guide validator failed fast: ${output}`);
+  assert(
+    output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
+      && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
+    `guide validator failed fast: ${output}`,
+  );
 });
 
 test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {

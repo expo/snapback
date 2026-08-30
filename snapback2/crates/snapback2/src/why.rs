@@ -80,12 +80,15 @@ fn enrich(root: &Path, op: &str, response: Json, latest: Json) -> Json {
     if let Some(ranges) = trace.get("ranges").and_then(Json::as_array) {
         for range in ranges {
             let visible = string_array(range, "visible_ids", "visibleIds");
+            let returned = string_array(range, "returned_ids", "returnedIds");
             for id in string_array(range, "examined_ids", "examinedIds") {
+                let admitted = visible.iter().any(|visible| visible == &id);
                 verdicts.push(json!({
                     "row": id,
                     "site": range.get("site"),
                     "table": range.get("table"),
-                    "verdict": if visible.iter().any(|visible| visible == &id) { "allow" } else { "deny" },
+                    "verdict": if admitted { "allow" } else { "deny" },
+                    "cut": admitted && !returned.iter().any(|returned| returned == &id),
                 }));
             }
         }
@@ -102,6 +105,7 @@ fn enrich(root: &Path, op: &str, response: Json, latest: Json) -> Json {
                     "site": point.get("site"),
                     "table": point.get("table"),
                     "verdict": if point.get("visible").and_then(Json::as_bool).unwrap_or(false) { "allow" } else { "deny" },
+                    "cut": false,
                 }));
             }
         }

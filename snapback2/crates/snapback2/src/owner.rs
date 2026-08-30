@@ -127,6 +127,7 @@ pub fn read_owner(root: &Path) -> Option<OwnerInfo> {
 }
 
 fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
+    let owner_started_at = unix_millis();
     fs::create_dir_all(root.join(".snapback")).map_err(|error| {
         Refusal::owner(
             "E_OWNER_STORE",
@@ -136,12 +137,14 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     })?;
     let mut compiler = CompilerWorker::spawn()?;
     let compiled = compiler.compile(&root).map_err(first)?;
-    let _ = compiler.journeys(&root).map_err(first)?;
     let seed = compiler.seed(&root).map_err(first)?;
     write_build_cache(&root, &compiled)?;
     let rows = seed_rows(&seed, &compiled)?;
     let store_path = root.join(".snapback/store.sqlite");
     let store = Store::open(&store_path).map_err(|error| Refusal::from_runtime(&error))?;
+    let restarted_through_seq = store
+        .commit_seq()
+        .map_err(|error| Refusal::from_runtime(&error))?;
     let mut runtime = Runtime::open(store, compiled.generation.clone())
         .map_err(|error| Refusal::from_successor(&error))?;
     let now = unix_millis();
@@ -171,6 +174,8 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         store_path,
         root.clone(),
         mode.clone(),
+        owner_started_at,
+        restarted_through_seq,
         stop.clone(),
     )?;
     #[cfg(feature = "effects")]
@@ -185,7 +190,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
         url: url.clone(),
         secret: secret.clone(),
         generation: compiled.generation.hash,
-        started_at: unix_millis(),
+        started_at: owner_started_at,
         mode: mode.clone(),
         project: root.clone(),
     };

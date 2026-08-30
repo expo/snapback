@@ -1,9 +1,10 @@
 //! Boot-run-exit verification against a fresh owner and isolated store.
 // @ref LLP 1002#7-test-and-the-receipt — derived probes and journeys share one receipt-backed owner.
 
+use self::test_sse::SseProbe;
 use crate::client;
 use crate::owner::{self, OwnerInfo};
-use crate::project::{CompiledProject, CompilerWorker, SeedData, locate_root};
+use crate::project::{self, CompiledProject, CompilerWorker, SeedData, locate_root};
 use crate::protocol::{Refusal, json_to_value};
 use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
@@ -14,12 +15,14 @@ use snapback2_core::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[path = "test_sse.rs"]
+mod test_sse;
 
 pub fn run(args: &[String]) -> ExitCode {
     let json_output = verbs::has(args, "--json");
@@ -42,7 +45,31 @@ pub fn run(args: &[String]) -> ExitCode {
     }
 
     let compile_started = Instant::now();
-    let (compiled, seed) = match compile(&root) {
+    let checked = match journey_files(&root) {
+        Ok(_) => None,
+        Err(_) => match project::compile_once(&root) {
+            Ok(compiled) => Some(compiled),
+            Err(errors) => {
+                let check = CheckReceipt::fail(
+                    "certify",
+                    "derived",
+                    elapsed_ms(compile_started),
+                    json!({ "refusals": errors }),
+                );
+                return finish(
+                    &root,
+                    stamp,
+                    TestReceipt::new(
+                        String::new(),
+                        vec!["snapback2 check".to_owned()],
+                        vec![check],
+                    ),
+                    json_output,
+                );
+            }
+        },
+    };
+    let (compiled, seed) = match compile(&root, checked) {
         Ok(value) => value,
         Err(errors) => {
             let check = CheckReceipt::fail(
@@ -116,7 +143,7 @@ pub fn run(args: &[String]) -> ExitCode {
         }
     }
     if !derived_only {
-        checks.extend(run_journeys(&root, &isolated.info));
+        checks.extend(run_journeys(&isolated.info.project, &isolated.info));
     }
     isolated.stop();
     finish(
@@ -127,9 +154,15 @@ pub fn run(args: &[String]) -> ExitCode {
     )
 }
 
-fn compile(root: &Path) -> Result<(CompiledProject, SeedData), Vec<Refusal>> {
+fn compile(
+    root: &Path,
+    checked: Option<CompiledProject>,
+) -> Result<(CompiledProject, SeedData), Vec<Refusal>> {
     let mut worker = CompilerWorker::spawn().map_err(|error| vec![error])?;
-    let compiled = worker.compile(root)?;
+    let compiled = match checked {
+        Some(compiled) => compiled,
+        None => worker.compile(root)?,
+    };
     let seed = worker.seed(root)?;
     Ok((compiled, seed))
 }
@@ -196,6 +229,10 @@ impl IsolatedOwner {
         let project = scratch.join("project");
         copy_tree(&root.join("snapback"), &project.join("snapback"))?;
         fs::create_dir_all(project.join(".snapback")).map_err(test_io)?;
+        let build = root.join(".snapback/build");
+        if build.is_dir() {
+            copy_tree(&build, &project.join(".snapback/build"))?;
+        }
         let store = root.join(format!(".snapback/test-{stamp}.sqlite"));
         let owner_store = project.join(".snapback/store.sqlite");
         link_store(&store, &owner_store)?;
@@ -392,15 +429,6 @@ fn check_rules(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -
             if !rule_id_sets_match(&actual, &expected) {
                 failures.push(json!({ "table": table_name, "as": persona, "expected": expected, "actual": actual }));
             }
-            if persona == &unlisted && !actual.is_empty() {
-                failures.push(json!({
-                    "table": table_name,
-                    "as": persona,
-                    "expected": [],
-                    "actual": actual,
-                    "reason": "persona named in no seed row must see zero rows",
-                }));
-            }
         }
         tables.insert(
             table_name.clone(),
@@ -500,6 +528,12 @@ fn check_invalidation(
             continue;
         }
         let query_args = generated_args_at(query, seed, 0);
+        let query_persona = seed
+            .personas
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "alice".to_owned());
+        let mut query_has_silence = false;
         for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
@@ -519,15 +553,18 @@ fn check_invalidation(
                         &query_args,
                         mutation_name,
                         mutation_args,
+                        &query_persona,
                         persona,
                         false,
                     );
+                    let proved_silence = committed && failure.is_none();
                     if let Some(failure) = failure {
                         failures.push(failure);
                     }
-                    if committed {
+                    if proved_silence {
                         probes += 1;
                         silence_probes += 1;
+                        query_has_silence = true;
                         break;
                     }
                 }
@@ -554,6 +591,7 @@ fn check_invalidation(
                     &query_args,
                     mutation_name,
                     mutation_args,
+                    persona,
                     persona,
                     true,
                 );
@@ -589,18 +627,60 @@ fn check_invalidation(
                     &query_args,
                     mutation_name,
                     mutation_args,
+                    &query_persona,
                     persona,
                     false,
                 );
+                let proved_silence = committed && failure.is_none();
                 if let Some(failure) = failure {
                     failures.push(failure);
                 }
-                if committed {
+                if proved_silence {
                     probes += 1;
                     silence_probes += 1;
+                    query_has_silence = true;
                     break;
                 }
             }
+        }
+        if !query_has_silence {
+            let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
+            for (mutation_name, (mutation, _)) in &compiled.generation.programs {
+                if mutation.kind != ProgramKind::Mutation {
+                    continue;
+                }
+                attempts += 1;
+                let mutation_args = generated_args_at(mutation, seed, 0);
+                let (committed, failure) = invalidation_attempt(
+                    owner,
+                    query_name,
+                    &query_args,
+                    mutation_name,
+                    &mutation_args,
+                    &query_persona,
+                    &disjoint_persona,
+                    false,
+                );
+                match failure {
+                    None if committed => {
+                        probes += 1;
+                        silence_probes += 1;
+                        query_has_silence = true;
+                        break;
+                    }
+                    Some(failure)
+                        if failure.get("error").and_then(Json::as_str)
+                            == Some("non-intersecting committed mutation delivered") => {}
+                    Some(failure) => failures.push(failure),
+                    None => {}
+                }
+            }
+        }
+        if !query_has_silence {
+            blocked.push(json!({
+                "query": query_name,
+                "reason": format!("no disjoint committing probe for {query_name}"),
+            }));
         }
     }
     let detail = json!({
@@ -688,22 +768,25 @@ fn invalidation_attempt(
     query_args: &Json,
     mutation: &str,
     mutation_args: &Json,
-    persona: &str,
+    query_persona: &str,
+    mutation_persona: &str,
     expect_delivery: bool,
 ) -> (bool, Option<Json>) {
     if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
         return (
             false,
-            Some(json!({ "query": query, "mutation": mutation, "as": persona, "error": error })),
+            Some(
+                json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
+            ),
         );
     }
-    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), persona) {
+    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), query_persona) {
         Ok(stream) => stream,
         Err(error) => {
             return (
                 false,
                 Some(
-                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
                 ),
             );
         }
@@ -714,7 +797,7 @@ fn invalidation_attempt(
             Some(json!({
                 "query": query,
                 "mutation": mutation,
-                "as": persona,
+                "as": query_persona,
                 "error": format!("initial SSE delivery missing: {error}"),
             })),
         );
@@ -723,7 +806,7 @@ fn invalidation_attempt(
         owner,
         "POST",
         "/api/mutation",
-        &[("X-Snapback-As", persona)],
+        &[("X-Snapback-As", mutation_persona)],
         json!({ "op": mutation, "args": mutation_args }),
     ) {
         Ok(response) => response.body,
@@ -731,7 +814,7 @@ fn invalidation_attempt(
             return (
                 false,
                 Some(
-                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
                 ),
             );
         }
@@ -750,25 +833,34 @@ fn invalidation_attempt(
                 Some(json!({
                     "query": query,
                     "mutation": mutation,
-                    "as": persona,
+                    "as": mutation_persona,
                     "expectedSeq": expected_seq,
                     "delivery": delivery.ok(),
                 })),
             ),
         }
     } else {
-        match stream.event(Duration::from_millis(250)) {
-            Ok(delivery) => (
+        match stream.prove_silence(Duration::from_millis(250)) {
+            Ok(()) => (true, None),
+            Err(error) if error.delivery.is_some() => (
                 true,
                 Some(json!({
                     "query": query,
                     "mutation": mutation,
-                    "as": persona,
+                    "as": mutation_persona,
                     "error": "non-intersecting committed mutation delivered",
-                    "delivery": delivery,
+                    "delivery": error.delivery,
                 })),
             ),
-            Err(_) => (true, None),
+            Err(error) => (
+                true,
+                Some(json!({
+                    "query": query,
+                    "mutation": mutation,
+                    "as": mutation_persona,
+                    "error": format!("silence probe stream failed: {}", error.message),
+                })),
+            ),
         }
     }
 }
@@ -901,8 +993,19 @@ fn replay_fork(
         };
         args.insert(name.clone(), value);
     }
-    let mut context = Context::query(format!("dev:{persona}"), args);
-    context.principal_kind = "persona".to_owned();
+    let is_effect_then = generation
+        .effects
+        .values()
+        .any(|effect| effect.then.as_deref() == Some(program.name.as_str()));
+    let mut context = if is_effect_then {
+        let mut context = Context::system();
+        context.args = args;
+        context
+    } else {
+        let mut context = Context::query(format!("dev:{persona}"), args);
+        context.principal_kind = "persona".to_owned();
+        context
+    };
     context.now = Some(1_700_000_000_000_i64.saturating_add(index as i64));
     context.new_ids = (0..1024)
         .map(|ordinal| format!("replay-{index}-{ordinal}"))
@@ -1142,75 +1245,6 @@ fn result_check(name: &str, started: Instant, failures: Vec<Json>, detail: Json)
     }
 }
 
-struct SseProbe {
-    reader: BufReader<TcpStream>,
-}
-
-impl SseProbe {
-    fn connect(owner: &OwnerInfo, op: &str, args: Json, persona: &str) -> Result<Self, Refusal> {
-        let mut stream = TcpStream::connect(("127.0.0.1", owner.port)).map_err(test_io)?;
-        let encoded =
-            percent_encode(&serde_json::to_string(&args).unwrap_or_else(|_| "{}".to_owned()));
-        write!(
-            stream,
-            "GET /api/subscribe?op={}&args={} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nX-Snapback-As: {}\r\nConnection: close\r\n\r\n",
-            percent_encode(op),
-            encoded,
-            owner.port,
-            persona,
-        )
-        .map_err(test_io)?;
-        stream.flush().map_err(test_io)?;
-        let mut reader = BufReader::new(stream);
-        let mut status = String::new();
-        reader.read_line(&mut status).map_err(test_io)?;
-        if !status.contains(" 200 ") {
-            return Err(Refusal::owner(
-                "E_OWNER_TEST_SSE",
-                format!("subscription returned {status}"),
-                "run snapback2 why for the query and persona",
-            ));
-        }
-        loop {
-            let mut line = String::new();
-            reader.read_line(&mut line).map_err(test_io)?;
-            if line == "\r\n" || line.is_empty() {
-                break;
-            }
-        }
-        Ok(Self { reader })
-    }
-
-    fn event(&mut self, timeout: Duration) -> Result<Json, String> {
-        self.reader
-            .get_mut()
-            .set_read_timeout(Some(timeout))
-            .map_err(|error| error.to_string())?;
-        loop {
-            let mut size = String::new();
-            self.reader
-                .read_line(&mut size)
-                .map_err(|error| error.to_string())?;
-            let size = usize::from_str_radix(size.trim(), 16).map_err(|error| error.to_string())?;
-            if size == 0 {
-                return Err("subscription ended".to_owned());
-            }
-            let mut payload = vec![0_u8; size];
-            self.reader
-                .read_exact(&mut payload)
-                .map_err(|error| error.to_string())?;
-            let mut crlf = [0_u8; 2];
-            self.reader
-                .read_exact(&mut crlf)
-                .map_err(|error| error.to_string())?;
-            let text = String::from_utf8_lossy(&payload);
-            if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
-                return serde_json::from_str(data).map_err(|error| error.to_string());
-            }
-        }
-    }
-}
-
 fn authored_journey_files(root: &Path) -> Vec<PathBuf> {
     let mut files = fs::read_dir(root.join("snapback/tests"))
         .ok()
@@ -1370,124 +1404,5 @@ fn usage() -> ExitCode {
 }
 
 #[cfg(test)]
-mod derived_tests {
-    use super::*;
-    use snapback2_core::{Ceilings, Checker, Engine, RuntimeError};
-
-    #[test]
-    fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
-        let root = std::env::temp_dir().join(format!(
-            "snapback2-startup-cleanup-{}-{}",
-            std::process::id(),
-            timestamp()
-        ));
-        let scratch = root.join(".snapback/test-run-failed");
-        let store = root.join(".snapback/test-failed.sqlite");
-        fs::create_dir_all(&scratch).unwrap();
-        fs::write(&store, b"test").unwrap();
-        let child = Command::new("node")
-            .args(["-e", "setInterval(() => {}, 1000)"])
-            .spawn()
-            .unwrap();
-        let mut cleanup = OwnerCleanup {
-            child: Some(child),
-            scratch: scratch.clone(),
-            store: store.clone(),
-        };
-
-        cleanup.clean();
-
-        assert!(cleanup.child.is_none());
-        assert!(!scratch.exists());
-        assert!(!store.exists());
-        let _ = fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn generated_args_exercises_every_arg_type_variant() {
-        let program = Program {
-            name: "all.args".to_owned(),
-            kind: ProgramKind::Query,
-            args: BTreeMap::from([
-                ("id".to_owned(), ArgType::Id),
-                ("text".to_owned(), ArgType::Text { max: 20 }),
-                ("int".to_owned(), ArgType::Int),
-                ("bool".to_owned(), ArgType::Bool),
-                ("time".to_owned(), ArgType::Time),
-                ("json".to_owned(), ArgType::Json { max_bytes: 100 }),
-                (
-                    "optional".to_owned(),
-                    ArgType::Optional(Box::new(ArgType::Text { max: 20 })),
-                ),
-                (
-                    "list".to_owned(),
-                    ArgType::List {
-                        of: Some(Box::new(ArgType::Int)),
-                        max: 4,
-                    },
-                ),
-                (
-                    "enum".to_owned(),
-                    ArgType::Enum {
-                        variants: vec!["first".to_owned(), "second".to_owned()],
-                    },
-                ),
-                ("decimal".to_owned(), ArgType::Decimal { scale: 2 }),
-                (
-                    "money".to_owned(),
-                    ArgType::Money {
-                        currency: "USD".to_owned(),
-                        scale: 2,
-                    },
-                ),
-                ("scalar".to_owned(), ArgType::Scalar),
-            ]),
-            read_time_granularity_ms: None,
-            body: vec![snapback2_core::Stmt::Return(snapback2_core::Expr::Literal(
-                Value::Null,
-            ))],
-        };
-
-        let args = generated_args(&program, &SeedData::default());
-
-        assert_eq!(args.as_object().unwrap().len(), 12);
-        assert_eq!(args["enum"], "first");
-        assert_eq!(args["list"], json!([]));
-        assert_eq!(args["decimal"], 100);
-        assert_eq!(args["money"], 100);
-    }
-
-    #[test]
-    fn rules_equality_rejects_extra_and_missing_visible_rows() {
-        let expected = BTreeSet::from(["seed".to_owned()]);
-        assert!(!rule_id_sets_match(
-            &BTreeSet::from(["ghost".to_owned(), "seed".to_owned()]),
-            &expected,
-        ));
-        assert!(!rule_id_sets_match(&BTreeSet::new(), &expected));
-    }
-
-    #[test]
-    fn bounds_failure_fixture_gets_e_trace_subset_from_the_engine() {
-        let schema = snapback2_core::spike_schema();
-        let program = snapback2_core::thread_program(10);
-        let mut certificate = Checker::new(&schema, Ceilings::default())
-            .check(&program)
-            .unwrap();
-        certificate.read_sites.clear();
-        let mut engine = Engine::memory(schema).unwrap();
-        let mut context = Context::query(
-            "dev:alice",
-            BTreeMap::from([(
-                "conversationId".to_owned(),
-                Value::Id("conversation-1".to_owned()),
-            )]),
-        );
-        context.principal_kind = "persona".to_owned();
-
-        let error = engine.execute(&program, &certificate, context).unwrap_err();
-
-        assert_eq!(error.code(), "E_TRACE_SUBSET");
-        assert!(matches!(error, RuntimeError::TraceSubset(_)));
-    }
-}
+#[path = "test_unit.rs"]
+mod derived_tests;

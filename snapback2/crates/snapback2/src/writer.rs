@@ -3,13 +3,14 @@
 
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value, value_to_json};
+use crate::writer_args::{channel_args, frame_digest, json_as_kind, operation_args};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{channel_refusal_frame, execution_json, live_frame};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal, Program,
-    ProgramKind, Runtime, Scan, Stmt, Store, Value,
+    Bound, ChannelSide, ChannelVerdict, Context, Execution, ExecutionState, Expr, KeyProvenance,
+    MigrationPlan, Order, OutboxCounts, Principal, Program, ProgramKind, Runtime, Scan, Stmt,
+    Store, Value,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -254,6 +255,8 @@ struct State {
     live: BTreeMap<u64, LiveClient>,
     channels: BTreeMap<u64, ChannelClient>,
     ledger: VecDeque<CommitLedger>,
+    owner_started_at: i64,
+    restarted_through_seq: u64,
     next_channel: u64,
     clock_offset_ms: i64,
     stop: Arc<AtomicBool>,
@@ -267,6 +270,8 @@ pub fn spawn_writer(
     store_path: PathBuf,
     root: PathBuf,
     mode: String,
+    owner_started_at: i64,
+    restarted_through_seq: u64,
     stop: Arc<AtomicBool>,
 ) -> Result<OwnerHandle, Refusal> {
     let (tx, rx) = mpsc::channel();
@@ -286,6 +291,8 @@ pub fn spawn_writer(
                     live: BTreeMap::new(),
                     channels: BTreeMap::new(),
                     ledger: VecDeque::new(),
+                    owner_started_at,
+                    restarted_through_seq,
                     next_channel: 0,
                     clock_offset_ms: 0,
                     stop,
@@ -740,6 +747,15 @@ impl State {
                 terminal,
             })
             .map_err(|_| owner_gone())?;
+        // The derived silence probe needs positive liveness evidence without
+        // waiting for the 15-second periodic heartbeat.
+        events
+            .send(SseEvent {
+                seq: None,
+                data: Json::Null,
+                terminal: false,
+            })
+            .map_err(|_| owner_gone())?;
         self.live.insert(
             id,
             LiveClient {
@@ -1039,6 +1055,7 @@ impl State {
         self.live.clear();
         self.channels.clear();
         self.ledger.clear();
+        self.restarted_through_seq = 0;
         self.wake_effects();
         Ok(json!({ "ok": true, "seq": self.runtime().store().commit_seq().unwrap_or(0) }))
     }
@@ -1232,17 +1249,8 @@ impl State {
                 })
             })
             .collect::<Vec<_>>();
-        let ledger = self
-            .ledger
-            .iter()
-            .find(|entry| entry.seq == wanted)
-            .cloned()
-            .unwrap_or(CommitLedger {
-                seq: wanted,
-                invalidated: Vec::new(),
-                deliveries: Vec::new(),
-            });
-        Ok(json!({
+        let ledger = self.ledger.iter().find(|entry| entry.seq == wanted);
+        let mut output = json!({
             "commit": commit,
             "outbox": {
                 "emits": commit.emits,
@@ -1250,9 +1258,20 @@ impl State {
                 "rows": outbox_rows.clone(),
             },
             "outboxRows": outbox_rows,
-            "invalidated": ledger.invalidated,
-            "deliveries": ledger.deliveries,
-        }))
+        });
+        let object = output.as_object_mut().expect("trace output is an object");
+        if let Some(ledger) = ledger {
+            object.insert("invalidated".to_owned(), json!(ledger.invalidated));
+            object.insert("deliveries".to_owned(), json!(ledger.deliveries));
+        } else {
+            let reason = if wanted <= self.restarted_through_seq {
+                format!("unavailable (owner restarted at {})", self.owner_started_at)
+            } else {
+                "unavailable (commit is outside the last 1000 owner-lifetime entries)".to_owned()
+            };
+            object.insert("ledger".to_owned(), Json::String(reason));
+        }
+        Ok(output)
     }
 
     fn status(&self) -> Result<Json, Refusal> {
@@ -1345,168 +1364,5 @@ mod tests {
         assert_eq!(effects_engine(), snapback2_effects::describe());
         #[cfg(not(feature = "effects"))]
         assert_eq!(effects_engine(), "none");
-    }
-}
-
-fn operation_args(
-    generation: &Generation,
-    op: &str,
-    args: &Json,
-) -> Result<BTreeMap<String, Value>, Refusal> {
-    let program = &generation
-        .programs
-        .get(op)
-        .ok_or_else(|| {
-            Refusal::new(
-                "E_OP_UNKNOWN",
-                "op",
-                format!("unknown operation {op}"),
-                "use /api/manifest",
-                "op/manifest",
-            )
-        })?
-        .0;
-    let object = args.as_object().ok_or_else(|| {
-        Refusal::input(
-            "operation args must be a JSON object",
-            "pass {} when there are no args",
-        )
-    })?;
-    let unknown: Vec<_> = object
-        .keys()
-        .filter(|key| !program.args.contains_key(*key))
-        .cloned()
-        .collect();
-    if !unknown.is_empty() {
-        return Err(Refusal::input(
-            format!("unknown operation args: {}", unknown.join(", ")),
-            "remove args not declared by the operation",
-        ));
-    }
-    let mut values = BTreeMap::new();
-    for (name, kind) in &program.args {
-        let Some(value) = object.get(name) else {
-            if matches!(kind, ArgType::Optional(_)) {
-                values.insert(name.clone(), Value::Null);
-            }
-            continue;
-        };
-        values.insert(name.clone(), json_as_arg(value, kind)?);
-    }
-    Ok(values)
-}
-
-fn frame_digest(frame: &Json) -> String {
-    let mut value = frame.clone();
-    if let Some(object) = value.as_object_mut() {
-        object.remove("seq");
-    }
-    serde_json::to_string(&value).unwrap_or_default()
-}
-
-fn channel_args(
-    generation: &Generation,
-    name: &str,
-    args: &Json,
-) -> Result<BTreeMap<String, Value>, Refusal> {
-    let channel = generation.schema.channels.get(name).ok_or_else(|| {
-        Refusal::new(
-            "E_OP_CHANNEL_UNKNOWN",
-            "op",
-            format!("unknown channel {name}"),
-            "use a channel listed by /api/manifest",
-            "op/channels",
-        )
-    })?;
-    let object = args.as_object().ok_or_else(|| {
-        Refusal::input(
-            "channel args must be a JSON object",
-            "pass {\"arg\": value}",
-        )
-    })?;
-    channel
-        .args
-        .iter()
-        .map(|(name, kind)| {
-            let value = match object.get(name) {
-                Some(value) => json_as_arg(value, kind)?,
-                None if matches!(kind, ArgType::Optional(_)) => Value::Null,
-                None => {
-                    return Err(Refusal::input(
-                        format!("channel is missing arg {name}"),
-                        "pass every required channel arg",
-                    ));
-                }
-            };
-            Ok((name.clone(), value))
-        })
-        .collect()
-}
-
-fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
-    match kind {
-        ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
-        ArgType::Optional(inner) => json_as_arg(value, inner),
-        ArgType::Id => value
-            .as_str()
-            .map(|value| Value::Id(value.to_owned()))
-            .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),
-        ArgType::List { of, .. } => value
-            .as_array()
-            .ok_or_else(|| Refusal::input("list arguments must be arrays", "pass a JSON array"))?
-            .iter()
-            .map(|value| match of {
-                Some(of) => json_as_arg(value, of),
-                None => json_to_value(value),
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map(Value::Array),
-        ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => value
-            .as_i64()
-            .map(Value::Int)
-            .ok_or_else(|| Refusal::input("numeric arguments must be integers", "pass an integer")),
-        ArgType::Text { .. } | ArgType::Enum { .. } => value
-            .as_str()
-            .map(|value| Value::String(value.to_owned()))
-            .ok_or_else(|| {
-                Refusal::input("text and enum arguments must be strings", "pass a string")
-            }),
-        ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
-            Refusal::input("boolean arguments must be true or false", "pass a boolean")
-        }),
-        ArgType::Json { .. } | ArgType::Scalar => json_to_value(value),
-    }
-}
-
-fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
-    match kind {
-        ColumnType::Optional(inner) => {
-            if value.is_null() {
-                Ok(Value::Null)
-            } else {
-                json_as_kind(value, inner)
-            }
-        }
-        ColumnType::Id | ColumnType::Ref { .. } => value
-            .as_str()
-            .map(|value| Value::Id(value.to_owned()))
-            .ok_or_else(|| Refusal::input("id index values must be strings", "pass a string id")),
-        ColumnType::Text { .. } | ColumnType::Enum { .. } => value
-            .as_str()
-            .map(|value| Value::String(value.to_owned()))
-            .ok_or_else(|| Refusal::input("text index values must be strings", "pass a string")),
-        ColumnType::Int
-        | ColumnType::Time
-        | ColumnType::Decimal { .. }
-        | ColumnType::Money { .. } => value.as_i64().map(Value::Int).ok_or_else(|| {
-            Refusal::input("numeric index values must be integers", "pass an integer")
-        }),
-        ColumnType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
-            Refusal::input(
-                "boolean index values must be true or false",
-                "pass a boolean",
-            )
-        }),
-        ColumnType::Json { .. } | ColumnType::List { .. } => json_to_value(value),
     }
 }

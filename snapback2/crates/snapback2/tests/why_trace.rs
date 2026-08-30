@@ -72,3 +72,89 @@ export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
     assert_eq!(trace["outboxRows"][0]["effect"], "notifications.notify");
     assert_eq!(trace["outboxRows"][0]["state"], "queued");
 }
+
+#[test]
+fn why_keeps_rule_admission_separate_from_the_page_cut() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/schema.ts"),
+        r#"import { rule, schema, table, t } from "snapback2";
+export const items = table({
+  columns: { label: t.text(20) },
+  rules: { read: rule.public("public"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+});
+export default schema({ auth: { password: true, guests: true }, tables: { items } });
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/todos.ts"),
+        r#"import { query } from "snapback2";
+import { items } from "./schema";
+export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 1 }));
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/seed.ts"),
+        r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice"], rows: { items: [
+  { id: "item-1", label: "one" },
+  { id: "item-2", label: "two" },
+  { id: "item-3", label: "three" },
+] } });
+"#,
+    )
+    .unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+    let _owner = OwnerGuard::start(&project);
+
+    let why = project.run(&["why", "todos.list", "--as", "alice", "--json"]);
+    assert!(
+        why.status.success(),
+        "{}",
+        String::from_utf8_lossy(&why.stderr)
+    );
+    let verdicts = json_stdout(&why)["rowVerdicts"].as_array().unwrap().clone();
+    assert_eq!(verdicts.len(), 3, "{verdicts:?}");
+    assert!(verdicts.iter().all(|row| row["verdict"] == "allow"));
+    assert_eq!(
+        verdicts.iter().filter(|row| row["cut"] == true).count(),
+        2,
+        "{verdicts:?}"
+    );
+}
+
+#[test]
+fn trace_marks_pre_restart_commit_ledgers_unavailable() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    let committed_seq = {
+        let _owner = OwnerGuard::start(&project);
+        let mutation = project.run(&[
+            "run",
+            "todos.add",
+            r#"{"title":"before restart"}"#,
+            "--as",
+            "alice",
+            "--json",
+        ]);
+        assert!(mutation.status.success());
+        json_stdout(&mutation)["seq"].as_u64().unwrap()
+    };
+
+    let _restarted = OwnerGuard::start(&project);
+    let trace = project.run(&["trace", &committed_seq.to_string(), "--json"]);
+    assert!(trace.status.success());
+    let trace = json_stdout(&trace);
+    assert!(
+        trace["ledger"]
+            .as_str()
+            .is_some_and(|value| value.starts_with("unavailable (owner restarted at ")),
+        "{trace}"
+    );
+    assert!(trace.get("invalidated").is_none(), "{trace}");
+    assert!(trace.get("deliveries").is_none(), "{trace}");
+}

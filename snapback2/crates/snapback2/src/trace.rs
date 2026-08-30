@@ -65,22 +65,28 @@ fn enrich(trace: Json) -> Json {
         .and_then(Json::as_array)
         .cloned()
         .unwrap_or_default();
-    let invalidated = trace
-        .get("invalidated")
-        .and_then(Json::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let deliveries = trace
-        .get("deliveries")
-        .and_then(Json::as_array)
-        .cloned()
-        .unwrap_or_default();
     let mut output = Map::new();
     output.insert("intent".to_owned(), Json::String(program.to_owned()));
     output.insert("commit".to_owned(), commit);
     output.insert("outboxRows".to_owned(), Json::Array(outbox_rows));
-    output.insert("invalidated".to_owned(), Json::Array(invalidated));
-    output.insert("deliveries".to_owned(), Json::Array(deliveries));
+    if let Some(ledger) = trace.get("ledger") {
+        output.insert("ledger".to_owned(), ledger.clone());
+    } else {
+        output.insert(
+            "invalidated".to_owned(),
+            trace
+                .get("invalidated")
+                .cloned()
+                .unwrap_or_else(|| Json::Array(Vec::new())),
+        );
+        output.insert(
+            "deliveries".to_owned(),
+            trace
+                .get("deliveries")
+                .cloned()
+                .unwrap_or_else(|| Json::Array(Vec::new())),
+        );
+    }
     Json::Object(output)
 }
 

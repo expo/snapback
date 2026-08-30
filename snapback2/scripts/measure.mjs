@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
+const testTemplates = ["todos", "chat"];
 const run = (cmd, argv, opts = {}) => {
   const t0 = performance.now();
   const r = spawnSync(cmd, argv, { cwd: root, encoding: "utf8", ...opts });
@@ -41,6 +42,31 @@ function scoreChecks(checks, budget, report = console.log, refuse = fail) {
     if (step.seconds > max) refuse(`${label}: ${step.seconds}s over budget ${max}s`);
     else report(`ok ${label}: ${step.seconds}s ≤ ${max}s`);
   }
+}
+
+function testVerdict(result, allowEffectsBlocked) {
+  let receipt;
+  try {
+    receipt = JSON.parse(result.stdout);
+  } catch {
+    return { accepted: false, verdict: "invalid receipt" };
+  }
+  if (result.status === 0 && receipt.verdict === "pass") {
+    return { accepted: true, verdict: "pass" };
+  }
+  const effects = Array.isArray(receipt.checks)
+    ? receipt.checks.find((check) => check.name === "effects")
+    : undefined;
+  const onlyEffectsBlocked = Array.isArray(receipt.checks)
+    && receipt.checks.every((check) => check === effects
+      ? check.verdict === "blocked"
+      : check.verdict === "pass");
+  if (allowEffectsBlocked && result.status === 1 && receipt.verdict === "blocked"
+    && onlyEffectsBlocked && effects?.verdict === "blocked"
+    && effects?.detail?.reason === "no engine in this build") {
+    return { accepted: true, verdict: "blocked", blocked: "effects" };
+  }
+  return { accepted: false, verdict: receipt.verdict ?? "missing" };
 }
 
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
@@ -142,14 +168,26 @@ function main() {
     (result) => `initialized owner stop failed\n${result.stdout}\n${result.stderr}`);
   rmSync(initRoot, { recursive: true, force: true });
 
-  const productTestRoot = mkdtempSync(resolve(tmpdir(), "snapback2-test-measure-"));
-  const testInit = run(bin, ["init", productTestRoot, "--template", "todos", "--client", "none", "--json"], { env: compilerEnv });
-  recordStep(record, failedSteps, "test_init_s", testInit, 3,
-    (result) => `todos init failed\n${result.stdout}\n${result.stderr}`);
-  const productTest = run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
-  const productTestStep = recordStep(record, failedSteps, "test_s", productTest, 3,
-    (result) => `todos template test failed\n${result.stdout}\n${result.stderr}`);
-  rmSync(productTestRoot, { recursive: true, force: true });
+  const productTestSteps = [];
+  for (const template of testTemplates) {
+    const productTestRoot = mkdtempSync(resolve(tmpdir(), `snapback2-test-${template}-measure-`));
+    const initialized = run(bin, ["init", productTestRoot, "--template", template, "--client", "none", "--json"], { env: compilerEnv });
+    recordStep(record, failedSteps, `test_${template}_init_s`, initialized, 3,
+      (result) => `${template} init failed\n${result.stdout}\n${result.stderr}`);
+    const productTest = run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
+    const verdict = testVerdict(productTest, template === "chat");
+    const measured = {
+      ...productTest,
+      status: initialized.status === 0 && verdict.accepted ? 0 : 1,
+    };
+    const step = recordStep(record, failedSteps, `test_${template}_s`, measured, 3,
+      (result) => `${template} template test verdict ${verdict.verdict} was not acceptable\n${result.stdout}\n${result.stderr}`);
+    step.verdict = verdict.verdict;
+    if (verdict.blocked) step.blocked = verdict.blocked;
+    record[`test_${template}_verdict`] = verdict.verdict;
+    productTestSteps.push([`snapback2 test (${template})`, step]);
+    rmSync(productTestRoot, { recursive: true, force: true });
+  }
   record.debug_binary_bytes = statSync(bin).size;
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
@@ -172,7 +210,7 @@ function main() {
     ], budget);
     scoreChecks([
       ["init → dev", initToDevStep],
-      ["snapback2 test", productTestStep],
+      ...productTestSteps,
     ], (label) => label === "init → dev" ? 10 : 30);
   }
 
@@ -198,6 +236,22 @@ function selfTest() {
   const summary = failedSummary(failures);
   assert(summary.includes("check_project_s"));
   assert(summary.includes("dev_boot_s"));
+  assert.deepEqual(testTemplates, ["todos", "chat"]);
+  assert.deepEqual(
+    testVerdict({ status: 0, stdout: JSON.stringify({ verdict: "pass", checks: [] }) }, false),
+    { accepted: true, verdict: "pass" },
+  );
+  assert.deepEqual(
+    testVerdict({
+      status: 1,
+      stdout: JSON.stringify({
+        verdict: "blocked",
+        checks: [{ name: "effects", verdict: "blocked", detail: { reason: "no engine in this build" } }],
+      }),
+    }, true),
+    { accepted: true, verdict: "blocked", blocked: "effects" },
+  );
+  assert.equal(testVerdict({ status: 1, stdout: "{}" }, true).accepted, false);
   process.exitCode = originalExitCode;
   console.log("measure self-test ok");
 }
