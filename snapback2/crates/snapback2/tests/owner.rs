@@ -122,6 +122,39 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     let first = live.event();
     let first_seq = first["seq"].as_u64().unwrap();
     assert_eq!(first["state"], "complete");
+    let subscriptions_before = request(
+        port,
+        "GET",
+        "/control/subscriptions",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    )
+    .body;
+    let verdicts = request(
+        port,
+        "POST",
+        "/control/verdicts",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "table": "memberships",
+            "as": "bob",
+            "rows": [{ "id": "membership-2" }],
+        }),
+    );
+    assert_eq!(verdicts.status, 200, "{}", verdicts.body);
+    live.assert_silent(Duration::from_millis(300));
+    let subscriptions_after = request(
+        port,
+        "GET",
+        "/control/subscriptions",
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    )
+    .body;
+    assert_eq!(
+        subscriptions_after, subscriptions_before,
+        "verdict probes must not rebind the live generation"
+    );
 
     let direct_maintained_write = request(
         port,
@@ -186,6 +219,60 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     assert_eq!(delivery["seq"], committed_seq);
     assert_eq!(delivery["state"], "complete");
     assert_eq!(delivery["data"][0]["body"], "hello");
+    let traced_commit = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={committed_seq}"),
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    )
+    .body;
+    assert_eq!(traced_commit["invalidated"].as_array().unwrap().len(), 1);
+    assert_eq!(traced_commit["deliveries"][0]["seq"], committed_seq);
+
+    let mut later_alice = Sse::open(
+        port,
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "alice",
+    );
+    assert_eq!(later_alice.event()["state"], "complete");
+    let mut other_args = Sse::open(
+        port,
+        "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-other%22%7D",
+        "bob",
+    );
+    assert_eq!(other_args.event()["state"], "complete");
+    let trace_after_subscribe = request(
+        port,
+        "GET",
+        &format!("/control/trace?seq={committed_seq}"),
+        &[("X-Snapback-Control", &secret)],
+        json!({}),
+    )
+    .body;
+    assert_eq!(
+        trace_after_subscribe["invalidated"],
+        traced_commit["invalidated"]
+    );
+    assert_eq!(
+        trace_after_subscribe["deliveries"],
+        traced_commit["deliveries"]
+    );
+
+    let explained = request(
+        port,
+        "POST",
+        "/control/why",
+        &[("X-Snapback-Control", &secret)],
+        json!({
+            "op": "messages.thread",
+            "args": { "conversationId": "conversation-1" },
+            "as": "bob",
+        }),
+    );
+    assert_eq!(explained.status, 200, "{}", explained.body);
+    assert_eq!(explained.body["subscriptions"].as_array().unwrap().len(), 1);
+    assert_eq!(explained.body["subscriptions"][0]["principal"], "dev:bob");
 
     let counts = request(
         port,
@@ -818,6 +905,28 @@ impl Sse {
                 return serde_json::from_str(data).unwrap();
             }
         }
+    }
+
+    fn assert_silent(&mut self, timeout: Duration) {
+        self.reader
+            .get_mut()
+            .set_read_timeout(Some(timeout))
+            .unwrap();
+        let mut size = String::new();
+        match self.reader.read_line(&mut size) {
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) => {}
+            Ok(0) => panic!("subscription closed while silence was expected"),
+            Ok(_) => panic!("subscription delivered while silence was expected: {size:?}"),
+            Err(error) => panic!("subscription silence probe failed: {error}"),
+        }
+        self.reader
+            .get_mut()
+            .set_read_timeout(Some(Duration::from_secs(6)))
+            .unwrap();
     }
 }
 

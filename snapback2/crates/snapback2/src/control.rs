@@ -5,7 +5,7 @@ use crate::project::certify_project_value;
 use crate::protocol::Refusal;
 use crate::serve::Query;
 use crate::writer::{Action, Identity, OwnerHandle};
-use serde_json::{json, Value as Json};
+use serde_json::{Value as Json, json};
 use snapback2_core::MigrationPlan;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -176,73 +176,26 @@ pub fn route(
                 identity: Identity::Persona(persona.clone()),
             }) {
                 Ok(execution) => {
-                    let explanation = call(Action::Why {
-                        op: format!("__owner.data.{table}"),
-                        args: json!({}),
-                        identity: Identity::Persona(persona.clone()),
-                    });
-                    let restored = fs::read(context.root.join(".snapback/build/project.json"))
-                        .map_err(|error| {
-                            (
-                                400,
-                                Refusal::owner(
-                                    "E_OWNER_BUILD_CACHE",
-                                    format!(
-                                        "cannot restore generation after verdict probe: {error}"
-                                    ),
-                                    "rerun snapback2 check",
-                                ),
-                            )
-                        })
-                        .and_then(|bytes| {
-                            serde_json::from_slice::<Json>(&bytes).map_err(|error| {
-                                (
-                                    400,
-                                    Refusal::owner(
-                                        "E_OWNER_BUILD_CACHE",
-                                        format!("cached project is invalid: {error}"),
-                                        "rerun snapback2 check",
-                                    ),
-                                )
-                            })
-                        })
-                        .and_then(|project| {
-                            certify_project_value(project).map_err(|errors| (400, first(errors)))
-                        })
-                        .and_then(|compiled| {
-                            call(Action::Apply {
-                                compiled,
-                                migration: None,
-                                seed: None,
-                            })
-                        });
-                    if let Err(error) = restored {
-                        return Some(Err(error));
-                    }
-                    match explanation {
-                        Ok(explanation) => {
-                            let visible = execution
-                                .get("data")
-                                .and_then(Json::as_array)
-                                .into_iter()
-                                .flatten()
-                                .filter_map(|row| row.get("id").and_then(Json::as_str))
-                                .collect::<std::collections::BTreeSet<_>>();
-                            let verdicts = rows
-                                .iter()
-                                .filter_map(|row| row.get("id").and_then(Json::as_str))
-                                .map(|id| json!({ "id": id, "verdict": if visible.contains(id) { "allow" } else { "deny" } }))
-                                .collect::<Vec<_>>();
-                            Ok(json!({
-                                "table": table,
-                                "as": persona,
-                                "rows": verdicts,
-                                "ruleInputs": explanation.get("trace").and_then(|trace| trace.get("rule_inputs")).cloned().unwrap_or_else(|| json!([])),
-                                "trace": explanation.get("trace").cloned().unwrap_or(Json::Null),
-                            }))
-                        }
-                        Err(error) => Err(error),
-                    }
+                    let visible = execution
+                        .get("data")
+                        .and_then(Json::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|row| row.get("id").and_then(Json::as_str))
+                        .collect::<std::collections::BTreeSet<_>>();
+                    let verdicts = rows
+                        .iter()
+                        .filter_map(|row| row.get("id").and_then(Json::as_str))
+                        .map(|id| json!({ "id": id, "verdict": if visible.contains(id) { "allow" } else { "deny" } }))
+                        .collect::<Vec<_>>();
+                    let trace = execution.get("trace").cloned().unwrap_or(Json::Null);
+                    Ok(json!({
+                        "table": table,
+                        "as": persona,
+                        "rows": verdicts,
+                        "ruleInputs": trace.get("rule_inputs").cloned().unwrap_or_else(|| json!([])),
+                        "trace": trace,
+                    }))
                 }
                 Err(error) => Err(error),
             }

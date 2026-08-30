@@ -107,10 +107,19 @@ fn app_page(args: &[String]) -> Result<String, Refusal> {
             "rerun snapback2 check",
         )
     })?;
-    let certificates: Json = fs::read(root.join(".snapback/build/certificates.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
-        .unwrap_or_else(|| json!({}));
+    let certificate_path = root.join(".snapback/build/certificates.json");
+    let certificate_bytes = fs::read(&certificate_path).map_err(|error| {
+        guide_stale(format!(
+            "cannot read {}: {error}",
+            certificate_path.display()
+        ))
+    })?;
+    let certificates: Json = serde_json::from_slice(&certificate_bytes).map_err(|error| {
+        guide_stale(format!(
+            "cannot parse {}: {error}",
+            certificate_path.display()
+        ))
+    })?;
     let generation = Generation::certify(&project, Ceilings::default())
         .map_err(|errors| {
             Refusal::owner(
@@ -123,11 +132,25 @@ fn app_page(args: &[String]) -> Result<String, Refusal> {
             )
         })?
         .hash;
-    let personas = CompilerWorker::spawn()
-        .ok()
-        .and_then(|mut worker| worker.seed(&root).ok())
-        .map(|seed| seed.personas)
-        .unwrap_or_default();
+    let mut worker = CompilerWorker::spawn().map_err(|error| {
+        guide_stale(format!(
+            "cannot start compiler for seed facts: {}",
+            error.message
+        ))
+    })?;
+    let personas = worker
+        .seed(&root)
+        .map_err(|errors| {
+            guide_stale(format!(
+                "seed facts were refused: {}",
+                errors
+                    .iter()
+                    .map(|error| format!("{}: {}", error.code, error.message))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ))
+        })?
+        .personas;
     let tables = project
         .schema
         .tables
@@ -179,6 +202,10 @@ fn app_page(args: &[String]) -> Result<String, Refusal> {
             "rerun snapback2 check",
         )
     })
+}
+
+fn guide_stale(message: impl Into<String>) -> Refusal {
+    Refusal::owner("E_GUIDE_STALE", message, "run snapback2 check")
 }
 
 fn refusal_page(root: &Path, code: &str) -> Result<String, Refusal> {

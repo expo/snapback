@@ -107,7 +107,9 @@ pub fn run(args: &[String]) -> ExitCode {
         checks.push(check_bounds(&isolated.info, &compiled, &seed));
         checks.push(check_invalidation(&isolated.info, &compiled, &seed));
         checks.push(check_replay(&isolated.info, &compiled, &seed));
-        checks.push(check_effects(&isolated.info, &compiled));
+        if let Some(effects) = check_effects(&isolated.info, &compiled) {
+            checks.push(effects);
+        }
     }
     if !derived_only {
         checks.extend(run_journeys(&root, &isolated.info));
@@ -148,10 +150,40 @@ fn finish(root: &Path, stamp: u128, receipt: TestReceipt, json_output: bool) -> 
 }
 
 struct IsolatedOwner {
-    child: Option<Child>,
     info: OwnerInfo,
-    project: PathBuf,
+    cleanup: OwnerCleanup,
+}
+
+struct OwnerCleanup {
+    child: Option<Child>,
+    scratch: PathBuf,
     store: PathBuf,
+}
+
+impl OwnerCleanup {
+    fn clean(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            let started = Instant::now();
+            while started.elapsed() < Duration::from_secs(3) {
+                if child.try_wait().ok().flatten().is_some() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            if child.try_wait().ok().flatten().is_none() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+        let _ = fs::remove_dir_all(&self.scratch);
+        remove_store(&self.store);
+    }
+}
+
+impl Drop for OwnerCleanup {
+    fn drop(&mut self) {
+        self.clean();
+    }
 }
 
 impl IsolatedOwner {
@@ -164,7 +196,7 @@ impl IsolatedOwner {
         let owner_store = project.join(".snapback/store.sqlite");
         link_store(&store, &owner_store)?;
         let executable = std::env::current_exe().map_err(test_io)?;
-        let mut child = Command::new(executable)
+        let child = Command::new(executable)
             .args([
                 "dev",
                 "--project",
@@ -178,27 +210,39 @@ impl IsolatedOwner {
             .stderr(Stdio::piped())
             .spawn()
             .map_err(test_io)?;
-        let stdout = child.stdout.take().ok_or_else(|| {
-            Refusal::owner(
-                "E_OWNER_TEST_START",
-                "test owner has no stdout",
-                "rerun snapback2 test",
-            )
-        })?;
+        // Cleanup owns the child and every scratch path from the instant spawn succeeds.
+        // Any `?` below therefore kills/reaps the child and removes `.snapback/test-*`.
+        let mut cleanup = OwnerCleanup {
+            child: Some(child),
+            scratch,
+            store,
+        };
+        let stdout = cleanup
+            .child
+            .as_mut()
+            .and_then(|child| child.stdout.take())
+            .ok_or_else(|| {
+                Refusal::owner(
+                    "E_OWNER_TEST_START",
+                    "test owner has no stdout",
+                    "rerun snapback2 test",
+                )
+            })?;
         let mut reader = BufReader::new(stdout);
         let mut line = String::new();
         reader.read_line(&mut line).map_err(test_io)?;
         if line.trim().is_empty() {
-            let stderr = child
-                .stderr
-                .take()
-                .map(|mut stderr| {
-                    let mut text = String::new();
-                    let _ = stderr.read_to_string(&mut text);
-                    text
+            let stderr = cleanup
+                .child
+                .as_mut()
+                .and_then(|child| {
+                    child.stderr.take().map(|mut stderr| {
+                        let mut text = String::new();
+                        let _ = stderr.read_to_string(&mut text);
+                        text
+                    })
                 })
                 .unwrap_or_default();
-            let _ = child.wait();
             return Err(Refusal::owner(
                 "E_OWNER_TEST_START",
                 format!("fresh owner exited before ready: {stderr}"),
@@ -222,16 +266,11 @@ impl IsolatedOwner {
                 "rerun snapback2 test",
             )
         })?;
-        Ok(Self {
-            child: Some(child),
-            info,
-            project: scratch,
-            store,
-        })
+        Ok(Self { info, cleanup })
     }
 
     fn stop(&mut self) {
-        if self.child.is_none() {
+        if self.cleanup.child.is_none() {
             return;
         }
         let _ = client::control(
@@ -240,21 +279,7 @@ impl IsolatedOwner {
             "/control/stop",
             json!({ "cause": "snapback2 test complete" }),
         );
-        if let Some(mut child) = self.child.take() {
-            let started = Instant::now();
-            while started.elapsed() < Duration::from_secs(3) {
-                if child.try_wait().ok().flatten().is_some() {
-                    break;
-                }
-                thread::sleep(Duration::from_millis(20));
-            }
-            if child.try_wait().ok().flatten().is_none() {
-                let _ = child.kill();
-                let _ = child.wait();
-            }
-        }
-        let _ = fs::remove_dir_all(&self.project);
-        remove_store(&self.store);
+        self.cleanup.clean();
     }
 }
 
@@ -483,85 +508,105 @@ fn check_invalidation(
 ) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
+    let mut blocked = Vec::new();
     let mut probes = 0_u64;
-    let persona = seed.personas.first().map(String::as_str).unwrap_or("alice");
+    let personas = if seed.personas.is_empty() {
+        vec!["alice".to_owned()]
+    } else {
+        seed.personas.clone()
+    };
     for (query_name, (query, query_certificate)) in &compiled.generation.programs {
         if query.kind != ProgramKind::Query {
             continue;
         }
+        let _ = client::control(owner, "POST", "/control/reset", json!({}));
         let read_tables = query_certificate
             .read_sites
             .iter()
             .map(|site| site.table.as_str())
             .collect::<BTreeSet<_>>();
+        // Pure argument/constant queries have no invalidation intersection to prove.
+        let mut has_intersecting_candidate = false;
+        let mut committed_intersection = false;
         for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
             }
-            probes += 1;
             let intersects = mutation_certificate
                 .write_sites
                 .iter()
                 .any(|site| read_tables.contains(site.table.as_str()));
-            let mut stream =
-                match SseProbe::connect(owner, query_name, generated_args(query, seed), persona) {
+            has_intersecting_candidate |= intersects;
+            for persona in &personas {
+                let mut stream = match SseProbe::connect(
+                    owner,
+                    query_name,
+                    generated_args(query, seed),
+                    persona,
+                ) {
                     Ok(stream) => stream,
                     Err(error) => {
-                        failures.push(
-                        json!({ "query": query_name, "mutation": mutation_name, "error": error }),
-                    );
+                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": error }));
                         continue;
                     }
                 };
-            if stream.event(Duration::from_secs(2)).is_err() {
-                failures.push(json!({ "query": query_name, "mutation": mutation_name, "error": "initial SSE delivery missing" }));
-                continue;
-            }
-            let mutation_response = client::api(
-                owner,
-                "POST",
-                "/api/mutation",
-                &[("X-Snapback-As", persona)],
-                json!({ "op": mutation_name, "args": generated_args(mutation, seed) }),
-            );
-            let body = match mutation_response {
-                Ok(response) if response.status < 400 => response.body,
-                Ok(response) => response.body,
-                Err(error) => {
-                    failures.push(
-                        json!({ "query": query_name, "mutation": mutation_name, "error": error }),
-                    );
+                if stream.event(Duration::from_secs(2)).is_err() {
+                    failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": "initial SSE delivery missing" }));
                     continue;
                 }
-            };
-            let committed = body.get("state").and_then(Json::as_str) == Some("committed");
-            let delivery = stream.event(if intersects && committed {
-                Duration::from_secs(2)
-            } else {
-                Duration::from_millis(250)
-            });
-            if intersects && committed {
-                let expected_seq = body.get("seq").and_then(Json::as_u64);
-                if delivery
-                    .as_ref()
-                    .ok()
-                    .and_then(|value| value.get("seq"))
-                    .and_then(Json::as_u64)
-                    != expected_seq
-                {
-                    failures.push(json!({ "query": query_name, "mutation": mutation_name, "expectedSeq": expected_seq, "delivery": delivery.ok() }));
+                let body = match client::api(
+                    owner,
+                    "POST",
+                    "/api/mutation",
+                    &[("X-Snapback-As", persona)],
+                    json!({ "op": mutation_name, "args": generated_args(mutation, seed) }),
+                ) {
+                    Ok(response) => response.body,
+                    Err(error) => {
+                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": error }));
+                        continue;
+                    }
+                };
+                if body.get("state").and_then(Json::as_str) != Some("committed") {
+                    continue;
                 }
-            } else if delivery.is_ok() {
-                failures.push(json!({ "query": query_name, "mutation": mutation_name, "error": "disjoint/rejected mutation delivered" }));
+                probes += 1;
+                if intersects {
+                    committed_intersection = true;
+                    let delivery = stream.event(Duration::from_secs(2));
+                    let expected_seq = body.get("seq").and_then(Json::as_u64);
+                    if delivery
+                        .as_ref()
+                        .ok()
+                        .and_then(|value| value.get("seq"))
+                        .and_then(Json::as_u64)
+                        != expected_seq
+                    {
+                        failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "expectedSeq": expected_seq, "delivery": delivery.ok() }));
+                    }
+                } else if stream.event(Duration::from_millis(250)).is_ok() {
+                    failures.push(json!({ "query": query_name, "mutation": mutation_name, "as": persona, "error": "disjoint committed mutation delivered" }));
+                }
+                break;
             }
         }
+        if has_intersecting_candidate && !committed_intersection {
+            blocked.push(json!({ "query": query_name, "reason": "no committing probe" }));
+        }
     }
-    result_check(
-        "invalidation",
-        started,
-        failures,
-        json!({ "probes": probes, "transport": "SSE" }),
-    )
+    let detail = json!({ "probes": probes, "transport": "SSE", "blocked": blocked });
+    if !failures.is_empty() {
+        CheckReceipt::fail(
+            "invalidation",
+            "derived",
+            elapsed_ms(started),
+            json!({ "failures": failures, "summary": detail }),
+        )
+    } else if !blocked.is_empty() {
+        CheckReceipt::blocked("invalidation", "derived", elapsed_ms(started), detail)
+    } else {
+        CheckReceipt::pass("invalidation", "derived", elapsed_ms(started), detail)
+    }
 }
 
 fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
@@ -658,7 +703,7 @@ fn replay_fork(
     })
 }
 
-fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> CheckReceipt {
+fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> Option<CheckReceipt> {
     let started = Instant::now();
     let status = client::control(owner, "GET", "/control/status", json!({}))
         .ok()
@@ -670,38 +715,38 @@ fn check_effects(owner: &OwnerInfo, compiled: &CompiledProject) -> CheckReceipt 
         .and_then(Json::as_str)
         .unwrap_or("none");
     if compiled.generation.effects.is_empty() {
-        CheckReceipt::pass(
-            "effects",
-            "derived",
-            elapsed_ms(started),
-            json!({ "engine": engine, "declarations": [] }),
-        )
+        None
     } else if engine == "none" {
-        CheckReceipt::blocked(
+        Some(CheckReceipt::blocked(
             "effects",
             "derived",
             elapsed_ms(started),
             json!({ "reason": "no engine in this build", "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
-        )
+        ))
     } else {
-        CheckReceipt::pass(
+        Some(CheckReceipt::pass(
             "effects",
             "derived",
             elapsed_ms(started),
             json!({ "engine": engine, "declarations": compiled.generation.effects.keys().collect::<Vec<_>>() }),
-        )
+        ))
     }
 }
 
 fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
-    let files = journey_files(root);
+    let files = match journey_files(root) {
+        Ok(files) => files,
+        Err(error) => {
+            return vec![CheckReceipt::fail(
+                "journeys",
+                "journey",
+                0,
+                serde_json::to_value(error).unwrap_or(Json::Null),
+            )];
+        }
+    };
     if files.is_empty() {
-        return vec![CheckReceipt::fail(
-            "journeys",
-            "journey",
-            0,
-            json!({ "error": "zero journey files; add snapback/tests/*.test.ts" }),
-        )];
+        return Vec::new();
     }
     let runner = match runner_path() {
         Ok(runner) => runner,
@@ -759,19 +804,33 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
 fn generated_args(program: &Program, seed: &SeedData) -> Json {
     let mut args = Map::new();
     for (name, kind) in &program.args {
-        let value = match kind {
-            ArgType::List { .. } => json!([]),
-            ArgType::Enum { variants } => variants
-                .first()
-                .cloned()
-                .map(Json::String)
-                .unwrap_or(Json::Null),
-            ArgType::Decimal { .. } | ArgType::Money { .. } => json!(100),
-            ArgType::Scalar => scalar_arg(name, seed),
-        };
+        let value = generated_arg(name, kind, seed);
         args.insert(name.clone(), value);
     }
     Json::Object(args)
+}
+
+fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData) -> Json {
+    match kind {
+        ArgType::Id | ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name, seed),
+        ArgType::Text { .. } => {
+            let candidate = scalar_arg(name, seed);
+            candidate
+                .as_str()
+                .map(|value| json!(value))
+                .unwrap_or_else(|| json!("derived test"))
+        }
+        ArgType::Int | ArgType::Time => json!(1),
+        ArgType::Bool => json!(false),
+        ArgType::Optional(inner) => generated_arg(name, inner, seed),
+        ArgType::List { .. } => json!([]),
+        ArgType::Enum { variants } => variants
+            .first()
+            .cloned()
+            .map(Json::String)
+            .unwrap_or(Json::Null),
+        ArgType::Decimal { .. } | ArgType::Money { .. } => json!(100),
+    }
 }
 
 fn scalar_arg(name: &str, seed: &SeedData) -> Json {
@@ -895,7 +954,7 @@ impl SseProbe {
     }
 }
 
-fn journey_files(root: &Path) -> Vec<PathBuf> {
+fn authored_journey_files(root: &Path) -> Vec<PathBuf> {
     let mut files = fs::read_dir(root.join("snapback/tests"))
         .ok()
         .into_iter()
@@ -910,6 +969,41 @@ fn journey_files(root: &Path) -> Vec<PathBuf> {
         .collect::<Vec<_>>();
     files.sort();
     files
+}
+
+fn journey_files(root: &Path) -> Result<Vec<PathBuf>, Refusal> {
+    let authored = authored_journey_files(root);
+    if authored.is_empty() {
+        return Ok(Vec::new());
+    }
+    let build = root.join(".snapback/build/tests");
+    let mut output = Vec::new();
+    for source in authored {
+        let name = source
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .strip_suffix(".test.ts")
+            .unwrap_or_default();
+        let built = build.join(format!("{name}.mjs"));
+        let source_modified = source.metadata().and_then(|metadata| metadata.modified());
+        let built_modified = built.metadata().and_then(|metadata| metadata.modified());
+        if !built.is_file()
+            || matches!((source_modified, built_modified), (Ok(source), Ok(built)) if built < source)
+        {
+            return Err(Refusal::owner(
+                "E_OWNER_TEST_STALE",
+                format!(
+                    "{} has no current built journey at {}",
+                    source.display(),
+                    built.display()
+                ),
+                "run snapback2 check",
+            ));
+        }
+        output.push(built);
+    }
+    Ok(output)
 }
 
 fn runner_path() -> Result<PathBuf, Refusal> {
@@ -1016,4 +1110,38 @@ fn usage() -> ExitCode {
         "usage: snapback2 test [--blocked reason] [--journeys-only] [--derived-only] [--json]"
     );
     ExitCode::from(2)
+}
+
+#[cfg(test)]
+mod cleanup_tests {
+    use super::*;
+
+    #[test]
+    fn startup_cleanup_guard_reaps_the_child_and_removes_every_test_path() {
+        let root = std::env::temp_dir().join(format!(
+            "snapback2-startup-cleanup-{}-{}",
+            std::process::id(),
+            timestamp()
+        ));
+        let scratch = root.join(".snapback/test-run-failed");
+        let store = root.join(".snapback/test-failed.sqlite");
+        fs::create_dir_all(&scratch).unwrap();
+        fs::write(&store, b"test").unwrap();
+        let child = Command::new("node")
+            .args(["-e", "setInterval(() => {}, 1000)"])
+            .spawn()
+            .unwrap();
+        let mut cleanup = OwnerCleanup {
+            child: Some(child),
+            scratch: scratch.clone(),
+            store: store.clone(),
+        };
+
+        cleanup.clean();
+
+        assert!(cleanup.child.is_none());
+        assert!(!scratch.exists());
+        assert!(!store.exists());
+        let _ = fs::remove_dir_all(root);
+    }
 }

@@ -134,6 +134,7 @@ fn foreground(root: PathBuf, options: &DevOptions) -> Result<(), Refusal> {
     })?;
     let mut compiler = CompilerWorker::spawn()?;
     let compiled = compiler.compile(&root).map_err(first)?;
+    let _ = compiler.journeys(&root).map_err(first)?;
     let seed = compiler.seed(&root).map_err(first)?;
     write_build_cache(&root, &compiled)?;
     let rows = seed_rows(&seed, &compiled)?;

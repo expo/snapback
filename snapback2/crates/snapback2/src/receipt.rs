@@ -70,11 +70,11 @@ pub struct ScopeReceipt {
 
 impl TestReceipt {
     pub fn new(generation: String, commands: Vec<String>, checks: Vec<CheckReceipt>) -> Self {
-        let verdict = if checks.is_empty() || checks.iter().any(|check| check.verdict == "fail") {
+        let verdict = if checks.iter().any(|check| check.verdict == "blocked") {
+            "blocked"
+        } else if checks.is_empty() || checks.iter().any(|check| check.verdict == "fail") {
             "fail"
         } else {
-            // An engine-less default build must report the effects check as blocked,
-            // but that expected optional-arm fact does not make the other proofs fail.
             "pass"
         };
         Self {
@@ -140,4 +140,54 @@ fn receipt_error(error: std::io::Error) -> Refusal {
         format!("cannot write test receipt: {error}"),
         "make .snapback/receipts writable and rerun snapback2 test",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn receipt(checks: Vec<CheckReceipt>) -> TestReceipt {
+        TestReceipt::new(
+            "generation".to_owned(),
+            vec!["snapback2 test".to_owned()],
+            checks,
+        )
+    }
+
+    #[test]
+    fn blocked_dominates_and_pass_requires_every_check_to_pass() {
+        assert_eq!(receipt(Vec::new()).verdict, "fail");
+        assert_eq!(
+            receipt(vec![CheckReceipt::pass("rules", "derived", 1, json!({}))]).verdict,
+            "pass"
+        );
+        assert_eq!(
+            receipt(vec![
+                CheckReceipt::pass("rules", "derived", 1, json!({})),
+                CheckReceipt::fail("journey", "journey", 1, json!({})),
+            ])
+            .verdict,
+            "fail"
+        );
+        let blocked = receipt(vec![
+            CheckReceipt::fail("journey", "journey", 1, json!({})),
+            CheckReceipt::blocked(
+                "effects",
+                "derived",
+                1,
+                json!({ "reason": "no engine in this build" }),
+            ),
+        ]);
+        assert_eq!(blocked.verdict, "blocked");
+        assert_eq!(
+            blocked
+                .checks
+                .iter()
+                .filter(|check| check.verdict == "blocked")
+                .map(|check| check.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["effects"]
+        );
+    }
 }

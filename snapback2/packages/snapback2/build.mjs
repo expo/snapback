@@ -108,13 +108,41 @@ for (const name of ["todos", "chat"]) {
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 
 const fixtureText = (await Promise.all((await fixtureFiles(fixtures)).map((path) => readFile(path, "utf8")))).join("\n");
-for (const name of ["grammar", "auth", "live-query", "effects", "personas", "testing"]) {
-  const markdown = await readFile(resolve(guideSource, `${name}.md`), "utf8");
-  const limit = name === "grammar" ? 2048 : 4096;
-  if (Buffer.byteLength(markdown) > limit) throw new Error(`guide/${name}.md exceeds ${limit} bytes`);
-  for (const match of markdown.matchAll(/```ts\n([\s\S]*?)\n```/g)) {
-    if (!fixtureText.includes(match[1])) throw new Error(`guide/${name}.md has a snippet not present in the compiler fixtures`);
+const guidePages = await Promise.all(
+  ["grammar", "auth", "live-query", "effects", "personas", "testing"].map(async (name) => ({
+    name,
+    markdown: await readFile(resolve(guideSource, `${name}.md`), "utf8"),
+    limit: name === "grammar" ? 2048 : 4096,
+  })),
+);
+const guideErrors = guideFailures(guidePages, fixtureText);
+if (guideErrors.length > 0) {
+  throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
+}
+
+if (process.argv.includes("--self-test")) {
+  const failures = guideFailures([
+    { name: "oversized", markdown: "x".repeat(5), limit: 4 },
+    { name: "stale", markdown: "```ts\nmissing()\n```", limit: 100 },
+    { name: "valid", markdown: "```ts\npresent()\n```", limit: 100 },
+  ], "present()");
+  if (failures.length !== 2 || !failures.some((item) => item.includes("oversized")) || !failures.some((item) => item.includes("stale"))) {
+    throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
   }
+  console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
+}
+
+function guideFailures(pages, fixturesText) {
+  const failures = [];
+  for (const { name, markdown, limit } of pages) {
+    const reasons = [];
+    if (Buffer.byteLength(markdown) > limit) reasons.push(`exceeds ${limit} bytes`);
+    const staleSnippets = [...markdown.matchAll(/```ts\n([\s\S]*?)\n```/g)]
+      .filter((match) => !fixturesText.includes(match[1])).length;
+    if (staleSnippets > 0) reasons.push(`${staleSnippets} snippet(s) not present in the compiler fixtures`);
+    if (reasons.length > 0) failures.push(`guide/${name}.md: ${reasons.join("; ")}`);
+  }
+  return failures;
 }
 
 async function fixtureFiles(root) {

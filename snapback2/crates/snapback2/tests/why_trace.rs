@@ -1,12 +1,42 @@
 mod common;
 
 use common::{OwnerGuard, Project, json_stdout};
+use std::fs;
 
 #[test]
 fn why_has_per_row_verdicts_and_trace_has_the_emitted_outbox_row() {
     let project = Project::new();
     assert!(project.init("chat", "none").status.success());
+    let messages = project.path.join("snapback/messages.ts");
+    let source = fs::read_to_string(&messages).unwrap()
+        + r#"
+
+export const maybeNotify = mutation({ notify: t.bool() }, ({ args }) => {
+  if (args.notify) emit(notify, { to: "nobody@example.com", body: "conditional" });
+  return null;
+});
+"#;
+    fs::write(&messages, source).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
     let _owner = OwnerGuard::start(&project);
+    let skipped = project.run(&[
+        "run",
+        "messages.maybeNotify",
+        r#"{"notify":false}"#,
+        "--as",
+        "alice",
+        "--json",
+    ]);
+    assert!(skipped.status.success());
+    let skipped_trace = project.run(&["trace", "latest", "--json"]);
+    assert!(skipped_trace.status.success());
+    assert!(
+        json_stdout(&skipped_trace)["outboxRows"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+
     let mutation = project.run(&[
         "run",
         "messages.send",

@@ -2,7 +2,7 @@
 // @ref LLP 1002#5-the-owner — HTTP threads send work here; no second store opener exists.
 
 use crate::project::{CompiledProject, SeedData, seed_rows};
-use crate::protocol::{Refusal, json_to_value};
+use crate::protocol::{Refusal, json_to_value, value_to_json};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame};
 use serde_json::{Map, Value as Json, json};
@@ -230,6 +230,21 @@ struct ChannelClient {
     events: Sender<SseEvent>,
 }
 
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LedgerDelivery {
+    id: u64,
+    seq: u64,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommitLedger {
+    seq: u64,
+    invalidated: Vec<u64>,
+    deliveries: Vec<LedgerDelivery>,
+}
+
 struct State {
     runtime: Option<Runtime>,
     compiled: CompiledProject,
@@ -240,6 +255,7 @@ struct State {
     phase: Json,
     live: BTreeMap<u64, LiveClient>,
     channels: BTreeMap<u64, ChannelClient>,
+    ledger: VecDeque<CommitLedger>,
     next_channel: u64,
     clock_offset_ms: i64,
     stop: Arc<AtomicBool>,
@@ -270,6 +286,7 @@ pub fn spawn_writer(
                     phase: Json::String("ready".to_owned()),
                     live: BTreeMap::new(),
                     channels: BTreeMap::new(),
+                    ledger: VecDeque::new(),
                     next_channel: 0,
                     clock_offset_ms: 0,
                     stop,
@@ -475,7 +492,7 @@ impl State {
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
                 let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
-                self.rerun_live(&subscriptions, false);
+                let _ = self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
             }
             Action::OutboxQueued => Ok(json!({ "queued": self.outbox_queued()? })),
@@ -754,12 +771,21 @@ impl State {
             .iter()
             .filter_map(|(id, client)| invalidated.contains(&client.runtime_id).then_some(*id))
             .collect::<Vec<_>>();
-        self.rerun_live(&clients, false);
+        let deliveries = self.rerun_live(&clients, false);
+        self.ledger.push_back(CommitLedger {
+            seq,
+            invalidated: clients,
+            deliveries,
+        });
+        while self.ledger.len() > 1_000 {
+            self.ledger.pop_front();
+        }
         self.readmit_channels(&commit);
         Ok(())
     }
 
-    fn rerun_live(&mut self, ids: &[u64], force: bool) {
+    fn rerun_live(&mut self, ids: &[u64], force: bool) -> Vec<LedgerDelivery> {
+        let mut deliveries = Vec::new();
         for id in ids {
             let Some(mut client) = self.live.get(id).cloned() else {
                 continue;
@@ -783,6 +809,10 @@ impl State {
                             data: frame,
                             terminal,
                         });
+                        deliveries.push(LedgerDelivery {
+                            id: *id,
+                            seq: execution.seq,
+                        });
                     }
                     self.live.insert(*id, client);
                 }
@@ -794,10 +824,12 @@ impl State {
                         data: frame,
                         terminal,
                     });
+                    deliveries.push(LedgerDelivery { id: *id, seq });
                     self.live.remove(id);
                 }
             }
         }
+        deliveries
     }
 
     fn readmit_channels(&mut self, commit: &snapback2_core::CommitRecord) {
@@ -860,7 +892,7 @@ impl State {
         }
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();
-        self.rerun_live(&clients, true);
+        let _ = self.rerun_live(&clients, true);
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -902,6 +934,7 @@ impl State {
         self.runtime = Some(runtime);
         self.live.clear();
         self.channels.clear();
+        self.ledger.clear();
         Ok(json!({ "ok": true, "seq": self.runtime().store().commit_seq().unwrap_or(0) }))
     }
 
@@ -990,21 +1023,51 @@ impl State {
             .runtime_mut()
             .execute_adhoc(&program, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
-        Ok(execution_json(&execution))
+        let mut response = execution_json(&execution);
+        if let Some(object) = response.as_object_mut() {
+            object.insert("trace".to_owned(), json!(execution.trace));
+        }
+        Ok(response)
     }
 
     fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {
         let principal = self.principal(identity)?;
         let context = self.context(principal, &op, args)?;
+        let requested_args = context.args.clone();
+        let requested_principal = context.viewer.clone();
         let execution = self
             .runtime_mut()
             .execute(&op, context)
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let runtime_subscriptions = self.runtime().subscriptions();
+        let subscriptions = self
+            .live
+            .iter()
+            .filter(|(_, client)| {
+                client.op == op
+                    && client.context.args == requested_args
+                    && client.context.viewer == requested_principal
+            })
+            .filter_map(|(id, client)| {
+                runtime_subscriptions
+                    .iter()
+                    .find(|subscription| subscription.id == client.runtime_id)
+                    .map(|subscription| {
+                        json!({
+                            "id": id,
+                            "op": client.op,
+                            "principal": subscription.principal,
+                            "lastResultDigest": subscription.last_result_digest,
+                            "lastSeq": subscription.last_seq,
+                        })
+                    })
+            })
+            .collect::<Vec<_>>();
         Ok(json!({
             "op": op,
             "result": execution_json(&execution),
             "trace": execution.trace,
-            "subscriptions": self.runtime().subscriptions().into_iter().filter(|subscription| subscription.op == op).collect::<Vec<_>>(),
+            "subscriptions": subscriptions,
         }))
     }
 
@@ -1031,11 +1094,43 @@ impl State {
                     "input/trace",
                 )
             })?;
-        let invalidated = self.runtime().invalidated(&commit);
+        let outbox_rows = self
+            .runtime()
+            .store()
+            .outbox_rows_for_seq(wanted)
+            .map_err(|error| Refusal::from_runtime(&error))?
+            .into_iter()
+            .map(|row| {
+                json!({
+                    "id": row.id,
+                    "seq": row.seq,
+                    "effect": row.effect,
+                    "payload": value_to_json(&row.payload),
+                    "state": row.state,
+                    "attempts": row.attempts,
+                    "nextAt": row.next_at,
+                    "lastError": row.last_error,
+                    "result": row.result.as_ref().map(value_to_json),
+                    "createdAt": row.created_at,
+                    "updatedAt": row.updated_at,
+                })
+            })
+            .collect::<Vec<_>>();
+        let ledger = self
+            .ledger
+            .iter()
+            .find(|entry| entry.seq == wanted)
+            .cloned()
+            .unwrap_or(CommitLedger {
+                seq: wanted,
+                invalidated: Vec::new(),
+                deliveries: Vec::new(),
+            });
         Ok(json!({
             "commit": commit,
-            "outbox": { "emits": commit.emits, "engine": effects_engine() },
-            "invalidated": invalidated,
+            "outboxRows": outbox_rows,
+            "invalidated": ledger.invalidated,
+            "deliveries": ledger.deliveries,
         }))
     }
 

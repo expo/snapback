@@ -49,6 +49,22 @@ pub struct OutboxCounts {
     pub sent_unknown: u64,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxRow {
+    pub id: String,
+    pub seq: u64,
+    pub effect: String,
+    pub payload: Value,
+    pub state: String,
+    pub attempts: u32,
+    pub next_at: i64,
+    pub last_error: Option<String>,
+    pub result: Option<Value>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 pub struct Store {
     pub(crate) conn: Connection,
 }
@@ -262,6 +278,65 @@ impl Store {
         Ok(counts)
     }
 
+    // @ref LLP 1002#8-why-trace-guide — trace reads the durable rows emitted by this commit, never program syntax.
+    pub fn outbox_rows_for_seq(&self, seq: u64) -> Result<Vec<OutboxRow>, RuntimeError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, seq, effect, payload, state, attempts, next_at,
+                    last_error, result, created_at, updated_at
+             FROM _outbox WHERE seq = ?1 ORDER BY rowid ASC",
+        )?;
+        let rows = statement.query_map([seq as i64], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+                row.get::<_, i64>(6)?,
+                row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, i64>(9)?,
+                row.get::<_, i64>(10)?,
+            ))
+        })?;
+        rows.map(|row| {
+            let (
+                id,
+                seq,
+                effect,
+                payload,
+                state,
+                attempts,
+                next_at,
+                last_error,
+                result,
+                created_at,
+                updated_at,
+            ) = row?;
+            Ok(OutboxRow {
+                id,
+                seq: seq.max(0) as u64,
+                effect,
+                payload: serde_json::from_str(&payload)
+                    .map_err(|error| RuntimeError::Serialization(error.to_string()))?,
+                state,
+                attempts: attempts.max(0) as u32,
+                next_at,
+                last_error,
+                result: result
+                    .map(|value| {
+                        serde_json::from_str(&value)
+                            .map_err(|error| RuntimeError::Serialization(error.to_string()))
+                    })
+                    .transpose()?,
+                created_at,
+                updated_at,
+            })
+        })
+        .collect()
+    }
+
     pub fn snapshot_to(&self, path: &Path) -> Result<(), RuntimeError> {
         let mut destination = Connection::open(path)?;
         let backup = Backup::new(&self.conn, &mut destination)?;
@@ -394,6 +469,58 @@ mod tests {
                 sent_unknown: 1,
             }
         );
+    }
+
+    #[test]
+    fn outbox_rows_for_seq_returns_only_real_rows_with_durable_states() {
+        let store = Store::memory().unwrap();
+        for (id, seq, state) in [
+            ("queued", 7_i64, "queued"),
+            ("running", 7_i64, "running"),
+            ("then-pending", 7_i64, "then_pending"),
+            ("sent", 7_i64, "sent"),
+            ("failed", 7_i64, "failed"),
+            ("sent-unknown", 7_i64, "sent_unknown"),
+            ("other-commit", 8_i64, "failed"),
+        ] {
+            store
+                .conn
+                .execute(
+                    "INSERT INTO _outbox(
+                        id, seq, effect, payload, state, attempts, next_at,
+                        last_error, result, created_at, updated_at
+                     ) VALUES (?1, ?2, 'notify', ?3, ?4, 2, 10, 'detail', ?5, 6, 9)",
+                    params![
+                        id,
+                        seq,
+                        serde_json::to_string(&Value::String(id.to_owned())).unwrap(),
+                        state,
+                        serde_json::to_string(&Value::Bool(true)).unwrap(),
+                    ],
+                )
+                .unwrap();
+        }
+
+        let rows = store.outbox_rows_for_seq(7).unwrap();
+        assert_eq!(
+            rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(),
+            vec![
+                "queued",
+                "running",
+                "then-pending",
+                "sent",
+                "failed",
+                "sent-unknown",
+            ]
+        );
+        assert_eq!(rows[0].state, "queued");
+        assert_eq!(rows[1].state, "running");
+        assert_eq!(rows[2].state, "then_pending");
+        assert_eq!(rows[3].state, "sent");
+        assert_eq!(rows[4].state, "failed");
+        assert_eq!(rows[5].state, "sent_unknown");
+        assert_eq!(rows[0].payload, Value::String("queued".to_owned()));
+        assert_eq!(rows[0].result, Some(Value::Bool(true)));
     }
 }
 
