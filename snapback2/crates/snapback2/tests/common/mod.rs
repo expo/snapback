@@ -79,18 +79,8 @@ impl Project {
         package_consumer_paths(&self.package)
     }
 
-    pub fn package_dist_file_sets(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {
-        let root = workspace();
-        let _lock = PackageLock::acquire(&root);
-        let shared = snapshot(&root.join("packages/snapback2/dist"))
-            .into_iter()
-            .map(|(path, _)| path)
-            .collect();
-        let private = snapshot(&self.package.join("dist"))
-            .into_iter()
-            .map(|(path, _)| path)
-            .collect();
-        (shared, private)
+    pub fn package_dist_snapshots(&self) -> (Vec<(PathBuf, Vec<u8>)>, Vec<(PathBuf, Vec<u8>)>) {
+        package_dist_snapshots(&self.package)
     }
 
     fn command(&self) -> Command {
@@ -188,6 +178,16 @@ pub fn shared_package_dist() -> PathBuf {
         .join("packages/snapback2/dist")
 }
 
+pub fn package_dist_snapshots(
+    package: &Path,
+) -> (Vec<(PathBuf, Vec<u8>)>, Vec<(PathBuf, Vec<u8>)>) {
+    let root = workspace();
+    let _lock = PackageLock::acquire(&root);
+    let shared = snapshot(&root.join("packages/snapback2/dist"));
+    let private = snapshot(&package.join("dist"));
+    (shared, private)
+}
+
 fn ensure_package() {
     let root = workspace();
     let target = root.join("target");
@@ -216,8 +216,13 @@ fn ensure_package() {
     if ready() {
         return;
     }
+    let _lock = PackageLock::acquire(&root);
+    if ready() {
+        return;
+    }
     let output = Command::new("node")
         .arg("build.mjs")
+        .env("SNAPBACK2_PACKAGE_BUILD_LOCK_HELD", "1")
         .current_dir(root.join("packages/snapback2"))
         .output()
         .expect("build package");
@@ -227,7 +232,6 @@ fn ensure_package() {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let _lock = PackageLock::acquire(&root);
     fs::write(&marker, &fingerprint).expect("write package marker");
     assert!(
         ready(),

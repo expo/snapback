@@ -4,11 +4,13 @@ use common::{Project, json_stdout};
 use std::fs;
 
 #[test]
-fn package_consumers_use_a_complete_private_snapshot() {
+fn package_consumers_and_isolated_compiler_use_complete_private_snapshots() {
     let project = Project::new();
     let snapshot_root = project.package_snapshot_root();
     let shared_dist = common::shared_package_dist();
     let consumers = project.package_consumer_paths();
+    let compiler_root = project.path.join("isolated-compiler-package");
+    let compiler = common::isolated_compiler(&compiler_root);
 
     assert_eq!(consumers.len(), 4, "package fixture consumer set changed");
     for (name, path) in consumers {
@@ -24,10 +26,29 @@ fn package_consumers_use_a_complete_private_snapshot() {
         );
     }
 
-    let (shared_files, private_files) = project.package_dist_file_sets();
+    assert!(
+        compiler.starts_with(&compiler_root),
+        "isolated compiler escaped private package snapshot: {}",
+        compiler.display()
+    );
+    assert!(
+        !compiler.starts_with(&shared_dist),
+        "isolated compiler still consumes shared dist: {}",
+        compiler.display()
+    );
+
+    let (shared_files, private_files) = project.package_dist_snapshots();
+    assert!(!shared_files.is_empty(), "shared package dist is empty");
     assert_eq!(
         private_files, shared_files,
-        "private package snapshot does not contain the complete shared dist file set"
+        "private package snapshot does not match the complete shared dist"
+    );
+
+    let (shared_files, compiler_files) = common::package_dist_snapshots(&compiler_root);
+    assert!(!shared_files.is_empty(), "shared package dist is empty");
+    assert_eq!(
+        compiler_files, shared_files,
+        "isolated compiler snapshot does not match the complete shared dist"
     );
 }
 

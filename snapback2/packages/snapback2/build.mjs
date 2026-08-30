@@ -7,8 +7,9 @@ import ts from "typescript";
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, "dist");
 const packageBuildLock = resolve(here, "../../target/b2-package-build.lock");
+const packageBuildLockHeld = process.env.SNAPBACK2_PACKAGE_BUILD_LOCK_HELD === "1";
 // Test fixtures take this same lock while snapshotting dist as one package unit.
-await acquirePackageBuildLock();
+if (!packageBuildLockHeld) await acquirePackageBuildLock();
 try {
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
@@ -163,7 +164,7 @@ if (process.argv.includes("--self-test")) {
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
 }
 } finally {
-  await rm(packageBuildLock, { force: true });
+  if (!packageBuildLockHeld) await rm(packageBuildLock, { force: true });
 }
 
 async function acquirePackageBuildLock() {
