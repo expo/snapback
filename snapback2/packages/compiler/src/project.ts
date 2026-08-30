@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { requiredType, type AuthoredType, type TableInfo } from "./authored-types";
 import { lowerSource } from "./compiler";
-import { diagnostic, typeDiagnostic } from "./diagnostics";
+import { boundedDiagnostics, diagnostic, typeDiagnostic } from "./diagnostics";
 import type { FrontendDiagnostic, Program, ProjectResult, SourceSite } from "./ir";
 import { effectBindings, collectEffectCatalog, lowerEffects, type OperationDecl, type SourceModule } from "./lower/effects";
 import { lowerSchema } from "./lower/schema";
-import { callLeaf, numberValue, objectOf, property, propertyEntries, stringArray, stringValue } from "./lower/static";
-import { findNarrowestNode, hasExport, propertyName, unwrapCall, unwrapExpression } from "./syntax";
+import { boundOperationDiagnostics } from "./operation-diagnostics";
+import { callLeaf, moduleJsonConstants, numberValue, objectOf, property, propertyEntries, staticJson, stringArray, stringValue } from "./lower/static";
+import { findNarrowestNode, hasExport, propertyName, unwrapCall, unwrapExpression, walk } from "./syntax";
 
 // @ref LLP 1002#3-the-compiler-worker-and-the-project-json — one lowering pass owns the ProjectJson, sources, API types, and aggregate refusals.
 
@@ -90,8 +91,9 @@ export async function lowerProject(root: string): Promise<ProjectResult> {
     }
   }
 
-  if (diagnostics.length > 0) {
-    return { ok: false, diagnostics: deduplicateDiagnostics(diagnostics).slice(0, 50), ms: elapsed(started) };
+  const operationBounded = boundProjectOperationDiagnostics(diagnostics, modules, operations);
+  if (operationBounded.length > 0) {
+    return { ok: false, diagnostics: boundedDiagnostics(operationBounded, 50, "project refusals"), ms: elapsed(started) };
   }
 
   schema.schema.effects = loweredEffects.effects.map((item) => item.name);
@@ -123,9 +125,18 @@ export async function lowerSeed(root: string): Promise<
   const call = expression && unwrapCall(expression);
   if (call && callLeaf(call) === "seed") expression = call.arguments[0];
   const object = expression && objectOf(expression);
-  const value = object && staticSeedValue(object);
+  const constants = moduleJsonConstants(sourceFile);
+  const value = object && staticJson(object, constants);
   const record = value && typeof value === "object" ? value as Record<string, unknown> : undefined;
   const module = { sourceFile, source, fileName };
+  const invalidSpread = object && firstInvalidStaticSpread(object, constants);
+  if (!record && invalidSpread) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic(module, "E_SEED_SHAPE", invalidSpread, `seed object spread ${invalidSpread.expression.getText(sourceFile)} is not statically JSON`,
+        "replace the spread with a JSON object constant or spell its fields explicitly")],
+    };
+  }
   if (!record || !Array.isArray(record.personas) || typeof record.rows !== "object" || record.rows === null || Array.isArray(record.rows)) {
     return {
       ok: false,
@@ -162,12 +173,10 @@ export async function lowerSeed(root: string): Promise<
     const columns = tables[table]?.columns ?? {};
     for (const [index, row] of seeded.entries()) {
       validateSeedRow(module, expression ?? sourceFile, table, index, row, columns, diagnostics);
-      if (diagnostics.length >= 50) break;
     }
-    if (diagnostics.length >= 50) break;
   }
   return diagnostics.length > 0
-    ? { ok: false, diagnostics }
+    ? { ok: false, diagnostics: boundedDiagnostics(diagnostics, 50, "seed refusals") }
     : { ok: true, seed: { personas: personaNames, rows: rows as Record<string, unknown[]> } };
 }
 
@@ -233,7 +242,7 @@ function projectTypeDiagnostics(program: ts.Program, projectRoot: string): Front
       position.line + 1,
       position.character + 1,
       message,
-      item.file.text,
+      typeDiagnosticRewrite(item.file, node, message),
       effectThen ? "effects/authoring" : siteKind!.guide,
     )];
   });
@@ -275,6 +284,24 @@ function collectOperations(modules: SourceModule[]): Map<string, OperationDecl &
     }
   }
   return operations;
+}
+
+function boundProjectOperationDiagnostics(
+  diagnostics: FrontendDiagnostic[],
+  modules: SourceModule[],
+  operations: Map<string, OperationDecl>,
+): FrontendDiagnostic[] {
+  let remaining = diagnostics;
+  const result: FrontendDiagnostic[] = [];
+  for (const module of modules) {
+    const local = remaining.filter((item) => item.site.startsWith(`${module.fileName}:`));
+    remaining = remaining.filter((item) => !item.site.startsWith(`${module.fileName}:`));
+    const spans = [...operations.values()]
+      .filter((item) => item.moduleName === module.moduleName)
+      .map((item) => ({ name: item.name, call: item.call }));
+    result.push(...boundOperationDiagnostics(local, spans, module));
+  }
+  return [...result, ...remaining];
 }
 
 function tableBindings(
@@ -446,7 +473,7 @@ function apiExpressionType(
     const fields: string[] = [];
     for (const item of value.properties) {
       if (ts.isShorthandPropertyAssignment(item)) {
-        const type = apiExpressionType(item.name, args, tables, checker, uniqueColumnType(item.name.text, tables));
+        const type = apiExpressionType(item.name, args, tables, checker);
         special ||= type.special;
         fields.push(`${quoteProperty(item.name.text)}: ${type.text}`);
         continue;
@@ -454,7 +481,7 @@ function apiExpressionType(
       if (!ts.isPropertyAssignment(item)) continue;
       const name = propertyName(item.name);
       if (!name) continue;
-      const type = apiExpressionType(item.initializer, args, tables, checker, uniqueColumnType(name, tables));
+      const type = apiExpressionType(item.initializer, args, tables, checker);
       special ||= type.special;
       fields.push(`${quoteProperty(name)}: ${type.text}`);
     }
@@ -513,13 +540,6 @@ function apiExpressionType(
   return { text, special: /\b(?:Decimal|Money)</.test(text) };
 }
 
-function uniqueColumnType(name: string, tables: Map<string, TableInfo>): AuthoredType | undefined {
-  const values = [...tables.values()].map((table) => table.columns?.[name]).filter((item): item is AuthoredType => !!item);
-  if (values.length === 0) return undefined;
-  const first = JSON.stringify(requiredType(values[0]));
-  return values.every((item) => JSON.stringify(requiredType(item)) === first) ? requiredType(values[0]) : undefined;
-}
-
 function apiAuthoredType(value: AuthoredType): string {
   if (value.kind === "int") return "number";
   if (value.kind === "string") return "string";
@@ -542,32 +562,14 @@ function apiTable(node: ts.Expression, tables: Map<string, TableInfo>): TableInf
   return undefined;
 }
 
-function staticSeedValue(object: ts.ObjectLiteralExpression): unknown {
-  const value: Record<string, unknown> = {};
-  for (const entry of propertyEntries(object)) {
-    const lowered = staticExpression(entry.value);
-    if (lowered === undefined) return undefined;
-    value[entry.name] = lowered;
-  }
-  return value;
-}
-
-function staticExpression(node: ts.Expression): unknown {
-  const value = unwrapExpression(node);
-  if (value.kind === ts.SyntaxKind.NullKeyword) return null;
-  if (value.kind === ts.SyntaxKind.TrueKeyword) return true;
-  if (value.kind === ts.SyntaxKind.FalseKeyword) return false;
-  if (ts.isStringLiteralLike(value)) return value.text;
-  if (ts.isNumericLiteral(value)) return Number(value.text);
-  if (ts.isPrefixUnaryExpression(value) && value.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(value.operand)) {
-    return -Number(value.operand.text);
-  }
-  if (ts.isArrayLiteralExpression(value)) {
-    const output = value.elements.map((item) => staticExpression(item));
-    return output.some((item) => item === undefined) ? undefined : output;
-  }
-  if (ts.isObjectLiteralExpression(value)) return staticSeedValue(value);
-  return undefined;
+function firstInvalidStaticSpread(node: ts.Node, constants: Map<string, unknown>): ts.SpreadAssignment | undefined {
+  let invalid: ts.SpreadAssignment | undefined;
+  walk(node, (item) => {
+    if (invalid || !ts.isSpreadAssignment(item)) return;
+    const value = staticJson(item.expression, constants);
+    if (!value || typeof value !== "object" || Array.isArray(value)) invalid = item;
+  });
+  return invalid;
 }
 
 function validateSeedRow(
@@ -615,7 +617,7 @@ function seedValueMismatch(value: unknown, type: unknown, path: string): string 
   if (!type || typeof type !== "object" || Array.isArray(type)) return `${path} has an unsupported schema type`;
   const descriptor = type as Record<string, any>;
   if (descriptor.Text) {
-    return typeof value === "string" && value.length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
+    return typeof value === "string" && [...value].length <= descriptor.Text.max ? undefined : `${path} must be text of at most ${descriptor.Text.max} characters`;
   }
   if (descriptor.Json) {
     const mismatch = jsonWireMismatch(value, path);
@@ -704,14 +706,15 @@ function loadCompilerLib(): string {
   return `${readFileSync(subsetPath, "utf8")}\n${readFileSync(modulePath, "utf8")}`;
 }
 
-function deduplicateDiagnostics(values: FrontendDiagnostic[]): FrontendDiagnostic[] {
-  const seen = new Set<string>();
-  return values.filter((item) => {
-    const key = `${item.code}\0${item.site}\0${item.message}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((left, right) => left.site.localeCompare(right.site) || left.code.localeCompare(right.code));
+function typeDiagnosticRewrite(sourceFile: ts.SourceFile, node: ts.Node, message: string): string {
+  const statement = ancestor(node, ts.isStatement);
+  if (statement) return `${statement.getText(sourceFile)}\n// Fix the TypeScript error above: ${message.split("\n")[0]}`;
+  const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+  const lineStarts = sourceFile.getLineStarts();
+  const start = lineStarts[position.line] ?? 0;
+  const next = lineStarts[position.line + 1] ?? sourceFile.text.length;
+  const line = sourceFile.text.slice(start, next).trimEnd();
+  return `${line}\n// Fix the TypeScript error above: ${message.split("\n")[0]}`;
 }
 
 function moduleName(path: string): string {

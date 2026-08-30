@@ -31,7 +31,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "prepack": "node build.mjs"
   },
   "dependencies": {
     "typescript": "5.9.2"

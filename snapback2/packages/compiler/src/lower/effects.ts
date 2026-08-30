@@ -1,7 +1,7 @@
 import ts from "typescript";
 import { diagnostic } from "../diagnostics";
 import type { EffectJson, FrontendDiagnostic } from "../ir";
-import { hasExport, isFunctionLike, propertyName, unwrapCall, unwrapExpression, walk } from "../syntax";
+import { hasExport, unwrapCall, unwrapExpression, walk } from "../syntax";
 import { callLeaf, moduleJsonConstants, objectOf, property, propertyEntries, staticJson, stringArray } from "./static";
 
 // @ref LLP 1003#1-authoring — effects carry validated grants, closed ES2020 source, and an optional typed then mutation.
@@ -140,7 +140,7 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
   for (const parameter of run.parameters) collectScopedBindings(parameter.name, run, bindings);
   walk(run.body, (node) => {
     if (ts.isVariableDeclaration(node)) collectScopedBindings(node.name, bindingOwner(node, run), bindings);
-    if (isFunctionLike(node)) {
+    if (isScopedFunction(node)) {
       for (const parameter of node.parameters) collectScopedBindings(parameter.name, node, bindings);
       if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name) {
         bindings.push({ name: node.name.text, owner: ts.isFunctionDeclaration(node) ? bindingOwner(node, run) : node });
@@ -159,9 +159,34 @@ function validateClosure(module: SourceModule, run: ts.ArrowFunction | ts.Functi
     if (escaped || !ts.isIdentifier(node) || !isReferenceIdentifier(node)) return;
     if (!allowed.has(node.text) && !bindings.some((binding) => binding.name === node.text && isWithin(node, binding.owner))) escaped = node;
   });
-  return escaped
-    ? effectDiagnostic(module, "E_EFFECT_CLOSURE", escaped, `effect run closes over non-JSON value ${escaped.text}`)
-    : undefined;
+  if (!escaped) return undefined;
+  const spread = invalidConstantSpread(module.sourceFile, escaped.text, constants);
+  return spread
+    ? effectDiagnostic(module, "E_EFFECT_CLOSURE", spread, `effect JSON constant spread ${spread.expression.getText(module.sourceFile)} is not statically JSON`)
+    : effectDiagnostic(module, "E_EFFECT_CLOSURE", escaped, `effect run closes over non-JSON value ${escaped.text}`);
+}
+
+function isScopedFunction(node: ts.Node): node is ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration {
+  return ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) || ts.isArrowFunction(node) || ts.isMethodDeclaration(node);
+}
+
+function invalidConstantSpread(
+  sourceFile: ts.SourceFile,
+  name: string,
+  constants: Map<string, unknown>,
+): ts.SpreadAssignment | undefined {
+  let invalid: ts.SpreadAssignment | undefined;
+  for (const statement of sourceFile.statements) {
+    if (!ts.isVariableStatement(statement) || !(statement.declarationList.flags & ts.NodeFlags.Const)) continue;
+    const declaration = statement.declarationList.declarations.find((item) => ts.isIdentifier(item.name) && item.name.text === name);
+    if (!declaration?.initializer) continue;
+    walk(declaration.initializer, (node) => {
+      if (invalid || !ts.isSpreadAssignment(node)) return;
+      const value = staticJson(node.expression, constants);
+      if (!value || typeof value !== "object" || Array.isArray(value)) invalid = node;
+    });
+  }
+  return invalid;
 }
 
 function collectScopedBindings(name: ts.BindingName, owner: ts.Node, output: Array<{ name: string; owner: ts.Node }>): void {
@@ -172,7 +197,7 @@ function collectScopedBindings(name: ts.BindingName, owner: ts.Node, output: Arr
 function bindingOwner(node: ts.Node, fallback: ts.Node): ts.Node {
   let current = node.parent;
   while (current && current !== fallback) {
-    if (ts.isBlock(current) || isFunctionLike(current) || ts.isCatchClause(current)) return current;
+    if (ts.isBlock(current) || isScopedFunction(current) || ts.isCatchClause(current)) return current;
     current = current.parent;
   }
   return fallback;

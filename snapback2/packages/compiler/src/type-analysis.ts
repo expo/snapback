@@ -2,7 +2,7 @@ import ts from "typescript";
 import { requiredType, sameDecimal, unknownType, type AuthoredType, type TableInfo } from "./authored-types";
 import { diagnostic, type DiagnosticModule } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
-import { callName, isDb, isFunctionLike, propertyName, replaceNode, unwrapCall, unwrapExpression } from "./syntax";
+import { callName, expandedNumericLiteral, isDb, isFunctionLike, propertyName, replaceNode, unwrapCall, unwrapExpression } from "./syntax";
 
 // @ref LLP 1002#2-the-authored-surface-the-snapback2-module — Decimal target scales are compiler facts; the emitted value is integer minor units.
 
@@ -44,7 +44,6 @@ class Analyzer {
 
   statements(statements: readonly ts.Statement[], env: TypeEnvironment): void {
     for (const statement of statements) {
-      if (this.diagnostics.length >= 50) return;
       this.statement(statement, env);
     }
   }
@@ -102,7 +101,15 @@ class Analyzer {
     if (ts.isNumericLiteral(value)) return this.numeric(value, target, quietFraction);
     if (ts.isStringLiteralLike(value)) {
       if (target?.kind === "enum" && !target.variants.includes(value.text)) this.enumVariant(value, target);
-      return target?.kind === "enum" ? target : { kind: "string" };
+      if (target?.kind === "string" && target.max !== undefined && [...value.text].length > target.max) {
+        this.add(
+          "E_ARGS_TYPE",
+          value,
+          `text literal has ${[...value.text].length} Unicode scalars but text(${target.max}) allows at most ${target.max}`,
+          replaceNode(this.module.source, value, JSON.stringify([...value.text].slice(0, target.max).join(""))),
+        );
+      }
+      return target?.kind === "enum" || target?.kind === "string" ? target : { kind: "string" };
     }
     if (value.kind === ts.SyntaxKind.TrueKeyword || value.kind === ts.SyntaxKind.FalseKeyword) return { kind: "bool" };
     if (value.kind === ts.SyntaxKind.NullKeyword) return unknownType;
@@ -140,7 +147,7 @@ class Analyzer {
         }
         if (!ts.isPropertyAssignment(property)) continue;
         const name = propertyName(property.name);
-        const field = name ? row?.columns?.[name] ?? this.uniqueFieldType(name) : undefined;
+        const field = name ? row?.columns?.[name] : undefined;
         this.expression(property.initializer, env, field);
       }
       return target ?? unknownType;
@@ -169,24 +176,24 @@ class Analyzer {
     if (digits === 0) return { kind: "int" };
     if (expected?.kind !== "decimal") {
       if (!quiet) {
-        const minor = node.text.replace(".", "");
-        this.add("E_DECIMAL_SCALE", node, `fractional literal ${node.text} has ${digits} fractional digits but no Decimal scale`, replaceNode(this.module.source, node, minor));
+        this.add("E_DECIMAL_SCALE", node, `fractional literal ${node.text} has ${digits} fractional digits but no Decimal scale`,
+          replaceNode(this.module.source, node, `decimal(${node.text}, ${digits})`));
       }
       return unknownType;
     }
     if (digits > expected.scale) {
-      const minor = node.text.replace(".", "");
       this.add(
         "E_DECIMAL_SCALE",
         node,
         `${digits} fractional digits, scale ${expected.scale}; ${decimalName(expected)} cannot represent ${node.text}`,
-        replaceNode(this.module.source, node, minor),
+        replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`),
       );
       return expected;
     }
     const minor = scaledInteger(node.text, expected.scale);
     if (minor === undefined) {
-      this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`, replaceNode(this.module.source, node, node.text.replace(".", "")));
+      this.add("E_DECIMAL_SCALE", node, `${node.text} at scale ${expected.scale} is outside the safe integer wire range`,
+        replaceNode(this.module.source, node, `decimal(${node.text}, ${expected.scale})`));
     } else {
       this.literalValues.set(node.getStart(this.module.sourceFile), minor);
     }
@@ -208,6 +215,8 @@ class Analyzer {
     if (operator === ts.SyntaxKind.QuestionQuestionToken) {
       if (left.kind === "enum") right = this.expression(node.right, env, left);
       if (right.kind === "enum") left = this.expression(node.left, env, right);
+      if (left.kind === "string") right = this.expression(node.right, env, left);
+      if (right.kind === "string") left = this.expression(node.left, env, right);
       return left.kind !== "unknown" ? left : right;
     }
     const comparison = [
@@ -333,17 +342,6 @@ class Analyzer {
     return [...this.module.tables.values()].find((item) => item.name === name);
   }
 
-  private uniqueFieldType(name: string): AuthoredType | undefined {
-    const candidates = [...this.module.tables.values()]
-      .map((table) => table.columns?.[name])
-      .filter((item): item is AuthoredType => !!item)
-      .map(requiredType)
-      .filter((item) => item.kind === "decimal" || item.kind === "enum");
-    if (candidates.length === 0) return undefined;
-    const first = JSON.stringify(candidates[0]);
-    return candidates.every((item) => JSON.stringify(item) === first) ? candidates[0] : undefined;
-  }
-
   private enumVariant(node: ts.StringLiteralLike, type: Extract<AuthoredType, { kind: "enum" }>): void {
     if (type.variants.includes(node.text)) return;
     this.add(
@@ -363,9 +361,9 @@ class Analyzer {
     );
   }
 
-  private add(code: "E_DECIMAL_SCALE" | "E_ENUM_VARIANT", node: ts.Node, message: string, rewrite: string): void {
+  private add(code: "E_DECIMAL_SCALE" | "E_ENUM_VARIANT" | "E_ARGS_TYPE", node: ts.Node, message: string, rewrite: string): void {
     const key = `${code}:${node.getStart(this.module.sourceFile)}:${message}`;
-    if (this.seen.has(key) || this.diagnostics.length >= 50) return;
+    if (this.seen.has(key)) return;
     this.seen.add(key);
     this.diagnostics.push(diagnostic(this.module, code, node, message, rewrite));
   }
@@ -378,7 +376,11 @@ function descriptorType(node: ts.Expression): AuthoredType {
     : ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined);
   if (!call) return unknownType;
   if (name === "int" || name === "time") return { kind: "int" };
-  if (name === "id" || name === "text" || name === "ref") return { kind: "string" };
+  if (name === "id" || name === "ref") return { kind: "string" };
+  if (name === "text") {
+    const maxNode = call.arguments[0] && unwrapExpression(call.arguments[0]);
+    return { kind: "string", ...(maxNode && ts.isNumericLiteral(maxNode) ? { max: Number(maxNode.text) } : {}) };
+  }
   if (name === "bool") return { kind: "bool" };
   if (name === "json") return { kind: "json" };
   if (name === "enum") {
@@ -420,12 +422,17 @@ function commonType(values: AuthoredType[]): AuthoredType {
 }
 
 function fractionalDigits(value: string): number {
-  return value.includes(".") ? value.slice(value.indexOf(".") + 1).length : 0;
+  const expanded = expandedNumericLiteral(value);
+  if (!expanded) return Number.isInteger(Number(value)) ? 0 : 1;
+  return Number.isInteger(Number(value)) && expanded.fraction.length === 0
+    ? 0
+    : Math.max(1, expanded.fraction.length);
 }
 
 function scaledInteger(value: string, scale: number): number | undefined {
-  const [whole, fraction = ""] = value.split(".");
-  const result = Number(`${whole}${fraction.padEnd(scale, "0")}`);
+  const expanded = expandedNumericLiteral(value);
+  if (!expanded || expanded.fraction.length > scale) return undefined;
+  const result = Number(`${expanded.whole}${expanded.fraction.padEnd(scale, "0")}`);
   return Number.isSafeInteger(result) ? result : undefined;
 }
 
@@ -436,7 +443,7 @@ function decimalName(value: AuthoredType): string {
 
 function isIntegerZero(node: ts.Expression): boolean {
   const value = unwrapExpression(node);
-  return ts.isNumericLiteral(value) && !value.text.includes(".") && Number(value.text) === 0;
+  return ts.isNumericLiteral(value) && (expandedNumericLiteral(value.text)?.fraction.length ?? 1) === 0 && Number(value.text) === 0;
 }
 
 function numericExpression(node: ts.Expression): boolean {
