@@ -3,15 +3,15 @@
 
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
-use crate::writer_util::{is_id_kind, next_id, owner_gone, recertify, unix_millis};
-use crate::writer_wire::{execution_json, live_json};
+use crate::writer_util::{next_id, owner_gone, unix_millis};
+use crate::writer_wire::{execution_json, live_frame};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, Checker, ColumnType, Context, Execution,
-    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
-    ProgramKind, RuleExpr, RuleTerm, Runtime, Scan, Stmt, Store, Value,
+    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
+    Expr, Generation, KeyProvenance, MigrationPlan, Order, OutboxCounts, Principal, Program,
+    ProgramKind, Runtime, Scan, Stmt, Store, Value,
 };
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -39,14 +39,11 @@ pub struct SseEvent {
 pub struct EffectsStatus {
     pub engine: String,
     pub queued: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub running: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sent: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub failed: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sent_unknown: Option<u64>,
+    pub running: u64,
+    pub then_pending: u64,
+    pub sent: u64,
+    pub failed: u64,
+    pub sent_unknown: u64,
 }
 
 #[derive(Clone)]
@@ -93,8 +90,8 @@ impl OwnerHandle {
         })
     }
 
-    /// Default-build outbox visibility. Lane C replaces this commit-derived count
-    /// with its claim/read actions while keeping all access on this writer thread.
+    /// Outbox visibility stays on the writer thread; lane C adds claim/settle
+    /// actions beside this count without introducing a second store owner.
     #[allow(dead_code)] // public seam for lane C's feature-gated effects module
     pub fn outbox_queued(&self) -> Result<u64, Refusal> {
         self.call(Action::OutboxQueued)?
@@ -217,8 +214,10 @@ struct Request {
 
 #[derive(Clone)]
 struct LiveClient {
+    runtime_id: u64,
     op: String,
     context: Context,
+    last_frame: Json,
     events: Sender<SseEvent>,
 }
 
@@ -288,10 +287,6 @@ pub fn spawn_writer(
     Ok(handle)
 }
 
-/// The landed `Runtime::seed` executes as `system` but still evaluates table
-/// write rules. A seed is an owner-authorized system commit, so install an
-/// in-memory allow-rule successor for that single commit and restore the
-/// certified generation immediately afterward.
 pub fn apply_seed(runtime: &mut Runtime, rows: &[(String, Value)]) -> Result<u64, Refusal> {
     if rows.is_empty() {
         return runtime
@@ -299,23 +294,9 @@ pub fn apply_seed(runtime: &mut Runtime, rows: &[(String, Value)]) -> Result<u64
             .commit_seq()
             .map_err(|error| Refusal::from_runtime(&error));
     }
-    let original = runtime.generation().clone();
-    let mut seed_generation = original.clone();
-    for table in seed_generation.schema.tables.values_mut() {
-        table.rules.insert = RuleExpr::Allow;
-        table.rules.update = RuleExpr::Allow;
-    }
-    recertify(&mut seed_generation)?;
     runtime
-        .apply_successor(seed_generation)
-        .map_err(|error| Refusal::from_successor(&error))?;
-    let result = runtime
         .seed(rows)
-        .map_err(|error| Refusal::from_runtime(&error));
-    runtime
-        .apply_successor(original)
-        .map_err(|error| Refusal::from_successor(&error))?;
-    result
+        .map_err(|error| Refusal::from_runtime(&error))
 }
 
 fn run_writer(mut state: State, rx: Receiver<Request>) {
@@ -354,8 +335,9 @@ impl State {
                 events,
             } => self.subscribe(op, args, identity, events),
             Action::Unsubscribe { id } => {
-                self.runtime_mut().unsubscribe(id);
-                self.live.remove(&id);
+                if let Some(client) = self.live.remove(&id) {
+                    self.runtime_mut().unsubscribe(client.runtime_id);
+                }
                 Ok(json!({ "ok": true }))
             }
             Action::ChannelSubscribe {
@@ -492,13 +474,33 @@ impl State {
                     ));
                 }
                 self.clock_offset_ms = self.clock_offset_ms.saturating_add(advance_ms);
+                let subscriptions = self.live.keys().copied().collect::<Vec<_>>();
+                self.rerun_live(&subscriptions, false);
                 Ok(json!({ "ok": true, "offsetMs": self.clock_offset_ms }))
             }
             Action::OutboxQueued => Ok(json!({ "queued": self.outbox_queued()? })),
             Action::Stop { cause } => {
                 self.phase = json!({ "state": "exited", "cause": cause });
                 crate::watch::log(&self.root, json!({ "exited": cause }));
+                let owner_path = self.root.join(".snapback/owner.json");
+                let removed = std::fs::remove_file(&owner_path).or_else(|error| {
+                    if error.kind() == std::io::ErrorKind::NotFound {
+                        Ok(())
+                    } else {
+                        Err(error)
+                    }
+                });
                 self.stop.store(true, AtomicOrdering::SeqCst);
+                removed.map_err(|error| {
+                    Refusal::owner(
+                        "E_OWNER_STATE",
+                        format!(
+                            "cannot remove {} while stopping: {error}",
+                            owner_path.display()
+                        ),
+                        "make .snapback writable and retry snapback2 dev --stop",
+                    )
+                })?;
                 Ok(json!({ "ok": true, "exited": cause }))
             }
         }
@@ -553,7 +555,9 @@ impl State {
         let values = operation_args(self.runtime().generation(), op, &args)?;
         let mut context = Context::query(principal.id, values);
         context.principal_kind = principal.kind;
-        context.now = Some(self.now());
+        let now = self.now();
+        context.now = Some(now);
+        context.read_time = Some(now);
         context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
         Ok(context)
     }
@@ -602,53 +606,14 @@ impl State {
     }
 
     fn execute_mutation(&mut self, op: &str, context: Context) -> Result<Execution, Refusal> {
-        let original = self.runtime().generation().clone();
-        let targets: BTreeSet<_> = original
-            .schema
-            .maintains
-            .iter()
-            .map(|maintain| maintain.target.clone())
-            .collect();
-        if targets.is_empty() {
-            let execution = self
-                .runtime_mut()
-                .execute(op, context)
-                .map_err(|error| Refusal::from_runtime(&error))?;
-            if matches!(execution.state, ExecutionState::Committed { .. }) {
-                self.after_commit(execution.seq)?;
-            }
-            return Ok(execution);
-        }
-        let mut admitted = original.clone();
-        for target in targets {
-            if let Some(table) = admitted.schema.tables.get_mut(&target) {
-                table.rules.insert = RuleExpr::Allow;
-                table.rules.update = RuleExpr::Allow;
-            }
-        }
-        recertify(&mut admitted)?;
-        self.runtime_mut()
-            .apply_successor(admitted)
-            .map_err(|error| Refusal::from_successor(&error))?;
-        let result = self
+        let execution = self
             .runtime_mut()
             .execute(op, context)
-            .map_err(|error| Refusal::from_runtime(&error));
-        let fanout = result.as_ref().ok().and_then(|execution| {
-            matches!(execution.state, ExecutionState::Committed { .. }).then_some(execution.seq)
-        });
-        let fanout_result = fanout.map(|seq| self.after_commit(seq)).transpose();
-        if let Err(error) = self.runtime_mut().apply_successor(original) {
-            let refusal = Refusal::from_successor(&error);
-            crate::watch::log(
-                &self.root,
-                json!({ "exited": "fatal generation restore", "refusal": refusal }),
-            );
-            self.stop.store(true, AtomicOrdering::SeqCst);
-            return Err(refusal);
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        if matches!(execution.state, ExecutionState::Committed { .. }) {
+            self.after_commit(execution.seq)?;
         }
-        fanout_result?;
-        result
+        Ok(execution)
     }
 
     fn subscribe(
@@ -664,18 +629,21 @@ impl State {
             .runtime_mut()
             .subscribe(&op, context.clone())
             .map_err(|error| Refusal::from_runtime(&error))?;
+        let (data, terminal) = live_frame(Ok(&execution), execution.seq);
         events
             .send(SseEvent {
                 seq: Some(execution.seq),
-                data: live_json(Ok(&execution), execution.seq),
-                terminal: false,
+                data: data.clone(),
+                terminal,
             })
             .map_err(|_| owner_gone())?;
         self.live.insert(
             id,
             LiveClient {
+                runtime_id: id,
                 op,
                 context,
+                last_frame: data,
                 events,
             },
         );
@@ -781,22 +749,55 @@ impl State {
                 )
             })?;
         let invalidated = self.runtime().invalidated(&commit);
-        let deliveries = self.runtime_mut().rerun(&invalidated);
-        for delivery in deliveries.into_iter().filter(|delivery| delivery.changed) {
-            if let Some(client) = self.live.get(&delivery.id) {
-                let data = match delivery.execution.as_ref() {
-                    Ok(execution) => live_json(Ok(execution), delivery.seq),
-                    Err(error) => live_json(Err(Refusal::from_runtime(error)), delivery.seq),
-                };
-                let _ = client.events.send(SseEvent {
-                    seq: Some(delivery.seq),
-                    data,
-                    terminal: false,
-                });
-            }
-        }
+        let clients = self
+            .live
+            .iter()
+            .filter_map(|(id, client)| invalidated.contains(&client.runtime_id).then_some(*id))
+            .collect::<Vec<_>>();
+        self.rerun_live(&clients, false);
         self.readmit_channels(&commit);
         Ok(())
+    }
+
+    fn rerun_live(&mut self, ids: &[u64], force: bool) {
+        for id in ids {
+            let Some(mut client) = self.live.get(id).cloned() else {
+                continue;
+            };
+            self.runtime_mut().unsubscribe(client.runtime_id);
+            let now = self.now();
+            client.context.now = Some(now);
+            client.context.read_time = Some(now);
+            match self
+                .runtime_mut()
+                .subscribe(&client.op, client.context.clone())
+            {
+                Ok((runtime_id, execution)) => {
+                    let (frame, terminal) = live_frame(Ok(&execution), execution.seq);
+                    let changed = frame_digest(&frame) != frame_digest(&client.last_frame);
+                    client.runtime_id = runtime_id;
+                    client.last_frame = frame.clone();
+                    if force || changed {
+                        let _ = client.events.send(SseEvent {
+                            seq: Some(execution.seq),
+                            data: frame,
+                            terminal,
+                        });
+                    }
+                    self.live.insert(*id, client);
+                }
+                Err(error) => {
+                    let seq = self.runtime().store().commit_seq().unwrap_or_default();
+                    let (frame, terminal) = live_frame(Err(Refusal::from_runtime(&error)), seq);
+                    let _ = client.events.send(SseEvent {
+                        seq: Some(seq),
+                        data: frame,
+                        terminal,
+                    });
+                    self.live.remove(id);
+                }
+            }
+        }
     }
 
     fn readmit_channels(&mut self, commit: &snapback2_core::CommitRecord) {
@@ -858,28 +859,8 @@ impl State {
             self.seed = seed;
         }
         self.phase = Json::String("ready".to_owned());
-        // The landed engine refreshes its subscription index during successor
-        // apply but does not return those deliveries, so the owner sends one
-        // explicit fresh execution to each connected subscriber.
-        let clients: Vec<_> = self.live.values().cloned().collect();
-        for client in clients {
-            let delivery = self
-                .runtime_mut()
-                .execute(&client.op, client.context.clone());
-            let seq = delivery
-                .as_ref()
-                .map(|execution| execution.seq)
-                .unwrap_or_else(|_| self.runtime().store().commit_seq().unwrap_or(0));
-            let data = match delivery.as_ref() {
-                Ok(execution) => live_json(Ok(execution), seq),
-                Err(error) => live_json(Err(Refusal::from_runtime(error)), seq),
-            };
-            let _ = client.events.send(SseEvent {
-                seq: Some(seq),
-                data,
-                terminal: false,
-            });
-        }
+        let clients = self.live.keys().copied().collect::<Vec<_>>();
+        self.rerun_live(&clients, true);
         Ok(serde_json::to_value(report).unwrap_or(Json::Null))
     }
 
@@ -980,9 +961,8 @@ impl State {
                 .expect("certified index column");
             converted.push(json_as_kind(value, column)?);
         }
-        let op = format!("__owner.data.{table_name}");
         let program = Program {
-            name: op.clone(),
+            name: format!("__owner.data.{table_name}"),
             kind: ProgramKind::Query,
             args: BTreeMap::new(),
             read_time_granularity_ms: None,
@@ -999,23 +979,18 @@ impl State {
                 provenance: KeyProvenance::Const,
             }))],
         };
-        let certificate = Checker::new(&self.runtime().generation().schema, Ceilings::default())
-            .check(&program)
-            .map_err(|error| {
-                Refusal::new(
-                    error.code,
-                    "bound",
-                    error.message,
-                    error.rewrite,
-                    "bound/data",
-                )
-            })?;
-        let mut next = self.runtime().generation().clone();
-        next.programs.insert(op.clone(), (program, certificate));
-        self.runtime_mut()
-            .apply_successor(next)
-            .map_err(|error| Refusal::from_successor(&error))?;
-        self.execute(&op, json!({}), identity, Some(ProgramKind::Query))
+        let principal = self.principal(identity)?;
+        let mut context = Context::query(principal.id, BTreeMap::new());
+        context.principal_kind = principal.kind;
+        let now = self.now();
+        context.now = Some(now);
+        context.read_time = Some(now);
+        context.new_ids = (0..1024).map(|_| next_id()).collect::<VecDeque<_>>();
+        let execution = self
+            .runtime_mut()
+            .execute_adhoc(&program, context)
+            .map_err(|error| Refusal::from_runtime(&error))?;
+        Ok(execution_json(&execution))
     }
 
     fn why(&mut self, op: String, args: Json, identity: Identity) -> Result<Json, Refusal> {
@@ -1059,7 +1034,7 @@ impl State {
         let invalidated = self.runtime().invalidated(&commit);
         Ok(json!({
             "commit": commit,
-            "outbox": { "emits": commit.emits, "engine": "none" },
+            "outbox": { "emits": commit.emits, "engine": effects_engine() },
             "invalidated": invalidated,
         }))
     }
@@ -1069,6 +1044,7 @@ impl State {
             .runtime()
             .principals(Some("persona"))
             .map_err(|error| Refusal::from_identity(&error))?;
+        let outbox = self.outbox_counts()?;
         Ok(json!({
             "project": self.root,
             "status": self.phase,
@@ -1077,12 +1053,13 @@ impl State {
             "subscriptions": self.live.len(),
             "channelSubscriptions": self.channels.len(),
             "effects": EffectsStatus {
-                engine: "none".to_owned(),
-                queued: self.outbox_queued()?,
-                running: None,
-                sent: None,
-                failed: None,
-                sent_unknown: None,
+                engine: effects_engine().to_owned(),
+                queued: outbox.queued,
+                running: outbox.running,
+                then_pending: outbox.then_pending,
+                sent: outbox.sent,
+                failed: outbox.failed,
+                sent_unknown: outbox.sent_unknown,
             },
             "personas": personas,
             "mode": self.mode,
@@ -1116,20 +1093,41 @@ impl State {
     }
 
     fn outbox_queued(&self) -> Result<u64, Refusal> {
-        // With effects disabled every emitted row stays queued. `Store` does not
-        // yet expose outbox reads publicly, so use its bounded commit ledger.
-        Ok(self
-            .runtime()
+        Ok(self.outbox_counts()?.queued)
+    }
+
+    fn outbox_counts(&self) -> Result<OutboxCounts, Refusal> {
+        self.runtime()
             .store()
-            .commits_since(0, 10_000)
-            .map_err(|error| Refusal::from_runtime(&error))?
-            .iter()
-            .map(|commit| commit.emits)
-            .sum())
+            .outbox_counts()
+            .map_err(|error| Refusal::from_runtime(&error))
     }
 
     fn now(&self) -> i64 {
         unix_millis().saturating_add(self.clock_offset_ms)
+    }
+}
+
+#[cfg(feature = "effects")]
+fn effects_engine() -> &'static str {
+    snapback2_effects::describe()
+}
+
+#[cfg(not(feature = "effects"))]
+fn effects_engine() -> &'static str {
+    "none"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::effects_engine;
+
+    #[test]
+    fn status_names_the_linked_effect_engine() {
+        #[cfg(feature = "effects")]
+        assert_eq!(effects_engine(), snapback2_effects::describe());
+        #[cfg(not(feature = "effects"))]
+        assert_eq!(effects_engine(), "none");
     }
 }
 
@@ -1168,18 +1166,25 @@ fn operation_args(
             "remove args not declared by the operation",
         ));
     }
-    let id_args = infer_id_args(program, generation);
     let mut values = BTreeMap::new();
     for (name, kind) in &program.args {
         let Some(value) = object.get(name) else {
+            if matches!(kind, ArgType::Optional(_)) {
+                values.insert(name.clone(), Value::Null);
+            }
             continue;
         };
-        values.insert(
-            name.clone(),
-            json_as_arg(value, kind, id_args.contains(name))?,
-        );
+        values.insert(name.clone(), json_as_arg(value, kind)?);
     }
     Ok(values)
+}
+
+fn frame_digest(frame: &Json) -> String {
+    let mut value = frame.clone();
+    if let Some(object) = value.as_object_mut() {
+        object.remove("seq");
+    }
+    serde_json::to_string(&value).unwrap_or_default()
 }
 
 fn channel_args(
@@ -1202,58 +1207,57 @@ fn channel_args(
             "pass {\"arg\": value}",
         )
     })?;
-    let id_args = channel_id_args(channel, generation);
     channel
         .args
         .iter()
         .map(|(name, kind)| {
-            let value = object.get(name).ok_or_else(|| {
-                Refusal::input(
-                    format!("channel is missing arg {name}"),
-                    "pass every channel arg",
-                )
-            })?;
-            Ok((
-                name.clone(),
-                json_as_arg(value, kind, id_args.contains(name))?,
-            ))
+            let value = match object.get(name) {
+                Some(value) => json_as_arg(value, kind)?,
+                None if matches!(kind, ArgType::Optional(_)) => Value::Null,
+                None => {
+                    return Err(Refusal::input(
+                        format!("channel is missing arg {name}"),
+                        "pass every required channel arg",
+                    ));
+                }
+            };
+            Ok((name.clone(), value))
         })
         .collect()
 }
 
-fn json_as_arg(value: &Json, kind: &ArgType, id: bool) -> Result<Value, Refusal> {
-    if id {
-        return value
+fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
+    match kind {
+        ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
+        ArgType::Optional(inner) => json_as_arg(value, inner),
+        ArgType::Id => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))
-            .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id"));
-    }
-    match kind {
-        ArgType::List { .. } => value
+            .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),
+        ArgType::List { of, .. } => value
             .as_array()
             .ok_or_else(|| Refusal::input("list arguments must be arrays", "pass a JSON array"))?
             .iter()
-            .map(json_to_value)
+            .map(|value| match of {
+                Some(of) => json_as_arg(value, of),
+                None => json_to_value(value),
+            })
             .collect::<Result<Vec<_>, _>>()
             .map(Value::Array),
-        ArgType::Decimal { .. } | ArgType::Money { .. } => {
-            value.as_i64().map(Value::Int).ok_or_else(|| {
-                Refusal::input(
-                    "decimal and money arguments use integer minor units",
-                    "pass an integer",
-                )
-            })
-        }
-        ArgType::Enum { .. } => value
+        ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => value
+            .as_i64()
+            .map(Value::Int)
+            .ok_or_else(|| Refusal::input("numeric arguments must be integers", "pass an integer")),
+        ArgType::Text { .. } | ArgType::Enum { .. } => value
             .as_str()
             .map(|value| Value::String(value.to_owned()))
             .ok_or_else(|| {
-                Refusal::input(
-                    "enum arguments must be strings",
-                    "pass a declared enum string",
-                )
+                Refusal::input("text and enum arguments must be strings", "pass a string")
             }),
-        ArgType::Scalar => json_to_value(value),
+        ArgType::Bool => value.as_bool().map(Value::Bool).ok_or_else(|| {
+            Refusal::input("boolean arguments must be true or false", "pass a boolean")
+        }),
+        ArgType::Json { .. } | ArgType::Scalar => json_to_value(value),
     }
 }
 
@@ -1287,178 +1291,5 @@ fn json_as_kind(value: &Json, kind: &ColumnType) -> Result<Value, Refusal> {
             )
         }),
         ColumnType::Json { .. } | ColumnType::List { .. } => json_to_value(value),
-    }
-}
-
-fn infer_id_args(program: &Program, generation: &Generation) -> BTreeSet<String> {
-    let mut ids = BTreeSet::new();
-    for statement in &program.body {
-        infer_statement(statement, generation, &mut ids);
-    }
-    ids
-}
-
-fn infer_statement(statement: &Stmt, generation: &Generation, ids: &mut BTreeSet<String>) {
-    match statement {
-        Stmt::Const { value, .. }
-        | Stmt::Let { value, .. }
-        | Stmt::Assign { value, .. }
-        | Stmt::Push { value, .. }
-        | Stmt::Return(value) => infer_expr(value, generation, ids),
-        Stmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
-            infer_expr(condition, generation, ids);
-            then_body
-                .iter()
-                .chain(else_body)
-                .for_each(|statement| infer_statement(statement, generation, ids));
-        }
-        Stmt::For { domain, body, .. } => {
-            if let snapback2_core::LoopDomain::Page(scan) = domain {
-                infer_scan(scan, generation, ids);
-            }
-            body.iter()
-                .for_each(|statement| infer_statement(statement, generation, ids));
-        }
-        Stmt::Require { condition, .. } => infer_expr(condition, generation, ids),
-        Stmt::Insert { table, row } => infer_row_expr(table, row, generation, ids),
-        Stmt::Update { table, key, patch } => {
-            infer_expected(key, true, ids);
-            infer_row_expr(table, patch, generation, ids);
-        }
-        Stmt::Upsert { table, key, row } => {
-            infer_expected(key, true, ids);
-            infer_row_expr(table, row, generation, ids);
-        }
-        Stmt::Delete { key, .. } => infer_expected(key, true, ids),
-        Stmt::Emit { payload, .. } => infer_expr(payload, generation, ids),
-        Stmt::Break | Stmt::Continue => {}
-    }
-}
-
-fn infer_expr(expression: &Expr, generation: &Generation, ids: &mut BTreeSet<String>) {
-    match expression {
-        Expr::Get(read) | Expr::Exists(read) => infer_read(read, generation, ids),
-        Expr::Scan(scan) => infer_scan(scan, generation, ids),
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => {
-            infer_expr(base, generation, ids)
-        }
-        Expr::Array(values) | Expr::Builtin { args: values, .. } => values
-            .iter()
-            .for_each(|value| infer_expr(value, generation, ids)),
-        Expr::Object(values) => values
-            .values()
-            .for_each(|value| infer_expr(value, generation, ids)),
-        Expr::Binary { left, right, .. } => {
-            infer_expr(left, generation, ids);
-            infer_expr(right, generation, ids);
-        }
-        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => {}
-    }
-}
-
-fn infer_read(read: &snapback2_core::Read, generation: &Generation, ids: &mut BTreeSet<String>) {
-    if let Some(index) = generation
-        .schema
-        .tables
-        .get(&read.table)
-        .and_then(|table| table.indexes.get(&read.index))
-    {
-        for (position, expression) in read.key.iter().enumerate() {
-            let is_id = index
-                .columns
-                .get(position)
-                .and_then(|column| generation.schema.tables[&read.table].columns.get(column))
-                .is_some_and(is_id_kind);
-            infer_expected(expression, is_id, ids);
-        }
-    }
-}
-
-fn infer_scan(scan: &Scan, generation: &Generation, ids: &mut BTreeSet<String>) {
-    if let Some(index) = generation
-        .schema
-        .tables
-        .get(&scan.table)
-        .and_then(|table| table.indexes.get(&scan.index))
-    {
-        for (position, expression) in scan.prefix.iter().enumerate() {
-            let is_id = index
-                .columns
-                .get(position)
-                .and_then(|column| generation.schema.tables[&scan.table].columns.get(column))
-                .is_some_and(is_id_kind);
-            infer_expected(expression, is_id, ids);
-        }
-    }
-}
-
-fn infer_row_expr(
-    table: &str,
-    expression: &Expr,
-    generation: &Generation,
-    ids: &mut BTreeSet<String>,
-) {
-    let Expr::Object(fields) = expression else {
-        infer_expr(expression, generation, ids);
-        return;
-    };
-    if let Some(table) = generation.schema.tables.get(table) {
-        for (field, expression) in fields {
-            infer_expected(
-                expression,
-                table.columns.get(field).is_some_and(is_id_kind),
-                ids,
-            );
-        }
-    }
-}
-
-fn infer_expected(expression: &Expr, id: bool, ids: &mut BTreeSet<String>) {
-    if id && let Expr::Variable(name) = expression {
-        ids.insert(name.clone());
-    }
-}
-
-fn channel_id_args(channel: &snapback2_core::Channel, generation: &Generation) -> BTreeSet<String> {
-    let mut ids = BTreeSet::new();
-    infer_rule_ids(&channel.publish, generation, &mut ids);
-    infer_rule_ids(&channel.subscribe, generation, &mut ids);
-    ids
-}
-
-fn infer_rule_ids(rule: &RuleExpr, generation: &Generation, ids: &mut BTreeSet<String>) {
-    match rule {
-        RuleExpr::Exists {
-            table, index, key, ..
-        } => {
-            if let Some(definition) = generation
-                .schema
-                .tables
-                .get(table)
-                .and_then(|table| table.indexes.get(index))
-            {
-                for (position, term) in key.iter().enumerate() {
-                    if let RuleTerm::Field(name) = term {
-                        let id = definition
-                            .columns
-                            .get(position)
-                            .and_then(|column| generation.schema.tables[table].columns.get(column))
-                            .is_some_and(is_id_kind);
-                        if id {
-                            ids.insert(name.clone());
-                        }
-                    }
-                }
-            }
-        }
-        RuleExpr::And(rules) | RuleExpr::Or(rules) => rules
-            .iter()
-            .for_each(|rule| infer_rule_ids(rule, generation, ids)),
-        RuleExpr::Not(rule) => infer_rule_ids(rule, generation, ids),
-        _ => {}
     }
 }

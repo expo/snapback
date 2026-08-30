@@ -81,10 +81,14 @@ queued ──(runner claims)──▶ running ──(run resolves; effect has `t
 ```
 
 `then_pending` (review ruling 2026-08-30) makes the lifecycle restart-honest: the
-effect's result is durable before `then` runs, and a restart re-runs `then` for
-every `then_pending` row. `then` is idempotent by construction — it receives
-`outboxId`, so a duplicate write on a unique index is a `Rejected` the runner
-records as `last_error` while still moving the row to `sent`.
+effect's result is durable before `then` runs; `then` and the `then_pending →
+sent` settlement are **one store transaction** (`Runtime::execute_then`), so a
+restart re-runs `then` only for rows still `then_pending` and never twice; the
+row binds its target (`then_op`, `generation`) at claim time, and a successor
+that changed the declaration fails the row loudly (`E_EFFECT_THEN_CHANGED`)
+instead of running the new mutation against the old result. A `then` that is
+`Rejected` (e.g. a duplicate on a unique index) records `last_error` while the
+row still moves to `sent` — the effect happened; the bookkeeping did not.
 
 - The runner claims with `UPDATE _outbox SET state='running', attempts=attempts+1,
   updated_at=? WHERE id=? AND state='queued'` — one row at a time, oldest
@@ -142,7 +146,14 @@ Hermes heaps are cheap, leaks are not.
 
 A JS exception is `Failed { retry: true }`; a grant denial (`denied:
 net.fetch`) is `Failed { retry: false }` — retrying a refused origin is
-pointless and the message says which origin to declare.
+pointless and the message names the denied hop's origin. A result JSON cannot
+carry — `undefined` (a forgotten `return`), a function, a symbol, a BigInt, a
+cycle, a non-finite number — is `Failed { retry: false, error:
+"E_EFFECT_RESULT" }`: loud, never `sent` as `null`, never retried (ruling
+2026-08-30). Effect source is evaluated as its own top-level script over the
+hardened global — nothing in the prelude's closure is lexically visible to it —
+embedded constants are deep-frozen, and the engine's timer hook accepts one
+invocation per host pump.
 
 ## 4. In the owner
 

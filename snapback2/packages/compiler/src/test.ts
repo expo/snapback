@@ -77,7 +77,7 @@ const corpusFiles = [
   "named-delete-message",
 ];
 
-test("S1 project preserves all 17 IR programs and certificates", async () => {
+test("S1 project preserves all 17 bodies and certificate bounds with native argument types", async () => {
   const lowered = await lowerProject(`${frontend}fixtures/s1`);
   assert(lowered.ok, `S1 project refused: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
   assert(lowered.project.programs.length === 17, `expected 17 S1 programs, got ${lowered.project.programs.length}`);
@@ -90,7 +90,8 @@ test("S1 project preserves all 17 IR programs and certificates", async () => {
   }
   const references = new Map(referencePrograms.map((program) => [program.name, program]));
   for (const program of candidatePrograms) {
-    assert(JSON.stringify(program) === JSON.stringify(references.get(program.name)), `${program.name} IR differs byte-for-byte from S1`);
+    const reference = references.get(program.name)!;
+    assert(JSON.stringify({ ...program, args: reference.args }) === JSON.stringify(reference), `${program.name} IR body differs from S1`);
   }
   const candidateCertificates = rustCheck(candidatePrograms, "spike");
   const referenceCertificates = new Map(rustCheck(referencePrograms, "spike").map((item) => [item.program, item]));
@@ -98,7 +99,10 @@ test("S1 project preserves all 17 IR programs and certificates", async () => {
     assert(candidate.error === null, `${candidate.program} candidate did not certify`);
     const reference = referenceCertificates.get(candidate.program);
     assert(reference?.error === null, `${candidate.program} reference did not certify`);
-    assert(JSON.stringify(candidate.certificate) === JSON.stringify(reference.certificate), `${candidate.program} certificate differs byte-for-byte from S1`);
+    assert(
+      JSON.stringify({ ...candidate.certificate, plan_hash: reference.certificate!.plan_hash }) === JSON.stringify(reference.certificate),
+      `${candidate.program} certificate bounds differ from S1`,
+    );
   }
 });
 
@@ -249,7 +253,7 @@ test("argument spreads expand module constants or refuse without dropping fields
   assert(expanded.ok, `static argument spread refused: ${expanded.ok ? "" : expanded.diagnostics.map((item) => item.message).join("; ")}`);
   const args = expanded.programs[0]?.args ?? {};
   assert(Object.keys(args).sort().join(",") === "done,ownerId,title", "static argument spread dropped a field");
-  assert(args.title === "Scalar", "later explicit argument did not override a spread field with a valid descriptor");
+  assert(canonical(args.title) === canonical({ Text: { max: 200 } }), "later explicit argument did not override a spread field with its native descriptor");
 
   const refused = lowerSource(`import { mutation, t } from "snapback2";
     const makeArgs = () => ({ title: t.text(100) });
@@ -517,6 +521,63 @@ test("Decimal, Money, and Enum descriptors type APIs and lower fractional litera
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.reprice")).includes('"Int":125'), "update Decimal literal was not scaled");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.upsertLiteral")).includes('"Int":250'), "upsert Decimal literal was not scaled/padded");
   assert(canonical(todos.project.programs.find((item) => item.name === "todos.encoded")).includes('"Int":999'), "authoring decimal() helper did not lower to minor units");
+});
+
+test("invalid Decimal, Money, and Enum descriptors refuse with sited descriptor rewrites", () => {
+  const cases = [
+    { descriptor: "t.decimal(19)", rewrite: "t.decimal(12)" },
+    { descriptor: 't.money("usd")', rewrite: 't.money("USD")' },
+    { descriptor: 't.enum(["open", "open"])', rewrite: 't.enum(["open"])' },
+    { descriptor: "t.enum([])", rewrite: 't.enum(["value"])' },
+  ];
+  for (const [index, item] of cases.entries()) {
+    const lowered = lowerSource(`import { query, t } from "snapback2";
+      export const bad = query({ value: ${item.descriptor} }, () => ${index});`, `invalid-arg-${index}.ts`);
+    const refusal = lowered.ok ? undefined : lowered.diagnostics.find((diagnostic) => diagnostic.code === "E_ARGS_DESCRIPTOR");
+    assert(refusal?.family === "args" && refusal.site.startsWith(`invalid-arg-${index}.ts:`), `${item.descriptor} did not produce a sited args descriptor refusal`);
+    assert(refusal.rewrite === item.rewrite, `${item.descriptor} rewrite differs: ${refusal.rewrite}`);
+  }
+
+  const schema = lowerSchema(`import { schema, table, t } from "snapback2";
+    export const rows = table({ columns: {
+      decimal: t.decimal(19), money: t.money("usd"), duplicate: t.enum(["open", "open"]), empty: t.enum([]), blank: t.enum([""])
+    } });
+    export default schema({ tables: { rows } });`, "snapback/schema.ts");
+  const refusals = schema.diagnostics.filter((diagnostic) => diagnostic.code === "E_SCHEMA_COLUMN");
+  assert(refusals.length === 5 && refusals.every((diagnostic) => diagnostic.family === "schema"
+    && diagnostic.site.startsWith("snapback/schema.ts:")), "invalid schema descriptors did not each produce a sited column refusal");
+  for (const rewrite of ['t.decimal(12)', 't.money("USD")', 't.enum(["open"])', 't.enum(["value"])']) {
+    assert(refusals.some((diagnostic) => diagnostic.rewrite === rewrite), `schema descriptor rewrite omitted ${rewrite}`);
+  }
+});
+
+test("Decimal insert multiplication keeps literal and argument multipliers as Int", () => {
+  const tables = new Map<string, TableInfo>([["products", {
+    name: "products", private: false, columns: { price: { kind: "decimal", scale: 2 } },
+  }]]);
+  const valid = lowerSource(`import { mutation, t } from "snapback2";
+    export const byLiteral = mutation({ price: t.decimal(2) }, ({ db, ctx, args }) =>
+      db.insert(products, { id: ctx.newId(), price: args.price * 2 }));
+    export const byArgument = mutation({ price: t.decimal(2), multiplier: t.int() }, ({ db, ctx, args }) =>
+      db.insert(products, { id: ctx.newId(), price: args.price * args.multiplier }));`, "decimal-multiply.ts", undefined, { tables });
+  assert(valid.ok, `Decimal by Int insert refused: ${valid.ok ? "" : valid.diagnostics.map((item) => item.message).join("; ")}`);
+  const insertedPrice = (name: string) => {
+    const program = valid.programs.find((item) => item.name === name)!;
+    const insert = program.body.find((statement): statement is Extract<typeof statement, { Insert: unknown }> => typeof statement === "object" && "Insert" in statement);
+    assert(insert && "Object" in insert.Insert.row, `${name} did not lower an inserted row object`);
+    return insert.Insert.row.Object.price;
+  };
+  assert(canonical(insertedPrice("byLiteral")) === canonical({ Binary: {
+    op: "Mul", left: { Variable: "price" }, right: { Literal: { Int: 2 } },
+  } }), "Decimal × literal did not lower to Mul(price, 2)");
+  assert(canonical(insertedPrice("byArgument")) === canonical({ Binary: {
+    op: "Mul", left: { Variable: "price" }, right: { Variable: "multiplier" },
+  } }), "Decimal × int arg did not lower to Mul(price, multiplier)");
+
+  const invalid = lowerSource(`import { query, t } from "snapback2";
+    export const bad = query({ left: t.decimal(2), right: t.decimal(2) }, ({ args }) => args.left * args.right);`, "decimal-by-decimal.ts");
+  const refusal = invalid.ok ? undefined : invalid.diagnostics.find((item) => item.code === "E_DECIMAL_SCALE");
+  assert(refusal?.message.includes("Decimal<2> and Decimal<2>"), "Decimal × Decimal no longer refuses with both scales");
 });
 
 test("Decimal scaling requires a verified target and exponential literals classify by numeric value", () => {
@@ -796,7 +857,7 @@ test("binary check certifies every compiler program and reads IR only from stdin
   for (const fixture of ["todos", "s1"]) {
     const lowered = await lowerProject(`${frontend}fixtures/${fixture}`);
     assert(lowered.ok, `${fixture} did not compile for binary compatibility`);
-    const result = runBinaryCheck([], lowered.project);
+    const result = runBinaryCheck(["--ir"], lowered.project);
     const refusals = result.results.filter((item: any) => item.error);
     assert(result.exitCode === 0 && refusals.length === 0, `${fixture} compiler output had ${refusals.length} binary refusals: ${result.stderr}`);
     assert(result.results.length === lowered.project.programs.length, `${fixture} binary check omitted programs`);
@@ -804,14 +865,14 @@ test("binary check certifies every compiler program and reads IR only from stdin
   const collided = runBinaryCheck(["--project", projectPath]);
   assert(collided.exitCode === 2 && collided.stderr.includes("--ir"), "--project still selects the IR-file checker form");
 
-  const unsupportedProgram = runBinaryCheck([], {
+  const unsupportedProgram = runBinaryCheck(["--ir"], {
     schemaMode: "synthetic",
     programs: [{ name: "future", kind: "Query", args: {}, read_time_granularity_ms: null, body: [{ Future: {} }] }],
   });
   assert(unsupportedProgram.exitCode === 1 && unsupportedProgram.results[0]?.error?.code === "E_CHECK_IR_UNSUPPORTED", "unknown program IR was not a typed refusal with exit 1");
   assert(unsupportedProgram.results[0]?.error?.message.includes("Future") && fullCheckEnvelope(unsupportedProgram.results[0]?.error), "unknown program refusal omitted its variant/envelope");
 
-  const explicit = runBinaryCheck([], {
+  const explicit = runBinaryCheck(["--ir"], {
     schema: {
       tables: { rows: { columns: { id: "Id", values: { Optional: { List: { of: "Int", max: 2 } } } }, indexes: {}, rules: { read: "Allow", insert: "Allow", update: "Allow", delete: "Allow" }, constraints: [] } },
       maintains: [],

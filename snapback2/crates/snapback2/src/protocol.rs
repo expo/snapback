@@ -60,6 +60,19 @@ impl Refusal {
         self
     }
 
+    pub fn from_refusals(errors: Vec<Self>, fallback: Self) -> Self {
+        let Some(mut refusal) = errors.first().cloned() else {
+            return fallback;
+        };
+        if errors.len() > 1 {
+            refusal.detail.insert(
+                "refusals".to_owned(),
+                serde_json::to_value(errors).unwrap_or_else(|_| Json::Array(Vec::new())),
+            );
+        }
+        refusal
+    }
+
     pub fn from_runtime(error: &RuntimeError) -> Self {
         let code = error.code();
         let family = if code.starts_with("E_AUTH") {

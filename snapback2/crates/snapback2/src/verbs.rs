@@ -132,9 +132,10 @@ pub fn data(args: &[String]) -> ExitCode {
         },
         None => json!([]),
     };
-    let limit = flag(args, "--limit")
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(50);
+    let limit = match numeric_flag(args, "--limit") {
+        Ok(value) => value.unwrap_or(50),
+        Err(code) => return code,
+    };
     control(
         args,
         "POST",
@@ -150,13 +151,14 @@ pub fn data(args: &[String]) -> ExitCode {
 }
 
 pub fn logs(args: &[String]) -> ExitCode {
-    let since = flag(args, "--since")
-        .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or(0);
-    let limit = flag(args, "--limit")
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(100)
-        .min(500);
+    let since = match numeric_flag(args, "--since") {
+        Ok(value) => value.unwrap_or(0),
+        Err(code) => return code,
+    };
+    let limit = match numeric_flag(args, "--limit") {
+        Ok(value) => value.unwrap_or(100).min(500) as usize,
+        Err(code) => return code,
+    };
     control(
         args,
         "GET",
@@ -241,6 +243,24 @@ fn refused(error: Refusal, json_output: bool, code: u8) -> ExitCode {
 fn usage(message: &str) -> ExitCode {
     eprintln!("{message}");
     ExitCode::from(2)
+}
+
+fn numeric_flag(args: &[String], name: &str) -> Result<Option<u64>, ExitCode> {
+    let Some(index) = args.iter().position(|arg| arg == name) else {
+        return Ok(None);
+    };
+    let Some(value) = args.get(index + 1) else {
+        return Err(usage(&format!("{name} requires a numeric value")));
+    };
+    if value.starts_with("--") {
+        return Err(usage(&format!(
+            "{name} requires a numeric value, not {value}"
+        )));
+    }
+    value
+        .parse()
+        .map(Some)
+        .map_err(|_| usage(&format!("invalid numeric value for {name}: {value}")))
 }
 
 pub fn flag<'a>(args: &'a [String], name: &str) -> Option<&'a str> {

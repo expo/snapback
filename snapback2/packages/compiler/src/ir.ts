@@ -82,15 +82,24 @@ export type Stmt =
   | "Break"
   | "Continue";
 
+export type ArgType =
+  | "Id"
+  | "Int"
+  | "Bool"
+  | "Time"
+  | "Scalar"
+  | { Text: { max: number } }
+  | { Json: { max_bytes: number } }
+  | { Optional: ArgType }
+  | { List: { of: ArgType; max: number } }
+  | { Enum: { variants: string[] } }
+  | { Decimal: { scale: number } }
+  | { Money: { currency: string; scale: number } };
+
 export type Program = {
   name: string;
   kind: ProgramKind;
-  args: Record<string,
-    | "Scalar"
-    | { List: { max: number } }
-    | { Enum: { variants: string[] } }
-    | { Decimal: { scale: number } }
-    | { Money: { currency: string; scale: number } }>;
+  args: Record<string, ArgType>;
   read_time_granularity_ms: number | null;
   body: Stmt[];
 };
@@ -112,6 +121,7 @@ export type DiagnosticCode =
   | "E_OPAQUE"
   | "E_BOUND"
   | "E_ARGS_SPREAD"
+  | "E_ARGS_DESCRIPTOR"
   | "E_ARGS_TYPE"
   | "E_OP_INVALID"
   | "E_OP_NONE"
@@ -124,6 +134,7 @@ export type DiagnosticCode =
   | "E_SCHEMA_CONSTRAINT"
   | "E_SCHEMA_MAINTAIN"
   | "E_SCHEMA_DEFAULT_EXPORT"
+  | "E_SCHEMA_COLUMN"
   | "E_SCHEMA_INVALID"
   | "E_RULE_INVALID"
   | "E_DECIMAL_SCALE"

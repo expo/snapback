@@ -1,7 +1,6 @@
 //! Small helpers shared by the owner writer's runtime paths.
 
 use crate::protocol::Refusal;
-use snapback2_core::{Ceilings, Checker, ColumnType, Generation};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -19,24 +18,6 @@ pub fn rejection_family(code: &str) -> &'static str {
     } else {
         "input"
     }
-}
-
-pub fn recertify(generation: &mut Generation) -> Result<(), Refusal> {
-    let schema = generation.schema.clone();
-    for (program, certificate) in generation.programs.values_mut() {
-        *certificate = Checker::new(&schema, Ceilings::default())
-            .check(program)
-            .map_err(|error| {
-                Refusal::new(
-                    error.code,
-                    "owner",
-                    error.message,
-                    error.rewrite,
-                    "owner/internal-generation",
-                )
-            })?;
-    }
-    Ok(())
 }
 
 pub fn next_id() -> String {
@@ -58,12 +39,4 @@ pub fn owner_gone() -> Refusal {
         "the owner writer is not running",
         "run snapback2 dev",
     )
-}
-
-pub fn is_id_kind(kind: &ColumnType) -> bool {
-    match kind {
-        ColumnType::Id | ColumnType::Ref { .. } => true,
-        ColumnType::Optional(inner) => is_id_kind(inner),
-        _ => false,
-    }
 }

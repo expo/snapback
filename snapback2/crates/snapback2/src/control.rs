@@ -279,12 +279,13 @@ fn log_lines(path: &Path, limit: usize) -> Vec<Json> {
     lines
 }
 
-fn first(mut errors: Vec<Refusal>) -> Refusal {
-    errors.drain(..).next().unwrap_or_else(|| {
+fn first(errors: Vec<Refusal>) -> Refusal {
+    Refusal::from_refusals(
+        errors,
         Refusal::owner(
             "E_OWNER_COMPILER_PROTOCOL",
             "project certification failed without a refusal",
             "rerun snapback2 check",
-        )
-    })
+        ),
+    )
 }
