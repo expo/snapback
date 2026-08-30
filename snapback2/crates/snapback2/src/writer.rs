@@ -5,7 +5,7 @@ use crate::owner::OwnerInfo;
 use crate::project::{CompiledProject, SeedData, seed_rows};
 use crate::protocol::{Refusal, json_to_value};
 use crate::writer_util::{next_id, owner_gone, unix_millis};
-use crate::writer_wire::{execution_json, live_frame};
+use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Map, Value as Json, json};
 use snapback2_core::{
     ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
@@ -172,7 +172,7 @@ pub enum Action {
         generation: String,
     },
     Refused {
-        refusal: Refusal,
+        refusals: Vec<Refusal>,
         generation: String,
     },
     Fork {
@@ -417,13 +417,13 @@ impl State {
                 Ok(json!({ "ok": true }))
             }
             Action::Refused {
-                refusal,
+                refusals,
                 generation,
             } => {
                 self.phase = json!({
                     "state": "refused",
                     "generation": generation,
-                    "refusal": refusal,
+                    "refused": refusals,
                 });
                 Ok(json!({ "ok": true }))
             }
@@ -812,14 +812,21 @@ impl State {
                     }
                 }
                 result => {
-                    let code = result
-                        .err()
-                        .map(|error| error.code().to_owned())
-                        .unwrap_or_else(|| "E_RULE_CHANNEL_SUBSCRIBE".to_owned());
+                    let refusal = match result {
+                        Err(error) => Refusal::from_runtime(&error),
+                        Ok(_) => Refusal::new(
+                            "E_RULE_CHANNEL_SUBSCRIBE",
+                            "rule",
+                            format!("principal is no longer admitted to channel {}", client.name),
+                            "use channel arguments and a principal admitted by the subscribe rule",
+                            "rule/channels",
+                        ),
+                    };
+                    let (data, terminal) = refusal_frame(refusal, commit.seq);
                     let _ = client.events.send(SseEvent {
                         seq: Some(commit.seq),
-                        data: json!({ "state": "refused", "code": code }),
-                        terminal: true,
+                        data,
+                        terminal,
                     });
                     self.channels.remove(&id);
                 }

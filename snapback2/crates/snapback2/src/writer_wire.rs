@@ -54,7 +54,7 @@ pub fn live_frame(execution: Result<&Execution, Refusal>, refused_seq: u64) -> (
     }
 }
 
-fn refusal_frame(refusal: Refusal, seq: u64) -> (Json, bool) {
+pub fn refusal_frame(refusal: Refusal, seq: u64) -> (Json, bool) {
     let mut frame = refusal_json(&refusal);
     if let Some(object) = frame.as_object_mut() {
         object.insert("state".to_owned(), Json::String("refused".to_owned()));

@@ -92,18 +92,20 @@ pub fn spawn(
 }
 
 fn refuse(handle: &OwnerHandle, root: &Path, generation: String, errors: Vec<Refusal>) {
-    for error in &errors {
-        log(root, json!({ "successor": "refused", "refusal": error }));
-    }
-    let refusal = errors.into_iter().next().unwrap_or_else(|| {
-        Refusal::owner(
+    let refusals = if errors.is_empty() {
+        vec![Refusal::owner(
             "E_OWNER_WATCH",
             "watch rebuild failed without a refusal",
             "rerun snapback2 check",
-        )
-    });
+        )]
+    } else {
+        errors
+    };
+    for error in &refusals {
+        log(root, json!({ "successor": "refused", "refusal": error }));
+    }
     let _ = handle.call(Action::Refused {
-        refusal,
+        refusals,
         generation,
     });
 }

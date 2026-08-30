@@ -18,6 +18,11 @@ fn chat_owner_wire_sse_channels_and_successors() {
         "import { memberships, messageCounts, messages, profiles } from \"./schema\";",
     ) + r#"
 
+export const leave = mutation({ membershipId: t.id() }, ({ db, args }) => {
+  db.delete(memberships, args.membershipId);
+  return null;
+});
+
 export const forceCount = mutation({ conversationId: t.id() }, ({ db, ctx, args }) => {
   db.insert(messageCounts, { id: ctx.newId(), conversationId: args.conversationId, value: 999 });
   return null;
@@ -228,6 +233,31 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
     assert_eq!(typing_event["from"], "dev:alice");
     assert_eq!(typing_event["payload"]["typing"], true);
 
+    let left = request(
+        port,
+        "POST",
+        "/api/mutation",
+        &[("X-Snapback-As", "bob")],
+        json!({ "op": "messages.leave", "args": { "membershipId": "membership-2" } }),
+    );
+    assert_eq!(left.body["state"], "committed", "{}", left.body);
+    let channel_refusal = typing.event();
+    assert_eq!(typing.last_id, left.body["seq"].as_u64());
+    assert_eq!(channel_refusal["state"], "refused", "{channel_refusal}");
+    assert_eq!(channel_refusal["code"], "E_RULE_CHANNEL_SUBSCRIBE");
+    assert_eq!(channel_refusal["family"], "rule");
+    assert!(
+        channel_refusal["message"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+    assert!(
+        channel_refusal["rewrite"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+    assert_eq!(channel_refusal["guide"], "rule/channels");
+
     let before = status(port, &secret);
     let old_generation = before["generation"].as_str().unwrap().to_owned();
     let mut source = fs::read_to_string(&messages).unwrap();
@@ -274,7 +304,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         (value["status"]["state"] == "refused").then_some(value)
     });
     assert_eq!(
-        refused["status"]["refusal"]["code"],
+        refused["status"]["refused"][0]["code"],
         "E_SUCCESSOR_DESTRUCTIVE"
     );
     let migration = fs::read_dir(root.join(".snapback"))
@@ -432,15 +462,57 @@ fn serve_refuses_personas_before_every_route_dispatch() {
         serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
     let secret = owner_json["secret"].as_str().unwrap();
 
-    let response = request(
-        port,
-        "POST",
-        "/api/auth/signup",
-        &[("X-Snapback-As", "alice")],
-        json!({ "email": "alice@example.com", "password": "correct horse" }),
-    );
-    assert_eq!(response.status, 403, "{}", response.body);
-    assert_eq!(response.body["code"], "E_AUTH_PERSONA_NOT_DEV");
+    for (name, method, path, body, control) in [
+        (
+            "signup",
+            "POST",
+            "/api/auth/signup",
+            json!({ "email": "alice@example.com", "password": "correct horse" }),
+            false,
+        ),
+        (
+            "query",
+            "POST",
+            "/api/query",
+            json!({ "op": "messages.thread", "args": { "conversationId": "conversation-1" } }),
+            false,
+        ),
+        (
+            "mutation",
+            "POST",
+            "/api/mutation",
+            json!({ "op": "messages.send", "args": {} }),
+            false,
+        ),
+        (
+            "subscribe",
+            "GET",
+            "/api/subscribe?op=messages.thread&args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+            json!({}),
+            false,
+        ),
+        (
+            "channel",
+            "POST",
+            "/api/channel/typing/publish",
+            json!({ "args": { "conversationId": "conversation-1" }, "payload": {} }),
+            false,
+        ),
+        ("control", "GET", "/control/status", json!({}), true),
+    ] {
+        let headers = if control {
+            vec![("X-Snapback-As", "alice"), ("X-Snapback-Control", secret)]
+        } else {
+            vec![("X-Snapback-As", "alice")]
+        };
+        let response = request(port, method, path, &headers, body);
+        assert_eq!(response.status, 403, "{name}: {}", response.body);
+        assert_eq!(
+            response.body["code"], "E_AUTH_PERSONA_NOT_DEV",
+            "{name}: {}",
+            response.body
+        );
+    }
 
     let anonymous = request(
         port,
@@ -622,6 +694,30 @@ fn check_grammar_schema_aggregation_and_numeric_flags_are_strict() {
     ] {
         let output = Command::new(binary).args(&args).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{args:?}");
+    }
+
+    for (args, flag) in [
+        (vec!["dev", "--port", "--json"], "--port"),
+        (vec!["dev", "--project"], "--project"),
+        (
+            vec!["dev", "--apply-migration", "--status"],
+            "--apply-migration",
+        ),
+        (vec!["run", "messages.thread", "--as", "--json"], "--as"),
+        (vec!["data", "messages", "--index", "--json"], "--index"),
+        (vec!["logs", "--since", "--json"], "--since"),
+        (vec!["persona", "list", "--project", "--json"], "--project"),
+        (vec!["fork", "attempt", "--project", "--json"], "--project"),
+        (vec!["reset", "--project", "--json"], "--project"),
+        (vec!["check", "--project", "--json"], "--project"),
+    ] {
+        let output = Command::new(binary).args(&args).output().unwrap();
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(flag),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
     fs::remove_dir_all(root).unwrap();
 }
@@ -950,7 +1046,7 @@ fn status_never_removes_another_process_owner_file() {
 }
 
 #[test]
-fn doctor_accepts_a_correct_slow_compiler_and_reports_its_latency() {
+fn doctor_uses_the_lightweight_worker_probe_and_reports_its_latency() {
     let root = temp_root();
     let worker = write_worker(
         &root,
@@ -959,7 +1055,7 @@ fn doctor_accepts_a_correct_slow_compiler_and_reports_its_latency() {
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   const request = JSON.parse(line);
   await new Promise((resolve) => setTimeout(resolve, 550));
-  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\n");
+  process.stdout.write(JSON.stringify({ id: request.id, ok: request.op === "journeys", files: [] }) + "\n");
 }
 "#,
     );
@@ -1043,6 +1139,31 @@ for await (const line of createInterface({ input: process.stdin, crlfDelay: Infi
         "{}",
         applied.body
     );
+
+    fs::write(
+        root.join("snapback/watch-broken.ts"),
+        r#"import { query } from "snapback2";
+export const first = query({}, () => unknownOne);
+export const second = query({}, () => unknownTwo);
+"#,
+    )
+    .unwrap();
+    let watched = wait_for(Duration::from_secs(6), || {
+        let value = status(port, secret);
+        value["status"]["refused"]
+            .as_array()
+            .is_some_and(|refusals| refusals.len() >= 2)
+            .then_some(value)
+    });
+    let status_refusals = watched["status"]["refused"].as_array().unwrap().clone();
+    let logged_refusals = fs::read_to_string(root.join(".snapback/log.jsonl"))
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|line| line["successor"] == "refused")
+        .map(|line| line["refusal"].clone())
+        .collect::<Vec<_>>();
+    assert_eq!(status_refusals, logged_refusals);
     let stopped = request(
         port,
         "POST",

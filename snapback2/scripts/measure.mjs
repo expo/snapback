@@ -34,6 +34,12 @@ function recordStep(record, failedSteps, name, operation, digits, failure) {
   const ok = caught === undefined && result?.status === 0;
   const error = caught ?? (ok ? undefined : failure(result ?? {}));
   const step = { seconds, ok };
+  if (result?.samples) {
+    step.samples = result.samples.map((sample) => ({
+      seconds: +sample.seconds.toFixed(digits),
+      ok: sample.status === 0,
+    }));
+  }
   if (error !== undefined) step.error = error;
   record[name] = seconds;
   record.steps[name] = step;
@@ -46,11 +52,6 @@ function recordStep(record, failedSteps, name, operation, digits, failure) {
 
 function scoreChecks(checks, budget, failedSteps, report = console.log, refuse = fail) {
   for (const [label, step] of checks) {
-    if (!step.ok) {
-      failedSteps.add(label);
-      report(`not ok ${label}: step failed (${step.seconds}s)`);
-      continue;
-    }
     let max;
     try {
       max = budget(label);
@@ -59,12 +60,22 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
       refuse(`${label}: ${errorText(error)}`);
       continue;
     }
-    if (max === undefined) continue;
-    if (step.seconds > max) {
-      failedSteps.add(label);
-      refuse(`${label}: ${step.seconds}s over budget ${max}s`);
+    const samples = step.samples ?? [step];
+    for (const [index, sample] of samples.entries()) {
+      const sampleLabel = step.samples ? `${label} sample ${index + 1}` : label;
+      if (!sample.ok) {
+        failedSteps.add(label);
+        report(`not ok ${sampleLabel}: step failed (${sample.seconds}s)`);
+        continue;
+      }
+      if (max === undefined) continue;
+      if (sample.seconds > max) {
+        failedSteps.add(label);
+        refuse(`${sampleLabel}: ${sample.seconds}s over budget ${max}s`);
+      } else {
+        report(`ok ${sampleLabel}: ${sample.seconds}s ≤ ${max}s`);
+      }
     }
-    else report(`ok ${label}: ${step.seconds}s ≤ ${max}s`);
   }
 }
 
@@ -77,45 +88,36 @@ function main() {
     sha: run("git", ["rev-parse", "--short", "HEAD"]).stdout.trim(),
     steps: {},
   };
+  const buildArgs = ["build", "-q", "--release"];
 
   if (args.has("--cold")) {
     recordStep(record, failedSteps, "cold_build_s", () => {
       const clean = run("cargo", ["clean", "-q"]);
       if (clean.status !== 0) return clean;
-      return run("cargo", ["build", "-q"]);
+      return run("cargo", buildArgs);
     }, 2, (result) => `cold clean/build failed\n${result.stderr ?? ""}`);
   }
   // Warm, then a one-line-edit proxy: bump the mtime of a core source file and rebuild.
-  recordStep(record, failedSteps, "warm_build_s", () => run("cargo", ["build", "-q"]), 2,
+  recordStep(record, failedSteps, "warm_build_s", () => run("cargo", buildArgs), 2,
     (result) => `warm build failed\n${result.stderr ?? ""}`);
-  const touched = resolve(root, "crates/snapback2-core/src/value.rs");
-  const incremental = recordStep(record, failedSteps, "incremental_build_s", () => {
-    const now = new Date();
-    utimesSync(touched, now, now);
-    return run("cargo", ["build", "-q"]);
-  }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
 
-  const test = recordStep(record, failedSteps, "test_s",
-    () => run("cargo", ["test", "-q", "-p", "snapback2-core"]), 2,
-    (result) => `core tests failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-
-  const bin = resolve(root, "target/debug/snapback2");
+  const bin = resolve(root, "target/release/snapback2");
   const compiler = resolve(root, "packages/snapback2/dist/compiler.mjs");
   const compilerEnv = { ...process.env, SNAPBACK2_COMPILER: compiler };
-  // Take the better of two adjacent runs so post-test scheduler/pipe teardown
-  // noise is not mistaken for the binary's boot-to-ready latency.
+  // Measure before the incremental relink and the CPU-heavy core tests. Both
+  // adjacent samples still have to pass; unrelated teardown cannot hide one.
   const doctor = recordStep(record, failedSteps, "boot_s", () => {
     const samples = [
       run(bin, ["doctor", "--json"], { env: compilerEnv }),
       run(bin, ["doctor", "--json"], { env: compilerEnv }),
     ];
-    const best = samples.toSorted((left, right) => left.seconds - right.seconds)[0];
-    const parsed = JSON.parse(best.stdout);
+    const slowest = samples.toSorted((left, right) => right.seconds - left.seconds)[0];
+    const reports = samples.map((sample) => JSON.parse(sample.stdout));
     return {
-      ...best,
+      ...slowest,
       status: samples.every((sample) => sample.status === 0) ? 0 : 1,
       samples,
-      doctorMs: parsed.elapsedMs,
+      doctorMs: Math.max(...reports.map((report) => report.elapsedMs)),
     };
   }, 3, (result) => {
     const failed = result.samples?.filter((sample) => sample.status !== 0) ?? [];
@@ -128,6 +130,17 @@ function main() {
     }));
     record.doctor_ms = doctor.result.doctorMs;
   }
+
+  const touched = resolve(root, "crates/snapback2-core/src/value.rs");
+  const incremental = recordStep(record, failedSteps, "incremental_build_s", () => {
+    const now = new Date();
+    utimesSync(touched, now, now);
+    return run("cargo", buildArgs);
+  }, 2, (result) => `incremental build failed\n${result.stderr ?? ""}`);
+
+  const test = recordStep(record, failedSteps, "test_s",
+    () => run("cargo", ["test", "-q", "-p", "snapback2-core"]), 2,
+    (result) => `core tests failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
 
   const req = JSON.stringify({ programs: [], schemaMode: "spike" });
   recordStep(record, failedSteps, "check_s", () => run(bin, ["check", "--ir"], { input: req }), 3,
@@ -154,7 +167,8 @@ function main() {
     return { status: 0 };
   }, 3, () => "measured owner cleanup failed");
   recordStep(record, failedSteps, "debug_binary_stat_s", () => {
-    record.debug_binary_bytes = statSync(bin).size;
+    record.debug_binary_bytes = statSync(resolve(root, "target/debug/snapback2")).size;
+    record.release_binary_bytes = statSync(bin).size;
     return { status: 0 };
   }, 3, () => "cannot stat debug binary");
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
@@ -209,9 +223,20 @@ function selfTest() {
   }, 3, () => "unreachable");
   recordStep(record, failures, "later_step_s", () => ({ seconds: 0.25, status: 0 }), 3,
     () => "unreachable");
+  const sampled = recordStep(record, failures, "boot_s", () => ({
+    seconds: 0.4,
+    status: 0,
+    samples: [
+      { seconds: 0.4, status: 0 },
+      { seconds: 0.6, status: 0 },
+    ],
+  }), 3, () => "unreachable");
   failures.add("dev_boot_s");
   const lines = [];
-  scoreChecks([["`snapback2 check`", failed.step]], () => 1, failures,
+  scoreChecks([
+    ["`snapback2 check`", failed.step],
+    ["`snapback2 doctor`", sampled.step],
+  ], (label) => label.includes("doctor") ? 0.5 : 1, failures,
     (line) => lines.push(line), (message) => lines.push(`refused ${message}`));
   assert.deepEqual(record.steps.check_project_s, {
     seconds: 0.125,
@@ -221,8 +246,13 @@ function selfTest() {
   assert.equal(record.steps.incremental_build_s.ok, false);
   assert.match(record.steps.incremental_build_s.error, /EPERM/);
   assert.deepEqual(record.steps.later_step_s, { seconds: 0.25, ok: true });
+  assert.deepEqual(record.steps.boot_s.samples, [
+    { seconds: 0.4, ok: true },
+    { seconds: 0.6, ok: true },
+  ]);
   assert(lines.some((line) => line.startsWith("not ok `snapback2 check`")));
   assert(!lines.some((line) => line.startsWith("ok `snapback2 check`")));
+  assert(lines.some((line) => line.includes("`snapback2 doctor` sample 2: 0.6s over budget 0.5s")));
   const summary = failedSummary(failures);
   assert(summary.includes("check_project_s"));
   assert(summary.includes("dev_boot_s"));
