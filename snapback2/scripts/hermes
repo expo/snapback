@@ -21,4 +21,6 @@ if [ ! -x "$IBEX2_HERMESC" ]; then
 fi
 command="${1:-build}"
 if [ "$#" -gt 0 ]; then shift; fi
+# Hermes-featured builds get their own target dir so they never invalidate the default build.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$PWD/target/hermes}"
 exec cargo "$command" --features hermes "$@"

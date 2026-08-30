@@ -17,7 +17,8 @@ const version = /^version = "([^"]+)"/m.exec(readFileSync(resolve(root, "Cargo.t
 const shimPkg = JSON.parse(readFileSync(resolve(root, "packages/snapback2/package.json"), "utf8"));
 if (shimPkg.version !== version) { console.error(`publish: packages/snapback2 is ${shimPkg.version}, Cargo workspace is ${version}`); process.exit(2); }
 
-const bin = resolve(root, "target/production/snapback2");
+// The engine-less production binary; the Hermes-featured one lands under target/hermes (scripts/hermes).
+let bin = resolve(root, "target/production/snapback2");
 sh("cargo", ["build", "--quiet", "--profile", "production", "-p", "snapback2"]);
 const withoutEngineBytes = statSync(bin).size;
 const withoutEngine = process.env.SNAPBACK2_PUBLISH_WITHOUT_ENGINE === "1";
@@ -33,6 +34,7 @@ if (withoutEngine) {
     console.error("publish: refusing an engine-less artifact; prepare vanilla Hermes or set SNAPBACK2_PUBLISH_WITHOUT_ENGINE=1 explicitly");
     process.exit(built.status ?? 1);
   }
+  bin = resolve(root, "target/hermes/production/snapback2");
   const doctor = spawnSync(bin, ["doctor", "--json"], {
     cwd: root,
     encoding: "utf8",

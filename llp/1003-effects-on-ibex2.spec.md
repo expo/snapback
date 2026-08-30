@@ -99,10 +99,11 @@ row still moves to `sent` — the effect happened; the bookkeeping did not.
   idempotency key can make the retry safe; the runner never retries a
   `sent_unknown` row on its own — `snapback2 trace` shows it, and a human or
   an agent re-queues it (`POST /control/outbox/<id>/requeue`, this wave).
-- `then` runs after `sent` as `Context::system()` through
-  `Runtime::execute`; a rejected `then` sets `last_error` and leaves
-  `state = 'sent'` (the effect happened; the bookkeeping did not) — visible in
-  `trace`, never silent.
+- `then` runs from `then_pending` as `Context::system()` through
+  `Runtime::execute_then`, which settles the row in the same transaction —
+  including when the mutation is `Rejected` (`last_error` set, `state = 'sent'`:
+  the effect happened; the bookkeeping did not) — so no crash window separates
+  the mutation from its settlement; visible in `trace`, never silent.
 - Generation change: jobs of an effect the new generation no longer declares
   become `failed` with `last_error = 'E_EFFECT_UNKNOWN'`; a changed `source`
   drops that effect's runtime so the next job builds a fresh one.
@@ -161,7 +162,12 @@ invocation per host pump.
   commit whose `emits > 0` and every 1 s otherwise, drains up to 16 jobs,
   and hands each `then` back to the writer thread.
 - `/control/status.effects` = `{ engine: "ibex2 + vanilla hermes" | "none",
-  queued, running, sent, failed, sentUnknown }`; `doctor` prints the engine
+  queued, running, thenPending, sent, failed, sentUnknown }` from the store's
+  real `_outbox` counts in every build; the runner thread runs in every build
+  (`NoEngine` keeps rows `queued` with `last_error`, still marks `running` rows
+  `sent_unknown` at start and replays `then_pending`, which needs no engine);
+  `doctor` counts from the owner when one runs, else by opening the store
+  itself; requeue resets `attempts` (an operator-authorized new budget); `doctor` prints the engine
   and, when there is none, `effects: no engine in this build — N queued` in
   red-equivalent text (never omitted).
 - **Default build = seam only.** `cargo build` links no engine (LLP 1000
