@@ -2,6 +2,7 @@ import ts from "typescript";
 import { diagnostic } from "./diagnostics";
 import type { FrontendDiagnostic } from "./ir";
 import type { TableInfo } from "./compiler";
+import type { AuthoredType } from "./authored-types";
 import {
   applyEdits,
   callName,
@@ -250,18 +251,27 @@ function rewriteAmbientTime(source: string, node: ts.CallExpression): string {
 
 function boundRefusals(module: PolicyModule, limit: number): FrontendDiagnostic[] {
   const results: FrontendDiagnostic[] = [];
-  const visitLoop = (loop: ts.ForOfStatement, factors: Array<{ value: number; node: ts.Expression }>) => {
+  const visitLoop = (loop: ts.ForOfStatement, factors: Array<{ value: number; node: ts.Expression; rowBytes: number }>) => {
     const scan = firstDescendantCall(loop.expression, ".scan");
     const takeNode = scan && scan.arguments[2] && ts.isObjectLiteralExpression(scan.arguments[2])
       ? expressionProperty(scan.arguments[2], "take")
       : undefined;
     const take = numericLiteral(takeNode);
-    const next = take !== undefined && takeNode ? [...factors, { value: take, node: takeNode }] : factors;
+    const target = scan?.arguments[0];
+    const rowBytes = target ? declaredRowMax(module.tables, tableReference(target, module.tables).table) : 1024;
+    const next = take !== undefined && takeNode ? [...factors, { value: take, node: takeNode, rowBytes }] : factors;
     const product = next.reduce((total, factor) => total * factor.value, 1);
     if (product > 10_240 && takeNode && results.length < limit) {
       const largest = [...next].sort((a, b) => b.value - a.value)[0]!;
       const other = product / largest.value;
-      const replacement = Math.max(1, Math.floor(10_240 / (other + 4)));
+      // Use the refusing scans' actual declared serialized row maxima. One KiB
+      // is only the missing-table fallback. The output ceiling is tighter than
+      // closure for a returned collection, so the pasted rewrite clears both.
+      const widestRow = Math.max(...next.map((factor) => factor.rowBytes));
+      const outputRows = Math.floor(((1024 * 1024) - 2) / (widestRow + 1));
+      const closureRows = Math.floor((4 * 1024 * 1024) / widestRow);
+      const allowance = Math.min(10_240, outputRows, closureRows);
+      const replacement = Math.max(1, Math.floor(allowance / (other + 4)));
       results.push(diagnostic(
         module,
         "E_BOUND",
@@ -281,6 +291,30 @@ function boundRefusals(module: PolicyModule, limit: number): FrontendDiagnostic[
     if (results.length < limit && ts.isForOfStatement(node) && !findAncestor(node, ts.isForOfStatement)) visitLoop(node, []);
   });
   return results;
+}
+
+function declaredRowMax(tables: Map<string, TableInfo>, tableName: string): number {
+  const table = [...tables.values()].find((candidate) => candidate.name === tableName);
+  if (!table?.columns) return 1024;
+  return Object.entries(table.columns).reduce(
+    (size, [name, column]) => size + name.length + 4 + declaredColumnMax(column),
+    10,
+  );
+}
+
+function declaredColumnMax(column: AuthoredType): number {
+  switch (column.kind) {
+    case "string": return column.max === undefined ? 144 : column.max + 16;
+    case "int":
+    case "decimal": return 32;
+    case "bool": return 16;
+    case "json": return (column.max ?? 1024) + 16;
+    case "enum": return Math.max(16, ...column.variants.map((variant) => variant.length + 16));
+    case "optional": return Math.max(8, declaredColumnMax(column.of));
+    case "list": return 2 + (column.max ?? 1) * (declaredColumnMax(column.of) + 1);
+    case "row":
+    case "unknown": return 1024;
+  }
 }
 
 function scanIsPrivate(module: PolicyModule, scan: ts.CallExpression): boolean {

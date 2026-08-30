@@ -5,7 +5,7 @@ export type AuthoredType =
   | { kind: "enum"; variants: string[] }
   | { kind: "string"; max?: number }
   | { kind: "bool" }
-  | { kind: "json" }
+  | { kind: "json"; max?: number }
   | { kind: "row"; table: string }
   | { kind: "list"; of: AuthoredType; max?: number }
   | { kind: "optional"; of: AuthoredType };
@@ -28,7 +28,7 @@ export function authoredTypeFromColumn(value: unknown): AuthoredType {
   const descriptor = value as Record<string, any>;
   if (descriptor.Text) return { kind: "string", max: descriptor.Text.max };
   if (descriptor.Ref) return { kind: "string" };
-  if (descriptor.Json) return { kind: "json" };
+  if (descriptor.Json) return { kind: "json", max: descriptor.Json.max_bytes };
   if (descriptor.Enum) return { kind: "enum", variants: [...descriptor.Enum.variants] };
   if (descriptor.Decimal) return { kind: "decimal", scale: descriptor.Decimal.scale };
   if (descriptor.Money) {

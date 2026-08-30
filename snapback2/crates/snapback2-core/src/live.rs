@@ -197,7 +197,7 @@ impl Runtime {
                     }
                     Err(error) => {
                         let seq = self.store().commit_seq().unwrap_or(subscription.last_seq);
-                        let fresh_digest = digest(&error.code());
+                        let fresh_digest = digest(&(error.code(), error.to_string()));
                         let changed = fresh_digest != subscription.last_result_digest;
                         if let Some(entry) = self.subs.entries.get_mut(&id) {
                             entry.last_result_digest = fresh_digest;

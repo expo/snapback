@@ -8,9 +8,9 @@ use crate::writer_util::{next_id, owner_gone, unix_millis};
 use crate::writer_wire::{execution_json, live_frame, refusal_frame};
 use serde_json::{Value as Json, json};
 use snapback2_core::{
-    ArgType, Bound, ChannelSide, ChannelVerdict, ColumnType, Context, Execution, ExecutionState,
-    Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program, ProgramKind,
-    Runtime, Scan, Stmt, Value,
+    ArgType, Bound, Ceilings, ChannelSide, ChannelVerdict, ColumnType, Context, Execution,
+    ExecutionState, Expr, Generation, KeyProvenance, MigrationPlan, Order, Principal, Program,
+    ProgramKind, Runtime, Scan, Stmt, Value, max_certified_page_rows,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
@@ -1063,6 +1063,22 @@ impl State {
                     "schema/tables",
                 )
             })?;
+        let certified_limit = max_certified_page_rows(
+            &self.runtime().generation().schema,
+            &table_name,
+            &Ceilings::default(),
+        )
+        .min(500);
+        if certified_limit == 0 {
+            return Err(Refusal::new(
+                "E_BOUND",
+                "bound",
+                format!("declared rows from {table_name} exceed the data output ceiling"),
+                "lower the table's declared serialized row maximum",
+                "bound/output",
+            ));
+        }
+        let limit = limit.min(certified_limit);
         let index = table.indexes.get(&index_name).ok_or_else(|| {
             Refusal::new(
                 "E_SCHEMA_INDEX_UNKNOWN",

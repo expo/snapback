@@ -1,13 +1,17 @@
 //! Snapback 2 data plane: bounded data programs (LLP 0329.014.004), seeded from
 //! spike S1 (`spikes/bounded-programs/`, LLP 0329.014 §8). No JS engine lives here.
+mod bounds;
 pub mod certificate;
 pub mod client;
+mod collection_rewrite;
 pub mod engine;
+mod growth;
 pub mod identity;
 pub mod ir;
 pub mod live;
 pub mod programs;
 pub mod registry;
+mod retention;
 pub mod schema;
 pub mod store;
 pub mod successor;
@@ -15,7 +19,7 @@ pub mod value;
 
 pub use certificate::{
     Ceilings, Certificate, CheckError, Checker, Completeness, PredictionMode, ReadSite, WriteKind,
-    WriteSite,
+    WriteSite, declared_serialized_row_max, max_certified_page_rows,
 };
 pub use client::{ClientStore, LocalState};
 pub use engine::{
