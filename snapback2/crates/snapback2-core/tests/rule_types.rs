@@ -1,5 +1,5 @@
 use serde_json::{Value as Json, json};
-use snapback2_core::{Ceilings, CheckError, Generation, ProjectJson};
+use snapback2_core::{Ceilings, CheckError, Generation, ProjectJson, Value};
 
 fn valid_project_json() -> Json {
     json!({
@@ -273,5 +273,102 @@ fn raw_project_json_fields_are_resolved_from_the_outer_table_or_channel() {
         raw,
         "schema.channels.presence.publish.left",
         "unknown field principal on its outer subject",
+    );
+}
+
+#[test]
+fn raw_project_json_checks_literal_domains_without_erasing_principal_or_ref_types() {
+    let typed_rule = |column: &str, kind: Json, value: Value| {
+        let mut raw = valid_project_json();
+        raw["schema"]["tables"]["grants"]["columns"][column] = kind;
+        raw["schema"]["tables"]["grants"]["rules"]["read"] = json!({
+            "Eq": [
+                { "Field": column },
+                { "Literal": serde_json::to_value(value).unwrap() }
+            ]
+        });
+        raw
+    };
+
+    certify(typed_rule(
+        "role",
+        json!({ "Enum": { "variants": ["member", "admin"] } }),
+        Value::String("member".to_owned()),
+    ))
+    .expect("a declared enum variant must be admitted");
+
+    only_rule_error(
+        typed_rule(
+            "role",
+            json!({ "Enum": { "variants": ["member", "admin"] } }),
+            Value::String("admn".to_owned()),
+        ),
+        "schema.tables.grants.rules.read",
+        "joins Enum<member|admin> with text literal \"admn\"",
+    );
+
+    only_rule_error(
+        typed_rule("price", json!({ "Decimal": { "scale": 2 } }), Value::Int(2)),
+        "schema.tables.grants.rules.read",
+        "joins Decimal<2> with integer literal",
+    );
+    only_rule_error(
+        typed_rule(
+            "budget",
+            json!({ "Money": { "currency": "USD", "scale": 2 } }),
+            Value::Int(2),
+        ),
+        "schema.tables.grants.rules.read",
+        "joins Money<USD,2> with integer literal",
+    );
+
+    for value in [
+        Value::Null,
+        Value::Bool(true),
+        Value::Int(7),
+        Value::String("ok".to_owned()),
+        Value::Array(vec![Value::Null, Value::String("nested".to_owned())]),
+        Value::Map(std::collections::BTreeMap::from([(
+            "nested".to_owned(),
+            Value::Bool(true),
+        )])),
+    ] {
+        certify(typed_rule(
+            "metadata",
+            json!({ "Json": { "max_bytes": 1024 } }),
+            value,
+        ))
+        .expect("every JSON literal shape must be admitted against Json");
+    }
+
+    let mut literal_arrays = valid_project_json();
+    literal_arrays["schema"]["tables"]["grants"]["rules"]["read"] = json!({
+        "Ne": [
+            { "Literal": serde_json::to_value(Value::Array(vec![Value::Int(1)])).unwrap() },
+            { "Literal": serde_json::to_value(Value::Array(vec![
+                Value::Null,
+                Value::String("nested".to_owned()),
+            ])).unwrap() }
+        ]
+    });
+    certify(literal_arrays).expect("JSON array literals must share one compiler/core domain");
+
+    only_rule_error(
+        typed_rule(
+            "scope",
+            json!("Id"),
+            Value::Id("caller-controlled".to_owned()),
+        ),
+        "schema.tables.grants.rules.read",
+        "joins Id with id literal",
+    );
+    only_rule_error(
+        typed_rule(
+            "profile",
+            json!({ "Ref": { "table": "profiles" } }),
+            Value::Id("profile-1".to_owned()),
+        ),
+        "schema.tables.grants.rules.read",
+        "joins Ref<profiles> with id literal",
     );
 }

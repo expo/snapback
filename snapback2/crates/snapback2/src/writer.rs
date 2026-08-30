@@ -937,8 +937,18 @@ impl State {
                 Runtime::channel_touched(commit, &client.verdict).then_some(*id)
             })
             .collect();
-        for id in touched {
-            let Some(client) = self.channels.get(&id).cloned() else {
+        self.readmit_channel_ids(&touched, commit.seq);
+    }
+
+    fn readmit_all_channels(&mut self) {
+        let channels = self.channels.keys().copied().collect::<Vec<_>>();
+        let seq = self.runtime().store().commit_seq().unwrap_or_default();
+        self.readmit_channel_ids(&channels, seq);
+    }
+
+    fn readmit_channel_ids(&mut self, ids: &[u64], seq: u64) {
+        for id in ids {
+            let Some(client) = self.channels.get(id).cloned() else {
                 continue;
             };
             match self.runtime_mut().channel_admit(
@@ -948,7 +958,7 @@ impl State {
                 &client.context,
             ) {
                 Ok(verdict) if verdict.admitted => {
-                    if let Some(current) = self.channels.get_mut(&id) {
+                    if let Some(current) = self.channels.get_mut(id) {
                         current.verdict = verdict;
                     }
                 }
@@ -968,13 +978,13 @@ impl State {
                                 "rule/channels",
                             )
                         });
-                    let (data, terminal) = refusal_frame(refusal, commit.seq);
+                    let (data, terminal) = refusal_frame(refusal, seq);
                     let _ = client.events.send(SseEvent {
-                        seq: Some(commit.seq),
+                        seq: Some(seq),
                         data,
                         terminal,
                     });
-                    self.channels.remove(&id);
+                    self.channels.remove(id);
                 }
             }
         }
@@ -1000,6 +1010,9 @@ impl State {
             self.seed = seed;
         }
         self.owner.generation = self.compiled.generation.hash.clone();
+        // @ref LLP 1001#4-generation-and-runtime-registryrs-successorrs — retained
+        // channel handles must be re-admitted under the one active generation.
+        self.readmit_all_channels();
         self.publish_owner()?;
         self.phase = Json::String("ready".to_owned());
         let clients = self.live.keys().copied().collect::<Vec<_>>();

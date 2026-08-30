@@ -11,9 +11,9 @@ npm install snapback2 react
 import { api, createClient } from "snapback2/client";
 
 const client = createClient({ url: process.env.SNAPBACK_URL!, as: "alice" });
-const page = await client.query(api.messages.thread, { conversationId: "general" });
+const page = await client.query(api.messages.thread, { conversationId: "conversation-1" });
 
-const sub = client.subscribe(api.messages.thread, { conversationId: "general" }, console.log);
+const sub = client.subscribe(api.messages.thread, { conversationId: "conversation-1" }, console.log);
 await sub.until((delivery) => delivery.state === "complete" && delivery.live);
 sub.close();
 ```
@@ -27,10 +27,10 @@ import { SnapbackProvider, useMutation, useQuery } from "snapback2/react";
 import { api } from "snapback2/client";
 
 function Messages() {
-  const messages = useQuery(api.messages.thread, { conversationId: "general" });
+  const messages = useQuery(api.messages.thread, { conversationId: "conversation-1" });
   const send = useMutation(api.messages.send);
   if (messages.state === "hydrating") return <>Loading…</>;
-  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "general", recipientId: "profile-bob", body: "Hi" })}>
+  return <button disabled={send.pending} onClick={() => send.run({ conversationId: "conversation-1", recipientId: "profile-bob", body: "Hi" })}>
     {messages.state}
   </button>;
 }

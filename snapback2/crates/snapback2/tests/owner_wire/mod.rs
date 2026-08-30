@@ -172,4 +172,14 @@ impl Sse {
             .set_read_timeout(Some(Duration::from_secs(6)))
             .unwrap();
     }
+
+    pub(super) fn assert_closed(&mut self) {
+        let mut size = String::new();
+        self.reader.read_line(&mut size).unwrap();
+        assert_eq!(
+            size.trim(),
+            "0",
+            "expected terminal SSE chunk, got {size:?}"
+        );
+    }
 }

@@ -949,6 +949,61 @@ test("rule terms and exists keys are checked against nominal schema types", () =
     "typed rule refusal lost its authored site or mechanical rewrite");
 });
 
+test("rule literals respect Enum, Decimal, Money, Json, Id, and Ref domains", () => {
+  const valid = `import { schema, table, t, rule } from "snapback2";
+    export const rows = table({
+      columns: { role: t.enum(["member", "admin"]), metadata: t.json(1024) },
+      rules: {
+        read: rule.and(
+          rule.eq(rule.field("role"), rule.literal("member")),
+          rule.ne(rule.field("metadata"), rule.literal(null)),
+          rule.ne(rule.field("metadata"), rule.literal(true)),
+          rule.ne(rule.field("metadata"), rule.literal(7)),
+          rule.ne(rule.field("metadata"), rule.literal("ok")),
+          rule.ne(rule.field("metadata"), rule.literal([null, "nested"])),
+          rule.ne(rule.field("metadata"), rule.literal({ nested: [true, 1] })),
+          rule.ne(rule.literal([1]), rule.literal([null, "nested"])),
+        ),
+        insert: rule.allow(), update: rule.allow(), delete: rule.allow(),
+      },
+    });
+    export default schema({ tables: { rows } });`;
+  const accepted = lowerSchema(valid, "snapback/schema.ts");
+  assert(accepted.diagnostics.length === 0,
+    `valid Enum/Json literals refused: ${accepted.diagnostics.map((item) => item.message).join("; ")}`);
+
+  const invalid = `import { schema, table, t, rule } from "snapback2";
+    export const profiles = table({ columns: { name: t.text(40) } });
+    export const rows = table({
+      columns: {
+        role: t.enum(["member", "admin"]), price: t.decimal(2),
+        budget: t.money("USD"), ownerId: t.id(), profileId: t.ref(profiles),
+      },
+      rules: {
+        read: rule.ne(rule.field("role"), rule.literal("admn")),
+        insert: rule.eq(rule.field("price"), rule.literal(2)),
+        update: rule.eq(rule.field("budget"), rule.literal(2)),
+        delete: rule.eq(rule.field("ownerId"), rule.literal("row-1")),
+      },
+    });
+    export const refRows = table({ columns: { profileId: t.ref(profiles) },
+      rules: { read: rule.eq(rule.field("profileId"), rule.literal("profile-1")),
+        insert: rule.allow(), update: rule.allow(), delete: rule.allow() } });
+    export default schema({ tables: { profiles, rows, refRows } });`;
+  const refused = lowerSchema(invalid, "snapback/schema.ts");
+  const messages = refused.diagnostics.filter((item) => item.code === "E_RULE_INVALID").map((item) => item.message);
+  for (const expected of [
+    'Enum<member|admin> with text literal "admn"',
+    "Decimal<2> with integer literal",
+    "Money<USD,2> with integer literal",
+    'Id with text literal "row-1"',
+    'Ref<profiles> with text literal "profile-1"',
+  ]) {
+    assert(messages.some((message) => message.includes(expected)),
+      `rule literal refusals omitted ${expected}: ${messages.join("; ")}`);
+  }
+});
+
 test("implicit id and byId cannot be overwritten", () => {
   const source = `import { schema, table, t } from 'snapback2';
     export const rows = table({ columns: { id: t.int(), value: t.int() }, indexes: { byId: { columns: ['value'] } } });

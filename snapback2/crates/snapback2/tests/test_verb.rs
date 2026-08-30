@@ -58,12 +58,35 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         revocation["detail"]["mutationSeq"]
     );
     assert_eq!(revocation["detail"]["postDenialRows"], 0);
+    assert_eq!(
+        revocation["detail"]["protectedWrite"], "messages.send",
+        "{revocation}"
+    );
+    assert_eq!(revocation["detail"]["protectedWriteAs"], "alice");
+    assert!(
+        revocation["detail"]["protectedWriteSeq"]
+            .as_u64()
+            .zip(revocation["detail"]["mutationSeq"].as_u64())
+            .is_some_and(|(write, revoke)| write > revoke),
+        "{revocation}"
+    );
+    assert_eq!(revocation["detail"]["protectedRowsWritten"], 1);
+    assert_eq!(revocation["detail"]["postWriteDelivery"], "none");
 
     let fence = check(&receipt, "successor-policy-fence");
     assert_ne!(
         fence["detail"]["generationG"], fence["detail"]["generationG1"],
         "{fence}"
     );
+    assert_ne!(
+        fence["detail"]["generationG1"], fence["detail"]["generationG2"],
+        "{fence}"
+    );
+    assert_eq!(fence["detail"]["policyReplacement"], "Deny");
+    assert_eq!(fence["detail"]["policyRetainedHandleState"], "complete");
+    assert_eq!(fence["detail"]["policyRetainedHandleRows"], 0);
+    assert_eq!(fence["detail"]["policyFreshInvocationState"], "complete");
+    assert_eq!(fence["detail"]["policyFreshInvocationRows"], 0);
     let successor_rule = format!(
         "SNAPBACK2_TEST_SUCCESSOR_POLICY_FENCE:{}",
         fence["detail"]["generationG"].as_str().unwrap()
@@ -75,7 +98,16 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     assert_eq!(fence["detail"]["freshInvocationRule"], successor_rule);
     assert_eq!(
         fence["detail"]["activeManifestGeneration"],
-        fence["detail"]["generationG1"]
+        fence["detail"]["generationG2"]
+    );
+
+    let aba = check(&receipt, "grant-incarnation-aba");
+    assert_eq!(aba["verdict"], "blocked", "{aba}");
+    assert!(
+        aba["detail"]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("no durable captured-intent carrier")),
+        "{aba}"
     );
 
     let invalidation = check(&receipt, "invalidation");
@@ -129,6 +161,8 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         assert_eq!(journey["kind"], "journey", "{name}: {journey}");
         assert_eq!(journey["verdict"], "pass", "{name}: {journey}");
     }
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(receipt["verdict"], "blocked");
     if cfg!(feature = "hermes") {
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
@@ -136,8 +170,6 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
                 && check["detail"]["engine"] == "ibex2 + vanilla hermes"
         }));
     } else {
-        assert_eq!(output.status.code(), Some(1));
-        assert_eq!(receipt["verdict"], "blocked");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "blocked"
@@ -206,7 +238,7 @@ fn todos_template_passes_without_an_effects_check() {
         !receipt["checks"].as_array().unwrap().iter().any(|check| {
             matches!(
                 check["name"].as_str(),
-                Some("live-revocation" | "successor-policy-fence")
+                Some("live-revocation" | "successor-policy-fence" | "grant-incarnation-aba")
             )
         }),
         "unrelated todos synthesized scoped-authorization proofs: {receipt}"
@@ -281,6 +313,8 @@ export const aabUnprobeableLeave = mutation({
     );
     let fence = check(&receipt, "successor-policy-fence");
     assert_eq!(fence["verdict"], "pass", "{fence}");
+    let aba = check(&receipt, "grant-incarnation-aba");
+    assert_eq!(aba["verdict"], "blocked", "{aba}");
 }
 
 #[test]

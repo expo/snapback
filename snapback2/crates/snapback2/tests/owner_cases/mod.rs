@@ -101,6 +101,77 @@ export const second = query({}, () => unknownTwo);
     fs::remove_dir_all(root).unwrap();
 }
 
+#[cfg(not(feature = "hermes"))]
+#[test]
+fn successor_rebinds_channel_subscriber_before_g1_publish() {
+    let root = temp_root();
+    copy_tree(&fixture().join("snapback"), &root.join("snapback"));
+    let schema = root.join("snapback/schema.ts");
+    let source = fs::read_to_string(&schema).unwrap();
+    let allowing = source.replace(
+        "subscribe: rule.exists(memberships, \"byConvUser\", [rule.field(\"conversationId\"), rule.viewer]),",
+        "subscribe: rule.allow(),",
+    );
+    assert_ne!(source, allowing, "chat fixture channel rule changed");
+    fs::write(schema, allowing).unwrap();
+
+    let compiler = compiler();
+    let mut owner = ChildGuard::spawn(env!("CARGO_BIN_EXE_snapback2"), &compiler, &root);
+    let port = owner
+        .ready_line()
+        .trim()
+        .strip_prefix("SNAPBACK_URL=http://127.0.0.1:")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let owner_json: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/owner.json")).unwrap()).unwrap();
+    let secret = owner_json["secret"].as_str().unwrap();
+    let generation_g = status(port, secret)["generation"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let mut retained = Sse::open(
+        port,
+        "/api/channel/typing/subscribe?args=%7B%22conversationId%22%3A%22conversation-1%22%7D",
+        "bob",
+    );
+    let mut project: Value =
+        serde_json::from_slice(&fs::read(root.join(".snapback/build/project.json")).unwrap())
+            .unwrap();
+    project["schema"]["channels"]["typing"]["subscribe"] = json!("Deny");
+    let applied = request(
+        port,
+        "POST",
+        "/control/apply",
+        &[("X-Snapback-Control", secret)],
+        json!({ "project": project }),
+    );
+    assert_eq!(applied.status, 200, "{}", applied.body);
+    assert_ne!(applied.body["to"], generation_g, "{}", applied.body);
+
+    let published = request(
+        port,
+        "POST",
+        "/api/channel/typing/publish",
+        &[("X-Snapback-As", "alice")],
+        json!({
+            "args": { "conversationId": "conversation-1" },
+            "payload": { "generation": "g1" },
+        }),
+    );
+    assert_eq!(published.body, json!({ "ok": true }), "{}", published.body);
+
+    let refusal = retained.event();
+    assert_eq!(refusal["state"], "refused", "{refusal}");
+    assert_eq!(refusal["code"], "E_RULE_CHANNEL_SUBSCRIBE", "{refusal}");
+    retained.assert_closed();
+
+    stop_owner(port, secret, &mut owner, "successor channel fence complete");
+    fs::remove_dir_all(root).unwrap();
+}
+
 #[test]
 fn measure_regression_self_test_covers_failed_step_scoring_and_summary() {
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/measure.mjs");

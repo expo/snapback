@@ -24,7 +24,7 @@ type RuleType =
   | { kind: "list"; of: RuleType }
   | { kind: "scalar" }
   | { kind: "null-literal" }
-  | { kind: "text-literal" }
+  | { kind: "text-literal"; value: string }
   | { kind: "int-literal" }
   | { kind: "bool-literal" }
   | { kind: "array-literal"; values: RuleType[] }
@@ -281,7 +281,7 @@ function ruleLiteralType(value: unknown): RuleType {
   if (value === null) return { kind: "null-literal" };
   if (typeof value === "boolean") return { kind: "bool-literal" };
   if (typeof value === "number") return { kind: "int-literal" };
-  if (typeof value === "string") return { kind: "text-literal" };
+  if (typeof value === "string") return { kind: "text-literal", value };
   if (Array.isArray(value)) return { kind: "array-literal", values: value.map(ruleLiteralType) };
   return { kind: "json-literal" };
 }
@@ -290,16 +290,19 @@ function compatible(left: RuleType, right: RuleType): boolean {
   if (sameRuleType(left, right)) return true;
   if (left.kind === "optional") return right.kind === "null-literal" || compatible(left.of, right);
   if (right.kind === "optional") return left.kind === "null-literal" || compatible(left, right.of);
-  if ((left.kind === "id" || left.kind === "ref") && right.kind === "text-literal") return false;
-  if ((right.kind === "id" || right.kind === "ref") && left.kind === "text-literal") return false;
-  if ((left.kind === "text" || left.kind === "enum") && right.kind === "text-literal") return true;
-  if ((right.kind === "text" || right.kind === "enum") && left.kind === "text-literal") return true;
-  if (["int", "time", "decimal", "money"].includes(left.kind) && right.kind === "int-literal") return true;
-  if (["int", "time", "decimal", "money"].includes(right.kind) && left.kind === "int-literal") return true;
+  if (left.kind === "text" && right.kind === "text-literal") return true;
+  if (right.kind === "text" && left.kind === "text-literal") return true;
+  if (left.kind === "enum" && right.kind === "text-literal") return left.variants.includes(right.value);
+  if (right.kind === "enum" && left.kind === "text-literal") return right.variants.includes(left.value);
+  if (["int", "time"].includes(left.kind) && right.kind === "int-literal") return true;
+  if (["int", "time"].includes(right.kind) && left.kind === "int-literal") return true;
   if (left.kind === "bool" && right.kind === "bool-literal") return true;
   if (right.kind === "bool" && left.kind === "bool-literal") return true;
-  if (left.kind === "json" && right.kind === "json-literal") return true;
-  if (right.kind === "json" && left.kind === "json-literal") return true;
+  if (left.kind === "json" && jsonLiteral(right)) return true;
+  if (right.kind === "json" && jsonLiteral(left)) return true;
+  if (left.kind === "array-literal" && right.kind === "array-literal") {
+    return left.values.every(jsonLiteral) && right.values.every(jsonLiteral);
+  }
   if (left.kind === "list" && right.kind === "array-literal") {
     return right.values.every((value) => compatible(left.of, value));
   }
@@ -307,6 +310,13 @@ function compatible(left: RuleType, right: RuleType): boolean {
     return left.values.every((value) => compatible(value, right.of));
   }
   return false;
+}
+
+function jsonLiteral(value: RuleType): boolean {
+  if (["null-literal", "text-literal", "int-literal", "bool-literal", "json-literal"].includes(value.kind)) {
+    return true;
+  }
+  return value.kind === "array-literal" && value.values.every(jsonLiteral);
 }
 
 function compatibleExists(
@@ -349,14 +359,14 @@ function ruleTypeLabel(value: RuleType): string {
     case "bool": return "Bool";
     case "time": return "Time";
     case "json": return "Json";
-    case "enum": return "Enum";
+    case "enum": return `Enum<${value.variants.join("|")}>`;
     case "decimal": return `Decimal<${value.scale}>`;
     case "money": return `Money<${value.currency},${value.scale}>`;
     case "optional": return `Optional<${ruleTypeLabel(value.of)}>`;
     case "list": return `List<${ruleTypeLabel(value.of)}>`;
     case "scalar": return "Scalar";
     case "null-literal": return "null literal";
-    case "text-literal": return "text literal";
+    case "text-literal": return `text literal ${JSON.stringify(value.value)}`;
     case "int-literal": return "integer literal";
     case "bool-literal": return "boolean literal";
     case "array-literal": return "array literal";

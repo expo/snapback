@@ -106,7 +106,7 @@ enum RuleType {
     Scalar,
     NullLiteral,
     IdLiteral { system: bool },
-    TextLiteral,
+    TextLiteral(String),
     IntLiteral,
     BoolLiteral,
     ArrayLiteral(Vec<RuleType>),
@@ -158,7 +158,7 @@ impl RuleType {
             Value::Null => Self::NullLiteral,
             Value::Bool(_) => Self::BoolLiteral,
             Value::Int(_) => Self::IntLiteral,
-            Value::String(_) => Self::TextLiteral,
+            Value::String(value) => Self::TextLiteral(value.clone()),
             Value::Id(value) => Self::IdLiteral {
                 system: value == "system",
             },
@@ -179,7 +179,7 @@ impl RuleType {
             Self::Bool => "Bool".to_owned(),
             Self::Time => "Time".to_owned(),
             Self::Json => "Json".to_owned(),
-            Self::Enum(_) => "Enum".to_owned(),
+            Self::Enum(variants) => format!("Enum<{}>", variants.join("|")),
             Self::Decimal(scale) => format!("Decimal<{scale}>"),
             Self::Money(currency, scale) => format!("Money<{currency},{scale}>"),
             Self::Optional(inner) => format!("Optional<{}>", inner.label()),
@@ -188,7 +188,7 @@ impl RuleType {
             Self::NullLiteral => "null literal".to_owned(),
             Self::IdLiteral { system: true } => "reserved system principal literal".to_owned(),
             Self::IdLiteral { system: false } => "id literal".to_owned(),
-            Self::TextLiteral => "text literal".to_owned(),
+            Self::TextLiteral(value) => format!("text literal {value:?}"),
             Self::IntLiteral => "integer literal".to_owned(),
             Self::BoolLiteral => "boolean literal".to_owned(),
             Self::ArrayLiteral(_) => "array literal".to_owned(),
@@ -352,6 +352,10 @@ fn compatible(left: &RuleType, right: &RuleType) -> bool {
         return true;
     }
     match (left, right) {
+        (RuleType::TextLiteral(_), RuleType::TextLiteral(_)) => true,
+        (RuleType::ArrayLiteral(left), RuleType::ArrayLiteral(right)) => {
+            left.iter().all(json_literal) && right.iter().all(json_literal)
+        }
         (RuleType::Optional(inner), RuleType::NullLiteral)
         | (RuleType::NullLiteral, RuleType::Optional(inner)) => {
             let _ = inner;
@@ -362,24 +366,31 @@ fn compatible(left: &RuleType, right: &RuleType) -> bool {
         }
         (RuleType::Principal, RuleType::IdLiteral { system: true })
         | (RuleType::IdLiteral { system: true }, RuleType::Principal) => true,
-        (RuleType::Id | RuleType::Ref(_), RuleType::IdLiteral { .. })
-        | (RuleType::IdLiteral { .. }, RuleType::Id | RuleType::Ref(_)) => true,
-        (RuleType::Text | RuleType::Enum(_), RuleType::TextLiteral)
-        | (RuleType::TextLiteral, RuleType::Text | RuleType::Enum(_)) => true,
-        (
-            RuleType::Int | RuleType::Time | RuleType::Decimal(_) | RuleType::Money(_, _),
-            RuleType::IntLiteral,
-        )
-        | (
-            RuleType::IntLiteral,
-            RuleType::Int | RuleType::Time | RuleType::Decimal(_) | RuleType::Money(_, _),
-        ) => true,
+        (RuleType::Text, RuleType::TextLiteral(_)) | (RuleType::TextLiteral(_), RuleType::Text) => {
+            true
+        }
+        (RuleType::Enum(variants), RuleType::TextLiteral(value))
+        | (RuleType::TextLiteral(value), RuleType::Enum(variants)) => variants.contains(value),
+        (RuleType::Int | RuleType::Time, RuleType::IntLiteral)
+        | (RuleType::IntLiteral, RuleType::Int | RuleType::Time) => true,
         (RuleType::Bool, RuleType::BoolLiteral) | (RuleType::BoolLiteral, RuleType::Bool) => true,
-        (RuleType::Json, RuleType::JsonLiteral) | (RuleType::JsonLiteral, RuleType::Json) => true,
+        (RuleType::Json, literal) | (literal, RuleType::Json) => json_literal(literal),
         (RuleType::List(inner), RuleType::ArrayLiteral(values))
         | (RuleType::ArrayLiteral(values), RuleType::List(inner)) => {
             values.iter().all(|value| compatible(inner, value))
         }
+        _ => false,
+    }
+}
+
+fn json_literal(value: &RuleType) -> bool {
+    match value {
+        RuleType::NullLiteral
+        | RuleType::TextLiteral(_)
+        | RuleType::IntLiteral
+        | RuleType::BoolLiteral
+        | RuleType::JsonLiteral => true,
+        RuleType::ArrayLiteral(values) => values.iter().all(json_literal),
         _ => false,
     }
 }
