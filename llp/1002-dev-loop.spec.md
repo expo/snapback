@@ -181,7 +181,11 @@ Control routes (loopback only, `X-Snapback-Control: <secret>` from
 `POST /control/fork { name }`, `GET /control/logs?since=<seq>&limit=`,
 `GET /control/personas`, `POST /control/persona { name }`,
 `POST /control/why { op, args, as }`, `GET /control/trace?seq=`,
-`GET /control/subscriptions`, `POST /control/stop { cause }`.
+`GET /control/subscriptions`, `POST /control/verdicts { table, rows, as }`
+(the engine's per-row rule verdict under a persona — an ad-hoc certified read
+that never touches the served generation; `test`'s rules check uses it),
+`POST /control/outbox/<id>/requeue`, `POST /control/clock { advanceMs }`,
+`POST /control/stop { cause }`.
 
 ## 5. The owner
 
@@ -303,8 +307,10 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   keys), the outbox rows it emitted and their real states, and the
   subscriptions it invalidated with their delivery seqs — intent → commit →
   invalidation → delivery — read from the owner's bounded per-commit ledger
-  (last 1,000 commits) and the store's `_outbox`, never reconstructed from
-  program syntax or the current subscription set (review ruling 2026-08-30).
+  (last 1,000 commits, per owner lifetime — a commit older than the current
+  owner's start reports `ledger: unavailable (owner restarted at <ts>)`, never
+  empty arrays) and the store's `_outbox`, never reconstructed from program
+  syntax or the current subscription set (review rulings 2026-08-30).
 - `guide`: `grammar` (one screen, hand-written, in the package), `app`
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
@@ -385,8 +391,10 @@ shape. `--client react` adds a Vite React app under `src/` that reads
 ## 11. Measured
 
 `scripts/measure.mjs` gains `check_project_s` (`check` on the chat template),
-`init_to_dev_s` (`init` → `dev` ready, fresh dir), `test_s` (`test` on the
-chat template). Gates from `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s;
+`init_to_dev_s` (`init` → `dev` ready, fresh dir), `test_todos_s` (must
+`pass`) and `test_chat_s` (timed; `blocked` naming `effects` is the honest
+verdict on an engine-less build, `pass` on the engine build) — both scored
+against the 30 s budget with their verdicts recorded (ruling 2026-08-30). Gates from `rules/RULES.md`: `check` < 1 s, `doctor` < 0.5 s;
 from LLP 0329.016 §8: `init` → `dev` ≤ 10 s, `test` on a template < 30 s.
 
 ## Deferred (not binding)
