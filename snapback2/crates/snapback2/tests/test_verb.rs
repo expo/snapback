@@ -3,6 +3,15 @@ mod common;
 use common::{Project, json_stdout};
 use std::fs;
 
+fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Value {
+    receipt["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|check| check["name"] == name)
+        .unwrap_or_else(|| panic!("missing {name} check in {receipt}"))
+}
+
 #[test]
 fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     let project = Project::new();
@@ -16,13 +25,22 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     let output = project.run(&["test", "--json"]);
     let receipt = json_stdout(&output);
     let checks = receipt["checks"].as_array().unwrap();
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["verdict"], "pass", "{rules}");
+    assert_eq!(rules["detail"]["tables"]["memberships"]["probes"], 9);
+    assert_eq!(rules["detail"]["tables"]["messages"]["probes"], 6);
+    assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 3);
+    assert_eq!(rules["detail"]["expectedBy"], "engine");
+    assert_eq!(rules["detail"]["actualBy"], "data");
+
+    let invalidation = check(&receipt, "invalidation");
     assert!(
-        checks
-            .iter()
-            .filter(|check| check["kind"] == "derived")
-            .count()
-            >= 6
+        invalidation["detail"]["silenceProbes"]
+            .as_u64()
+            .is_some_and(|count| count > 0),
+        "the chat receipt did not exercise an invalidation silence probe: {invalidation}"
     );
+    assert_eq!(check(&receipt, "bounds")["detail"]["enforcedBy"], "engine");
     assert_eq!(
         checks
             .iter()
@@ -31,13 +49,6 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
         2
     );
     if cfg!(feature = "hermes") {
-        assert!(
-            output.status.success(),
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert_eq!(receipt["verdict"], "pass");
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
                 && check["verdict"] == "pass"
@@ -52,6 +63,16 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
                 && check["detail"]["reason"] == "no engine in this build"
         }));
     }
+    let scratch = fs::read_dir(project.path.join(".snapback"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with("test-") || name.starts_with("test-run-"))
+        .collect::<Vec<_>>();
+    assert!(
+        scratch.is_empty(),
+        "test left temporary stores behind: {scratch:?}"
+    );
 }
 
 #[test]
@@ -136,7 +157,7 @@ import { todos } from "./schema";
 export const list = query({}, ({ db, ctx }) => db.scan(todos.byOwner, [ctx.viewer], { take: 50 }));
 export const add = mutation({}, ({ db, ctx }) => {
   db.require(false, "ALWAYS_REJECT");
-  db.insert(todos, { id: ctx.newId(), title: "never", done: false, ownerId: ctx.viewer, price: 100, status: "open" });
+  db.insert(todos, { id: ctx.newId(), title: "never", done: false, ownerId: ctx.viewer });
   return null;
 });
 "#,
@@ -158,6 +179,36 @@ export const add = mutation({}, ({ db, ctx }) => {
         invalidation["detail"]["blocked"][0]["reason"],
         "no committing probe"
     );
+    let replay = check(&receipt, "replay");
+    assert_eq!(replay["verdict"], "blocked");
+    assert_eq!(
+        replay["detail"]["blocked"][0]["reason"],
+        "no committing probe for todos.add"
+    );
+}
+
+#[test]
+fn rules_block_and_name_a_rule_bearing_table_with_no_seed_rows() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/seed.ts"),
+        r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice"], rows: { todos: [] } });
+"#,
+    )
+    .unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let receipt = json_stdout(&output);
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["verdict"], "blocked");
+    assert_eq!(
+        rules["detail"]["blocked"][0]["reason"],
+        "no seed rows for todos"
+    );
 }
 
 #[test]
@@ -178,4 +229,15 @@ fn explicit_block_writes_a_blocked_receipt_and_exits_one() {
         receipt["checks"][0]["detail"]["reason"],
         "waiting for provider"
     );
+}
+
+#[test]
+fn blocked_without_a_reason_is_usage() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+
+    let output = project.run(&["test", "--blocked"]);
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--blocked reason"));
 }

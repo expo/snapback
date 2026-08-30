@@ -100,11 +100,14 @@ await rm(resolve(guide, "families.source.json"));
 
 const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
-for (const name of ["todos", "chat"]) {
-  const target = resolve(templateDist, name, "snapback");
-  await cp(resolve(fixtures, name, "snapback"), target, { recursive: true });
-  await cp(resolve(here, "templates", name, "snapback"), target, { recursive: true, force: true });
-}
+const chatTarget = resolve(templateDist, "chat", "snapback");
+await cp(resolve(fixtures, "chat", "snapback"), chatTarget, { recursive: true });
+await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true, force: true });
+await cp(
+  resolve(here, "templates/todos/snapback"),
+  resolve(templateDist, "todos", "snapback"),
+  { recursive: true },
+);
 await cp(resolve(here, "templates/react"), resolve(templateDist, "react"), { recursive: true });
 
 const fixtureText = (await Promise.all((await fixtureFiles(fixtures)).map((path) => readFile(path, "utf8")))).join("\n");

@@ -4,7 +4,10 @@ The seed is static data, applied as one system commit before derived checks and
 authored journeys:
 
 ```ts
-    messages: [],
+    messages: [
+      { id: "message-1", conversationId: "conversation-1", authorId: "dev:alice", body: "Welcome", at: 1 },
+      { id: "message-2", conversationId: "conversation-2", authorId: "dev:alice", body: "Side note", at: 1 },
+    ],
 ```
 
 Write journeys with `journey(name, async ({ as, tick, url }) => …)`. The test

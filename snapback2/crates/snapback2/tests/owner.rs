@@ -283,7 +283,7 @@ export const before = query({ boundary: t.time() }, ({ args, ctx }) =>
         json!({ "op": "messages.counts", "args": { "conversationId": "conversation-1" } }),
     );
     assert_eq!(counts.body["state"], "complete", "{}", counts.body);
-    assert_eq!(counts.body["data"][0]["value"], 1);
+    assert_eq!(counts.body["data"][0]["value"], 2);
     let effects = status(port, &secret)["effects"].clone();
     assert_eq!(
         effects,

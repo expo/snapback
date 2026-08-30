@@ -61,6 +61,14 @@ pub struct ChannelVerdict {
     pub points: Vec<PointTrace>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RowRuleVerdict {
+    pub id: String,
+    pub admitted: bool,
+    pub trace: AuthoritativeTrace,
+}
+
 impl Generation {
     pub fn certify(
         project: &ProjectJson,
@@ -621,6 +629,34 @@ impl Runtime {
         self.engine.store()
     }
 
+    // @ref LLP 1002#7-test-and-the-receipt — expected rule sets come from engine verdicts over every stored row.
+    /// Evaluate a table's read rule against every stored row using the same
+    /// engine and principal context as a real query. This is a control-plane
+    /// proof primitive; callers cannot supply or omit the candidate rows.
+    pub fn read_rule_verdicts(
+        &mut self,
+        table: &str,
+        context: Context,
+    ) -> Result<Vec<RowRuleVerdict>, RuntimeError> {
+        let rule = self
+            .generation
+            .schema
+            .table(table)
+            .map(|table| table.rules.read.clone())
+            .ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        let rows = self.engine.rows(table)?;
+        rows.into_iter()
+            .map(|row| {
+                let (admitted, trace) = self.engine.probe_rule(&rule, &row, context.clone())?;
+                Ok(RowRuleVerdict {
+                    id: row.field("id")?.as_str()?.to_owned(),
+                    admitted,
+                    trace,
+                })
+            })
+            .collect()
+    }
+
     pub fn channel_admit(
         &mut self,
         name: &str,
@@ -793,6 +829,7 @@ fn collect_reserved_rule_reads(rule: &RuleExpr, reads: &mut BTreeSet<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::schema::{ColumnType, Index, RuleTerm, Rules, Table};
 
     #[test]
     fn adhoc_execution_does_not_install_a_program_or_change_the_generation() {
@@ -827,5 +864,84 @@ mod tests {
             runtime.store().meta("generation").unwrap(),
             Some(before.hash)
         );
+    }
+
+    #[test]
+    fn read_rule_verdicts_are_engine_evaluated_over_every_stored_row() {
+        let schema = Schema {
+            tables: BTreeMap::from([(
+                "todos".to_owned(),
+                Table {
+                    columns: BTreeMap::from([
+                        ("id".to_owned(), ColumnType::Id),
+                        ("ownerId".to_owned(), ColumnType::Id),
+                    ]),
+                    indexes: BTreeMap::from([(
+                        "byId".to_owned(),
+                        Index {
+                            columns: vec!["id".to_owned()],
+                            unique: true,
+                        },
+                    )]),
+                    rules: Rules {
+                        read: RuleExpr::Eq(RuleTerm::Field("ownerId".to_owned()), RuleTerm::Viewer),
+                        insert: RuleExpr::Allow,
+                        update: RuleExpr::Allow,
+                        delete: RuleExpr::Allow,
+                    },
+                    constraints: Vec::new(),
+                },
+            )]),
+            ..Schema::default()
+        };
+        let generation = Generation::certify(
+            &ProjectJson {
+                version: 1,
+                schema,
+                programs: Vec::new(),
+                effects: Vec::new(),
+                auth: Auth::default(),
+            },
+            Ceilings::default(),
+        )
+        .unwrap();
+        let mut runtime = Runtime::open(Store::memory().unwrap(), generation).unwrap();
+        runtime
+            .seed(&[
+                (
+                    "todos".to_owned(),
+                    Value::Row(BTreeMap::from([
+                        ("id".to_owned(), Value::Id("seed".to_owned())),
+                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                    ])),
+                ),
+                (
+                    "todos".to_owned(),
+                    Value::Row(BTreeMap::from([
+                        ("id".to_owned(), Value::Id("ghost".to_owned())),
+                        ("ownerId".to_owned(), Value::Id("dev:alice".to_owned())),
+                    ])),
+                ),
+                (
+                    "todos".to_owned(),
+                    Value::Row(BTreeMap::from([
+                        ("id".to_owned(), Value::Id("denied".to_owned())),
+                        ("ownerId".to_owned(), Value::Id("dev:bob".to_owned())),
+                    ])),
+                ),
+            ])
+            .unwrap();
+        let mut context = Context::query("dev:alice", BTreeMap::new());
+        context.principal_kind = "persona".to_owned();
+
+        let verdicts = runtime.read_rule_verdicts("todos", context).unwrap();
+        let admitted = verdicts
+            .iter()
+            .filter(|verdict| verdict.admitted)
+            .map(|verdict| verdict.id.as_str())
+            .collect::<BTreeSet<_>>();
+
+        assert_eq!(verdicts.len(), 3);
+        assert_eq!(admitted, BTreeSet::from(["ghost", "seed"]));
     }
 }
