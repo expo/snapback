@@ -9,7 +9,7 @@
 **Related:** LLP 1000, LLP 1002 (the loop that serves this), LLP 1003 (effects
 through the outbox this spec defines), LLP 0329.014.004 §7 (runtime), LLP
 0329.014.000 §6 (execution, trace, states), LLP 0329.016 §5.6 (no silent
-states), `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
+states), LLP 0331 (the authorization and account model this engine's §6/§7 realize — one rule locus, a reserved `system` principal named in table rules; its rulings on the kind term, rule-input visibility, and disclosure are the follow-up `issues/20260830-snapback2-align-rules-with-llp-0331.md`), `spikes/bounded-programs/REPORT.md` ("Known S1 limits")
 
 ## Summary
 
@@ -390,6 +390,8 @@ per-principal encrypted client stores.
    state), but grok notes it is a disclosure LLP 0329.014.004 forbade in
    principle. The author should confirm, or choose the third form: `Capped`
    without `site`/`take`, or a hidden-row budget separate from `take`.
+   LLP 0331 §"Failure and disclosure semantics" ("production reads … reveal
+   no hidden row or relationship existence") is evidence for the third form.
 1. The `_commits` retention (10,000 rows) and whether `trace` needs the
    touched keys of older commits.
 2. Whether `Capped` should carry the site name on the wire or only the take.
