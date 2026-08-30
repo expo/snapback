@@ -89,6 +89,13 @@ that changed the declaration fails the row loudly (`E_EFFECT_THEN_CHANGED`)
 instead of running the new mutation against the old result. A `then` that is
 `Rejected` (e.g. a duplicate on a unique index) records `last_error` while the
 row still moves to `sent` — the effect happened; the bookkeeping did not.
+`then` is a bounded data program like any other: it runs as the `system`
+principal under the ordinary table rules (no seed-style exemption — that
+exists for declared data), so a bookkeeping table admits it with
+`insert: rule.principal('system')` (review ruling 2026-08-30). The runner
+thread never panics on row data and never stops on one bad row; a row for an
+effect the generation does not declare is settled `failed` at claim time,
+never `running`.
 
 - The runner claims with `UPDATE _outbox SET state='running', attempts=attempts+1,
   updated_at=? WHERE id=? AND state='queued'` — one row at a time, oldest
