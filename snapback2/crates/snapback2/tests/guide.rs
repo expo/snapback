@@ -26,6 +26,29 @@ fn app_guide_refuses_missing_certificates_and_failed_seed_facts_as_stale() {
     assert_eq!(refusal["rewrite"], "run snapback2 check");
 
     assert!(project.run(&["check", "--json"]).status.success());
+    let certificate_path = project.path.join(".snapback/build/certificates.json");
+    let mut certificates: serde_json::Value =
+        serde_json::from_slice(&fs::read(&certificate_path).unwrap()).unwrap();
+    certificates.as_object_mut().unwrap().remove("todos.list");
+    fs::write(
+        &certificate_path,
+        serde_json::to_vec(&certificates).unwrap(),
+    )
+    .unwrap();
+    let incomplete = project.run(&["guide", "app", "--json"]);
+    assert_eq!(incomplete.status.code(), Some(1));
+    let refusal = json_stdout(&incomplete);
+    assert_eq!(refusal["code"], "E_GUIDE_STALE");
+    assert!(
+        refusal["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("todos.list"),
+        "{refusal}"
+    );
+    assert_eq!(refusal["rewrite"], "run snapback2 check");
+
+    assert!(project.run(&["check", "--json"]).status.success());
     fs::write(
         project.path.join(".snapback/build/certificates.json"),
         "{not json",

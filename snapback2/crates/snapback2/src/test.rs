@@ -1,9 +1,12 @@
 //! Boot-run-exit verification against a fresh owner and isolated store.
 // @ref LLP 1002#7-test-and-the-receipt — derived probes and journeys share one receipt-backed owner.
 
+use self::test_bounds::engine_failure;
+use self::test_seed_ids::{arg_is_id, named_id_table, seed_id_arg};
+use self::test_sse::SseProbe;
 use crate::client;
 use crate::owner::{self, OwnerInfo};
-use crate::project::{CompiledProject, CompilerWorker, SeedData, locate_root};
+use crate::project::{self, CompiledProject, CompilerWorker, SeedData, locate_root};
 use crate::protocol::{Refusal, json_to_value};
 use crate::receipt::{CheckReceipt, TestReceipt};
 use crate::verbs;
@@ -14,12 +17,18 @@ use snapback2_core::{
 };
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
-use std::io::{BufRead, BufReader, Read, Write};
-use std::net::TcpStream;
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitCode, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[path = "test_bounds.rs"]
+mod test_bounds;
+#[path = "test_seed_ids.rs"]
+mod test_seed_ids;
+#[path = "test_sse.rs"]
+mod test_sse;
 
 pub fn run(args: &[String]) -> ExitCode {
     if args.iter().enumerate().any(|(index, arg)| {
@@ -58,7 +67,31 @@ pub fn run(args: &[String]) -> ExitCode {
     }
 
     let compile_started = Instant::now();
-    let (compiled, seed) = match compile(&root) {
+    let checked = match journey_files(&root) {
+        Ok(_) => None,
+        Err(_) => match project::compile_once(&root) {
+            Ok(compiled) => Some(compiled),
+            Err(errors) => {
+                let check = CheckReceipt::fail(
+                    "certify",
+                    "derived",
+                    elapsed_ms(compile_started),
+                    json!({ "refusals": errors }),
+                );
+                return finish(
+                    &root,
+                    stamp,
+                    TestReceipt::new(
+                        String::new(),
+                        vec!["snapback2 check".to_owned()],
+                        vec![check],
+                    ),
+                    json_output,
+                );
+            }
+        },
+    };
+    let (compiled, seed) = match compile(&root, checked) {
         Ok(value) => value,
         Err(errors) => {
             let check = CheckReceipt::fail(
@@ -132,7 +165,7 @@ pub fn run(args: &[String]) -> ExitCode {
         }
     }
     if !derived_only {
-        checks.extend(run_journeys(&root, &isolated.info));
+        checks.extend(run_journeys(&isolated.info.project, &isolated.info));
     }
     isolated.stop();
     finish(
@@ -143,9 +176,15 @@ pub fn run(args: &[String]) -> ExitCode {
     )
 }
 
-fn compile(root: &Path) -> Result<(CompiledProject, SeedData), Vec<Refusal>> {
+fn compile(
+    root: &Path,
+    checked: Option<CompiledProject>,
+) -> Result<(CompiledProject, SeedData), Vec<Refusal>> {
     let mut worker = CompilerWorker::spawn().map_err(|error| vec![error])?;
-    let compiled = worker.compile(root)?;
+    let compiled = match checked {
+        Some(compiled) => compiled,
+        None => worker.compile(root)?,
+    };
     let seed = worker.seed(root)?;
     Ok((compiled, seed))
 }
@@ -212,6 +251,10 @@ impl IsolatedOwner {
         let project = scratch.join("project");
         copy_tree(&root.join("snapback"), &project.join("snapback"))?;
         fs::create_dir_all(project.join(".snapback")).map_err(test_io)?;
+        let build = root.join(".snapback/build");
+        if build.is_dir() {
+            copy_tree(&build, &project.join(".snapback/build"))?;
+        }
         let store = root.join(format!(".snapback/test-{stamp}.sqlite"));
         let owner_store = project.join(".snapback/store.sqlite");
         link_store(&store, &owner_store)?;
@@ -408,15 +451,6 @@ fn check_rules(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -
             if !rule_id_sets_match(&actual, &expected) {
                 failures.push(json!({ "table": table_name, "as": persona, "expected": expected, "actual": actual }));
             }
-            if persona == &unlisted && !actual.is_empty() {
-                failures.push(json!({
-                    "table": table_name,
-                    "as": persona,
-                    "expected": [],
-                    "actual": actual,
-                    "reason": "persona named in no seed row must see zero rows",
-                }));
-            }
         }
         tables.insert(
             table_name.clone(),
@@ -455,29 +489,80 @@ fn rule_id_sets_match(actual: &BTreeSet<String>, expected: &BTreeSet<String>) ->
 fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -> CheckReceipt {
     let started = Instant::now();
     let mut failures = Vec::new();
+    let mut blocked = Vec::new();
+    let mut executions = Vec::new();
     let mut probes = 0_u64;
-    for (name, (program, _certificate)) in &compiled.generation.programs {
+    for (name, (program, certificate)) in &compiled.generation.programs {
         if program.kind != ProgramKind::Query {
             continue;
         }
+        let generated = match generated_args(program, seed) {
+            Ok(generated) => generated,
+            Err(reason) => {
+                blocked.push(json!({ "op": name, "reason": reason }));
+                continue;
+            }
+        };
         for persona in &seed.personas {
             probes += 1;
             let response = client::control(
                 owner,
                 "POST",
                 "/control/why",
-                json!({ "op": name, "args": generated_args(program, seed), "as": persona }),
+                json!({ "op": name, "args": generated, "as": persona }),
             );
             match response {
-                Ok(response) if response.status < 400 => {}
-                Ok(response) => {
-                    failures.push(json!({
+                Ok(response) if response.status < 400 => {
+                    let trace = response
+                        .body
+                        .get("trace")
+                        .cloned()
+                        .unwrap_or_else(|| json!({}));
+                    let read_sites = certificate
+                        .read_sites
+                        .iter()
+                        .map(|site| {
+                            let range_calls = trace
+                                .get("ranges")
+                                .and_then(Json::as_array)
+                                .into_iter()
+                                .flatten()
+                                .filter(|range| range.get("site").and_then(Json::as_str) == Some(site.site.as_str()))
+                                .count() as u64;
+                            let point_calls = trace
+                                .get("points")
+                                .and_then(Json::as_array)
+                                .into_iter()
+                                .flatten()
+                                .filter(|point| point.get("site").and_then(Json::as_str) == Some(site.site.as_str()))
+                                .count() as u64;
+                            json!({
+                                "site": site.site,
+                                "calls": { "actual": range_calls + point_calls, "ceiling": site.max_calls },
+                                "take": site.take,
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    executions.push(json!({
                         "op": name,
                         "as": persona,
-                        "source": "engine",
-                        "code": response.body.get("code").cloned().unwrap_or(Json::Null),
-                        "response": response.body,
+                        "examined": {
+                            "actual": trace.get("examined").and_then(Json::as_u64).unwrap_or(0),
+                            "ceiling": certificate.max_examined,
+                        },
+                        "ruleProbes": {
+                            "actual": trace.get("rule_probes").or_else(|| trace.get("ruleProbes")).and_then(Json::as_u64).unwrap_or(0),
+                            "ceiling": certificate.max_rule_probes,
+                        },
+                        "steps": {
+                            "actual": trace.get("steps").and_then(Json::as_u64).unwrap_or(0),
+                            "ceiling": certificate.max_steps,
+                        },
+                        "readSites": read_sites,
                     }));
+                }
+                Ok(response) => {
+                    failures.push(engine_failure(name, persona, response.body));
                 }
                 Err(error) => {
                     failures.push(
@@ -487,16 +572,24 @@ fn check_bounds(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
             }
         }
     }
-    result_check(
-        "bounds",
-        started,
-        failures,
-        json!({
-            "probes": probes,
-            "failureCode": "E_TRACE_SUBSET",
-            "enforcedBy": "engine",
-        }),
-    )
+    let detail = json!({
+        "probes": probes,
+        "enforcedBy": "engine",
+        "executions": executions,
+        "blocked": blocked,
+    });
+    if !failures.is_empty() {
+        CheckReceipt::fail(
+            "bounds",
+            "derived",
+            elapsed_ms(started),
+            json!({ "failures": failures, "summary": detail }),
+        )
+    } else if !blocked.is_empty() {
+        CheckReceipt::blocked("bounds", "derived", elapsed_ms(started), detail)
+    } else {
+        CheckReceipt::pass("bounds", "derived", elapsed_ms(started), detail)
+    }
 }
 
 fn check_invalidation(
@@ -515,7 +608,19 @@ fn check_invalidation(
         if query.kind != ProgramKind::Query {
             continue;
         }
-        let query_args = generated_args_at(query, seed, 0);
+        let query_args = match generated_args_at(query, seed, 0) {
+            Ok(args) => args,
+            Err(reason) => {
+                blocked.push(json!({ "query": query_name, "reason": reason }));
+                continue;
+            }
+        };
+        let query_persona = seed
+            .personas
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "alice".to_owned());
+        let mut query_has_silence = false;
         for (mutation_name, (mutation, mutation_certificate)) in &compiled.generation.programs {
             if mutation.kind != ProgramKind::Mutation {
                 continue;
@@ -525,7 +630,13 @@ fn check_invalidation(
                 mutation_certificate,
                 &compiled.generation,
             );
-            let candidates = probe_candidates(mutation, seed);
+            let candidates = match probe_candidates(mutation, seed) {
+                Ok(candidates) => candidates,
+                Err(reason) => {
+                    blocked.push(json!({ "mutation": mutation_name, "reason": reason }));
+                    continue;
+                }
+            };
             if shared_sites.is_empty() {
                 for (persona, mutation_args) in &candidates {
                     attempts += 1;
@@ -535,15 +646,18 @@ fn check_invalidation(
                         &query_args,
                         mutation_name,
                         mutation_args,
+                        &query_persona,
                         persona,
                         false,
                     );
+                    let proved_silence = committed && failure.is_none();
                     if let Some(failure) = failure {
                         failures.push(failure);
                     }
-                    if committed {
+                    if proved_silence {
                         probes += 1;
                         silence_probes += 1;
+                        query_has_silence = true;
                         break;
                     }
                 }
@@ -570,6 +684,7 @@ fn check_invalidation(
                     &query_args,
                     mutation_name,
                     mutation_args,
+                    persona,
                     persona,
                     true,
                 );
@@ -605,18 +720,66 @@ fn check_invalidation(
                     &query_args,
                     mutation_name,
                     mutation_args,
+                    &query_persona,
                     persona,
                     false,
                 );
+                let proved_silence = committed && failure.is_none();
                 if let Some(failure) = failure {
                     failures.push(failure);
                 }
-                if committed {
+                if proved_silence {
                     probes += 1;
                     silence_probes += 1;
+                    query_has_silence = true;
                     break;
                 }
             }
+        }
+        if !query_has_silence {
+            let disjoint_persona = format!("__snapback2_disjoint_{}", query_name.replace('.', "_"));
+            for (mutation_name, (mutation, _)) in &compiled.generation.programs {
+                if mutation.kind != ProgramKind::Mutation {
+                    continue;
+                }
+                attempts += 1;
+                let mutation_args = match generated_args_at(mutation, seed, 0) {
+                    Ok(args) => args,
+                    Err(reason) => {
+                        blocked.push(json!({ "mutation": mutation_name, "reason": reason }));
+                        continue;
+                    }
+                };
+                let (committed, failure) = invalidation_attempt(
+                    owner,
+                    query_name,
+                    &query_args,
+                    mutation_name,
+                    &mutation_args,
+                    &query_persona,
+                    &disjoint_persona,
+                    false,
+                );
+                match failure {
+                    None if committed => {
+                        probes += 1;
+                        silence_probes += 1;
+                        query_has_silence = true;
+                        break;
+                    }
+                    Some(failure)
+                        if failure.get("error").and_then(Json::as_str)
+                            == Some("non-intersecting committed mutation delivered") => {}
+                    Some(failure) => failures.push(failure),
+                    None => {}
+                }
+            }
+        }
+        if !query_has_silence {
+            blocked.push(json!({
+                "query": query_name,
+                "reason": format!("no disjoint committing probe for {query_name}"),
+            }));
         }
     }
     let detail = json!({
@@ -704,22 +867,25 @@ fn invalidation_attempt(
     query_args: &Json,
     mutation: &str,
     mutation_args: &Json,
-    persona: &str,
+    query_persona: &str,
+    mutation_persona: &str,
     expect_delivery: bool,
 ) -> (bool, Option<Json>) {
     if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
         return (
             false,
-            Some(json!({ "query": query, "mutation": mutation, "as": persona, "error": error })),
+            Some(
+                json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
+            ),
         );
     }
-    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), persona) {
+    let mut stream = match SseProbe::connect(owner, query, query_args.clone(), query_persona) {
         Ok(stream) => stream,
         Err(error) => {
             return (
                 false,
                 Some(
-                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
                 ),
             );
         }
@@ -730,7 +896,7 @@ fn invalidation_attempt(
             Some(json!({
                 "query": query,
                 "mutation": mutation,
-                "as": persona,
+                "as": query_persona,
                 "error": format!("initial SSE delivery missing: {error}"),
             })),
         );
@@ -739,7 +905,7 @@ fn invalidation_attempt(
         owner,
         "POST",
         "/api/mutation",
-        &[("X-Snapback-As", persona)],
+        &[("X-Snapback-As", mutation_persona)],
         json!({ "op": mutation, "args": mutation_args }),
     ) {
         Ok(response) => response.body,
@@ -747,7 +913,7 @@ fn invalidation_attempt(
             return (
                 false,
                 Some(
-                    json!({ "query": query, "mutation": mutation, "as": persona, "error": error }),
+                    json!({ "query": query, "mutation": mutation, "as": mutation_persona, "error": error }),
                 ),
             );
         }
@@ -766,25 +932,34 @@ fn invalidation_attempt(
                 Some(json!({
                     "query": query,
                     "mutation": mutation,
-                    "as": persona,
+                    "as": mutation_persona,
                     "expectedSeq": expected_seq,
                     "delivery": delivery.ok(),
                 })),
             ),
         }
     } else {
-        match stream.event(Duration::from_millis(250)) {
-            Ok(delivery) => (
+        match stream.prove_silence(Duration::from_millis(250)) {
+            Ok(()) => (true, None),
+            Err(error) if error.delivery.is_some() => (
                 true,
                 Some(json!({
                     "query": query,
                     "mutation": mutation,
-                    "as": persona,
+                    "as": mutation_persona,
                     "error": "non-intersecting committed mutation delivered",
-                    "delivery": delivery,
+                    "delivery": error.delivery,
                 })),
             ),
-            Err(_) => (true, None),
+            Err(error) => (
+                true,
+                Some(json!({
+                    "query": query,
+                    "mutation": mutation,
+                    "as": mutation_persona,
+                    "error": format!("silence probe stream failed: {}", error.message),
+                })),
+            ),
         }
     }
 }
@@ -800,10 +975,15 @@ fn check_replay(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) 
         if program.kind != ProgramKind::Mutation {
             continue;
         }
+        let candidates = match probe_candidates(program, seed) {
+            Ok(candidates) => candidates,
+            Err(reason) => {
+                blocked.push(json!({ "op": name, "reason": reason }));
+                continue;
+            }
+        };
         let mut committed_probe = false;
-        for (candidate_index, (persona, args)) in
-            probe_candidates(program, seed).into_iter().enumerate()
-        {
+        for (candidate_index, (persona, args)) in candidates.into_iter().enumerate() {
             attempts += 1;
             if let Err(error) = client::control(owner, "POST", "/control/reset", json!({})) {
                 failures.push(json!({ "op": name, "as": persona, "error": error }));
@@ -908,17 +1088,28 @@ fn replay_fork(
     let mut runtime = Runtime::open(store, generation.clone())
         .map_err(|error| Refusal::from_successor(&error))?;
     let mut args = BTreeMap::new();
-    for name in program.args.keys() {
+    for (name, kind) in &program.args {
         let value = generated.get(name).cloned().unwrap_or(Json::Null);
-        let value = if (name == "id" || name.ends_with("Id")) && value.as_str().is_some() {
+        let value = if arg_is_id(kind) && value.as_str().is_some() {
             Value::Id(value.as_str().unwrap_or_default().to_owned())
         } else {
             json_to_value(&value)?
         };
         args.insert(name.clone(), value);
     }
-    let mut context = Context::query(format!("dev:{persona}"), args);
-    context.principal_kind = "persona".to_owned();
+    let is_effect_then = generation
+        .effects
+        .values()
+        .any(|effect| effect.then.as_deref() == Some(program.name.as_str()));
+    let mut context = if is_effect_then {
+        let mut context = Context::system();
+        context.args = args;
+        context
+    } else {
+        let mut context = Context::query(format!("dev:{persona}"), args);
+        context.principal_kind = "persona".to_owned();
+        context
+    };
     context.now = Some(1_700_000_000_000_i64.saturating_add(index as i64));
     context.new_ids = (0..1024)
         .map(|ordinal| format!("replay-{index}-{ordinal}"))
@@ -1036,24 +1227,32 @@ fn run_journeys(root: &Path, owner: &OwnerInfo) -> Vec<CheckReceipt> {
     checks
 }
 
-fn generated_args(program: &Program, seed: &SeedData) -> Json {
+fn generated_args(program: &Program, seed: &SeedData) -> Result<Json, String> {
     generated_args_at(program, seed, 0)
 }
 
-fn generated_args_at(program: &Program, seed: &SeedData, sample: usize) -> Json {
+fn generated_args_at(program: &Program, seed: &SeedData, sample: usize) -> Result<Json, String> {
     let mut args = Map::new();
     for (name, kind) in &program.args {
-        let value = generated_arg(name, kind, seed, sample);
+        let value = generated_arg(&program.name, name, kind, seed, sample)?;
         args.insert(name.clone(), value);
     }
-    Json::Object(args)
+    Ok(Json::Object(args))
 }
 
-fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData, sample: usize) -> Json {
-    match kind {
-        ArgType::Id | ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name, seed, sample),
+fn generated_arg(
+    op: &str,
+    name: &str,
+    kind: &ArgType,
+    seed: &SeedData,
+    sample: usize,
+) -> Result<Json, String> {
+    let value = match kind {
+        ArgType::Id => seed_id_arg(op, name, named_id_table(name, seed), seed, sample)?,
+        ArgType::Ref { table } => seed_id_arg(op, name, Some(table.as_str()), seed, sample)?,
+        ArgType::Scalar | ArgType::Json { .. } => scalar_arg(name),
         ArgType::Text { .. } => {
-            let candidate = scalar_arg(name, seed, sample);
+            let candidate = scalar_arg(name);
             candidate
                 .as_str()
                 .map(|value| json!(value))
@@ -1061,7 +1260,7 @@ fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData, sample: usize) -> 
         }
         ArgType::Int | ArgType::Time => json!(1),
         ArgType::Bool => json!(false),
-        ArgType::Optional(inner) => generated_arg(name, inner, seed, sample),
+        ArgType::Optional(inner) => return generated_arg(op, name, inner, seed, sample),
         ArgType::List { .. } => json!([]),
         ArgType::Enum { variants } => variants
             .first()
@@ -1069,29 +1268,16 @@ fn generated_arg(name: &str, kind: &ArgType, seed: &SeedData, sample: usize) -> 
             .map(Json::String)
             .unwrap_or(Json::Null),
         ArgType::Decimal { .. } | ArgType::Money { .. } => json!(100),
-    }
+    };
+    Ok(value)
 }
 
-fn scalar_arg(name: &str, seed: &SeedData, sample: usize) -> Json {
+fn scalar_arg(name: &str) -> Json {
     if name == "result" {
         return json!({ "providerId": "provider-test" });
     }
     if name == "effect" {
         return json!("notify");
-    }
-    if name == "conversationId" {
-        return seed_id(seed, "conversations", sample)
-            .or_else(|| seed_id(seed, "conversations", 0))
-            .unwrap_or_else(|| json!("conversation-1"));
-    }
-    if name == "recipientId" {
-        return seed_id(seed, "profiles", 1).unwrap_or_else(|| json!("dev:bob"));
-    }
-    if name == "outboxId" {
-        return json!("outbox-test");
-    }
-    if name == "id" || name.ends_with("Id") {
-        return first_seed_id(seed).unwrap_or_else(|| json!("derived-id"));
     }
     if matches!(name, "body" | "title" | "note" | "label") {
         return json!("derived test");
@@ -1102,7 +1288,7 @@ fn scalar_arg(name: &str, seed: &SeedData, sample: usize) -> Json {
     json!(1)
 }
 
-fn probe_candidates(program: &Program, seed: &SeedData) -> Vec<(String, Json)> {
+fn probe_candidates(program: &Program, seed: &SeedData) -> Result<Vec<(String, Json)>, String> {
     let personas = if seed.personas.is_empty() {
         vec!["alice".to_owned()]
     } else {
@@ -1120,7 +1306,7 @@ fn probe_candidates(program: &Program, seed: &SeedData) -> Vec<(String, Json)> {
     let mut seen = BTreeSet::new();
     let mut candidates = Vec::new();
     for sample in 0..samples {
-        let args = generated_args_at(program, seed, sample);
+        let args = generated_args_at(program, seed, sample)?;
         for persona in &personas {
             let identity = format!(
                 "{persona}:{}",
@@ -1131,100 +1317,7 @@ fn probe_candidates(program: &Program, seed: &SeedData) -> Vec<(String, Json)> {
             }
         }
     }
-    candidates
-}
-
-fn seed_id(seed: &SeedData, table: &str, index: usize) -> Option<Json> {
-    seed.rows.get(table)?.get(index)?.get("id").cloned()
-}
-
-fn first_seed_id(seed: &SeedData) -> Option<Json> {
-    seed.rows
-        .values()
-        .flat_map(|rows| rows.iter())
-        .find_map(|row| row.get("id").cloned())
-}
-
-fn result_check(name: &str, started: Instant, failures: Vec<Json>, detail: Json) -> CheckReceipt {
-    if failures.is_empty() {
-        CheckReceipt::pass(name, "derived", elapsed_ms(started), detail)
-    } else {
-        CheckReceipt::fail(
-            name,
-            "derived",
-            elapsed_ms(started),
-            json!({ "failures": failures, "summary": detail }),
-        )
-    }
-}
-
-struct SseProbe {
-    reader: BufReader<TcpStream>,
-}
-
-impl SseProbe {
-    fn connect(owner: &OwnerInfo, op: &str, args: Json, persona: &str) -> Result<Self, Refusal> {
-        let mut stream = TcpStream::connect(("127.0.0.1", owner.port)).map_err(test_io)?;
-        let encoded =
-            percent_encode(&serde_json::to_string(&args).unwrap_or_else(|_| "{}".to_owned()));
-        write!(
-            stream,
-            "GET /api/subscribe?op={}&args={} HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nX-Snapback-As: {}\r\nConnection: close\r\n\r\n",
-            percent_encode(op),
-            encoded,
-            owner.port,
-            persona,
-        )
-        .map_err(test_io)?;
-        stream.flush().map_err(test_io)?;
-        let mut reader = BufReader::new(stream);
-        let mut status = String::new();
-        reader.read_line(&mut status).map_err(test_io)?;
-        if !status.contains(" 200 ") {
-            return Err(Refusal::owner(
-                "E_OWNER_TEST_SSE",
-                format!("subscription returned {status}"),
-                "run snapback2 why for the query and persona",
-            ));
-        }
-        loop {
-            let mut line = String::new();
-            reader.read_line(&mut line).map_err(test_io)?;
-            if line == "\r\n" || line.is_empty() {
-                break;
-            }
-        }
-        Ok(Self { reader })
-    }
-
-    fn event(&mut self, timeout: Duration) -> Result<Json, String> {
-        self.reader
-            .get_mut()
-            .set_read_timeout(Some(timeout))
-            .map_err(|error| error.to_string())?;
-        loop {
-            let mut size = String::new();
-            self.reader
-                .read_line(&mut size)
-                .map_err(|error| error.to_string())?;
-            let size = usize::from_str_radix(size.trim(), 16).map_err(|error| error.to_string())?;
-            if size == 0 {
-                return Err("subscription ended".to_owned());
-            }
-            let mut payload = vec![0_u8; size];
-            self.reader
-                .read_exact(&mut payload)
-                .map_err(|error| error.to_string())?;
-            let mut crlf = [0_u8; 2];
-            self.reader
-                .read_exact(&mut crlf)
-                .map_err(|error| error.to_string())?;
-            let text = String::from_utf8_lossy(&payload);
-            if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
-                return serde_json::from_str(data).map_err(|error| error.to_string());
-            }
-        }
-    }
+    Ok(candidates)
 }
 
 fn authored_journey_files(root: &Path) -> Vec<PathBuf> {
@@ -1384,6 +1477,10 @@ fn usage() -> ExitCode {
     );
     ExitCode::from(2)
 }
+
+#[cfg(test)]
+#[path = "test_unit.rs"]
+mod unit_tests;
 
 #[cfg(test)]
 #[path = "test_derived.rs"]

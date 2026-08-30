@@ -101,19 +101,23 @@ if (emitted.emitSkipped) throw new Error("TypeScript skipped client declaration 
 const guideSource = resolve(here, "guide");
 const guide = resolve(dist, "guide");
 await cp(guideSource, guide, { recursive: true });
-const families = JSON.parse(await readFile(resolve(guideSource, "families.source.json"), "utf8"));
-if (!Array.isArray(families) || new Set(families.map((entry) => entry.family)).size !== families.length
-  || families.some((entry) => !entry.family || !entry.code || !entry.wrong || !entry.right)) {
-  throw new Error("guide/families.source.json must contain one complete wrong/right pair per family");
+let families = [];
+const familyErrors = [];
+try {
+  families = JSON.parse(await readFile(resolve(guideSource, "families.source.json"), "utf8"));
+  familyErrors.push(...familyFailures(families));
+} catch (error) {
+  familyErrors.push(`guide/families.source.json: invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
 }
-await writeFile(resolve(guide, "families.json"), `${JSON.stringify(families, null, 2)}\n`);
+if (familyErrors.length === 0) {
+  await writeFile(resolve(guide, "families.json"), `${JSON.stringify(families, null, 2)}\n`);
+}
 await rm(resolve(guide, "families.source.json"));
 
 const fixtures = resolve(here, "../compiler/fixtures");
 const templateDist = resolve(dist, "templates");
 const chatTarget = resolve(templateDist, "chat", "snapback");
-await cp(resolve(fixtures, "chat", "snapback"), chatTarget, { recursive: true });
-await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true, force: true });
+await cp(resolve(here, "templates/chat/snapback"), chatTarget, { recursive: true });
 await cp(
   resolve(here, "templates/todos/snapback"),
   resolve(templateDist, "todos", "snapback"),
@@ -129,21 +133,56 @@ const guidePages = await Promise.all(
     limit: name === "grammar" ? 2048 : 4096,
   })),
 );
-const guideErrors = guideFailures(guidePages, fixtureText);
+const guideErrors = [...familyErrors, ...guideFailures(guidePages, fixtureText)];
 if (guideErrors.length > 0) {
   throw new Error(`guide validation failed:\n${guideErrors.join("\n")}`);
 }
 
 if (process.argv.includes("--self-test")) {
-  const failures = guideFailures([
+  const failures = [
+    ...familyFailures([
+      { family: "duplicate", code: "E_ONE", wrong: "wrong", right: "right" },
+      { family: "duplicate", code: "", wrong: "", right: "" },
+    ]),
+    ...guideFailures([
     { name: "oversized", markdown: "x".repeat(5), limit: 4 },
     { name: "stale", markdown: "```ts\nmissing()\n```", limit: 100 },
     { name: "valid", markdown: "```ts\npresent()\n```", limit: 100 },
-  ], "present()");
-  if (failures.length !== 2 || !failures.some((item) => item.includes("oversized")) || !failures.some((item) => item.includes("stale"))) {
+    ], "present()"),
+  ];
+  if (!failures.some((item) => item.includes("families.source.json[1]"))
+    || !failures.some((item) => item.includes("duplicate family"))
+    || !failures.some((item) => item.includes("oversized"))
+    || !failures.some((item) => item.includes("stale"))) {
     throw new Error(`guide validation self-test lost failures: ${JSON.stringify(failures)}`);
   }
   console.log(`guide validation self-test ok: ${failures.join(" | ")}`);
+}
+
+function familyFailures(value) {
+  if (!Array.isArray(value)) {
+    return ["guide/families.source.json: expected an array of family records"];
+  }
+  const failures = [];
+  const familyCounts = new Map();
+  for (const [index, entry] of value.entries()) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      failures.push(`guide/families.source.json[${index}]: expected an object`);
+      continue;
+    }
+    const missing = ["family", "code", "wrong", "right"]
+      .filter((field) => typeof entry[field] !== "string" || entry[field].length === 0);
+    if (missing.length > 0) {
+      failures.push(`guide/families.source.json[${index}]: missing ${missing.join(", ")}`);
+    }
+    if (typeof entry.family === "string" && entry.family.length > 0) {
+      familyCounts.set(entry.family, (familyCounts.get(entry.family) ?? 0) + 1);
+    }
+  }
+  for (const [family, count] of familyCounts) {
+    if (count > 1) failures.push(`guide/families.source.json: duplicate family ${family}`);
+  }
+  return failures;
 }
 
 function guideFailures(pages, fixturesText) {

@@ -219,6 +219,7 @@ fn package_fingerprint(root: &Path) -> String {
     let mut hasher = DefaultHasher::new();
     hash_tree(&root.join("packages/snapback2"), &mut hasher);
     hash_tree(&root.join("packages/compiler/src"), &mut hasher);
+    hash_tree(&root.join("packages/compiler/fixtures"), &mut hasher);
     format!("{:016x}", hasher.finish())
 }
 

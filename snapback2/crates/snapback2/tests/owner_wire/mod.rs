@@ -131,20 +131,41 @@ impl Sse {
     }
 
     pub(super) fn assert_silent(&mut self, timeout: Duration) {
-        self.reader
-            .get_mut()
-            .set_read_timeout(Some(timeout))
-            .unwrap();
-        let mut size = String::new();
-        match self.reader.read_line(&mut size) {
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                ) => {}
-            Ok(0) => panic!("subscription closed while silence was expected"),
-            Ok(_) => panic!("subscription delivered while silence was expected: {size:?}"),
-            Err(error) => panic!("subscription silence probe failed: {error}"),
+        let started = std::time::Instant::now();
+        loop {
+            let remaining = timeout.saturating_sub(started.elapsed());
+            self.reader
+                .get_mut()
+                .set_read_timeout(Some(remaining))
+                .unwrap();
+            let mut size = String::new();
+            match self.reader.read_line(&mut size) {
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    break;
+                }
+                Ok(0) => panic!("subscription closed while silence was expected"),
+                Ok(_) => {}
+                Err(error) => panic!("subscription silence probe failed: {error}"),
+            }
+            let size = usize::from_str_radix(size.trim(), 16).unwrap();
+            assert!(size > 0, "subscription closed while silence was expected");
+            let mut bytes = vec![0; size];
+            self.reader.read_exact(&mut bytes).unwrap();
+            let mut ending = [0; 2];
+            self.reader.read_exact(&mut ending).unwrap();
+            let text = String::from_utf8(bytes).unwrap();
+            if text.lines().any(|line| line.starts_with("data: ")) {
+                panic!("subscription delivered while silence was expected: {text:?}");
+            }
+            assert!(
+                text.lines().any(|line| line == ": heartbeat"),
+                "unexpected SSE frame while silence was expected: {text:?}"
+            );
         }
         self.reader
             .get_mut()

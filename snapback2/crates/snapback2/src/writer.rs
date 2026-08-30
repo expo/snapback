@@ -245,6 +245,7 @@ struct State {
     ledger: VecDeque<CommitLedger>,
     next_channel: u64,
     clock_offset_ms: i64,
+    restarted_through_seq: u64,
     stop: Arc<AtomicBool>,
     owner: OwnerInfo,
     exited: bool,
@@ -257,6 +258,7 @@ pub fn spawn_writer(
     seed: SeedData,
     root: PathBuf,
     mode: String,
+    restarted_through_seq: u64,
     stop: Arc<AtomicBool>,
     owner: OwnerInfo,
 ) -> Result<OwnerHandle, Refusal> {
@@ -278,6 +280,7 @@ pub fn spawn_writer(
                     ledger: VecDeque::new(),
                     next_channel: 0,
                     clock_offset_ms: 0,
+                    restarted_through_seq,
                     stop,
                     owner,
                     exited: false,
@@ -1241,7 +1244,7 @@ fn json_as_arg(value: &Json, kind: &ArgType) -> Result<Value, Refusal> {
     match kind {
         ArgType::Optional(_) if value.is_null() => Ok(Value::Null),
         ArgType::Optional(inner) => json_as_arg(value, inner),
-        ArgType::Id => value
+        ArgType::Id | ArgType::Ref { .. } => value
             .as_str()
             .map(|value| Value::Id(value.to_owned()))
             .ok_or_else(|| Refusal::input("id arguments must be strings", "pass a string id")),

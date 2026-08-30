@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = new Set(process.argv.slice(2));
+const testTemplates = ["todos", "chat"];
 const run = (cmd, argv, opts = {}) => {
   const t0 = performance.now();
   const r = spawnSync(cmd, argv, { cwd: root, encoding: "utf8", ...opts });
@@ -77,6 +78,31 @@ function scoreChecks(checks, budget, failedSteps, report = console.log, refuse =
       }
     }
   }
+}
+
+function testVerdict(result, allowEffectsBlocked) {
+  let receipt;
+  try {
+    receipt = JSON.parse(result.stdout);
+  } catch {
+    return { accepted: false, verdict: "invalid receipt" };
+  }
+  if (result.status === 0 && receipt.verdict === "pass") {
+    return { accepted: true, verdict: "pass" };
+  }
+  const effects = Array.isArray(receipt.checks)
+    ? receipt.checks.find((check) => check.name === "effects")
+    : undefined;
+  const onlyEffectsBlocked = Array.isArray(receipt.checks)
+    && receipt.checks.every((check) => check === effects
+      ? check.verdict === "blocked"
+      : check.verdict === "pass");
+  if (allowEffectsBlocked && result.status === 1 && receipt.verdict === "blocked"
+    && onlyEffectsBlocked && effects?.verdict === "blocked"
+    && effects?.detail?.reason === "no engine in this build") {
+    return { accepted: true, verdict: "blocked", blocked: "effects" };
+  }
+  return { accepted: false, verdict: receipt.verdict ?? "missing" };
 }
 
 const failedSummary = (failedSteps) => `failed steps: ${[...failedSteps].join(", ")}`;
@@ -205,19 +231,32 @@ function main() {
     return { status: 0 };
   }, 3, () => "initialized owner cleanup failed");
 
-  let productTestRoot;
-  recordStep(record, failedSteps, "test_init_s", () => {
-    productTestRoot = mkdtempSync(resolve(tmpdir(), "snapback2-test-measure-"));
-    return run(bin, ["init", productTestRoot, "--template", "todos", "--client", "none", "--json"], { env: compilerEnv });
-  }, 3, (result) => `todos init failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-  const productTest = recordStep(record, failedSteps, "test_s", () => {
-    if (!productTestRoot) throw new Error("product test root setup failed");
-    return run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
-  }, 3, (result) => `todos template test failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
-  recordStep(record, failedSteps, "test_cleanup_s", () => {
-    if (productTestRoot) rmSync(productTestRoot, { recursive: true, force: true });
-    return { status: 0 };
-  }, 3, () => "todos template cleanup failed");
+  const productTestSteps = [];
+  for (const template of testTemplates) {
+    let productTestRoot;
+    const initialized = recordStep(record, failedSteps, `test_${template}_init_s`, () => {
+      productTestRoot = mkdtempSync(resolve(tmpdir(), `snapback2-test-${template}-measure-`));
+      return run(bin, ["init", productTestRoot, "--template", template, "--client", "none", "--json"], { env: compilerEnv });
+    }, 3, (result) => `${template} init failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+    let verdict = { accepted: false, verdict: "not run" };
+    const measured = recordStep(record, failedSteps, `test_${template}_s`, () => {
+      if (!productTestRoot) throw new Error(`${template} test root setup failed`);
+      const result = run(bin, ["test", "--project", productTestRoot, "--json"], { env: compilerEnv });
+      verdict = testVerdict(result, template === "chat");
+      return {
+        ...result,
+        status: initialized.step.ok && verdict.accepted ? 0 : 1,
+      };
+    }, 3, (result) => `${template} template test verdict ${verdict.verdict} was not acceptable\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+    measured.step.verdict = verdict.verdict;
+    if (verdict.blocked) measured.step.blocked = verdict.blocked;
+    record[`test_${template}_verdict`] = verdict.verdict;
+    productTestSteps.push([`snapback2 test (${template})`, measured.step]);
+    recordStep(record, failedSteps, `test_${template}_cleanup_s`, () => {
+      if (productTestRoot) rmSync(productTestRoot, { recursive: true, force: true });
+      return { status: 0 };
+    }, 3, () => `${template} template cleanup failed`);
+  }
   try { record.production_binary_bytes = statSync(resolve(root, "target/production/snapback2")).size; } catch {}
 
   try {
@@ -252,7 +291,7 @@ function main() {
     ], budget, failedSteps);
     scoreChecks([
       ["init → dev", initToDev.step],
-      ["snapback2 test", productTest.step],
+      ...productTestSteps,
     ], (label) => label === "init → dev" ? 10 : 30, failedSteps);
   }
 
@@ -307,6 +346,22 @@ function selfTest() {
   const summary = failedSummary(failures);
   assert(summary.includes("check_project_s"));
   assert(summary.includes("dev_boot_s"));
+  assert.deepEqual(testTemplates, ["todos", "chat"]);
+  assert.deepEqual(
+    testVerdict({ status: 0, stdout: JSON.stringify({ verdict: "pass", checks: [] }) }, false),
+    { accepted: true, verdict: "pass" },
+  );
+  assert.deepEqual(
+    testVerdict({
+      status: 1,
+      stdout: JSON.stringify({
+        verdict: "blocked",
+        checks: [{ name: "effects", verdict: "blocked", detail: { reason: "no engine in this build" } }],
+      }),
+    }, true),
+    { accepted: true, verdict: "blocked", blocked: "effects" },
+  );
+  assert.equal(testVerdict({ status: 1, stdout: "{}" }, true).accepted, false);
   process.exitCode = originalExitCode;
   console.log("measure self-test ok");
 }

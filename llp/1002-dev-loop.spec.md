@@ -254,7 +254,10 @@ read-only in the receipt, never editable):
    by evaluating the rule per row on the server) and a persona named in no
    row sees none of the owner-scoped rows.
 3. `bounds` — every query runs as every seed persona; its authoritative trace
-   is `⊆` its certificate (`E_TRACE_SUBSET` is the failure).
+   is `⊆` its certificate (`E_TRACE_SUBSET` is the failure). Derived `t.ref`
+   arguments take IDs only from that table's seed rows; a bare `<x>Id: t.id()`
+   resolves an unambiguous singular/plural table name or blocks rather than
+   guessing an unrelated seed row.
 4. `invalidation` — for every query and every seed mutation whose write sites
    intersect the query's read sites: subscribe, run the mutation as its seed
    persona, assert a delivery arrives with the new `seq`; for a mutation whose

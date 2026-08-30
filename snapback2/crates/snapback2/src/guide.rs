@@ -124,6 +124,18 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
             certificate_path.display()
         ))
     })?;
+    let missing_certificates = project
+        .programs
+        .iter()
+        .filter(|program| certificates.get(&program.name).is_none())
+        .map(|program| program.name.clone())
+        .collect::<Vec<_>>();
+    if !missing_certificates.is_empty() {
+        return Err(guide_stale(format!(
+            "certificates.json is missing operation(s): {}",
+            missing_certificates.join(", ")
+        )));
+    }
     let generation = Generation::certify(&project, Ceilings::default())
         .map_err(|errors| {
             Refusal::owner(
@@ -175,7 +187,9 @@ fn app_page(options: &verbs::ParsedOptions<'_>) -> Result<String, Refusal> {
         .programs
         .iter()
         .map(|program| {
-            let certificate = certificates.get(&program.name).cloned().unwrap_or(Json::Null);
+            let certificate = certificates
+                .get(&program.name)
+                .expect("missing certificates refused above");
             (
                 program.name.clone(),
                 json!({

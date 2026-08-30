@@ -514,6 +514,24 @@ test("chat and todos lower schema, channels, effects, emit, API types, seed, and
   assert(canonical(journeys) === canonical(["snapback/tests/chat.test.ts"]), "chat journey list differs");
 });
 
+test("ref operation arguments retain their schema table in the engine IR", async () => {
+  await withProject({
+    "snapback/schema.ts": `import { schema, table, t } from "snapback2";
+      export const todos = table({ columns: { title: t.text(100) } });
+      export default schema({ tables: { todos } });`,
+    "snapback/todos.ts": `import { query, t } from "snapback2";
+      import { todos } from "./schema";
+      export const byId = query({ todoId: t.ref(todos) }, ({ db, args }) => db.get(todos, args.todoId));`,
+  }, async (root) => {
+    const project = await lowerProject(root);
+    assert(project.ok, `ref arg project refused: ${project.ok ? "" : project.diagnostics.map((item) => item.message).join("; ")}`);
+    assert(
+      canonical(project.project.programs[0]?.args.todoId) === canonical({ Ref: { table: "todos" } }),
+      `ref arg lost its table: ${canonical(project.project.programs[0]?.args.todoId)}`,
+    );
+  });
+});
+
 test("Decimal, Money, and Enum descriptors type APIs and lower fractional literals to integer wire values", async () => {
   const todos = await lowerProject(`${frontend}fixtures/todos`);
   assert(todos.ok, `typed todos refused: ${todos.ok ? "" : todos.diagnostics.map((item) => item.message).join("; ")}`);
@@ -886,7 +904,7 @@ test("the React template typechecks against the built snapback2/react package", 
   );
 });
 
-test("guide validation reports every failing page before it fails", () => {
+test("guide validation reports every family and page failure before it fails", () => {
   const packageRoot = resolve(crate, "packages/snapback2");
   const checked = Bun.spawnSync({
     cmd: ["node", "build.mjs", "--self-test"],
@@ -896,7 +914,11 @@ test("guide validation reports every failing page before it fails", () => {
   });
   const output = `${new TextDecoder().decode(checked.stdout)}${new TextDecoder().decode(checked.stderr)}`;
   assert(checked.exitCode === 0, `guide validation self-test failed: ${output}`);
-  assert(output.includes("guide/oversized.md") && output.includes("guide/stale.md"), `guide validator failed fast: ${output}`);
+  assert(
+    output.includes("families.source.json[1]") && output.includes("duplicate family duplicate")
+      && output.includes("guide/oversized.md") && output.includes("guide/stale.md"),
+    `guide validator failed fast: ${output}`,
+  );
 });
 
 test("binary check certifies every compiler program and reads IR only from stdin or --ir", async () => {

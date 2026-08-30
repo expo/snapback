@@ -112,17 +112,8 @@ impl State {
                 })
             })
             .collect::<Vec<_>>();
-        let ledger = self
-            .ledger
-            .iter()
-            .find(|entry| entry.seq == wanted)
-            .cloned()
-            .unwrap_or(CommitLedger {
-                seq: wanted,
-                invalidated: Vec::new(),
-                deliveries: Vec::new(),
-            });
-        Ok(json!({
+        let ledger = self.ledger.iter().find(|entry| entry.seq == wanted);
+        let mut output = json!({
             "commit": commit,
             "outbox": {
                 "emits": commit.emits,
@@ -130,9 +121,20 @@ impl State {
                 "rows": outbox_rows.clone(),
             },
             "outboxRows": outbox_rows,
-            "invalidated": ledger.invalidated,
-            "deliveries": ledger.deliveries,
-        }))
+        });
+        let object = output.as_object_mut().expect("trace output is an object");
+        if let Some(ledger) = ledger {
+            object.insert("invalidated".to_owned(), json!(ledger.invalidated));
+            object.insert("deliveries".to_owned(), json!(ledger.deliveries));
+        } else {
+            let reason = if wanted <= self.restarted_through_seq {
+                format!("unavailable (owner restarted at {})", self.owner.started_at)
+            } else {
+                "unavailable (commit is outside the last 1000 owner-lifetime entries)".to_owned()
+            };
+            object.insert("ledger".to_owned(), Json::String(reason));
+        }
+        Ok(output)
     }
 
     pub(super) fn status(&self) -> Result<Json, Refusal> {

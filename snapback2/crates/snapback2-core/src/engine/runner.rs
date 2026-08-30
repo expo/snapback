@@ -666,7 +666,15 @@ impl<'a> Runner<'a> {
         let halo_row = visible.get(take).cloned();
         let n2_row = visible.get(take + 1);
         let n2_key = n2_row.map(|row| index_values(row, index));
-        let visible_ids = returned
+        let visible_ids = visible
+            .iter()
+            .map(|row| {
+                row.field("id")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let returned_ids = returned
             .iter()
             .map(|row| {
                 row.field("id")
@@ -693,7 +701,8 @@ impl<'a> Runner<'a> {
             index: scan.index.clone(),
             prefix: prefix.clone(),
             examined_ids,
-            visible_ids: visible_ids.clone(),
+            visible_ids,
+            returned_ids: returned_ids.clone(),
             stop,
             absence: returned.is_empty(),
             halo: halo.clone(),
@@ -709,7 +718,7 @@ impl<'a> Runner<'a> {
                 table: scan.table.clone(),
                 index: scan.index.clone(),
                 prefix,
-                row_ids: visible_ids,
+                row_ids: returned_ids,
                 stop,
                 absence: returned.is_empty(),
                 halo,

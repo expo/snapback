@@ -1,6 +1,6 @@
 mod common;
 
-use common::{Project, json_stdout};
+use common::{OwnerGuard, Project, json_stdout};
 use std::fs;
 
 fn check<'a>(receipt: &'a serde_json::Value, name: &str) -> &'a serde_json::Value {
@@ -32,6 +32,10 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     assert_eq!(rules["detail"]["tables"]["notifications"]["probes"], 3);
     assert_eq!(rules["detail"]["expectedBy"], "engine");
     assert_eq!(rules["detail"]["actualBy"], "data");
+    for name in ["certify", "rules", "bounds", "invalidation", "replay"] {
+        let derived = check(&receipt, name);
+        assert_eq!(derived["verdict"], "pass", "{name}: {derived}");
+    }
 
     let invalidation = check(&receipt, "invalidation");
     assert!(
@@ -40,7 +44,29 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .is_some_and(|count| count > 0),
         "the chat receipt did not exercise an invalidation silence probe: {invalidation}"
     );
-    assert_eq!(check(&receipt, "bounds")["detail"]["enforcedBy"], "engine");
+    let bounds = check(&receipt, "bounds");
+    let executions = bounds["detail"]["executions"].as_array().unwrap();
+    assert_eq!(executions.len(), 2, "{bounds}");
+    for execution in executions {
+        assert_eq!(execution["op"], "messages.thread", "{execution}");
+        assert_eq!(
+            execution["examined"],
+            serde_json::json!({ "actual": 1, "ceiling": 52 })
+        );
+        assert_eq!(
+            execution["ruleProbes"],
+            serde_json::json!({ "actual": 1, "ceiling": 1 })
+        );
+        assert_eq!(
+            execution["steps"],
+            serde_json::json!({ "actual": 3, "ceiling": 262 })
+        );
+        assert_eq!(
+            execution["readSites"][0]["calls"],
+            serde_json::json!({ "actual": 1, "ceiling": 1 })
+        );
+        assert_eq!(execution["readSites"][0]["take"], 50);
+    }
     assert_eq!(
         checks
             .iter()
@@ -48,6 +74,14 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
             .count(),
         2
     );
+    for name in [
+        "alice sends bob a message",
+        "bob replies and alice's live thread updates",
+    ] {
+        let journey = check(&receipt, name);
+        assert_eq!(journey["kind"], "journey", "{name}: {journey}");
+        assert_eq!(journey["verdict"], "pass", "{name}: {journey}");
+    }
     if cfg!(feature = "hermes") {
         assert!(checks.iter().any(|check| {
             check["name"] == "effects"
@@ -72,6 +106,32 @@ fn chat_template_receipt_tracks_the_effect_engine_and_lists_both_journeys() {
     assert!(
         scratch.is_empty(),
         "test left temporary stores behind: {scratch:?}"
+    );
+}
+
+#[test]
+fn unmatched_bare_id_blocks_with_the_operation_and_argument_name() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/todos.ts"),
+        r#"import { query, t } from "snapback2";
+export const byOwner = query({ ownerId: t.id() }, ({ args }) => args.ownerId);
+"#,
+    )
+    .unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let tested = project.run(&["test", "--derived-only", "--json"]);
+    assert_eq!(tested.status.code(), Some(1));
+    let receipt = json_stdout(&tested);
+    let bounds = check(&receipt, "bounds");
+    assert_eq!(bounds["verdict"], "blocked", "{bounds}");
+    assert_eq!(
+        bounds["detail"]["blocked"][0]["reason"],
+        "cannot choose a seed id for todos.byOwner.ownerId",
+        "{bounds}"
     );
 }
 
@@ -146,6 +206,46 @@ journey("bad types", async () => { const n: number = "wrong"; void n; });
 }
 
 #[test]
+fn owner_start_does_not_compile_journey_sources() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/tests/todos.test.ts"),
+        r#"import { journey } from "snapback2/test";
+journey("bad after check", async () => { const n: number = "wrong"; void n; });
+"#,
+    )
+    .unwrap();
+
+    let _owner = OwnerGuard::start(&project);
+}
+
+#[test]
+fn test_runs_check_to_restore_a_missing_built_journey_before_owner_start() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::remove_dir_all(project.path.join(".snapback/build/tests")).unwrap();
+
+    let output = project.run(&["test", "--journeys-only", "--json"]);
+
+    assert!(
+        output.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let receipt = json_stdout(&output);
+    assert_eq!(receipt["checks"][0]["name"], "todos round trip");
+    assert_eq!(receipt["checks"][0]["verdict"], "pass");
+    assert!(
+        project
+            .path
+            .join(".snapback/build/tests/todos.mjs")
+            .is_file()
+    );
+}
+
+#[test]
 fn invalidation_blocks_when_every_intersecting_probe_is_rejected() {
     let project = Project::new();
     assert!(project.init("todos", "none").status.success());
@@ -185,6 +285,99 @@ export const add = mutation({}, ({ db, ctx }) => {
         replay["detail"]["blocked"][0]["reason"],
         "no committing probe for todos.add"
     );
+}
+
+#[test]
+fn invalidation_blocks_when_a_query_has_no_disjoint_committing_probe() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/schema.ts"),
+        r#"import { rule, schema, table, t } from "snapback2";
+export const items = table({
+  columns: { label: t.text(20) },
+  rules: { read: rule.public("public"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+});
+export default schema({ auth: { password: true, guests: true }, tables: { items } });
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/todos.ts"),
+        r#"import { mutation, query, t } from "snapback2";
+import { items } from "./schema";
+export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }));
+export const add = mutation({ label: t.text(20) }, ({ db, ctx, args }) => {
+  db.insert(items, { id: ctx.newId(), label: args.label });
+  return null;
+});
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/seed.ts"),
+        r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label: "one" }] } });
+"#,
+    )
+    .unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    assert_eq!(output.status.code(), Some(1));
+    let receipt = json_stdout(&output);
+    let invalidation = check(&receipt, "invalidation");
+    assert_eq!(invalidation["verdict"], "blocked", "{invalidation}");
+    assert!(
+        invalidation["detail"]["blocked"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["reason"] == "no disjoint committing probe for todos.list"),
+        "{invalidation}"
+    );
+}
+
+#[test]
+fn rules_use_the_engine_verdict_when_the_synthetic_persona_is_admitted() {
+    let project = Project::new();
+    assert!(project.init("todos", "none").status.success());
+    fs::write(
+        project.path.join("snapback/schema.ts"),
+        r#"import { rule, schema, table, t } from "snapback2";
+export const items = table({
+  columns: { label: t.text(20) },
+  rules: { read: rule.principal("persona"), insert: rule.allow(), update: rule.allow(), delete: rule.allow() },
+});
+export default schema({ auth: { password: true, guests: true }, tables: { items } });
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/todos.ts"),
+        r#"import { query } from "snapback2";
+import { items } from "./schema";
+export const list = query({}, ({ db }) => db.scan(items.byId, [], { take: 50 }));
+"#,
+    )
+    .unwrap();
+    fs::write(
+        project.path.join("snapback/seed.ts"),
+        r#"import { seed } from "snapback2";
+export default seed({ personas: ["alice"], rows: { items: [{ id: "item-1", label: "one" }] } });
+"#,
+    )
+    .unwrap();
+    fs::remove_dir_all(project.path.join("snapback/tests")).unwrap();
+    assert!(project.run(&["check", "--json"]).status.success());
+
+    let output = project.run(&["test", "--derived-only", "--json"]);
+    let receipt = json_stdout(&output);
+    let rules = check(&receipt, "rules");
+    assert_eq!(rules["verdict"], "pass", "{rules}");
+    assert_eq!(rules["detail"]["tables"]["items"]["personas"], 2);
+    assert_eq!(rules["detail"]["tables"]["items"]["probes"], 2);
 }
 
 #[test]
