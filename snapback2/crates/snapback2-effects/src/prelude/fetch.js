@@ -19,6 +19,7 @@
 
   var field = global.__ibex2_response_field;
   var decode = global.__ibex2_text_decode;
+  var Headers = global.Headers;
   delete global.__ibex2_response_field;
   // Pure helpers nothing outside the bindings needs: the engine provides
   // TextEncoder and TextDecoder itself.
@@ -50,7 +51,7 @@
       ok: field(handle, 1),
       url: field(handle, 2),
       redirected: field(handle, 5),
-      headers: new global.Headers(JSON.parse(field(handle, 7))),
+      headers: new Headers(JSON.parse(field(handle, 7))),
     });
     return r;
   }

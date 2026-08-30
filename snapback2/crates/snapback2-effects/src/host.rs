@@ -23,8 +23,16 @@ pub struct EffectLog {
 /// The only outcomes the durable runner has to settle.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Outcome {
-    Sent(Value),
-    Failed { error: String, retry: bool },
+    Sent {
+        result: Value,
+        /// The effect resolved, but other asynchronous work was still pending
+        /// when its budget expired. The host must discard that runtime.
+        leftover: bool,
+    },
+    Failed {
+        error: String,
+        retry: bool,
+    },
     Unavailable(&'static str),
 }
 
