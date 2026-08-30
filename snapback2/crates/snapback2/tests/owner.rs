@@ -1,12 +1,17 @@
 use serde_json::{Value, json};
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{Shutdown, TcpListener, TcpStream};
+use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+mod owner_wire;
+#[cfg(not(feature = "hermes"))]
+use owner_wire::Sse;
+use owner_wire::{request, status};
 
 #[cfg(not(feature = "hermes"))]
 #[test]
@@ -1308,147 +1313,6 @@ fn run_with_stdin(binary: &str, args: &[&str], input: &Value) -> std::process::O
     child.wait_with_output().unwrap()
 }
 
-struct Response {
-    status: u16,
-    body: Value,
-}
-
-fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], body: Value) -> Response {
-    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .unwrap();
-    let bytes = if method == "GET" {
-        Vec::new()
-    } else {
-        serde_json::to_vec(&body).unwrap()
-    };
-    write!(
-        stream,
-        "{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",
-        bytes.len()
-    )
-    .unwrap();
-    for (name, value) in headers {
-        write!(stream, "{name}: {value}\r\n").unwrap();
-    }
-    stream.write_all(b"\r\n").unwrap();
-    stream.write_all(&bytes).unwrap();
-    stream.flush().unwrap();
-    stream.shutdown(Shutdown::Write).unwrap();
-    let mut bytes = Vec::new();
-    stream.read_to_end(&mut bytes).unwrap();
-    let split = bytes
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .unwrap();
-    let head = String::from_utf8_lossy(&bytes[..split]);
-    let status = head
-        .lines()
-        .next()
-        .unwrap()
-        .split_whitespace()
-        .nth(1)
-        .unwrap()
-        .parse()
-        .unwrap();
-    let body = serde_json::from_slice(&bytes[split + 4..]).unwrap();
-    Response { status, body }
-}
-
-#[cfg(not(feature = "hermes"))]
-fn status(port: u16, secret: &str) -> Value {
-    let response = request(
-        port,
-        "GET",
-        "/control/status",
-        &[("X-Snapback-Control", secret)],
-        json!({}),
-    );
-    assert_eq!(response.status, 200, "{}", response.body);
-    response.body
-}
-
-#[cfg(not(feature = "hermes"))]
-struct Sse {
-    reader: BufReader<TcpStream>,
-    last_id: Option<u64>,
-}
-
-#[cfg(not(feature = "hermes"))]
-impl Sse {
-    fn open(port: u16, path: &str, persona: &str) -> Self {
-        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(6)))
-            .unwrap();
-        write!(
-            stream,
-            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Snapback-As: {persona}\r\nConnection: close\r\n\r\n"
-        )
-        .unwrap();
-        stream.flush().unwrap();
-        let mut reader = BufReader::new(stream);
-        let mut line = String::new();
-        reader.read_line(&mut line).unwrap();
-        assert!(line.contains("200"), "{line}");
-        loop {
-            line.clear();
-            reader.read_line(&mut line).unwrap();
-            if line == "\r\n" {
-                break;
-            }
-        }
-        Self {
-            reader,
-            last_id: None,
-        }
-    }
-
-    fn event(&mut self) -> Value {
-        loop {
-            let mut size = String::new();
-            self.reader.read_line(&mut size).unwrap();
-            let size = usize::from_str_radix(size.trim(), 16).unwrap();
-            assert!(size > 0);
-            let mut bytes = vec![0; size];
-            self.reader.read_exact(&mut bytes).unwrap();
-            let mut ending = [0; 2];
-            self.reader.read_exact(&mut ending).unwrap();
-            let text = String::from_utf8(bytes).unwrap();
-            self.last_id = text
-                .lines()
-                .find_map(|line| line.strip_prefix("id: "))
-                .and_then(|value| value.parse().ok());
-            if let Some(data) = text.lines().find_map(|line| line.strip_prefix("data: ")) {
-                return serde_json::from_str(data).unwrap();
-            }
-        }
-    }
-
-    fn assert_silent(&mut self, timeout: Duration) {
-        self.reader
-            .get_mut()
-            .set_read_timeout(Some(timeout))
-            .unwrap();
-        let mut size = String::new();
-        match self.reader.read_line(&mut size) {
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                ) => {}
-            Ok(0) => panic!("subscription closed while silence was expected"),
-            Ok(_) => panic!("subscription delivered while silence was expected: {size:?}"),
-            Err(error) => panic!("subscription silence probe failed: {error}"),
-        }
-        self.reader
-            .get_mut()
-            .set_read_timeout(Some(Duration::from_secs(6)))
-            .unwrap();
-    }
-}
-
 struct ChildGuard {
     child: Child,
     stdout: BufReader<std::process::ChildStdout>,
@@ -1531,7 +1395,6 @@ fn process_alive(pid: u32) -> bool {
     unsafe { kill(pid as i32, 0) == 0 }
 }
 
-#[cfg(not(feature = "hermes"))]
 fn wait_for<T>(timeout: Duration, mut check: impl FnMut() -> Option<T>) -> T {
     let started = Instant::now();
     while started.elapsed() < timeout {
