@@ -152,7 +152,7 @@ mode. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 | `GET /api/auth/me` | → `{ viewer, kind }` |
 | `POST /api/query` | `{ op, args }` → `{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, take?, site?, rule?, reason? }` |
 | `POST /api/mutation` | `{ op, args }` → `{ state: "committed", seq, data }` \| `{ state: "rejected", code, family, message, rewrite? }` |
-| `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; `data: { state: "live" \| "stale" \| "refused" \| "partial", seq, data, take?, code? }`; a `: heartbeat` comment every 15 s |
+| `GET /api/subscribe?op=&args=<urlencoded json>` | SSE; `id: <seq>`; each `data:` frame is **exactly a query response object** (`{ state: "complete" \| "capped" \| "partial" \| "denied", data, seq, … }`) or a refusal envelope (`{ state: "refused", code, family, message, … }`, terminal); the server never sends `live`/`stale` — those are client connection facts; a `: heartbeat` comment every 15 s (review ruling 2026-08-30) |
 | `POST /api/channel/<name>/publish` | `{ args, payload }` → `{ ok: true }` \| `{ state: "refused", code }` |
 | `GET /api/channel/<name>/subscribe?args=` | SSE; `data: { from, payload, at }`; the owner drops the stream when a commit touches the probe's key and re-admission fails |
 | `GET /api/manifest` | `{ generation, ops: { "todos.list": { kind, args } }, channels, auth }` |
@@ -297,10 +297,15 @@ client.channel(api.typing, args).publish(payload) / .subscribe(cb)
 
 `api` is a proxy (`api.todos.list` → `{ op: 'todos.list' }`) typed *only* by
 the `Api` augmentation in `.snapback/build/api.d.ts` (no index signature: a
-typo is a compile error; channels are members too). Eight states surface as
-the discriminated union `hydrating | live | stale | partial | denied |
-refused | capped | complete` on `useQuery`, each carrying its receipt fields
-(`take`/`site`, `reason`, `rule`, `since`, `seq`); `useMutation` returns
+typo is a compile error; channels are members too). The view on `useQuery`
+is the discriminated union `hydrating | complete | capped | partial | denied
+| refused | stale`, each carrying its receipt fields (`take`/`site`, `reason`,
+`rule`, `since`, `seq`), plus two orthogonal facts: `live: boolean` (a
+subscription is connected and this view is its latest delivery — the RFC's
+"live" state is this flag, so a capped page on a live query is `capped` with
+`live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
+stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
+backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
 `{ run, pending, last }` with `last: committed | rejected` — `queued` is
 reserved for the offline outbox (deferred) and never claimed before it exists
 (review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
