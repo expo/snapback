@@ -44,14 +44,14 @@ fn project(programs: Vec<Program>, schema: Schema) -> ProjectJson {
     }
 }
 
-fn ceiling_schema() -> Schema {
+fn ceiling_schema(body_max: u32) -> Schema {
     Schema {
         tables: BTreeMap::from([(
             "items".to_owned(),
             public_table(
                 BTreeMap::from([
                     ("id".to_owned(), ColumnType::Id),
-                    ("body".to_owned(), ColumnType::Text { max: 256 }),
+                    ("body".to_owned(), ColumnType::Text { max: body_max }),
                 ]),
                 BTreeMap::from([(
                     "byId".to_owned(),
@@ -445,62 +445,111 @@ fn checker_and_generation_report_all_refusals_per_program() {
 }
 
 #[test]
-fn checker_refuses_a_program_over_the_heap_ceiling() {
-    let work = (0..3)
-        .map(|number| Stmt::Let {
-            name: format!("temporary{number}"),
-            value: Expr::Literal(Value::Null),
-        })
-        .collect();
-    let program = Program {
-        name: "items.heap".to_owned(),
-        kind: ProgramKind::Query,
-        args: BTreeMap::new(),
-        read_time_granularity_ms: None,
-        body: vec![
-            Stmt::For {
-                binding: "number".to_owned(),
-                domain: LoopDomain::LiteralRange {
-                    start: 0,
-                    end_exclusive: 50_000,
-                },
-                body: work,
-            },
-            Stmt::Return(Expr::Literal(Value::Null)),
-        ],
-    };
-    assert_named_ceiling(
-        &ceiling_schema(),
-        &program,
-        Ceilings::default(),
-        "heap bytes",
-    );
-}
+fn closure_and_output_estimates_follow_retained_shape_and_declared_maxima() {
+    let schema = ceiling_schema(1024);
+    let page = ceiling_scan(4095);
+    let page_certificate = Checker::new(
+        &schema,
+        Ceilings {
+            output_bytes: u64::MAX,
+            closure_bytes: u64::MAX,
+            ..Ceilings::default()
+        },
+    )
+    .check(&page)
+    .unwrap();
+    assert_eq!(page_certificate.max_closure_bytes, 4_946_760);
+    assert_named_ceiling(&schema, &page, Ceilings::default(), "closure bytes");
 
-#[test]
-fn checker_refuses_a_program_over_the_closure_ceiling() {
-    assert_named_ceiling(
-        &ceiling_schema(),
-        &ceiling_scan(10_082),
+    let inbox_schema = spike_schema();
+    let inbox = Checker::new(&inbox_schema, Ceilings::default())
+        .check(&inbox_program(false))
+        .expect("count-shaped inbox must retain only its bounded result rows");
+    assert_eq!(inbox.max_closure_bytes, 71_300);
+
+    let declared_max = 3 * 1024 * 1024;
+    let text_schema = ceiling_schema(declared_max);
+    let text = Checker::new(
+        &text_schema,
         Ceilings {
             output_bytes: u64::MAX,
             ..Ceilings::default()
         },
-        "closure bytes",
-    );
+    )
+    .check(&ceiling_scan(1))
+    .unwrap();
+    assert_eq!(text.max_output_bytes, 3_145_915);
+    assert!(text.max_output_bytes >= u64::from(declared_max));
 }
 
 #[test]
-fn checker_refuses_a_program_over_the_output_ceiling() {
-    assert_named_ceiling(
-        &ceiling_schema(),
-        &ceiling_scan(5_000),
-        Ceilings {
-            closure_bytes: u64::MAX,
-            ..Ceilings::default()
-        },
+fn one_valid_program_reports_every_default_ceiling_refusal() {
+    let mut schema = ceiling_schema(1024);
+    schema.tables.get_mut("items").unwrap().rules.read = RuleExpr::Exists {
+        table: "items".to_owned(),
+        index: "byId".to_owned(),
+        key: vec![RuleTerm::Field("id".to_owned())],
+        provenance: KeyProvenance::Shape,
+        input_visibility: RuleInputVisibility::Readable,
+    };
+    let scan = match ceiling_scan(12_000).body.remove(0) {
+        Stmt::Return(scan) => scan,
+        _ => unreachable!(),
+    };
+    let program = Program {
+        name: "items.everyCeiling".to_owned(),
+        kind: ProgramKind::Mutation,
+        args: BTreeMap::new(),
+        read_time_granularity_ms: None,
+        body: vec![
+            Stmt::Let {
+                name: "rows".to_owned(),
+                value: scan,
+            },
+            Stmt::For {
+                binding: "number".to_owned(),
+                domain: LoopDomain::LiteralRange {
+                    start: 0,
+                    end_exclusive: 200_000,
+                },
+                body: vec![Stmt::Insert {
+                    table: "items".to_owned(),
+                    row: Expr::Object(BTreeMap::from([
+                        ("id".to_owned(), Expr::Input(Input::NewId)),
+                        (
+                            "body".to_owned(),
+                            Expr::Literal(Value::String("x".to_owned())),
+                        ),
+                    ])),
+                }],
+            },
+            Stmt::Return(Expr::Variable("rows".to_owned())),
+        ],
+    };
+    let errors = Checker::new(&schema, Ceilings::default())
+        .check_all(&program)
+        .unwrap_err();
+    let expected = [
+        "examined entries",
+        "index entries",
+        "rule probes",
+        "steps",
+        "heap bytes",
         "output bytes",
+        "closure bytes",
+        "write amplification",
+    ];
+    assert_eq!(
+        errors.len(),
+        expected.len(),
+        "unexpected refusals: {errors:?}"
     );
+    for name in expected {
+        assert!(
+            errors.iter().any(|error| error.message.starts_with(name)),
+            "missing {name} from {errors:?}"
+        );
+    }
 }
 
 #[test]

@@ -7,8 +7,7 @@ use thiserror::Error;
 
 // Calibration only: these estimates are admission heuristics, not allocator/serializer proofs.
 const HEAP_BYTES_PER_STEP: u64 = 32;
-const CLOSURE_BYTES_PER_EXAMINED: u64 = 416;
-const DECLARED_OUTPUT_BYTES_SCALE: u64 = 4;
+const CLOSURE_METADATA_BYTES: u64 = 64;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ceilings {
@@ -173,7 +172,7 @@ impl<'a> Checker<'a> {
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
         let max_heap_bytes = summary.steps.saturating_mul(HEAP_BYTES_PER_STEP);
         let max_output_bytes = OutputEstimator::estimate(self.schema, program);
-        let max_closure_bytes = summary.examined.saturating_mul(CLOSURE_BYTES_PER_EXAMINED);
+        let max_closure_bytes = summary.closure_bytes;
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", summary.examined, self.ceilings.examined),
@@ -634,6 +633,7 @@ struct Summary {
     index_entries: u64,
     rule_probes: u64,
     steps: u64,
+    closure_bytes: u64,
     product_value: u64,
     product: Option<String>,
 }
@@ -651,6 +651,7 @@ impl Summary {
         self.index_entries = self.index_entries.saturating_add(other.index_entries);
         self.rule_probes = self.rule_probes.saturating_add(other.rule_probes);
         self.steps = self.steps.saturating_add(other.steps);
+        self.closure_bytes = self.closure_bytes.saturating_add(other.closure_bytes);
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -680,6 +681,7 @@ impl Summary {
         self.index_entries = self.index_entries.max(other.index_entries);
         self.rule_probes = self.rule_probes.max(other.rule_probes);
         self.steps = self.steps.max(other.steps);
+        self.closure_bytes = self.closure_bytes.max(other.closure_bytes);
         if other.product_value > self.product_value {
             self.product_value = other.product_value;
             self.product = other.product;
@@ -919,7 +921,11 @@ impl<'a> OutputEstimator<'a> {
     }
 
     fn row(&self, table: &str) -> u64 {
-        self.schema.table(table).map_or(1024, |table| {
+        Self::declared_row(self.schema, table)
+    }
+
+    fn declared_row(schema: &Schema, table: &str) -> u64 {
+        schema.table(table).map_or(1024, |table| {
             table.columns.iter().fold(10_u64, |size, (name, column)| {
                 size.saturating_add(name.len() as u64)
                     .saturating_add(4)
@@ -931,9 +937,9 @@ impl<'a> OutputEstimator<'a> {
     fn argument(argument: &ArgType) -> u64 {
         match argument {
             ArgType::Id | ArgType::Ref { .. } => 144,
-            ArgType::Text { max } | ArgType::Json { max_bytes: max } => u64::from(*max)
-                .saturating_div(DECLARED_OUTPUT_BYTES_SCALE)
-                .saturating_add(16),
+            ArgType::Text { max } | ArgType::Json { max_bytes: max } => {
+                u64::from(*max).saturating_add(16)
+            }
             ArgType::Int | ArgType::Time | ArgType::Decimal { .. } | ArgType::Money { .. } => 32,
             ArgType::Bool => 16,
             ArgType::Optional(inner) => Self::argument(inner).max(8),
@@ -952,9 +958,9 @@ impl<'a> OutputEstimator<'a> {
     fn column(column: &ColumnType) -> u64 {
         match column {
             ColumnType::Id | ColumnType::Ref { .. } => 144,
-            ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => u64::from(*max)
-                .saturating_div(DECLARED_OUTPUT_BYTES_SCALE)
-                .saturating_add(16),
+            ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => {
+                u64::from(*max).saturating_add(16)
+            }
             ColumnType::Int
             | ColumnType::Time
             | ColumnType::Decimal { .. }
@@ -1149,11 +1155,23 @@ impl<'a> Analyzer<'a> {
                     self.completeness = Completeness::Capped;
                 }
                 for value in args {
-                    summary = summary.add(self.expr(value, calls, factors)?);
+                    let mut argument = self.expr(value, calls, factors)?;
+                    if matches!(
+                        builtin,
+                        Builtin::Len | Builtin::Count | Builtin::Sum | Builtin::CountCapped
+                    ) {
+                        argument.closure_bytes = calls.saturating_mul(CLOSURE_METADATA_BYTES);
+                    }
+                    summary = summary.add(argument);
                 }
             }
-            Expr::Get(read) | Expr::Exists(read) => {
+            Expr::Get(read) => {
                 summary = summary.add(self.read(read, calls, factors)?);
+            }
+            Expr::Exists(read) => {
+                let mut existence = self.read(read, calls, factors)?;
+                existence.closure_bytes = calls.saturating_mul(CLOSURE_METADATA_BYTES);
+                summary = summary.add(existence);
             }
             Expr::Scan(scan) => {
                 summary = summary.add(self.scan(scan, calls, factors)?);
@@ -1189,6 +1207,8 @@ impl<'a> Analyzer<'a> {
             summary.rule_probes = calls;
         }
         summary.steps = calls.saturating_mul(4);
+        summary.closure_bytes =
+            calls.saturating_mul(OutputEstimator::declared_row(self.schema, &read.table));
         set_product(&mut summary, factors, (&read.site, 1));
         Ok(summary)
     }
@@ -1228,6 +1248,12 @@ impl<'a> Analyzer<'a> {
         summary.index_entries = summary.examined;
         summary.rule_probes = rule_probes;
         summary.steps = summary.examined.saturating_mul(5);
+        // Closure prices client-retained replay state, not scan work. A page can
+        // hold `take` rows, each at the table's declared serialized column maxima;
+        // reductions and existence checks replace this with O(1) metadata above.
+        summary.closure_bytes = calls
+            .saturating_mul(take)
+            .saturating_mul(OutputEstimator::declared_row(self.schema, &scan.table));
         set_product(&mut summary, factors, (&scan.site, take));
         Ok(summary)
     }

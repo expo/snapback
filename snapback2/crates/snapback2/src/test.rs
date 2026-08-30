@@ -387,7 +387,7 @@ fn check_rules(owner: &OwnerInfo, compiled: &CompiledProject, seed: &SeedData) -
                     "table": table_name,
                     "index": "byId",
                     "prefix": [],
-                    "limit": 500,
+                    "limit": rows.len().min(500),
                     "as": persona,
                 }),
             );

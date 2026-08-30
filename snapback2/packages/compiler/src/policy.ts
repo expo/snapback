@@ -261,7 +261,10 @@ function boundRefusals(module: PolicyModule, limit: number): FrontendDiagnostic[
     if (product > 10_240 && takeNode && results.length < limit) {
       const largest = [...next].sort((a, b) => b.value - a.value)[0]!;
       const other = product / largest.value;
-      const replacement = Math.max(1, Math.floor(10_240 / (other + 4)));
+      // The checker prices an unknown retained row at 1 KiB, so the 4 MiB
+      // closure default admits at most 4,096 held rows. Keep the mechanical
+      // rewrite inside both that shape budget and the examined-entry budget.
+      const replacement = Math.max(1, Math.floor(4_096 / (other + 4)));
       results.push(diagnostic(
         module,
         "E_BOUND",
