@@ -142,7 +142,10 @@ declare module 'snapback2/client' { interface Api { todos: { list: Op<{ take?: n
 ## 4. The wire
 
 HTTP/1.1, JSON bodies, `Content-Type: application/json`; CORS `*` in `dev`
-mode. Authentication: `Authorization: Bearer <token>`; in `dev` mode
+mode with preflight methods `GET, POST, OPTIONS` (cross-origin SSE needs
+`GET`). Every refusal on every route — including a rejected mutation and a
+channel refusal — carries the full envelope below; `guide` and `family` are
+required fields in the client's public types as well as in its validator. Authentication: `Authorization: Bearer <token>`; in `dev` mode
 `X-Snapback-As: <name>` selects a persona (created on first use; §1.6).
 
 | route | body → response |
@@ -331,9 +334,13 @@ subscription is connected and this view is its latest delivery — the RFC's
 `live: true`) and `connection`. A transport failure (network, HTTP 5xx, a
 stream idle past 2× the heartbeat) is `stale(since)` with reconnect and
 backoff; only a 4xx envelope on the stream is a terminal `refused`; `useMutation` returns
-`{ run, pending, last }` with `last: committed | rejected` — `queued` is
-reserved for the offline outbox (deferred) and never claimed before it exists
-(review ruling 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
+`{ run, pending, last, transport }` with `last: committed | rejected` — only
+ever the server's receipt; a transport failure (network, 5xx) leaves `last`
+untouched, sets `transport` (a `SnapbackRefusal`, `retryable: true`, cleared
+on the next successful run) and rejects `run()` — a 503 after a commit must
+never look like a rejection, since a retry could duplicate the write.
+`queued` is reserved for the offline outbox (deferred) and never claimed
+before it exists (review rulings 2026-08-30). Every 4xx envelope on `query()`/`mutation()`
 throws `SnapbackRefusal`; subscriptions deliver `refused`. **Transport status
 is not a query state**: hooks and the provider expose `connection: connected |
 reconnecting | offline` separately, and a network failure leaves a query
