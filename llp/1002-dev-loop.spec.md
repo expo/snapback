@@ -269,6 +269,20 @@ bucketed `ReadTime` input (LLP 0329.014.004: read time is a declared-
 granularity clock); the compiler currently pins the granularity at 1 ms —
 declaring it on the surface (`query({…}, { readTime: '1m' }, …)`) is deferred.
 
+**Blocked is not pass** (review ruling 2026-08-30): the receipt verdict is
+`blocked` (exit 1) when any check is blocked, naming which; `pass` needs every
+check to pass. The `effects` check exists only for a project that declares
+effects, so a project without effects passes on an engine-less build, and a
+project with effects is honestly `blocked` there and passes on the published
+(engine) build. Journeys are optional; a run with derived checks and no
+journeys can pass; zero checks cannot.
+
+**Journeys are built by `check`** (review ruling 2026-08-30): `check`
+compiles and typechecks `snapback/tests/*.test.ts` into
+`.snapback/build/tests/`, refusing type errors like any module; the runner
+loads the built files and the shipped `snapback2/client` — nothing is
+transpiled at test time.
+
 **Receipt** (`.snapback/receipts/<ts>.json`, also printed): `{ binary: { version,
 digest }, generation, commands: [...], checks: [{ name, kind: "derived" | "journey",
 verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict:
@@ -283,9 +297,11 @@ verdict: "pass" | "fail" | "blocked", ms, detail }], arms: ["headless"], verdict
   subscription for that op+args exists, its last delivery `seq` and whether
   the latest commit touched it.
 - `trace <seq>`: the commit record (program, principal, writes, touched
-  keys), the outbox rows it emitted and their states, and the subscriptions
-  it invalidated with their delivery seqs — intent → commit → invalidation →
-  delivery.
+  keys), the outbox rows it emitted and their real states, and the
+  subscriptions it invalidated with their delivery seqs — intent → commit →
+  invalidation → delivery — read from the owner's bounded per-commit ledger
+  (last 1,000 commits) and the store's `_outbox`, never reconstructed from
+  program syntax or the current subscription set (review ruling 2026-08-30).
 - `guide`: `grammar` (one screen, hand-written, in the package), `app`
   (tables, rules, ops with bounds, channels, personas — from the generation),
   `<symbol>` (the JSDoc on the `snapback2` module's declaration), `<E_CODE>`
