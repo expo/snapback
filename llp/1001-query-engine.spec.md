@@ -120,9 +120,15 @@ Nothing in this crate ever constructs a receipt from anything but a trace.
 | state | when |
 |---|---|
 | `Complete` | every traced range stopped `Exhausted` and no site was cut by a ceiling — including a range whose examined rows were all hidden: hidden rows are invisible, never a signal (LLP 0329.014.004: results are never functions of invisible-row counts) |
-| `Capped { site, take }` | some traced range stopped `Limit` (the certificate's `completeness: Page \| Capped`) |
+| `Capped { site, take }` | some *authoritative-trace* range stopped `Limit` (the certificate's `completeness: Page \| Capped`) — regardless of whether the examined rows were visible: hidden rows consume `take` (spike S1 ruling 2), so `Capped` discloses nothing the page size does not, and computing the state from the receipt (which omits the stop reason when hidden rows were examined) would silently drop a later visible row (review ruling 2026-08-30, round 2 M2) |
 | `Partial { reason }` | reserved for the client twin (coverage miss); the server never returns it |
 | `Denied { rule }` | `RuntimeError::Rule` on a read site, or `RuntimeError::Require { code }` raised inside a query (`rule = code`) — the program refusing is the honest "denied" (review ruling 2026-08-30, M1) |
+
+A query that hits a runtime *value* error (`E_DIV_ZERO`, `E_OVERFLOW`, `E_TYPE`,
+`E_FIELD`) is `Err(RuntimeError)`, not a state — the loop serves the refusal
+envelope, and a live rerun delivers it as `refused` (`Delivery.execution` is a
+`Result`). A `Denied` query keeps its full authoritative trace so the
+subscription stays indexed and re-admits when the denying key is touched.
 
 A mutation's outcome is `Committed { seq }` or `Rejected { code, message }`
 (`RuntimeError::Require`, `::Rule`, `::Constraint`, `::Input`, and every
@@ -146,7 +152,8 @@ pub struct Generation {
     pub effects: BTreeMap<String, EffectDecl>,
 }
 impl Generation {
-    /// Certify every program; report EVERY refusal, never the first (rules/RULES.md).
+    /// Certify every program; report EVERY refusal, never the first (rules/RULES.md):
+    /// `Checker::check_all` returns every structural refusal of a program plus the first bound error.
     pub fn certify(project: &ProjectJson, ceilings: Ceilings) -> Result<Generation, Vec<(String, CheckError)>>;
 }
 pub struct Runtime { store: Store, generation: Generation, subs: Subscriptions }
@@ -199,7 +206,7 @@ Three rulings from the 2026-08-30 review (M3, M4, M8):
 ```rust
 pub type SubscriptionId = u64;
 pub struct Subscriptions { /* id → (op, context, last result digest, last seq); key indexes below */ }
-pub struct Delivery { pub id: SubscriptionId, pub seq: u64, pub execution: Execution, pub changed: bool }
+pub struct Delivery { pub id: SubscriptionId, pub seq: u64, pub execution: Result<Execution, RuntimeError>, pub changed: bool }
 impl Runtime {
     pub fn subscribe(&mut self, op: &str, context: Context) -> Result<(SubscriptionId, Execution), RuntimeError>;
     pub fn unsubscribe(&mut self, id: SubscriptionId);
