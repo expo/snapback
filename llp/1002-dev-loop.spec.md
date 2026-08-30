@@ -66,7 +66,7 @@ export const profiles = table({
            update: rule.viewerIs('id'), delete: rule.deny() },
 })
 export const memberships = table({
-  columns: { conversationId: t.ref('conversations'), userId: t.ref('profiles'), lastReadAt: t.time() },
+  columns: { conversationId: t.ref(conversations), userId: t.ref(profiles), lastReadAt: t.time() },   // refs name the exported table, not a string
   indexes: { byConvUser: { columns: ['conversationId', 'userId'], unique: true }, byUser: { columns: ['userId'] } },
   rules: { read: rule.exists(memberships, 'byConvUser', [rule.field('conversationId'), rule.viewer]),
            insert: rule.allow(), update: rule.viewerIs('userId'), delete: rule.viewerIs('userId') },
@@ -119,7 +119,9 @@ Protocol, JSON lines on stdin/stdout, one request in flight:
 `effects[] = { name, grants, source, then }` (LLP 1003). `Refusal` is §4's
 envelope. The one-shot form `node compiler.mjs --project <root>` prints the
 same response and exits 0/1, so `check` works without the binary and the
-compiler's own tests need no spawn. The compiler is bundled by esbuild into
+compiler's own tests need no spawn. The binary's IR-file form is
+`snapback2 check --ir <project.json>` (stdin when omitted) — `--project` on
+the binary always means the §6 verb over a project directory. The compiler is bundled by esbuild into
 `packages/snapback2/dist/compiler.mjs` and runs under Node ≥ 20 (no `Bun.*`).
 
 `api.d.ts` (written to `.snapback/build/api.d.ts`, never committed) augments
