@@ -225,27 +225,124 @@ test("count and reduce retain O(1) closure through page bindings", () => {
     `count/reduce closure estimates diverged: ${JSON.stringify(checked)}`);
 });
 
-test("loop collection reassignment is refused unless freshness is proven", () => {
-  const source = `import { query, range, t } from "snapback2";
-    function append(result, value) { return [...result, value]; }
-    export const growing = query({ value: t.text(1000) }, ({ args }) => {
-      let result = [];
-      for (const item of range(0, 7000)) result = [...result, args.value];
-      return result;
-    });
-    export const growingThroughArguments = query({ value: t.text(1000) }, ({ args }) => {
-      let result = [];
-      for (const item of range(0, 7000)) result = append(result, args.value);
-      return result;
-    });`;
-  const lowered = lowerSource(source, "collection-growth.ts");
-  assert(lowered.ok, `collection growth fixture did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((item) => item.message).join("; ")}`);
-  const checked = rustCheck(lowered.programs, "synthetic");
-  const refusals = checked.map((item) => item.error);
-  assert(refusals.every((refusal) => refusal?.code === "E_BOUND" && refusal.message.startsWith("output bytes 7133002 exceeds ceiling")),
-    `loop-invariant append was not refused at its 7.1 MB output bound: ${JSON.stringify(checked)}`);
-  assert(refusals.every((refusal) => refusal?.rewrite.includes("result.push(item)") && refusal.rewrite.includes("return page")),
-    `collection growth refusal did not paste the bounded rewrite: ${JSON.stringify(refusals)}`);
+test("loop collection refusals paste per-family rewrites that lower and certify", () => {
+  const tables = new Map<string, TableInfo>([["items", {
+    name: "items",
+    private: false,
+    columns: { id: { kind: "string" }, amount: { kind: "int" }, body: { kind: "string", max: 512 } },
+  }]]);
+  const schema = {
+    tables: { items: {
+      columns: { id: "Id", amount: "Int", body: { Text: { max: 512 } } },
+      indexes: { byId: { columns: ["id"], unique: true } },
+      rules: {
+        read: { Public: { reason: "growth rewrite fixture" } },
+        insert: { Public: { reason: "growth rewrite fixture" } },
+        update: { Public: { reason: "growth rewrite fixture" } },
+        delete: { Public: { reason: "growth rewrite fixture" } },
+      },
+      constraints: [],
+    } },
+    maintains: [], channels: {}, auth: { password: false, guests: false }, effects: [],
+  };
+  const cases = [
+    {
+      name: "loop-invariant-argument",
+      args: "{ value: t.text(1000) }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) result = [...result, args.value];
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+    {
+      name: "helper-argument",
+      args: "{ value: t.text(1000) }",
+      helpers: "function append(result, value) { return [...result, value]; }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) result = append(result, args.value);
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+    {
+      name: "temporary-alias",
+      args: "{}",
+      body: `let result = [];
+        for (const item of db.scan(items.byId, [], { take: 7000 })) {
+          const temporary = [...result, item];
+          result = temporary;
+        }
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [item]",
+    },
+    {
+      name: "page-binding-push",
+      args: "{}",
+      body: `const page = db.scan(items.byId, [], { take: 7000 });
+        let result = [];
+        for (const item of page) {
+          const projected = { id: item.id, body: item.body };
+          result.push(projected);
+        }
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [{ body: item.body, id: item.id }]",
+    },
+    {
+      name: "duplicate-prior",
+      args: "{}",
+      body: `let result = [];
+        for (const item of range(0, 20)) result = [...result, ...result, item];
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = [item]",
+    },
+    {
+      name: "object-chain",
+      args: "{}",
+      body: `let result = {};
+        for (const item of db.scan(items.byId, [], { take: 7000 })) result = { previous: result, item };
+        return result;`,
+      estimate: "output bytes ",
+      rewrite: "result = { item: item }",
+    },
+    {
+      name: "reset-rebuild",
+      args: "{ value: t.text(1000) }",
+      body: `let result = [];
+        for (const item of range(0, 7000)) {
+          const prior = result;
+          result = [];
+          result = [...prior, args.value];
+        }
+        return result;`,
+      estimate: "output bytes 7133002 exceeds ceiling",
+      rewrite: "result = [args.value]",
+    },
+  ];
+
+  for (const item of cases) {
+    const source = `import { query, range, t } from "snapback2";
+      ${item.helpers ?? ""}
+      export const refused = query(${item.args}, ({ db, args }) => { ${item.body} });`;
+    const lowered = lowerSource(source, `${item.name}.ts`, undefined, { tables });
+    assert(lowered.ok, `${item.name} did not lower: ${lowered.ok ? "" : lowered.diagnostics.map((diagnostic) => diagnostic.message).join("; ")}`);
+    const refusal = rustCheck(lowered.programs, "synthetic", schema)[0]?.error;
+    assert(refusal?.code === "E_BOUND" && refusal.message.startsWith(item.estimate),
+      `${item.name} was not refused at honest output magnitude: ${JSON.stringify(refusal)}`);
+    assert(refusal.rewrite.includes(item.rewrite),
+      `${item.name} rewrite did not use the refusing site's bindings: ${refusal.rewrite}`);
+
+    const fixedSource = `import { query, range, t } from "snapback2";
+      export const fixed = query(${item.args}, ({ db, args }) => { ${refusal.rewrite} });`;
+    const fixed = lowerSource(fixedSource, `fixed-${item.name}.ts`, undefined, { tables });
+    assert(fixed.ok, `${item.name} pasted rewrite did not lower: ${fixed.ok ? "" : fixed.diagnostics.map((diagnostic) => `${diagnostic.code}: ${diagnostic.message}`).join("; ")}\n${refusal.rewrite}`);
+    const certified = rustCheck(fixed.programs, "synthetic", schema);
+    assert(certified.every((result) => result.error === null),
+      `${item.name} pasted rewrite did not certify: ${JSON.stringify(certified)}\n${refusal.rewrite}`);
+  }
 });
 
 test("bound rewrite uses the refusing table's declared row width", () => {

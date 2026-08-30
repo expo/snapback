@@ -38,6 +38,10 @@ impl CollectionExpression {
             ..Self::default()
         }
     }
+
+    pub(crate) fn references(&self, identity: u64) -> bool {
+        self.origins.get(&identity).is_some_and(|count| *count > 0)
+    }
 }
 
 impl CollectionBinding {
@@ -83,7 +87,7 @@ pub(crate) fn assignment_growth(
     instances: u64,
     iteration: u64,
 ) -> Option<Growth> {
-    if !target.collection || calls <= instances {
+    if !target.collection {
         return None;
     }
     let occurrences = expression

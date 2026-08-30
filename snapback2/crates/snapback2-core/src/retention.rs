@@ -246,6 +246,9 @@ impl<'a> RetentionEstimator<'a> {
                 }
                 Stmt::Assign { name, value } => {
                     let (flow, collection_len, held_collection) = self.expression(value, variables);
+                    let instances = variables
+                        .get(name)
+                        .map_or(calls, |binding| binding.instances);
                     let provenance = collection_expression_from(
                         value,
                         variables,
@@ -309,7 +312,7 @@ impl<'a> RetentionEstimator<'a> {
                             name.clone(),
                             Binding {
                                 flow,
-                                instances: calls,
+                                instances,
                                 collection_len,
                                 held_collection,
                                 collection,

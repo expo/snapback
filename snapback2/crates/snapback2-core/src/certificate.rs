@@ -1,10 +1,12 @@
+pub use crate::bounds::{declared_serialized_row_max, max_certified_page_rows};
+use crate::collection_rewrite::{CollectionRewrite, OutputBound, OutputEstimate, OutputEstimator};
 use crate::growth::{
     CollectionBinding, assignment_growth, expression_from as collection_expression_from,
     saturating_power, take_identity,
 };
 use crate::ir::*;
 use crate::retention::{RetentionEstimator, argument_max, collection_bytes};
-use crate::schema::{ColumnType, MaintainKind, RuleExpr, RuleTerm, Schema};
+use crate::schema::{MaintainKind, RuleExpr, RuleTerm, Schema};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -175,8 +177,14 @@ impl<'a> Checker<'a> {
         let max_writes =
             summary.writes.iter().map(|site| site.max_rows).sum::<u64>() + maintained_amplification;
         let max_heap_bytes = summary.steps.saturating_mul(HEAP_BYTES_PER_STEP);
-        let max_output_bytes = OutputEstimator::estimate(self.schema, program);
+        let output = OutputEstimator::estimate(self.schema, program);
+        let max_output_bytes = output.bytes;
         let max_closure_bytes = RetentionEstimator::estimate(self.schema, program);
+        let collection_rewrite = output
+            .rewrite
+            .as_ref()
+            .map(CollectionRewrite::render)
+            .unwrap_or_else(|| "return null;".to_owned());
         let mut bound_errors = Vec::new();
         for (name, actual, ceiling) in [
             ("examined entries", summary.examined, self.ceilings.examined),
@@ -199,7 +207,9 @@ impl<'a> Checker<'a> {
                 self.ceilings.closure_bytes,
             ),
         ] {
-            if let Err(error) = self.check_ceiling(name, actual, ceiling, &summary) {
+            if let Err(error) =
+                self.check_ceiling(name, actual, ceiling, &summary, &collection_rewrite)
+            {
                 bound_errors.push(error);
             }
         }
@@ -614,6 +624,7 @@ impl<'a> Checker<'a> {
         actual: u64,
         ceiling: u64,
         summary: &Summary,
+        collection_rewrite: &str,
     ) -> Result<(), CheckError> {
         if actual <= ceiling {
             return Ok(());
@@ -625,7 +636,7 @@ impl<'a> Checker<'a> {
         };
         let product = summary.product.as_deref().unwrap_or("sequential sites");
         let rewrite = if matches!(name, "output bytes" | "closure bytes") {
-            "hoist a fresh collection and use bounded push: `const result = []; for (const item of page) result.push(item); return result;` — or return the bounded page directly: `return page;`".to_owned()
+            collection_rewrite.to_owned()
         } else {
             "replace the nested population scan with maintain.count/sum (or reduce a declared bound)".to_owned()
         };
@@ -699,25 +710,14 @@ impl Summary {
     }
 }
 
-struct OutputEstimator<'a> {
-    schema: &'a Schema,
-    max_result: u64,
-    next_identity: u64,
-}
-
-#[derive(Clone)]
-struct OutputBound {
-    bytes: u64,
-    instances: u64,
-    provenance: CollectionBinding,
-}
-
 impl<'a> OutputEstimator<'a> {
-    fn estimate(schema: &'a Schema, program: &Program) -> u64 {
+    fn estimate(schema: &'a Schema, program: &Program) -> OutputEstimate {
         let mut estimator = Self {
             schema,
             max_result: canonical_json(&Value::Null).len() as u64,
             next_identity: program.args.len() as u64 + 1,
+            args: program.args.keys().cloned().collect(),
+            rewrite: None,
         };
         let mut next_identity = 1_u64;
         let mut variables = program
@@ -738,12 +738,16 @@ impl<'a> OutputEstimator<'a> {
                                 ArgType::List { .. }
                             )),
                         ),
+                        value: Expr::Variable(name.clone()),
                     },
                 )
             })
             .collect();
-        estimator.statements(&program.body, &mut variables, 1, 0);
-        estimator.max_result
+        estimator.statements(&program.body, &mut variables, 1, 0, &mut Vec::new());
+        OutputEstimate {
+            bytes: estimator.max_result,
+            rewrite: estimator.rewrite,
+        }
     }
 
     fn statements(
@@ -752,6 +756,7 @@ impl<'a> OutputEstimator<'a> {
         variables: &mut BTreeMap<String, OutputBound>,
         calls: u64,
         iteration: u64,
+        loops: &mut Vec<(String, LoopDomain)>,
     ) {
         for statement in statements {
             match statement {
@@ -770,11 +775,13 @@ impl<'a> OutputEstimator<'a> {
                             bytes,
                             instances: calls,
                             provenance: CollectionBinding::new(identity, provenance),
+                            value: value.clone(),
                         },
                     );
                 }
                 Stmt::Assign { name, value } => {
                     let bytes = self.expression(value, variables);
+                    let instances = variables.get(name).map_or(calls, |bound| bound.instances);
                     let provenance = collection_expression_from(
                         value,
                         variables,
@@ -791,6 +798,15 @@ impl<'a> OutputEstimator<'a> {
                         )
                     });
                     if let Some(growth) = growth {
+                        if self.rewrite.is_none() {
+                            self.rewrite = Some(CollectionRewrite::for_assignment(
+                                self.args.clone(),
+                                loops,
+                                name,
+                                value,
+                                variables,
+                            ));
+                        }
                         let current = variables.get_mut(name).expect("growth target exists");
                         let mut added =
                             bytes.saturating_sub(current.bytes.saturating_mul(growth.occurrences));
@@ -812,6 +828,7 @@ impl<'a> OutputEstimator<'a> {
                                     .saturating_add(bytes.saturating_mul(growth.repetitions))
                             };
                         current.provenance = current.provenance.assigned(provenance);
+                        current.value = value.clone();
                     } else {
                         let identity = variables
                             .get(name)
@@ -825,13 +842,23 @@ impl<'a> OutputEstimator<'a> {
                             name.clone(),
                             OutputBound {
                                 bytes,
-                                instances: calls,
+                                instances,
                                 provenance: assigned,
+                                value: value.clone(),
                             },
                         );
                     }
                 }
                 Stmt::Push { target, value } => {
+                    if self.rewrite.is_none() && !loops.is_empty() {
+                        self.rewrite = Some(CollectionRewrite::for_push(
+                            self.args.clone(),
+                            loops,
+                            target,
+                            value,
+                            variables,
+                        ));
+                    }
                     let element = self.expression(value, variables).saturating_add(1);
                     let current = variables.entry(target.clone()).or_insert(OutputBound {
                         bytes: 2,
@@ -840,6 +867,7 @@ impl<'a> OutputEstimator<'a> {
                             take_identity(&mut self.next_identity),
                             crate::growth::CollectionExpression::iteration(true, iteration),
                         ),
+                        value: Expr::Array(Vec::new()),
                     });
                     let repetitions = calls
                         .saturating_add(current.instances.saturating_sub(1))
@@ -855,8 +883,8 @@ impl<'a> OutputEstimator<'a> {
                 } => {
                     let mut then_variables = variables.clone();
                     let mut else_variables = variables.clone();
-                    self.statements(then_body, &mut then_variables, calls, iteration);
-                    self.statements(else_body, &mut else_variables, calls, iteration);
+                    self.statements(then_body, &mut then_variables, calls, iteration, loops);
+                    self.statements(else_body, &mut else_variables, calls, iteration, loops);
                     Self::merge_variables(variables, then_variables);
                     Self::merge_variables(variables, else_variables);
                 }
@@ -881,9 +909,12 @@ impl<'a> OutputEstimator<'a> {
                                     nested_iteration,
                                 ),
                             ),
+                            value: Expr::Variable(binding.clone()),
                         },
                     );
-                    self.statements(body, &mut nested, nested_calls, nested_iteration);
+                    loops.push((binding.clone(), domain.clone()));
+                    self.statements(body, &mut nested, nested_calls, nested_iteration, loops);
+                    loops.pop();
                     nested.remove(binding);
                     Self::merge_variables(variables, nested);
                 }
@@ -1016,48 +1047,6 @@ impl<'a> OutputEstimator<'a> {
 
     fn row(&self, table: &str) -> u64 {
         declared_serialized_row_max(self.schema, table)
-    }
-}
-
-/// Conservative serialized maximum for one row; 1 KiB applies only without a table declaration.
-pub fn declared_serialized_row_max(schema: &Schema, table: &str) -> u64 {
-    schema.table(table).map_or(1024, |table| {
-        table.columns.iter().fold(10_u64, |size, (name, column)| {
-            size.saturating_add(name.len() as u64)
-                .saturating_add(4)
-                .saturating_add(declared_column_max(column))
-        })
-    })
-}
-
-/// Largest page that can be returned under the default certificate byte ceilings.
-pub fn max_certified_page_rows(schema: &Schema, table: &str, ceilings: &Ceilings) -> u32 {
-    let row = declared_serialized_row_max(schema, table);
-    let output_rows = ceilings.output_bytes.saturating_sub(2) / row.saturating_add(1);
-    let closure_rows = ceilings.closure_bytes / row.max(1);
-    output_rows.min(closure_rows).min(u64::from(u32::MAX)) as u32
-}
-
-fn declared_column_max(column: &ColumnType) -> u64 {
-    match column {
-        ColumnType::Id | ColumnType::Ref { .. } => 144,
-        ColumnType::Text { max } | ColumnType::Json { max_bytes: max } => {
-            u64::from(*max).saturating_add(16)
-        }
-        ColumnType::Int
-        | ColumnType::Time
-        | ColumnType::Decimal { .. }
-        | ColumnType::Money { .. } => 32,
-        ColumnType::Bool => 16,
-        ColumnType::Optional(inner) => declared_column_max(inner).max(8),
-        ColumnType::List { of, max } => {
-            OutputEstimator::repeated(declared_column_max(of), u64::from(*max))
-        }
-        ColumnType::Enum { variants } => variants
-            .iter()
-            .map(|variant| variant.len() as u64 + 16)
-            .max()
-            .unwrap_or(16),
     }
 }
 

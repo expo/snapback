@@ -542,40 +542,94 @@ fn collection_growth_defaults_to_growth_until_freshness_is_proven() {
         ],
     );
 
+    // Closing-review spelling: resetting the target does not erase the prior
+    // value captured before the reset, so the rebuild still grows once per
+    // iteration at the honest recurrence magnitude.
+    let reset_rebuild = program_with_args(
+        "items.resetRebuild",
+        BTreeMap::from([("value".to_owned(), ArgType::Text { max: 1_000 })]),
+        vec![
+            empty_array(),
+            literal_loop(vec![
+                Stmt::Let {
+                    name: "prior".to_owned(),
+                    value: Expr::Variable("result".to_owned()),
+                },
+                Stmt::Assign {
+                    name: "result".to_owned(),
+                    value: Expr::Array(Vec::new()),
+                },
+                spread_append("result", Expr::Variable("value".to_owned())),
+            ]),
+            returned(),
+        ],
+    );
+
     let cases = [
         (
             "loop-invariant argument",
             argument_append,
             7_133_002,
             7_112_000,
+            "result = [args.value]",
         ),
-        ("temporary alias", temporary_append, 5_593_002, 5_572_796),
+        (
+            "temporary alias",
+            temporary_append,
+            5_593_002,
+            5_572_796,
+            "result = [item]",
+        ),
         (
             "duplicate prior value",
             duplicate_prior,
             38_797_312,
             33_554_432,
+            "result = [item]",
         ),
-        ("object chain", object_chain, 5_726_002, 5_572_000),
+        (
+            "object chain",
+            object_chain,
+            5_726_002,
+            5_572_000,
+            "result = { item: item }",
+        ),
+        (
+            "reset then rebuild",
+            reset_rebuild,
+            7_133_002,
+            7_112_000,
+            "result = [args.value]",
+        ),
     ];
-    for (shape, program, output, closure) in cases {
+    for (shape, program, output, closure, rewrite_line) in cases {
         let certificate = permissive_checker(&schema).check(&program).unwrap();
         assert_eq!(certificate.max_output_bytes, output, "{shape} output");
         assert_eq!(certificate.max_closure_bytes, closure, "{shape} closure");
         let errors = Checker::new(&schema, Ceilings::default())
             .check_all(&program)
             .unwrap_err();
+        let mut rewrites = Vec::new();
         for product in ["output bytes", "closure bytes"] {
             let refusal = errors
                 .iter()
                 .find(|error| error.message.starts_with(product))
                 .unwrap_or_else(|| panic!("{shape} did not refuse {product}: {errors:?}"));
             assert!(
-                refusal.rewrite.contains("result.push(item)")
-                    && refusal.rewrite.contains("return page"),
-                "{shape} {product} refusal did not paste the collection rewrite: {refusal:?}"
+                refusal.rewrite.contains("let result = []")
+                    || refusal.rewrite.contains("let result = {}"),
+                "{shape} {product} refusal did not initialize its actual target: {refusal:?}"
             );
+            assert!(
+                refusal.rewrite.contains(rewrite_line),
+                "{shape} {product} refusal did not use its actual fresh value: {refusal:?}"
+            );
+            rewrites.push(refusal.rewrite.clone());
         }
+        assert_eq!(
+            rewrites[0], rewrites[1],
+            "{shape} refusal rewrites diverged"
+        );
     }
 }
 
