@@ -1,14 +1,18 @@
 // Snapback 2 effect compartment. Rust inserts the vendored Ibex 2 factory
 // expression at the marker below. The IIFE returns exactly one host entry;
 // Rust captures it once and removes the temporary global before hardening.
+// Effect source is evaluated later, by a separate top-level host eval, so it
+// cannot resolve any of this prelude's privileged lexical state.
 // @ref LLP 1003#3-the-runtime-snapback2-effects — host commands and timer delivery stay behind closure capabilities.
 (function () {
   "use strict";
 
   const hostToken = __SNAPBACK_HOST_TOKEN__;
+  const effectName = __SNAPBACK_EFFECT_NAME__;
   const saved = globalThis.__sb_saved;
   const allowedGlobals = __SNAPBACK_ALLOWED_GLOBALS__;
   const fireTimer = globalThis.__ibex2_fire_timer;
+  const scheduleTimer = globalThis.setTimeout;
   globalThis.__ibex2_response_field = saved.field;
   globalThis.__ibex2_text_decode = saved.decode;
   globalThis.__ibex2_text_encode = saved.encode;
@@ -24,29 +28,6 @@
   delete globalThis.__ibex2_dynamic_import;
   delete globalThis.__ibex2_export_all;
 
-  function makeJobFetch() {
-    // The capability-bearing function handed to application code is a fresh
-    // wrapper each job. Project code can neither contaminate another job's
-    // function object nor mutate this one.
-    const boundFetch = grantedFetch.bind(undefined);
-    const jobFetch = function fetch(input, init) {
-      return boundFetch.apply(undefined, arguments).catch(function (error) {
-        const message = error && error.message ? String(error.message) : String(error);
-        if (message.indexOf("denied: net.fetch") !== -1) {
-          let origin = String(input);
-          try { origin = new URL(String(input)).origin; } catch (_) {}
-          const tagged = new Error("denied: net.fetch " + origin + "; declare " + origin);
-          tagged.code = "E_EFFECT_GRANT";
-          tagged.origin = origin;
-          throw tagged;
-        }
-        throw error;
-      });
-    };
-    Object.freeze(boundFetch);
-    return Object.freeze(jobFetch);
-  }
-
   const state = {
     status: "idle",
     token: null,
@@ -55,16 +36,101 @@
     errorCode: null,
     contaminated: false,
     sourceEvaluations: 0,
+    pendingFetches: 0,
   };
   let permanentGlobals = [];
-  const timerToken = Object.freeze({});
-  let timerPermit = null;
+  let timerPermit = 0;
   let installedEntry = null;
+  let compiledEffect = null;
+  let jobFetchBinding;
+  let jobMetaBinding;
+  const timerDeadlines = Object.create(null);
 
-  // Ibex 2's C++ pump must resolve this function by its global name. Keep the
-  // name, but require a closure-held permit armed by the Rust host. Consuming
-  // the permit while the real callback runs prevents job code inside a timer
-  // callback from recursively firing another handle.
+  // The compiler's one-parameter form resolves only these two job-scoped
+  // accessors from the hardened global. Their capability values are never
+  // installed as mutable global properties and are cleared at settlement.
+  Object.defineProperty(globalThis, "fetch", {
+    get: Object.freeze(function () { return jobFetchBinding; }),
+    enumerable: false,
+    configurable: false,
+  });
+  Object.defineProperty(globalThis, "meta", {
+    get: Object.freeze(function () { return jobMetaBinding; }),
+    enumerable: false,
+    configurable: false,
+  });
+
+  function timerKey(handle) {
+    return String(handle);
+  }
+
+  // The timer wrapper records only scheduling state, never authority. Handles
+  // remain inside the prelude closure so the host can distinguish quiescence
+  // from a settled job that left work behind.
+  const trackedSetTimeout = Object.freeze(function setTimeout(callback, delay) {
+    const handle = scheduleTimer.apply(undefined, arguments);
+    let millis = 0;
+    try {
+      const number = Number(delay);
+      if (isFinite(number) && number > 0) millis = number;
+    } catch (_) {}
+    timerDeadlines[timerKey(handle)] = Date.now() + millis;
+    return handle;
+  });
+  Object.freeze(scheduleTimer);
+  Object.defineProperty(globalThis, "setTimeout", {
+    value: trackedSetTimeout,
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
+
+  function tagGrantError(error, input) {
+    const message = error && error.message ? String(error.message) : String(error);
+    if (message.indexOf("denied: net.fetch") === -1) return error;
+    let origin = error && error.__snapbackDeniedOrigin
+      ? String(error.__snapbackDeniedOrigin)
+      : String(input);
+    try { origin = new URL(origin).origin; } catch (_) {}
+    const tagged = new Error("denied: net.fetch " + origin + "; declare " + origin);
+    tagged.code = "E_EFFECT_GRANT";
+    tagged.origin = origin;
+    return tagged;
+  }
+
+  function makeJobFetch() {
+    // The capability-bearing function handed to application code is a fresh
+    // wrapper each job. Project code can neither contaminate another job's
+    // function object nor mutate this one.
+    const boundFetch = grantedFetch.bind(undefined);
+    const jobFetch = function fetch(input, init) {
+      state.pendingFetches++;
+      let pending;
+      try {
+        pending = boundFetch.apply(undefined, arguments);
+      } catch (error) {
+        state.pendingFetches--;
+        return Promise.reject(tagGrantError(error, input));
+      }
+      return pending.then(
+        function (value) {
+          state.pendingFetches--;
+          return value;
+        },
+        function (error) {
+          state.pendingFetches--;
+          throw tagGrantError(error, input);
+        }
+      );
+    };
+    Object.freeze(boundFetch);
+    return Object.freeze(jobFetch);
+  }
+
+  // Ibex 2's C++ pump must resolve this function by its global name. The host
+  // arms one permit immediately before each pump call; the first timer entry
+  // consumes it. Application microtasks in the same pump therefore cannot use
+  // a captured alias to deliver a second handle.
   const guardedFireTimer = Object.freeze(function __ibex2_fire_timer(handle) {
     if (handle === hostToken) {
       const command = arguments[1];
@@ -87,15 +153,16 @@
         Array.prototype.slice.call(arguments, 1)
       );
     }
-    if (timerPermit !== timerToken) {
+    if (timerPermit !== 1) {
       throw new Error("effect jobs cannot fire Ibex timers");
     }
-    timerPermit = null;
-    try {
-      return fireTimer(handle);
-    } finally {
-      timerPermit = timerToken;
+    timerPermit = 0;
+    const key = timerKey(handle);
+    if (timerDeadlines[key] === undefined || timerDeadlines[key] > Date.now()) {
+      throw new Error("effect jobs cannot fire Ibex timers");
     }
+    delete timerDeadlines[key];
+    return fireTimer(handle);
   });
   Object.freeze(fireTimer);
   Object.defineProperty(globalThis, "__ibex2_fire_timer", {
@@ -105,25 +172,17 @@
     configurable: false,
   });
 
-  // These lexical bindings let a compiled one-parameter effect use `fetch`
-  // and `meta` without putting either capability on globalThis. Their values
-  // are replaced with fresh frozen job objects for every invocation.
-  let fetch;
-  let meta;
-  state.sourceEvaluations++;
-  const compiledEffect = (__SNAPBACK_EFFECT_SOURCE__);
-  if (typeof compiledEffect !== "function") {
-    throw new TypeError("effect source did not evaluate to a function");
+  function installEffect(candidate) {
+    if (compiledEffect !== null) {
+      throw new Error("E_EFFECT_HOST_CHANNEL: effect already installed");
+    }
+    if (typeof candidate !== "function") {
+      throw new TypeError("effect source did not evaluate to a function");
+    }
+    Object.freeze(candidate);
+    compiledEffect = candidate;
+    state.sourceEvaluations++;
   }
-  Object.freeze(compiledEffect);
-  const effects = {};
-  Object.defineProperty(effects, __SNAPBACK_EFFECT_NAME__, {
-    value: compiledEffect,
-    writable: false,
-    enumerable: true,
-    configurable: false,
-  });
-  Object.freeze(effects);
 
   function cleanJobGlobals() {
     const names = Object.getOwnPropertyNames(globalThis);
@@ -142,64 +201,107 @@
     return String(error);
   }
 
-  function resultError() {
-    const error = new TypeError("E_EFFECT_RESULT");
+  function resultError(message) {
+    const error = new TypeError(message || "E_EFFECT_RESULT");
     error.code = "E_EFFECT_RESULT";
     return error;
   }
 
+  function isJsonResult(value, stack) {
+    const kind = typeof value;
+    if (kind === "undefined" || kind === "function" || kind === "symbol" || kind === "bigint") {
+      return false;
+    }
+    if (kind === "number" && !isFinite(value)) return false;
+    if (value === null || kind !== "object") return true;
+    if (stack.has(value)) return false;
+    stack.add(value);
+    const names = Object.keys(value);
+    for (let i = 0; i < names.length; i++) {
+      if (!isJsonResult(value[names[i]], stack)) {
+        stack.delete(value);
+        return false;
+      }
+    }
+    stack.delete(value);
+    return true;
+  }
+
   function run(jobToken, payloadJson, metaJson) {
     if (state.status === "running") throw new Error("effect job already running");
+    if (compiledEffect === null) throw new Error("effect source is not installed");
     state.status = "running";
     state.token = String(jobToken);
     state.result = null;
     state.error = null;
     state.errorCode = null;
     state.contaminated = false;
+    state.pendingFetches = 0;
     const payload = JSON.parse(payloadJson);
     const jobMeta = Object.freeze(JSON.parse(metaJson));
+    if (jobMeta.effect !== effectName) throw new Error("effect source is not installed");
     const jobFetch = makeJobFetch();
     const tools = Object.freeze({ fetch: jobFetch, meta: jobMeta });
-    const effect = effects[jobMeta.effect];
-    if (typeof effect !== "function") throw new Error("effect source is not installed");
-    fetch = jobFetch;
-    meta = jobMeta;
+    jobFetchBinding = jobFetch;
+    jobMetaBinding = jobMeta;
     let effectResult;
     try {
       // Invoke synchronously while the timer permit is disarmed. The returned
-      // promise is what the host pumps after it arms real timer delivery.
-      effectResult = effect(payload, tools);
+      // promise is what the host drives with one separately armed pump at a time.
+      effectResult = compiledEffect(payload, tools);
     } catch (error) {
       effectResult = Promise.reject(error);
     }
     return Promise.resolve(effectResult)
       .then(function (value) {
-        let encoded;
         if (value === undefined) {
-          encoded = "null";
-        } else {
-          try {
-            encoded = JSON.stringify(value);
-          } catch (error) {
-            throw resultError(error);
-          }
-          if (encoded === undefined) throw resultError();
+          throw resultError("E_EFFECT_RESULT: effect returned undefined; return null explicitly");
         }
+        let encoded;
+        try {
+          if (!isJsonResult(value, new Set())) throw resultError();
+          encoded = JSON.stringify(value);
+        } catch (error) {
+          if (error && error.code === "E_EFFECT_RESULT") throw error;
+          throw resultError();
+        }
+        if (encoded === undefined) throw resultError();
         state.result = encoded;
         state.status = "sent";
         cleanJobGlobals();
-        fetch = undefined;
-        meta = undefined;
+        jobFetchBinding = undefined;
+        jobMetaBinding = undefined;
         return value;
       })
       .catch(function (error) {
-        state.error = errorText(error);
-        state.errorCode = error && error.code ? String(error.code) : null;
+        const referenceFailure = error && error.name === "ReferenceError";
+        state.errorCode = error && error.code
+          ? String(error.code)
+          : (referenceFailure ? "E_EFFECT_RESULT" : null);
+        if (state.errorCode === "E_EFFECT_RESULT") {
+          state.error = referenceFailure
+            ? "E_EFFECT_RESULT: " + errorText(error)
+            : String(error && error.message ? error.message : "E_EFFECT_RESULT");
+        } else {
+          state.error = errorText(error);
+        }
         state.status = "failed";
         cleanJobGlobals();
-        fetch = undefined;
-        meta = undefined;
+        jobFetchBinding = undefined;
+        jobMetaBinding = undefined;
       });
+  }
+
+  function timerSnapshot() {
+    const names = Object.keys(timerDeadlines);
+    if (names.length === 0) return { count: 0, next: null };
+    const now = Date.now();
+    let next = null;
+    for (let i = 0; i < names.length; i++) {
+      const remaining = Math.max(0, timerDeadlines[names[i]] - now);
+      if (next === null || remaining < next) next = remaining;
+    }
+    return { count: names.length, next };
   }
 
   function read(jobToken) {
@@ -208,6 +310,7 @@
       error.code = "E_EFFECT_RESULT";
       throw error;
     }
+    const timers = timerSnapshot();
     return {
       token: state.token,
       status: state.status,
@@ -216,16 +319,19 @@
       errorCode: state.errorCode,
       contaminated: state.contaminated,
       sourceEvaluations: state.sourceEvaluations,
-      effectFrozen: Object.isFrozen(effects) && Object.isFrozen(compiledEffect),
+      effectFrozen: compiledEffect !== null && Object.isFrozen(compiledEffect),
+      pendingFetches: state.pendingFetches,
+      pendingTimers: timers.count,
+      nextTimerDelay: timers.next,
     };
   }
 
   function armTimers() {
-    timerPermit = timerToken;
+    timerPermit = 1;
   }
 
   function disarmTimers() {
-    timerPermit = null;
+    timerPermit = 0;
   }
 
   const installedGlobals = Object.getOwnPropertyNames(globalThis);
@@ -235,6 +341,7 @@
     }
   }
   permanentGlobals = Object.getOwnPropertyNames(globalThis);
+  Object.freeze(installEffect);
   Object.freeze(run);
   Object.freeze(read);
   Object.freeze(armTimers);
@@ -242,6 +349,7 @@
   const hostEntry = Object.freeze(function hostEntry(command) {
     const args = Array.prototype.slice.call(arguments, 1);
     switch (command) {
+      case "installEffect": return installEffect.apply(undefined, args);
       case "run": return run.apply(undefined, args);
       case "read": return read.apply(undefined, args);
       case "armTimers": return armTimers();
